@@ -1,28 +1,38 @@
-# Iniciar sesión con Google y Apple (Supabase)
+# Iniciar sesión con Google (Supabase)
 
-La app ya tiene los botones "Continuar con Google" y "Continuar con Apple". Para que funcionen, debes configurar los proveedores en Supabase y añadir la URL de tu sitio en las URLs de redirección.
+La app usa **solo Google** para OAuth. Para que "Continuar con Google" funcione, hay que conectar el proveedor en Supabase.
 
-## 1. Supabase Dashboard
+## 0. ¿Qué tipo de credencial crear?
+
+En Google Cloud, al pulsar **Create Credentials** (Crear credenciales) te salen varias opciones:
+
+- **Clave de API** → No. No es para login de usuarios.
+- **ID de cliente de OAuth** → **Sí.** Elige esta.
+- **Cuenta de servicio** → No. Es para servidor a servidor.
+- **Ayúdame a elegir** → Puedes usarla; al final te llevará a crear un **OAuth client ID**.
+
+Elige **ID de cliente de OAuth** (en inglés: *OAuth client ID*).
+
+## 1. Google Cloud Console
+
+1. Entra en [Google Cloud Console](https://console.cloud.google.com).
+2. Crea un proyecto (o elige uno existente).
+3. **APIs & Services** → **Credentials** → **Create Credentials** → **ID de cliente de OAuth** (OAuth 2.0 Client ID).
+4. Si te pide configurar la pantalla de consentimiento, crea una **OAuth consent screen** (tipo "External" está bien para pruebas).
+5. Tipo de cliente: **Web application**.
+6. En **Authorized redirect URIs** añade la URL de callback de Supabase. La encuentras en Supabase en el paso siguiente; tiene la forma:
+   - `https://<TU-PROYECTO>.supabase.co/auth/v1/callback`
+7. Copia el **Client ID** y el **Client Secret**.
+
+## 2. Supabase Dashboard
 
 1. Entra en [app.supabase.com](https://app.supabase.com) → tu proyecto.
 2. **Authentication** → **Providers**.
-3. Activa **Google** y **Apple** y rellena lo que pida cada uno.
+3. Activa **Google**.
+4. Pega el **Client ID** y **Client Secret** de Google.
+5. Guarda.
 
-### Google
-
-- Necesitas crear un proyecto en [Google Cloud Console](https://console.cloud.google.com).
-- En **APIs & Services** → **Credentials** crea unas **OAuth 2.0 Client ID** (tipo "Web application").
-- Añade en **Authorized redirect URIs** la URL que te indique Supabase (algo como `https://xxxx.supabase.co/auth/v1/callback`).
-- Copia **Client ID** y **Client Secret** en Supabase (Provider Google).
-
-### Apple
-
-- Necesitas cuenta de [Apple Developer](https://developer.apple.com).
-- En **Certificates, Identifiers & Profiles** → **Identifiers** crea un **Services ID** y configura **Sign In with Apple**.
-- Crea una **Key** para Sign in with Apple y configura el **Client ID**, **Team ID**, **Key ID** y el archivo **.p8** en Supabase (Provider Apple).
-- La **Redirect URL** que uses en Apple debe ser la misma que la de Supabase (`https://xxxx.supabase.co/auth/v1/callback`).
-
-## 2. URLs de redirección en Supabase
+## 3. URLs de redirección (Supabase)
 
 En **Authentication** → **URL Configuration**:
 
@@ -30,11 +40,15 @@ En **Authentication** → **URL Configuration**:
 - **Redirect URLs**: añade:
   - `https://aventa-new.vercel.app/**`
   - `https://tudominio.com/**`
-  - `http://localhost:3000/**` (para desarrollo)
+  - `http://localhost:3000/**` (desarrollo)
 
-Sin esto, Supabase puede rechazar el redirect después del login y dar error.
+Sin estas URLs, Supabase puede rechazar el redirect después del login.
 
-## 3. Comportamiento en la app
+## 4. Comportamiento en la app
 
-- Al hacer clic en "Continuar con Google" o "Continuar con Apple", la app redirige a Supabase y luego al proveedor; al terminar, el usuario vuelve a tu **Site URL** ya autenticado.
-- Si el usuario es nuevo, Supabase crea la sesión y, con los triggers que tengas, se puede crear el perfil en `profiles` (por ejemplo con el `id` del usuario y el `email` o `display_name` que devuelva el proveedor).
+- Al hacer clic en "Continuar con Google", la app redirige a Google y luego a Supabase; al terminar, el usuario vuelve a tu **Site URL** ya autenticado.
+- Si el usuario es nuevo, Supabase crea la sesión; con los triggers que tengas en la base de datos, se puede crear el perfil en `profiles` (por ejemplo con el `id` del usuario y el `email` o `display_name` que devuelva Google).
+
+## Resumen
+
+Solo hay que **activar Google en Supabase** y rellenar Client ID y Client Secret que obtienes de Google Cloud Console, más configurar Site URL y Redirect URLs. No hace falta tocar código si las variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) ya están en Vercel.

@@ -25,7 +25,8 @@ const GUIDE_STEPS = [
   },
 ];
 
-const t = { duration: 0.28, ease: [0.22, 0.61, 0.36, 1] as const };
+const t = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const };
+const waveEase = [0.33, 0.2, 0.2, 1] as const;
 
 function WaveText({ text, className = '' }: { text: string; className?: string }) {
   const words = text.split(' ');
@@ -34,9 +35,9 @@ function WaveText({ text, className = '' }: { text: string; className?: string }
       {words.map((word, i) => (
         <motion.span
           key={i}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 * i, duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
+          transition={{ delay: 0.12 * i, duration: 0.48, ease: waveEase }}
           className="inline-block"
         >
           {word}
@@ -59,7 +60,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.05, ...t }}
+        transition={{ delay: 0.1, ...t }}
         className="mb-6 md:mb-8"
       >
         <span className="text-sm font-semibold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400">
@@ -68,9 +69,9 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       </motion.div>
 
       <motion.h1
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12, ...t }}
+        transition={{ delay: 0.2, ...t }}
         className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6"
       >
         <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
@@ -81,7 +82,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.35, ...t }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
         <WaveText text="Bienvenido a la mejor comunidad cazadora de ofertas" />
@@ -90,7 +91,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       <motion.button
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, ...t }}
+        transition={{ delay: 0.65, ...t }}
         onClick={onNext}
         className="rounded-2xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-10 py-4 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
       >
@@ -565,6 +566,96 @@ const RegisterModal = ({
   );
 };
 
+export function GuideModalStandalone() {
+  const { showGuideModal, closeGuideModal } = useUI();
+  const [stepIndex, setStepIndex] = useState(0);
+  const step = GUIDE_STEPS[stepIndex];
+  const Icon = step.icon;
+  const isLast = stepIndex === GUIDE_STEPS.length - 1;
+
+  useEffect(() => {
+    if (!showGuideModal) return;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.overscrollBehavior = '';
+    };
+  }, [showGuideModal]);
+
+  if (!showGuideModal) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50"
+      onClick={closeGuideModal}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Guía rápida"
+    >
+      <div
+        className="relative w-full max-w-sm rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={closeGuideModal}
+          className="absolute top-4 right-4 rounded-full bg-[#f5f5f7] dark:bg-[#262626] p-2 text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#e5e5e7] dark:hover:bg-[#404040]"
+          aria-label="Cerrar"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <h2 className="text-xl font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-4 text-center">
+          Cómo funciona
+        </h2>
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 mb-4">
+            <Icon className="h-7 w-7 text-white" />
+          </div>
+          <h3 className="text-lg font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-2">{step.title}</h3>
+          <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] leading-relaxed">{step.description}</p>
+        </div>
+        <div className="flex gap-2 mb-4">
+          {GUIDE_STEPS.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === stepIndex ? 'w-6 bg-violet-500' : i < stepIndex ? 'w-1.5 bg-violet-400/60' : 'w-1.5 bg-[#d2d2d7] dark:bg-[#404040]'
+              }`}
+            />
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+            disabled={stepIndex === 0}
+            className="flex-1 rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-transparent px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#fafafa] disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          {isLast ? (
+            <button
+              type="button"
+              onClick={closeGuideModal}
+              className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 font-semibold text-white"
+            >
+              Entendido
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setStepIndex((i) => i + 1)}
+              className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 font-semibold text-white"
+            >
+              Siguiente
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OnboardingV1() {
   const {
     showGuide,
@@ -676,16 +767,16 @@ export default function OnboardingV1() {
     );
   }
 
-  const overlayVisible = (openAnimated || showGuide) && !closing;
+  const overlayVisible = showGuide && !closing;
   return (
     <motion.div
       initial={false}
       animate={{ opacity: overlayVisible ? 1 : 0 }}
-      transition={{ duration: 0.15 }}
-      className="fixed inset-0 z-[9999] flex min-h-[100dvh] min-h-[100svh] h-full w-full items-center justify-center overflow-hidden overscroll-none bg-gradient-to-b from-[#F5F5F7] to-[#fafafa] dark:from-[#0a0a0a] dark:to-[#0d0d0f] p-0 sm:p-4"
-      style={{ overscrollBehavior: 'none' }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none bg-gradient-to-b from-[#F5F5F7] to-[#fafafa] dark:from-[#0a0a0a] dark:to-[#0d0d0f] w-full min-h-[100dvh] min-h-[100svh] h-[100dvh] h-[100svh] p-0 sm:p-4"
+      style={{ overscrollBehavior: 'none', height: '100dvh', minHeight: '100dvh' }}
     >
-      <div className="relative flex h-full w-full sm:h-auto sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-3xl flex-col bg-white dark:bg-[#0a0a0a] sm:dark:bg-[#141414] shadow-2xl overflow-hidden sm:border sm:border-[#e5e5e7] dark:sm:border-[#262626]">
+      <div className="relative flex w-full h-full sm:h-auto sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-3xl flex-col bg-white dark:bg-[#0a0a0a] sm:dark:bg-[#141414] shadow-2xl overflow-hidden sm:border sm:border-[#e5e5e7] dark:sm:border-[#262626] min-h-0">
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 z-10 rounded-full bg-[#f5f5f7] dark:bg-[#262626] p-2 text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#e5e5e7] dark:hover:bg-[#404040] transition-colors"

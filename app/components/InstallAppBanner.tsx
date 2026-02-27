@@ -5,6 +5,14 @@ import { X, Smartphone } from 'lucide-react';
 
 const STORAGE_KEY = 'aventa_install_banner_dismissed';
 
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
+  if ('ontouchstart' in window) return window.innerWidth < 1024;
+  return false;
+}
+
 export default function InstallAppBanner() {
   const [visible, setVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
@@ -12,6 +20,7 @@ export default function InstallAppBanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!isMobileDevice()) return;
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as { standalone?: boolean }).standalone === true;
     if (standalone) return;
@@ -20,13 +29,13 @@ export default function InstallAppBanner() {
 
     const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: boolean }).MSStream;
     setIsIOS(isApple);
-    setVisible(true);
-
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as unknown as { prompt: () => Promise<void> });
+      setVisible(true);
     };
     window.addEventListener('beforeinstallprompt', handler);
+    if (isApple) setVisible(true);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 

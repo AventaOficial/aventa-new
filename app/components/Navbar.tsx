@@ -14,7 +14,7 @@ type NotifTab = 'ofertas' | 'comunidades' | 'avisos';
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
-  const { openRegisterModal, openGuide } = useUI();
+  const { openRegisterModal, openGuideModal } = useUI();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [signOutStatus, setSignOutStatus] = useState<'idle' | 'closing' | 'closed'>('idle');
@@ -67,7 +67,7 @@ export default function Navbar() {
   const UserMenuContent = () => (
     <>
       <button
-        onClick={() => { openGuide(); setShowUserMenu(false); }}
+        onClick={() => { openGuideModal(); setShowUserMenu(false); }}
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
       >
         <HelpCircle className="h-4 w-4 text-violet-600 dark:text-violet-400" />

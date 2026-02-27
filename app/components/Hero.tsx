@@ -20,7 +20,7 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
       <div className="md:hidden flex flex-col">
-        <div className="flex items-start pl-5 pr-32 max-[380px]:pr-28 pt-5 max-[400px]:pt-3 min-w-0">
+        <div className="flex items-start pl-5 pr-40 max-[420px]:pr-36 max-[400px]:pr-32 max-[380px]:pr-28 max-[360px]:pr-24 pt-5 max-[400px]:pt-3 min-w-0">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl max-[400px]:text-xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">

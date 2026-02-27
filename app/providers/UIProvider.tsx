@@ -7,8 +7,12 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
 type UIContextType = {
   layoutReady: boolean
+  hasDecided: boolean
   showOnboarding: boolean
   showGuide: boolean
+  showGuideModal: boolean
+  openGuideModal: () => void
+  closeGuideModal: () => void
   showPendingMessage: boolean
   dismissPendingMessage: () => void
   markJustSignedUp: () => void
@@ -35,8 +39,10 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { session, isPending, isVerified, isLoading, user } = useAuth()
   const [layoutReady, setLayoutReady] = useState(false)
+  const [hasDecided, setHasDecided] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
+  const [showGuideModal, setShowGuideModal] = useState(false)
   const [showPendingMessage, setShowPendingMessage] = useState(false)
   const [suppressOnboardingOnce, setSuppressOnboardingOnce] = useState(false)
   const [showRegisterModal, setShowRegisterModal] = useState(false)
@@ -48,7 +54,10 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const hasAutoOpenedGuide = useRef(false)
 
   useEffect(() => {
-    if (pathname !== '/') setLayoutReady(true)
+    if (pathname !== '/') {
+      setLayoutReady(true)
+      setHasDecided(true)
+    }
   }, [pathname])
 
   useEffect(() => {
@@ -59,17 +68,25 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     if (isLoading) return
     if (session) {
       setLayoutReady(true)
+      setHasDecided(true)
       return
     }
     const guestDismissed = localStorage.getItem('guestOnboardingDismissed')
     if (guestDismissed) {
       setLayoutReady(true)
+      setHasDecided(true)
       return
     }
     hasAutoOpenedGuide.current = true
     setShowGuide(true)
     setShowOnboarding(true)
+    setHasDecided(true)
   }, [pathname, session, isLoading, showRegisterModal, showPendingMessage])
+
+  useEffect(() => {
+    if (pathname !== '/' || isLoading) return
+    if (session) setHasDecided(true)
+  }, [pathname, session, isLoading])
 
   useEffect(() => {
     if (session && (showOnboarding || showGuide)) {
@@ -134,6 +151,13 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     setShowOnboarding(true)
   }
 
+  const openGuideModal = useCallback(() => {
+    setShowGuideModal(true)
+  }, [])
+  const closeGuideModal = useCallback(() => {
+    setShowGuideModal(false)
+  }, [])
+
   const clearOverlayState = useCallback(() => {
     setShowGuide(false)
     setShowOnboarding(false)
@@ -176,8 +200,12 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     <UIContext.Provider
       value={{
         layoutReady,
+        hasDecided,
         showOnboarding,
         showGuide,
+        showGuideModal,
+        openGuideModal,
+        closeGuideModal,
         showPendingMessage,
         dismissPendingMessage,
         markJustSignedUp,

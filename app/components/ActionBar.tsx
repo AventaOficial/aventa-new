@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Home, Users2, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +37,13 @@ const COOLDOWN_SECONDS = 60;
 export default function ActionBar() {
   useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const { isOfferOpen, showToast, openRegisterModal } = useUI();
+
+  const isActive = (path: string, exact?: boolean) =>
+    exact ? pathname === path : pathname.startsWith(path);
+  const activeClasses = 'text-violet-600 dark:text-violet-400 bg-violet-100/80 dark:bg-violet-900/25';
+  const inactiveClasses = 'text-[#6e6e73] dark:text-[#a3a3a3]';
   const { session } = useAuth();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOptionalSection, setShowOptionalSection] = useState(false);
@@ -225,14 +231,14 @@ export default function ActionBar() {
         <div className="flex items-center justify-center gap-1 max-[400px]:gap-0.5 rounded-[28px] max-[400px]:rounded-2xl mx-4 max-[400px]:mx-2 bg-white/95 dark:bg-[#141414]/95 backdrop-blur-xl border border-[#e5e5e7] dark:border-[#262626] px-2 max-[400px]:px-1.5 py-2.5 max-[400px]:py-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
           <Link
             href="/"
-            className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/', true) ? activeClasses : inactiveClasses}`}
           >
-            <Home className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4 text-violet-600 dark:text-violet-400" />
-            <span className="text-[10px] max-[400px]:text-[9px] font-semibold text-violet-600 dark:text-violet-400">Inicio</span>
+            <Home className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
+            <span className="text-[10px] max-[400px]:text-[9px] font-semibold">Inicio</span>
           </Link>
           <Link
             href="/communities"
-            className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/communities') ? activeClasses : inactiveClasses}`}
           >
             <Users2 className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
             <span className="text-[10px] max-[400px]:text-[9px] font-medium">Comunidades</span>
@@ -257,14 +263,14 @@ export default function ActionBar() {
             <>
               <Link
                 href="/me/favorites"
-                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
+                className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/me/favorites') ? activeClasses : inactiveClasses}`}
               >
                 <Heart className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
                 <span className="text-[10px] max-[400px]:text-[9px] font-medium">Favoritos</span>
               </Link>
               <Link
                 href="/me"
-                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
+                className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${pathname === '/me' ? activeClasses : inactiveClasses}`}
               >
                 <User className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
                 <span className="text-[10px] max-[400px]:text-[9px] font-medium">Perfil</span>
@@ -299,7 +305,7 @@ export default function ActionBar() {
         <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 px-2">Tus atajos</p>
         <Link
           href="/"
-          className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
           aria-label="Inicio"
         >
           <Home className="h-6 w-6" />
@@ -307,7 +313,7 @@ export default function ActionBar() {
         </Link>
         <Link
           href="/communities"
-          className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname.startsWith('/communities') ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
           aria-label="Comunidades"
         >
           <Users2 className="h-6 w-6" />
@@ -334,7 +340,7 @@ export default function ActionBar() {
           <>
             <Link
               href="/me/favorites"
-              className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname.startsWith('/me/favorites') ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
               aria-label="Favoritos"
             >
               <Heart className="h-6 w-6" />
@@ -342,7 +348,7 @@ export default function ActionBar() {
             </Link>
             <Link
               href="/me"
-              className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/me' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
               aria-label="Perfil"
             >
               <User className="h-6 w-6" />
