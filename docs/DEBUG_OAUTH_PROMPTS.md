@@ -83,4 +83,20 @@ Haz estas comprobaciones en el dashboard de Vercel (proyecto vinculado a aventa-
 
 ---
 
+---
+
+## 4. "No se recibió el código de Google"
+
+Si Supabase ya tiene en Redirect URLs `https://aventaofertas.com/auth/callback` y aun así sale ese mensaje, el cliente debe usar **flujo PKCE** para que Supabase devuelva el `code` en la URL (y no use flujo implícito con hash). En `lib/supabase/client.ts` el `createBrowserClient` debe llevar:
+
+```ts
+createBrowserClient(url, key, {
+  auth: { flowType: 'pkce' },
+})
+```
+
+Comprueba también que en Supabase → URL Configuration la URL sea exactamente `https://aventaofertas.com/auth/callback` (sin barra final, sin espacio). Si tras el cambio sigues sin recibir el código, en la pestaña Network revisa la petición a `/auth/callback`: ¿llega con `?code=...` o sin parámetros?
+
+---
+
 *Este archivo es solo referencia; no modifica el diseño de la app.*

@@ -10,7 +10,11 @@ export function createClient(): SupabaseClient {
   if (!url || !key) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Copy .env.example to .env.local.')
   }
-  client = createBrowserClient(url, key)
+  client = createBrowserClient(url, key, {
+    auth: {
+      flowType: 'pkce',
+    },
+  })
   return client
 }
 
