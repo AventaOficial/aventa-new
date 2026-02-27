@@ -1,7 +1,7 @@
 'use client';
 
 import { X, Plus, ThumbsUp, Heart } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -220,8 +220,16 @@ function PageAuth({
   onSuccess: () => void;
   onBack: () => void;
 }) {
-  const { signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
+  const { session, signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
   const [mode, setMode] = useState<AuthModalMode>('signup');
+  const didAutoSuccess = useRef(false);
+
+  useEffect(() => {
+    if (session && !didAutoSuccess.current) {
+      didAutoSuccess.current = true;
+      onSuccess();
+    }
+  }, [session, onSuccess]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

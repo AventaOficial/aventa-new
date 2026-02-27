@@ -36,17 +36,17 @@ Elige **ID de cliente de OAuth** (en inglés: *OAuth client ID*).
 
 En **Authentication** → **URL Configuration**:
 
-- **Site URL**: tu dominio en producción (ej. `https://aventa-new.vercel.app` o `https://tudominio.com`).
-- **Redirect URLs**: añade:
-  - `https://aventa-new.vercel.app/**`
-  - `https://tudominio.com/**`
-  - `http://localhost:3000/**` (desarrollo)
+- **Site URL**: tu dominio en producción (ej. `https://aventaofertas.com`).
+- **Redirect URLs**: añade **la URL de callback** (obligatoria para que "Continuar con Google" funcione):
+  - `https://aventaofertas.com/auth/callback`
+  - `http://localhost:3000/auth/callback` (desarrollo)
+  - Opcionalmente también: `https://aventaofertas.com/**` y `http://localhost:3000/**`
 
-Sin estas URLs, Supabase puede rechazar el redirect después del login.
+Sin la URL `/auth/callback`, Supabase no puede devolver el código de autorización y el login con Google falla.
 
 ## 4. Comportamiento en la app
 
-- Al hacer clic en "Continuar con Google", la app redirige a Google y luego a Supabase; al terminar, el usuario vuelve a tu **Site URL** ya autenticado.
+- Al hacer clic en "Continuar con Google", la app redirige a Google y luego Supabase redirige a **/auth/callback** con un código. Esa página intercambia el código por la sesión y redirige al usuario a la home ya autenticado.
 - Si el usuario es nuevo, Supabase crea la sesión; con los triggers que tengas en la base de datos, se puede crear el perfil en `profiles` (por ejemplo con el `id` del usuario y el `email` o `display_name` que devuelva Google).
 
 ## Resumen

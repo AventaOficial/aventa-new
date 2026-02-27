@@ -37,10 +37,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
     })
 
+    const hasAuthHash =
+      typeof window !== 'undefined' &&
+      window.location.hash &&
+      /access_token|refresh_token/.test(window.location.hash)
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s)
       setUser(s?.user ?? null)
-      setIsLoading(false)
+      if (!hasAuthHash) setIsLoading(false)
     })
 
     return () => subscription.unsubscribe()
@@ -81,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const { data, error } = await createClient().auth.signInWithOAuth({
       provider,
-      options: { redirectTo: origin },
+      options: { redirectTo: `${origin}/auth/callback` },
     })
     if (error) return { error: error as Error | null }
     if (data?.url) window.location.href = data.url

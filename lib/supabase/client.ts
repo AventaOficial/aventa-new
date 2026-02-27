@@ -1,4 +1,5 @@
-import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 let client: SupabaseClient | null = null
 
@@ -9,7 +10,7 @@ export function createClient(): SupabaseClient {
   if (!url || !key) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Copy .env.example to .env.local.')
   }
-  client = createSupabaseClient(url, key)
+  client = createBrowserClient(url, key)
   return client
 }
 

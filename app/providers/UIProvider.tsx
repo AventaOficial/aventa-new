@@ -103,8 +103,14 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     if (session && (showOnboarding || showGuide)) {
       setShowOnboarding(false)
       setShowGuide(false)
+      if (user?.id && isVerified) {
+        finalizeOnboarding().catch(() => {})
+      } else if (typeof window !== 'undefined') {
+        setLayoutReady(true)
+        localStorage.setItem('onboarding_done', 'true')
+      }
     }
-  }, [session, showOnboarding, showGuide])
+  }, [session, showOnboarding, showGuide, user?.id, isVerified, finalizeOnboarding])
 
   useEffect(() => {
     if (!toastMessage) return
