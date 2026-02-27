@@ -3,12 +3,6 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
 
-/**
- * POST: Registrar evento outbound (click en "Cazar oferta").
- * Body: { offerId: string }
- * Rate limit: 30/min por IP.
- * Retorna 204 sin cuerpo.
- */
 export async function POST(request: Request) {
   const ip = getClientIp(request);
   const rl = await enforceRateLimit(ip);
@@ -50,9 +44,7 @@ export async function POST(request: Request) {
     if (error) {
       console.error('[track-outbound] insert failed:', error.message);
     }
-  } catch {
-    // Silenciar errores; no bloquear
-  }
+  } catch {}
 
   return new NextResponse(null, { status: 204 });
 }

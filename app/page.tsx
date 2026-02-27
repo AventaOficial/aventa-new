@@ -19,13 +19,11 @@ import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = 'general' | 'top' | 'personalized' | 'latest';
 
-/** Perfil del autor (desde public.profiles) */
 interface OfferAuthor {
   username: string;
   avatar_url?: string | null;
 }
 
-/** Fila de Supabase public.ofertas_ranked_general (vista) + profiles (autor) */
 interface OfferRow {
   id: string;
   title: string;
@@ -47,7 +45,6 @@ interface OfferRow {
     | null;
 }
 
-/** Formato interno para OfferCard y OfferModal */
 interface Offer {
   id: string;
   title: string;
@@ -228,7 +225,6 @@ function HomeContent() {
     }
   }, [session, viewMode]);
 
-  // Abrir oferta por enlace compartido (?o=offerId)
   useEffect(() => {
     const offerId = searchParams.get('o');
     if (!offerId?.trim()) return;
@@ -307,14 +303,11 @@ function HomeContent() {
   return (
     <ClientLayout>
       <div id="ayuda" className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
-        {/* Hero / Header */}
         <div className="hero-section">
           <Hero searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
 
-        {/* Ofertas Section — mobile: estilo onboarding premium; pantallas estrechas (Fold) más compacto */}
         <section className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto px-4 max-[400px]:px-3 md:px-8 pt-4 max-[400px]:pt-3 md:pt-8 pb-32 md:pb-12">
-        {/* Filtros — segmented control premium */}
         <div className="mb-4 max-[400px]:mb-3 md:mb-8">
           <div className="mb-3 max-[400px]:mb-2 md:mb-5">
             <div className="flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 md:p-2 border border-[#e5e5e7] dark:border-[#262626] transition-all duration-200">
@@ -391,7 +384,6 @@ function HomeContent() {
           )}
         </div>
 
-        {/* Feed - animación suave, más espacio en desktop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -462,15 +454,12 @@ function HomeContent() {
         </motion.div>
       </section>
 
-        {/* Espacio para el ActionBar (solo móvil) */}
         <div className="h-20 md:h-0" />
 
-        {/* Chat Bubble - Luna */}
       <div className="luna-chat">
         <ChatBubble />
       </div>
 
-        {/* Modal de Oferta */}
         {selectedOffer && (
           <OfferModal
             isOpen={!!selectedOffer}

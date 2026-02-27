@@ -8,7 +8,6 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 
-/** Caracteres de descripción que se muestran en la tarjeta del home (solo PC) */
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
 const formatPrice = (value: number) =>
@@ -275,7 +274,6 @@ export default function OfferCard({
       onClick={onCardClick}
       className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
     >
-      {/* Favoritos — esquina superior izquierda */}
       <button
         onClick={handleFavoriteClick}
         className="absolute top-2 left-2 max-[400px]:top-1.5 max-[400px]:left-1.5 z-10 flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-sm border border-[#e5e5e7] dark:border-[#262626] shadow-sm hover:bg-[#f5f5f7] dark:hover:bg-[#262626] transition-colors active:scale-95"
@@ -288,7 +286,6 @@ export default function OfferCard({
         />
       </button>
 
-      {/* Compartir — esquina superior derecha, discreto */}
       {offerId && (
         <button
           onClick={(e) => {
@@ -313,7 +310,6 @@ export default function OfferCard({
         </button>
       )}
 
-      {/* Imagen 35% — más alta en mobile; en pantallas muy estrechas (Fold cerrado) algo más compacta */}
       <div className="w-[35%] min-w-[80px] max-[400px]:min-w-[70px] md:min-w-[140px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
         <div className="h-[152px] max-[400px]:h-[124px] md:h-36 rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
           {showImage ? (
@@ -334,15 +330,12 @@ export default function OfferCard({
         </div>
       </div>
 
-      {/* Contenido 65% — orden: 1.Título 2.Tienda·fecha 3.Cazado por 4.Botones */}
       <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 justify-between gap-1.5 max-[400px]:gap-1 md:gap-2 pt-6 max-[400px]:pt-5 md:pt-0">
         <div className="min-w-0">
-          {/* 1. Título */}
           <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug">
             {title}
           </h3>
 
-          {/* Precio — compacto debajo del título */}
           <div className="flex items-baseline gap-1.5 max-[400px]:gap-1 md:gap-2 flex-wrap mt-1 max-[400px]:mt-0.5 min-w-0">
             <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
               {formatPrice(discountPrice)}
@@ -362,13 +355,11 @@ export default function OfferCard({
             )}
           </div>
 
-          {/* 2. Tienda • fecha */}
           <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
             {storeLabel}
             {timeLabel ? ` • hace ${timeLabel}` : ''}
           </p>
 
-          {/* 3. Cazado por [autor] */}
           {author?.username && (
             <Link
               href={`/u/${slugFromUsername(author.username)}`}
@@ -383,7 +374,6 @@ export default function OfferCard({
               <span className="truncate">Cazado por {author.username}</span>
             </Link>
           )}
-          {/* Descripción — solo en PC, debajo de Cazado por, se desvanece si es larga */}
           {description?.trim() && (
             <p className="hidden md:block text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-w-0">
               {description.trim().length > OFFER_CARD_DESCRIPTION_MAX_LENGTH
@@ -393,7 +383,6 @@ export default function OfferCard({
           )}
         </div>
 
-        {/* 4. Botones — Cazar oferta primero, Ir directo al lado; en pantallas estrechas más compactos */}
         <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); onCardClick?.(); }}

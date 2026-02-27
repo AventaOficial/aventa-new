@@ -19,7 +19,6 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
-      {/* Mobile: logo como onboarding — espacio extra a la derecha para que "Crear cuenta" no tape el tagline */}
       <div className="md:hidden flex flex-col">
         <div className="flex items-start pl-5 pr-32 max-[380px]:pr-28 pt-5 max-[400px]:pt-3 min-w-0">
           <div className="min-w-0 flex-1">
@@ -33,7 +32,6 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             </p>
           </div>
         </div>
-        {/* Buscador — rounded, premium */}
         <div className="px-4 max-[400px]:px-3 pt-3 max-[400px]:pt-2 pb-4 max-[400px]:pb-3">
           <div className="flex items-center w-full min-h-[48px] max-[400px]:min-h-[44px] rounded-2xl bg-[#f5f5f7] dark:bg-[#1a1a1a] border border-[#e5e5e7] dark:border-[#262626] px-4 max-[400px]:px-3 transition-all duration-200 focus-within:border-violet-500/60 focus-within:ring-2 focus-within:ring-violet-500/20">
             <Search className="h-5 w-5 text-[#6e6e73] dark:text-[#a3a3a3] mr-3 flex-shrink-0" />
@@ -49,7 +47,6 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
         </div>
       </div>
 
-      {/* Desktop: hero amplio, identidad AVENTA */}
       <div className="hidden md:block relative w-full overflow-hidden bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1d1d1f] dark:from-[#0d0d0f] dark:via-[#151518] dark:to-[#0d0d0f] px-8 lg:px-12 pt-[calc(2rem+env(safe-area-inset-top))] pb-12 rounded-b-2xl mb-8 border-b border-gray-800/50">
         <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-pink-500/10" aria-hidden />
         <div className="relative container mx-auto max-w-4xl">

@@ -5,14 +5,6 @@ import { isValidUuid } from '@/lib/server/validateUuid'
 
 type VoteValue = 1 | -1
 
-/**
- * POST: registrar / actualizar / eliminar voto de un usuario en una oferta.
- * Body: { offerId: string, value: 1 | -1 }
- * - Sin voto → INSERT.
- * - Mismo value → DELETE.
- * - Distinto value → UPDATE.
- * Usa service_role para evitar RLS. Responde siempre 200.
- */
 export async function POST(request: Request) {
   const ip = getClientIp(request)
   const limitResult = await enforceRateLimit(ip)

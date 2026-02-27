@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 
-/**
- * GET: listar reportes de ofertas (solo moderadores).
- * Query: ?status=pending|reviewed|dismissed|all
- */
 export async function GET(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {
@@ -49,10 +45,6 @@ export async function GET(request: Request) {
   }
 }
 
-/**
- * PATCH: actualizar estado de un reporte (solo moderadores).
- * Body: { reportId: string, status: 'reviewed' | 'dismissed' }
- */
 export async function PATCH(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {

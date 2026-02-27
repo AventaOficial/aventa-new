@@ -45,7 +45,6 @@ export default function Navbar() {
 
   const userName = displayName ?? 'Usuario';
 
-  // Desktop: solo en viewport md+ para no ser hijo flex en móvil (evita hueco al ocultar saludo)
   const [isMd, setIsMd] = useState(false);
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 768px)');
@@ -96,14 +95,12 @@ export default function Navbar() {
   return (
     <nav className="absolute top-0 right-0 z-50 p-3 md:p-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Saludo: fuera del bloque, transparente con bordes — userName = display_name */}
         {user && isMd && (
           <div className="flex flex-col items-end">
             <p className="text-sm md:text-base font-medium text-white/90">Hola de nuevo</p>
             <p className="text-base md:text-lg font-semibold text-white/95 border-b-2 border-white/30 pb-0.5">{userName}</p>
           </div>
         )}
-        {/* Campana: solo con sesión, transición suave al iniciar sesión */}
         <AnimatePresence mode="wait">
           {user && (
             <motion.button
@@ -120,7 +117,6 @@ export default function Navbar() {
             </motion.button>
           )}
         </AnimatePresence>
-        {/* Sin sesión: Crear cuenta + Modo oscuro (orden prioriza CTA). Con sesión: avatar y menú */}
         <div className="relative flex items-center gap-2" ref={userMenuRef}>
           {!user ? (
             <>
@@ -205,7 +201,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Panel notificaciones - mismo estilo que Comentarios | Reseñas */}
       {showNotifications && (
         <>
           <div

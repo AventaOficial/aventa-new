@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 
-/**
- * POST: incrementa offers_rejected_count del creador de la oferta (reputación).
- * Solo ejecutable por moderadores. Responde 200 aunque el RPC falle.
- */
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {

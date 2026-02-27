@@ -35,7 +35,6 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'month', label: 'Últimos 30 días' },
 ];
 
-/** Presets de afiliados: conv % típica, comisión % por categoría */
 const AFFILIATE_PRESETS: Record<AffiliatePlatform, { conv: number; commission: number; label: string }> = {
   amazon: { conv: 5, commission: 4, label: 'Amazon' },
   mercadolibre: { conv: 4, commission: 12, label: 'Mercado Libre' },
@@ -264,7 +263,6 @@ export default function MetricsPage() {
         </select>
       </div>
 
-      {/* Resumen superior */}
       <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 md:p-5">
         <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">
           Resumen — {periodLabel}
@@ -291,7 +289,6 @@ export default function MetricsPage() {
         </p>
       </section>
 
-      {/* Estimación afiliados */}
       <section className="mb-6 rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10 p-4 md:p-5">
         <h2 className="text-sm font-semibold text-violet-800 dark:text-violet-300 uppercase tracking-wide mb-3">
           Estimación de afiliados

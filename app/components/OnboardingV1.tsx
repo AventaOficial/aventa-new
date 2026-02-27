@@ -7,7 +7,6 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import DarkModeToggle from './DarkModeToggle';
 
-// Guía: Subir, Votar, Guardar — lista secuencial
 const GUIDE_STEPS = [
   {
     icon: Plus,
@@ -26,9 +25,8 @@ const GUIDE_STEPS = [
   },
 ];
 
-const t = { duration: 0.55, ease: [0.22, 0.61, 0.36, 1] as const }; // Suave, premium
+const t = { duration: 0.28, ease: [0.22, 0.61, 0.36, 1] as const };
 
-// Texto con animación en ola (palabra por palabra) — suave y lenta
 function WaveText({ text, className = '' }: { text: string; className?: string }) {
   const words = text.split(' ');
   return (
@@ -36,9 +34,9 @@ function WaveText({ text, className = '' }: { text: string; className?: string }
       {words.map((word, i) => (
         <motion.span
           key={i}
-          initial={{ opacity: 0, y: 18 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.14 * i, duration: 0.5, ease: [0.22, 0.61, 0.36, 1] }}
+          transition={{ delay: 0.05 * i, duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
           className="inline-block"
         >
           {word}
@@ -48,7 +46,6 @@ function WaveText({ text, className = '' }: { text: string; className?: string }
   );
 }
 
-// Página 1 — Bienvenida: Logo arriba, AVENTA centrado, texto ola, Continuar
 function PageWelcome({ onNext }: { onNext: () => void }) {
   return (
     <motion.div
@@ -59,11 +56,10 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       transition={t}
       className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
     >
-      {/* Logo arriba */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.92 }}
+        initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.15, ...t }}
+        transition={{ delay: 0.05, ...t }}
         className="mb-6 md:mb-8"
       >
         <span className="text-sm font-semibold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400">
@@ -71,11 +67,10 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         </span>
       </motion.div>
 
-      {/* Nombre centrado — grande, premium */}
       <motion.h1
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, ...t }}
+        transition={{ delay: 0.12, ...t }}
         className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6"
       >
         <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
@@ -83,21 +78,19 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         </span>
       </motion.h1>
 
-      {/* Texto con animación ola */}
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.55 }}
+        transition={{ delay: 0.2 }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
         <WaveText text="Bienvenido a la mejor comunidad cazadora de ofertas" />
       </motion.p>
 
-      {/* Botón premium */}
       <motion.button
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.95, ...t }}
+        transition={{ delay: 0.35, ...t }}
         onClick={onNext}
         className="rounded-2xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-10 py-4 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
       >
@@ -107,10 +100,9 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
   );
 }
 
-// Página 2 — Cómo funciona: lista secuencial, un paso a la vez con Continuar
 function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [direction, setDirection] = useState(1); // 1 = adelante, -1 = atrás
+  const [direction, setDirection] = useState(1);
   const step = GUIDE_STEPS[stepIndex];
   const Icon = step.icon;
   const isLast = stepIndex === GUIDE_STEPS.length - 1;
@@ -156,7 +148,6 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
         <WaveText text="Cómo funciona" />
       </motion.h2>
 
-      {/* Contenido: un paso a la vez con animación */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
@@ -185,7 +176,6 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
           </motion.div>
         </AnimatePresence>
 
-        {/* Indicador de paso (1/3, 2/3, 3/3) */}
         <div className="flex gap-1.5 mt-6 mb-4">
           {GUIDE_STEPS.map((_, i) => (
             <div
@@ -221,7 +211,6 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
   );
 }
 
-// Página 3 — Crear cuenta / Iniciar sesión
 type AuthModalMode = 'signup' | 'signin';
 function PageAuth({
   onSuccess,
@@ -238,7 +227,7 @@ function PageAuth({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,18 +274,17 @@ function PageAuth({
         <WaveText text={mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'} />
       </h2>
 
-      {/* Continuar con Google / Apple */}
       <div className="w-full flex flex-col gap-2 mb-4">
         <button
           type="button"
-          disabled={!!oauthLoading}
+          disabled={oauthLoading}
           onClick={async () => {
             setError(null);
-            setOauthLoading('google');
+            setOauthLoading(true);
             const { error: err } = await signInWithOAuth('google');
             if (err) {
               setError(err.message);
-              setOauthLoading(null);
+              setOauthLoading(false);
             }
           }}
           className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
@@ -307,26 +295,7 @@ function PageAuth({
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
-          {oauthLoading === 'google' ? 'Redirigiendo...' : 'Continuar con Google'}
-        </button>
-        <button
-          type="button"
-          disabled={!!oauthLoading}
-          onClick={async () => {
-            setError(null);
-            setOauthLoading('apple');
-            const { error: err } = await signInWithOAuth('apple');
-            if (err) {
-              setError(err.message);
-              setOauthLoading(null);
-            }
-          }}
-          className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
-        >
-          <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13 2.9 1.08 4.08-.6 5.04-1.16 1.02-.66 1.97-.55 3.24-.39 1.27.16 2.32.21 3.92.64-.08 1.23-.27 2.38-.27 2.38s-.14 1.14-.41 2.25c-.22.96-.52 1.92-.85 2.86-.17.46-.37.91-.6 1.35zM12.03 7.25c-.32-2.2 1.4-4.35 3.52-4.78 1.12-.23 2.19.16 3.01 1.12.76.9 1.12 2.34.79 3.66-.33 1.32-1.36 2.6-2.74 2.42-1.38-.18-2.54-1.62-2.41-3.42z" />
-          </svg>
-          {oauthLoading === 'apple' ? 'Redirigiendo...' : 'Continuar con Apple'}
+          {oauthLoading ? 'Redirigiendo...' : 'Continuar con Google'}
         </button>
       </div>
 
@@ -416,7 +385,6 @@ function PageAuth({
   );
 }
 
-// Modal global Crear cuenta / Iniciar sesión (standalone, desde Navbar/ActionBar)
 const RegisterModal = ({
   onClose,
   onSuccess,
@@ -439,7 +407,7 @@ const RegisterModal = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -496,18 +464,17 @@ const RegisterModal = ({
         <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-4">
           {mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'}
         </h3>
-        {/* Continuar con Google / Apple */}
         <div className="flex flex-col gap-2 mb-4">
           <button
             type="button"
-            disabled={!!oauthLoading}
+            disabled={oauthLoading}
             onClick={async () => {
               setError(null);
-              setOauthLoading('google');
+              setOauthLoading(true);
               const { error: err } = await signInWithOAuth('google');
               if (err) {
                 setError(err.message);
-                setOauthLoading(null);
+                setOauthLoading(false);
               }
             }}
             className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
@@ -518,26 +485,7 @@ const RegisterModal = ({
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            {oauthLoading === 'google' ? 'Redirigiendo...' : 'Continuar con Google'}
-          </button>
-          <button
-            type="button"
-            disabled={!!oauthLoading}
-            onClick={async () => {
-              setError(null);
-              setOauthLoading('apple');
-              const { error: err } = await signInWithOAuth('apple');
-              if (err) {
-                setError(err.message);
-                setOauthLoading(null);
-              }
-            }}
-            className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
-          >
-            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13 2.9 1.08 4.08-.6 5.04-1.16 1.02-.66 1.97-.55 3.24-.39 1.27.16 2.32.21 3.92.64-.08 1.23-.27 2.38-.27 2.38s-.14 1.14-.41 2.25c-.22.96-.52 1.92-.85 2.86-.17.46-.37.91-.6 1.35zM12.03 7.25c-.32-2.2 1.4-4.35 3.52-4.78 1.12-.23 2.19.16 3.01 1.12.76.9 1.12 2.34.79 3.66-.33 1.32-1.36 2.6-2.74 2.42-1.38-.18-2.54-1.62-2.41-3.42z" />
-            </svg>
-            {oauthLoading === 'apple' ? 'Redirigiendo...' : 'Continuar con Apple'}
+            {oauthLoading ? 'Redirigiendo...' : 'Continuar con Google'}
           </button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -638,11 +586,9 @@ export default function OnboardingV1() {
   useEffect(() => {
     if (!showGuide) return;
     setPage(0);
-    setOpenAnimated(false);
     setClosing(false);
-    setMountKey((k) => k + 1); // Reset limpio al reabrir — evita lag/bugs
-    const t = setTimeout(() => setOpenAnimated(true), 16);
-    return () => clearTimeout(t);
+    setMountKey((k) => k + 1);
+    setOpenAnimated(true);
   }, [showGuide]);
 
   useEffect(() => {
@@ -689,7 +635,6 @@ export default function OnboardingV1() {
     }, 200);
   };
 
-  // Modal standalone (desde Navbar/ActionBar)
   if (showRegisterModal) {
     return (
       <RegisterModal
@@ -705,7 +650,6 @@ export default function OnboardingV1() {
     );
   }
 
-  // Overlay: Revisa tu correo
   if (showPendingMessage) {
     return (
       <div
@@ -732,16 +676,15 @@ export default function OnboardingV1() {
     );
   }
 
-  // Onboarding de 3 páginas — full-screen en PC y mobile, contenido primero
+  const overlayVisible = (openAnimated || showGuide) && !closing;
   return (
     <motion.div
       initial={false}
-      animate={{ opacity: openAnimated && !closing ? 1 : 0 }}
-      transition={{ duration: 0.2 }}
+      animate={{ opacity: overlayVisible ? 1 : 0 }}
+      transition={{ duration: 0.15 }}
       className="fixed inset-0 z-[9999] flex min-h-[100dvh] min-h-[100svh] h-full w-full items-center justify-center overflow-hidden overscroll-none bg-gradient-to-b from-[#F5F5F7] to-[#fafafa] dark:from-[#0a0a0a] dark:to-[#0d0d0f] p-0 sm:p-4"
       style={{ overscrollBehavior: 'none' }}
     >
-      {/* Card: mobile casi full-screen, desktop centrado */}
       <div className="relative flex h-full w-full sm:h-auto sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-3xl flex-col bg-white dark:bg-[#0a0a0a] sm:dark:bg-[#141414] shadow-2xl overflow-hidden sm:border sm:border-[#e5e5e7] dark:sm:border-[#262626]">
         <button
           onClick={handleClose}
@@ -754,7 +697,6 @@ export default function OnboardingV1() {
           <DarkModeToggle />
         </div>
 
-        {/* Indicadores ARRIBA — lo primero que ve el usuario */}
         <div className="flex justify-center gap-1.5 pt-16 sm:pt-4 pb-2 sm:pb-4 shrink-0">
           {[0, 1, 2].map((i) => (
             <div
@@ -770,7 +712,6 @@ export default function OnboardingV1() {
           ))}
         </div>
 
-        {/* Contenido — key para reset limpio al reabrir (evita lag/bugs) */}
         <div key={mountKey} className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <AnimatePresence mode="wait">
             {page === 0 && (

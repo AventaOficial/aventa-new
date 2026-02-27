@@ -7,7 +7,7 @@ import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 
 export default function ChatBubble() {
-  useTheme(); // Forzar re-render cuando cambia el tema
+  useTheme();
   const { isOfferOpen, lunaOpenRequested, setLunaOpenRequested } = useUI();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -33,7 +33,6 @@ export default function ChatBubble() {
   const handleSendMessage = () => {
     if (!inputValue.trim() || messageCount >= 8) return;
 
-    // Mensaje del usuario
     const userMessage = {
       id: messageCount + 1,
       sender: 'user',
@@ -41,7 +40,6 @@ export default function ChatBubble() {
       time: 'Ahora',
     };
 
-    // Respuesta mock de Luna
     const lunaResponses = [
       'La comunidad ha encontrado varias opciones. Déjame mostrarte...',
       'Hay ofertas interesantes que otros cazadores compartieron.',
@@ -59,7 +57,6 @@ export default function ChatBubble() {
     setMessages([...messages, userMessage, lunaMessage]);
     setInputValue('');
 
-    // Si alcanza el límite, mostrar mensaje final
     if (messageCount + 2 >= 8) {
       setTimeout(() => {
         const finalMessage = {
@@ -82,7 +79,6 @@ export default function ChatBubble() {
 
   const canSendMessage = messageCount < 8 && inputValue.trim().length > 0;
 
-  // Chat panel: ajustar bottom con visualViewport cuando abre el teclado (móvil)
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined' || !window.visualViewport) return;
     const viewport = window.visualViewport;
@@ -109,7 +105,6 @@ export default function ChatBubble() {
 
   return (
     <>
-      {/* Botón flotante (FAB): oculto cuando oferta abierta — diseño integrado */}
       {!isOfferOpen && (
         <AnimatePresence>
           {!isOpen && (
@@ -127,7 +122,6 @@ export default function ChatBubble() {
         </AnimatePresence>
       )}
 
-      {/* Panel expandido: móvil modal centrado (card); desktop lateral derecha; bottom dinámico con teclado; oculto cuando oferta abierta */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -138,7 +132,6 @@ export default function ChatBubble() {
             style={chatPanelBottom !== null ? { bottom: chatPanelBottom, height: chatPanelHeight ?? undefined } : undefined}
             className={`fixed left-1/2 -translate-x-1/2 md:left-auto md:right-6 md:translate-x-0 z-[1100] w-[92%] max-w-md md:w-[30rem] max-h-[75vh] md:max-h-[90dvh] flex flex-col min-h-0 overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] shadow-[0_8px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.4)] ${chatPanelBottom === null ? 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]' : ''} ${chatPanelHeight === null ? 'md:h-[90dvh]' : ''}`}
           >
-            {/* Header — integrado con el diseño */}
             <div className="flex items-center justify-between p-4 border-b border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7]/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
@@ -168,7 +161,6 @@ export default function ChatBubble() {
               </button>
             </div>
 
-            {/* Mensaje de desarrollo */}
             <div className="bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200 dark:border-purple-800/30 px-4 py-2 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-purple-700 dark:text-purple-300">
@@ -176,7 +168,6 @@ export default function ChatBubble() {
               </p>
             </div>
 
-            {/* Mensajes: flex-1 min-h-0 para adaptarse al viewport/teclado */}
             <div className="flex-1 min-h-0 space-y-4 overflow-y-auto p-4">
               {messages.map((message) => (
                 <div
@@ -206,7 +197,6 @@ export default function ChatBubble() {
                 </div>
               ))}
               
-              {/* Contador de mensajes */}
               {messageCount < 8 && (
                 <div className="text-center">
                   <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
@@ -216,7 +206,6 @@ export default function ChatBubble() {
               )}
             </div>
 
-            {/* Input */}
             <div className="border-t border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] p-4">
               <div className="flex gap-2">
                 <input

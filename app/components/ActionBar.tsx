@@ -11,25 +11,21 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 
-/** Formato visual: solo dígitos → separador de miles (ej. 10000 → "10,000") */
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
   if (digits === '') return '';
   return Number(digits).toLocaleString('es-MX', { maximumFractionDigits: 0 });
 }
 
-/** Al guardar: valor con comas → número limpio (ej. "10,000" → "10000") */
 function parsePriceString(s: string): string {
   return s.replace(/\D/g, '');
 }
 
-/** Parsea string a número decimal (para inputs type="number" con step="0.01") */
 function parseDecimalPrice(s: string): number {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Formato precio para vista previa (MXN, consistente con OfferCard) */
 function formatPreviewPrice(s: string): string {
   const n = parseDecimalPrice(s);
   const formatted = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
@@ -39,7 +35,7 @@ function formatPreviewPrice(s: string): string {
 const COOLDOWN_SECONDS = 60;
 
 export default function ActionBar() {
-  useTheme(); // Forzar re-render cuando cambia el tema
+  useTheme();
   const router = useRouter();
   const { isOfferOpen, showToast, openRegisterModal } = useUI();
   const { session } = useAuth();
@@ -65,7 +61,6 @@ export default function ActionBar() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
 
-  // Bloquear scroll cuando el modal está abierto
   useEffect(() => {
     if (showUploadModal) {
       document.body.style.overflow = 'hidden';
@@ -77,14 +72,12 @@ export default function ActionBar() {
     };
   }, [showUploadModal]);
 
-  // Ocultar mensaje de éxito tras 4 segundos
   useEffect(() => {
     if (!showSuccessMessage) return;
     const t = setTimeout(() => setShowSuccessMessage(false), 4000);
     return () => clearTimeout(t);
   }, [showSuccessMessage]);
 
-  // Cuenta atrás del cooldown tras subir una oferta
   useEffect(() => {
     if (cooldownRemaining <= 0) return;
     const id = setInterval(() => {
@@ -98,7 +91,7 @@ export default function ActionBar() {
   };
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-  const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+  const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -214,7 +207,6 @@ export default function ActionBar() {
 
   return (
     <>
-      {/* Mobile: bottom bar — estilo onboarding premium */}
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] flex flex-col items-center ${isOfferOpen ? 'opacity-0 translate-y-6 pointer-events-none' : ''}`}
       >
@@ -301,7 +293,6 @@ export default function ActionBar() {
         </div>
       </div>
 
-      {/* Desktop: sidebar — mismo estilo que mobile (Subir oferta) */}
       <aside
         className={`hidden md:flex fixed left-0 top-0 h-screen w-28 z-50 flex-col items-center py-6 gap-1 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-r border-[#E5E7EB] dark:border-gray-700 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)] ${isOfferOpen ? 'pointer-events-none' : ''}`}
       >
@@ -382,7 +373,6 @@ export default function ActionBar() {
         )}
       </aside>
 
-      {/* Modal de Subir Oferta — Diseño premium, separación real */}
       <AnimatePresence>
         {showUploadModal && (
           <motion.div
@@ -402,7 +392,6 @@ export default function ActionBar() {
               onClick={(e) => e.stopPropagation()}
               className="relative z-10 w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-7xl sm:rounded-3xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xl flex flex-col"
             >
-              {/* Header — compacto, identidad clara */}
               <div className="flex-shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5 border-b border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
@@ -421,7 +410,6 @@ export default function ActionBar() {
                 </button>
               </div>
 
-              {/* Mobile: Tabs Completar | Vista previa */}
               <div className="md:hidden flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setMobileTab('form')}
@@ -447,9 +435,7 @@ export default function ActionBar() {
                 </button>
               </div>
 
-              {/* Contenido: Desktop = dos columnas | Mobile = tab activo */}
               <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-                {/* Formulario — panel izquierdo, 45% desktop */}
                 <div
                   className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-5 sm:p-6 md:p-8 space-y-5 min-w-0 ${
                     mobileTab !== 'form' ? 'hidden md:block' : ''
@@ -601,7 +587,6 @@ export default function ActionBar() {
                     </p>
                   </div>
 
-                  {/* Subida de imagen */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Imagen del producto (opcional)
@@ -622,7 +607,6 @@ export default function ActionBar() {
                   </div>
                 </div>
 
-                {/* Sección opcional - Colapsable */}
                 <div className="border-t border-gray-200/80 dark:border-gray-700/80 pt-5 mt-2">
                   <button
                     onClick={() => setShowOptionalSection(!showOptionalSection)}
@@ -690,7 +674,6 @@ export default function ActionBar() {
                   </AnimatePresence>
                 </div>
 
-                {/* Texto de ayuda */}
                 <div className="flex items-start gap-3 rounded-xl bg-violet-50/80 dark:bg-violet-900/20 border border-violet-100/80 dark:border-violet-800/30 p-4">
                   <Info className="h-5 w-5 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-violet-800 dark:text-violet-300">
@@ -699,7 +682,6 @@ export default function ActionBar() {
                 </div>
                 </div>
 
-                {/* Vista previa — panel derecho separado, 55% desktop. Fiel a OfferCard/OfferModal */}
                 <div
                   className={`flex-1 md:flex-[0_0_55%] lg:flex-[0_0_58%] flex flex-col min-w-0 overflow-y-auto bg-[#F5F5F7] dark:bg-[#1d1d1f] md:border-l border-gray-200/80 dark:border-gray-700/80 ${
                     mobileTab !== 'preview' ? 'hidden md:flex' : 'flex'
@@ -719,7 +701,6 @@ export default function ActionBar() {
                           transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                           className="space-y-6"
                         >
-                          {/* Card feed — réplica exacta de OfferCard (35% img / 65% content) */}
                           <div>
                             <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-3">En el feed</p>
                             <motion.div
@@ -775,7 +756,6 @@ export default function ActionBar() {
                               </div>
                             </motion.div>
                           </div>
-                          {/* Vista extendida — réplica de OfferModal */}
                           <div>
                             <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-3">Vista extendida</p>
                             <motion.div
@@ -839,7 +819,6 @@ export default function ActionBar() {
                 </div>
               </div>
 
-              {/* Footer fijo — limpio, full width */}
               <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 px-5 sm:px-6 md:px-8 py-4 sm:py-5">
                 <div className="flex gap-3 sm:gap-4">
                   <button

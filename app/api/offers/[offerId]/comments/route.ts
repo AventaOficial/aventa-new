@@ -25,9 +25,6 @@ function toComment(row: CommentRow) {
   };
 }
 
-/**
- * GET: lista de comentarios de una oferta (autor @username, texto, fecha).
- */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ offerId: string }> }
@@ -53,9 +50,6 @@ export async function GET(
   return NextResponse.json({ comments });
 }
 
-/**
- * POST: nuevo comentario. Requiere auth. Body: { content } (1–280 chars). Rate limit: 20/min por IP.
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ offerId: string }> }

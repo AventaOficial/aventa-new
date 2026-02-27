@@ -3,11 +3,6 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
 
-/**
- * POST: Registrar evento view (tarjeta visible ≥50% por 1s).
- * Body: { offerId: string } o { offer_id: string }
- * Retorna 204.
- */
 export async function POST(request: Request) {
   const ip = getClientIp(request);
   const limitResult = await enforceRateLimit(ip);
@@ -49,9 +44,7 @@ export async function POST(request: Request) {
     if (error) {
       console.error('[track-view] insert failed:', error.message);
     }
-  } catch {
-    // Silenciar errores; no bloquear
-  }
+  } catch {}
 
   return new NextResponse(null, { status: 204 });
 }

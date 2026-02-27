@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AVENTA - Comunidad de cazadores de ofertas",
   description: "Las mejores ofertas que la comunidad encuentra. No vendemos nada — somos cazadores de ofertas.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
+  icons: { icon: "/placeholder.png", apple: "/placeholder.png" },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F5F7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({

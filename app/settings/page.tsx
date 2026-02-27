@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User, Check, Lock, Mail } from 'lucide-react';
+import { User, Check, Lock, Mail, Smartphone } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
 
@@ -19,6 +19,24 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [passwordResetSent, setPasswordResetSent] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: boolean }).MSStream;
+    setIsIOS(isApple);
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as unknown as { prompt: () => Promise<void> });
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (installPrompt) await installPrompt.prompt();
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -114,7 +132,6 @@ export default function SettingsPage() {
             Gestiona tu perfil y preferencias
           </p>
 
-          {/* Sección Perfil */}
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">
@@ -171,7 +188,6 @@ export default function SettingsPage() {
             </form>
           </section>
 
-          {/* Sección Contraseña */}
           <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">
@@ -206,11 +222,42 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Placeholder para futuras secciones */}
-          <section className="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/30 dark:bg-gray-900/30 p-6 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Más opciones próximamente: notificaciones, privacidad, cuenta conectada.
-            </p>
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
+                  <Smartphone className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Instalar app</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Añade AVENTA a tu pantalla de inicio</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 md:p-6 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Usa AVENTA como app: icono en tu pantalla, pantalla completa y acceso rápido.
+              </p>
+              {installPrompt && (
+                <button
+                  type="button"
+                  onClick={handleInstallClick}
+                  className="rounded-xl bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 font-medium transition-colors"
+                >
+                  Instalar en esta dispositivo
+                </button>
+              )}
+              {isIOS && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  En iPhone o iPad: abre el menú compartir en Safari (cuadro con flecha) y elige &quot;Añadir a pantalla de inicio&quot;.
+                </p>
+              )}
+              {!installPrompt && !isIOS && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  En el navegador, usa la opción &quot;Instalar&quot; o &quot;Añadir a la pantalla de inicio&quot; cuando aparezca.
+                </p>
+              )}
+            </div>
           </section>
         </div>
       </div>

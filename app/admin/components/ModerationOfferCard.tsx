@@ -69,7 +69,6 @@ export default function ModerationOfferCard({
       data-testid="moderation-offer-card"
     >
       <div className="flex flex-col sm:flex-row">
-        {/* Imagen */}
         <div className="relative w-full sm:w-32 h-40 sm:h-auto sm:min-h-[120px] shrink-0 bg-gray-100 dark:bg-gray-700">
           {offer.image_url ? (
             <img
@@ -92,7 +91,6 @@ export default function ModerationOfferCard({
           )}
         </div>
 
-        {/* Contenido */}
         <div className="flex-1 p-4 flex flex-col gap-3">
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
@@ -149,7 +147,6 @@ export default function ModerationOfferCard({
             </div>
           )}
 
-          {/* Acciones */}
           <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
             <button
               type="button"
@@ -224,7 +221,6 @@ export default function ModerationOfferCard({
         </div>
       </div>
 
-      {/* Modal preview: oferta tal como la subió el usuario */}
       {showPreview && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"

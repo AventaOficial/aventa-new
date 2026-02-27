@@ -179,7 +179,6 @@ export default function MePage() {
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
         <section className="mx-auto max-w-5xl px-4 md:px-8 py-12">
-          {/* Header */}
           <div className="rounded-3xl bg-white dark:bg-gray-900 p-6 shadow-lg mb-8">
             <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">
@@ -202,7 +201,6 @@ export default function MePage() {
             </div>
           </div>
 
-          {/* Métricas */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -238,7 +236,6 @@ export default function MePage() {
             </div>
           </div>
 
-          {/* Lista de ofertas - PC: lista como home, mobile: igual */}
           <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
             Tus ofertas
           </h2>

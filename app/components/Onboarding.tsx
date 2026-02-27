@@ -20,7 +20,6 @@ interface Step {
 export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Bloquear scroll del body cuando el onboarding está abierto
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -113,7 +112,6 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
           onClick={(e) => e.stopPropagation()}
           className="relative w-full max-w-3xl rounded-3xl bg-white p-10 shadow-2xl"
         >
-          {/* Botón de cerrar */}
           <button
             onClick={onClose}
             className="absolute right-6 top-6 rounded-full bg-gray-100 p-2 text-gray-600 transition-all duration-200 ease-out hover:bg-gray-200"
@@ -121,16 +119,13 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
             <X className="h-5 w-5" />
           </button>
 
-          {/* Contenido del paso */}
           <div className="flex items-center gap-10">
-            {/* Ejemplo visual a la izquierda */}
             <div className="flex-shrink-0">
               <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100">
                 {current.example}
               </div>
             </div>
 
-            {/* Explicación a la derecha */}
             <div className="flex-1">
               <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500">
                 {current.icon}
@@ -140,7 +135,6 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
             </div>
           </div>
 
-          {/* Indicadores de pasos */}
           <div className="mt-10 flex justify-center gap-2">
             {steps.map((step, index) => (
               <div
@@ -156,7 +150,6 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
             ))}
           </div>
 
-          {/* Botones de navegación */}
           <div className="mt-8 flex gap-3">
             {currentStep > 0 && (
               <button

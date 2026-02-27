@@ -3,18 +3,6 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 
-/**
- * POST: actualiza status de una oferta (aprobación/rechazo) con service_role.
- *
- * Por qué existe esta ruta:
- * Si en public.offers el rol authenticated tiene GRANT UPDATE solo sobre ciertas
- * columnas (p. ej. status) y no sobre expires_at, el UPDATE desde el cliente
- * puede "triunfar" pero expires_at no se escribe (Postgres ignora columnas sin
- * permiso). Con service_role el update siempre aplica status y expires_at.
- *
- * - approved: setea status y, si expires_at es NULL, expires_at = now() + 7 days.
- * - rejected: setea status.
- */
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {

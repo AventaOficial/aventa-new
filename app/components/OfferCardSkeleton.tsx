@@ -1,9 +1,5 @@
 'use client';
 
-/**
- * Skeleton placeholder matching OfferCard feed layout.
- * Used during loading states for offer list.
- */
 export default function OfferCardSkeleton() {
   return (
     <div

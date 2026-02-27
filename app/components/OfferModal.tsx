@@ -63,7 +63,6 @@ function slugFromUsername(name: string | null | undefined): string {
   return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
-// Mock de reseñas
 const mockReviews = [
   {
     id: 1,
@@ -94,7 +93,6 @@ const mockReviews = [
   },
 ];
 
-// Componente de estrellas
 function StarRating({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' | 'lg' }) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 >= 0.5;
@@ -172,11 +170,8 @@ export default function OfferModal({
   const outboundSentRef = useRef(false);
 
   const savings = originalPrice - discountPrice;
-  
-  // Calcular promedio de reseñas
   const averageRating = mockReviews.reduce((acc, review) => acc + review.rating, 0) / mockReviews.length;
 
-  // Bloquear scroll de la página cuando el modal está abierto (solo scroll del modal)
   useEffect(() => {
     if (!isOpen) return;
     const html = document.documentElement;
@@ -201,14 +196,12 @@ export default function OfferModal({
     };
   }, [isOpen]);
 
-  // Ocultar navbar inferior cuando el detalle de oferta está abierto
   useEffect(() => {
     setOfferOpen(isOpen);
     if (!isOpen) outboundSentRef.current = false;
     return () => setOfferOpen(false);
   }, [isOpen, setOfferOpen]);
 
-  // Registrar view al abrir el modal (una vez por apertura; resiste Strict Mode)
   useEffect(() => {
     if (!isOpen) {
       hasTrackedRef.current = false;
@@ -233,7 +226,6 @@ export default function OfferModal({
     }
   }, [isOpen, offerId, upvotes, downvotes]);
 
-  // Cargar comentarios al abrir el modal
   useEffect(() => {
     if (!isOpen || !offerId) {
       setComments([]);
@@ -409,10 +401,8 @@ export default function OfferModal({
         onClick={onClose}
         style={{ overscrollBehavior: 'contain' }}
       >
-        {/* Overlay con blur */}
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
         
-        {/* Modal */}
         <motion.div
           initial={{ scale: 0.96, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -422,7 +412,6 @@ export default function OfferModal({
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          {/* Imagen — más grande, protagonista */}
           <div className="relative flex-shrink-0 h-48 md:h-64 lg:h-72 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
             {image ? (
               <img src={image} alt="" className="w-full h-full object-contain p-4" />
@@ -449,10 +438,8 @@ export default function OfferModal({
             </button>
           </div>
 
-          {/* Contenido scrollable — estructura mejorada */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain min-w-0 flex flex-col">
             <div className="p-5 md:p-8 space-y-6 flex-1">
-              {/* Header: tienda, título, autor en línea compacta */}
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
@@ -475,7 +462,6 @@ export default function OfferModal({
                     </Link>
                   )}
                 </div>
-                {/* Precio destacado a la derecha en desktop */}
                 <div className="flex-shrink-0 md:text-right">
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <span className="text-3xl md:text-4xl font-bold text-[#111827] dark:text-gray-100 tracking-tight">
@@ -509,7 +495,6 @@ export default function OfferModal({
                 </div>
               )}
 
-              {/* Información adicional: pasos, condiciones, cupones */}
               {(steps?.trim() || conditions?.trim() || coupons?.trim()) && (
                 <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/50 p-4 md:p-5 space-y-4">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Cómo obtener la oferta</p>
@@ -536,7 +521,6 @@ export default function OfferModal({
                 </div>
               )}
 
-              {/* Votos */}
               <div className="flex items-center gap-4 rounded-2xl border border-purple-100 dark:border-purple-800/30 bg-purple-50/50 dark:bg-purple-900/20 p-4">
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">¿Esta oferta te parece útil?</p>
                 <div className="flex items-center gap-3">
@@ -565,7 +549,6 @@ export default function OfferModal({
                 </div>
               </div>
 
-              {/* Tabs: Comentarios / Reseñas */}
               <div className="space-y-4">
                 <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
                   <button
@@ -593,7 +576,6 @@ export default function OfferModal({
                   </button>
                 </div>
 
-                {/* Contenido de tabs */}
                 {activeTab === 'comments' ? (
                   <div className="space-y-4">
                     <div className="space-y-4">
@@ -639,16 +621,13 @@ export default function OfferModal({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Próximamente - reseñas en desarrollo */}
                     <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/80 dark:bg-amber-900/20 p-6 text-center">
                       <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Reseñas próximamente</p>
                       <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
                         La comunidad podrá dejar reseñas verificadas. Estamos construyendo esta función.
                       </p>
                     </div>
-                    {/* Placeholder oculto - mantener estructura por si se activa después */}
                     <div className="hidden">
-                    {/* Promedio de reseñas */}
                     <div className="rounded-xl border border-purple-100 dark:border-purple-800/30 bg-purple-50/50 dark:bg-purple-900/20 p-4">
                       <div className="flex items-center gap-4">
                         <div className="text-center">
@@ -659,7 +638,6 @@ export default function OfferModal({
                       </div>
                     </div>
 
-                    {/* Lista de reseñas */}
                     <div className="space-y-4">
                       {mockReviews.map((review) => (
                         <div key={review.id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
@@ -687,7 +665,6 @@ export default function OfferModal({
                       ))}
                     </div>
 
-                    {/* Formulario para dejar reseña */}
                     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
                       <div className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
                         <AlertCircle className="h-4 w-4" />
@@ -766,7 +743,6 @@ export default function OfferModal({
                   </div>
                 )}
 
-                {/* Preguntar a Luna - debajo de comentarios */}
                 <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={(e) => { e.stopPropagation(); openLuna(); }}
@@ -780,7 +756,6 @@ export default function OfferModal({
             </div>
           </div>
 
-          {/* Acciones fijas: CAZAR OFERTA + Share al lado */}
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 flex-shrink-0">
             <div className="flex items-center gap-3">
               <button
@@ -816,7 +791,6 @@ export default function OfferModal({
             </div>
           </div>
 
-          {/* Plus al final: Reportar */}
           <div className="px-5 md:px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-end gap-4">
             {offerId && (
               <button
@@ -829,7 +803,6 @@ export default function OfferModal({
             )}
           </div>
 
-          {/* Modal de reporte (portal para evitar overflow) */}
           {typeof document !== 'undefined' &&
             createPortal(
               <AnimatePresence>

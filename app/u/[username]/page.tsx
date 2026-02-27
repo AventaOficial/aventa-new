@@ -152,7 +152,6 @@ export default function ProfilePage() {
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
         <section className="container mx-auto px-4 md:px-8 py-12 max-w-5xl">
-          {/* Cabecera del perfil */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -183,7 +182,6 @@ export default function ProfilePage() {
             </div>
           </motion.div>
 
-          {/* Listado de ofertas */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
               Ofertas aprobadas

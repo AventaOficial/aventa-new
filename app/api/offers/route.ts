@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 
-/**
- * POST: crear oferta. Requiere auth. Rate limit: 5/min por IP.
- * Body: mismo payload que insert directo a offers.
- */
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
@@ -98,9 +94,7 @@ export async function POST(request: Request) {
 
     try {
       await supabase.rpc('increment_offers_submitted_count', { uuid: createdBy });
-    } catch {
-      // RPC opcional: no fallar si no existe la función
-    }
+    } catch {}
 
     return NextResponse.json({ id: data?.id, ok: true });
   } catch (e) {

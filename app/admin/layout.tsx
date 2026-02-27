@@ -122,7 +122,6 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      {/* Sidebar - desktop */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
@@ -222,7 +221,6 @@ export default function AdminLayout({
         </nav>
       </aside>
 
-      {/* Overlay mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/30 lg:hidden"
@@ -231,7 +229,6 @@ export default function AdminLayout({
         />
       )}
 
-      {/* Main content */}
       <main className="flex-1 min-w-0">
         <div className="sticky top-0 z-20 flex h-14 items-center gap-2 px-4 bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 lg:hidden">
           <button

@@ -8,13 +8,11 @@ type AuthContextType = {
   user: User | null
   session: Session | null
   isLoading: boolean
-  /** Sesión existe pero email no verificado; no se considera sesión usable */
   isPending: boolean
-  /** Sesión existe y email verificado */
   isVerified: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>
-  signInWithOAuth: (provider: 'google' | 'apple') => Promise<{ error: Error | null }>
+  signInWithOAuth: (provider: 'google') => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
 }
@@ -78,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error as Error | null }
   }
 
-  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+  const signInWithOAuth = async (provider: 'google') => {
     if (!isSupabaseConfigured()) return { error: new Error('Supabase no configurado') }
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const { data, error } = await createClient().auth.signInWithOAuth({

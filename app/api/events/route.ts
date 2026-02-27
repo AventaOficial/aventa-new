@@ -5,7 +5,6 @@ import { isValidUuid } from '@/lib/server/validateUuid'
 
 type EventType = 'view' | 'outbound' | 'share'
 
-/** Rate limit: 60 eventos/min por IP */
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request)

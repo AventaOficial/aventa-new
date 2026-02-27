@@ -19,10 +19,8 @@ export default function FavoriteOnboarding({ isOpen, onClose }: FavoriteOnboardi
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[90] pointer-events-none"
       >
-        {/* Overlay ligero */}
         <div className="absolute inset-0 bg-black/30" />
 
-        {/* Spotlight en el corazón */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -34,7 +32,6 @@ export default function FavoriteOnboarding({ isOpen, onClose }: FavoriteOnboardi
           }}
         />
 
-        {/* Tooltip */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

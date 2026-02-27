@@ -5,11 +5,6 @@ import { isValidUuid } from '@/lib/server/validateUuid'
 
 const REPORT_TYPES = ['precio_falso', 'no_es_oferta', 'expirada', 'spam', 'afiliado_oculto', 'otro'] as const
 
-/**
- * POST: crear reporte de una oferta.
- * Body: { offerId: string, reportType: string, comment?: string }
- * Requiere usuario autenticado. Rate limit: 10/min por IP.
- */
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request)
