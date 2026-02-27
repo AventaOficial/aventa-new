@@ -22,9 +22,13 @@ export async function GET(request: Request) {
 
   const cookieStore = await cookies();
   const supabase = createServerAuthClient({
-    getAll: () => cookieStore.getAll(),
-    set: (name, value, options) => cookieStore.set(name, value, options as Record<string, unknown>),
-    delete: (name, options) => cookieStore.delete(name, options as Record<string, unknown>),
+    getAll: async () => cookieStore.getAll(),
+    set: (name, value, options) => {
+      cookieStore.set(name, value, options as Record<string, unknown>);
+    },
+    delete: (name) => {
+      cookieStore.delete(name);
+    },
   });
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);

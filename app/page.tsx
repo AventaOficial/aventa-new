@@ -128,11 +128,11 @@ function HomeContent() {
     const err = searchParams.get('error');
     const msg = searchParams.get('message');
     if (err === 'missing_code') {
-      showToast('No se recibió el código de Google. Vuelve a intentar iniciar sesión.', 'error');
+      showToast('No se recibió el código de Google. Vuelve a intentar iniciar sesión.');
     } else if (err === 'auth' && msg) {
-      showToast(`Error al iniciar sesión: ${decodeURIComponent(msg)}`, 'error');
+      showToast(`Error al iniciar sesión: ${decodeURIComponent(msg)}`);
     } else if (err === 'config') {
-      showToast('Error de configuración. Revisa las variables de entorno.', 'error');
+      showToast('Error de configuración. Revisa las variables de entorno.');
     }
   }, [searchParams, showToast]);
 

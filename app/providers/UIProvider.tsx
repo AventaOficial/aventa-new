@@ -53,6 +53,21 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [profileOnboardingCompleted, setProfileOnboardingCompleted] = useState<boolean | null>(null)
   const hasAutoOpenedGuide = useRef(false)
 
+  const clearOverlayState = useCallback(() => {
+    setShowGuide(false)
+    setShowOnboarding(false)
+  }, [])
+
+  const finalizeOnboarding = useCallback(async () => {
+    setProfileOnboardingCompleted(true)
+    setLayoutReady(true)
+    clearOverlayState()
+    if (isVerified && user?.id && isSupabaseConfigured()) {
+      const supabase = createClient()
+      await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
+    }
+  }, [isVerified, user?.id, clearOverlayState])
+
   useEffect(() => {
     if (pathname !== '/') {
       setLayoutReady(true)
@@ -175,11 +190,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     setShowGuideModal(false)
   }, [])
 
-  const clearOverlayState = useCallback(() => {
-    setShowGuide(false)
-    setShowOnboarding(false)
-  }, [])
-
   const closeOnboarding = useCallback(() => {
     const wasGuide = showGuide
     clearOverlayState()
@@ -189,16 +199,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       else localStorage.setItem('guestOnboardingDismissed', 'true')
     }
   }, [showGuide, session, clearOverlayState])
-
-  const finalizeOnboarding = useCallback(async () => {
-    setProfileOnboardingCompleted(true)
-    setLayoutReady(true)
-    clearOverlayState()
-    if (isVerified && user?.id && isSupabaseConfigured()) {
-      const supabase = createClient()
-      await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
-    }
-  }, [isVerified, user?.id, clearOverlayState])
 
   const dismissPendingMessage = useCallback(() => setShowPendingMessage(false), [])
   const markJustSignedUp = useCallback(() => setSuppressOnboardingOnce(true), [])
