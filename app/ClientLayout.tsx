@@ -7,15 +7,19 @@ import { useUI } from './providers/UIProvider';
 import { ReactNode } from 'react';
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
-  const { toastMessage } = useUI();
+  const { layoutReady, toastMessage } = useUI();
 
   return (
     <>
       <Navbar />
       <OnboardingV1 />
-      <main className="pb-24 md:pb-0 md:pl-28 min-h-screen">
-        {children}
-      </main>
+      {layoutReady ? (
+        <main className="pb-24 md:pb-0 md:pl-28 min-h-screen">
+          {children}
+        </main>
+      ) : (
+        <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a]" aria-hidden />
+      )}
       <ActionBar />
       {/* Toast simple */}
       {toastMessage && (

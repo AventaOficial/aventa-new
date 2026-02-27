@@ -19,16 +19,16 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
-      {/* Mobile: logo como onboarding — precioso, mismo estilo; en pantallas estrechas (Fold) más compacto */}
+      {/* Mobile: logo como onboarding — espacio extra a la derecha para que "Crear cuenta" no tape el tagline */}
       <div className="md:hidden flex flex-col">
-        <div className="flex items-start pl-5 pr-28 max-[400px]:pl-3 max-[400px]:pr-20 pt-5 max-[400px]:pt-3 min-w-0">
-          <div className="min-w-0">
+        <div className="flex items-start pl-5 pr-32 max-[380px]:pr-28 pt-5 max-[400px]:pt-3 min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl max-[400px]:text-xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
                 AVENTA
               </span>
             </h1>
-            <p className="text-sm max-[400px]:text-xs text-[#6e6e73] dark:text-[#a3a3a3] mt-0.5 leading-tight">
+            <p className="text-sm max-[400px]:text-xs text-[#6e6e73] dark:text-[#a3a3a3] mt-0.5 leading-tight break-words">
               {TAGLINE}
             </p>
           </div>

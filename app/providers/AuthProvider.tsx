@@ -14,6 +14,7 @@ type AuthContextType = {
   isVerified: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>
+  signInWithOAuth: (provider: 'google' | 'apple') => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
 }
@@ -77,11 +78,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error as Error | null }
   }
 
+  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+    if (!isSupabaseConfigured()) return { error: new Error('Supabase no configurado') }
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const { data, error } = await createClient().auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: origin },
+    })
+    if (error) return { error: error as Error | null }
+    if (data?.url) window.location.href = data.url
+    return { error: null }
+  }
+
   const isPending = !!session && !(user?.email_confirmed_at)
   const isVerified = !!session && !!user?.email_confirmed_at
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, isPending, isVerified, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isPending, isVerified, signIn, signUp, signInWithOAuth, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )

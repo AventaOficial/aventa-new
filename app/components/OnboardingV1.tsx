@@ -230,7 +230,7 @@ function PageAuth({
   onSuccess: () => void;
   onBack: () => void;
 }) {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
   const [mode, setMode] = useState<AuthModalMode>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -238,6 +238,7 @@ function PageAuth({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -284,12 +285,21 @@ function PageAuth({
         <WaveText text={mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'} />
       </h2>
 
-      {/* Continuar con Google / proveedor nativo — arriba */}
+      {/* Continuar con Google / Apple */}
       <div className="w-full flex flex-col gap-2 mb-4">
         <button
           type="button"
-          disabled
-          className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3] opacity-75 cursor-not-allowed flex items-center justify-center gap-3"
+          disabled={!!oauthLoading}
+          onClick={async () => {
+            setError(null);
+            setOauthLoading('google');
+            const { error: err } = await signInWithOAuth('google');
+            if (err) {
+              setError(err.message);
+              setOauthLoading(null);
+            }
+          }}
+          className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
         >
           <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -297,17 +307,26 @@ function PageAuth({
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
-          Continuar con Google <span className="text-xs font-normal">(Próximamente)</span>
+          {oauthLoading === 'google' ? 'Redirigiendo...' : 'Continuar con Google'}
         </button>
         <button
           type="button"
-          disabled
-          className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3] opacity-75 cursor-not-allowed flex items-center justify-center gap-3"
+          disabled={!!oauthLoading}
+          onClick={async () => {
+            setError(null);
+            setOauthLoading('apple');
+            const { error: err } = await signInWithOAuth('apple');
+            if (err) {
+              setError(err.message);
+              setOauthLoading(null);
+            }
+          }}
+          className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
         >
           <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13 2.9 1.08 4.08-.6 5.04-1.16 1.02-.66 1.97-.55 3.24-.39 1.27.16 2.32.21 3.92.64-.08 1.23-.27 2.38-.27 2.38s-.14 1.14-.41 2.25c-.22.96-.52 1.92-.85 2.86-.17.46-.37.91-.6 1.35zM12.03 7.25c-.32-2.2 1.4-4.35 3.52-4.78 1.12-.23 2.19.16 3.01 1.12.76.9 1.12 2.34.79 3.66-.33 1.32-1.36 2.6-2.74 2.42-1.38-.18-2.54-1.62-2.41-3.42z" />
           </svg>
-          Continuar con proveedor nativo <span className="text-xs font-normal">(Próximamente)</span>
+          {oauthLoading === 'apple' ? 'Redirigiendo...' : 'Continuar con Apple'}
         </button>
       </div>
 
@@ -409,7 +428,7 @@ const RegisterModal = ({
   onJustSignedUp?: () => void;
   initialMode?: AuthModalMode;
 }) => {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
   const [mode, setMode] = useState<AuthModalMode>(initialMode ?? 'signup');
   useEffect(() => {
     if (initialMode != null) setMode(initialMode);
@@ -420,6 +439,7 @@ const RegisterModal = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -476,12 +496,21 @@ const RegisterModal = ({
         <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-4">
           {mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'}
         </h3>
-        {/* Continuar con Google / proveedor nativo — arriba */}
+        {/* Continuar con Google / Apple */}
         <div className="flex flex-col gap-2 mb-4">
           <button
             type="button"
-            disabled
-            className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3] opacity-75 cursor-not-allowed flex items-center justify-center gap-3"
+            disabled={!!oauthLoading}
+            onClick={async () => {
+              setError(null);
+              setOauthLoading('google');
+              const { error: err } = await signInWithOAuth('google');
+              if (err) {
+                setError(err.message);
+                setOauthLoading(null);
+              }
+            }}
+            className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
           >
             <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -489,17 +518,26 @@ const RegisterModal = ({
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            Continuar con Google <span className="text-xs font-normal">(Próximamente)</span>
+            {oauthLoading === 'google' ? 'Redirigiendo...' : 'Continuar con Google'}
           </button>
           <button
             type="button"
-            disabled
-            className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3] opacity-75 cursor-not-allowed flex items-center justify-center gap-3"
+            disabled={!!oauthLoading}
+            onClick={async () => {
+              setError(null);
+              setOauthLoading('apple');
+              const { error: err } = await signInWithOAuth('apple');
+              if (err) {
+                setError(err.message);
+                setOauthLoading(null);
+              }
+            }}
+            className="w-full rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#141414] px-4 py-3 font-medium text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-3 transition-colors disabled:opacity-70"
           >
             <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13 2.9 1.08 4.08-.6 5.04-1.16 1.02-.66 1.97-.55 3.24-.39 1.27.16 2.32.21 3.92.64-.08 1.23-.27 2.38-.27 2.38s-.14 1.14-.41 2.25c-.22.96-.52 1.92-.85 2.86-.17.46-.37.91-.6 1.35zM12.03 7.25c-.32-2.2 1.4-4.35 3.52-4.78 1.12-.23 2.19.16 3.01 1.12.76.9 1.12 2.34.79 3.66-.33 1.32-1.36 2.6-2.74 2.42-1.38-.18-2.54-1.62-2.41-3.42z" />
             </svg>
-            Continuar con proveedor nativo <span className="text-xs font-normal">(Próximamente)</span>
+            {oauthLoading === 'apple' ? 'Redirigiendo...' : 'Continuar con Apple'}
           </button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">

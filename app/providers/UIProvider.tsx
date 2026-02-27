@@ -6,6 +6,8 @@ import { useAuth } from './AuthProvider'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
 type UIContextType = {
+  /** En home: false hasta decidir si mostrar onboarding, para no mostrar el home por un frame */
+  layoutReady: boolean
   showOnboarding: boolean
   showGuide: boolean
   showPendingMessage: boolean
@@ -35,6 +37,8 @@ const UIContext = createContext<UIContextType | null>(null)
 export function UIProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { session, isPending, isVerified, isLoading, user } = useAuth()
+  /** En "/": false hasta que auth cargó y decidimos si mostrar onboarding; evita flash home → overlay */
+  const [layoutReady, setLayoutReady] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [showPendingMessage, setShowPendingMessage] = useState(false)
@@ -49,15 +53,19 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [profileOnboardingCompleted, setProfileOnboardingCompleted] = useState<boolean | null>(null)
   const hasAutoOpenedGuide = useRef(false)
 
-  /** Onboarding automático: solo para guests (sin sesión). Con cuenta creada no se muestra. */
+  /** Fuera de home: mostrar contenido de inmediato */
+  useEffect(() => {
+    if (pathname !== '/') setLayoutReady(true)
+  }, [pathname])
+
+  /** Onboarding automático: solo para guests (sin sesión). Mientras decidimos, no mostrar home (layoutReady false). */
   useEffect(() => {
     if (pathname !== '/' || typeof window === 'undefined') return
     if (showRegisterModal || showPendingMessage) return
     if (hasAutoOpenedGuide.current) return
 
-    // Esperar a que la auth termine: en refresh con sesión, session puede ser null al inicio
     if (isLoading) return
-    // Con sesión iniciada: nunca auto-mostrar onboarding
+    setLayoutReady(true)
     if (session) return
 
     const guestDismissed = localStorage.getItem('guestOnboardingDismissed')
@@ -178,6 +186,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   return (
     <UIContext.Provider
       value={{
+        layoutReady,
         showOnboarding,
         showGuide,
         showPendingMessage,
