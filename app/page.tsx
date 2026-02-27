@@ -123,6 +123,19 @@ function HomeContent() {
 
   useOffersRealtime(setOffers);
 
+  // Mostrar error de OAuth si el callback redirigió con ?error=...
+  useEffect(() => {
+    const err = searchParams.get('error');
+    const msg = searchParams.get('message');
+    if (err === 'missing_code') {
+      showToast('No se recibió el código de Google. Vuelve a intentar iniciar sesión.', 'error');
+    } else if (err === 'auth' && msg) {
+      showToast(`Error al iniciar sesión: ${decodeURIComponent(msg)}`, 'error');
+    } else if (err === 'config') {
+      showToast('Error de configuración. Revisa las variables de entorno.', 'error');
+    }
+  }, [searchParams, showToast]);
+
   const fetchOffers = useCallback((overrideLimit?: number) => {
     setLoading(true);
     const effectiveLimit = overrideLimit ?? limit;

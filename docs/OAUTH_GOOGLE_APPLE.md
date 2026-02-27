@@ -46,8 +46,17 @@ Sin la URL `/auth/callback`, Supabase no puede devolver el código de autorizaci
 
 ## 4. Comportamiento en la app
 
-- Al hacer clic en "Continuar con Google", la app redirige a Google y luego Supabase redirige a **/auth/callback** con un código. Esa página intercambia el código por la sesión y redirige al usuario a la home ya autenticado.
-- Si el usuario es nuevo, Supabase crea la sesión; con los triggers que tengas en la base de datos, se puede crear el perfil en `profiles` (por ejemplo con el `id` del usuario y el `email` o `display_name` que devuelva Google).
+- Al hacer clic en "Continuar con Google", la app redirige a Google y luego Supabase redirige a **/auth/callback** con un código. El **Route Handler** (`app/auth/callback/route.ts`) intercambia el código por la sesión en el servidor, escribe las cookies y redirige al usuario a la home ya autenticado.
+- Si el usuario es nuevo, Supabase crea la sesión; con los triggers en la base de datos se crea el perfil en `profiles`. El onboarding se gestiona en la app según `profiles.onboarding_completed`.
+
+## 5. Si "Continuar con Google" no termina de crear/iniciar sesión
+
+1. **Consola del navegador** (antes de hacer clic en Google): comprobar que no haya errores al llamar a `signInWithOAuth` y que se produzca el redirect a Google.
+2. **Pestaña Network**: tras elegir la cuenta en Google, verificar que haya un redirect a `https://aventaofertas.com/auth/callback?code=...` (o `http://localhost:3000/auth/callback?code=...`) y que la respuesta sea un **redirect 307/302** a `/` (no un 200 con HTML). Si ves 200 con HTML, el Route Handler podría no estar ejecutándose.
+3. **URL tras el callback**: si acabas en `/?error=missing_code` es que no llegó el `code`; si es `/?error=auth&message=...` el mensaje indica el fallo de Supabase (p. ej. código ya usado o expirado).
+4. **Supabase → Authentication → Logs**: revisar si hay intentos de login con Google y si el exchange de código falla (invalid_grant, etc.).
+5. **Redirect URLs en Supabase**: deben incluir exactamente `https://aventaofertas.com/auth/callback` y `http://localhost:3000/auth/callback` (sin barra final).
+6. **Cookies**: el flujo PKCE guarda un `code_verifier` en cookie antes de ir a Google; al volver a `/auth/callback` esa cookie debe enviarse. Comprobar en DevTools → Application → Cookies que existan cookies del dominio (por ejemplo `sb-...`) tras el callback.
 
 ## Resumen
 

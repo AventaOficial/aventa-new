@@ -2,34 +2,36 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerAuthClient } from '@/lib/supabase/server-auth';
 
+// Evitar cache: el callback debe ejecutarse siempre en el servidor con las cookies de la petición
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const next = requestUrl.searchParams.get('next') ?? '/';
   const safeNext = next.startsWith('/') ? next : '/';
+  const origin = requestUrl.origin;
 
   if (!code) {
-    return NextResponse.redirect(`${requestUrl.origin}/?error=missing_code`);
+    return NextResponse.redirect(`${origin}/?error=missing_code`);
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    return NextResponse.redirect(`${requestUrl.origin}/?error=config`);
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.redirect(`${origin}/?error=config`);
   }
 
   const cookieStore = await cookies();
   const supabase = createServerAuthClient({
     getAll: () => cookieStore.getAll(),
-    set: (name, value, options) => cookieStore.set(name, value, options),
-    delete: (name, options) => cookieStore.delete(name),
+    set: (name, value, options) => cookieStore.set(name, value, options as Record<string, unknown>),
+    delete: (name, options) => cookieStore.delete(name, options as Record<string, unknown>),
   });
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(`${requestUrl.origin}/?error=auth&message=${encodeURIComponent(error.message)}`);
+    return NextResponse.redirect(`${origin}/?error=auth&message=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(`${requestUrl.origin}${safeNext}`);
+  return NextResponse.redirect(`${origin}${safeNext}`);
 }

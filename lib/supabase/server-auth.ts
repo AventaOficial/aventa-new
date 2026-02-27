@@ -2,9 +2,23 @@ import { createServerClient } from '@supabase/ssr';
 
 type CookieStore = {
   getAll: () => Promise<{ name: string; value: string }[]>;
-  set: (name: string, value: string, options?: object) => Promise<void> | void;
-  delete: (name: string, options?: object) => Promise<void> | void;
+  set: (name: string, value: string, options?: Record<string, unknown>) => Promise<void> | void;
+  delete: (name: string, options?: Record<string, unknown>) => Promise<void> | void;
 };
+
+/** Opciones de cookie que Next.js acepta (path, maxAge, httpOnly, secure, sameSite, etc.) */
+function toNextCookieOptions(options?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!options || typeof options !== 'object') return undefined;
+  const next: Record<string, unknown> = {};
+  if (options.path !== undefined) next.path = options.path;
+  if (options.maxAge !== undefined) next.maxAge = options.maxAge;
+  if (options.expires !== undefined) next.expires = options.expires;
+  if (options.domain !== undefined) next.domain = options.domain;
+  if (options.secure !== undefined) next.secure = options.secure;
+  if (options.httpOnly !== undefined) next.httpOnly = options.httpOnly;
+  if (options.sameSite !== undefined) next.sameSite = options.sameSite;
+  return Object.keys(next).length ? next : undefined;
+}
 
 /**
  * Cliente Supabase para flujos de auth en el servidor (callback OAuth, etc.).
@@ -19,15 +33,16 @@ export function createServerAuthClient(cookieStore: CookieStore) {
 
   return createServerClient(url, anonKey, {
     cookies: {
-      getAll: () => cookieStore.getAll(),
-      setAll: (cookiesToSet) => {
-        return Promise.all(
-          cookiesToSet.map(({ name, value, options }) =>
-            value
-              ? Promise.resolve(cookieStore.set(name, value, options))
-              : Promise.resolve(cookieStore.delete(name, options))
-          )
-        );
+      getAll: async () => cookieStore.getAll(),
+      setAll: async (cookiesToSet) => {
+        for (const { name, value, options } of cookiesToSet) {
+          const opts = toNextCookieOptions(options as Record<string, unknown> | undefined);
+          if (value) {
+            await Promise.resolve(cookieStore.set(name, value, opts));
+          } else {
+            await Promise.resolve(cookieStore.delete(name, opts));
+          }
+        }
       },
     },
   });
