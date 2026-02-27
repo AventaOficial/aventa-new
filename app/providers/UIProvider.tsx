@@ -61,6 +61,17 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   }, [pathname])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const ua = navigator.userAgent.toLowerCase()
+    const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterest|slackbot|vkshare|w3c_validator/i.test(ua)
+    if (isBot && pathname === '/') {
+      setLayoutReady(true)
+      setHasDecided(true)
+      hasAutoOpenedGuide.current = true
+    }
+  }, [pathname])
+
+  useEffect(() => {
     if (pathname !== '/' || typeof window === 'undefined') return
     if (showRegisterModal || showPendingMessage) return
     if (hasAutoOpenedGuide.current) return

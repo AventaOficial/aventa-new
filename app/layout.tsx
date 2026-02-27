@@ -54,6 +54,11 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4 px-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          <a href="/privacy" className="underline hover:text-violet-600 dark:hover:text-violet-400">Política de Privacidad</a>
+          <span className="mx-2">·</span>
+          <a href="/terms" className="underline hover:text-violet-600 dark:hover:text-violet-400">Términos y Condiciones</a>
+        </footer>
       </body>
     </html>
   );
