@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
+import { REPUTATION_LEVEL_AUTO_APPROVE_COMMENTS } from '@/lib/server/reputation';
 
 type CommentRow = {
   id: string;
@@ -184,10 +185,24 @@ export async function POST(
   }
   const parentId = typeof body?.parent_id === 'string' && isValidUuid(body.parent_id.trim()) ? body.parent_id.trim() : null;
 
-  const insertPayload: { offer_id: string; user_id: string; content: string; parent_id?: string } = {
+  let commentStatus: 'pending' | 'approved' = 'pending';
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('reputation_level')
+      .eq('id', userId)
+      .maybeSingle();
+    const level = (profile as { reputation_level?: number } | null)?.reputation_level ?? 1;
+    if (level >= REPUTATION_LEVEL_AUTO_APPROVE_COMMENTS) commentStatus = 'approved';
+  } catch {
+    // si no existe la columna, mantener pending
+  }
+
+  const insertPayload: { offer_id: string; user_id: string; content: string; status?: string; parent_id?: string } = {
     offer_id: offerId,
     user_id: userId,
     content: raw,
+    status: commentStatus,
   };
   if (parentId) insertPayload.parent_id = parentId;
 

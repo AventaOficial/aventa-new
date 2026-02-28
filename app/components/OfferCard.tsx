@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Heart, Sparkles, ThumbsUp, ThumbsDown, ExternalLink, Search, User, Share2 } from 'lucide-react';
+import { Heart, Sparkles, ThumbsUp, ThumbsDown, ExternalLink, Search, User, Share2, Award } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
@@ -59,6 +59,8 @@ interface OfferCardProps {
   isLiked?: boolean;
   createdAt?: string | null;
   msiMonths?: number | null;
+  /** Badge "Destacada" cuando la oferta tiene alta calidad (ranking_blend alto). */
+  isDestacada?: boolean;
 }
 
 export default function OfferCard({
@@ -81,6 +83,7 @@ export default function OfferCard({
   isLiked: isLikedProp = false,
   msiMonths,
   createdAt,
+  isDestacada = false,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -358,6 +361,12 @@ export default function OfferCard({
                 style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444' }}
               >
                 -{discount}%
+              </span>
+            )}
+            {isDestacada && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300" title="Alta calidad: la comunidad y el tiempo la destacan">
+                <Award className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                Destacada
               </span>
             )}
           </div>

@@ -569,7 +569,7 @@ export default function OfferModal({
                   </p>
                 )}
                 {msiMonths != null && msiMonths >= 1 && (
-                  <p className="text-sm font-medium text-violet-600 dark:text-violet-400 mt-1">
+                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-1">
                     {msiMonths} MSI: {formatPriceMXN(discountPrice / msiMonths)}/mes
                   </p>
                 )}
@@ -584,14 +584,35 @@ export default function OfferModal({
               )}
 
               {(steps?.trim() || conditions?.trim() || coupons?.trim()) && (
-                <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/50 p-4 md:p-5 space-y-4">
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Cómo obtener la oferta</p>
-                  {steps?.trim() && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Pasos</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{steps.trim()}</p>
-                    </div>
-                  )}
+                <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/50 p-4 md:p-5 space-y-5">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
+                    Información adicional
+                  </p>
+                  {steps?.trim() && (() => {
+                    let stepItems: string[] = [];
+                    try {
+                      const parsed = JSON.parse(steps.trim());
+                      if (Array.isArray(parsed)) stepItems = parsed.filter((s: unknown) => typeof s === 'string' && s.trim());
+                    } catch {
+                      stepItems = steps.trim().split(/\n+/).map((s) => s.trim()).filter(Boolean);
+                    }
+                    if (stepItems.length === 0) return null;
+                    return (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Pasos para aprovechar la oferta</p>
+                        <ol className="space-y-2">
+                          {stepItems.map((text, i) => (
+                            <li key={i} className="flex gap-3">
+                              <span className="shrink-0 w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-semibold flex items-center justify-center">
+                                {i + 1}
+                              </span>
+                              <span className="text-sm text-gray-700 dark:text-gray-300 pt-0.5">{text}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    );
+                  })()}
                   {conditions?.trim() && (
                     <div>
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Condiciones</p>

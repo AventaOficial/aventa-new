@@ -7,6 +7,7 @@ import ClientLayout from '@/app/ClientLayout';
 import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
 import OfferModal from '@/app/components/OfferModal';
+import ReputationBar from '@/app/components/ReputationBar';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -48,7 +49,12 @@ export default function MePage() {
   const [loading, setLoading] = useState(true);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
-  const [profile, setProfile] = useState<{ display_name: string | null; avatar_url: string | null } | null>(null);
+  const [profile, setProfile] = useState<{
+    display_name: string | null;
+    avatar_url: string | null;
+    reputation_level?: number;
+    reputation_score?: number;
+  } | null>(null);
   const [offers, setOffers] = useState<MappedOffer[]>([]);
   const [metrics, setMetrics] = useState({
     totalOffers: 0,
@@ -71,7 +77,7 @@ export default function MePage() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, reputation_level, reputation_score')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -83,6 +89,8 @@ export default function MePage() {
       setProfile({
         display_name: profileData.display_name,
         avatar_url: profileData.avatar_url,
+        reputation_level: (profileData as { reputation_level?: number }).reputation_level ?? 1,
+        reputation_score: (profileData as { reputation_score?: number }).reputation_score ?? 0,
       });
 
       const { data: rows } = await supabase
@@ -198,6 +206,12 @@ export default function MePage() {
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Tu panel</p>
               </div>
+            </div>
+            <div className="mt-4">
+              <ReputationBar
+                level={profile?.reputation_level ?? 1}
+                score={profile?.reputation_score ?? 0}
+              />
             </div>
           </div>
 

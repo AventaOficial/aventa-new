@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
+import { recalculateUserReputation } from '@/lib/server/reputation'
 
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
@@ -22,8 +23,9 @@ export async function POST(request: Request) {
     }
     const supabase = createServerClient()
 
-    const { data: offer } = await supabase.from('offers').select('status').eq('id', id).single()
+    const { data: offer } = await supabase.from('offers').select('status, created_by').eq('id', id).single()
     const previousStatus = offer?.status ?? 'pending'
+    const createdBy = (offer as { created_by?: string } | null)?.created_by
 
     if (status === 'approved') {
       const { data: row } = await supabase.from('offers').select('expires_at').eq('id', id).single()
@@ -55,6 +57,8 @@ export async function POST(request: Request) {
       reason: reason ?? null,
     })
     if (logError) console.error('[moderate-offer] log insert failed:', logError.message)
+
+    if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 
     revalidatePath('/')
     return NextResponse.json({ ok: true })

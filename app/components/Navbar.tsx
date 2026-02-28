@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -24,13 +24,15 @@ export default function Navbar() {
 
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [canAccessModeration, setCanAccessModeration] = useState(false);
 
   useEffect(() => {
     if (!user?.id) {
       setDisplayName(null);
+      setCanAccessModeration(false);
       return;
     }
-    const loadProfile = async () => {
+    const loadProfileAndRole = async () => {
       const { createClient } = await import('@/lib/supabase/client');
       const supabase = createClient();
       const { data: profile } = await supabase
@@ -41,8 +43,15 @@ export default function Navbar() {
       const name = profile?.display_name?.trim();
       const emailPart = user.email?.split('@')[0] ?? '';
       setDisplayName(name || emailPart || null);
+
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', ['owner', 'admin', 'moderator']);
+      setCanAccessModeration(Array.isArray(roles) && roles.length > 0);
     };
-    loadProfile();
+    loadProfileAndRole();
   }, [user?.id]);
 
   const userName = displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
@@ -160,6 +169,16 @@ export default function Navbar() {
               {showUserMenu && (
                 <div className="absolute right-0 top-full mt-2 z-50 min-w-44 rounded-2xl border border-[#e5e5e7] dark:border-[#262626] bg-white/95 dark:bg-[#141414]/95 backdrop-blur-xl shadow-xl py-1.5">
                   <UserMenuContent />
+                  {canAccessModeration && (
+                    <Link
+                      href="/admin/moderation"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <ShieldCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      Moderación
+                    </Link>
+                  )}
                   <Link
                     href="/settings"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"

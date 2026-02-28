@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { User, Store, Calendar, Eye, X } from 'lucide-react';
+import { User, Store, Calendar, Eye, X, History } from 'lucide-react';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 type ModerationOffer = {
   id: string;
@@ -18,13 +19,18 @@ type ModerationOffer = {
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
 };
 
+type ModLog = { id: string; action: string; reason: string | null; created_at: string; display_name?: string | null };
+
 type Props = {
   offer: ModerationOffer;
   status: 'pending' | 'approved' | 'rejected';
   onApprove?: (id: string, createdBy?: string | null) => void;
   onReject?: (id: string, reason?: string) => void;
   actingId?: string | null;
-  similarTitles?: string[];
+  similarOffers?: { id: string; title: string; price: number; original_price: number | null; store: string | null; created_at: string }[];
+  selected?: boolean;
+  onToggleSelect?: () => void;
+  batchMode?: boolean;
 };
 
 function slugFromUsername(name: string | null | undefined): string {
@@ -36,17 +42,48 @@ function slugFromUsername(name: string | null | undefined): string {
     .replace(/[^a-z0-9-]/g, '');
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
+  expired: 'Marcada expirada',
+};
+
 export default function ModerationOfferCard({
   offer,
   status,
   onApprove,
   onReject,
   actingId,
-  similarTitles = [],
+  similarOffers = [],
+  selected = false,
+  onToggleSelect,
+  batchMode = false,
 }: Props) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const { session } = useAuth();
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const fetchHistory = useCallback(() => {
+    if (historyLogs.length > 0) {
+      setShowHistory(true);
+      return;
+    }
+    setHistoryLoading(true);
+    const headers: Record<string, string> = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    fetch(`/api/admin/moderation-logs?offerId=${encodeURIComponent(offer.id)}`, { headers })
+      .then((r) => r.json())
+      .then((data) => {
+        setHistoryLogs(Array.isArray(data?.logs) ? data.logs : []);
+        setShowHistory(true);
+      })
+      .catch(() => setHistoryLogs([]))
+      .finally(() => setHistoryLoading(false));
+  }, [offer.id, historyLogs.length, session?.access_token]);
 
   const authorName =
     offer.profiles?.display_name?.trim() || 'Usuario';
@@ -64,7 +101,7 @@ export default function ModerationOfferCard({
 
   return (
     <article
-      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      className={`bg-white dark:bg-gray-800 rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-shadow ${selected ? 'border-violet-500 ring-2 ring-violet-500/30' : 'border-gray-200 dark:border-gray-700'}`}
       data-testid="moderation-offer-card"
     >
       <div className="flex flex-col sm:flex-row">
@@ -91,7 +128,18 @@ export default function ModerationOfferCard({
         </div>
 
         <div className="flex-1 p-4 flex flex-col gap-3">
-          <div>
+          <div className="flex items-start gap-2">
+            {batchMode && onToggleSelect && (
+              <button
+                type="button"
+                onClick={onToggleSelect}
+                className="shrink-0 flex items-center justify-center w-7 h-7 rounded border-2 border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800 hover:border-violet-500 mt-0.5"
+                aria-label={selected ? 'Quitar de selección' : 'Seleccionar'}
+              >
+                {selected ? <span className="text-violet-600 text-sm leading-none">✓</span> : null}
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
               {offer.title}
             </h3>
@@ -131,18 +179,25 @@ export default function ModerationOfferCard({
                 <span>{authorName}</span>
               )}
             </div>
+            </div>
           </div>
 
-          {similarTitles.length > 0 && (
+          {similarOffers.length > 0 && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
               <p className="font-medium">Ofertas similares</p>
-              <ul className="mt-1 list-disc list-inside text-amber-700 dark:text-amber-300">
-                {similarTitles.slice(0, 3).map((t, i) => (
-                  <li key={i} className="truncate">
-                    {t}
+              <ul className="mt-1 space-y-1 text-amber-700 dark:text-amber-300">
+                {similarOffers.slice(0, 3).map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-3">
+                    <span className="truncate" title={s.title}>{s.title}</span>
+                    <span className="shrink-0 font-semibold">
+                      ${Number(s.price).toLocaleString('es-MX')}
+                    </span>
                   </li>
                 ))}
               </ul>
+              <p className="mt-2 text-xs text-amber-700/80 dark:text-amber-300/80">
+                Revisa si es duplicada o si hay mejor precio.
+              </p>
             </div>
           )}
 
@@ -155,6 +210,16 @@ export default function ModerationOfferCard({
             >
               <Eye className="h-4 w-4" />
               Ver oferta
+            </button>
+            <button
+              type="button"
+              onClick={fetchHistory}
+              disabled={historyLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              title="Historial de moderación"
+            >
+              <History className="h-4 w-4" />
+              Historial
             </button>
             {status === 'pending' && onApprove && onReject && (
               <>
@@ -219,6 +284,31 @@ export default function ModerationOfferCard({
           </div>
         </div>
       </div>
+
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowHistory(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Historial de moderación</h3>
+              <button type="button" onClick={() => setShowHistory(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+            </div>
+            {historyLogs.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Aún no hay acciones registradas.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {historyLogs.map((log) => (
+                  <li key={log.id} className="flex flex-wrap items-baseline gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{ACTION_LABELS[log.action] ?? log.action}</span>
+                    <span className="text-gray-500 dark:text-gray-400">{new Date(log.created_at).toLocaleString('es-MX')}</span>
+                    {log.display_name && <span className="text-gray-600 dark:text-gray-300">por {log.display_name}</span>}
+                    {log.reason && <span className="w-full text-gray-500 dark:text-gray-400">Motivo: {log.reason}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {showPreview && (
         <div

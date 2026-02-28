@@ -43,6 +43,23 @@ export async function GET(
 
   const nowISO = new Date().toISOString();
   const profileId = (profile as { id: string }).id;
+
+  let reputation_level = 1;
+  let reputation_score = 0;
+  try {
+    const { data: rep } = await supabase
+      .from('profiles')
+      .select('reputation_level, reputation_score')
+      .eq('id', profileId)
+      .maybeSingle();
+    if (rep) {
+      reputation_level = Math.max(1, (rep as { reputation_level?: number }).reputation_level ?? 1);
+      reputation_score = Math.max(0, (rep as { reputation_score?: number }).reputation_score ?? 0);
+    }
+  } catch {
+    // columnas pueden no existir aún
+  }
+
   const { data: rows, error: offersError } = await supabase
     .from('offers')
     .select(
@@ -88,7 +105,12 @@ export async function GET(
   });
 
   return NextResponse.json({
-    profile: { username: displayName, avatar_url: (profile as { avatar_url?: string | null }).avatar_url ?? null },
+    profile: {
+      username: displayName,
+      avatar_url: (profile as { avatar_url?: string | null }).avatar_url ?? null,
+      reputation_level,
+      reputation_score,
+    },
     offersCount: offers.length,
     totalScore,
     offers,

@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 type Period = 'all' | 'day' | 'week' | 'month';
 
 type Row = {
+  id?: string;
   title: string;
   views: number;
   outbound: number;
@@ -72,6 +73,7 @@ function computeRowsFromOffers(offers: OfferWithRelations[], dateLimit: Date): R
     const score = votes.reduce((s, v) => s + (v.value === 1 ? 1 : v.value === -1 ? -1 : 0), 0);
     const score_final = computeScoreFinal(score, o.created_at);
     return {
+      id: o.id,
       title: o.title,
       views,
       outbound,
@@ -224,9 +226,37 @@ export default function MetricsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+      <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Métricas por oferta
       </h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Vistas, clics a tienda (outbound) y CTR por oferta. Ordena por impacto para ver las que más generan salidas.
+      </p>
+
+      <section className="mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-4 md:p-5">
+        <h2 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide mb-3">
+          Impacto — {periodLabel}
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNum(summary.totalViews)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Vistas</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatNum(summary.totalOutbound)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Clics a tienda</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{globalCtr ?? '—'}{globalCtr != null ? '%' : ''}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">CTR global</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.activeOffers}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Ofertas con actividad</p>
+          </div>
+        </div>
+      </section>
+
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label className="text-sm text-gray-600 dark:text-gray-400">Período:</label>
         <select
@@ -371,7 +401,7 @@ export default function MetricsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">title</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Oferta</th>
               <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">views</th>
               <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">outbound</th>
               <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">shares</th>
@@ -390,9 +420,15 @@ export default function MetricsPage() {
               </tr>
             ) : (
               sorted.map((row, i) => (
-                <tr key={i} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                  <td className="p-3 text-gray-900 dark:text-gray-100 max-w-[200px] truncate" title={row.title}>
-                    {row.title}
+                <tr key={row.id ?? i} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                  <td className="p-3 max-w-[200px]" title={row.title}>
+                    {row.id ? (
+                      <a href={`/?o=${row.id}`} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 hover:underline truncate block">
+                        {row.title}
+                      </a>
+                    ) : (
+                      <span className="text-gray-900 dark:text-gray-100 truncate block">{row.title}</span>
+                    )}
                   </td>
                   <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.views}</td>
                   <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.outbound}</td>

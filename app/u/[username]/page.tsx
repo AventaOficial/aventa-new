@@ -8,13 +8,19 @@ import ClientLayout from '@/app/ClientLayout';
 import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
 import OfferModal from '@/app/components/OfferModal';
+import ReputationBar from '@/app/components/ReputationBar';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 
 type ProfileData = {
-  profile: { username: string; avatar_url: string | null };
+  profile: {
+    username: string;
+    avatar_url: string | null;
+    reputation_level?: number;
+    reputation_score?: number;
+  };
   offersCount: number;
   totalScore: number;
   offers: {
@@ -179,6 +185,12 @@ export default function ProfilePage() {
                   <span>Score total: {totalScore}</span>
                 </div>
               </div>
+            </div>
+            <div className="mt-4">
+              <ReputationBar
+                level={profile.reputation_level ?? 1}
+                score={profile.reputation_score ?? 0}
+              />
             </div>
           </motion.div>
 

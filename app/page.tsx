@@ -78,6 +78,16 @@ interface Offer {
 /** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
 const DESTACADA_RANKING_BLEND_MIN = 15;
 
+/** Opciones de categoría para el filtro del feed (mismo orden que en el formulario de ofertas). */
+const FEED_CATEGORY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'electronics', label: 'Electrónica' },
+  { value: 'fashion', label: 'Moda' },
+  { value: 'home', label: 'Hogar' },
+  { value: 'sports', label: 'Deportes' },
+  { value: 'books', label: 'Libros' },
+  { value: 'other', label: 'Otros' },
+];
+
 function rowToOffer(row: OfferRow): Offer {
   const originalPrice = Number(row.original_price) || 0;
   const discountPrice = Number(row.price) || 0;
@@ -135,9 +145,10 @@ function HomeContent() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
   const [storeList, setStoreList] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
   const [hasMoreCursor, setHasMoreCursor] = useState(true);
-  const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null });
+  const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
 
   useOffersRealtime(setOffers);
 
@@ -193,6 +204,9 @@ function HomeContent() {
     if (storeFilter?.trim()) {
       query = query.eq('store', storeFilter.trim());
     }
+    if (categoryFilter?.trim()) {
+      query = query.eq('category', categoryFilter.trim());
+    }
     if (viewMode === 'top') {
       query = query.gt('score', 0);
     }
@@ -212,7 +226,7 @@ function HomeContent() {
         setOffers(rows.map(rowToOffer));
         setHasMoreCursor(rows.length >= effectiveLimit);
       });
-  }, [timeFilter, viewMode, limit, storeFilter]);
+  }, [timeFilter, viewMode, limit, storeFilter, categoryFilter]);
 
   const fetchNextPage = useCallback(() => {
     if (viewMode !== 'latest' && viewMode !== 'personalized') return;
@@ -245,6 +259,9 @@ function HomeContent() {
     if (storeFilter?.trim()) {
       nextQuery = nextQuery.eq('store', storeFilter.trim());
     }
+    if (categoryFilter?.trim()) {
+      nextQuery = nextQuery.eq('category', categoryFilter.trim());
+    }
     nextQuery.then(({ data, error }) => {
       setLoading(false);
       if (error) return;
@@ -252,7 +269,7 @@ function HomeContent() {
       setHasMoreCursor(rows.length >= 12);
       setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
     });
-  }, [viewMode, timeFilter, storeFilter, offers]);
+  }, [viewMode, timeFilter, storeFilter, categoryFilter, offers]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -266,10 +283,11 @@ function HomeContent() {
       prevFiltersRef.current.viewMode !== viewMode ||
       prevFiltersRef.current.timeFilter !== timeFilter ||
       prevFiltersRef.current.debouncedQuery !== debouncedQuery ||
-      prevFiltersRef.current.storeFilter !== storeFilter;
+      prevFiltersRef.current.storeFilter !== storeFilter ||
+      prevFiltersRef.current.categoryFilter !== categoryFilter;
     const effectiveLimit = filtersChanged ? 12 : limit;
     if (filtersChanged) {
-      prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery, storeFilter };
+      prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter };
       setLimit(12);
       setHasMoreCursor(true);
     }
@@ -278,7 +296,8 @@ function HomeContent() {
     if (debouncedQuery.trim()) {
       const supabase = createClient();
       const nowISO = new Date().toISOString();
-      const q = debouncedQuery.trim().replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const q = debouncedQuery.trim().replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, ' ');
+      // Búsqueda en título, tienda y descripción (roadmap: descubribilidad); orden por calidad (ranking_blend)
       let searchQueryBuilder = supabase
         .from('ofertas_ranked_general')
         .select(
@@ -286,11 +305,14 @@ function HomeContent() {
         )
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-        .ilike('title', `%${q}%`)
-        .order('created_at', { ascending: false })
+        .or(`title.ilike.%${q}%,store.ilike.%${q}%,description.ilike.%${q}%`)
+        .order('ranking_blend', { ascending: false })
         .limit(effectiveLimit);
       if (storeFilter?.trim()) {
         searchQueryBuilder = searchQueryBuilder.eq('store', storeFilter.trim());
+      }
+      if (categoryFilter?.trim()) {
+        searchQueryBuilder = searchQueryBuilder.eq('category', categoryFilter.trim());
       }
       searchQueryBuilder.then(({ data, error }) => {
         setLoading(false);
@@ -308,7 +330,7 @@ function HomeContent() {
       document.addEventListener('visibilitychange', onVisible);
       return () => document.removeEventListener('visibilitychange', onVisible);
     }
-  }, [pathname, viewMode, timeFilter, debouncedQuery, storeFilter, limit, fetchOffers]);
+  }, [pathname, viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter, limit, fetchOffers]);
 
   useEffect(() => {
     if (!session && viewMode === 'personalized') {
@@ -460,19 +482,35 @@ function HomeContent() {
               {viewMode === 'personalized' && 'Ordenado por lo más reciente.'}
               {viewMode === 'latest' && 'Solo lo más nuevo, por fecha de publicación.'}
             </p>
-            <div className="mt-2 flex items-center gap-2 min-w-0">
-              <span className="text-xs font-medium text-[#6e6e73] dark:text-[#a3a3a3] shrink-0">Tienda:</span>
-              <select
-                value={storeFilter ?? ''}
-                onChange={(e) => setStoreFilter(e.target.value === '' ? null : e.target.value)}
-                className="rounded-lg border border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] text-[#1d1d1f] dark:text-[#fafafa] text-xs font-medium px-3 py-1.5 min-w-0 max-w-[180px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                aria-label="Filtrar por tienda"
-              >
-                <option value="">Todas las tiendas</option>
-                {storeList.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-medium text-[#6e6e73] dark:text-[#a3a3a3] shrink-0">Tienda:</span>
+                <select
+                  value={storeFilter ?? ''}
+                  onChange={(e) => setStoreFilter(e.target.value === '' ? null : e.target.value)}
+                  className="rounded-lg border border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] text-[#1d1d1f] dark:text-[#fafafa] text-xs font-medium px-3 py-1.5 min-w-0 max-w-[180px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                  aria-label="Filtrar por tienda"
+                >
+                  <option value="">Todas las tiendas</option>
+                  {storeList.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-medium text-[#6e6e73] dark:text-[#a3a3a3] shrink-0">Categoría:</span>
+                <select
+                  value={categoryFilter ?? ''}
+                  onChange={(e) => setCategoryFilter(e.target.value === '' ? null : e.target.value)}
+                  className="rounded-lg border border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] text-[#1d1d1f] dark:text-[#fafafa] text-xs font-medium px-3 py-1.5 min-w-0 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                  aria-label="Filtrar por categoría"
+                >
+                  <option value="">Todas</option>
+                  {FEED_CATEGORY_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 

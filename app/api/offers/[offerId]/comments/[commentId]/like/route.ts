@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
+import { recalculateUserReputation } from '@/lib/server/reputation';
 
 /** POST: dar o quitar like a un comentario (toggle). Requiere auth. */
 export async function POST(
@@ -53,6 +54,13 @@ export async function POST(
     .eq('user_id', userId)
     .maybeSingle();
 
+  const { data: commentRow } = await supabase
+    .from('comments')
+    .select('user_id')
+    .eq('id', cId)
+    .single();
+  const commentAuthorId = (commentRow as { user_id?: string } | null)?.user_id;
+
   if (existing) {
     const { error: delErr } = await supabase
       .from('comment_likes')
@@ -63,6 +71,7 @@ export async function POST(
       console.error('[comment-like] delete:', delErr.message);
       return NextResponse.json({ error: 'Error al quitar like' }, { status: 500 });
     }
+    if (commentAuthorId) recalculateUserReputation(commentAuthorId).catch(() => {});
     return NextResponse.json({ liked: false });
   }
 
@@ -74,27 +83,7 @@ export async function POST(
     return NextResponse.json({ error: 'Error al dar like' }, { status: 500 });
   }
 
-  const threshold = parseInt(process.env.AUTOMOD_COMMENT_LIKES_THRESHOLD ?? '3', 10);
-  if (threshold >= 1) {
-    try {
-      const { data: comment } = await supabase
-        .from('comments')
-        .select('status')
-        .eq('id', cId)
-        .single();
-      if (comment?.status === 'pending') {
-        const { count } = await supabase
-          .from('comment_likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('comment_id', cId);
-        if (count != null && count >= threshold) {
-          await supabase.from('comments').update({ status: 'approved' }).eq('id', cId);
-        }
-      }
-    } catch {
-      // ignorar fallos de auto-aprobación
-    }
-  }
+  if (commentAuthorId) recalculateUserReputation(commentAuthorId).catch(() => {});
 
   return NextResponse.json({ liked: true });
 }

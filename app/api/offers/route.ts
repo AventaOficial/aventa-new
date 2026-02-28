@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '@/lib/server/reputation';
 
 export async function POST(request: Request) {
   try {
@@ -85,6 +86,24 @@ export async function POST(request: Request) {
         ? body.msi_months
         : null;
 
+    let offerStatus: 'pending' | 'approved' = 'pending';
+    let expiresAt: string | undefined;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('reputation_level')
+        .eq('id', createdBy)
+        .maybeSingle();
+      const level = (profile as { reputation_level?: number } | null)?.reputation_level ?? 1;
+      if (level >= REPUTATION_LEVEL_AUTO_APPROVE_OFFERS) {
+        offerStatus = 'approved';
+        expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      }
+    } catch {
+      // si no existe la columna, mantener pending
+    }
+
+    const category = typeof body?.category === 'string' && body.category.trim() ? body.category.trim() : null;
     const payload = {
       title,
       price,
@@ -92,8 +111,10 @@ export async function POST(request: Request) {
         ? originalPrice
         : null,
       store,
-      status: 'pending' as const,
+      ...(category && { category }),
+      status: offerStatus,
       created_by: createdBy,
+      ...(expiresAt && { expires_at: expiresAt }),
       image_url: firstImage,
       ...(imageUrlsArr.length > 0 && { image_urls: imageUrlsArr }),
       ...(msiMonths != null && { msi_months: msiMonths }),

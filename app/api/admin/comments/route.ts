@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 import { isValidUuid } from '@/lib/server/validateUuid'
+import { recalculateUserReputation } from '@/lib/server/reputation'
 
 /** GET: listar comentarios para moderación (pending por defecto; moderadores ven todos por RLS) */
 export async function GET(request: Request) {
@@ -66,6 +67,12 @@ export async function PATCH(request: Request) {
     }
 
     const supabase = createServerClient()
+    const { data: comment } = await supabase
+      .from('comments')
+      .select('user_id')
+      .eq('id', commentId)
+      .single()
+
     const { error } = await supabase
       .from('comments')
       .update({ status })
@@ -75,6 +82,9 @@ export async function PATCH(request: Request) {
       console.error('[admin/comments] update failed:', error.message)
       return NextResponse.json({ error: 'Error al actualizar comentario' }, { status: 500 })
     }
+
+    const authorId = (comment as { user_id?: string } | null)?.user_id
+    if (authorId) recalculateUserReputation(authorId).catch(() => {})
 
     return NextResponse.json({ ok: true })
   } catch (e) {

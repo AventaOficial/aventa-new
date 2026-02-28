@@ -61,10 +61,11 @@ export default function ActionBar() {
     discountPrice: '',
     category: '',
     store: '',
-    steps: '',
     conditions: '',
     coupons: '',
   });
+  const [stepsList, setStepsList] = useState<string[]>(['']);
+  const MAX_STEPS = 20;
   const [hasDiscount, setHasDiscount] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -167,10 +168,10 @@ export default function ActionBar() {
       discountPrice: '',
       category: '',
       store: '',
-      steps: '',
       conditions: '',
       coupons: '',
     });
+    setStepsList(['']);
     setShowOptionalSection(false);
     setImageUrl(null);
     setImageUrls([]);
@@ -197,12 +198,15 @@ export default function ActionBar() {
       original_price: hasDiscount && formData.originalPrice.trim() ? originalPriceNum : null,
       hasDiscount,
       store: formData.store.trim(),
+      ...(formData.category.trim() && { category: formData.category.trim() }),
       image_url: firstImage,
       ...(allImages.length > 0 && { image_urls: allImages }),
       ...(msiMonths != null && msiMonths >= 1 && msiMonths <= 24 && { msi_months: msiMonths }),
       ...(formData.offer_url.trim() && { offer_url: formData.offer_url.trim() }),
       ...(formData.description.trim() && { description: formData.description.trim() }),
-      ...(formData.steps.trim() && { steps: formData.steps.trim() }),
+      ...(stepsList.filter((s) => s.trim()).length > 0 && {
+        steps: JSON.stringify(stepsList.map((s) => s.trim()).filter(Boolean)),
+      }),
       ...(formData.conditions.trim() && { conditions: formData.conditions.trim() }),
       ...(formData.coupons.trim() && { coupons: formData.coupons.trim() }),
     };
@@ -692,13 +696,49 @@ export default function ActionBar() {
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Pasos para obtener la oferta
                           </label>
-                          <textarea
-                            value={formData.steps}
-                            onChange={(e) => handleInputChange('steps', e.target.value)}
-                            placeholder="Ej: 1. Agregar al carrito, 2. Aplicar cupón..."
-                            rows={3}
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
-                          />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                            Paso 1, Paso 2… El usuario los verá en la oferta al dar «Ver más».
+                          </p>
+                          <div className="space-y-2">
+                            {stepsList.map((step, i) => (
+                              <div key={i} className="flex gap-2 items-start">
+                                <span className="shrink-0 w-7 h-9 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                  {i + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={step}
+                                  onChange={(e) => {
+                                    const next = [...stepsList];
+                                    next[i] = e.target.value;
+                                    setStepsList(next);
+                                  }}
+                                  placeholder={`Descripción del paso ${i + 1}`}
+                                  className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-3 py-2.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                                />
+                                {stepsList.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setStepsList((prev) => prev.filter((_, j) => j !== i))}
+                                    className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    aria-label="Quitar paso"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {stepsList.length < MAX_STEPS && (
+                              <button
+                                type="button"
+                                onClick={() => setStepsList((prev) => [...prev, ''])}
+                                className="flex items-center gap-2 text-sm font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                              >
+                                <Plus className="h-4 w-4" />
+                                Agregar paso
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div>

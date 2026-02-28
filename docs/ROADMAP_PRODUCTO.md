@@ -11,22 +11,25 @@ Objetivo: **ser la mejor página de ofertas** y sentar las bases para **expansi�
 - **Explicación de niveles:** En la barra de reputación, "¿Qué es?" abre modal con los 4 niveles y qué aporta cada uno.
 - **Icono logo:** Componente AventaIcon (A estilizada / flecha arriba) junto al texto AVENTA en loading, Hero y onboarding.
 - **Filtro por tienda:** Selector "Tienda" en el feed (API `/api/stores`); aplica al feed y a la búsqueda por texto.
+- **Búsqueda mejorada:** Búsqueda en título, tienda y descripción; resultados ordenados por `ranking_blend`.
+- **Categorías:** Columna `category` en offers (migración `offers_category.sql`), vista con category, API y formulario guardan categoría, filtro "Categoría" en feed y búsqueda.
+- **Herramientas de moderación:** Filtros (tienda, categoría, fecha desde/hasta, Risk alto); acciones en lote (aprobar / rechazar con motivo / marcar expiradas); historial por oferta (API `moderation-logs`, botón "Historial" en tarjeta).
 
 ---
 
 ## Próximos pasos (descubribilidad y UX)
 
 1. **Categorías y filtros**
-   - Filtro por tienda: hecho (selector en feed + búsqueda).
-   - Categorías en ofertas (ya existe campo en formulario); filtrar por categoría en home.
-   - Filtros por rango de precio y antigüedad (día/semana/mes ya en Top; extender si hace falta).
+   - Hecho: filtro por tienda y por categoría. Para categorías, ejecutar `offers_category.sql` y volver a aplicar `view_ranking_blend.sql`.
+   - Pendiente: filtros por rango de precio (día/semana/mes ya en Top).
+   - Pendiente: extender antigüedad si hace falta.
 
 2. **Búsqueda**
-   - Búsqueda por título, tienda, categoría (y si aplica descripción) con resultados ordenados por relevancia o por ranking_blend.
+   - Hecho: título, tienda y descripción; orden por ranking_blend. Categoría se filtra con el selector.
 
 3. **Publicación y moderación**
-   - Flujo de publicar oferta más claro y rápido.
-   - Herramientas para mods: filtros por fecha/autor, acciones en lote (aprobar/rechazar varias), historial de acciones.
+   - Hecho: filtros (tienda, categoría, fecha, Risk alto), acciones en lote (aprobar/rechazar/marcar expiradas), historial en tarjeta.
+   - Pendiente: flujo de publicar oferta más claro y rápido.
 
 4. **Métricas de impacto**
    - Ofertas: clicks/salidas (track-outbound), tiempo en oferta, ratio de votos.

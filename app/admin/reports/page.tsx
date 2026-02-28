@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { Flag, ChevronDown, ExternalLink, Check, X } from 'lucide-react';
+import { Flag, ChevronDown, ExternalLink, Check, X, Clock } from 'lucide-react';
 
 type ReportRow = {
   id: string;
@@ -43,6 +43,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'pending' | 'reviewed' | 'dismissed' | 'all'>('pending');
   const [actingId, setActingId] = useState<string | null>(null);
+  const [expiringId, setExpiringId] = useState<string | null>(null);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -79,6 +80,21 @@ export default function ReportsPage() {
       setReports((prev) =>
         prev.map((r) => (r.id === reportId ? { ...r, status } : r))
       );
+    }
+  };
+
+  const handleMarkExpired = async (reportId: string, offerId: string) => {
+    setExpiringId(reportId);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const res = await fetch('/api/admin/expire-offer', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ offerId }),
+    });
+    setExpiringId(null);
+    if (res.ok) {
+      await handleUpdateStatus(reportId, 'reviewed');
     }
   };
 
@@ -157,7 +173,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{r.comment}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <a
                     href={`/?o=${r.offer_id}`}
                     target="_blank"
@@ -169,6 +185,15 @@ export default function ReportsPage() {
                   </a>
                   {r.status === 'pending' && (
                     <>
+                      <button
+                        onClick={() => handleMarkExpired(r.id, r.offer_id)}
+                        disabled={expiringId === r.id || actingId === r.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-3 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                        title="Marcar oferta como expirada (sale del feed) y marcar reporte como revisado"
+                      >
+                        <Clock className="h-4 w-4" />
+                        Marcar como expirada
+                      </button>
                       <button
                         onClick={() => handleUpdateStatus(r.id, 'reviewed')}
                         disabled={actingId === r.id}
