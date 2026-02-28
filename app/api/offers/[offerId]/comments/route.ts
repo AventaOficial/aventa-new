@@ -39,6 +39,7 @@ export async function GET(
     .from('comments')
     .select('id, content, created_at, user_id, profiles:public_profiles_view!user_id(display_name)')
     .eq('offer_id', offerId)
+    .eq('status', 'approved')
     .order('created_at', { ascending: true });
 
   if (error) {

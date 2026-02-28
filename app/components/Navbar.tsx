@@ -33,12 +33,21 @@ export default function Navbar() {
     const loadProfile = async () => {
       const { createClient } = await import('@/lib/supabase/client');
       const supabase = createClient();
-      const { data } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('display_name')
         .eq('id', user.id)
         .single();
-      setDisplayName(data?.display_name ?? 'Usuario');
+      const name = profile?.display_name?.trim();
+      const emailPart = user.email?.split('@')[0] ?? '';
+      const needsSync = !name || name === 'Usuario' || name === emailPart;
+      const fromMeta = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name;
+      if (needsSync && fromMeta && typeof fromMeta === 'string' && fromMeta.trim()) {
+        await supabase.from('profiles').update({ display_name: fromMeta.trim() }).eq('id', user.id);
+        setDisplayName(fromMeta.trim());
+      } else {
+        setDisplayName(name ?? 'Usuario');
+      }
     };
     loadProfile();
   }, [user?.id]);

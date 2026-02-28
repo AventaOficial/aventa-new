@@ -59,6 +59,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Precio inválido' }, { status: 400 });
     }
 
+    const imageUrlRaw = typeof body?.image_url === 'string' ? body.image_url : null;
+    const imageUrlsArr = Array.isArray(body?.image_urls)
+      ? body.image_urls.filter((u): u is string => typeof u === 'string' && u.trim() !== '')
+      : [];
+    const firstImage = imageUrlRaw ?? imageUrlsArr[0] ?? '/placeholder.png';
+    const msiMonths =
+      body?.msi_months != null && Number.isInteger(body.msi_months) && body.msi_months >= 1 && body.msi_months <= 24
+        ? body.msi_months
+        : null;
+
     const payload = {
       title,
       price,
@@ -68,7 +78,9 @@ export async function POST(request: Request) {
       store,
       status: 'pending' as const,
       created_by: createdBy,
-      image_url: typeof body?.image_url === 'string' ? body.image_url : '/placeholder.png',
+      image_url: firstImage,
+      ...(imageUrlsArr.length > 0 && { image_urls: imageUrlsArr }),
+      ...(msiMonths != null && { msi_months: msiMonths }),
       ...(typeof body?.offer_url === 'string' && body.offer_url.trim() && {
         offer_url: body.offer_url.trim(),
       }),

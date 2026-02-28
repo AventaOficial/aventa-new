@@ -62,7 +62,9 @@ export default function ActionBar() {
   });
   const [hasDiscount, setHasDiscount] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageUploading, setImageUploading] = useState(false);
+  const [msiMonths, setMsiMonths] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
@@ -130,7 +132,9 @@ export default function ActionBar() {
         showToast(data?.error ?? 'Error al subir');
         return;
       }
-      if (typeof data?.url === 'string') setImageUrl(data.url);
+      if (typeof data?.url !== 'string') return;
+      if (!imageUrl) setImageUrl(data.url);
+      else setImageUrls((prev) => [...prev, data.url]);
     } catch {
       showToast('Error al subir');
     } finally {
@@ -164,6 +168,8 @@ export default function ActionBar() {
     });
     setShowOptionalSection(false);
     setImageUrl(null);
+    setImageUrls([]);
+    setMsiMonths(null);
     setHasDiscount(true);
     setMobileTab('form');
   };
@@ -178,13 +184,17 @@ export default function ActionBar() {
     const price = hasDiscount
       ? parseDecimalPrice(formData.discountPrice)
       : originalPriceNum;
+    const allImages = imageUrl ? [imageUrl, ...imageUrls.filter((u) => u !== imageUrl)] : imageUrls;
+    const firstImage = allImages[0] ?? '/placeholder.png';
     const payload = {
       title: formData.title.trim(),
       price,
       original_price: hasDiscount && formData.originalPrice.trim() ? originalPriceNum : null,
       hasDiscount,
       store: formData.store.trim(),
-      image_url: imageUrl ?? '/placeholder.png',
+      image_url: firstImage,
+      ...(allImages.length > 0 && { image_urls: allImages }),
+      ...(msiMonths != null && msiMonths >= 1 && msiMonths <= 24 && { msi_months: msiMonths }),
       ...(formData.offer_url.trim() && { offer_url: formData.offer_url.trim() }),
       ...(formData.description.trim() && { description: formData.description.trim() }),
       ...(formData.steps.trim() && { steps: formData.steps.trim() }),
@@ -595,7 +605,7 @@ export default function ActionBar() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Imagen del producto (opcional)
+                      Imagen(es) del producto (opcional)
                     </label>
                     <label className="block w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 cursor-pointer">
                       <input
@@ -607,9 +617,45 @@ export default function ActionBar() {
                       />
                       <ImageIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {imageUploading ? 'Subiendo...' : imageUrl ? 'Imagen agregada ✓' : 'Haz clic para seleccionar (jpg, png, webp, máx. 2MB)'}
+                        {imageUploading ? 'Subiendo...' : imageUrl || imageUrls.length > 0 ? `${1 + imageUrls.length} imagen(es) agregada(s) ✓` : 'Haz clic para seleccionar (jpg, png, webp, máx. 2MB). Puedes añadir más después.'}
                       </p>
                     </label>
+                    {(imageUrl || imageUrls.length > 0) && (
+                      <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        Vuelve a elegir un archivo para añadir otra imagen.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={msiMonths != null}
+                        onChange={(e) => setMsiMonths(e.target.checked ? 3 : null)}
+                        className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                      />
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Meses sin intereses (MSI)</span>
+                    </label>
+                    {msiMonths != null && (
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <label className="text-sm text-gray-600 dark:text-gray-400">Meses:</label>
+                        <select
+                          value={msiMonths}
+                          onChange={(e) => setMsiMonths(parseInt(e.target.value, 10) || null)}
+                          className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                        >
+                          {[3, 6, 12, 18, 24].map((n) => (
+                            <option key={n} value={n}>{n} MSI</option>
+                          ))}
+                        </select>
+                        {formData.discountPrice && (
+                          <span className="text-sm font-medium text-violet-600 dark:text-violet-400">
+                            {formatPreviewPrice(formData.discountPrice)} ÷ {msiMonths} = {formatPreviewPrice(String(parseDecimalPrice(formData.discountPrice) / msiMonths))}/mes
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

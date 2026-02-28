@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import ClientLayout from './ClientLayout';
 import Hero from './components/Hero';
@@ -60,6 +60,8 @@ interface Offer {
   downvotes: number;
   offerUrl: string;
   image?: string;
+  imageUrls?: string[];
+  msiMonths?: number | null;
   votes: { up: number; down: number; score: number };
   author: OfferAuthor;
   ranking_momentum: number;
@@ -91,6 +93,8 @@ function rowToOffer(row: OfferRow): Offer {
     downvotes: down,
     offerUrl: row.offer_url?.trim() ?? '',
     image: row.image_url ? row.image_url : undefined,
+    imageUrls: Array.isArray((row as { image_urls?: string[] }).image_urls) ? (row as { image_urls: string[] }).image_urls : undefined,
+    msiMonths: typeof (row as { msi_months?: number }).msi_months === 'number' ? (row as { msi_months: number }).msi_months : undefined,
     description: row.description?.trim() || undefined,
     steps: (row as { steps?: string }).steps?.trim() || undefined,
     conditions: (row as { conditions?: string }).conditions?.trim() || undefined,
@@ -123,18 +127,22 @@ function HomeContent() {
 
   useOffersRealtime(setOffers);
 
-  // Mostrar error de OAuth si el callback redirigió con ?error=...
+  // Mostrar error de OAuth si el callback redirigió con ?error=... y limpiar la URL
+  const router = useRouter();
   useEffect(() => {
     const err = searchParams.get('error');
     const msg = searchParams.get('message');
     if (err === 'missing_code') {
       showToast('No se recibió el código de Google. Vuelve a intentar iniciar sesión.');
+      router.replace(pathname, { scroll: false });
     } else if (err === 'auth' && msg) {
       showToast(`Error al iniciar sesión: ${decodeURIComponent(msg)}`);
+      router.replace(pathname, { scroll: false });
     } else if (err === 'config') {
       showToast('Error de configuración. Revisa las variables de entorno.');
+      router.replace(pathname, { scroll: false });
     }
-  }, [searchParams, showToast]);
+  }, [searchParams, showToast, router, pathname]);
 
   const fetchOffers = useCallback((overrideLimit?: number) => {
     setLoading(true);
@@ -155,7 +163,7 @@ function HomeContent() {
 
     let query = supabase
       .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, image_url, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)')
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)')
       .order('ranking_momentum', { ascending: false })
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
@@ -207,7 +215,7 @@ function HomeContent() {
       supabase
         .from('ofertas_ranked_general')
         .select(
-          'id, title, price, original_price, image_url, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)'
+          'id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)'
         )
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
@@ -492,6 +500,8 @@ function HomeContent() {
             offerId={selectedOffer.id}
             author={selectedOffer.author}
             image={selectedOffer.image}
+            imageUrls={selectedOffer.imageUrls}
+            msiMonths={selectedOffer.msiMonths}
             isLiked={!!favoriteMap[selectedOffer.id]}
             onFavoriteChange={(fav) => handleFavoriteChange(selectedOffer.id, fav)}
             userVote={voteMap[selectedOffer.id] ?? 0}

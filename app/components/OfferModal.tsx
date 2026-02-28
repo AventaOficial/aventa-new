@@ -30,6 +30,8 @@ interface OfferModalProps {
   offerId?: string;
   author?: { username: string; avatar_url?: string | null };
   image?: string;
+  imageUrls?: string[];
+  msiMonths?: number | null;
   isLiked?: boolean;
   onFavoriteChange?: (isFavorite: boolean) => void;
   userVote?: 1 | -1 | 0 | null;
@@ -136,6 +138,8 @@ export default function OfferModal({
   offerId,
   author,
   image,
+  imageUrls,
+  msiMonths,
   isLiked: isLikedProp = false,
   onFavoriteChange,
   userVote: userVoteProp = 0,
@@ -334,9 +338,8 @@ export default function OfferModal({
         body: JSON.stringify({ content: text }),
       });
       if (res.ok) {
-        const newComment = await res.json();
-        setComments((prev) => [...prev, newComment]);
         setCommentText('');
+        showToast?.('Comentario enviado. Será visible cuando pase la moderación.');
       }
     } finally {
       setCommentSubmitting(false);
@@ -408,11 +411,11 @@ export default function OfferModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="relative z-10 w-full max-w-2xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] md:max-h-[85vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
+          className="relative z-10 w-full max-w-2xl md:max-w-5xl lg:max-w-6xl max-h-[92vh] md:max-h-[88vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          <div className="relative flex-shrink-0 h-48 md:h-64 lg:h-72 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
+          <div className="relative flex-shrink-0 h-36 sm:h-44 md:h-52 lg:h-60 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
             {image ? (
               <img src={image} alt="" className="w-full h-full object-contain p-4" />
             ) : (
@@ -438,8 +441,8 @@ export default function OfferModal({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain min-w-0 flex flex-col">
-            <div className="p-5 md:p-8 space-y-6 flex-1">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col">
+            <div className="p-5 md:p-8 pb-10 space-y-6 min-h-[min(60vh,600px)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
@@ -483,6 +486,11 @@ export default function OfferModal({
                 {originalPrice > 0 && savings > 0 && (
                   <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1">
                     Ahorras {formatPriceMXN(savings)}
+                  </p>
+                )}
+                {msiMonths != null && msiMonths >= 1 && (
+                  <p className="text-sm font-medium text-violet-600 dark:text-violet-400 mt-1">
+                    {msiMonths} MSI: {formatPriceMXN(discountPrice / msiMonths)}/mes
                   </p>
                 )}
                 </div>
