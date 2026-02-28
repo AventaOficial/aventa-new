@@ -20,6 +20,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
     }
 
+    // Temporal: confirmar que el sync se ejecuta (ver consola del servidor)
+    console.log('SYNC PROFILE EXECUTED FOR:', user.id);
+
     const displayNameFromMeta =
       (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.user_metadata?.display_name) as string | undefined;
     const displayName = typeof displayNameFromMeta === 'string' && displayNameFromMeta.trim()
@@ -52,20 +55,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const currentName = existing.display_name?.trim() || null;
-    const emailPart = user.email?.split('@')[0]?.trim() || null;
-    const isGenericOrEmpty =
-      !currentName ||
-      currentName === 'Usuario' ||
-      currentName === emailPart;
-
-    const updates: { avatar_url: string | null; updated_at: string; display_name?: string } = {
+    // Siempre actualizar display_name desde Auth (temporal: sin condición para confirmar en UI)
+    const displayNameToSet =
+      (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Usuario') as string;
+    const updates: { avatar_url: string | null; updated_at: string; display_name: string } = {
       avatar_url: avatarUrlVal,
       updated_at: now,
+      display_name: typeof displayNameToSet === 'string' && displayNameToSet.trim() ? displayNameToSet.trim() : (user.email?.split('@')[0] || 'Usuario'),
     };
-    if (isGenericOrEmpty && (displayName || fallbackName)) {
-      updates.display_name = displayName || fallbackName || 'Usuario';
-    }
 
     const { error: updateError } = await supabase
       .from('profiles')

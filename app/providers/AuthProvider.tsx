@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import type { User, Session } from '@supabase/supabase-js'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
@@ -20,6 +21,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -61,8 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetch('/api/sync-profile', {
       method: 'POST',
       headers: { Authorization: `Bearer ${session.access_token}` },
-    }).catch(() => {})
-  }, [session?.access_token, user?.id])
+    })
+      .then(() => router.refresh())
+      .catch(() => {})
+  }, [session?.access_token, user?.id, router])
 
   const signIn = async (email: string, password: string) => {
     if (!isSupabaseConfigured()) return { error: new Error('Supabase no configurado') }
