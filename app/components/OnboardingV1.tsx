@@ -48,6 +48,46 @@ function WaveText({ text, className = '' }: { text: string; className?: string }
   );
 }
 
+function PageLogo({ onNext }: { onNext: () => void }) {
+  return (
+    <motion.div
+      key="logo"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={t}
+      className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.7 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+        className="flex flex-col items-center gap-4 mb-10"
+      >
+        <motion.div
+          animate={{ rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.2 }}
+          className="flex items-center justify-center gap-3"
+        >
+          <AventaIcon size={64} className="shrink-0 text-[#1d1d1f] dark:text-white md:w-20 md:h-20" />
+          <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
+            AVENTA
+          </span>
+        </motion.div>
+      </motion.div>
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, ...t }}
+        onClick={onNext}
+        className="rounded-2xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-10 py-4 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+      >
+        Continuar
+      </motion.button>
+    </motion.div>
+  );
+}
+
 function PageWelcome({ onNext }: { onNext: () => void }) {
   return (
     <motion.div
@@ -58,18 +98,6 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       transition={t}
       className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1, ...t }}
-        className="mb-6 md:mb-8"
-      >
-        <span className="text-sm font-semibold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400 flex items-center gap-2">
-          <AventaIcon size={18} className="shrink-0" />
-          AVENTA
-        </span>
-      </motion.div>
-
       <motion.h1
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -800,7 +828,7 @@ export default function OnboardingV1() {
         </div>
 
         <div className="flex justify-center gap-1.5 pt-16 sm:pt-4 pb-2 sm:pb-4 shrink-0">
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
               className={`h-1 rounded-full transition-all duration-300 ${
@@ -817,18 +845,21 @@ export default function OnboardingV1() {
         <div key={mountKey} className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <AnimatePresence mode="wait">
             {page === 0 && (
-              <PageWelcome onNext={() => setPage(1)} />
+              <PageLogo onNext={() => setPage(1)} />
             )}
             {page === 1 && (
-              <PageHowItWorks
-                onNext={() => setPage(2)}
-                onBack={() => setPage(0)}
-              />
+              <PageWelcome onNext={() => setPage(2)} />
             )}
             {page === 2 && (
+              <PageHowItWorks
+                onNext={() => setPage(3)}
+                onBack={() => setPage(1)}
+              />
+            )}
+            {page === 3 && (
               <PageAuth
                 onSuccess={handleAuthSuccess}
-                onBack={() => setPage(1)}
+                onBack={() => setPage(2)}
               />
             )}
           </AnimatePresence>

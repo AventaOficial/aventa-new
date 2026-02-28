@@ -482,36 +482,6 @@ function HomeContent() {
               {viewMode === 'personalized' && 'Ordenado por lo más reciente.'}
               {viewMode === 'latest' && 'Solo lo más nuevo, por fecha de publicación.'}
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-medium text-[#6e6e73] dark:text-[#a3a3a3] shrink-0">Tienda:</span>
-                <select
-                  value={storeFilter ?? ''}
-                  onChange={(e) => setStoreFilter(e.target.value === '' ? null : e.target.value)}
-                  className="rounded-lg border border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] text-[#1d1d1f] dark:text-[#fafafa] text-xs font-medium px-3 py-1.5 min-w-0 max-w-[180px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                  aria-label="Filtrar por tienda"
-                >
-                  <option value="">Todas las tiendas</option>
-                  {storeList.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-medium text-[#6e6e73] dark:text-[#a3a3a3] shrink-0">Categoría:</span>
-                <select
-                  value={categoryFilter ?? ''}
-                  onChange={(e) => setCategoryFilter(e.target.value === '' ? null : e.target.value)}
-                  className="rounded-lg border border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] text-[#1d1d1f] dark:text-[#fafafa] text-xs font-medium px-3 py-1.5 min-w-0 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                  aria-label="Filtrar por categoría"
-                >
-                  <option value="">Todas</option>
-                  {FEED_CATEGORY_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </div>
 
           {viewMode === 'top' && (

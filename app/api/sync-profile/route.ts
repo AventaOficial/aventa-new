@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 
+/** Misma lógica que el frontend (slugFromUsername): minúsculas, espacios→-, solo a-z0-9- */
+function toSlug(name: string | null): string | null {
+  if (typeof name !== 'string' || !name.trim()) return null;
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
 /**
  * Sincroniza el perfil público (profiles) con los datos de Supabase Auth.
  * Solo se usa desde el cliente tras login; los datos vienen del servidor (getUser con token).
@@ -40,10 +50,12 @@ export async function POST(request: Request) {
 
     if (!existing) {
       const nameToSet = displayName || fallbackName || 'Usuario';
+      const slug = toSlug(nameToSet) || `user-${user.id.slice(0, 8)}`;
       const { error: insertError } = await supabase.from('profiles').insert({
         id: user.id,
         display_name: nameToSet,
         avatar_url: avatarUrlVal,
+        ...(slug && { slug }),
       });
       if (insertError) {
         console.error('[sync-profile] insert failed:', insertError.message, insertError.details, insertError.code);
@@ -56,12 +68,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Siempre actualizar display_name desde Auth (temporal: sin condición para confirmar en UI)
+    // Siempre actualizar display_name desde Auth (y slug para perfil público /u/[slug])
     const displayNameToSet =
       (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Usuario') as string;
-    const updates: { avatar_url: string | null; display_name: string } = {
+    const finalDisplayName = typeof displayNameToSet === 'string' && displayNameToSet.trim() ? displayNameToSet.trim() : (user.email?.split('@')[0] || 'Usuario');
+    const slug = toSlug(finalDisplayName) || `user-${user.id.slice(0, 8)}`;
+    const updates: { avatar_url: string | null; display_name: string; slug?: string } = {
       avatar_url: avatarUrlVal,
-      display_name: typeof displayNameToSet === 'string' && displayNameToSet.trim() ? displayNameToSet.trim() : (user.email?.split('@')[0] || 'Usuario'),
+      display_name: finalDisplayName,
+      ...(slug && { slug }),
     };
 
     const { error: updateError } = await supabase
