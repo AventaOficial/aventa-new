@@ -48,42 +48,61 @@ function WaveText({ text, className = '' }: { text: string; className?: string }
   );
 }
 
+/** Letras en ola para el logo de texto (ej. AVENTA) */
+function WaveLogoText({ text, className = '' }: { text: string; className?: string }) {
+  const letters = text.split('');
+  return (
+    <span className={`inline-flex justify-center ${className}`}>
+      {letters.map((letter, i) => (
+        <motion.span
+          key={i}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 * i, duration: 0.4, ease: waveEase }}
+          className="inline-block"
+        >
+          {letter}
+        </motion.span>
+      ))}
+    </span>
+  );
+}
+
+const PAGE_LOGO_DURATION_MS = 3000;
+
 function PageLogo({ onNext }: { onNext: () => void }) {
+  useEffect(() => {
+    const id = setTimeout(onNext, PAGE_LOGO_DURATION_MS);
+    return () => clearTimeout(id);
+  }, [onNext]);
+
   return (
     <motion.div
       key="logo"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={t}
+      transition={{ duration: 0.25 }}
       className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.7 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-        className="flex flex-col items-center gap-4 mb-10"
-      >
+      <div className="flex flex-col items-center justify-center gap-5">
         <motion.div
-          animate={{ rotate: [0, 5, -5, 0] }}
-          transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.2 }}
-          className="flex items-center justify-center gap-3"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+          className="flex justify-center"
         >
-          <AventaIcon size={64} className="shrink-0 text-[#1d1d1f] dark:text-white md:w-20 md:h-20" />
-          <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
-            AVENTA
-          </span>
+          <AventaIcon size={72} className="shrink-0 text-[#1d1d1f] dark:text-white md:w-24 md:h-24" />
         </motion.div>
-      </motion.div>
-      <motion.button
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, ...t }}
-        onClick={onNext}
-        className="rounded-2xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-10 py-4 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-      >
-        Continuar
-      </motion.button>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35, duration: 0.2 }}
+          className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent"
+        >
+          <WaveLogoText text="AVENTA" />
+        </motion.div>
+      </div>
     </motion.div>
   );
 }
@@ -98,17 +117,17 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
       transition={t}
       className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
     >
-      <motion.h1
-        initial={{ opacity: 0, y: 14 }}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, ...t }}
-        className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6 flex items-center justify-center gap-3"
+        transition={{ delay: 0.15, ...t }}
+        className="flex flex-col items-center justify-center gap-3 mb-4 md:mb-6"
       >
         <AventaIcon size={48} className="shrink-0 text-[#1d1d1f] dark:text-white md:w-14 md:h-14" />
-        <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
+        <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
           AVENTA
         </span>
-      </motion.h1>
+      </motion.div>
 
       <motion.p
         initial={{ opacity: 0 }}
