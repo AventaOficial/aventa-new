@@ -147,3 +147,34 @@ La economía **va aparte** y **después** de tener bien cerrado: reputación, mo
 - **Objetivo:** Pagar **por impacto**, y **muy por abajo** — no llenar la página de gente que solo quiere vender y ganar dinero.
 - **Idea:** Recompensar a quien **da calidad** y **genera impacto real** (ofertas que la gente usa, comentarios que ayudan, señales que mejoran el feed). No recompensar por “tener nivel” ni por “llegar a 100”.
 - **Fase:** Primero confianza y sistema (niveles, moderación, ranking_blend, señal “Destacada” si se añade, métricas de impacto). Cuando eso esté estable, diseñar **recompensa por impacto** (baja, acotada, orientada a calidad). Eso se desarrolla en un siguiente paso, sin atar la reputación actual a dinero hasta tener las reglas y métricas claras.
+
+---
+
+## 11. Estado actual del checklist (ser mejor que PD)
+
+Resumen de qué está hecho y qué falta según la comparativa.
+
+### Hecho (§9)
+
+| Ítem | Estado | Dónde |
+|------|--------|--------|
+| Reputación interna y niveles (Nuevo → Elite) | ✅ | reputation_score/level, lib/reputation.ts, barra en perfil |
+| Peso de voto por reputación (ranking_blend) | ✅ | Backend peso por nivel; feed por ranking_blend |
+| Moderación explícita y auto-aprobación por nivel | ✅ | Cola pendientes; nivel 2 comentarios auto; nivel 3 ofertas auto |
+| Baneos, reportes, roles | ✅ | moderation_logs, reportes, roles en admin |
+| Respuestas y likes; barra de nivel | ✅ | parent_id, likes; ReputationBar en /me y /u/[username] |
+
+### Falta → estado actual (§9 puntos 1–6)
+
+| # | Objetivo | Estado | Notas |
+|---|----------|--------|--------|
+| 1 | Señal "esta oferta es buena" (badge sin puntos) | ✅ Hecho | Badge Destacada por ranking_blend ≥ umbral; solo visual |
+| 2 | Descubribilidad y filtros | 🟡 Parcial | Búsqueda título/tienda/descripción; categorías en ofertas y mod; filtros home quitados |
+| 3 | Claridad de qué aporta cada nivel | ✅ Hecho | Modal "¿Qué significan los niveles?" en perfil (ReputationBar) |
+| 4 | Experiencia moderación (filtros, lote, historial) | ✅ Hecho | Filtros, acciones en lote, historial por oferta (moderation_logs) |
+| 5 | Escala y medición (vistas, outbound, CTR) | ✅ Hecho | Eventos view/outbound/share; panel Métricas en admin |
+| 6 | No copiar (sin expiración, sin 100=Hot con puntos) | ✅ | Reputación no expira; badge no da puntos; sin economía por nivel |
+
+### Resumen una línea
+
+Sistema frente a PD: lo que el doc pedía para estar a la altura o superarlos está implementado (o parcial en descubribilidad). Lo que falta para superar en producto es escala, uso real y economía por impacto (fase posterior, §10).
