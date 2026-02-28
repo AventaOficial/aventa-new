@@ -18,7 +18,7 @@
 | Reportar oferta | ✅ | Modal con tipo y comentario; POST /api/reports. |
 | Votar (arriba/abajo) | ✅ | API con user desde token; UNIQUE por oferta/usuario. |
 | Favoritos | ✅ | Añadir/quitar; lista en /me/favoritos. |
-| Comentarios en oferta | ✅ | GET/POST /api/offers/[id]/comments; solo aprobados visibles. |
+| Comentarios en oferta | ✅ | GET/POST /api/offers/[id]/comments; respuestas (parent_id), likes (comment_likes), solo aprobados visibles. |
 | Perfil público por username | ✅ | /u/[username] y API con RPC get_profile_by_slug. |
 | Mi perfil / Mis ofertas | ✅ | /me con ofertas propias. |
 | Configuración (nombre, etc.) | ✅ | /settings con límite 14 días en cambio de nombre. |
@@ -36,7 +36,8 @@
 | Moderación de comentarios | ✅ | /admin/moderation/comments; GET/PATCH /api/admin/comments (pending/approved/rejected). |
 | Reportes de usuarios | ✅ | /admin/reports; ofertas reportadas. |
 | Logs de moderación | ✅ | moderation_logs; panel /admin/logs. |
-| Roles (owner, admin, moderator, analyst) | ✅ | user_roles; RLS y requireModeration/requireAdmin. |
+| Roles (owner, admin, moderator, analyst) | ✅ | user_roles; solo moderación para moderator; Usuarios/Logs/Métricas/Health según roles. |
+| Baneos | ✅ | /admin/moderation/bans; user_bans; bloqueo en comentarios y ofertas. |
 
 ---
 

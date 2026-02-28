@@ -1,7 +1,7 @@
 'use client';
 
 import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, Star, Image as ImageIcon, AlertCircle, User, MessageCircle, Share2, Flag } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
@@ -42,6 +42,11 @@ type CommentItem = {
   content: string;
   created_at: string;
   author: { username: string };
+  parent_id?: string | null;
+  image_url?: string | null;
+  like_count?: number;
+  liked_by_me?: boolean;
+  replies?: CommentItem[];
 };
 
 function formatRelativeDate(iso: string): string {
@@ -162,6 +167,8 @@ export default function OfferModal({
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [likingId, setLikingId] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
@@ -240,18 +247,35 @@ export default function OfferModal({
     }
   }, [isOpen, offerId, upvotes, downvotes]);
 
+  const fetchComments = useCallback(() => {
+    if (!offerId) return;
+    setCommentsLoading(true);
+    fetch(`/api/offers/${encodeURIComponent(offerId)}/comments`, {
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+    })
+      .then((res) => (res.ok ? res.json() : { comments: [] }))
+      .then((data) => {
+        const list = Array.isArray(data.comments) ? data.comments : [];
+        const roots = list.filter((c: CommentItem) => !c.parent_id);
+        const withReplies = roots.map((r: CommentItem) => ({
+          ...r,
+          replies: list.filter((c: CommentItem) => c.parent_id === r.id).sort(
+            (a: CommentItem, b: CommentItem) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          ),
+        }));
+        setComments(withReplies);
+      })
+      .catch(() => setComments([]))
+      .finally(() => setCommentsLoading(false));
+  }, [offerId, session?.access_token]);
+
   useEffect(() => {
     if (!isOpen || !offerId) {
       setComments([]);
       return;
     }
-    setCommentsLoading(true);
-    fetch(`/api/offers/${encodeURIComponent(offerId)}/comments`)
-      .then((res) => (res.ok ? res.json() : { comments: [] }))
-      .then((data) => setComments(Array.isArray(data.comments) ? data.comments : []))
-      .catch(() => setComments([]))
-      .finally(() => setCommentsLoading(false));
-  }, [isOpen, offerId]);
+    fetchComments();
+  }, [isOpen, offerId, fetchComments]);
 
   const handleVote = (vote: 'up' | 'down') => {
     if (!offerId || !session?.access_token) return;
@@ -345,14 +369,33 @@ export default function OfferModal({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ content: text, parent_id: replyingToId || undefined }),
       });
       if (res.ok) {
         setCommentText('');
+        setReplyingToId(null);
         showToast?.('Comentario enviado. Será visible cuando pase la moderación.');
+        fetchComments();
       }
     } finally {
       setCommentSubmitting(false);
+    }
+  };
+
+  const handleLikeComment = async (commentId: string) => {
+    if (!offerId || !session?.access_token || likingId) return;
+    setLikingId(commentId);
+    try {
+      const res = await fetch(
+        `/api/offers/${encodeURIComponent(offerId)}/comments/${encodeURIComponent(commentId)}/like`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }
+      );
+      if (res.ok) fetchComments();
+    } finally {
+      setLikingId(null);
     }
   };
 
@@ -628,16 +671,72 @@ export default function OfferModal({
                         <p className="text-sm text-gray-500 dark:text-gray-400">Cargando comentarios…</p>
                       ) : (
                         comments.map((comment) => (
-                          <div key={comment.id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                            <div className="mb-2 flex items-center gap-2">
-                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                @{comment.author.username}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatRelativeDate(comment.created_at)}
-                              </p>
+                          <div key={comment.id} className="space-y-2">
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
+                              <div className="mb-2 flex items-center gap-2">
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                  @{comment.author.username}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatRelativeDate(comment.created_at)}
+                                </p>
+                              </div>
+                              <p className="text-gray-700 dark:text-gray-300 text-sm">{comment.content}</p>
+                              {comment.image_url && (
+                                <img src={comment.image_url} alt="" className="mt-2 rounded-lg max-h-40 object-cover" />
+                              )}
+                              <div className="mt-2 flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => session && handleLikeComment(comment.id)}
+                                  disabled={!session || likingId === comment.id}
+                                  className={`flex items-center gap-1 text-xs font-medium transition-colors ${comment.liked_by_me ? 'text-pink-500' : 'text-gray-500 dark:text-gray-400 hover:text-pink-500'}`}
+                                >
+                                  <Heart className={`h-4 w-4 ${comment.liked_by_me ? 'fill-current' : ''}`} />
+                                  {(comment.like_count ?? 0) > 0 ? comment.like_count : ''}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => session && setReplyingToId(comment.id)}
+                                  className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-1"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  Responder
+                                </button>
+                              </div>
                             </div>
-                            <p className="text-gray-700 dark:text-gray-300 text-sm">{comment.content}</p>
+                            {(comment.replies?.length ?? 0) > 0 && (
+                              <div className="pl-4 md:pl-6 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 ml-2">
+                                {comment.replies?.map((reply) => (
+                                  <div key={reply.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 p-3">
+                                    <div className="mb-1 flex items-center gap-2">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">@{reply.author.username}</p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatRelativeDate(reply.created_at)}</p>
+                                    </div>
+                                    <p className="text-gray-700 dark:text-gray-300 text-sm">{reply.content}</p>
+                                    <div className="mt-2 flex items-center gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => session && handleLikeComment(reply.id)}
+                                        disabled={!session || likingId === reply.id}
+                                        className={`flex items-center gap-1 text-xs font-medium transition-colors ${reply.liked_by_me ? 'text-pink-500' : 'text-gray-500 dark:text-gray-400 hover:text-pink-500'}`}
+                                      >
+                                        <Heart className={`h-4 w-4 ${reply.liked_by_me ? 'fill-current' : ''}`} />
+                                        {(reply.like_count ?? 0) > 0 ? reply.like_count : ''}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => session && setReplyingToId(reply.id)}
+                                        className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-1"
+                                      >
+                                        <MessageCircle className="h-3.5 w-3.5" />
+                                        Responder
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))
                       )}
@@ -645,22 +744,38 @@ export default function OfferModal({
 
                     {offerId && (
                       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
+                        {replyingToId && (
+                          <p className="text-xs text-purple-600 dark:text-purple-400">
+                            Respondiendo a un comentario — escribe abajo y envía.
+                          </p>
+                        )}
                         <textarea
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          placeholder={session ? 'Escribe un comentario (máx. 280 caracteres)...' : 'Inicia sesión para comentar.'}
+                          placeholder={session ? (replyingToId ? 'Escribe tu respuesta (máx. 280 caracteres)...' : 'Escribe un comentario (máx. 280 caracteres)...') : 'Inicia sesión para comentar.'}
                           maxLength={280}
                           disabled={!session}
                           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-purple-500 focus:outline-none resize-none disabled:opacity-60"
                           rows={2}
                         />
-                        <button
-                          onClick={handleSubmitComment}
-                          disabled={!commentText.trim() || commentSubmitting || !session}
-                          className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-600 dark:to-pink-500 px-4 py-2 font-semibold text-white text-sm transition-all duration-200 ease-out hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {commentSubmitting ? 'Enviando…' : 'Comentar'}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {replyingToId && (
+                            <button
+                              type="button"
+                              onClick={() => { setReplyingToId(null); setCommentText(''); }}
+                              className="text-sm text-gray-500 dark:text-gray-400 hover:underline"
+                            >
+                              Cancelar respuesta
+                            </button>
+                          )}
+                          <button
+                            onClick={handleSubmitComment}
+                            disabled={!commentText.trim() || commentSubmitting || !session}
+                            className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-600 dark:to-pink-500 px-4 py-2 font-semibold text-white text-sm transition-all duration-200 ease-out hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {commentSubmitting ? 'Enviando…' : replyingToId ? 'Responder' : 'Comentar'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

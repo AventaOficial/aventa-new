@@ -16,17 +16,24 @@ import {
   Heart,
   Menu,
   X,
+  ShieldOff,
 } from 'lucide-react';
-import { canAccessModeration, canAccessMetrics, canAccessHealth, type Role } from '@/lib/admin/roles';
+import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, type Role } from '@/lib/admin/roles';
 
 const ALLOWED_ROLES = ['owner', 'admin', 'moderator', 'analyst'] as const;
 
-const MODERATION_ITEMS = [
+/** Solo moderación: Pendientes, Aprobadas, Rechazadas, Comentarios, Reportes (visible para moderator + owner/admin) */
+const MODERATION_ONLY_ITEMS = [
   { href: '/admin/moderation', label: 'Pendientes', icon: ClipboardList },
   { href: '/admin/moderation/approved', label: 'Aprobadas', icon: CheckCircle },
   { href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
   { href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
   { href: '/admin/reports', label: 'Reportes', icon: Flag },
+  { href: '/admin/moderation/bans', label: 'Baneos', icon: ShieldOff },
+] as const;
+
+/** Usuarios y Logs: solo owner y admin (moderadores no ven estos enlaces) */
+const USERS_LOGS_ITEMS = [
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/logs', label: 'Logs', icon: FileText },
 ] as const;
@@ -76,22 +83,26 @@ export default function AdminLayout({
 
   const hasAllowedRole = userRole !== null;
   const canMod = canAccessModeration(userRole);
+  const canUsersLogs = canAccessUsersLogs(userRole);
   const canMet = canAccessMetrics(userRole);
   const canHea = canAccessHealth(userRole);
 
   useEffect(() => {
     if (!hasAllowedRole) return;
-    const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/logs');
+    const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
+    const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
-    if (isModPath && !canMod) {
+    if (isUsersLogsPath && !canUsersLogs) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isModPath && !canMod) {
       router.replace(canMet ? '/admin/metrics' : '/admin/health');
     } else if (isMetPath && !canMet) {
       router.replace(canMod ? '/admin/moderation' : '/admin/health');
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
     }
-  }, [pathname, hasAllowedRole, canMod, canMet, canHea, router]);
+  }, [pathname, hasAllowedRole, canMod, canUsersLogs, canMet, canHea, router]);
 
   if (hasAllowedRole === null) {
     return (
@@ -154,10 +165,38 @@ export default function AdminLayout({
               <p className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Moderación
               </p>
-              {MODERATION_ITEMS.map(({ href, label, icon: Icon }) => {
+              {MODERATION_ONLY_ITEMS.map(({ href, label, icon: Icon }) => {
                 const isActive =
                   pathname === href ||
                   (href.startsWith('/admin/moderation/') && pathname.startsWith(href));
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                      ${
+                        isActive
+                          ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }
+                    `}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
+          {canUsersLogs && (
+            <>
+              <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Administración
+              </p>
+              {USERS_LOGS_ITEMS.map(({ href, label, icon: Icon }) => {
+                const isActive = pathname === href;
                 return (
                   <Link
                     key={href}

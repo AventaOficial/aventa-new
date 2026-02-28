@@ -12,6 +12,9 @@ const ROLE_PRIORITY: Role[] = ['owner', 'admin', 'moderator', 'analyst']
 /** Roles que pueden moderar ofertas */
 export const MODERATION_ROLES: Role[] = ['owner', 'admin', 'moderator']
 
+/** Roles que pueden ver usuarios y logs (solo owner/admin; moderadores no) */
+export const USERS_LOGS_ROLES: Role[] = ['owner', 'admin']
+
 /** Roles que pueden ver/refrescar métricas */
 export const METRICS_ROLES: Role[] = ['owner', 'admin', 'analyst']
 
@@ -57,6 +60,11 @@ export async function requireModeration(request: Request): Promise<AuthResult> {
 /** Para métricas (refresh-metrics) */
 export async function requireMetrics(request: Request): Promise<AuthResult> {
   return requireRole(request, METRICS_ROLES)
+}
+
+/** Para usuarios y logs (solo owner/admin) */
+export async function requireUsersLogs(request: Request): Promise<AuthResult> {
+  return requireRole(request, USERS_LOGS_ROLES)
 }
 
 /** Cualquier rol admin (compatibilidad con código existente) */

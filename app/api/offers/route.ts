@@ -37,6 +37,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
     }
 
+    const supabase = createServerClient();
+    try {
+      const { data: ban } = await supabase
+        .from('user_bans')
+        .select('id')
+        .eq('user_id', createdBy)
+        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+        .maybeSingle();
+      if (ban) {
+        return NextResponse.json(
+          { error: 'No puedes publicar ofertas. Tu cuenta está restringida.' },
+          { status: 403 }
+        );
+      }
+    } catch {
+      // user_bans puede no existir aún
+    }
+
     const body = await request.json().catch(() => ({}));
     const title = typeof body?.title === 'string' ? body.title.trim() : '';
     const store = typeof body?.store === 'string' ? body.store.trim() : '';
@@ -94,7 +112,6 @@ export async function POST(request: Request) {
       }),
     };
 
-    const supabase = createServerClient();
     const { data, error } = await supabase.from('offers').insert([payload]).select('id').single();
 
     if (error) {
