@@ -49,8 +49,7 @@ export default function ModerationOfferCard({
   const [showPreview, setShowPreview] = useState(false);
 
   const authorName =
-    (offer.profiles?.display_name?.trim() && offer.profiles.display_name) ||
-    'Usuario';
+    offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug = slugFromUsername(offer.profiles?.display_name);
 
   const handleReject = () => {

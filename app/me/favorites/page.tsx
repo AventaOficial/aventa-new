@@ -72,7 +72,7 @@ function rowToOffer(row: OfferRow): MappedOffer {
     description: row.description?.trim() || undefined,
     votes: { up, down, score },
     author: {
-      username: (prof?.display_name?.trim() && prof.display_name) || 'Usuario',
+      username: prof?.display_name?.trim() || 'Usuario',
       avatar_url: prof?.avatar_url ?? null,
     },
   }

@@ -118,7 +118,7 @@ export async function POST(
     id: inserted.id,
     content: inserted.content,
     created_at: inserted.created_at,
-    author: { username: userData?.user_metadata?.display_name?.trim() || userData?.email?.split('@')[0] || 'Usuario' },
+    author: { username: (userData?.user_metadata?.display_name?.trim() || userData?.email?.split('@')[0]) || 'Usuario' },
   };
   return NextResponse.json(comment);
 }

@@ -23,8 +23,6 @@ export default function Navbar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
-  const fromMeta = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.display_name;
-  const metaNameStr = typeof fromMeta === 'string' && fromMeta.trim() ? fromMeta.trim() : null;
   const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,31 +30,22 @@ export default function Navbar() {
       setDisplayName(null);
       return;
     }
-    setDisplayName(metaNameStr);
     const loadProfile = async () => {
       const { createClient } = await import('@/lib/supabase/client');
       const supabase = createClient();
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('display_name, avatar_url')
         .eq('id', user.id)
         .single();
       const name = profile?.display_name?.trim();
       const emailPart = user.email?.split('@')[0] ?? '';
-      const needsSync = !name || name === 'Usuario' || name === emailPart;
-      if (needsSync && metaNameStr) {
-        await supabase.from('profiles').update({ display_name: metaNameStr }).eq('id', user.id);
-        setDisplayName(metaNameStr);
-      } else if (name) {
-        setDisplayName(name);
-      } else if (!metaNameStr) {
-        setDisplayName(emailPart || 'Usuario');
-      }
+      setDisplayName(name || emailPart || null);
     };
     loadProfile();
-  }, [user?.id, metaNameStr]);
+  }, [user?.id]);
 
-  const userName = displayName ?? metaNameStr ?? user?.email?.split('@')[0] ?? 'Usuario';
+  const userName = displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
 
   const [isMd, setIsMd] = useState(false);
   useEffect(() => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const syncProfileDoneRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
+      if (!s?.user?.id) syncProfileDoneRef.current = null
       setIsLoading(false)
     })
 
@@ -45,11 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s)
       setUser(s?.user ?? null)
+      if (!s?.user?.id) syncProfileDoneRef.current = null
       if (!hasAuthHash) setIsLoading(false)
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!session?.access_token || !user?.id) return
+    if (syncProfileDoneRef.current === user.id) return
+    syncProfileDoneRef.current = user.id
+    fetch('/api/sync-profile', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    }).catch(() => {})
+  }, [session?.access_token, user?.id])
 
   const signIn = async (email: string, password: string) => {
     if (!isSupabaseConfigured()) return { error: new Error('Supabase no configurado') }

@@ -84,7 +84,7 @@ function rowToOffer(row: OfferRow): Offer {
   const rawProf = row.profiles;
   const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf;
   const author: OfferAuthor = {
-    username: (prof?.display_name?.trim() && prof.display_name) || 'Usuario',
+    username: prof?.display_name?.trim() || 'Usuario',
     avatar_url: prof?.avatar_url ?? null,
   };
   return {
