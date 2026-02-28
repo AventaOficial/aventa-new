@@ -29,10 +29,15 @@ interface OfferRow {
   title: string;
   price: number;
   original_price: number;
-  image_url: string | null;
+  image_url?: string | null;
+  image_urls?: string[] | null;
+  msi_months?: number | null;
   store: string | null;
   offer_url: string | null;
   description: string | null;
+  steps?: string | null;
+  conditions?: string | null;
+  coupons?: string | null;
   created_at?: string | null;
   created_by?: string | null;
   up_votes?: number | null;
@@ -93,12 +98,12 @@ function rowToOffer(row: OfferRow): Offer {
     downvotes: down,
     offerUrl: row.offer_url?.trim() ?? '',
     image: row.image_url ? row.image_url : undefined,
-    imageUrls: Array.isArray((row as { image_urls?: string[] }).image_urls) ? (row as { image_urls: string[] }).image_urls : undefined,
-    msiMonths: typeof (row as { msi_months?: number }).msi_months === 'number' ? (row as { msi_months: number }).msi_months : undefined,
+    imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
+    msiMonths: typeof row.msi_months === 'number' ? row.msi_months : undefined,
     description: row.description?.trim() || undefined,
-    steps: (row as { steps?: string }).steps?.trim() || undefined,
-    conditions: (row as { conditions?: string }).conditions?.trim() || undefined,
-    coupons: (row as { coupons?: string }).coupons?.trim() || undefined,
+    steps: row.steps?.trim() || undefined,
+    conditions: row.conditions?.trim() || undefined,
+    coupons: row.coupons?.trim() || undefined,
     votes: { up, down, score },
     author,
     ranking_momentum: Number(row.ranking_momentum) || 0,
@@ -123,6 +128,7 @@ function HomeContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [limit, setLimit] = useState(12);
+  const [hasMoreCursor, setHasMoreCursor] = useState(true);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery });
 
   useOffersRealtime(setOffers);
@@ -186,8 +192,46 @@ function HomeContent() {
         }
         const rows = data ?? [];
         setOffers(rows.map(rowToOffer));
+        setHasMoreCursor(rows.length >= effectiveLimit);
       });
   }, [timeFilter, viewMode, limit]);
+
+  const fetchNextPage = useCallback(() => {
+    if (viewMode !== 'latest' && viewMode !== 'personalized') return;
+    if (offers.length === 0) return;
+    const lastCreatedAt = offers[offers.length - 1]?.createdAt;
+    if (!lastCreatedAt) return;
+    setLoading(true);
+    const supabase = createClient();
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const msPerDay = 24 * 60 * 60 * 1000;
+    let fechaLimite: Date;
+    if (timeFilter === 'day') {
+      fechaLimite = new Date(now.getTime() - 1 * msPerDay);
+    } else if (timeFilter === 'week') {
+      fechaLimite = new Date(now.getTime() - 7 * msPerDay);
+    } else {
+      fechaLimite = new Date(now.getTime() - 30 * msPerDay);
+    }
+    const fechaLimiteISO = fechaLimite.toISOString();
+    supabase
+      .from('ofertas_ranked_general')
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)')
+      .or('status.eq.approved,status.eq.published')
+      .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
+      .gte('created_at', fechaLimiteISO)
+      .lt('created_at', lastCreatedAt)
+      .order('created_at', { ascending: false })
+      .limit(13)
+      .then(({ data, error }) => {
+        setLoading(false);
+        if (error) return;
+        const rows = (data ?? []).map(rowToOffer);
+        setHasMoreCursor(rows.length >= 12);
+        setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
+      });
+  }, [viewMode, timeFilter, offers]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -205,6 +249,7 @@ function HomeContent() {
     if (filtersChanged) {
       prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery };
       setLimit(12);
+      setHasMoreCursor(true);
     }
 
     setLoading(true);
@@ -245,6 +290,12 @@ function HomeContent() {
       setViewMode('latest');
     }
   }, [session, viewMode]);
+
+  useEffect(() => {
+    document.title = selectedOffer?.title
+      ? `${selectedOffer.title} | AVENTA - Comunidad de cazadores de ofertas`
+      : 'AVENTA - Comunidad de cazadores de ofertas';
+  }, [selectedOffer?.id, selectedOffer?.title]);
 
   useEffect(() => {
     const offerId = searchParams.get('o');
@@ -461,15 +512,25 @@ function HomeContent() {
                   />
                 </motion.div>
               ))}
-              <div className="flex justify-center pt-4 md:pt-6">
-                <button
-                  type="button"
-                  onClick={() => setLimit((prev) => prev + 12)}
-                  className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
-                >
-                  Cargar más
-                </button>
-              </div>
+              {((viewMode === 'latest' || viewMode === 'personalized') && !debouncedQuery.trim()
+                ? hasMoreCursor
+                : true) && (
+                <div className="flex justify-center pt-4 md:pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if ((viewMode === 'latest' || viewMode === 'personalized') && !debouncedQuery.trim()) {
+                        fetchNextPage();
+                      } else {
+                        setLimit((prev) => prev + 12);
+                      }
+                    }}
+                    className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                  >
+                    Cargar más
+                  </button>
+                </div>
+              )}
             </>
           )}
         </motion.div>
