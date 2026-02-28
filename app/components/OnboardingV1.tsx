@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import DarkModeToggle from './DarkModeToggle';
+import AventaIcon from './AventaIcon';
 
 const GUIDE_STEPS = [
   {
@@ -63,7 +64,8 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         transition={{ delay: 0.1, ...t }}
         className="mb-6 md:mb-8"
       >
-        <span className="text-sm font-semibold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400">
+        <span className="text-sm font-semibold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400 flex items-center gap-2">
+          <AventaIcon size={18} className="shrink-0" />
           AVENTA
         </span>
       </motion.div>
@@ -72,8 +74,9 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, ...t }}
-        className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6"
+        className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6 flex items-center justify-center gap-3"
       >
+        <AventaIcon size={48} className="shrink-0 text-[#1d1d1f] dark:text-white md:w-14 md:h-14" />
         <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
           AVENTA
         </span>

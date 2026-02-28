@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
+import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado es un peso ganado.';
 
@@ -22,7 +23,8 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
       <div className="md:hidden flex flex-col">
         <div className="flex items-start pl-5 pr-40 max-[420px]:pr-36 max-[400px]:pr-32 max-[380px]:pr-28 max-[360px]:pr-24 pt-5 max-[400px]:pt-3 min-w-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl max-[400px]:text-xl font-bold tracking-tight">
+            <h1 className="text-2xl max-[400px]:text-xl font-bold tracking-tight flex items-center gap-2">
+              <AventaIcon size={28} className="text-[#1d1d1f] dark:text-white shrink-0" />
               <span className="bg-gradient-to-r from-[#1d1d1f] via-violet-700 to-[#1d1d1f] dark:from-white dark:via-violet-300 dark:to-white bg-clip-text text-transparent">
                 AVENTA
               </span>
@@ -50,7 +52,8 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
       <div className="hidden md:block relative w-full overflow-hidden bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1d1d1f] dark:from-[#0d0d0f] dark:via-[#151518] dark:to-[#0d0d0f] px-8 lg:px-12 pt-[calc(2rem+env(safe-area-inset-top))] pb-12 rounded-b-2xl mb-8 border-b border-gray-800/50">
         <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-pink-500/10" aria-hidden />
         <div className="relative container mx-auto max-w-4xl">
-          <h1 className="text-center text-5xl lg:text-6xl font-bold text-white tracking-tight">
+          <h1 className="text-center text-5xl lg:text-6xl font-bold text-white tracking-tight flex items-center justify-center gap-3">
+            <AventaIcon size={48} className="lg:w-14 lg:h-14 text-white shrink-0" />
             AVENTA
           </h1>
           <p className="text-center text-base lg:text-lg text-gray-400 mt-2 mb-8">

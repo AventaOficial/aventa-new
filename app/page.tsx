@@ -44,6 +44,7 @@ interface OfferRow {
   down_votes?: number | null;
   score?: number | null;
   ranking_momentum?: number | null;
+  ranking_blend?: number | null;
   profiles?:
     | { display_name: string | null; avatar_url: string | null }
     | { display_name: string | null; avatar_url: string | null }[]
@@ -70,8 +71,12 @@ interface Offer {
   votes: { up: number; down: number; score: number };
   author: OfferAuthor;
   ranking_momentum: number;
+  ranking_blend?: number;
   createdAt?: string | null;
 }
+
+/** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
+const DESTACADA_RANKING_BLEND_MIN = 15;
 
 function rowToOffer(row: OfferRow): Offer {
   const originalPrice = Number(row.original_price) || 0;
@@ -107,6 +112,7 @@ function rowToOffer(row: OfferRow): Offer {
     votes: { up, down, score },
     author,
     ranking_momentum: Number(row.ranking_momentum) || 0,
+    ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
     createdAt: row.created_at ?? null,
   };
 }
@@ -127,11 +133,20 @@ function HomeContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('general');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [storeFilter, setStoreFilter] = useState<string | null>(null);
+  const [storeList, setStoreList] = useState<string[]>([]);
   const [limit, setLimit] = useState(12);
   const [hasMoreCursor, setHasMoreCursor] = useState(true);
-  const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery });
+  const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null });
 
   useOffersRealtime(setOffers);
+
+  useEffect(() => {
+    fetch('/api/stores')
+      .then((r) => r.json())
+      .then((body) => (Array.isArray(body?.stores) ? setStoreList(body.stores) : null))
+      .catch(() => {});
+  }, []);
 
   // Mostrar error de OAuth si el callback redirigió con ?error=... y limpiar la URL
   const router = useRouter();
@@ -169,12 +184,15 @@ function HomeContent() {
 
     let query = supabase
       .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)')
-      .order('ranking_momentum', { ascending: false })
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url)')
+      .order('ranking_blend', { ascending: false })
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
       .gte('created_at', fechaLimiteISO);
 
+    if (storeFilter?.trim()) {
+      query = query.eq('store', storeFilter.trim());
+    }
     if (viewMode === 'top') {
       query = query.gt('score', 0);
     }
@@ -194,7 +212,7 @@ function HomeContent() {
         setOffers(rows.map(rowToOffer));
         setHasMoreCursor(rows.length >= effectiveLimit);
       });
-  }, [timeFilter, viewMode, limit]);
+  }, [timeFilter, viewMode, limit, storeFilter]);
 
   const fetchNextPage = useCallback(() => {
     if (viewMode !== 'latest' && viewMode !== 'personalized') return;
@@ -215,23 +233,26 @@ function HomeContent() {
       fechaLimite = new Date(now.getTime() - 30 * msPerDay);
     }
     const fechaLimiteISO = fechaLimite.toISOString();
-    supabase
+    let nextQuery = supabase
       .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)')
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url)')
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
       .gte('created_at', fechaLimiteISO)
       .lt('created_at', lastCreatedAt)
       .order('created_at', { ascending: false })
-      .limit(13)
-      .then(({ data, error }) => {
-        setLoading(false);
-        if (error) return;
-        const rows = (data ?? []).map(rowToOffer);
-        setHasMoreCursor(rows.length >= 12);
-        setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
-      });
-  }, [viewMode, timeFilter, offers]);
+      .limit(13);
+    if (storeFilter?.trim()) {
+      nextQuery = nextQuery.eq('store', storeFilter.trim());
+    }
+    nextQuery.then(({ data, error }) => {
+      setLoading(false);
+      if (error) return;
+      const rows = (data ?? []).map(rowToOffer);
+      setHasMoreCursor(rows.length >= 12);
+      setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
+    });
+  }, [viewMode, timeFilter, storeFilter, offers]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -244,10 +265,11 @@ function HomeContent() {
     const filtersChanged =
       prevFiltersRef.current.viewMode !== viewMode ||
       prevFiltersRef.current.timeFilter !== timeFilter ||
-      prevFiltersRef.current.debouncedQuery !== debouncedQuery;
+      prevFiltersRef.current.debouncedQuery !== debouncedQuery ||
+      prevFiltersRef.current.storeFilter !== storeFilter;
     const effectiveLimit = filtersChanged ? 12 : limit;
     if (filtersChanged) {
-      prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery };
+      prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery, storeFilter };
       setLimit(12);
       setHasMoreCursor(true);
     }
@@ -257,24 +279,27 @@ function HomeContent() {
       const supabase = createClient();
       const nowISO = new Date().toISOString();
       const q = debouncedQuery.trim().replace(/%/g, '\\%').replace(/_/g, '\\_');
-      supabase
+      let searchQueryBuilder = supabase
         .from('ofertas_ranked_general')
         .select(
-          'id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, profiles:public_profiles_view!created_by(display_name, avatar_url)'
+          'id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url)'
         )
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
         .ilike('title', `%${q}%`)
         .order('created_at', { ascending: false })
-        .limit(effectiveLimit)
-        .then(({ data, error }) => {
-          setLoading(false);
-          if (error) {
-            setOffers([]);
-            return;
-          }
-          setOffers((data ?? []).map((r: OfferRow) => rowToOffer(r)));
-        });
+        .limit(effectiveLimit);
+      if (storeFilter?.trim()) {
+        searchQueryBuilder = searchQueryBuilder.eq('store', storeFilter.trim());
+      }
+      searchQueryBuilder.then(({ data, error }) => {
+        setLoading(false);
+        if (error) {
+          setOffers([]);
+          return;
+        }
+        setOffers((data ?? []).map((r: OfferRow) => rowToOffer(r)));
+      });
     } else {
       fetchOffers(filtersChanged ? 12 : undefined);
       const onVisible = () => {
@@ -283,7 +308,7 @@ function HomeContent() {
       document.addEventListener('visibilitychange', onVisible);
       return () => document.removeEventListener('visibilitychange', onVisible);
     }
-  }, [pathname, viewMode, timeFilter, debouncedQuery, limit, fetchOffers]);
+  }, [pathname, viewMode, timeFilter, debouncedQuery, storeFilter, limit, fetchOffers]);
 
   useEffect(() => {
     if (!session && viewMode === 'personalized') {
@@ -390,8 +415,9 @@ function HomeContent() {
                     ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
                     : 'text-[#6e6e73] dark:text-[#a3a3a3]'
                 }`}
+                title="Calidad + novedad: lo que la comunidad y el tiempo destacan"
               >
-                General
+                Recomendado
               </button>
               <button
                 onClick={() => setViewMode('top')}
@@ -400,6 +426,7 @@ function HomeContent() {
                     ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
                     : 'text-[#6e6e73] dark:text-[#a3a3a3]'
                 }`}
+                title="Mejor puntuadas en el período (hoy, semana, mes)"
               >
                 Top
               </button>
@@ -422,9 +449,30 @@ function HomeContent() {
                     ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
                     : 'text-[#6e6e73] dark:text-[#a3a3a3]'
                 }`}
+                title="Solo lo más nuevo, ordenado por fecha"
               >
                 Recientes
               </button>
+            </div>
+            <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] hidden sm:block">
+              {viewMode === 'general' && 'Calidad + novedad. Lo que la comunidad y el tiempo destacan.'}
+              {viewMode === 'top' && 'Mejor puntuadas en el período elegido.'}
+              {viewMode === 'personalized' && 'Ordenado por lo más reciente.'}
+              {viewMode === 'latest' && 'Solo lo más nuevo, por fecha de publicación.'}
+            </p>
+            <div className="mt-2 flex items-center gap-2 min-w-0">
+              <span className="text-xs font-medium text-[#6e6e73] dark:text-[#a3a3a3] shrink-0">Tienda:</span>
+              <select
+                value={storeFilter ?? ''}
+                onChange={(e) => setStoreFilter(e.target.value === '' ? null : e.target.value)}
+                className="rounded-lg border border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] text-[#1d1d1f] dark:text-[#fafafa] text-xs font-medium px-3 py-1.5 min-w-0 max-w-[180px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                aria-label="Filtrar por tienda"
+              >
+                <option value="">Todas las tiendas</option>
+                {storeList.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -510,6 +558,7 @@ function HomeContent() {
                     isLiked={!!favoriteMap[offer.id]}
                     createdAt={offer.createdAt}
                     msiMonths={offer.msiMonths}
+                    isDestacada={offer.ranking_blend != null && offer.ranking_blend >= DESTACADA_RANKING_BLEND_MIN}
                   />
                 </motion.div>
               ))}
