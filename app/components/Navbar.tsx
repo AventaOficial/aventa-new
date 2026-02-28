@@ -37,7 +37,7 @@ export default function Navbar() {
         .from('profiles')
         .select('display_name, avatar_url')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       const name = profile?.display_name?.trim();
       const emailPart = user.email?.split('@')[0] ?? '';
       setDisplayName(name || emailPart || null);

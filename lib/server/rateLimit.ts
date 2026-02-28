@@ -3,11 +3,19 @@ import { Redis } from '@upstash/redis';
 
 const limiters: Record<string, Ratelimit> = {};
 
+let hasWarnedNoRedis = false;
+
 function getRatelimit(key: string, limit: number, window: Duration): Ratelimit | null {
   if (limiters[key]) return limiters[key];
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+  if (!url || !token) {
+    if (!hasWarnedNoRedis && process.env.NODE_ENV === 'production') {
+      hasWarnedNoRedis = true;
+      console.warn('[rateLimit] UPSTASH_REDIS_REST_URL o UPSTASH_REDIS_REST_TOKEN no configurados; el rate limiting no se aplica.');
+    }
+    return null;
+  }
   const redis = new Redis({ url, token });
   limiters[key] = new Ratelimit({
     redis,

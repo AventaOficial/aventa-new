@@ -73,7 +73,7 @@ export default function MePage() {
         .from('profiles')
         .select('id, display_name, avatar_url')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!profileData) {
         setLoading(false);

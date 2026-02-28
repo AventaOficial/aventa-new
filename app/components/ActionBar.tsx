@@ -22,8 +22,13 @@ function parsePriceString(s: string): string {
 }
 
 function parseDecimalPrice(s: string): number {
-  const n = parseFloat(s);
+  const n = parseFloat(s.replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Redondea a 2 decimales para evitar 11999.999... por float (input number step="0.01") */
+function roundPrice(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 function formatPreviewPrice(s: string): string {
@@ -180,10 +185,10 @@ export default function ActionBar() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setIsSubmitting(true);
-    const originalPriceNum = parseDecimalPrice(formData.originalPrice);
-    const price = hasDiscount
+    const originalPriceNum = roundPrice(parseDecimalPrice(formData.originalPrice));
+    const price = roundPrice(hasDiscount
       ? parseDecimalPrice(formData.discountPrice)
-      : originalPriceNum;
+      : originalPriceNum);
     const allImages = imageUrl ? [imageUrl, ...imageUrls.filter((u) => u !== imageUrl)] : imageUrls;
     const firstImage = allImages[0] ?? '/placeholder.png';
     const payload = {

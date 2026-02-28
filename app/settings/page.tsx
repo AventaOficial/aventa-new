@@ -51,8 +51,8 @@ export default function SettingsPage() {
         .from('profiles')
         .select('display_name, display_name_updated_at')
         .eq('id', user.id)
-        .single();
-      if (profileError && profileError.code !== 'PGRST116') {
+        .maybeSingle();
+      if (profileError) {
         setLoading(false);
         return;
       }

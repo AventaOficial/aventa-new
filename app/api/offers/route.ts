@@ -48,12 +48,10 @@ export async function POST(request: Request) {
     }
 
     const hasDiscount = body?.hasDiscount !== false;
-    const originalPrice = hasDiscount && body?.original_price != null
-      ? Number(body.original_price)
-      : null;
-    const price = hasDiscount && body?.price != null
-      ? Number(body.price)
-      : (originalPrice ?? Number(body.original_price) ?? 0);
+    const rawOriginal = hasDiscount && body?.original_price != null ? Number(body.original_price) : null;
+    const rawPrice = hasDiscount && body?.price != null ? Number(body.price) : (rawOriginal ?? Number(body.original_price) ?? 0);
+    const originalPrice = rawOriginal != null && Number.isFinite(rawOriginal) ? Math.round(rawOriginal * 100) / 100 : null;
+    const price = Number.isFinite(rawPrice) ? Math.round(rawPrice * 100) / 100 : 0;
 
     if (!Number.isFinite(price) || price < 0) {
       return NextResponse.json({ error: 'Precio inválido' }, { status: 400 });
@@ -100,8 +98,12 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.from('offers').insert([payload]).select('id').single();
 
     if (error) {
-      console.error('[offers] insert failed:', error.message);
-      return NextResponse.json({ error: 'Error al crear la oferta' }, { status: 500 });
+      console.error('[offers] insert failed:', error.message, error.details, error.code);
+      const devMessage = process.env.NODE_ENV === 'development' ? error.message : undefined;
+      return NextResponse.json(
+        { error: 'Error al crear la oferta', ...(devMessage && { details: devMessage }) },
+        { status: 500 }
+      );
     }
 
     try {
@@ -110,7 +112,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id: data?.id, ok: true });
   } catch (e) {
-    console.error('[offers] error:', e);
-    return NextResponse.json({ error: 'Error al crear la oferta' }, { status: 500 });
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error('[offers] error:', err.message, e);
+    const devMessage = process.env.NODE_ENV === 'development' ? err.message : undefined;
+    return NextResponse.json(
+      { error: 'Error al crear la oferta', ...(devMessage && { details: devMessage }) },
+      { status: 500 }
+    );
   }
 }

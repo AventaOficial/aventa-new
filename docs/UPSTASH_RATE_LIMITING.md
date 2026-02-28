@@ -30,6 +30,14 @@ Identificador usado: **IP** (`getClientIp(request)`), con soporte para `x-forwar
 - **Comments**: `app/api/offers/[offerId]/comments/route.ts` → preset `comments`.
 - **Upload**: Si hay ruta de subida de imagen, suele usar `enforceRateLimit(ip)` (default).
 
+## Cómo comprobar en producción que Upstash está configurado
+
+1. **Vercel:** Proyecto → **Settings** → **Environment Variables**. Debe haber `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` para el entorno **Production** (y Preview si quieres límites en deploys de preview).
+2. **Logs:** Si las variables no están definidas, en cada deploy el código de `lib/server/rateLimit.ts` hace un **log único por proceso** en producción:  
+   `[rateLimit] UPSTASH_REDIS_REST_URL o UPSTASH_REDIS_REST_TOKEN no configurados; el rate limiting no se aplica.`  
+   Revisa **Vercel → Project → Logs** (Runtime Logs) tras una petición; si ves ese mensaje, añade las variables y redeploya.
+3. **Prueba rápida:** Hacer muchas peticiones seguidas a una ruta limitada (p. ej. 6 POST a `/api/offers` en 1 minuto). Si nunca devuelve 429, o no tienes las variables o el límite es alto.
+
 ## Checklist de verificación (manual)
 
 - [ ] En Vercel, las variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` están definidas para Production.

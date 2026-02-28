@@ -157,13 +157,14 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
         if (error) {
           setProfileOnboardingCompleted(null)
           return
         }
-        if (data != null && typeof data.onboarding_completed === 'boolean') {
-          setProfileOnboardingCompleted(data.onboarding_completed)
+        const completed = data != null ? (data as { onboarding_completed?: boolean }).onboarding_completed : undefined
+        if (typeof completed === 'boolean') {
+          setProfileOnboardingCompleted(completed)
         } else {
           setProfileOnboardingCompleted(null)
         }

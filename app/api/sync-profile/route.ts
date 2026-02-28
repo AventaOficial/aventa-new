@@ -46,8 +46,12 @@ export async function POST(request: Request) {
         avatar_url: avatarUrlVal,
       });
       if (insertError) {
-        console.error('[sync-profile] insert failed:', insertError.message);
-        return NextResponse.json({ error: 'Error al crear perfil' }, { status: 500 });
+        console.error('[sync-profile] insert failed:', insertError.message, insertError.details, insertError.code);
+        const devMessage = process.env.NODE_ENV === 'development' ? insertError.message : undefined;
+        return NextResponse.json(
+          { error: 'Error al crear perfil', ...(devMessage && { details: devMessage }) },
+          { status: 500 }
+        );
       }
       return NextResponse.json({ ok: true });
     }
@@ -66,13 +70,22 @@ export async function POST(request: Request) {
       .eq('id', user.id);
 
     if (updateError) {
-      console.error('[sync-profile] update failed:', updateError.message);
-      return NextResponse.json({ error: 'Error al actualizar perfil' }, { status: 500 });
+      console.error('[sync-profile] update failed:', updateError.message, updateError.details, updateError.code);
+      const devMessage = process.env.NODE_ENV === 'development' ? updateError.message : undefined;
+      return NextResponse.json(
+        { error: 'Error al actualizar perfil', ...(devMessage && { details: devMessage }) },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error('[sync-profile] error:', e);
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error('[sync-profile] error:', err.message, err);
+    const devMessage = process.env.NODE_ENV === 'development' ? err.message : undefined;
+    return NextResponse.json(
+      { error: 'Error interno', ...(devMessage && { details: devMessage }) },
+      { status: 500 }
+    );
   }
 }
