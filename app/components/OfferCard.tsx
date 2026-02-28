@@ -58,6 +58,7 @@ interface OfferCardProps {
   userVote?: 1 | -1 | 0 | null;
   isLiked?: boolean;
   createdAt?: string | null;
+  msiMonths?: number | null;
 }
 
 export default function OfferCard({
@@ -78,6 +79,7 @@ export default function OfferCard({
   onFavoriteChange,
   userVote: userVoteProp = 0,
   isLiked: isLikedProp = false,
+  msiMonths,
   createdAt,
 }: OfferCardProps) {
   const router = useRouter();
@@ -340,6 +342,11 @@ export default function OfferCard({
             <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
               {formatPrice(discountPrice)}
             </span>
+            {msiMonths != null && msiMonths >= 1 && (
+              <span className="text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                {msiMonths} MSI
+              </span>
+            )}
             {originalPrice > 0 && (
               <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400 line-through">
                 {formatPrice(originalPrice)}

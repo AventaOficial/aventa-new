@@ -38,15 +38,12 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .maybeSingle();
 
-    const now = new Date().toISOString();
-
     if (!existing) {
       const nameToSet = displayName || fallbackName || 'Usuario';
       const { error: insertError } = await supabase.from('profiles').insert({
         id: user.id,
         display_name: nameToSet,
         avatar_url: avatarUrlVal,
-        updated_at: now,
       });
       if (insertError) {
         console.error('[sync-profile] insert failed:', insertError.message);
@@ -58,9 +55,8 @@ export async function POST(request: Request) {
     // Siempre actualizar display_name desde Auth (temporal: sin condición para confirmar en UI)
     const displayNameToSet =
       (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Usuario') as string;
-    const updates: { avatar_url: string | null; updated_at: string; display_name: string } = {
+    const updates: { avatar_url: string | null; display_name: string } = {
       avatar_url: avatarUrlVal,
-      updated_at: now,
       display_name: typeof displayNameToSet === 'string' && displayNameToSet.trim() ? displayNameToSet.trim() : (user.email?.split('@')[0] || 'Usuario'),
     };
 

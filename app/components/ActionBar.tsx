@@ -605,7 +605,7 @@ export default function ActionBar() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Imagen(es) del producto (opcional)
+                      Fotos de la oferta
                     </label>
                     <label className="block w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 cursor-pointer">
                       <input
@@ -617,12 +617,12 @@ export default function ActionBar() {
                       />
                       <ImageIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {imageUploading ? 'Subiendo...' : imageUrl || imageUrls.length > 0 ? `${1 + imageUrls.length} imagen(es) agregada(s) ✓` : 'Haz clic para seleccionar (jpg, png, webp, máx. 2MB). Puedes añadir más después.'}
+                        {imageUploading ? 'Subiendo...' : imageUrl || imageUrls.length > 0 ? `${1 + imageUrls.length} foto(s) agregada(s) ✓` : 'Solo fotos de la oferta (jpg, png, webp, máx. 2MB). Puedes añadir más.'}
                       </p>
                     </label>
                     {(imageUrl || imageUrls.length > 0) && (
                       <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        Vuelve a elegir un archivo para añadir otra imagen.
+                        Elige otro archivo para añadir más fotos.
                       </p>
                     )}
                   </div>

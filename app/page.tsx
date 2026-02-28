@@ -509,6 +509,7 @@ function HomeContent() {
                     userVote={voteMap[offer.id] ?? null}
                     isLiked={!!favoriteMap[offer.id]}
                     createdAt={offer.createdAt}
+                    msiMonths={offer.msiMonths}
                   />
                 </motion.div>
               ))}
