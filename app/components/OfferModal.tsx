@@ -801,15 +801,15 @@ export default function OfferModal({
             </div>
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 md:px-5 md:py-3.5 flex-shrink-0">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 md:px-5 md:py-2 flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleOutboundClick}
                 disabled={!offerUrl?.trim()}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-5 md:py-3 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-base"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
               >
                 <span>CAZAR OFERTA</span>
-                <ExternalLink className="h-4 w-4 md:h-5 md:w-5" />
+                <ExternalLink className="h-4 w-4 md:h-4 md:w-4" />
               </button>
               {offerId && (
                 <button
@@ -826,17 +826,17 @@ export default function OfferModal({
                       body: JSON.stringify({ offer_id: offerId, event_type: 'share' }),
                     }).catch(() => {});
                   }}
-                  className="flex-shrink-0 p-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
+                  className="flex-shrink-0 p-2.5 md:p-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
                   title={shareCopied ? '¡Copiado!' : 'Compartir'}
                   aria-label="Compartir oferta"
                 >
-                  <Share2 className="h-4 w-4 md:h-5 md:w-5" />
+                  <Share2 className="h-4 w-4 md:h-4 md:w-4" />
                 </button>
               )}
             </div>
           </div>
 
-          <div className="px-5 md:px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-end gap-4">
+          <div className="px-5 md:px-6 py-4 md:py-2 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-end gap-4">
             {offerId && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
