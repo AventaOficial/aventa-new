@@ -42,6 +42,23 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServerClient()
+
+    // Máximo 1 outbound por (oferta, usuario) cada 10 min para no inflar clicks
+    if (eventType === 'outbound' && userId) {
+      const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+      const { data: recent } = await supabase
+        .from('offer_events')
+        .select('id')
+        .eq('offer_id', offerId)
+        .eq('user_id', userId)
+        .eq('event_type', 'outbound')
+        .gte('created_at', windowStart)
+        .limit(1)
+      if (recent && recent.length > 0) {
+        return NextResponse.json({}, { status: 200 })
+      }
+    }
+
     const { error } = await supabase.from('offer_events').insert({
       offer_id: offerId,
       user_id: userId,

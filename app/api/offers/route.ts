@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     const imageUrlRaw = typeof body?.image_url === 'string' ? body.image_url : null;
     const imageUrlsArr = Array.isArray(body?.image_urls)
-      ? body.image_urls.filter((u): u is string => typeof u === 'string' && u.trim() !== '')
+      ? (body.image_urls as unknown[]).filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '')
       : [];
     const firstImage = imageUrlRaw ?? imageUrlsArr[0] ?? '/placeholder.png';
     const msiMonths =

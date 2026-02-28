@@ -172,6 +172,16 @@ export default function OfferModal({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const hasTrackedRef = useRef(false);
   const outboundSentRef = useRef(false);
+  const allImages = (imageUrls?.length ? imageUrls : image ? [image] : []) as string[];
+  const [imageIndex, setImageIndex] = useState(0);
+  const currentImage = allImages[imageIndex] || image || '/placeholder.png';
+
+  useEffect(() => {
+    if (!isOpen) setImageIndex(0);
+  }, [isOpen]);
+  useEffect(() => {
+    setImageIndex(0);
+  }, [offerId]);
 
   const savings = originalPrice - discountPrice;
   const averageRating = mockReviews.reduce((acc, review) => acc + review.rating, 0) / mockReviews.length;
@@ -416,10 +426,37 @@ export default function OfferModal({
           style={{ overflowX: 'hidden' }}
         >
           <div className="relative flex-shrink-0 h-36 sm:h-44 md:h-52 lg:h-60 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
-            {image ? (
-              <img src={image} alt="" className="w-full h-full object-contain p-4" />
-            ) : (
-              <img src="/placeholder.png" alt="" className="w-full h-full object-contain opacity-50 p-8" />
+            <img src={currentImage} alt="" className="w-full h-full object-contain p-4" />
+            {allImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1)); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Imagen anterior"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1)); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Siguiente imagen"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {allImages.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setImageIndex(i); }}
+                      className={`h-1.5 rounded-full transition-all ${i === imageIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
+                      aria-label={`Imagen ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
             <button
               onClick={handleFavoriteClick}
@@ -764,15 +801,15 @@ export default function OfferModal({
             </div>
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 flex-shrink-0">
-            <div className="flex items-center gap-3">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 md:px-5 md:py-3.5 flex-shrink-0">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleOutboundClick}
                 disabled={!offerUrl?.trim()}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-6 py-4 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-5 md:py-3 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-base"
               >
                 <span>CAZAR OFERTA</span>
-                <ExternalLink className="h-5 w-5" />
+                <ExternalLink className="h-4 w-4 md:h-5 md:w-5" />
               </button>
               {offerId && (
                 <button
@@ -789,11 +826,11 @@ export default function OfferModal({
                       body: JSON.stringify({ offer_id: offerId, event_type: 'share' }),
                     }).catch(() => {});
                   }}
-                  className="flex-shrink-0 p-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
+                  className="flex-shrink-0 p-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
                   title={shareCopied ? '¡Copiado!' : 'Compartir'}
                   aria-label="Compartir oferta"
                 >
-                  <Share2 className="h-5 w-5" />
+                  <Share2 className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
               )}
             </div>
