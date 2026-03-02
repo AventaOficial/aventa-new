@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
   const now = new Date();
 
   const { data: offers, error: offersErr } = await supabase
-    .from('offers')
+    .from('ofertas_ranked_general')
     .select('id, title, price, original_price, store, offer_url')
-    .in('status', ['approved', 'published'])
+    .or('status.eq.approved,status.eq.published')
     .or('expires_at.is.null,expires_at.gte.' + now.toISOString())
     .order('ranking_blend', { ascending: false })
     .limit(10);
