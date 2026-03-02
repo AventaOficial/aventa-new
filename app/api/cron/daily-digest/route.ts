@@ -16,12 +16,13 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   const now = new Date();
 
+  // Usar tabla offers y orden por upvotes_count (la vista ofertas_ranked_general puede no existir o fallar)
   const { data: offers, error: offersErr } = await supabase
-    .from('ofertas_ranked_general')
+    .from('offers')
     .select('id, title, price, original_price, store, offer_url')
-    .or('status.eq.approved,status.eq.published')
+    .in('status', ['approved', 'published'])
     .or('expires_at.is.null,expires_at.gte.' + now.toISOString())
-    .order('ranking_blend', { ascending: false })
+    .order('upvotes_count', { ascending: false, nullsFirst: false })
     .limit(10);
 
   if (offersErr) {
