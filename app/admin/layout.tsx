@@ -17,8 +17,9 @@ import {
   Menu,
   X,
   ShieldOff,
+  UserCog,
 } from 'lucide-react';
-import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, type Role } from '@/lib/admin/roles';
+import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, type Role } from '@/lib/admin/roles';
 
 const ALLOWED_ROLES = ['owner', 'admin', 'moderator', 'analyst'] as const;
 
@@ -37,6 +38,9 @@ const USERS_LOGS_ITEMS = [
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/logs', label: 'Logs', icon: FileText },
 ] as const;
+
+/** Equipo (gestionar roles): solo owner */
+const TEAM_ITEM = { href: '/admin/team', label: 'Equipo', icon: UserCog } as const;
 
 const METRICS_ITEMS = [
   { href: '/admin/metrics', label: 'Métricas', icon: BarChart3 },
@@ -84,6 +88,7 @@ export default function AdminLayout({
   const hasAllowedRole = userRole !== null;
   const canMod = canAccessModeration(userRole);
   const canUsersLogs = canAccessUsersLogs(userRole);
+  const canTeam = canManageTeam(userRole);
   const canMet = canAccessMetrics(userRole);
   const canHea = canAccessHealth(userRole);
 
@@ -91,10 +96,13 @@ export default function AdminLayout({
     if (!hasAllowedRole) return;
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
+    const isTeamPath = pathname === '/admin/team';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
-    if (isUsersLogsPath && !canUsersLogs) {
-      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    if (isTeamPath && !canTeam) {
+      router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isUsersLogsPath && !canUsersLogs) {
+      router.replace(canTeam ? '/admin/team' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isModPath && !canMod) {
       router.replace(canMet ? '/admin/metrics' : '/admin/health');
     } else if (isMetPath && !canMet) {
@@ -188,6 +196,28 @@ export default function AdminLayout({
                   </Link>
                 );
               })}
+            </>
+          )}
+          {canTeam && (
+            <>
+              <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Solo owner
+              </p>
+              <Link
+                href={TEAM_ITEM.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`
+                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                  ${
+                    pathname === TEAM_ITEM.href
+                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                <TEAM_ITEM.icon className="h-4 w-4 shrink-0" />
+                {TEAM_ITEM.label}
+              </Link>
             </>
           )}
           {canUsersLogs && (

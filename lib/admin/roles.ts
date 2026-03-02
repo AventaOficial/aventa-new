@@ -14,6 +14,8 @@ export const ADMIN_NAV = {
   moderation: ['owner', 'admin', 'moderator'],
   /** Ver usuarios y logs (solo owner/admin) */
   usersLogs: ['owner', 'admin'],
+  /** Gestionar equipo: ver y editar roles (solo owner) */
+  team: ['owner'],
   metrics: ['owner', 'admin', 'analyst'],
   health: ['owner', 'admin', 'analyst'],
 } as const;
@@ -25,6 +27,11 @@ export function canAccessModeration(role: Role | null): boolean {
 /** Solo owner y admin ven Usuarios y Logs; moderadores no. */
 export function canAccessUsersLogs(role: Role | null): boolean {
   return role !== null && (ADMIN_NAV.usersLogs as readonly Role[]).includes(role);
+}
+
+/** Solo owner ve Equipo (gestionar moderadores y roles). */
+export function canManageTeam(role: Role | null): boolean {
+  return role === 'owner';
 }
 
 export function canAccessMetrics(role: Role | null): boolean {

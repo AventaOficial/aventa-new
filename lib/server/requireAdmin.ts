@@ -67,6 +67,12 @@ export async function requireUsersLogs(request: Request): Promise<AuthResult> {
   return requireRole(request, USERS_LOGS_ROLES)
 }
 
+/** Solo owner (gestionar equipo / roles) */
+export const OWNER_ROLES: Role[] = ['owner']
+export async function requireOwner(request: Request): Promise<AuthResult> {
+  return requireRole(request, OWNER_ROLES)
+}
+
 /** Cualquier rol admin (compatibilidad con código existente) */
 export async function requireAdmin(request: Request): Promise<AuthResult> {
   return requireRole(request, ROLE_PRIORITY)

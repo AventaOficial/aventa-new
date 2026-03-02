@@ -60,6 +60,16 @@ export async function POST(request: Request) {
 
     if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 
+    if (status === 'approved' && previousStatus !== 'approved' && createdBy) {
+      await supabase.from('notifications').insert({
+        user_id: createdBy,
+        type: 'offer_approved',
+        title: 'Tu oferta fue aprobada',
+        body: 'Ya está visible en el feed.',
+        link: `/?o=${id}`,
+      }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] notification insert failed:', notifErr.message); })
+    }
+
     revalidatePath('/')
     return NextResponse.json({ ok: true })
   } catch (e) {

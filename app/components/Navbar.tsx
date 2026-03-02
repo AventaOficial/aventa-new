@@ -11,15 +11,27 @@ import { useUI } from '@/app/providers/UIProvider';
 
 type NotifTab = 'ofertas' | 'comunidades' | 'avisos';
 
+type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, session, signOut } = useAuth();
   const { openRegisterModal, openGuideModal } = useUI();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [signOutStatus, setSignOutStatus] = useState<'idle' | 'closing' | 'closed'>('idle');
   const [signOutFading, setSignOutFading] = useState(false);
   const [notifTab, setNotifTab] = useState<NotifTab>('ofertas');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
@@ -75,6 +87,30 @@ export default function Navbar() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showUserMenu]);
 
+  useEffect(() => {
+    if (!user || !session?.access_token) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    const load = async () => {
+      try {
+        const res = await fetch('/api/notifications', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setNotifications(data.notifications ?? []);
+        setUnreadCount(data.unreadCount ?? 0);
+      } catch {
+        // ignore
+      }
+    };
+    load();
+    const interval = setInterval(load, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user?.id, session?.access_token]);
+
   const UserMenuContent = () => (
     <>
       <button
@@ -121,10 +157,15 @@ export default function Navbar() {
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
               onClick={() => setShowNotifications(!showNotifications)}
-              className="rounded-full p-2.5 md:p-3 text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors duration-200"
+              className="relative rounded-full p-2.5 md:p-3 text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors duration-200"
               aria-label="Notificaciones"
             >
               <Bell className="h-5 w-5 md:h-6 md:w-6" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-bold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </motion.button>
           )}
         </AnimatePresence>
@@ -264,7 +305,42 @@ export default function Navbar() {
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {notifTab === 'ofertas' && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Ninguna oferta nueva.</p>
+                <>
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Ninguna notificación.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {notifications.map((n) => (
+                        <li key={n.id}>
+                          <a
+                            href={n.link || '#'}
+                            onClick={async () => {
+                              if (!n.read_at && session?.access_token) {
+                                try {
+                                  await fetch('/api/notifications', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                    body: JSON.stringify({ id: n.id }),
+                                  });
+                                  setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+                                  setUnreadCount((c) => Math.max(0, c - 1));
+                                } catch {
+                                  // ignore
+                                }
+                              }
+                              setShowNotifications(false);
+                            }}
+                            className={`block rounded-lg p-2.5 text-sm transition-colors ${n.read_at ? 'text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30' : 'text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20'}`}
+                          >
+                            <span className="font-medium">{n.title}</span>
+                            {n.body && <p className="mt-0.5 text-xs opacity-90">{n.body}</p>}
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
               {notifTab === 'comunidades' && (
                 <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">Sin actividad en comunidades.</p>

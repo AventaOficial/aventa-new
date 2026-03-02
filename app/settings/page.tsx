@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User, Check, Lock, Mail, Smartphone } from 'lucide-react';
+import { User, Check, Lock, Mail, Smartphone, Bell } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
 
@@ -21,6 +21,9 @@ export default function SettingsPage() {
   const [passwordResetSent, setPasswordResetSent] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [emailDailyDigest, setEmailDailyDigest] = useState(false);
+  const [emailWeeklyDigest, setEmailWeeklyDigest] = useState(false);
+  const [emailPrefsSaving, setEmailPrefsSaving] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -62,6 +65,42 @@ export default function SettingsPage() {
     };
     loadProfile();
   }, [router]);
+
+  const { session } = useAuth();
+  useEffect(() => {
+    if (!session?.access_token) return;
+    const loadPrefs = async () => {
+      try {
+        const res = await fetch('/api/notifications/preferences', {
+          headers: { Authorization: 'Bearer ' + session.access_token },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setEmailDailyDigest(data.email_daily_digest ?? false);
+        setEmailWeeklyDigest(data.email_weekly_digest ?? false);
+      } catch {
+        // ignore
+      }
+    };
+    loadPrefs();
+  }, [session?.access_token]);
+
+  const handleEmailPrefChange = async (which: 'daily' | 'weekly', value: boolean) => {
+    if (!session?.access_token) return;
+    if (which === 'daily') setEmailDailyDigest(value);
+    else setEmailWeeklyDigest(value);
+    setEmailPrefsSaving(true);
+    try {
+      const body = which === 'daily' ? { email_daily_digest: value } : { email_weekly_digest: value };
+      await fetch('/api/notifications/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify(body),
+      });
+    } finally {
+      setEmailPrefsSaving(false);
+    }
+  };
 
   const canChangeName = (): boolean => {
     if (!displayNameUpdatedAt) return true;
@@ -186,6 +225,44 @@ export default function SettingsPage() {
                 )}
               </div>
             </form>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                  <Bell className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Correos</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Resumen diario y semanal en tu correo</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 md:p-6 space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emailDailyDigest}
+                  onChange={(e) => handleEmailPrefChange('daily', e.target.checked)}
+                  disabled={emailPrefsSaving}
+                  className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recibir resumen diario (Top 10 ofertas del día)</span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Un correo al día con las mejores ofertas. Hora de envío aproximada: salida del trabajo.</p>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emailWeeklyDigest}
+                  onChange={(e) => handleEmailPrefChange('weekly', e.target.checked)}
+                  disabled={emailPrefsSaving}
+                  className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recibir resumen semanal (domingos)</span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Resumen: más comentadas, mejor votadas de la semana.</p>
+            </div>
           </section>
 
           <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">

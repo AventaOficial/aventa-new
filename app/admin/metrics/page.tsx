@@ -9,6 +9,7 @@ type Period = 'all' | 'day' | 'week' | 'month';
 type Row = {
   id?: string;
   title: string;
+  category?: string | null;
   views: number;
   outbound: number;
   shares: number;
@@ -17,6 +18,17 @@ type Row = {
   score_final: number;
   created_at: string;
 };
+
+/** Mercado Libre: 9% electrónica/tecnología, 14% resto (comisión afiliado). */
+const ML_COMMISSION_ELECTRONICS = 9;
+const ML_COMMISSION_OTHER = 14;
+const ELECTRONICS_CATEGORIES = ['electronics'];
+
+function getMlCommissionPct(category: string | null | undefined): number {
+  if (!category || !category.trim()) return ML_COMMISSION_OTHER;
+  const c = category.toLowerCase().trim();
+  return ELECTRONICS_CATEGORIES.includes(c) ? ML_COMMISSION_ELECTRONICS : ML_COMMISSION_OTHER;
+}
 
 type SortKey = 'outbound' | 'ctr' | 'score_final' | 'shares';
 
@@ -38,7 +50,7 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 
 const AFFILIATE_PRESETS: Record<AffiliatePlatform, { conv: number; commission: number; label: string }> = {
   amazon: { conv: 5, commission: 4, label: 'Amazon' },
-  mercadolibre: { conv: 4, commission: 12, label: 'Mercado Libre' },
+  mercadolibre: { conv: 4, commission: 14, label: 'Mercado Libre (9% electrónica, 14% resto)' },
   aliexpress: { conv: 2, commission: 5, label: 'AliExpress' },
   custom: { conv: 4, commission: 10, label: 'Personalizado' },
 };
@@ -56,6 +68,7 @@ function computeScoreFinal(score: number, createdAt: string): number {
 type OfferWithRelations = {
   id: string;
   title: string;
+  category?: string | null;
   created_at: string;
   offer_events?: Array<{ event_type: string; created_at: string }> | null;
   offer_votes?: Array<{ value: number }> | null;
@@ -75,6 +88,7 @@ function computeRowsFromOffers(offers: OfferWithRelations[], dateLimit: Date): R
     return {
       id: o.id,
       title: o.title,
+      category: o.category ?? null,
       views,
       outbound,
       shares,
@@ -125,6 +139,7 @@ export default function MetricsPage() {
       .select(`
         id,
         title,
+        category,
         created_at,
         offer_events (
           event_type,
@@ -408,41 +423,49 @@ export default function MetricsPage() {
               <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">ctr</th>
               <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">score</th>
               <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">score_final</th>
+              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Est. ingreso (MXN)</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">created_at</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={9} className="p-4 text-center text-gray-500 dark:text-gray-400">
                   No hay datos
                 </td>
               </tr>
             ) : (
-              sorted.map((row, i) => (
-                <tr key={row.id ?? i} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                  <td className="p-3 max-w-[200px]" title={row.title}>
-                    {row.id ? (
-                      <a href={`/?o=${row.id}`} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 hover:underline truncate block">
-                        {row.title}
-                      </a>
-                    ) : (
-                      <span className="text-gray-900 dark:text-gray-100 truncate block">{row.title}</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.views}</td>
-                  <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.outbound}</td>
-                  <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.shares ?? 0}</td>
-                  <td className="p-3 text-right text-gray-700 dark:text-gray-300">
-                    {row.ctr != null ? `${row.ctr}%` : '—'}
-                  </td>
-                  <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.score}</td>
-                  <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.score_final}</td>
-                  <td className="p-3 text-gray-600 dark:text-gray-400">
-                    {new Date(row.created_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))
+              sorted.map((row, i) => {
+                const commissionPct = affiliatePlatform === 'mercadolibre' ? getMlCommissionPct(row.category) : commissionRate;
+                const estimatedRevenue = row.outbound * (convRate / 100) * aovMxn * (commissionPct / 100);
+                return (
+                  <tr key={row.id ?? i} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                    <td className="p-3 max-w-[200px]" title={row.title}>
+                      {row.id ? (
+                        <a href={`/?o=${row.id}`} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 hover:underline truncate block">
+                          {row.title}
+                        </a>
+                      ) : (
+                        <span className="text-gray-900 dark:text-gray-100 truncate block">{row.title}</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.views}</td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.outbound}</td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.shares ?? 0}</td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">
+                      {row.ctr != null ? `${row.ctr}%` : '—'}
+                    </td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.score}</td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.score_final}</td>
+                    <td className="p-3 text-right text-emerald-600 dark:text-emerald-400 font-medium">
+                      {row.outbound > 0 ? `$${formatNum(Math.round(estimatedRevenue))}` : '—'}
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-400">
+                      {new Date(row.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
