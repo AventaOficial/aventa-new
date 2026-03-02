@@ -18,8 +18,9 @@ import {
   X,
   ShieldOff,
   UserCog,
+  Megaphone,
 } from 'lucide-react';
-import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, type Role } from '@/lib/admin/roles';
+import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, canManageAnnouncements, type Role } from '@/lib/admin/roles';
 
 const ALLOWED_ROLES = ['owner', 'admin', 'moderator', 'analyst'] as const;
 
@@ -41,6 +42,9 @@ const USERS_LOGS_ITEMS = [
 
 /** Equipo (gestionar roles): solo owner */
 const TEAM_ITEM = { href: '/admin/team', label: 'Equipo', icon: UserCog } as const;
+
+/** Avisos del sitio: owner y admin */
+const ANNOUNCEMENTS_ITEM = { href: '/admin/announcements', label: 'Avisos', icon: Megaphone } as const;
 
 const METRICS_ITEMS = [
   { href: '/admin/metrics', label: 'Métricas', icon: BarChart3 },
@@ -89,6 +93,7 @@ export default function AdminLayout({
   const canMod = canAccessModeration(userRole);
   const canUsersLogs = canAccessUsersLogs(userRole);
   const canTeam = canManageTeam(userRole);
+  const canAnnouncements = canManageAnnouncements(userRole); // mismo que canTeam: solo owner
   const canMet = canAccessMetrics(userRole);
   const canHea = canAccessHealth(userRole);
 
@@ -97,9 +102,12 @@ export default function AdminLayout({
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
+    const isAnnouncementsPath = pathname === '/admin/announcements';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
-    if (isTeamPath && !canTeam) {
+    if (isAnnouncementsPath && !canAnnouncements) {
+      router.replace(canTeam ? '/admin/team' : canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isTeamPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isUsersLogsPath && !canUsersLogs) {
       router.replace(canTeam ? '/admin/team' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
@@ -110,7 +118,7 @@ export default function AdminLayout({
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
     }
-  }, [pathname, hasAllowedRole, canMod, canUsersLogs, canMet, canHea, router]);
+  }, [pathname, hasAllowedRole, canMod, canUsersLogs, canTeam, canAnnouncements, canMet, canHea, router]);
 
   if (hasAllowedRole === null) {
     return (
@@ -198,26 +206,45 @@ export default function AdminLayout({
               })}
             </>
           )}
-          {canTeam && (
+          {(canTeam || canAnnouncements) && (
             <>
               <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Solo owner
               </p>
-              <Link
-                href={TEAM_ITEM.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                  ${
-                    pathname === TEAM_ITEM.href
-                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                <TEAM_ITEM.icon className="h-4 w-4 shrink-0" />
-                {TEAM_ITEM.label}
-              </Link>
+              {canTeam && (
+                <Link
+                  href={TEAM_ITEM.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === TEAM_ITEM.href
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  <TEAM_ITEM.icon className="h-4 w-4 shrink-0" />
+                  {TEAM_ITEM.label}
+                </Link>
+              )}
+              {canAnnouncements && (
+                <Link
+                  href={ANNOUNCEMENTS_ITEM.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === ANNOUNCEMENTS_ITEM.href
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  <ANNOUNCEMENTS_ITEM.icon className="h-4 w-4 shrink-0" />
+                  {ANNOUNCEMENTS_ITEM.label}
+                </Link>
+              )}
             </>
           )}
           {canUsersLogs && (

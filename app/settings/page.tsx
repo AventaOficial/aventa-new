@@ -66,8 +66,13 @@ export default function SettingsPage() {
     loadProfile();
   }, [router]);
 
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   useEffect(() => {
+    if (!user?.id) {
+      setEmailDailyDigest(false);
+      setEmailWeeklyDigest(false);
+      return;
+    }
     if (!session?.access_token) return;
     const loadPrefs = async () => {
       try {
@@ -79,11 +84,12 @@ export default function SettingsPage() {
         setEmailDailyDigest(data.email_daily_digest ?? false);
         setEmailWeeklyDigest(data.email_weekly_digest ?? false);
       } catch {
-        // ignore
+        setEmailDailyDigest(false);
+        setEmailWeeklyDigest(false);
       }
     };
     loadPrefs();
-  }, [session?.access_token]);
+  }, [user?.id, session?.access_token]);
 
   const handleEmailPrefChange = async (which: 'daily' | 'weekly', value: boolean) => {
     if (!session?.access_token) return;
@@ -127,16 +133,19 @@ export default function SettingsPage() {
       router.replace('/');
       return;
     }
-    const { error } = await supabase
+    const updatedAt = new Date().toISOString();
+    const { data: updated, error } = await supabase
       .from('profiles')
       .update({
         display_name: displayName,
-        display_name_updated_at: new Date().toISOString(),
+        display_name_updated_at: updatedAt,
       })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select('display_name_updated_at')
+      .single();
     setSaving(false);
     if (error) return;
-    setDisplayNameUpdatedAt(new Date().toISOString());
+    setDisplayNameUpdatedAt(updated?.display_name_updated_at ?? updatedAt);
     setSuccessMessage('Cambios guardados');
   };
 

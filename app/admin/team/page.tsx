@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { getReputationLabel } from '@/lib/reputation';
 import type { Role } from '@/lib/admin/roles';
 
 type TeamMember = {
   user_id: string;
   role: Role;
   display_name: string | null;
+  reputation_level: number;
+  reputation_score: number;
 };
 
 const ROLES: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
@@ -102,13 +105,14 @@ export default function TeamPage() {
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Usuario</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rol actual</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Reputación</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Cambiar a</th>
             </tr>
           </thead>
           <tbody>
             {team.length === 0 ? (
               <tr>
-                <td colSpan={3} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
                   No hay usuarios con rol
                 </td>
               </tr>
@@ -128,6 +132,16 @@ export default function TeamPage() {
                   <td className="p-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
                       {ROLE_LABELS[m.role]}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {getReputationLabel(m.reputation_level)}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        ({m.reputation_score} pts)
+                      </span>
                     </span>
                   </td>
                   <td className="p-3">

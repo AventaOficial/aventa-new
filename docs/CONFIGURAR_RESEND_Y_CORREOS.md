@@ -69,6 +69,9 @@ Si usas subdominio (p. ej. `notificaciones.aventaofertas.com`), el formato serí
 |----------------|------------------------------------------|---------|
 | `RESEND_API_KEY` | Resend → API Keys → Create API Key       | `re_xxxx...` |
 | `EMAIL_FROM`     | Tras verificar el dominio en Resend      | `AVENTA <notificaciones@aventaofertas.com>` |
+| `EMAIL_LOGO_URL` | Opcional. URL pública del logo (cabecera del correo) | `https://aventaofertas.com/logo-email.png` |
+
+Para que Gmail muestre identidad visual: sube una imagen (ej. `logo-email.png`, ~120×40 px o similar) a tu sitio (carpeta `public/`) y pon su URL en `EMAIL_LOGO_URL`. Así la cabecera del correo lleva logo + texto AVENTA.
 
 Opcional: `NEXT_PUBLIC_APP_URL` = `https://aventaofertas.com` (ya lo usarás para enlaces en los correos).
 

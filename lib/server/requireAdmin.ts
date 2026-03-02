@@ -73,6 +73,11 @@ export async function requireOwner(request: Request): Promise<AuthResult> {
   return requireRole(request, OWNER_ROLES)
 }
 
+/** Solo owner (gestionar avisos del sitio) */
+export async function requireAnnouncements(request: Request): Promise<AuthResult> {
+  return requireRole(request, OWNER_ROLES)
+}
+
 /** Cualquier rol admin (compatibilidad con código existente) */
 export async function requireAdmin(request: Request): Promise<AuthResult> {
   return requireRole(request, ROLE_PRIORITY)

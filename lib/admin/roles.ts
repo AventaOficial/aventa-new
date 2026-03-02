@@ -16,6 +16,8 @@ export const ADMIN_NAV = {
   usersLogs: ['owner', 'admin'],
   /** Gestionar equipo: ver y editar roles (solo owner) */
   team: ['owner'],
+  /** Gestionar avisos del sitio (solo owner) */
+  announcements: ['owner'],
   metrics: ['owner', 'admin', 'analyst'],
   health: ['owner', 'admin', 'analyst'],
 } as const;
@@ -31,6 +33,11 @@ export function canAccessUsersLogs(role: Role | null): boolean {
 
 /** Solo owner ve Equipo (gestionar moderadores y roles). */
 export function canManageTeam(role: Role | null): boolean {
+  return role === 'owner';
+}
+
+/** Solo owner gestiona avisos del sitio. */
+export function canManageAnnouncements(role: Role | null): boolean {
   return role === 'owner';
 }
 

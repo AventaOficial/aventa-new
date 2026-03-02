@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   // Usar tabla offers y orden por upvotes_count (la vista ofertas_ranked_general puede no existir o fallar)
   const { data: offers, error: offersErr } = await supabase
     .from('offers')
-    .select('id, title, price, original_price, store, offer_url')
+    .select('id, title, price, original_price, store, offer_url, image_url')
     .in('status', ['approved', 'published'])
     .or('expires_at.is.null,expires_at.gte.' + now.toISOString())
     .order('upvotes_count', { ascending: false, nullsFirst: false })

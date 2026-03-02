@@ -22,14 +22,21 @@ export type EmailLayoutOptions = {
   preheader?: string;
   baseUrl: string;
   settingsPath?: string;
+  /** URL de la imagen del logo (ej. https://aventaofertas.com/logo-email.png). Si no se define, solo se muestra el texto AVENTA. */
+  logoUrl?: string | null;
 };
 
 /**
  * Envuelve el contenido en layout común: cabecera AVENTA, contenido, CTA y pie.
  */
 export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string {
-  const { title, preheader = '', baseUrl, settingsPath = '/settings' } = opts;
+  const { title, preheader = '', baseUrl, settingsPath = '/settings', logoUrl: logoUrlOpt } = opts;
+  const logoUrl = logoUrlOpt ?? (typeof process !== 'undefined' && process.env?.EMAIL_LOGO_URL) ?? null;
   const settingsUrl = baseUrl.replace(/\/$/, '') + settingsPath;
+  const logoImg =
+    logoUrl && String(logoUrl).trim()
+      ? `<a href="${baseUrl}" style="display:inline-block; margin-bottom:8px;"><img src="${escapeHtml(String(logoUrl).trim())}" alt="AVENTA" width="120" height="40" style="display:block; max-width:120px; height:auto; border:0;" /></a>`
+      : '';
   const preheaderBlock = preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(preheader)}</div>`
     : '';
@@ -48,9 +55,10 @@ export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string
     <tr>
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; background:#ffffff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
-          <!-- Cabecera -->
+          <!-- Cabecera (logo + texto; logo opcional para que Gmail muestre identidad visual) -->
           <tr>
             <td style="padding:28px 24px 20px; text-align:center; border-bottom:1px solid ${BORDER};">
+              ${logoImg}
               <a href="${baseUrl}" style="text-decoration:none; font-size:22px; font-weight:700; color:${BRAND_COLOR}; letter-spacing:-0.02em;">AVENTA</a>
               <p style="margin:6px 0 0; font-size:13px; color:${TEXT_MUTED};">Las mejores ofertas, elegidas por la comunidad</p>
             </td>
@@ -90,40 +98,54 @@ type OfferRow = {
   original_price?: number | null;
   store?: string | null;
   offer_url?: string | null;
+  image_url?: string | null;
 };
 
+/** Tarjeta de oferta para email, estilo similar al OfferCard del home */
+function offerCardHtml(o: OfferRow, index: number, baseUrl: string): string {
+  const link = baseUrl.replace(/\/$/, '') + '/?o=' + o.id;
+  const title = escapeHtml(o.title || 'Sin título');
+  const store = escapeHtml(o.store || '—');
+  const price =
+    o.price != null
+      ? '$' +
+        Number(o.price).toFixed(0) +
+        (o.original_price
+          ? ` <span style="color:${TEXT_MUTED}; text-decoration:line-through; font-weight:400;">$${Number(o.original_price).toFixed(0)}</span>`
+          : '')
+      : '—';
+  const imgUrl = o.image_url && o.image_url.trim() ? o.image_url.trim() : null;
+  const imgBlock = imgUrl
+    ? `<a href="${link}" style="display:block; text-decoration:none;"><img src="${escapeHtml(imgUrl)}" alt="" width="100%" style="display:block; width:100%; height:120px; object-fit:cover; border-radius:8px 8px 0 0; border:0;" /></a>`
+    : `<div style="height:80px; background:${BG_LIGHT}; border-radius:8px 8px 0 0; display:flex; align-items:center; justify-content:center;"><span style="color:${TEXT_MUTED}; font-size:12px;">Oferta #${index + 1}</span></div>`;
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px; border:1px solid ${BORDER}; border-radius:10px; overflow:hidden; background:#fff;">
+      <tr>
+        <td style="vertical-align:top;">${imgBlock}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 14px;">
+          <a href="${link}" style="color:${TEXT_DARK}; text-decoration:none; font-weight:600; font-size:15px; line-height:1.3;">${title}</a>
+          <div style="font-size:13px; color:${TEXT_MUTED}; margin-top:4px;">${store}</div>
+          <div style="margin-top:8px;"><span style="font-size:16px; font-weight:700; color:${BRAND_COLOR};">${price}</span></div>
+          <a href="${link}" style="display:inline-block; margin-top:10px; font-size:13px; color:${BRAND_COLOR}; font-weight:500; text-decoration:none;">Ver oferta →</a>
+        </td>
+      </tr>
+    </table>`;
+}
+
 export function buildDailyHtml(offers: OfferRow[], baseUrl: string): string {
-  const rows = offers
-    .map((o, i) => {
-      const price =
-        o.price != null
-          ? '$' +
-              Number(o.price).toFixed(0) +
-              (o.original_price
-                ? ` <span style="color:${TEXT_MUTED}; text-decoration:line-through;">$${Number(o.original_price).toFixed(0)}</span>`
-                : '')
-          : '—';
-      const link = baseUrl.replace(/\/$/, '') + '/?o=' + o.id;
-      const title = escapeHtml(o.title || 'Sin título');
-      const store = escapeHtml(o.store || '—');
-      return `
-        <tr>
-          <td style="padding:12px 10px; border-bottom:1px solid ${BORDER}; font-size:14px; color:${TEXT_MUTED}; width:28px; vertical-align:top;">${i + 1}.</td>
-          <td style="padding:12px 10px; border-bottom:1px solid ${BORDER};">
-            <a href="${link}" style="color:${BRAND_COLOR}; text-decoration:none; font-weight:500;">${title}</a>
-            <div style="font-size:13px; color:${TEXT_MUTED}; margin-top:2px;">${store}</div>
-          </td>
-          <td style="padding:12px 10px; border-bottom:1px solid ${BORDER}; font-size:14px; font-weight:600; color:${TEXT_DARK}; white-space:nowrap;">${price}</td>
-        </tr>`;
-    })
-    .join('');
+  const cardsHtml =
+    offers.length > 0
+      ? offers.map((o, i) => offerCardHtml(o, i, baseUrl)).join('')
+      : `<p style="margin:0; padding:16px 0; color:${TEXT_MUTED}; font-size:14px;">No hay ofertas publicadas hoy.</p>`;
 
   const inner = `
     <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:${TEXT_DARK};">Top 10 ofertas del día</h1>
-    <p style="margin:0 0 16px; font-size:14px; color:${TEXT_MUTED};">Las ofertas mejor valoradas por la comunidad hoy.</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-      ${rows || '<tr><td colspan="3" style="padding:16px; color:' + TEXT_MUTED + ';">No hay ofertas publicadas hoy.</td></tr>'}
-    </table>`;
+    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Las ofertas mejor valoradas por la comunidad hoy.</p>
+    ${cardsHtml}
+  `;
 
   return emailLayout(inner, {
     title: 'Top 10 del día — AVENTA',

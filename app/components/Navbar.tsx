@@ -32,6 +32,7 @@ export default function Navbar() {
   const [notifTab, setNotifTab] = useState<NotifTab>('ofertas');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string | null; link: string | null; created_at: string }[]>([]);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
@@ -110,6 +111,20 @@ export default function Navbar() {
     const interval = setInterval(load, 60 * 1000);
     return () => clearInterval(interval);
   }, [user?.id, session?.access_token]);
+
+  useEffect(() => {
+    const loadAnnouncements = async () => {
+      try {
+        const res = await fetch('/api/announcements');
+        if (!res.ok) return;
+        const data = await res.json();
+        setAnnouncements(data.announcements ?? []);
+      } catch {
+        // ignore
+      }
+    };
+    loadAnnouncements();
+  }, []);
 
   const UserMenuContent = () => (
     <>
@@ -346,7 +361,33 @@ export default function Navbar() {
                 <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">Sin actividad en comunidades.</p>
               )}
               {notifTab === 'avisos' && (
-                <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">No tienes avisos.</p>
+                <ul className="space-y-2">
+                  <li>
+                    <Link
+                      href="/descubre"
+                      onClick={() => setShowNotifications(false)}
+                      className="block rounded-lg p-2.5 text-sm font-medium text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
+                    >
+                      Descubre AVENTA
+                    </Link>
+                    <p className="px-2.5 pb-1 text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
+                      Conoce las funciones y cómo sacar partido a la comunidad.
+                    </p>
+                  </li>
+                  {announcements.map((a) => (
+                    <li key={a.id}>
+                      <Link
+                        href={a.link || '#'}
+                        onClick={() => setShowNotifications(false)}
+                        className="block rounded-lg p-2.5 text-sm transition-colors text-[#1d1d1f] dark:text-[#fafafa] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      >
+                        <span className="font-medium">{a.title}</span>
+                        {a.body && <p className="mt-0.5 text-xs opacity-90">{a.body}</p>}
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{new Date(a.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>

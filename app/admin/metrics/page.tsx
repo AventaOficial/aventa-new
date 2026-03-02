@@ -100,10 +100,19 @@ function computeRowsFromOffers(offers: OfferWithRelations[], dateLimit: Date): R
   });
 }
 
+type ProductMetrics = {
+  new_users_today: number;
+  active_users_24h: number;
+  retention_48h_pct: number | null;
+  best_hour_utc: number | null;
+  best_hour_count: number;
+};
+
 export default function MetricsPage() {
   const [data, setData] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [productMetrics, setProductMetrics] = useState<ProductMetrics | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('outbound');
   const [period, setPeriod] = useState<Period>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -165,13 +174,21 @@ export default function MetricsPage() {
     loadData().finally(() => setLoading(false));
   }, [loadData]);
 
+  const { session } = useAuth();
+  useEffect(() => {
+    if (!session?.access_token) return;
+    const headers: Record<string, string> = { Authorization: 'Bearer ' + session.access_token };
+    fetch('/api/admin/product-metrics', { headers })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => json && setProductMetrics(json))
+      .catch(() => {});
+  }, [session?.access_token]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
-
-  const { session } = useAuth();
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -239,8 +256,40 @@ export default function MetricsPage() {
   if (loading) return <div className="p-6 text-gray-600 dark:text-gray-400">Cargando...</div>;
   if (error) return <div className="p-6 text-red-600 dark:text-red-400">Error: {error}</div>;
 
+  const bestHourMexico = productMetrics?.best_hour_utc != null ? (productMetrics.best_hour_utc - 6 + 24) % 24 : null;
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
+      {productMetrics && (
+        <section className="mb-6 rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10 p-4 md:p-5">
+          <h2 className="text-sm font-semibold text-violet-800 dark:text-violet-300 uppercase tracking-wide mb-3">
+            Métricas de producto
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{productMetrics.new_users_today}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Usuarios nuevos hoy</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{productMetrics.active_users_24h}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Usuarios activos (24h)</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {productMetrics.retention_48h_pct != null ? productMetrics.retention_48h_pct + '%' : '—'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Retención 48h</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {bestHourMexico != null ? `${bestHourMexico}:00 (MX)` : '—'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Hora con más retención (aprox.)</p>
+            </div>
+          </div>
+        </section>
+      )}
+
       <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Métricas por oferta
       </h1>

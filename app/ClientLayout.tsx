@@ -1,13 +1,17 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import ActionBar from './components/ActionBar';
 import OnboardingV1, { GuideModalStandalone } from './components/OnboardingV1';
 import InstallAppBanner from './components/InstallAppBanner';
 import AventaIcon from './components/AventaIcon';
 import { useUI } from './providers/UIProvider';
+import { useAuth } from './providers/AuthProvider';
 import { ReactNode } from 'react';
+
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 min
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex flex-col items-center justify-center gap-3" aria-hidden>
@@ -24,9 +28,22 @@ const LoadingScreen = () => (
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { layoutReady, hasDecided, showOnboarding, toastMessage } = useUI();
+  const { session } = useAuth();
+  const lastHeartbeat = useRef<number>(0);
   const showMain = layoutReady && !showOnboarding;
   const isHome = pathname === '/';
   const showContent = !isHome || (hasDecided && showMain);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    const now = Date.now();
+    if (now - lastHeartbeat.current < HEARTBEAT_INTERVAL_MS && lastHeartbeat.current > 0) return;
+    lastHeartbeat.current = now;
+    fetch('/api/activity/heartbeat', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + session.access_token },
+    }).catch(() => {});
+  }, [session?.access_token]);
 
   return (
     <>

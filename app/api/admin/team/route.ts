@@ -39,19 +39,28 @@ export async function GET(request: NextRequest) {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, display_name')
+    .select('id, display_name, reputation_level, reputation_score')
     .in('id', userIds);
 
-  const names = new Map<string, string | null>();
-  for (const p of (profiles ?? []) as { id: string; display_name: string | null }[]) {
-    names.set(p.id, p.display_name ?? null);
+  const profileMap = new Map<string, { display_name: string | null; reputation_level: number; reputation_score: number }>();
+  for (const p of (profiles ?? []) as { id: string; display_name: string | null; reputation_level?: number; reputation_score?: number }[]) {
+    profileMap.set(p.id, {
+      display_name: p.display_name ?? null,
+      reputation_level: Math.max(1, p.reputation_level ?? 1),
+      reputation_score: Math.max(0, p.reputation_score ?? 0),
+    });
   }
 
-  const team = userIds.map((user_id) => ({
-    user_id,
-    role: byUser.get(user_id)!,
-    display_name: names.get(user_id) ?? null,
-  }));
+  const team = userIds.map((user_id) => {
+    const prof = profileMap.get(user_id);
+    return {
+      user_id,
+      role: byUser.get(user_id)!,
+      display_name: prof?.display_name ?? null,
+      reputation_level: prof?.reputation_level ?? 1,
+      reputation_score: prof?.reputation_score ?? 0,
+    };
+  });
 
   return NextResponse.json({ team });
 }

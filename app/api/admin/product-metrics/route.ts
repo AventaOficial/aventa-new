@@ -1,0 +1,85 @@
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
+import { requireMetrics } from '@/lib/server/requireAdmin';
+
+/** GET: métricas de producto (retención 48h, activos, nuevos por día, mejor hora). Solo roles con acceso a métricas. */
+export async function GET(request: Request) {
+  const auth = await requireMetrics(request);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  const supabase = createServerClient();
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+
+  // Usuarios nuevos hoy (profiles creados hoy)
+  const { count: newUsersToday } = await supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', todayStart);
+
+  // Usuarios activos en últimas 24h (user_activity.last_seen_at)
+  let activeUsers24h = 0;
+  try {
+    const { count } = await supabase
+      .from('user_activity')
+      .select('user_id', { count: 'exact', head: true })
+      .gte('last_seen_at', last24h);
+    activeUsers24h = count ?? 0;
+  } catch {
+    // user_activity puede no existir aún
+  }
+
+  // Retención 48h: de usuarios con first_seen >= 48h atrás, % que tienen last_seen > first_seen + 5 min y last_seen <= first_seen + 48h
+  let retention48hPct: number | null = null;
+  try {
+    const { data: activity } = await supabase
+      .from('user_activity')
+      .select('user_id, first_seen_at, last_seen_at')
+      .lt('first_seen_at', fortyEightHoursAgo);
+    const cohort = (activity ?? []) as { user_id: string; first_seen_at: string; last_seen_at: string }[];
+    const returned = cohort.filter((r) => {
+      const first = new Date(r.first_seen_at).getTime();
+      const last = new Date(r.last_seen_at).getTime();
+      const fiveMin = 5 * 60 * 1000;
+      const fortyEight = 48 * 60 * 60 * 1000;
+      return last - first >= fiveMin && last <= first + fortyEight;
+    });
+    retention48hPct = cohort.length > 0 ? Math.round((returned.length / cohort.length) * 10000) / 100 : null;
+  } catch {
+    // ignore
+  }
+
+  // Mejor hora: hora del día (0-23) con más last_seen_at en user_activity (últimos 7 días)
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  let bestHour: number | null = null;
+  let bestHourCount = 0;
+  try {
+    const { data: rows } = await supabase
+      .from('user_activity')
+      .select('last_seen_at')
+      .gte('last_seen_at', weekAgo);
+    const byHour = new Map<number, number>();
+    for (const r of (rows ?? []) as { last_seen_at: string }[]) {
+      const h = new Date(r.last_seen_at).getHours();
+      byHour.set(h, (byHour.get(h) ?? 0) + 1);
+    }
+    for (const [h, c] of byHour) {
+      if (c > bestHourCount) {
+        bestHourCount = c;
+        bestHour = h;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return NextResponse.json({
+    new_users_today: newUsersToday ?? 0,
+    active_users_24h: activeUsers24h,
+    retention_48h_pct: retention48hPct,
+    best_hour_utc: bestHour,
+    best_hour_count: bestHourCount,
+  });
+}
