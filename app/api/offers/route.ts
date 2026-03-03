@@ -131,6 +131,9 @@ export async function POST(request: Request) {
       ...(typeof body?.coupons === 'string' && body.coupons.trim() && {
         coupons: body.coupons.trim(),
       }),
+      ...(typeof body?.moderator_comment === 'string' && body.moderator_comment.trim() && {
+        moderator_comment: body.moderator_comment.trim().slice(0, 500),
+      }),
     };
 
     const { data, error } = await supabase.from('offers').insert([payload]).select('id').single();

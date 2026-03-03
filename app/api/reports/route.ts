@@ -47,6 +47,9 @@ export async function POST(request: Request) {
     if (!offerId || !reportType || !isValidUuid(offerId)) {
       return NextResponse.json({ error: 'offerId y reportType son obligatorios' }, { status: 400 })
     }
+    if (!comment || comment.length < 100) {
+      return NextResponse.json({ error: 'Escribe al menos 100 caracteres describiendo el problema para evitar spam.' }, { status: 400 })
+    }
 
     const supabase = createServerClient()
     const { error } = await supabase.from('offer_reports').insert({
@@ -60,6 +63,15 @@ export async function POST(request: Request) {
       console.error('[reports] insert failed:', error.message)
       return NextResponse.json({ error: 'Error al enviar el reporte' }, { status: 500 })
     }
+
+    const { error: notifErr } = await supabase.from('notifications').insert({
+      user_id: reporterId,
+      type: 'report_received',
+      title: 'Reporte recibido',
+      body: 'Gracias por ayudar a la comunidad. Revisaremos tu reporte.',
+      link: null,
+    })
+    if (notifErr) console.error('[reports] notification insert failed:', notifErr.message)
 
     return NextResponse.json({ ok: true })
   } catch (e) {

@@ -23,8 +23,9 @@ export async function PATCH(request: Request) {
       .eq('id', id)
       .single()
 
-    if (!offer || (offer as { status?: string }).status !== 'pending') {
-      return NextResponse.json({ error: 'Solo se pueden editar ofertas pendientes' }, { status: 400 })
+    const offerStatus = (offer as { status?: string })?.status
+    if (!offer || (offerStatus !== 'pending' && offerStatus !== 'approved')) {
+      return NextResponse.json({ error: 'Solo se pueden editar ofertas pendientes o aprobadas' }, { status: 400 })
     }
 
     const payload: { title?: string; offer_url?: string; description?: string | null } = {}

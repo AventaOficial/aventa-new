@@ -39,13 +39,14 @@ export async function GET(request: NextRequest) {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, display_name, reputation_level, reputation_score')
+    .select('id, display_name, avatar_url, reputation_level, reputation_score')
     .in('id', userIds);
 
-  const profileMap = new Map<string, { display_name: string | null; reputation_level: number; reputation_score: number }>();
-  for (const p of (profiles ?? []) as { id: string; display_name: string | null; reputation_level?: number; reputation_score?: number }[]) {
+  const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null; reputation_level: number; reputation_score: number }>();
+  for (const p of (profiles ?? []) as { id: string; display_name: string | null; avatar_url?: string | null; reputation_level?: number; reputation_score?: number }[]) {
     profileMap.set(p.id, {
       display_name: p.display_name ?? null,
+      avatar_url: p.avatar_url ?? null,
       reputation_level: Math.max(1, p.reputation_level ?? 1),
       reputation_score: Math.max(0, p.reputation_score ?? 0),
     });
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
       user_id,
       role: byUser.get(user_id)!,
       display_name: prof?.display_name ?? null,
+      avatar_url: prof?.avatar_url ?? null,
       reputation_level: prof?.reputation_level ?? 1,
       reputation_score: prof?.reputation_score ?? 0,
     };

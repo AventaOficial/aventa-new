@@ -63,6 +63,7 @@ export default function ActionBar() {
     store: '',
     conditions: '',
     coupons: '',
+    moderator_comment: '',
   });
   const [stepsList, setStepsList] = useState<string[]>(['']);
   const MAX_STEPS = 20;
@@ -209,6 +210,7 @@ export default function ActionBar() {
       }),
       ...(formData.conditions.trim() && { conditions: formData.conditions.trim() }),
       ...(formData.coupons.trim() && { coupons: formData.coupons.trim() }),
+      ...(formData.moderator_comment.trim() && { moderator_comment: formData.moderator_comment.trim().slice(0, 500) }),
     };
     const token = session?.access_token ?? (await supabase.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/offers', {
@@ -765,6 +767,25 @@ export default function ActionBar() {
                             placeholder="Ej: DESCUENTO20"
                             className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                           />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Comentario para moderadores (opcional)
+                          </label>
+                          <textarea
+                            value={formData.moderator_comment}
+                            onChange={(e) => handleInputChange('moderator_comment', e.target.value)}
+                            placeholder="Notas para el equipo de moderación..."
+                            maxLength={500}
+                            rows={2}
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
+                          />
+                          {formData.moderator_comment.length > 0 && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {formData.moderator_comment.length}/500
+                            </span>
+                          )}
                         </div>
                       </motion.div>
                     )}

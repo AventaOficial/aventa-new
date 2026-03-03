@@ -19,41 +19,23 @@ type Row = {
   created_at: string;
 };
 
-/** Mercado Libre: 9% electrónica/tecnología, 14% resto (comisión afiliado). */
-const ML_COMMISSION_ELECTRONICS = 9;
-const ML_COMMISSION_OTHER = 14;
-const ELECTRONICS_CATEGORIES = ['electronics'];
+type SortKey = 'views' | 'outbound' | 'ctr' | 'shares';
 
-function getMlCommissionPct(category: string | null | undefined): number {
-  if (!category || !category.trim()) return ML_COMMISSION_OTHER;
-  const c = category.toLowerCase().trim();
-  return ELECTRONICS_CATEGORIES.includes(c) ? ML_COMMISSION_ELECTRONICS : ML_COMMISSION_OTHER;
-}
-
-type SortKey = 'outbound' | 'ctr' | 'score_final' | 'shares';
-
-type AffiliatePlatform = 'amazon' | 'mercadolibre' | 'aliexpress' | 'custom';
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'outbound', label: 'Outbound ↓' },
-  { value: 'shares', label: 'Compartidos ↓' },
-  { value: 'ctr', label: 'CTR ↓' },
-  { value: 'score_final', label: 'Score final ↓' },
-];
+type OfferWithRelations = {
+  id: string;
+  title: string;
+  category?: string | null;
+  created_at: string;
+  offer_events?: Array<{ event_type: string; created_at: string }> | null;
+  offer_votes?: Array<{ value: number }> | null;
+};
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-  { value: 'all', label: 'Todo' },
   { value: 'day', label: 'Últimas 24h' },
   { value: 'week', label: 'Últimos 7 días' },
   { value: 'month', label: 'Últimos 30 días' },
+  { value: 'all', label: 'Todo' },
 ];
-
-const AFFILIATE_PRESETS: Record<AffiliatePlatform, { conv: number; commission: number; label: string }> = {
-  amazon: { conv: 5, commission: 4, label: 'Amazon' },
-  mercadolibre: { conv: 4, commission: 14, label: 'Mercado Libre (9% electrónica, 14% resto)' },
-  aliexpress: { conv: 2, commission: 5, label: 'AliExpress' },
-  custom: { conv: 4, commission: 10, label: 'Personalizado' },
-};
 
 function formatNum(n: number): string {
   return n.toLocaleString('es-MX', { maximumFractionDigits: 0 });
@@ -64,15 +46,6 @@ function computeScoreFinal(score: number, createdAt: string): number {
   const base = Math.max(hours + 2, 2);
   return Number((score / Math.pow(base, 1.5)).toFixed(2));
 }
-
-type OfferWithRelations = {
-  id: string;
-  title: string;
-  category?: string | null;
-  created_at: string;
-  offer_events?: Array<{ event_type: string; created_at: string }> | null;
-  offer_votes?: Array<{ value: number }> | null;
-};
 
 function computeRowsFromOffers(offers: OfferWithRelations[], dateLimit: Date): Row[] {
   const limitIso = dateLimit.toISOString();
@@ -114,34 +87,27 @@ export default function MetricsPage() {
   const [error, setError] = useState<string | null>(null);
   const [productMetrics, setProductMetrics] = useState<ProductMetrics | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('outbound');
-  const [period, setPeriod] = useState<Period>('all');
+  const sorted = [...data].sort((a, b) => {
+    const key = sortBy;
+    const va = key === 'views' ? a.views : a[key];
+    const vb = key === 'views' ? b.views : b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return (vb as number) - (va as number);
+  });
+  const [period, setPeriod] = useState<Period>('week');
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [affiliatePlatform, setAffiliatePlatform] = useState<AffiliatePlatform>('mercadolibre');
-  const [convRate, setConvRate] = useState(4);
-  const [commissionRate, setCommissionRate] = useState(12);
-  const [aovMxn, setAovMxn] = useState(500);
+  const [showExtra, setShowExtra] = useState(false);
   const [mlLeadersPaste, setMlLeadersPaste] = useState('');
   const [mlLeadersRows, setMlLeadersRows] = useState<{ tag: string; ganancia: number }[]>([]);
-
-  const parseMlLeadersPaste = useCallback(() => {
-    const lines = mlLeadersPaste.trim().split(/\n/).map((l) => l.trim()).filter(Boolean);
-    const rows: { tag: string; ganancia: number }[] = [];
-    for (const line of lines) {
-      const parts = line.split(/[\t,;]/).map((p) => p.trim());
-      const tag = parts[0] ?? '';
-      const ganancia = Number(parts[1]?.replace(/[^\d.-]/g, '')) || 0;
-      if (tag) rows.push({ tag, ganancia });
-    }
-    setMlLeadersRows(rows);
-  }, [mlLeadersPaste]);
+  const { session } = useAuth();
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
     if (period === 'all') {
-      const { data: rows, error: err } = await supabase
-        .from('offer_performance_metrics')
-        .select('*');
+      const { data: rows, error: err } = await supabase.from('offer_performance_metrics').select('*');
       if (err) {
         setError(err.message);
         return;
@@ -159,19 +125,7 @@ export default function MetricsPage() {
     const dateLimit = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const { data: offers, error: err } = await supabase
       .from('offers')
-      .select(`
-        id,
-        title,
-        category,
-        created_at,
-        offer_events (
-          event_type,
-          created_at
-        ),
-        offer_votes (
-          value
-        )
-      `)
+      .select(`id, title, category, created_at, offer_events(event_type, created_at), offer_votes(value)`)
       .or('status.eq.approved,status.eq.published');
     if (err) {
       setError(err.message);
@@ -188,11 +142,9 @@ export default function MetricsPage() {
     loadData().finally(() => setLoading(false));
   }, [loadData]);
 
-  const { session } = useAuth();
   useEffect(() => {
     if (!session?.access_token) return;
-    const headers: Record<string, string> = { Authorization: 'Bearer ' + session.access_token };
-    fetch('/api/admin/product-metrics', { headers })
+    fetch('/api/admin/product-metrics', { headers: { Authorization: 'Bearer ' + session.access_token } })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => json && setProductMetrics(json))
       .catch(() => {});
@@ -209,386 +161,261 @@ export default function MetricsPage() {
     try {
       const headers: Record<string, string> = {};
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/refresh-metrics', { method: 'POST', headers });
-      if (!res.ok) throw new Error('Error al refrescar');
-      setLoading(true);
+      await fetch('/api/admin/refresh-metrics', { method: 'POST', headers });
       await loadData();
-      setToast('Métricas actualizadas');
+      setToast('Datos actualizados');
     } catch {
-      setToast('Error al actualizar métricas');
+      setToast('Error al actualizar');
     } finally {
       setRefreshing(false);
       setLoading(false);
     }
   };
 
-  const sorted = [...data].sort((a, b) => {
-    const key = sortBy;
-    const va = a[key];
-    const vb = b[key];
-    if (va == null && vb == null) return 0;
-    if (va == null) return 1;
-    if (vb == null) return -1;
-    return (vb as number) - (va as number);
-  });
-
   const summary = {
     totalViews: data.reduce((s, r) => s + r.views, 0),
     totalOutbound: data.reduce((s, r) => s + r.outbound, 0),
     totalShares: data.reduce((s, r) => s + (r.shares ?? 0), 0),
     activeOffers: data.length,
-    topOffer: sorted[0]?.title ?? null,
   };
   const globalCtr =
-    summary.totalViews > 0
-      ? ((summary.totalOutbound / summary.totalViews) * 100).toFixed(1)
-      : null;
+    summary.totalViews > 0 ? ((summary.totalOutbound / summary.totalViews) * 100).toFixed(1) : null;
+  const bestHourMexico =
+    productMetrics?.best_hour_utc != null ? (productMetrics.best_hour_utc - 6 + 24) % 24 : null;
 
-  const periodLabel =
-    period === 'all'
-      ? 'todo el tiempo'
-      : period === 'day'
-        ? 'últimas 24h'
-        : period === 'week'
-          ? 'últimos 7 días'
-          : 'últimos 30 días';
-
-  useEffect(() => {
-    const p = AFFILIATE_PRESETS[affiliatePlatform];
-    if (p && affiliatePlatform !== 'custom') {
-      setConvRate(p.conv);
-      setCommissionRate(p.commission);
+  const parseMlLeaders = () => {
+    const lines = mlLeadersPaste.trim().split(/\n/).map((l) => l.trim()).filter(Boolean);
+    const rows: { tag: string; ganancia: number }[] = [];
+    for (const line of lines) {
+      const parts = line.split(/[\t,;]/).map((p) => p.trim());
+      const tag = parts[0] ?? '';
+      const ganancia = Number(parts[1]?.replace(/[^\d.-]/g, '')) || 0;
+      if (tag) rows.push({ tag, ganancia });
     }
-  }, [affiliatePlatform]);
+    setMlLeadersRows(rows);
+  };
 
-  const estimatedSales = Math.round(summary.totalOutbound * (convRate / 100));
-  const estimatedEarnings = (estimatedSales * aovMxn * (commissionRate / 100)).toFixed(0);
-  const epc = summary.totalOutbound > 0
-    ? ((estimatedSales * aovMxn * (commissionRate / 100)) / summary.totalOutbound).toFixed(2)
-    : null;
+  if (loading && data.length === 0) {
+    return (
+      <div className="p-6">
+        <p className="text-gray-500 dark:text-gray-400">Cargando…</p>
+      </div>
+    );
+  }
 
-  if (loading) return <div className="p-6 text-gray-600 dark:text-gray-400">Cargando...</div>;
-  if (error) return <div className="p-6 text-red-600 dark:text-red-400">Error: {error}</div>;
-
-  const bestHourMexico = productMetrics?.best_hour_utc != null ? (productMetrics.best_hour_utc - 6 + 24) % 24 : null;
+  if (error) {
+    return (
+      <div className="p-6">
+        <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Métricas</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Resumen de la comunidad y actividad de ofertas.
+        </p>
+      </div>
+
+      {/* Bloque 1: Lo más importante — comunidad */}
       {productMetrics && (
-        <section className="mb-6 rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10 p-4 md:p-5">
-          <h2 className="text-sm font-semibold text-violet-800 dark:text-violet-300 uppercase tracking-wide mb-3">
-            Métricas de producto
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Resumen de la comunidad
           </h2>
-          <p className="text-xs text-violet-700/80 dark:text-violet-300/80 mb-3">
-            Métrica norte beta: <strong>Retención 48h</strong>. Con ~20 usuarios: &lt;15% problema, 50% interesante, ≥75% señal fuerte.
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{productMetrics.new_users_today}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Usuarios nuevos hoy</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {productMetrics.new_users_today}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Usuarios nuevos hoy</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{productMetrics.active_users_24h}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Usuarios activos (24h)</p>
+              <p className="text-3xl font-bold text-violet-600 dark:text-violet-400">
+                {productMetrics.active_users_24h}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Activos en las últimas 24h</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 {productMetrics.retention_48h_pct != null ? productMetrics.retention_48h_pct + '%' : '—'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Retención 48h (métrica norte)</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Retención 48h <span className="text-violet-600 dark:text-violet-400">(métrica clave en beta)</span>
+              </p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {bestHourMexico != null ? `${bestHourMexico}:00 (MX)` : '—'}
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {bestHourMexico != null ? `${bestHourMexico}:00` : '—'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Hora con más retención (aprox.)</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Mejor hora (MX)</p>
             </div>
           </div>
         </section>
       )}
 
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-        Métricas por oferta
-      </h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Vistas, clics a tienda (outbound) y CTR por oferta. Ordena por impacto para ver las que más generan salidas.
-      </p>
-
-      <section className="mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-4 md:p-5">
-        <h2 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide mb-3">
-          Impacto — {periodLabel}
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNum(summary.totalViews)}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Vistas</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatNum(summary.totalOutbound)}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Clics a tienda</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{globalCtr ?? '—'}{globalCtr != null ? '%' : ''}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">CTR global</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.activeOffers}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Ofertas con actividad</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label className="text-sm text-gray-600 dark:text-gray-400">Período:</label>
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value as Period)}
-          disabled={loading}
-          className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1 text-sm disabled:opacity-50"
-        >
-          {PERIOD_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {refreshing ? 'Actualizando...' : 'Actualizar métricas'}
-        </button>
-        <label className="text-sm text-gray-600 dark:text-gray-400 mr-2">Ordenar por:</label>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortKey)}
-          className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1 text-sm"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 md:p-5">
-        <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">
-          Resumen — {periodLabel}
-        </h2>
-        <p className="text-base md:text-lg text-gray-800 dark:text-gray-200 mb-3">
-          {formatNum(summary.totalViews)} vistas
-          {summary.totalOutbound > 0 && (
-            <>
-              {' · '}
-              {formatNum(summary.totalOutbound)} clics directos
-              {globalCtr != null && ` (${globalCtr}% CTR)`}
-            </>
-          )}
-          {summary.totalShares > 0 && ` · ${formatNum(summary.totalShares)} compartidos`}
-        </p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {summary.activeOffers} ofertas activas
-          {summary.topOffer && (
-            <>
-              {' · '}
-              Top: <span className="text-gray-800 dark:text-gray-200 truncate max-w-[200px] inline-block align-bottom" title={summary.topOffer}>{summary.topOffer}</span>
-            </>
-          )}
-        </p>
-      </section>
-
-      <section className="mb-6 rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10 p-4 md:p-5">
-        <h2 className="text-sm font-semibold text-violet-800 dark:text-violet-300 uppercase tracking-wide mb-3">
-          Estimación de afiliados
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Proyección basada en clics outbound, tasa de conversión y comisión por plataforma.
-        </p>
-        <div className="flex flex-wrap gap-4 md:gap-6 mb-4">
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Plataforma</label>
+      {/* Bloque 2: Actividad de ofertas */}
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Actividad de ofertas
+          </h2>
+          <div className="flex flex-wrap items-center gap-3">
             <select
-              value={affiliatePlatform}
-              onChange={(e) => setAffiliatePlatform(e.target.value as AffiliatePlatform)}
-              className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as Period)}
+              disabled={loading}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
             >
-              <option value="amazon">Amazon (conv ~5%, comisión ~4%)</option>
-              <option value="mercadolibre">Mercado Libre (conv ~4%, comisión 9–14%)</option>
-              <option value="aliexpress">AliExpress (conv ~2%, comisión 3–7%)</option>
-              <option value="custom">Personalizado</option>
+              {PERIOD_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Conversión %</label>
-            <input
-              type="number"
-              min={0.5}
-              max={20}
-              step={0.5}
-              value={convRate}
-              onChange={(e) => setConvRate(Number(e.target.value) || 4)}
-              className="w-20 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Comisión %</label>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              step={1}
-              value={commissionRate}
-              onChange={(e) => setCommissionRate(Number(e.target.value) || 10)}
-              className="w-20 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Ticket promedio (MXN)</label>
-            <input
-              type="number"
-              min={50}
-              max={50000}
-              step={50}
-              value={aovMxn}
-              onChange={(e) => setAovMxn(Number(e.target.value) || 500)}
-              className="w-28 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm"
-            />
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="rounded-lg bg-violet-600 text-white px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+            >
+              {refreshing ? 'Actualizando…' : 'Actualizar'}
+            </button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-6 text-sm">
-          <div>
-            <span className="text-gray-500 dark:text-gray-400">Ventas estimadas:</span>{' '}
-            <span className="font-semibold text-gray-900 dark:text-gray-100">{formatNum(estimatedSales)}</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="rounded-xl bg-gray-50 dark:bg-gray-700/50 p-4">
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNum(summary.totalViews)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Vistas</p>
           </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400">Ingresos estimados:</span>{' '}
-            <span className="font-semibold text-violet-600 dark:text-violet-400">
-              ${formatNum(Number(estimatedEarnings))} MXN
-            </span>
+          <div className="rounded-xl bg-gray-50 dark:bg-gray-700/50 p-4">
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatNum(summary.totalOutbound)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Clics a tienda</p>
           </div>
-          {epc != null && (
-            <div>
-              <span className="text-gray-500 dark:text-gray-400">EPC (ganancia por clic):</span>{' '}
-              <span className="font-semibold text-gray-900 dark:text-gray-100">${epc} MXN</span>
-            </div>
-          )}
+          <div className="rounded-xl bg-gray-50 dark:bg-gray-700/50 p-4">
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{globalCtr ?? '—'}{globalCtr != null ? '%' : ''}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">CTR</p>
+          </div>
+          <div className="rounded-xl bg-gray-50 dark:bg-gray-700/50 p-4">
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.activeOffers}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Ofertas con actividad</p>
+          </div>
         </div>
-      </section>
 
-      <section className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-900/10 p-4 md:p-5">
-        <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wide mb-3">
-          Métricas líderes (ML)
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          Pega datos desde el dashboard de Mercado Libre (etiqueta de seguimiento y ganancia estimada). Formato: una línea por etiqueta, <code className="bg-black/10 dark:bg-white/10 px-1 rounded">etiqueta,ganancia_estimada</code> (separado por coma, tab o punto y coma).
-        </p>
-        <textarea
-          placeholder={'aventa_capitanjeshua,323.75\naventa,0'}
-          value={mlLeadersPaste}
-          onChange={(e) => setMlLeadersPaste(e.target.value)}
-          onBlur={parseMlLeadersPaste}
-          rows={4}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm font-mono"
-        />
-        <button
-          type="button"
-          onClick={parseMlLeadersPaste}
-          className="mt-2 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium"
-        >
-          Aplicar y ver tabla
-        </button>
-        {mlLeadersRows.length > 0 && (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                  <th className="text-left p-2 font-medium text-gray-700 dark:text-gray-300">Etiqueta</th>
-                  <th className="text-right p-2 font-medium text-gray-700 dark:text-gray-300">Ganancia est. (MXN)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mlLeadersRows.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-100 dark:border-gray-700/50">
-                    <td className="p-2 text-gray-900 dark:text-gray-100 font-mono">{r.tag}</td>
-                    <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatNum(r.ganancia)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Total: ${formatNum(mlLeadersRows.reduce((s, r) => s + r.ganancia, 0))} MXN
-            </p>
-          </div>
-        )}
-      </section>
-
-      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Oferta</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">views</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">outbound</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">shares</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">ctr</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">score</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">score_final</th>
-              <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Est. ingreso (MXN)</th>
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">created_at</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="p-4 text-center text-gray-500 dark:text-gray-400">
-                  No hay datos
-                </td>
+        <div className="mb-3 flex items-center gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Ordenar por:</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-1.5 text-sm"
+          >
+            <option value="outbound">Clics a tienda</option>
+            <option value="views">Vistas</option>
+            <option value="ctr">CTR</option>
+            <option value="shares">Compartidos</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Oferta</th>
+                <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Vistas</th>
+                <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Clics</th>
+                <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">CTR</th>
               </tr>
-            ) : (
-              sorted.map((row, i) => {
-                const commissionPct = affiliatePlatform === 'mercadolibre' ? getMlCommissionPct(row.category) : commissionRate;
-                const estimatedRevenue = row.outbound * (convRate / 100) * aovMxn * (commissionPct / 100);
-                return (
+            </thead>
+            <tbody>
+              {sorted.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                    No hay datos en este período
+                  </td>
+                </tr>
+              ) : (
+                sorted.slice(0, 50).map((row, i) => (
                   <tr key={row.id ?? i} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="p-3 max-w-[200px]" title={row.title}>
+                    <td className="p-3 max-w-[220px]">
                       {row.id ? (
                         <a href={`/?o=${row.id}`} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 hover:underline truncate block">
                           {row.title}
                         </a>
                       ) : (
-                        <span className="text-gray-900 dark:text-gray-100 truncate block">{row.title}</span>
+                        <span className="truncate block text-gray-900 dark:text-gray-100">{row.title}</span>
                       )}
                     </td>
                     <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.views}</td>
                     <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.outbound}</td>
-                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.shares ?? 0}</td>
                     <td className="p-3 text-right text-gray-700 dark:text-gray-300">
                       {row.ctr != null ? `${row.ctr}%` : '—'}
                     </td>
-                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.score}</td>
-                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.score_final}</td>
-                    <td className="p-3 text-right text-emerald-600 dark:text-emerald-400 font-medium">
-                      {row.outbound > 0 ? `$${formatNum(Math.round(estimatedRevenue))}` : '—'}
-                    </td>
-                    <td className="p-3 text-gray-600 dark:text-gray-400">
-                      {new Date(row.created_at).toLocaleString()}
-                    </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-      {toast && (
-        <div
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-gray-900 dark:bg-gray-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg"
-          role="status"
-          aria-live="polite"
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {sorted.length > 50 && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Mostrando las 50 primeras. Total: {sorted.length} ofertas.
+          </p>
+        )}
+      </section>
+
+      {/* Opcional: Afiliados y líderes ML */}
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <button
+          type="button"
+          onClick={() => setShowExtra(!showExtra)}
+          className="w-full flex items-center justify-between text-left text-lg font-semibold text-gray-900 dark:text-gray-100"
         >
+          <span>Más opciones (afiliados, líderes ML)</span>
+          <span className="text-2xl text-gray-400">{showExtra ? '−' : '+'}</span>
+        </button>
+        {showExtra && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-6">
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Líderes ML (pegar etiqueta,ganancia)</h3>
+              <textarea
+                placeholder="aventa_capitanjeshua,323.75"
+                value={mlLeadersPaste}
+                onChange={(e) => setMlLeadersPaste(e.target.value)}
+                onBlur={parseMlLeaders}
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+              />
+              <button type="button" onClick={parseMlLeaders} className="mt-2 rounded-lg bg-amber-600 text-white px-3 py-1.5 text-sm">
+                Aplicar
+              </button>
+              {mlLeadersRows.length > 0 && (
+                <div className="mt-3 overflow-x-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50 dark:bg-gray-700/50">
+                        <th className="text-left p-2">Etiqueta</th>
+                        <th className="text-right p-2">Ganancia (MXN)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mlLeadersRows.map((r, i) => (
+                        <tr key={i} className="border-b border-gray-100 dark:border-gray-700/50">
+                          <td className="p-2 font-mono">{r.tag}</td>
+                          <td className="p-2 text-right">${formatNum(r.ganancia)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-gray-500 mt-2">Total: ${formatNum(mlLeadersRows.reduce((s, r) => s + r.ganancia, 0))} MXN</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {toast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-gray-900 dark:bg-gray-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg" role="status">
           {toast}
         </div>
       )}

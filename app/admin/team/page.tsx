@@ -10,6 +10,7 @@ type TeamMember = {
   user_id: string;
   role: Role;
   display_name: string | null;
+  avatar_url: string | null;
   reputation_level: number;
   reputation_score: number;
 };
@@ -27,7 +28,16 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [searchName, setSearchName] = useState('');
   const { session } = useAuth();
+
+  const filteredTeam = team.filter((m) => {
+    if (!searchName.trim()) return true;
+    const q = searchName.toLowerCase().trim();
+    const name = (m.display_name ?? '').toLowerCase();
+    const id = m.user_id.toLowerCase();
+    return name.includes(q) || id.includes(q);
+  });
 
   const loadTeam = useCallback(async () => {
     setLoading(true);
@@ -95,9 +105,19 @@ export default function TeamPage() {
       <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Equipo
       </h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Solo el owner puede ver y editar roles. Aquí aparecen quienes tienen rol en el panel (owner, admin, moderador, analista).
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Asigna roles (moderador, analista, etc.). Busca por nombre para encontrar a quien dar de alta.
       </p>
+
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="Buscar por nombre..."
+          value={searchName}
+          onChange={(e) => setSearchName(e.target.value)}
+          className="w-full max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
+        />
+      </div>
 
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
         <table className="w-full text-sm">
@@ -106,28 +126,39 @@ export default function TeamPage() {
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Usuario</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rol actual</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Reputación</th>
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Cambiar a</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Asignar rol</th>
             </tr>
           </thead>
           <tbody>
-            {team.length === 0 ? (
+            {filteredTeam.length === 0 ? (
               <tr>
                 <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
-                  No hay usuarios con rol
+                  {team.length === 0 ? 'No hay usuarios con rol' : 'No hay resultados para la búsqueda'}
                 </td>
               </tr>
             ) : (
-              team.map((m) => (
+              filteredTeam.map((m) => (
                 <tr key={m.user_id} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                   <td className="p-3">
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
-                      {m.display_name || m.user_id.slice(0, 8) + '…'}
-                    </span>
-                    {m.display_name && (
-                      <span className="block text-xs text-gray-500 dark:text-gray-400 font-mono">
-                        {m.user_id}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {m.avatar_url ? (
+                        <img src={m.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0 text-violet-600 dark:text-violet-400 font-semibold text-sm">
+                          {(m.display_name || m.user_id).slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {m.display_name || m.user_id.slice(0, 8) + '…'}
+                        </span>
+                        {m.display_name && (
+                          <span className="block text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            {m.user_id.slice(0, 8)}…
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="p-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
@@ -149,7 +180,7 @@ export default function TeamPage() {
                       value={m.role}
                       onChange={(e) => handleRoleChange(m.user_id, e.target.value as Role)}
                       disabled={updating === m.user_id || m.role === 'owner'}
-                      className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm disabled:opacity-50"
+                      className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
                     >
                       {ROLES.map((r) => (
                         <option key={r} value={r}>

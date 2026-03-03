@@ -17,6 +17,9 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerClient();
+  const { data: offer } = await supabase.from('offers').select('created_by').eq('id', offerId).single();
+  const createdBy = (offer as { created_by?: string } | null)?.created_by;
+
   const now = new Date().toISOString();
   const { error } = await supabase
     .from('offers')
@@ -26,6 +29,16 @@ export async function POST(request: Request) {
   if (error) {
     console.error('[expire-offer] update failed:', error.message);
     return NextResponse.json({ error: 'Error al marcar como expirada' }, { status: 500 });
+  }
+
+  if (createdBy) {
+    await supabase.from('notifications').insert({
+      user_id: createdBy,
+      type: 'offer_removed',
+      title: 'Tu oferta fue retirada del feed',
+      body: 'Los moderadores retiraron esta oferta (por reportes o por estar expirada). Si tienes dudas, contacta al equipo.',
+      link: '/me',
+    }).then(({ error: notifErr }) => { if (notifErr) console.error('[expire-offer] notification failed:', notifErr.message); });
   }
 
   try {

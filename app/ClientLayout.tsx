@@ -59,11 +59,13 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <ActionBar />
       {toastMessage && (
         <div
-          className="fixed bottom-28 left-1/2 z-[10001] -translate-x-1/2 rounded-2xl bg-[#1d1d1f] dark:bg-[#1d1d1f] px-5 py-3 text-sm font-medium text-white shadow-lg"
+          className={`fixed bottom-28 left-1/2 z-[10001] -translate-x-1/2 rounded-2xl bg-[#1d1d1f] dark:bg-[#1d1d1f] px-5 py-3 text-white shadow-lg flex items-center justify-center text-center ${
+            toastMessage === 'report_success' ? 'min-w-[280px] px-6 py-4 text-base font-semibold' : 'text-sm font-medium'
+          }`}
           role="status"
           aria-live="polite"
         >
-          {toastMessage}
+          {toastMessage === 'report_success' ? 'Reporte enviado, gracias por ayudar' : toastMessage}
         </div>
       )}
     </>

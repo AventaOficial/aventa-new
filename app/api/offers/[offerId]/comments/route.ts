@@ -29,6 +29,7 @@ function toComment(
     content: row.content,
     created_at: row.created_at,
     author: { username },
+    user_id: row.user_id ?? null,
     parent_id: row.parent_id ?? null,
     image_url: row.image_url ?? null,
     like_count: likeCount ?? 0,

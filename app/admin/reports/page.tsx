@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { Flag, ChevronDown, ExternalLink, Check, X, Clock } from 'lucide-react';
+import { Flag, ChevronDown, ExternalLink, Check, X, Clock, Loader2, Eye } from 'lucide-react';
 
 type ReportRow = {
   id: string;
@@ -44,6 +44,31 @@ export default function ReportsPage() {
   const [statusFilter, setStatusFilter] = useState<'pending' | 'reviewed' | 'dismissed' | 'all'>('pending');
   const [actingId, setActingId] = useState<string | null>(null);
   const [expiringId, setExpiringId] = useState<string | null>(null);
+  const [panelOfferId, setPanelOfferId] = useState<string | null>(null);
+  const [panelOffer, setPanelOffer] = useState<{
+    id: string;
+    title: string;
+    store: string | null;
+    image_url: string | null;
+    price: number;
+    original_price: number | null;
+    offer_url: string | null;
+    status: string;
+  } | null>(null);
+  const [panelLoading, setPanelLoading] = useState(false);
+
+  const openOfferPanel = useCallback((offerId: string) => {
+    setPanelOfferId(offerId);
+    setPanelOffer(null);
+    setPanelLoading(true);
+    const headers: Record<string, string> = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    fetch(`/api/admin/offer-preview?offerId=${encodeURIComponent(offerId)}`, { headers })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setPanelOffer(data))
+      .catch(() => setPanelOffer(null))
+      .finally(() => setPanelLoading(false));
+  }, [session?.access_token]);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -174,15 +199,14 @@ export default function ReportsPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  <a
-                    href={`/?o=${r.offer_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => openOfferPanel(r.offer_id)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <Eye className="h-4 w-4" />
                     Ver oferta
-                  </a>
+                  </button>
                   {r.status === 'pending' && (
                     <>
                       <button
@@ -217,6 +241,85 @@ export default function ReportsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Panel lateral: ver oferta sin salir */}
+      {panelOfferId && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => { setPanelOfferId(null); setPanelOffer(null); }}
+            aria-hidden
+          />
+          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white dark:bg-gray-800 shadow-xl flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Vista previa de la oferta</h3>
+              <button
+                type="button"
+                onClick={() => { setPanelOfferId(null); setPanelOffer(null); }}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {panelLoading ? (
+                <div className="flex items-center justify-center py-12 gap-2 text-gray-500">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  Cargando…
+                </div>
+              ) : panelOffer ? (
+                <div className="space-y-4">
+                  {panelOffer.image_url && (
+                    <div className="rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 aspect-square max-h-48">
+                      <img src={panelOffer.image_url} alt="" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">{panelOffer.title}</h4>
+                  {panelOffer.store && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Tienda: {panelOffer.store}</p>
+                  )}
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                      ${Number(panelOffer.price).toLocaleString('es-MX')}
+                    </span>
+                    {panelOffer.original_price != null && (
+                      <span className="text-sm text-gray-500 line-through">
+                        ${Number(panelOffer.original_price).toLocaleString('es-MX')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Estado: {panelOffer.status}
+                  </p>
+                  <a
+                    href={`/?o=${panelOffer.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg bg-violet-600 text-white px-4 py-2 text-sm font-medium hover:bg-violet-700"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir oferta en nueva pestaña
+                  </a>
+                  {panelOffer.offer_url && (
+                    <a
+                      href={panelOffer.offer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Ir a la tienda
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">No se pudo cargar la oferta.</p>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

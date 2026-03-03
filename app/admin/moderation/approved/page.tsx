@@ -36,7 +36,7 @@ export default function ApprovedPage() {
     return supabase
       .from('offers')
       .select(
-        'id, title, price, original_price, store, image_url, offer_url, created_at, created_by, profiles!created_by(display_name, avatar_url)'
+        'id, title, price, original_price, store, image_url, offer_url, created_at, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url)'
       )
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
@@ -104,7 +104,7 @@ export default function ApprovedPage() {
         <ul className="space-y-4">
           {filtered.map((offer) => (
             <li key={offer.id}>
-              <ModerationOfferCard offer={offer} status="approved" />
+              <ModerationOfferCard offer={offer} status="approved" onOfferUpdated={() => refreshList(true)} />
             </li>
           ))}
         </ul>

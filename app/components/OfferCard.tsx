@@ -282,12 +282,12 @@ export default function OfferCard({
     >
       <button
         onClick={handleFavoriteClick}
-        className="absolute top-2 left-2 max-[400px]:top-1.5 max-[400px]:left-1.5 z-10 flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-sm border border-[#e5e5e7] dark:border-[#262626] shadow-sm hover:bg-[#f5f5f7] dark:hover:bg-[#262626] transition-colors active:scale-95"
+        className="absolute top-2 left-2 max-[400px]:top-1.5 max-[400px]:left-1.5 z-10 flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-sm border border-white/40 dark:border-[#262626]/60 shadow-sm hover:bg-white/80 dark:hover:bg-[#262626]/80 transition-colors active:scale-95"
         aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
       >
         <Heart
           className={`h-4 w-4 ${
-            isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400'
+            isLiked ? 'fill-red-500/90 text-red-500/90' : 'text-gray-500/90 dark:text-gray-400/90'
           }`}
         />
       </button>
@@ -316,13 +316,13 @@ export default function OfferCard({
         </button>
       )}
 
-      <div className="w-[35%] min-w-[80px] max-[400px]:min-w-[70px] md:min-w-[140px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
-        <div className="h-[152px] max-[400px]:h-[124px] md:h-36 rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
+      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:min-w-[200px] md:w-[42%] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
+        <div className="h-[160px] max-[400px]:h-[136px] md:h-44 rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
           {showImage ? (
             <img
               src={image}
               alt=""
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               onError={() => setImgError(true)}
             />
           ) : (

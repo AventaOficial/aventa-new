@@ -75,7 +75,7 @@ export default function ModerationPage() {
     return supabase
       .from('offers')
       .select(
-        'id, title, price, original_price, store, category, image_url, offer_url, description, steps, conditions, created_at, created_by, risk_score, profiles:public_profiles_view!created_by(display_name, avatar_url)'
+        'id, title, price, original_price, store, category, image_url, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)'
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: true })

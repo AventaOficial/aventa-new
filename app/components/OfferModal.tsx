@@ -43,6 +43,7 @@ type CommentItem = {
   content: string;
   created_at: string;
   author: { username: string };
+  user_id?: string | null;
   parent_id?: string | null;
   image_url?: string | null;
   like_count?: number;
@@ -415,16 +416,21 @@ export default function OfferModal({
       showToast?.('Inicia sesión para reportar');
       return;
     }
+    const commentTrim = reportComment.trim();
+    if (commentTrim.length < 100) {
+      showToast?.('Escribe al menos 100 caracteres describiendo el problema.');
+      return;
+    }
     setReportSubmitting(true);
     try {
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ offerId, reportType, comment: reportComment.trim() || undefined }),
+        body: JSON.stringify({ offerId, reportType, comment: commentTrim }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
-        showToast?.('Reporte enviado. Gracias por ayudar.');
+        showToast?.('report_success');
         setShowReportModal(false);
         setReportType('');
         setReportComment('');
@@ -470,7 +476,7 @@ export default function OfferModal({
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          <div className="relative flex-shrink-0 h-36 sm:h-44 md:h-52 lg:h-60 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
+          <div className="relative flex-shrink-0 h-44 sm:h-52 md:h-72 lg:h-80 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
             <img src={currentImage} alt="" className="w-full h-full object-contain p-4" />
             {allImages.length > 1 && (
               <>
@@ -505,12 +511,12 @@ export default function OfferModal({
             )}
             <button
               onClick={handleFavoriteClick}
-              className="absolute right-3 top-3 rounded-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700 transition-all duration-200 hover:scale-105 active:scale-95"
+              className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60 transition-all duration-200 hover:scale-105 active:scale-95"
               aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
             >
               <Heart
                 className={`h-5 w-5 ${
-                  isLiked ? 'fill-[#EF4444] text-[#EF4444]' : 'text-gray-500 dark:text-gray-400'
+                  isLiked ? 'fill-red-500/90 text-red-500/90' : 'text-gray-500/90 dark:text-gray-400/90'
                 }`}
               />
             </button>
@@ -707,12 +713,18 @@ export default function OfferModal({
                       {commentsLoading ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">Cargando comentarios…</p>
                       ) : (
-                        comments.map((comment) => (
+                        comments.map((comment) => {
+                          const isOwn = !!session?.user?.id && comment.user_id === session.user.id;
+                          return (
                           <div key={comment.id} className="space-y-2">
-                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
+                            <div className={`rounded-xl border p-4 ${
+                              isOwn
+                                ? 'border-violet-300 dark:border-violet-600 bg-violet-50/60 dark:bg-violet-900/20'
+                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'
+                            }`}>
                               <div className="mb-2 flex items-center gap-2">
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                  @{comment.author.username}
+                                <p className={`text-sm font-medium ${isOwn ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>
+                                  {comment.author.username}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
                                   {formatRelativeDate(comment.created_at)}
@@ -744,10 +756,16 @@ export default function OfferModal({
                             </div>
                             {(comment.replies?.length ?? 0) > 0 && (
                               <div className="pl-4 md:pl-6 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 ml-2">
-                                {comment.replies?.map((reply) => (
-                                  <div key={reply.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 p-3">
+                                {comment.replies?.map((reply) => {
+                                  const isOwnReply = !!session?.user?.id && reply.user_id === session.user.id;
+                                  return (
+                                  <div key={reply.id} className={`rounded-lg border p-3 ${
+                                    isOwnReply
+                                      ? 'border-violet-300 dark:border-violet-600 bg-violet-50/50 dark:bg-violet-900/15'
+                                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80'
+                                  }`}>
                                     <div className="mb-1 flex items-center gap-2">
-                                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">@{reply.author.username}</p>
+                                      <p className={`text-sm font-medium ${isOwnReply ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>{reply.author.username}</p>
                                       <p className="text-xs text-gray-500 dark:text-gray-400">{formatRelativeDate(reply.created_at)}</p>
                                     </div>
                                     <p className="text-gray-700 dark:text-gray-300 text-sm">{reply.content}</p>
@@ -771,21 +789,28 @@ export default function OfferModal({
                                       </button>
                                     </div>
                                   </div>
-                                ))}
+                                );
+                                })}
                               </div>
                             )}
                           </div>
-                        ))
+                        );
+                        })
                       )}
                     </div>
 
                     {offerId && (
                       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
-                        {replyingToId && (
-                          <p className="text-xs text-purple-600 dark:text-purple-400">
-                            Respondiendo a un comentario — escribe abajo y envía.
-                          </p>
-                        )}
+                        {replyingToId && (() => {
+                          const replyingTo = comments.flatMap((c) => [c, ...(c.replies ?? [])]).find((x) => x.id === replyingToId);
+                          return replyingTo ? (
+                            <p className="text-sm text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 rounded-lg px-3 py-2">
+                              Respondiendo a <span className="font-semibold">{replyingTo.author.username}</span>: &quot;{replyingTo.content.slice(0, 60)}{replyingTo.content.length > 60 ? '…' : ''}&quot;
+                            </p>
+                          ) : (
+                            <p className="text-xs text-purple-600 dark:text-purple-400">Respondiendo a un comentario — escribe abajo y envía.</p>
+                          );
+                        })()}
                         <textarea
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
@@ -941,13 +966,13 @@ export default function OfferModal({
                 )}
 
                 <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openLuna(); }}
-                    className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                  >
-                    <MessageCircle className="h-4 w-4" />
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <MessageCircle className="h-4 w-4 shrink-0" />
                     <span>Preguntar a Luna sobre esta oferta</span>
-                  </button>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                      Próximamente
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1040,11 +1065,14 @@ export default function OfferModal({
                       <textarea
                         value={reportComment}
                         onChange={(e) => setReportComment(e.target.value)}
-                        placeholder="Comentario opcional (máx. 500 caracteres)"
+                        placeholder="Describe el problema (mín. 100 caracteres, máx. 500)"
                         maxLength={500}
-                        rows={2}
-                        className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 resize-none mb-4"
+                        rows={4}
+                        className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 resize-none mb-2"
                       />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        {reportComment.trim().length}/100 caracteres mínimos
+                      </p>
                       <div className="flex gap-3">
                         <button
                           onClick={() => setShowReportModal(false)}
@@ -1054,7 +1082,7 @@ export default function OfferModal({
                         </button>
                         <button
                           onClick={handleSubmitReport}
-                          disabled={!reportType || reportSubmitting}
+                          disabled={!reportType || reportSubmitting || reportComment.trim().length < 100}
                           className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {reportSubmitting ? 'Enviando…' : 'Enviar reporte'}

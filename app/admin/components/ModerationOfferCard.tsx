@@ -19,6 +19,7 @@ type ModerationOffer = {
   created_at: string;
   created_by: string | null;
   risk_score?: number | null;
+  moderator_comment?: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
 };
 
@@ -191,6 +192,12 @@ export default function ModerationOfferCard({
                 <span>{authorName}</span>
               )}
             </div>
+            {offer.moderator_comment && offer.moderator_comment.trim() && (
+              <div className="mt-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/80 dark:bg-violet-900/20 px-3 py-2 text-sm text-violet-800 dark:text-violet-200">
+                <span className="font-medium">Comentario del creador:</span>{' '}
+                {offer.moderator_comment.trim()}
+              </div>
+            )}
             </div>
           </div>
 
@@ -223,7 +230,7 @@ export default function ModerationOfferCard({
               <Eye className="h-4 w-4" />
               Ver oferta
             </button>
-            {status === 'pending' && (
+            {(status === 'pending' || status === 'approved') && (
               <button
                 type="button"
                 onClick={() => {

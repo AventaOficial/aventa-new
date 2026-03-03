@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { CheckCircle, XCircle, MessageCircle, Loader2 } from 'lucide-react';
+
+const POLL_INTERVAL_MS = 25_000;
 
 type CommentRow = {
   id: string;
@@ -48,7 +51,17 @@ export default function ModerationCommentsPage() {
 
   useEffect(() => {
     fetchComments();
+    const interval = setInterval(fetchComments, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, [fetchComments]);
+
+  const onVisible = useCallback(() => {
+    if (document.visibilityState === 'visible') fetchComments();
+  }, [fetchComments]);
+  useEffect(() => {
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [onVisible]);
 
   const setStatus = async (commentId: string, newStatus: 'approved' | 'rejected') => {
     const token = session?.access_token;
@@ -122,8 +135,11 @@ export default function ModerationCommentsPage() {
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Oferta: {c.offers?.title ?? c.offers?.store ?? c.offer_id}
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Oferta:{' '}
+                    <Link href={`/?o=${c.offer_id}`} className="text-violet-600 dark:text-violet-400 hover:underline truncate inline-block max-w-full" target="_blank" rel="noopener noreferrer">
+                      {c.offers?.title ?? c.offers?.store ?? c.offer_id}
+                    </Link>
                   </p>
                   <p className="text-gray-800 dark:text-gray-200 break-words">{c.content}</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{formatDate(c.created_at)}</p>
