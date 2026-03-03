@@ -38,11 +38,15 @@ export default function Navbar() {
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [canAccessModeration, setCanAccessModeration] = useState(false);
+  const [reputationLevel, setReputationLevel] = useState<number>(1);
+  const [reputationScore, setReputationScore] = useState<number>(0);
 
   useEffect(() => {
     if (!user?.id) {
       setDisplayName(null);
       setCanAccessModeration(false);
+      setReputationLevel(1);
+      setReputationScore(0);
       return;
     }
     const loadProfileAndRole = async () => {
@@ -50,12 +54,14 @@ export default function Navbar() {
       const supabase = createClient();
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url')
+        .select('display_name, avatar_url, reputation_level, reputation_score')
         .eq('id', user.id)
         .maybeSingle();
-      const name = profile?.display_name?.trim();
+      const name = (profile as { display_name?: string } | null)?.display_name?.trim();
       const emailPart = user.email?.split('@')[0] ?? '';
       setDisplayName(name || emailPart || null);
+      setReputationLevel((profile as { reputation_level?: number } | null)?.reputation_level ?? 1);
+      setReputationScore((profile as { reputation_score?: number } | null)?.reputation_score ?? 0);
 
       const { data: roles } = await supabase
         .from('user_roles')
@@ -224,6 +230,14 @@ export default function Navbar() {
               </AnimatePresence>
               {showUserMenu && (
                 <div className="absolute right-0 top-full mt-2 z-50 min-w-44 rounded-2xl border border-[#e5e5e7] dark:border-[#262626] bg-white/95 dark:bg-[#141414]/95 backdrop-blur-xl shadow-xl py-1.5">
+                  <Link
+                    href="/me"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex flex-col gap-0.5 px-4 py-2.5 border-b border-[#e5e5e7] dark:border-[#262626] text-left hover:bg-violet-50/50 dark:hover:bg-violet-900/10 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{userName}</span>
+                    <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
+                  </Link>
                   <UserMenuContent />
                   {canAccessModeration && (
                     <Link

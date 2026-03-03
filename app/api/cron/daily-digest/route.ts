@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   // Usar tabla offers y orden por upvotes_count (la vista ofertas_ranked_general puede no existir o fallar)
   const { data: offers, error: offersErr } = await supabase
     .from('offers')
-    .select('id, title, price, original_price, store, offer_url, image_url')
+    .select('id, title, price, original_price, store, offer_url, image_url, created_by')
     .in('status', ['approved', 'published'])
     .or('expires_at.is.null,expires_at.gte.' + now.toISOString())
     .order('upvotes_count', { ascending: false, nullsFirst: false })
@@ -45,8 +45,6 @@ export async function GET(request: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
   const subject = 'Top 10 ofertas del día — AVENTA';
-  const html = buildDailyHtml(offers ?? [], baseUrl);
-
   const key = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'AVENTA <onboarding@resend.dev>';
   let sent = 0;
@@ -56,7 +54,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0 });
   }
 
-  for (const email of emails) {
+  const offerList = (offers ?? []) as { id: string; title: string; created_by?: string | null }[];
+  for (let i = 0; i < recipients.length; i++) {
+    const r = recipients[i];
+    const email = r.email;
+    if (!email) continue;
+    const yourOffersInTop = offerList.filter((o) => o.created_by === r.user_id).map((o) => ({ id: o.id, title: o.title }));
+    const html = buildDailyHtml(offerList, baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined);
     try {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',

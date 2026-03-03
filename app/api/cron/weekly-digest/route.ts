@@ -39,14 +39,44 @@ export async function GET(request: NextRequest) {
     .sort((a, b) => b.commentCount - a.commentCount)
     .slice(0, 3);
 
-  const { data: topVoted } = await supabase
+  const { data: topVotedRaw } = await supabase
     .from('offers')
-    .select('id, title, price, original_price, store')
+    .select('id, title, price, original_price, store, created_by')
     .in('status', ['approved', 'published'])
     .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
     .gte('created_at', weekAgoIso)
     .order('upvotes_count', { ascending: false })
     .limit(5);
+
+  const topVoted = (topVotedRaw ?? []).map((o: { created_by?: string | null }) => ({
+    id: o.id,
+    title: (o as { title: string }).title,
+    price: (o as { price?: number }).price,
+    original_price: (o as { original_price?: number | null }).original_price,
+    store: (o as { store?: string | null }).store,
+  }));
+
+  const createdByIds = [...new Set((topVotedRaw ?? []).map((o: { created_by?: string | null }) => o.created_by).filter(Boolean))] as string[];
+  const counts = (topVotedRaw ?? []).reduce(
+    (acc: Record<string, number>, o: { created_by?: string | null }) => {
+      const id = o.created_by ?? '';
+      acc[id] = (acc[id] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
+  const top3CreatorIds = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id]) => id);
+  const { data: topHunterProfiles } =
+    top3CreatorIds.length > 0
+      ? await supabase.from('profiles').select('id, display_name, slug').in('id', top3CreatorIds)
+      : { data: [] };
+  const topHunters = (topHunterProfiles ?? []).map((p: { display_name?: string | null; slug?: string | null }) => ({
+    display_name: (p.display_name ?? 'Cazador').trim() || 'Cazador',
+    slug: p.slug?.trim() || null,
+  }));
 
   const { data: prefs } = await supabase
     .from('user_email_preferences')
@@ -65,8 +95,9 @@ export async function GET(request: NextRequest) {
   const subject = `Resumen semanal — AVENTA`;
   const html = buildWeeklyHtml(
     topCommented as { id: string; title: string; price?: number; store?: string | null }[],
-    (topVoted ?? []) as { id: string; title: string; price?: number; store?: string | null }[],
-    baseUrl
+    topVoted,
+    baseUrl,
+    topHunters
   );
 
   let sent = 0;

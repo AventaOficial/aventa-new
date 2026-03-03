@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Heart, Sparkles, ThumbsUp, ThumbsDown, ExternalLink, Search, User, Share2, Award } from 'lucide-react';
+import { Heart, Sparkles, ThumbsUp, ThumbsDown, ExternalLink, Search, User, Share2, Award, BadgeCheck } from 'lucide-react';
+import { buildOfferUrl } from '@/lib/offerUrl';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
@@ -53,7 +54,7 @@ interface OfferCardProps {
   downvotes: number;
   votes: { up: number; down: number; score: number };
   offerUrl?: string;
-  author?: { username: string; avatar_url?: string | null };
+  author?: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
   onFavoriteChange?: (isFavorite: boolean) => void;
   userVote?: 1 | -1 | 0 | null;
   isLiked?: boolean;
@@ -377,18 +378,32 @@ export default function OfferCard({
           </p>
 
           {author?.username && (
-            <Link
-              href={`/u/${slugFromUsername(author.username)}`}
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline mt-0.5 min-w-0"
-            >
-              {author.avatar_url ? (
-                <img src={author.avatar_url} alt="" className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0" />
-              ) : (
-                <User className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+            <span className="inline-flex items-center gap-1.5 flex-wrap mt-0.5 min-w-0">
+              <Link
+                href={`/u/${slugFromUsername(author.username)}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                {author.avatar_url ? (
+                  <img src={author.avatar_url} alt="" className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0" />
+                ) : (
+                  <User className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                )}
+                <span className="truncate">Cazado por {author.username}</span>
+              </Link>
+              {author.leaderBadge === 'cazador_estrella' && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Cazador estrella">
+                  <BadgeCheck className="h-3 w-3" />
+                  Cazador estrella
+                </span>
               )}
-              <span className="truncate">Cazado por {author.username}</span>
-            </Link>
+              {author.leaderBadge === 'cazador_aventa' && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400" title="Cazador Aventa">
+                  <BadgeCheck className="h-3 w-3" />
+                  Cazador Aventa
+                </span>
+              )}
+            </span>
           )}
           {description?.trim() && (
             <p className="hidden md:block text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-w-0">
@@ -409,7 +424,7 @@ export default function OfferCard({
           </button>
           {offerUrl?.trim() && (
             <button
-              onClick={(e) => { e.stopPropagation(); window.open(offerUrl!.trim(), '_blank', 'noopener,noreferrer'); }}
+              onClick={(e) => { e.stopPropagation(); window.open(buildOfferUrl(offerUrl, author?.creatorMlTag) || offerUrl!.trim(), '_blank', 'noopener,noreferrer'); }}
               className="flex-1 min-w-0 flex items-center justify-center gap-2 max-[400px]:gap-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-4 max-[400px]:px-2.5 py-3 max-[400px]:py-2 md:px-4 md:py-2.5 text-sm max-[400px]:text-xs font-semibold text-white shadow-violet-500/25 transition-all duration-200 hover:shadow-violet-500/40 active:scale-95"
             >
               <ExternalLink className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-4.5 md:w-4.5 shrink-0" />

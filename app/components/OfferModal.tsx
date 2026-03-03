@@ -1,12 +1,13 @@
 'use client';
 
-import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, Star, Image as ImageIcon, AlertCircle, User, MessageCircle, Share2, Flag } from 'lucide-react';
+import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, Star, Image as ImageIcon, AlertCircle, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
+import { buildOfferUrl } from '@/lib/offerUrl';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -28,7 +29,7 @@ interface OfferModalProps {
   upvotes?: number;
   downvotes?: number;
   offerId?: string;
-  author?: { username: string; avatar_url?: string | null };
+  author?: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
   image?: string;
   imageUrls?: string[];
   msiMonths?: number | null;
@@ -350,7 +351,8 @@ export default function OfferModal({
         }).catch(() => {});
       }
       if (offerUrl?.trim()) {
-        window.open(offerUrl.trim(), '_blank', 'noopener,noreferrer');
+        const url = buildOfferUrl(offerUrl, author?.creatorMlTag) || offerUrl.trim();
+        window.open(url, '_blank', 'noopener,noreferrer');
       }
     } catch {
       outboundSentRef.current = false;
@@ -532,17 +534,31 @@ export default function OfferModal({
                     {title}
                   </h2>
                   {author?.username && (
-                    <Link
-                      href={`/u/${slugFromUsername(author.username)}`}
-                      className="flex items-center gap-2 mt-3 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                    >
-                      {author.avatar_url ? (
-                        <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                      ) : (
-                        <User className="h-4 w-4" />
+                    <div className="flex items-center gap-2 flex-wrap mt-3">
+                      <Link
+                        href={`/u/${slugFromUsername(author.username)}`}
+                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                      >
+                        {author.avatar_url ? (
+                          <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        ) : (
+                          <User className="h-4 w-4" />
+                        )}
+                        <span>Cazado por {author.username}</span>
+                      </Link>
+                      {author.leaderBadge === 'cazador_estrella' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador estrella">
+                          <BadgeCheck className="h-3.5 w-3.5" />
+                          Cazador estrella
+                        </span>
                       )}
-                      <span>Cazado por {author.username}</span>
-                    </Link>
+                      {author.leaderBadge === 'cazador_aventa' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador Aventa">
+                          <BadgeCheck className="h-3.5 w-3.5" />
+                          Cazador Aventa
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex-shrink-0 md:text-right">

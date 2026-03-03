@@ -68,8 +68,8 @@ function WaveLogoText({ text, className = '' }: { text: string; className?: stri
   );
 }
 
-/** Tiempo total en page 0: animación termina ~1s; transición poco después para no dejar tiempo muerto */
-const PAGE_LOGO_DURATION_MS = 1800;
+/** Tiempo en page 0: animación ola ~0,8s; transición al paso 1 en 1,1s para no dejar tiempo muerto */
+const PAGE_LOGO_DURATION_MS = 1100;
 
 function PageLogo({ onNext }: { onNext: () => void }) {
   useEffect(() => {

@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     const id = typeof body?.id === 'string' ? body.id : null
     const status = body?.status === 'approved' || body?.status === 'rejected' ? body.status : null
     const reason = typeof body?.reason === 'string' ? body.reason.trim() || null : null
+    const modMessage = typeof body?.mod_message === 'string' ? body.mod_message.trim().slice(0, 500) || null : null
     if (!id || !status) {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
@@ -61,11 +62,16 @@ export async function POST(request: Request) {
     if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 
     if (status === 'approved' && previousStatus !== 'approved' && createdBy) {
+      const { data: modProfile } = await supabase.from('profiles').select('display_name').eq('id', auth.user.id).single()
+      const modName = (modProfile as { display_name?: string } | null)?.display_name?.trim() || 'El equipo'
+      const isOwner = auth.role === 'owner'
+      const notifTitle = isOwner ? `CEO ${modName} aprobó tu oferta` : `Moderador ${modName} aprobó tu oferta`
+      const notifBody = 'Ya está visible en el feed.' + (modMessage ? `\n\n${modMessage}` : '')
       await supabase.from('notifications').insert({
         user_id: createdBy,
         type: 'offer_approved',
-        title: 'Tu oferta fue aprobada',
-        body: 'Ya está visible en el feed.',
+        title: notifTitle,
+        body: notifBody,
         link: `/?o=${id}`,
       }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] notification insert failed:', notifErr.message); })
     }

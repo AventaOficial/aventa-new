@@ -26,6 +26,9 @@ type ModerationOffer = {
   category?: string | null;
   image_url: string | null;
   offer_url: string | null;
+  description?: string | null;
+  steps?: unknown;
+  conditions?: string | null;
   created_at: string;
   created_by: string | null;
   risk_score?: number | null;
@@ -72,7 +75,7 @@ export default function ModerationPage() {
     return supabase
       .from('offers')
       .select(
-        'id, title, price, original_price, store, category, image_url, offer_url, created_at, created_by, risk_score, profiles!created_by(display_name, avatar_url)'
+        'id, title, price, original_price, store, category, image_url, offer_url, description, steps, conditions, created_at, created_by, risk_score, profiles!created_by(display_name, avatar_url)'
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
@@ -183,15 +186,19 @@ export default function ModerationPage() {
     id: string,
     status: 'approved' | 'rejected',
     createdBy?: string | null,
-    reason?: string
+    reason?: string,
+    modMessage?: string
   ) => {
     setActingId(id);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const body: { id: string; status: string; reason?: string; mod_message?: string } = { id, status };
+    if (reason) body.reason = reason;
+    if (status === 'approved' && modMessage?.trim()) body.mod_message = modMessage.trim();
     const res = await fetch('/api/admin/moderate-offer', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ id, status, reason: reason || undefined }),
+      body: JSON.stringify(body),
     });
     setActingId(null);
     if (!res.ok) {
@@ -392,7 +399,7 @@ export default function ModerationPage() {
               key={offer.id}
               offer={offer}
               status="pending"
-              onApprove={(id, cb) => setStatus(id, 'approved', cb)}
+              onApprove={(id, createdBy, modMessage) => setStatus(id, 'approved', createdBy, undefined, modMessage)}
               onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
               actingId={actingId}
               selectedIds={selectedIds}
@@ -415,7 +422,7 @@ function ModerationOfferCardWithSimilar({
 }: {
   offer: ModerationOffer;
   status: 'pending';
-  onApprove: (id: string, createdBy?: string | null) => void;
+  onApprove: (id: string, createdBy?: string | null, modMessage?: string) => void;
   onReject: (id: string, reason?: string) => void;
   actingId: string | null;
   selectedIds?: Set<string>;

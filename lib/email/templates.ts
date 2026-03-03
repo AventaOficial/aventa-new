@@ -135,15 +135,34 @@ function offerCardHtml(o: OfferRow, index: number, baseUrl: string): string {
     </table>`;
 }
 
-export function buildDailyHtml(offers: OfferRow[], baseUrl: string): string {
+export function buildDailyHtml(
+  offers: OfferRow[],
+  baseUrl: string,
+  yourOffersInTop?: { id: string; title: string }[]
+): string {
   const cardsHtml =
     offers.length > 0
       ? offers.map((o, i) => offerCardHtml(o, i, baseUrl)).join('')
       : `<p style="margin:0; padding:16px 0; color:${TEXT_MUTED}; font-size:14px;">No hay ofertas publicadas hoy.</p>`;
 
+  const yourBlock =
+    yourOffersInTop && yourOffersInTop.length > 0
+      ? `
+    <div style="margin-bottom:20px; padding:14px 16px; background:${BRAND_COLOR}12; border-radius:10px; border-left:4px solid ${BRAND_COLOR};">
+      <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:${TEXT_DARK};">¡Tu oferta está en el Top 10!</p>
+      ${yourOffersInTop
+        .map(
+          (o) =>
+            `<a href="${baseUrl.replace(/\/$/, '')}/?o=${o.id}" style="color:${BRAND_COLOR}; font-weight:500; text-decoration:none;">${escapeHtml(o.title)}</a>`
+        )
+        .join('<br />')}
+    </div>`
+      : '';
+
   const inner = `
     <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:${TEXT_DARK};">Top 10 ofertas del día</h1>
     <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Las ofertas mejor valoradas por la comunidad hoy.</p>
+    ${yourBlock}
     ${cardsHtml}
   `;
 
@@ -157,7 +176,8 @@ export function buildDailyHtml(offers: OfferRow[], baseUrl: string): string {
 export function buildWeeklyHtml(
   topCommented: { id: string; title: string; price?: number; store?: string | null }[],
   topVoted: { id: string; title: string; price?: number; store?: string | null }[],
-  baseUrl: string
+  baseUrl: string,
+  topHunters?: { display_name: string; slug?: string | null }[]
 ): string {
   const offerLi = (o: { id: string; title: string; store?: string | null }) => {
     const link = baseUrl.replace(/\/$/, '') + '/?o=' + o.id;
@@ -173,9 +193,25 @@ export function buildWeeklyHtml(
       ? topVoted.map(offerLi).join('')
       : '<li style="color:' + TEXT_MUTED + ';">No hay datos esta semana.</li>';
 
+  const huntersBlock =
+    topHunters && topHunters.length > 0
+      ? `
+    <h2 style="margin:0 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Top 3 cazadores de la semana</h2>
+    <p style="margin:0 0 12px; font-size:14px; color:${TEXT_MUTED};">Quienes más aportaron con ofertas mejor votadas.</p>
+    <ul style="list-style:none; padding:0; margin:0 0 24px;">
+      ${topHunters
+        .map(
+          (h) =>
+            `<li style="margin-bottom:6px;">${h.slug ? `<a href="${baseUrl.replace(/\/$/, '')}/u/${escapeHtml(h.slug)}" style="color:${BRAND_COLOR}; text-decoration:none; font-weight:500;">${escapeHtml(h.display_name)}</a>` : escapeHtml(h.display_name)}</li>`
+        )
+        .join('')}
+    </ul>`
+      : '';
+
   const inner = `
     <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:${TEXT_DARK};">Resumen de la semana</h1>
     <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Lo más comentado y mejor votado en los últimos 7 días.</p>
+    ${huntersBlock}
 
     <h2 style="margin:0 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Más comentadas (3)</h2>
     <ul style="list-style:none; padding:0; margin:0 0 24px;">${commentedList}</ul>

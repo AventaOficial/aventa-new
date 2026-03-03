@@ -13,6 +13,9 @@ type ModerationOffer = {
   store: string | null;
   image_url: string | null;
   offer_url: string | null;
+  description?: string | null;
+  steps?: unknown;
+  conditions?: string | null;
   created_at: string;
   created_by: string | null;
   risk_score?: number | null;
@@ -24,7 +27,7 @@ type ModLog = { id: string; action: string; reason: string | null; created_at: s
 type Props = {
   offer: ModerationOffer;
   status: 'pending' | 'approved' | 'rejected';
-  onApprove?: (id: string, createdBy?: string | null) => void;
+  onApprove?: (id: string, createdBy?: string | null, modMessage?: string) => void;
   onReject?: (id: string, reason?: string) => void;
   actingId?: string | null;
   similarOffers?: { id: string; title: string; price: number; original_price: number | null; store: string | null; created_at: string }[];
@@ -61,6 +64,7 @@ export default function ModerationOfferCard({
 }: Props) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [modMessage, setModMessage] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const { session } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
@@ -223,9 +227,19 @@ export default function ModerationOfferCard({
             </button>
             {status === 'pending' && onApprove && onReject && (
               <>
+                <div className="w-full flex flex-col gap-2">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Mensaje opcional para el usuario (se verá en la notificación)</label>
+                  <textarea
+                    placeholder="Ej: ¡Muy buena oferta! Ya está en el feed."
+                    value={modMessage}
+                    onChange={(e) => setModMessage(e.target.value.slice(0, 500))}
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={() => onApprove(offer.id, offer.created_by)}
+                  onClick={() => onApprove(offer.id, offer.created_by, modMessage.trim() || undefined)}
                   disabled={actingId === offer.id}
                   className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="La oferta se publicará y verán los usuarios"
@@ -327,7 +341,7 @@ export default function ModerationOfferCard({
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="p-4">
+            <div className="p-4 space-y-3">
               {offer.image_url ? (
                 <img
                   src={offer.image_url}
@@ -339,10 +353,10 @@ export default function ModerationOfferCard({
                   Sin imagen
                 </div>
               )}
-              <h3 className="mt-4 font-semibold text-lg text-gray-900 dark:text-gray-100">
+              <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 {offer.title}
               </h3>
-              <div className="mt-2 flex gap-4 text-sm">
+              <div className="flex gap-4 text-sm">
                 <span className="font-medium text-green-600 dark:text-green-400">
                   ${Number(offer.price).toLocaleString('es-MX')}
                 </span>
@@ -352,17 +366,70 @@ export default function ModerationOfferCard({
                   </span>
                 )}
                 <span className="flex items-center gap-1">
-                  <Store className="h-4 w-4" />
+                  <Store className="h-4 w-4 shrink-0" />
                   {offer.store ?? '—'}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Por {authorName} • {new Date(offer.created_at).toLocaleString('es-MX')}
               </p>
+              {offer.description?.trim() && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Descripción</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{offer.description.trim()}</p>
+                </div>
+              )}
+              {offer.steps != null && (() => {
+                try {
+                  const raw = typeof offer.steps === 'string' ? offer.steps : JSON.stringify(offer.steps);
+                  if (!raw?.trim()) return null;
+                  const parsed = JSON.parse(raw.trim());
+                  const stepItems = Array.isArray(parsed) ? parsed : raw.trim().split(/\n+/).map((s: string) => s.trim()).filter(Boolean);
+                  if (stepItems.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Cómo obtener la oferta</p>
+                      <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        {stepItems.map((s: string, i: number) => (
+                          <li key={i} className="break-words">{s}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  );
+                } catch {
+                  return null;
+                }
+              })()}
+              {offer.conditions?.trim() && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Condiciones</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{offer.conditions.trim()}</p>
+                </div>
+              )}
               {offer.offer_url && (
-                <p className="mt-2 text-xs text-gray-400 truncate" title={offer.offer_url}>
-                  URL: {offer.offer_url}
-                </p>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">URL</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 break-all font-mono mb-2">{offer.offer_url}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={offer.offer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-1.5 text-sm rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/50"
+                    >
+                      Abrir enlace
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(offer.offer_url!);
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>

@@ -121,6 +121,20 @@ export default function MetricsPage() {
   const [convRate, setConvRate] = useState(4);
   const [commissionRate, setCommissionRate] = useState(12);
   const [aovMxn, setAovMxn] = useState(500);
+  const [mlLeadersPaste, setMlLeadersPaste] = useState('');
+  const [mlLeadersRows, setMlLeadersRows] = useState<{ tag: string; ganancia: number }[]>([]);
+
+  const parseMlLeadersPaste = useCallback(() => {
+    const lines = mlLeadersPaste.trim().split(/\n/).map((l) => l.trim()).filter(Boolean);
+    const rows: { tag: string; ganancia: number }[] = [];
+    for (const line of lines) {
+      const parts = line.split(/[\t,;]/).map((p) => p.trim());
+      const tag = parts[0] ?? '';
+      const ganancia = Number(parts[1]?.replace(/[^\d.-]/g, '')) || 0;
+      if (tag) rows.push({ tag, ganancia });
+    }
+    setMlLeadersRows(rows);
+  }, [mlLeadersPaste]);
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -459,6 +473,53 @@ export default function MetricsPage() {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-900/10 p-4 md:p-5">
+        <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wide mb-3">
+          Métricas líderes (ML)
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Pega datos desde el dashboard de Mercado Libre (etiqueta de seguimiento y ganancia estimada). Formato: una línea por etiqueta, <code className="bg-black/10 dark:bg-white/10 px-1 rounded">etiqueta,ganancia_estimada</code> (separado por coma, tab o punto y coma).
+        </p>
+        <textarea
+          placeholder={'aventa_capitanjeshua,323.75\naventa,0'}
+          value={mlLeadersPaste}
+          onChange={(e) => setMlLeadersPaste(e.target.value)}
+          onBlur={parseMlLeadersPaste}
+          rows={4}
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm font-mono"
+        />
+        <button
+          type="button"
+          onClick={parseMlLeadersPaste}
+          className="mt-2 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium"
+        >
+          Aplicar y ver tabla
+        </button>
+        {mlLeadersRows.length > 0 && (
+          <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                  <th className="text-left p-2 font-medium text-gray-700 dark:text-gray-300">Etiqueta</th>
+                  <th className="text-right p-2 font-medium text-gray-700 dark:text-gray-300">Ganancia est. (MXN)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mlLeadersRows.map((r, i) => (
+                  <tr key={i} className="border-b border-gray-100 dark:border-gray-700/50">
+                    <td className="p-2 text-gray-900 dark:text-gray-100 font-mono">{r.tag}</td>
+                    <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatNum(r.ganancia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Total: ${formatNum(mlLeadersRows.reduce((s, r) => s + r.ganancia, 0))} MXN
+            </p>
+          </div>
+        )}
       </section>
 
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
