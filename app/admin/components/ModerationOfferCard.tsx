@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { User, Store, Calendar, Eye, X, History } from 'lucide-react';
+import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 
 type ModerationOffer = {
@@ -34,6 +34,7 @@ type Props = {
   selected?: boolean;
   onToggleSelect?: () => void;
   batchMode?: boolean;
+  onOfferUpdated?: () => void;
 };
 
 function slugFromUsername(name: string | null | undefined): string {
@@ -61,11 +62,18 @@ export default function ModerationOfferCard({
   selected = false,
   onToggleSelect,
   batchMode = false,
+  onOfferUpdated,
 }: Props) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [modMessage, setModMessage] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [showImageExpand, setShowImageExpand] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState(offer.title);
+  const [editOfferUrl, setEditOfferUrl] = useState(offer.offer_url ?? '');
+  const [editDescription, setEditDescription] = useState(typeof offer.description === 'string' ? offer.description : '');
+  const [editSaving, setEditSaving] = useState(false);
   const { session } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
@@ -215,6 +223,22 @@ export default function ModerationOfferCard({
               <Eye className="h-4 w-4" />
               Ver oferta
             </button>
+            {status === 'pending' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditTitle(offer.title);
+                  setEditOfferUrl(offer.offer_url ?? '');
+                  setEditDescription(typeof offer.description === 'string' ? offer.description : '');
+                  setShowEdit(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                title="Editar título, enlace o descripción"
+              >
+                <Pencil className="h-4 w-4" />
+                Editar
+              </button>
+            )}
             <button
               type="button"
               onClick={fetchHistory}
@@ -343,11 +367,22 @@ export default function ModerationOfferCard({
             </button>
             <div className="p-4 space-y-3">
               {offer.image_url ? (
-                <img
-                  src={offer.image_url}
-                  alt=""
-                  className="w-full h-48 object-contain bg-gray-100 dark:bg-gray-700 rounded-lg"
-                />
+                <div className="relative">
+                  <img
+                    src={offer.image_url}
+                    alt=""
+                    className="w-full h-48 object-contain bg-gray-100 dark:bg-gray-700 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowImageExpand(true)}
+                    className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-black/60 text-white hover:bg-black/80"
+                    title="Ver imagen ampliada"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    Expandir
+                  </button>
+                </div>
               ) : (
                 <div className="w-full h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-400">
                   Sin imagen
@@ -431,6 +466,118 @@ export default function ModerationOfferCard({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImageExpand && offer.image_url && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4"
+          onClick={() => setShowImageExpand(false)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Escape' && setShowImageExpand(false)}
+          aria-label="Cerrar imagen"
+        >
+          <button
+            type="button"
+            onClick={() => setShowImageExpand(false)}
+            className="absolute right-4 top-4 rounded-full p-2 text-white hover:bg-white/10"
+            aria-label="Cerrar"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={offer.image_url}
+            alt=""
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {showEdit && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setShowEdit(false)}
+        >
+          <div
+            className="relative max-w-lg w-full max-h-[90vh] overflow-auto rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Editar oferta</h3>
+              <button type="button" onClick={() => setShowEdit(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Cerrar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value.slice(0, 500))}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  placeholder="Título de la oferta"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL del enlace</label>
+                <input
+                  type="url"
+                  value={editOfferUrl}
+                  onChange={(e) => setEditOfferUrl(e.target.value.slice(0, 2048))}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono"
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción (opcional)</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value.slice(0, 2000))}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  placeholder="Descripción"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={editSaving}
+                  onClick={async () => {
+                    setEditSaving(true);
+                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+                    const res = await fetch('/api/admin/update-offer', {
+                      method: 'PATCH',
+                      headers,
+                      body: JSON.stringify({
+                        id: offer.id,
+                        title: editTitle.trim() || undefined,
+                        offer_url: editOfferUrl.trim() || undefined,
+                        description: editDescription.trim() || undefined,
+                      }),
+                    });
+                    setEditSaving(false);
+                    if (!res.ok) return;
+                    setShowEdit(false);
+                    onOfferUpdated?.();
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {editSaving ? 'Guardando…' : 'Guardar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEdit(false)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>

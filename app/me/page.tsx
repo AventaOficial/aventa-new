@@ -162,7 +162,7 @@ export default function MePage() {
     return (
       <ClientLayout>
         <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
-          <section className="mx-auto max-w-5xl px-4 md:px-8 py-12">
+          <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
             <div className="h-20 rounded-3xl bg-gray-100 dark:bg-gray-800/50 mb-8 opacity-70 animate-pulse" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -186,7 +186,7 @@ export default function MePage() {
   return (
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
-        <section className="mx-auto max-w-5xl px-4 md:px-8 py-12">
+        <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
           <div className="rounded-3xl bg-white dark:bg-gray-900 p-6 shadow-lg mb-8">
             <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">

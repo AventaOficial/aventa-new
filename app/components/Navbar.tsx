@@ -299,11 +299,11 @@ export default function Navbar() {
             onClick={() => setShowNotifications(false)}
             aria-hidden
           />
-          <div className="absolute right-4 top-full mt-2 z-50 w-80 max-h-[70vh] overflow-hidden rounded-2xl border border-[#e5e5e7] dark:border-[#262626] bg-white dark:bg-[#141414] shadow-2xl flex flex-col">
+          <div className="absolute right-0 md:right-4 left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 top-full mt-2 z-50 w-[min(92vw,22rem)] md:w-96 max-h-[75vh] overflow-hidden rounded-2xl border border-[#e5e5e7] dark:border-[#262626] bg-white dark:bg-[#141414] shadow-2xl flex flex-col">
             <div className="flex gap-2 border-b border-[#e5e5e7] dark:border-[#262626] p-2 shrink-0">
               <button
                 onClick={() => setNotifTab('ofertas')}
-                className={`px-4 py-2 font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
+                className={`px-4 py-2.5 text-base font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
                   notifTab === 'ofertas'
                     ? 'border-violet-600 dark:border-violet-400 text-violet-600 dark:text-violet-400'
                     : 'border-transparent text-[#6e6e73] dark:text-[#a3a3a3] hover:text-[#1d1d1f] dark:hover:text-[#fafafa]'
@@ -313,7 +313,7 @@ export default function Navbar() {
               </button>
               <button
                 onClick={() => setNotifTab('comunidades')}
-                className={`px-4 py-2 font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
+                className={`px-4 py-2.5 text-base font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
                   notifTab === 'comunidades'
                     ? 'border-violet-600 dark:border-violet-400 text-violet-600 dark:text-violet-400'
                     : 'border-transparent text-[#6e6e73] dark:text-[#a3a3a3] hover:text-[#1d1d1f] dark:hover:text-[#fafafa]'
@@ -323,7 +323,7 @@ export default function Navbar() {
               </button>
               <button
                 onClick={() => setNotifTab('avisos')}
-                className={`px-4 py-2 font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
+                className={`px-4 py-2.5 text-base font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
                   notifTab === 'avisos'
                     ? 'border-violet-600 dark:border-violet-400 text-violet-600 dark:text-violet-400'
                     : 'border-transparent text-[#6e6e73] dark:text-[#a3a3a3] hover:text-[#1d1d1f] dark:hover:text-[#fafafa]'
@@ -332,13 +332,13 @@ export default function Navbar() {
                 Avisos
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
               {notifTab === 'ofertas' && (
                 <>
                   {notifications.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Ninguna notificación.</p>
+                    <p className="text-base text-gray-500 dark:text-gray-400">Ninguna notificación.</p>
                   ) : (
-                    <ul className="space-y-2">
+                    <ul className="space-y-3">
                       {notifications.map((n) => (
                         <li key={n.id}>
                           <a
@@ -359,11 +359,11 @@ export default function Navbar() {
                               }
                               setShowNotifications(false);
                             }}
-                            className={`block rounded-lg p-2.5 text-sm transition-colors ${n.read_at ? 'text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30' : 'text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20'}`}
+                            className={`block rounded-xl p-3 text-base transition-colors ${n.read_at ? 'text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30' : 'text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20'}`}
                           >
-                            <span className="font-medium">{n.title}</span>
-                            {n.body && <p className="mt-0.5 text-xs opacity-90">{n.body}</p>}
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                            <span className="font-semibold text-[15px]">{n.title}</span>
+                            {n.body && <p className="mt-1 text-sm opacity-90">{n.body}</p>}
+                            <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                           </a>
                         </li>
                       ))}
@@ -372,19 +372,19 @@ export default function Navbar() {
                 </>
               )}
               {notifTab === 'comunidades' && (
-                <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">Sin actividad en comunidades.</p>
+                <p className="text-base text-[#6e6e73] dark:text-[#a3a3a3]">Sin actividad en comunidades.</p>
               )}
               {notifTab === 'avisos' && (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   <li>
                     <Link
                       href="/descubre"
                       onClick={() => setShowNotifications(false)}
-                      className="block rounded-lg p-2.5 text-sm font-medium text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
+                      className="block rounded-xl p-3 text-base font-semibold text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
                     >
                       Descubre AVENTA
                     </Link>
-                    <p className="px-2.5 pb-1 text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
+                    <p className="px-3 pb-1 text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
                       Conoce las funciones y cómo sacar partido a la comunidad.
                     </p>
                   </li>
@@ -393,11 +393,11 @@ export default function Navbar() {
                       <Link
                         href={a.link || '#'}
                         onClick={() => setShowNotifications(false)}
-                        className="block rounded-lg p-2.5 text-sm transition-colors text-[#1d1d1f] dark:text-[#fafafa] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        className="block rounded-xl p-3 text-base transition-colors text-[#1d1d1f] dark:text-[#fafafa] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       >
-                        <span className="font-medium">{a.title}</span>
-                        {a.body && <p className="mt-0.5 text-xs opacity-90">{a.body}</p>}
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{new Date(a.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p>
+                        <span className="font-semibold">{a.title}</span>
+                        {a.body && <p className="mt-1 text-sm opacity-90">{a.body}</p>}
+                        <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{new Date(a.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p>
                       </Link>
                     </li>
                   ))}

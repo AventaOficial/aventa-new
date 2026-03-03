@@ -1,7 +1,7 @@
 'use client';
 
 import { MessageCircle, X, Sparkles, AlertCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
@@ -10,6 +10,8 @@ export default function ChatBubble() {
   useTheme();
   const { isOfferOpen, lunaOpenRequested, setLunaOpenRequested } = useUI();
   const [isOpen, setIsOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (lunaOpenRequested) {
@@ -103,6 +105,16 @@ export default function ChatBubble() {
     };
   }, [isOpen]);
 
+  const handleInputFocus = () => {
+    if (typeof window === 'undefined') return;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+    if (isMobile && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 350);
+    }
+  };
+
   return (
     <>
       {!isOfferOpen && (
@@ -168,7 +180,7 @@ export default function ChatBubble() {
               </p>
             </div>
 
-            <div className="flex-1 min-h-0 space-y-4 overflow-y-auto p-4">
+            <div className="flex-1 min-h-0 space-y-4 overflow-y-auto p-4 overflow-x-hidden">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -198,7 +210,7 @@ export default function ChatBubble() {
               ))}
               
               {messageCount < 8 && (
-                <div className="text-center">
+                <div className="text-center" ref={messagesEndRef}>
                   <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
                     {messageCount}/8 mensajes
                   </p>
@@ -206,12 +218,14 @@ export default function ChatBubble() {
               )}
             </div>
 
-            <div className="border-t border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] p-4">
+            <div className="border-t border-[#e5e5e7] dark:border-[#262626] bg-[#f5f5f7] dark:bg-[#1a1a1a] p-4 shrink-0">
               <div className="flex gap-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
+                  onFocus={handleInputFocus}
                   onKeyPress={handleKeyPress}
                   placeholder={
                     messageCount >= 8

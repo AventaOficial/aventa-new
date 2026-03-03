@@ -76,6 +76,21 @@ export async function POST(request: Request) {
       }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] notification insert failed:', notifErr.message); })
     }
 
+    if (status === 'rejected' && createdBy) {
+      const { data: modProfile } = await supabase.from('profiles').select('display_name').eq('id', auth.user.id).single()
+      const modName = (modProfile as { display_name?: string } | null)?.display_name?.trim() || 'El equipo'
+      const isOwner = auth.role === 'owner'
+      const notifTitle = isOwner ? `CEO ${modName} rechazó tu oferta` : `Moderador ${modName} rechazó tu oferta`
+      const notifBody = reason ? `Motivo: ${reason}` : 'Revisa los criterios y puedes volver a subir una nueva oferta.'
+      await supabase.from('notifications').insert({
+        user_id: createdBy,
+        type: 'offer_rejected',
+        title: notifTitle,
+        body: notifBody,
+        link: '/me',
+      }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] reject notification insert failed:', notifErr.message); })
+    }
+
     revalidatePath('/')
     return NextResponse.json({ ok: true })
   } catch (e) {

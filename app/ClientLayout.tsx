@@ -5,7 +5,6 @@ import { useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import ActionBar from './components/ActionBar';
 import OnboardingV1, { GuideModalStandalone } from './components/OnboardingV1';
-import InstallAppBanner from './components/InstallAppBanner';
 import AventaIcon from './components/AventaIcon';
 import { useUI } from './providers/UIProvider';
 import { useAuth } from './providers/AuthProvider';
@@ -57,7 +56,6 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       ) : (
         <LoadingScreen />
       )}
-      {showMain && <InstallAppBanner />}
       <ActionBar />
       {toastMessage && (
         <div
