@@ -15,6 +15,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import { getSearchTerms } from '@/lib/searchGroups';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = 'general' | 'top' | 'personalized' | 'latest';
@@ -302,8 +303,15 @@ function HomeContent() {
     if (debouncedQuery.trim()) {
       const supabase = createClient();
       const nowISO = new Date().toISOString();
-      const q = debouncedQuery.trim().replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, ' ');
-      // Búsqueda en título, tienda y descripción (roadmap: descubribilidad); orden por calidad (ranking_blend)
+      const terms = getSearchTerms(debouncedQuery.trim());
+      const escape = (s: string) => s.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const searchConditions = terms.length > 0
+        ? terms.flatMap((t) => {
+            const safe = escape(t);
+            return [`title.ilike.%${safe}%`, `store.ilike.%${safe}%`, `description.ilike.%${safe}%`];
+          }).join(',')
+        : `title.ilike.%${escape(debouncedQuery.trim())}%,store.ilike.%${escape(debouncedQuery.trim())}%,description.ilike.%${escape(debouncedQuery.trim())}%`;
+      // Búsqueda en título, tienda y descripción; grupos (ej. apple → iphone, mac) en lib/searchGroups
       let searchQueryBuilder = supabase
         .from('ofertas_ranked_general')
         .select(
@@ -311,7 +319,7 @@ function HomeContent() {
         )
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-        .or(`title.ilike.%${q}%,store.ilike.%${q}%,description.ilike.%${q}%`)
+        .or(searchConditions)
         .order('ranking_blend', { ascending: false })
         .limit(effectiveLimit);
       if (storeFilter?.trim()) {
@@ -434,7 +442,7 @@ function HomeContent() {
           <Hero searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
 
-        <section className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto px-4 max-[400px]:px-3 md:px-8 pt-4 max-[400px]:pt-3 md:pt-8 pb-32 md:pb-12">
+        <section className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto px-4 max-[400px]:px-3 md:px-8 pt-2 md:pt-4 pb-32 md:pb-12">
         <div className="mb-4 max-[400px]:mb-3 md:mb-8">
           <div className="mb-3 max-[400px]:mb-2 md:mb-5">
             <div className="flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 md:p-2 border border-[#e5e5e7] dark:border-[#262626] transition-all duration-200">

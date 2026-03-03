@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 
-/** PATCH: editar oferta en moderación (solo pendientes). Campos: title, offer_url, description. */
+/** PATCH: editar oferta en moderación (solo pendientes). Campos: title, offer_url, description, image_url. */
 export async function PATCH(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {
@@ -28,7 +28,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Solo se pueden editar ofertas pendientes o aprobadas' }, { status: 400 })
     }
 
-    const payload: { title?: string; offer_url?: string; description?: string | null } = {}
+    const payload: { title?: string; offer_url?: string; description?: string | null; image_url?: string | null } = {}
     if (typeof body.title === 'string') {
       const t = body.title.trim().slice(0, 500)
       if (t) payload.title = t
@@ -39,6 +39,11 @@ export async function PATCH(request: Request) {
     }
     if (body.description !== undefined) {
       payload.description = typeof body.description === 'string' ? body.description.trim().slice(0, 2000) || null : null
+    }
+    if (body.image_url !== undefined) {
+      payload.image_url = typeof body.image_url === 'string' && body.image_url.trim()
+        ? body.image_url.trim().slice(0, 2048)
+        : null
     }
 
     if (Object.keys(payload).length === 0) {

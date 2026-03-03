@@ -476,8 +476,8 @@ export default function OfferModal({
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          <div className="relative flex-shrink-0 h-44 sm:h-52 md:h-72 lg:h-80 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center">
-            <img src={currentImage} alt="" className="w-full h-full object-contain p-4" />
+          <div className="relative flex-shrink-0 h-40 sm:h-48 md:h-64 lg:h-72 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center overflow-hidden">
+            <img src={currentImage} alt="" className="w-full h-full object-cover object-center" />
             {allImages.length > 1 && (
               <>
                 <button
@@ -530,7 +530,7 @@ export default function OfferModal({
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col">
-            <div className="p-5 md:p-8 pb-10 space-y-6 min-h-[min(60vh,600px)]">
+            <div className="p-4 pt-3 md:p-8 md:pt-6 pb-10 space-y-5 md:space-y-6 min-h-[min(60vh,600px)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">

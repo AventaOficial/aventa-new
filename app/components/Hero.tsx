@@ -49,14 +49,14 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
         </div>
       </div>
 
-      <div className="hidden md:block relative w-full overflow-hidden bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1d1d1f] dark:from-[#0d0d0f] dark:via-[#151518] dark:to-[#0d0d0f] px-8 lg:px-12 pt-[calc(2rem+env(safe-area-inset-top))] pb-12 rounded-b-2xl mb-8 border-b border-gray-800/50">
+      <div className="hidden md:block relative w-full overflow-hidden bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1d1d1f] dark:from-[#0d0d0f] dark:via-[#151518] dark:to-[#0d0d0f] px-8 lg:px-12 pt-[calc(2rem+env(safe-area-inset-top))] pb-10 rounded-b-2xl mb-4 border-b border-gray-800/50">
         <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-pink-500/10" aria-hidden />
         <div className="relative container mx-auto max-w-4xl">
           <h1 className="text-center text-5xl lg:text-6xl font-bold text-white tracking-tight flex items-center justify-center gap-3">
             <AventaIcon size={48} className="lg:w-14 lg:h-14 text-white shrink-0" />
             AVENTA
           </h1>
-          <p className="text-center text-base lg:text-lg text-gray-400 mt-2 mb-8">
+          <p className="text-center text-base lg:text-lg text-gray-400 mt-2 mb-5">
             {TAGLINE}
           </p>
           <div className="flex items-center w-full max-w-3xl lg:max-w-4xl mx-auto rounded-xl border border-gray-600/60 bg-white/5 backdrop-blur-sm px-5 py-3 focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">

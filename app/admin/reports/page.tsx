@@ -273,7 +273,7 @@ export default function ReportsPage() {
                 <div className="space-y-4">
                   {panelOffer.image_url && (
                     <div className="rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 aspect-square max-h-48">
-                      <img src={panelOffer.image_url} alt="" className="w-full h-full object-contain" />
+                      <img src={panelOffer.image_url} alt="" className="w-full h-full object-cover object-center" />
                     </div>
                   )}
                   <h4 className="font-semibold text-gray-900 dark:text-gray-100">{panelOffer.title}</h4>

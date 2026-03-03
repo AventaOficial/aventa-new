@@ -74,6 +74,7 @@ export default function ModerationOfferCard({
   const [editTitle, setEditTitle] = useState(offer.title);
   const [editOfferUrl, setEditOfferUrl] = useState(offer.offer_url ?? '');
   const [editDescription, setEditDescription] = useState(typeof offer.description === 'string' ? offer.description : '');
+  const [editImageUrl, setEditImageUrl] = useState(offer.image_url ?? '');
   const [editSaving, setEditSaving] = useState(false);
   const { session } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
@@ -237,6 +238,7 @@ export default function ModerationOfferCard({
                   setEditTitle(offer.title);
                   setEditOfferUrl(offer.offer_url ?? '');
                   setEditDescription(typeof offer.description === 'string' ? offer.description : '');
+                  setEditImageUrl(offer.image_url ?? '');
                   setShowEdit(true);
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -378,7 +380,7 @@ export default function ModerationOfferCard({
                   <img
                     src={offer.image_url}
                     alt=""
-                    className="w-full h-48 object-contain bg-gray-100 dark:bg-gray-700 rounded-lg"
+                    className="w-full h-48 object-cover object-center bg-gray-100 dark:bg-gray-700 rounded-lg"
                   />
                   <button
                     type="button"
@@ -550,6 +552,21 @@ export default function ModerationOfferCard({
                   placeholder="Descripción"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Imagen (URL) — para recortar/ajustar, sube la imagen recortada y pega aquí la URL</label>
+                <input
+                  type="url"
+                  value={editImageUrl}
+                  onChange={(e) => setEditImageUrl(e.target.value.slice(0, 2048))}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono"
+                  placeholder="https://..."
+                />
+                {editImageUrl && (
+                  <div className="mt-2 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 max-h-32">
+                    <img src={editImageUrl} alt="" className="w-full h-32 object-cover object-center" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  </div>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 pt-2">
                 <button
                   type="button"
@@ -566,6 +583,7 @@ export default function ModerationOfferCard({
                         title: editTitle.trim() || undefined,
                         offer_url: editOfferUrl.trim() || undefined,
                         description: editDescription.trim() || undefined,
+                        image_url: editImageUrl.trim() || undefined,
                       }),
                     });
                     setEditSaving(false);
