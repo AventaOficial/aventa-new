@@ -472,13 +472,13 @@ export default function OfferModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="relative z-10 w-full max-w-2xl md:max-w-5xl lg:max-w-6xl max-h-[92vh] md:max-h-[88vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
+          className="relative z-10 w-full max-w-2xl md:max-w-2xl lg:max-w-3xl max-h-[92vh] md:max-h-[85vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          {/* Desktop: imagen fija arriba con object-cover */}
-          <div className="relative hidden md:flex flex-shrink-0 h-64 lg:h-72 bg-[#F5F5F7] dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
-            <img src={currentImage} alt="" className="w-full h-full object-cover object-center" />
+          {/* Desktop: imagen compacta, vista completa (object-contain) */}
+          <div className="relative hidden md:flex flex-shrink-0 h-48 lg:h-52 bg-[#F5F5F7] dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
+            <img src={currentImage} alt="" className="w-full h-full object-contain object-center" />
             {allImages.length > 1 && (
               <>
                 <button
