@@ -48,17 +48,19 @@ export async function GET(request: NextRequest) {
     .order('upvotes_count', { ascending: false })
     .limit(5);
 
-  const topVoted = (topVotedRaw ?? []).map((o: { created_by?: string | null }) => ({
+  type TopVotedRow = { id: string; title: string; price?: number; original_price?: number | null; store?: string | null; created_by?: string | null };
+  const rawList = (topVotedRaw ?? []) as TopVotedRow[];
+  const topVoted = rawList.map((o) => ({
     id: o.id,
-    title: (o as { title: string }).title,
-    price: (o as { price?: number }).price,
-    original_price: (o as { original_price?: number | null }).original_price,
-    store: (o as { store?: string | null }).store,
+    title: o.title,
+    price: o.price,
+    original_price: o.original_price,
+    store: o.store,
   }));
 
-  const createdByIds = [...new Set((topVotedRaw ?? []).map((o: { created_by?: string | null }) => o.created_by).filter(Boolean))] as string[];
-  const counts = (topVotedRaw ?? []).reduce(
-    (acc: Record<string, number>, o: { created_by?: string | null }) => {
+  const createdByIds = [...new Set(rawList.map((o) => o.created_by).filter(Boolean))] as string[];
+  const counts = rawList.reduce(
+    (acc: Record<string, number>, o) => {
       const id = o.created_by ?? '';
       acc[id] = (acc[id] ?? 0) + 1;
       return acc;

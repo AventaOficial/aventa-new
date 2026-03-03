@@ -279,6 +279,9 @@ export default function MetricsPage() {
           <h2 className="text-sm font-semibold text-violet-800 dark:text-violet-300 uppercase tracking-wide mb-3">
             Métricas de producto
           </h2>
+          <p className="text-xs text-violet-700/80 dark:text-violet-300/80 mb-3">
+            Métrica norte beta: <strong>Retención 48h</strong>. Con ~20 usuarios: &lt;15% problema, 50% interesante, ≥75% señal fuerte.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{productMetrics.new_users_today}</p>
@@ -292,7 +295,7 @@ export default function MetricsPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {productMetrics.retention_48h_pct != null ? productMetrics.retention_48h_pct + '%' : '—'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Retención 48h</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Retención 48h (métrica norte)</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">

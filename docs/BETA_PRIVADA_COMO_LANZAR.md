@@ -8,8 +8,9 @@ Objetivo: probar con ~20 usuarios sin que todos entren a la vez, recoger feedbac
 
 - [ ] Checklist técnica hecha (auth, ofertas, correos, métricas producto).
 - [ ] 15–25 ofertas semilla de calidad subidas.
-- [ ] Una métrica norte definida (ej. % que vuelve en 48h).
+- [ ] **Métrica norte:** % retención 48h (ya visible en Admin → Métricas). Umbrales con ~20 usuarios: 3/20 (15%) = problema; 10/20 (50%) = interesante; 15/20 (75%) = señal fuerte.
 - [ ] Preguntas para beta testers listas (ver `PREGUNTAS_BETA_TESTERS.md`).
+- [ ] **No comunicar economía** en la beta (primero comportamiento natural; incentivos después). Incluir **2–3 líderes** de los ~20 para observar (¿suben sin presión?, ¿intentan dominar ranking?), no 10.
 
 ---
 
@@ -26,7 +27,7 @@ Objetivo: probar con ~20 usuarios sin que todos entren a la vez, recoger feedbac
 
 - **Qué significa:** Que prueben flujos reales (registro, subir oferta, votar, correo, notificaciones) y que tú priorices **encontrar fallos y fricciones**, no que todo salga perfecto.
 - **Qué hacer:** Revisar logs (Vercel, Supabase) tras cada oleada; anotar errores y pantallas donde se atascan; después de 1–2 semanas, enviar el cuestionario de preguntas (o llamada corta) a quienes usaron algo.
-- **Métrica norte:** Revisar en Admin → Métricas de producto: retención 48h, activos 24h, nuevos por día. Eso te dice si la beta “engancha” un poco o no.
+- **Métrica norte:** Revisar en Admin → Métricas de producto la **Retención 48h** (marcada como métrica norte). Interpretar: &lt;15% problema, 50% interesante, ≥75% señal fuerte. Otras útiles para contexto: activos 24h, nuevos por día, % que sube ≥1 oferta, % que vota ≥3 veces.
 
 ---
 

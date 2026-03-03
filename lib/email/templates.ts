@@ -168,7 +168,7 @@ export function buildDailyHtml(
 
   return emailLayout(inner, {
     title: 'Top 10 del día — AVENTA',
-    preheader: 'Las 10 mejores ofertas del día en AVENTA.',
+    preheader: 'Nuevas ofertas cada día. Las 10 mejores elegidas por la comunidad.',
     baseUrl,
   });
 }

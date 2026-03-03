@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AVENTA - Comunidad de cazadores de ofertas",
-  description: "Las mejores ofertas que la comunidad encuentra. No vendemos nada — somos cazadores de ofertas.",
+  description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día. No vendemos nada — somos cazadores de ofertas.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
   icons: { icon: "/placeholder.png", apple: "/placeholder.png" },
