@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado es un peso ganado.';
 const FRESHNESS_LINE = 'Ofertas nuevas cada día, elegidas por la comunidad.';
+
+const ROTATE_INTERVAL_MS = 60_000; // cada minuto
+const SHOW_FRESHNESS_MS = 12_000;  // se muestra 12 segundos
+const FIRST_SHOW_DELAY_MS = 4_000; // primer guiño a los 4 s
 
 interface HeroProps {
   searchQuery?: string;
@@ -16,8 +20,23 @@ interface HeroProps {
 export default function Hero({ searchQuery: controlledQuery = '', onSearchChange }: HeroProps) {
   useTheme();
   const [internalQuery, setInternalQuery] = useState('');
+  const [showFreshnessLine, setShowFreshnessLine] = useState(false);
   const searchQuery = onSearchChange ? controlledQuery : internalQuery;
   const setSearchQuery = onSearchChange ? (v: string) => onSearchChange(v) : setInternalQuery;
+
+  useEffect(() => {
+    const show = () => {
+      setShowFreshnessLine(true);
+      const hide = setTimeout(() => setShowFreshnessLine(false), SHOW_FRESHNESS_MS);
+      return hide;
+    };
+    const first = setTimeout(show, FIRST_SHOW_DELAY_MS);
+    const interval = setInterval(show, ROTATE_INTERVAL_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
@@ -33,8 +52,11 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             <p className="text-sm max-[400px]:text-xs text-[#6e6e73] dark:text-[#a3a3a3] mt-0.5 leading-tight break-words">
               {TAGLINE}
             </p>
-            <p className="text-xs max-[400px]:text-[11px] text-[#8e8e93] dark:text-[#737378] mt-0.5 leading-tight">
-              {FRESHNESS_LINE}
+            <p
+              className="text-xs max-[400px]:text-[11px] text-[#8e8e93] dark:text-[#737378] mt-0.5 leading-tight min-h-[1.25em] transition-opacity duration-500"
+              aria-hidden
+            >
+              <span className={showFreshnessLine ? 'opacity-100' : 'opacity-0'}>{FRESHNESS_LINE}</span>
             </p>
           </div>
         </div>
@@ -63,8 +85,11 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
           <p className="text-center text-base lg:text-lg text-gray-400 mt-2">
             {TAGLINE}
           </p>
-          <p className="text-center text-sm lg:text-base text-gray-500 mt-1 mb-8">
-            {FRESHNESS_LINE}
+          <p
+            className="text-center text-sm lg:text-base text-gray-500 mt-1 mb-8 min-h-[1.5em] transition-opacity duration-500"
+            aria-hidden
+          >
+            <span className={showFreshnessLine ? 'opacity-100' : 'opacity-0'}>{FRESHNESS_LINE}</span>
           </p>
           <div className="flex items-center w-full max-w-3xl lg:max-w-4xl mx-auto rounded-xl border border-gray-600/60 bg-white/5 backdrop-blur-sm px-5 py-3 focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
             <Search className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
