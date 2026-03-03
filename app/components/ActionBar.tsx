@@ -171,6 +171,7 @@ export default function ActionBar() {
       store: '',
       conditions: '',
       coupons: '',
+      moderator_comment: '',
     });
     setStepsList(['']);
     setShowOptionalSection(false);
