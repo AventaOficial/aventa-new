@@ -10,6 +10,8 @@ const FRESHNESS_LINE = 'Ofertas nuevas cada día, elegidas por la comunidad.';
 
 const ROTATE_INTERVAL_MS = 120_000; // cada 2 minutos
 const SHOW_FRESHNESS_MS = 14_000;   // visible ~12 s + tiempo de desvanecimiento
+const WAVE_CHAR_DELAY_MS = 35;      // retraso por letra (efecto ola)
+const WAVE_OUT_DURATION_MS = 2_400; // duración salida en ola antes de ocultar
 
 interface HeroProps {
   searchQuery?: string;
@@ -20,20 +22,51 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
   useTheme();
   const [internalQuery, setInternalQuery] = useState('');
   const [showFreshnessLine, setShowFreshnessLine] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
   const searchQuery = onSearchChange ? controlledQuery : internalQuery;
   const setSearchQuery = onSearchChange ? (v: string) => onSearchChange(v) : setInternalQuery;
 
   useEffect(() => {
+    let hideTimer: ReturnType<typeof setTimeout>;
     const show = () => {
+      setIsExiting(false);
       setShowFreshnessLine(true);
-      setTimeout(() => setShowFreshnessLine(false), SHOW_FRESHNESS_MS);
+      hideTimer = setTimeout(() => setIsExiting(true), SHOW_FRESHNESS_MS);
     };
     const interval = setInterval(show, ROTATE_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(hideTimer);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isExiting) return;
+    const t = setTimeout(() => {
+      setShowFreshnessLine(false);
+      setIsExiting(false);
+    }, WAVE_OUT_DURATION_MS);
+    return () => clearTimeout(t);
+  }, [isExiting]);
+
+  const showWave = showFreshnessLine || isExiting;
+  const chars = FRESHNESS_LINE.split('');
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes hero-wave-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes hero-wave-out {
+          from { opacity: 1; transform: translateY(0); }
+          to { opacity: 0; transform: translateY(-4px); }
+        }
+        .hero-wave-char { display: inline-block; animation-fill-mode: both; }
+        .hero-wave-in .hero-wave-char { animation: hero-wave-in 0.5s ease-out both; }
+        .hero-wave-out .hero-wave-char { animation: hero-wave-out 0.5s ease-out both; }
+      `}} />
       <div className="md:hidden flex flex-col">
         <div className="flex items-start pl-5 pr-40 max-[420px]:pr-36 max-[400px]:pr-32 max-[380px]:pr-28 max-[360px]:pr-24 pt-5 max-[400px]:pt-3 min-w-0">
           <div className="min-w-0 flex-1">
@@ -50,15 +83,19 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
               className="text-xs max-[400px]:text-[11px] text-[#8e8e93] dark:text-[#737378] mt-0.5 leading-tight min-h-[1.25em]"
               aria-hidden
             >
-              <span
-                className={`inline-block transition-all duration-[1800ms] ease-out ${
-                  showFreshnessLine
-                    ? 'translate-y-0 opacity-100'
-                    : '-translate-y-2 opacity-0'
-                }`}
-              >
-                {FRESHNESS_LINE}
-              </span>
+              {showWave && (
+                <span className={`inline-block ${isExiting ? 'hero-wave-out' : 'hero-wave-in'}`}>
+                  {chars.map((c, i) => (
+                    <span
+                      key={i}
+                      className="hero-wave-char"
+                      style={{ animationDelay: `${i * WAVE_CHAR_DELAY_MS}ms` }}
+                    >
+                      {c === ' ' ? '\u00A0' : c}
+                    </span>
+                  ))}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -91,15 +128,19 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             className="text-center text-sm lg:text-base text-gray-500 mt-1 mb-8 min-h-[1.5em]"
             aria-hidden
           >
-            <span
-              className={`inline-block transition-all duration-[1800ms] ease-out ${
-                showFreshnessLine
-                  ? 'translate-y-0 opacity-100'
-                  : '-translate-y-2 opacity-0'
-              }`}
-            >
-              {FRESHNESS_LINE}
-            </span>
+            {showWave && (
+              <span className={`inline-block ${isExiting ? 'hero-wave-out' : 'hero-wave-in'}`}>
+                {chars.map((c, i) => (
+                  <span
+                    key={i}
+                    className="hero-wave-char"
+                    style={{ animationDelay: `${i * WAVE_CHAR_DELAY_MS}ms` }}
+                  >
+                    {c === ' ' ? '\u00A0' : c}
+                  </span>
+                ))}
+              </span>
+            )}
           </p>
           <div className="flex items-center w-full max-w-3xl lg:max-w-4xl mx-auto rounded-xl border border-gray-600/60 bg-white/5 backdrop-blur-sm px-5 py-3 focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
             <Search className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
