@@ -13,12 +13,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://aventaofertas.com");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: "AVENTA - Comunidad de cazadores de ofertas",
   description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día. No vendemos nada — somos cazadores de ofertas.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
   icons: { icon: "/placeholder.png", apple: "/placeholder.png" },
+  openGraph: {
+    title: "AVENTA - Comunidad de cazadores de ofertas",
+    description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día.",
+    siteName: "AVENTA",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AVENTA - Comunidad de cazadores de ofertas",
+    description: "Las mejores ofertas que la comunidad encuentra.",
+  },
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F5F5F7" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },

@@ -476,7 +476,8 @@ export default function OfferModal({
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          <div className="relative flex-shrink-0 h-40 sm:h-48 md:h-64 lg:h-72 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center overflow-hidden">
+          {/* Desktop: imagen fija arriba con object-cover */}
+          <div className="relative hidden md:flex flex-shrink-0 h-64 lg:h-72 bg-[#F5F5F7] dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
             <img src={currentImage} alt="" className="w-full h-full object-cover object-center" />
             {allImages.length > 1 && (
               <>
@@ -529,7 +530,62 @@ export default function OfferModal({
             </button>
           </div>
 
+          {/* Scroll único: en mobile incluye imagen hero + contenido; en desktop solo contenido */}
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col">
+            {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
+            <div className="md:hidden relative w-full aspect-[4/5] shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center overflow-hidden">
+              <img src={currentImage} alt="" className="w-full h-full object-contain object-center" />
+              {allImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1)); }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
+                    aria-label="Imagen anterior"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1)); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
+                    aria-label="Siguiente imagen"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                    {allImages.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setImageIndex(i); }}
+                        className={`h-1.5 rounded-full transition-all ${i === imageIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
+                        aria-label={`Imagen ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              <button
+                onClick={handleFavoriteClick}
+                className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60"
+                aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              >
+                <Heart
+                  className={`h-5 w-5 ${
+                    isLiked ? 'fill-red-500/90 text-red-500/90' : 'text-gray-500/90 dark:text-gray-400/90'
+                  }`}
+                />
+              </button>
+              <button
+                onClick={onClose}
+                className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              </button>
+            </div>
+
             <div className="p-4 pt-3 md:p-8 md:pt-6 pb-10 space-y-5 md:space-y-6 min-h-[min(60vh,600px)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
                 <div className="min-w-0 flex-1">
