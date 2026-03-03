@@ -137,6 +137,11 @@ Para transmitir que hay contenido fresco sin anunciar economía, se añadió:
   - Opcional: UI en admin para asignar leader_badge y ml_tracking_tag.  
   - Lanzar beta: subir ofertas semilla, invitar, recoger preguntas y mirar retención 48h.
 
+- **Sesión posterior (Hero, Supabase, PWA):**  
+  - Hero: guiño “Ofertas nuevas cada día…” cada 2 min; se implementó animación en **ola letra a letra** (entrada y salida con `hero-wave-in` / `hero-wave-out` y delays por carácter en `Hero.tsx`). En producción/local la animación **sigue viéndose simple** (solo aparece y desaparece); revisar en próximo chat (keyframes, hidratación o que las clases/estilos se apliquen bien).  
+  - Consola: **400** en peticiones a `ofertas_ranked_general` con `profiles:public_profiles_view!created_by(display_name,avatar_url,leader_badge,ml_tracking_tag)`. Probable causa: la vista `public_profiles_view` no incluye `leader_badge` y `ml_tracking_tag`, o la relación/nombre no es correcta en Supabase. Revisar definición de la vista y añadir esas columnas si faltan.  
+  - PWA: en `/settings` sale “Banner not shown: beforeinstallpromptevent.preventDefault() called…”. Opcional: llamar `prompt()` cuando el usuario pida instalar o no hacer `preventDefault` si no se muestra el banner.
+
 ---
 
 ## 5. Archivos clave tocados en este chat
@@ -155,7 +160,7 @@ Para transmitir que hay contenido fresco sin anunciar economía, se añadió:
 - `lib/email/templates.ts` — buildDailyHtml con yourOffersInTop; buildWeeklyHtml con topHunters.  
 - `app/components/Navbar.tsx` — reputationLevel, reputationScore; primera fila del menú = link /me con “Nivel X · Y pts”.  
 - `app/admin/metrics/page.tsx` — sección Métricas líderes (ML), textarea + parse + tabla; **bloque Métricas de producto:** nota “Métrica norte beta: Retención 48h” y umbrales (&lt;15% / 50% / ≥75%); label “Retención 48h (métrica norte)”.  
-- `app/components/Hero.tsx` — constante `FRESHNESS_LINE`: “Ofertas nuevas cada día, elegidas por la comunidad.” (móvil y desktop).  
+- `app/components/Hero.tsx` — guiño cada 2 min con `FRESHNESS_LINE`; animación en ola letra a letra (keyframes `hero-wave-in` / `hero-wave-out`, `hero-wave-char` con `animationDelay` por índice; estado `isExiting` para salida en ola). En producción la transición no se ve — pendiente revisar.  
 - `app/layout.tsx` — metadata description con “Ofertas nuevas cada día.”  
 - `lib/email/templates.ts` — preheader correo diario: “Nuevas ofertas cada día. Las 10 mejores elegidas por la comunidad.”  
 - Docs: BETA_PRIVADA (métrica norte 48h, umbrales, no economía, 2–3 líderes), PREGUNTAS_BETA, METRICAS_LIDERES, MODERACION_OBJETIVOS_Y_VISTA, MOTIVOS_DE_REGRESO (§7), y este CONTINUIDAD_CHAT_BETA_LIDERES_Y_AUDITORIA.
@@ -199,4 +204,14 @@ Resumen de todo lo que queda repartido en los demás docs, para tener un solo lu
 
 ---
 
-Puedes copiar o referir este doc en un nuevo chat para seguir con: niveles + nombres de recompensa, UI admin de líderes, y ejecución de la beta privada.
+## 7. Problemas abiertos para el siguiente chat
+
+| Problema | Dónde se ve | Acción sugerida / Estado |
+|----------|-------------|---------------------------|
+| ~~**Animación Hero en ola**~~ | Guiño “Ofertas nuevas cada día…” en home | **Hecho:** keyframes en `globals.css`; longhand para no resetear `animation-delay`; sin `<style>` en Hero. Probar en build. |
+| ~~**400 en ofertas_ranked_general**~~ | Consola del navegador (home) | **Hecho:** migración `public_profiles_view_leader_ml.sql` añade `leader_badge` y `ml_tracking_tag` a la vista. Ejecutar en Supabase SQL Editor. |
+| **PWA install banner** | Consola en `/settings` | Mensaje “Banner not shown: beforeinstallpromptevent.preventDefault()…”. Si no usas el banner, se puede ignorar; si quieres mostrarlo en móvil, llamar `beforeinstallpromptevent.prompt()` cuando el usuario toque “Instalar app”. |
+
+---
+
+Puedes copiar o referir este doc en un nuevo chat para seguir con: niveles + nombres de recompensa, UI admin de líderes, ejecución de la beta privada, y PWA install banner si aplica.

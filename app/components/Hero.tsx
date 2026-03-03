@@ -54,19 +54,6 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes hero-wave-in {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes hero-wave-out {
-          from { opacity: 1; transform: translateY(0); }
-          to { opacity: 0; transform: translateY(-4px); }
-        }
-        .hero-wave-char { display: inline-block; animation-fill-mode: both; }
-        .hero-wave-in .hero-wave-char { animation: hero-wave-in 0.5s ease-out both; }
-        .hero-wave-out .hero-wave-char { animation: hero-wave-out 0.5s ease-out both; }
-      `}} />
       <div className="md:hidden flex flex-col">
         <div className="flex items-start pl-5 pr-40 max-[420px]:pr-36 max-[400px]:pr-32 max-[380px]:pr-28 max-[360px]:pr-24 pt-5 max-[400px]:pt-3 min-w-0">
           <div className="min-w-0 flex-1">

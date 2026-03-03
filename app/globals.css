@@ -78,6 +78,33 @@ body {
 .overscroll-none {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Hero: animación en ola letra a letra (keyframes globales para que apliquen en prod) */
+@keyframes hero-wave-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hero-wave-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
+}
+.hero-wave-char {
+  display: inline-block;
+  animation-fill-mode: both;
+}
+/* Longhand para no resetear animation-delay (inline style por letra) */
+.hero-wave-in .hero-wave-char {
+  animation-name: hero-wave-in;
+  animation-duration: 0.5s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+.hero-wave-out .hero-wave-char {
+  animation-name: hero-wave-out;
+  animation-duration: 0.5s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
 }/* Desktop: mismo fondo que mobile para consistencia premium — tonos negro/gris sin azul */
 @media (min-width: 768px) {
   body {

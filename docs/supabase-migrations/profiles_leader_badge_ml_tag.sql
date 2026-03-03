@@ -10,4 +10,4 @@ ALTER TABLE public.profiles
 COMMENT ON COLUMN public.profiles.leader_badge IS 'Badge visible: cazador_estrella o cazador_aventa. Null = usuario normal.';
 COMMENT ON COLUMN public.profiles.ml_tracking_tag IS 'Etiqueta de seguimiento ML para links de ofertas de este usuario (solo si es líder).';
 
--- Si la vista public_profiles_view tiene columnas explícitas (no SELECT *), añadir leader_badge y ml_tracking_tag a la vista.
+-- Después ejecutar: public_profiles_view_leader_ml.sql (la vista debe exponer leader_badge y ml_tracking_tag para evitar 400 en el feed).
