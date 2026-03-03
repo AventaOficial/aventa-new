@@ -476,9 +476,9 @@ export default function OfferModal({
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          {/* Desktop: imagen compacta, vista completa (object-contain) */}
-          <div className="relative hidden md:flex flex-shrink-0 h-48 lg:h-52 bg-[#F5F5F7] dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
-            <img src={currentImage} alt="" className="w-full h-full object-contain object-center" />
+          {/* Desktop: imagen completa, proporción real, object-contain, fondo neutro, max-height razonable */}
+          <div className="relative hidden md:flex flex-shrink-0 w-full h-[380px] max-h-[420px] bg-gray-50 dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
+            <img src={currentImage} alt="" className="max-w-full max-h-full object-contain object-center" />
             {allImages.length > 1 && (
               <>
                 <button

@@ -316,13 +316,13 @@ export default function OfferCard({
         </button>
       )}
 
-      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:min-w-[140px] md:w-[32%] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
-        <div className="h-[160px] max-[400px]:h-[136px] md:h-36 rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
+      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:min-w-[160px] md:w-[36%] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
+        <div className="h-[160px] max-[400px]:h-[136px] md:aspect-[4/3] md:h-auto md:min-h-0 rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
           {showImage ? (
             <img
               src={image}
               alt=""
-              className="w-full h-full object-contain object-center"
+              className="w-full h-full object-contain md:object-cover object-center"
               onError={() => setImgError(true)}
             />
           ) : (
