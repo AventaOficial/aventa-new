@@ -1,17 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado es un peso ganado.';
-const FRESHNESS_LINE = 'Ofertas nuevas cada día, elegidas por la comunidad.';
-
-const ROTATE_INTERVAL_MS = 120_000; // cada 2 minutos
-const SHOW_FRESHNESS_MS = 14_000;   // visible ~12 s + tiempo de desvanecimiento
-const WAVE_CHAR_DELAY_MS = 35;      // retraso por letra (efecto ola)
-const WAVE_OUT_DURATION_MS = 2_400; // duración salida en ola antes de ocultar
 
 interface HeroProps {
   searchQuery?: string;
@@ -21,36 +15,8 @@ interface HeroProps {
 export default function Hero({ searchQuery: controlledQuery = '', onSearchChange }: HeroProps) {
   useTheme();
   const [internalQuery, setInternalQuery] = useState('');
-  const [showFreshnessLine, setShowFreshnessLine] = useState(false);
-  const [isExiting, setIsExiting] = useState(false);
   const searchQuery = onSearchChange ? controlledQuery : internalQuery;
   const setSearchQuery = onSearchChange ? (v: string) => onSearchChange(v) : setInternalQuery;
-
-  useEffect(() => {
-    let hideTimer: ReturnType<typeof setTimeout>;
-    const show = () => {
-      setIsExiting(false);
-      setShowFreshnessLine(true);
-      hideTimer = setTimeout(() => setIsExiting(true), SHOW_FRESHNESS_MS);
-    };
-    const interval = setInterval(show, ROTATE_INTERVAL_MS);
-    return () => {
-      clearInterval(interval);
-      clearTimeout(hideTimer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isExiting) return;
-    const t = setTimeout(() => {
-      setShowFreshnessLine(false);
-      setIsExiting(false);
-    }, WAVE_OUT_DURATION_MS);
-    return () => clearTimeout(t);
-  }, [isExiting]);
-
-  const showWave = showFreshnessLine || isExiting;
-  const chars = FRESHNESS_LINE.split('');
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
@@ -65,24 +31,6 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             </h1>
             <p className="text-sm max-[400px]:text-xs text-[#6e6e73] dark:text-[#a3a3a3] mt-0.5 leading-tight break-words">
               {TAGLINE}
-            </p>
-            <p
-              className="text-xs max-[400px]:text-[11px] text-[#8e8e93] dark:text-[#737378] mt-0.5 leading-tight min-h-[1.25em]"
-              aria-hidden
-            >
-              {showWave && (
-                <span className={`inline-block ${isExiting ? 'hero-wave-out' : 'hero-wave-in'}`}>
-                  {chars.map((c, i) => (
-                    <span
-                      key={i}
-                      className="hero-wave-char"
-                      style={{ animationDelay: `${i * WAVE_CHAR_DELAY_MS}ms` }}
-                    >
-                      {c === ' ' ? '\u00A0' : c}
-                    </span>
-                  ))}
-                </span>
-              )}
             </p>
           </div>
         </div>
@@ -108,26 +56,8 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             <AventaIcon size={48} className="lg:w-14 lg:h-14 text-white shrink-0" />
             AVENTA
           </h1>
-          <p className="text-center text-base lg:text-lg text-gray-400 mt-2">
+          <p className="text-center text-base lg:text-lg text-gray-400 mt-2 mb-8">
             {TAGLINE}
-          </p>
-          <p
-            className="text-center text-sm lg:text-base text-gray-500 mt-1 mb-8 min-h-[1.5em]"
-            aria-hidden
-          >
-            {showWave && (
-              <span className={`inline-block ${isExiting ? 'hero-wave-out' : 'hero-wave-in'}`}>
-                {chars.map((c, i) => (
-                  <span
-                    key={i}
-                    className="hero-wave-char"
-                    style={{ animationDelay: `${i * WAVE_CHAR_DELAY_MS}ms` }}
-                  >
-                    {c === ' ' ? '\u00A0' : c}
-                  </span>
-                ))}
-              </span>
-            )}
           </p>
           <div className="flex items-center w-full max-w-3xl lg:max-w-4xl mx-auto rounded-xl border border-gray-600/60 bg-white/5 backdrop-blur-sm px-5 py-3 focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
             <Search className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
