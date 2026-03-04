@@ -826,25 +826,30 @@ export default function ActionBar() {
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.05 }}
-                              className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 p-3 md:p-4 flex flex-row overflow-hidden shadow-sm"
+                              className="rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 flex flex-row overflow-hidden shadow-sm"
                             >
-                              <div className="w-[35%] min-w-[80px] shrink-0">
-                                <div className="h-[100px] md:h-[120px] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                              <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[200px] md:min-w-[200px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
+                                <div className="h-[160px] max-[400px]:h-[136px] md:h-[150px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
                                   {imageUrl ? (
-                                    <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                                    <img src={imageUrl} alt="" className="w-full h-full object-contain md:object-cover object-center" />
                                   ) : (
-                                    <Sparkles className="h-6 w-6 text-gray-400" />
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Sparkles className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                                    </div>
                                   )}
                                 </div>
+                                <div className="flex justify-center">
+                                  <span className="text-xs text-gray-400 dark:text-gray-500">↑↓</span>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0 pl-4 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-baseline gap-2 flex-wrap">
-                                    <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                              <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 justify-between gap-1.5 max-[400px]:gap-1 md:gap-2 pt-6 max-[400px]:pt-5 md:pt-0">
+                                <div className="min-w-0">
+                                  <div className="flex items-baseline gap-1.5 max-[400px]:gap-1 md:gap-2 flex-wrap mt-1 max-[400px]:mt-0.5 min-w-0">
+                                    <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                                       {formatPreviewPrice(formData.discountPrice || formData.originalPrice || '0')}
                                     </span>
                                     {hasDiscount && formData.originalPrice && (
-                                      <span className="text-sm md:text-base text-gray-500 dark:text-gray-400 line-through">
+                                      <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400 line-through">
                                         {formatPreviewPrice(formData.originalPrice)}
                                       </span>
                                     )}
@@ -857,7 +862,7 @@ export default function ActionBar() {
                                         const pct = orig > 0 ? Math.round((1 - disc / orig) * 100) : 0;
                                         return pct > 0 ? (
                                           <span
-                                            className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+                                            className="text-[10px] md:text-[11px] font-medium px-1 md:px-1.5 py-0.5 rounded"
                                             style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444' }}
                                           >
                                             -{pct}%
@@ -865,12 +870,20 @@ export default function ActionBar() {
                                         ) : null;
                                       })()}
                                   </div>
-                                  <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug mt-0.5">
+                                  <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug mt-1 max-[400px]:mt-0.5">
                                     {formData.title.trim() || 'Título de la oferta'}
                                   </h3>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                  <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                                     {formData.store.trim() || 'Tienda'}
                                   </p>
+                                </div>
+                                <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">
+                                  <span className="flex-1 rounded-xl border-2 border-violet-600 dark:border-violet-500 px-3 py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 text-center">
+                                    Cazar oferta
+                                  </span>
+                                  <span className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white text-center">
+                                    Ir directo
+                                  </span>
                                 </div>
                               </div>
                             </motion.div>
