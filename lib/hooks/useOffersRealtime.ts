@@ -45,7 +45,7 @@ export function useOffersRealtime<T extends OfferWithVotes>(
 
       const up = safeNum(row?.upvotes_count);
       const down = safeNum(row?.downvotes_count);
-      const score = up - down;
+      const score = up * 2 - down;
       const momentum = safeNum(row?.ranking_momentum);
 
       setterRef.current((prev) => {
