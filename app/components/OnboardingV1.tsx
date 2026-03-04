@@ -152,11 +152,11 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
   );
 }
 
-/** Paso: quiénes somos, qué hacemos, cómo funcionamos (identidad sin sobrecargar). */
-function PageQuienesSomos({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+/** Paso: qué es AVENTA — breve, sin repetir lo del primer page (comunidad cazadora). */
+function PageQueEsAventa({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   return (
     <motion.div
-      key="who-we-are"
+      key="what-is-aventa"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -169,19 +169,19 @@ function PageQuienesSomos({ onNext, onBack }: { onNext: () => void; onBack: () =
         transition={{ delay: 0.1, ...t }}
         className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-4 md:mb-6"
       >
-        <WaveText text="Quiénes somos" />
+        <WaveText text="¿Qué es AVENTA?" />
       </motion.h2>
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25, ...t }}
-        className="flex flex-col gap-4 max-w-sm text-[#6e6e73] dark:text-[#a3a3a3] text-sm sm:text-base leading-relaxed mb-8"
+        className="flex flex-col gap-3 max-w-sm text-[#6e6e73] dark:text-[#a3a3a3] text-sm sm:text-base leading-relaxed mb-8"
       >
         <p>
-          Somos una <strong className="text-[#1d1d1f] dark:text-[#fafafa]">comunidad de cazadores de ofertas</strong>. En AVENTA compartimos ofertas reales y la comunidad decide con votos.
+          Recopilamos día a día las ofertas más atractivas para ti.
         </p>
         <p>
-          Sin trucos, sin spam. Lo que subes y lo que votas ayuda a todos a encontrar buenos descuentos.
+          Contamos con un control de calidad en las ofertas que asegura que sean las mejores.
         </p>
       </motion.div>
       <div className="flex gap-3 w-full max-w-xs mx-auto shrink-0">
@@ -922,7 +922,7 @@ export default function OnboardingV1() {
               <PageWelcome onNext={() => setPage(2)} />
             )}
             {page === 2 && (
-              <PageQuienesSomos onNext={() => setPage(3)} onBack={() => setPage(1)} />
+              <PageQueEsAventa onNext={() => setPage(3)} onBack={() => setPage(1)} />
             )}
             {page === 3 && (
               <PageHowItWorks

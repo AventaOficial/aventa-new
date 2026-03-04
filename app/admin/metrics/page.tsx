@@ -56,7 +56,7 @@ function computeRowsFromOffers(offers: OfferWithRelations[], dateLimit: Date): R
     const shares = events.filter((e) => e.event_type === 'share').length;
     const ctr = views > 0 ? Number(((outbound / views) * 100).toFixed(2)) : null;
     const votes = o.offer_votes ?? [];
-    const score = votes.reduce((s, v) => s + (v.value === 1 ? 1 : v.value === -1 ? -1 : 0), 0);
+    const score = votes.reduce((s, v) => s + (v.value === 2 ? 2 : v.value === -1 ? -1 : v.value === 1 ? 1 : 0), 0);
     const score_final = computeScoreFinal(score, o.created_at);
     return {
       id: o.id,

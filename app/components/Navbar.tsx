@@ -299,7 +299,8 @@ export default function Navbar() {
             onClick={() => setShowNotifications(false)}
             aria-hidden
           />
-          <div className="absolute right-0 md:right-4 left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 top-full mt-2 z-50 w-[min(92vw,22rem)] md:w-96 max-h-[75vh] overflow-hidden rounded-2xl border border-[#e5e5e7] dark:border-[#262626] bg-white dark:bg-[#141414] shadow-2xl flex flex-col">
+          {/* Mobile: panel fijo ancho completo para que no se rompa a la derecha; desktop: igual que antes */}
+          <div className="fixed left-0 right-0 top-[calc(env(safe-area-inset-top)+3.5rem)] bottom-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-[#141414] border-t border-[#e5e5e7] dark:border-[#262626] md:absolute md:left-auto md:right-4 md:top-full md:bottom-auto md:mt-2 md:w-96 md:max-h-[75vh] md:rounded-2xl md:border md:shadow-2xl">
             <div className="flex gap-2 border-b border-[#e5e5e7] dark:border-[#262626] p-2 shrink-0">
               <button
                 onClick={() => setNotifTab('ofertas')}
@@ -339,34 +340,72 @@ export default function Navbar() {
                     <p className="text-base text-gray-500 dark:text-gray-400">Ninguna notificación.</p>
                   ) : (
                     <ul className="space-y-3">
-                      {notifications.map((n) => (
-                        <li key={n.id}>
-                          <a
-                            href={n.link || '#'}
-                            onClick={async () => {
-                              if (!n.read_at && session?.access_token) {
-                                try {
-                                  await fetch('/api/notifications', {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                                    body: JSON.stringify({ id: n.id }),
-                                  });
-                                  setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
-                                  setUnreadCount((c) => Math.max(0, c - 1));
-                                } catch {
-                                  // ignore
+                      {(() => {
+                        const likeKey = (n: NotificationItem) => (n.type === 'offer_like' && n.link ? n.link : null);
+                        const likeGroups = new Map<string, NotificationItem[]>();
+                        for (const n of notifications) {
+                          const key = likeKey(n);
+                          if (key !== null) {
+                            const list = likeGroups.get(key) ?? [];
+                            list.push(n);
+                            likeGroups.set(key, list);
+                          }
+                        }
+                        const items: { ids: string[]; display: NotificationItem }[] = [];
+                        likeGroups.forEach((list) => {
+                          const sorted = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                          const latest = sorted[0];
+                          if (list.length === 1) {
+                            items.push({ ids: [latest.id], display: latest });
+                          } else {
+                            const names = sorted.map((n) => (n.body && n.body.includes(' dio like') ? n.body.replace(/ dio like.*/, '').trim() : 'Alguien'));
+                            const uniq = [...new Set(names)];
+                            const text = uniq.length <= 2 ? uniq.join(' y ') : `${uniq[0]}, ${uniq[1]} y ${list.length - 2} más`;
+                            items.push({
+                              ids: sorted.map((x) => x.id),
+                              display: { ...latest, body: `${text} dieron like a tu oferta`, title: 'Nuevos likes' },
+                            });
+                          }
+                        });
+                        const others = notifications.filter((n) => likeKey(n) === null);
+                        const all = [...items, ...others.map((n) => ({ ids: [n.id], display: n }))];
+                        const sortedItems = all.sort((a, b) => new Date(b.display.created_at).getTime() - new Date(a.display.created_at).getTime());
+                        return sortedItems.map(({ ids, display: n }) => (
+                          <li key={ids[0]}>
+                            <a
+                              href={n.link || '#'}
+                              onClick={async () => {
+                                const toMark = ids.filter((id) => !notifications.find((x) => x.id === id)?.read_at);
+                                if (toMark.length > 0 && session?.access_token) {
+                                  try {
+                                    await Promise.all(
+                                      toMark.map((id) =>
+                                        fetch('/api/notifications', {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                          body: JSON.stringify({ id }),
+                                        })
+                                      )
+                                    );
+                                    setNotifications((prev) =>
+                                      prev.map((x) => (ids.includes(x.id) ? { ...x, read_at: new Date().toISOString() } : x))
+                                    );
+                                    setUnreadCount((c) => Math.max(0, c - toMark.length));
+                                  } catch {
+                                    // ignore
+                                  }
                                 }
-                              }
-                              setShowNotifications(false);
-                            }}
-                            className={`block rounded-xl p-3 text-base transition-colors ${n.read_at ? 'text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30' : 'text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20'}`}
-                          >
-                            <span className="font-semibold text-[15px]">{n.title}</span>
-                            {n.body && <p className="mt-1 text-sm opacity-90">{n.body}</p>}
-                            <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                          </a>
-                        </li>
-                      ))}
+                                setShowNotifications(false);
+                              }}
+                              className={`block rounded-xl p-3 text-base transition-colors ${n.read_at ? 'text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30' : 'text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20'}`}
+                            >
+                              <span className="font-semibold text-[15px]">{n.title}</span>
+                              {n.body && <p className="mt-1 text-sm opacity-90">{n.body}</p>}
+                              <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                            </a>
+                          </li>
+                        ));
+                      })()}
                     </ul>
                   )}
                 </>

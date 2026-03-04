@@ -16,9 +16,10 @@ AS $$
 DECLARE
   v_score numeric;
 BEGIN
+  -- value = 2 es like (un voto vale 2); 1 se acepta por compatibilidad con datos antiguos
   SELECT COALESCE(SUM(
     CASE
-      WHEN v.value = 1 THEN CASE COALESCE(p.reputation_level, 1)
+      WHEN v.value IN (1, 2) THEN CASE COALESCE(p.reputation_level, 1)
         WHEN 1 THEN 2 WHEN 2 THEN 2.2 WHEN 3 THEN 2.5 WHEN 4 THEN 3 ELSE 2 END
       WHEN v.value = -1 THEN CASE COALESCE(p.reputation_level, 1)
         WHEN 1 THEN 1 WHEN 2 THEN 1.1 WHEN 3 THEN 1.2 WHEN 4 THEN 1.5 ELSE 1 END

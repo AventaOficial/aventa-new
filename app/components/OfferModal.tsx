@@ -281,7 +281,7 @@ export default function OfferModal({
 
   const handleVote = (vote: 'up' | 'down') => {
     if (!offerId || !session?.access_token) return;
-    const value = vote === 'up' ? 1 : -1;
+    const value = vote === 'up' ? 2 : -1;
     const prevVote = userVote;
     const prevUp = localUpvotes;
     const prevDown = localDownvotes;

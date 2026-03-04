@@ -181,7 +181,8 @@ export default function OfferCard({
     }
   };
 
-  const sendVote = (value: 1 | -1, onRevert: () => void): void => {
+  /** API: upvote = 2, downvote = -1 (un voto vale 2). */
+  const sendVote = (value: 2 | -1, onRevert: () => void): void => {
     if (!offerId) return;
     const token = session?.access_token ?? null;
     fetch('/api/votes', {
@@ -209,7 +210,7 @@ export default function OfferCard({
     const delta = newVote - prevVote;
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
-    sendVote(1, () => {
+    sendVote(2, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
     });
