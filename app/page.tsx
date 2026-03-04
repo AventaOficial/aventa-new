@@ -440,6 +440,15 @@ function HomeContent() {
     }
   };
 
+  const handleVoteChange = (offerId: string, value: 1 | -1 | 0) => {
+    setVoteMap((prev) => {
+      const next = { ...prev };
+      if (value === 0) delete next[offerId];
+      else next[offerId] = value;
+      return next;
+    });
+  };
+
   return (
     <ClientLayout>
       <div id="ayuda" className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
@@ -588,6 +597,7 @@ function HomeContent() {
                     router.push(pathname + '?' + p.toString());
                   }}
                     onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
+                    onVoteChange={handleVoteChange}
                     userVote={voteMap[offer.id] ?? null}
                     isLiked={!!favoriteMap[offer.id]}
                     createdAt={offer.createdAt}
@@ -626,7 +636,9 @@ function HomeContent() {
         <ChatBubble />
       </div>
 
-        {selectedOffer && (
+        {selectedOffer && (() => {
+          const liveOffer = offers.find((o) => o.id === selectedOffer.id) ?? selectedOffer;
+          return (
           <OfferModal
             isOpen={!!selectedOffer}
             onClose={() => {
@@ -636,28 +648,30 @@ function HomeContent() {
               const q = p.toString();
               router.replace(q ? `${pathname}?${q}` : pathname);
             }}
-            title={selectedOffer.title}
-            brand={selectedOffer.brand}
-            originalPrice={selectedOffer.originalPrice}
-            discountPrice={selectedOffer.discountPrice}
-            discount={selectedOffer.discount}
-            description={selectedOffer.description}
-            steps={selectedOffer.steps}
-            conditions={selectedOffer.conditions}
-            coupons={selectedOffer.coupons}
-            offerUrl={selectedOffer.offerUrl}
-            upvotes={selectedOffer.upvotes}
-            downvotes={selectedOffer.downvotes}
-            offerId={selectedOffer.id}
-            author={selectedOffer.author}
-            image={selectedOffer.image}
-            imageUrls={selectedOffer.imageUrls}
-            msiMonths={selectedOffer.msiMonths}
+            title={liveOffer.title}
+            brand={liveOffer.brand}
+            originalPrice={liveOffer.originalPrice}
+            discountPrice={liveOffer.discountPrice}
+            discount={liveOffer.discount}
+            description={liveOffer.description}
+            steps={liveOffer.steps}
+            conditions={liveOffer.conditions}
+            coupons={liveOffer.coupons}
+            offerUrl={liveOffer.offerUrl}
+            upvotes={liveOffer.upvotes}
+            downvotes={liveOffer.downvotes}
+            offerId={liveOffer.id}
+            author={liveOffer.author}
+            image={liveOffer.image}
+            imageUrls={liveOffer.imageUrls}
+            msiMonths={liveOffer.msiMonths}
             isLiked={!!favoriteMap[selectedOffer.id]}
             onFavoriteChange={(fav) => handleFavoriteChange(selectedOffer.id, fav)}
+            onVoteChange={handleVoteChange}
             userVote={voteMap[selectedOffer.id] ?? 0}
           />
-        )}
+          );
+        })()}
 
       </div>
     </ClientLayout>

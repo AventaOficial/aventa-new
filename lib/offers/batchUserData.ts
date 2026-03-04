@@ -29,9 +29,8 @@ export async function fetchBatchUserData(
   const voteMap: VoteMap = {}
   for (const row of votesRes.data ?? []) {
     const val = row.value
-    if (val === 1 || val === -1) {
-      voteMap[row.offer_id] = val
-    }
+    if (val === 2 || val === 1) voteMap[row.offer_id] = 1
+    else if (val === -1) voteMap[row.offer_id] = -1
   }
 
   const favoriteMap: FavoriteMap = {}

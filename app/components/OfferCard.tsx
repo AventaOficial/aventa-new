@@ -56,6 +56,7 @@ interface OfferCardProps {
   offerUrl?: string;
   author?: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
   onFavoriteChange?: (isFavorite: boolean) => void;
+  onVoteChange?: (offerId: string, value: 1 | -1 | 0) => void;
   userVote?: 1 | -1 | 0 | null;
   isLiked?: boolean;
   createdAt?: string | null;
@@ -80,6 +81,7 @@ export default function OfferCard({
   offerUrl,
   author,
   onFavoriteChange,
+  onVoteChange,
   userVote: userVoteProp = 0,
   isLiked: isLikedProp = false,
   msiMonths,
@@ -183,7 +185,7 @@ export default function OfferCard({
   };
 
   /** API: upvote = 2, downvote = -1 (un voto vale 2). */
-  const sendVote = (value: 2 | -1, onRevert: () => void): void => {
+  const sendVote = (value: 2 | -1, onRevert: () => void, onSuccess?: (newVote: UserVote) => void): void => {
     if (!offerId) return;
     const token = session?.access_token ?? null;
     fetch('/api/votes', {
@@ -194,7 +196,11 @@ export default function OfferCard({
       },
       body: JSON.stringify({ offerId, value }),
     })
-      .then((res) => { if (!res.ok) throw new Error(); })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !(data?.ok)) throw new Error();
+        onSuccess?.();
+      })
       .catch(onRevert);
   };
 
@@ -216,7 +222,7 @@ export default function OfferCard({
     sendVote(2, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
-    });
+    }, () => onVoteChange?.(offerId, newVote));
   };
 
   const handleVoteDown = (e: React.MouseEvent) => {
@@ -235,7 +241,7 @@ export default function OfferCard({
     sendVote(-1, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
-    });
+    }, () => onVoteChange?.(offerId, newVote));
   };
 
   const showImage = image && !imgError;

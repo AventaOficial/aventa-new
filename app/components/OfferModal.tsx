@@ -35,6 +35,7 @@ interface OfferModalProps {
   msiMonths?: number | null;
   isLiked?: boolean;
   onFavoriteChange?: (isFavorite: boolean) => void;
+  onVoteChange?: (offerId: string, value: 1 | -1 | 0) => void;
   userVote?: 1 | -1 | 0 | null;
 }
 
@@ -149,6 +150,7 @@ export default function OfferModal({
   msiMonths,
   isLiked: isLikedProp = false,
   onFavoriteChange,
+  onVoteChange,
   userVote: userVoteProp = 0,
 }: OfferModalProps) {
   const router = useRouter();
@@ -287,6 +289,7 @@ export default function OfferModal({
     const prevUp = localUpvotes;
     const prevDown = localDownvotes;
 
+    const newVote: 1 | -1 | 0 = prevVote === displayVote ? 0 : displayVote;
     if (prevVote === displayVote) {
       setLocalVote(0);
       if (vote === 'up') setLocalUpvotes((p) => p - 1);
@@ -304,7 +307,11 @@ export default function OfferModal({
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ offerId, value: apiValue }),
     })
-      .then((res) => { if (!res.ok) throw new Error(); })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !(data?.ok)) throw new Error();
+        onVoteChange?.(offerId, newVote);
+      })
       .catch(() => {
         setLocalVote(prevVote);
         setLocalUpvotes(prevUp);
