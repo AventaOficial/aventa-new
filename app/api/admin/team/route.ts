@@ -67,6 +67,50 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ team });
 }
 
+/** POST: agregar usuario al equipo (solo owner). Body: { user_id, role }. */
+export async function POST(request: NextRequest) {
+  const auth = await requireOwner(request);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : null;
+  const role = typeof body?.role === 'string' && ROLE_PRIORITY.includes(body.role as Role) ? (body.role as Role) : null;
+
+  if (!userId || !role) {
+    return NextResponse.json(
+      { error: 'Body debe incluir user_id (UUID) y role (owner|admin|moderator|analyst)' },
+      { status: 400 }
+    );
+  }
+
+  if (role === 'owner') {
+    return NextResponse.json(
+      { error: 'No puedes asignar el rol owner por esta vía' },
+      { status: 400 }
+    );
+  }
+
+  const supabase = createServerClient();
+
+  const { data: existing } = await supabase.from('user_roles').select('user_id').eq('user_id', userId).maybeSingle();
+  if (existing) {
+    return NextResponse.json(
+      { error: 'Ese usuario ya tiene un rol. Usa la tabla para cambiar su rol.' },
+      { status: 400 }
+    );
+  }
+
+  const { error: insertError } = await supabase.from('user_roles').insert({ user_id: userId, role });
+  if (insertError) {
+    console.error('[admin/team] POST insert:', insertError.message);
+    return NextResponse.json({ error: 'Error al agregar al equipo' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 /** PATCH: actualizar rol de un usuario (solo owner). Body: { user_id, role }. */
 export async function PATCH(request: NextRequest) {
   const auth = await requireOwner(request);

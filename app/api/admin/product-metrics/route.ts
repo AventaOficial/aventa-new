@@ -9,7 +9,13 @@ export async function GET(request: Request) {
 
   const supabase = createServerClient();
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  // "Hoy" en zona México para que los números cuadren con lo que ve el equipo (MX).
+  const tz = 'America/Mexico_City';
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+  const y = parts.find((p) => p.type === 'year')!.value;
+  const m = parts.find((p) => p.type === 'month')!.value;
+  const d = parts.find((p) => p.type === 'day')!.value;
+  const todayStart = new Date(`${y}-${m}-${d}T06:00:00.000Z`).toISOString(); // 00:00 MX = 06:00 UTC
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
 

@@ -152,6 +152,57 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
   );
 }
 
+/** Paso: quiénes somos, qué hacemos, cómo funcionamos (identidad sin sobrecargar). */
+function PageQuienesSomos({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  return (
+    <motion.div
+      key="who-we-are"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={t}
+      className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
+    >
+      <motion.h2
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, ...t }}
+        className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-4 md:mb-6"
+      >
+        <WaveText text="Quiénes somos" />
+      </motion.h2>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25, ...t }}
+        className="flex flex-col gap-4 max-w-sm text-[#6e6e73] dark:text-[#a3a3a3] text-sm sm:text-base leading-relaxed mb-8"
+      >
+        <p>
+          Somos una <strong className="text-[#1d1d1f] dark:text-[#fafafa]">comunidad de cazadores de ofertas</strong>. En AVENTA compartimos ofertas reales y la comunidad decide con votos.
+        </p>
+        <p>
+          Sin trucos, sin spam. Lo que subes y lo que votas ayuda a todos a encontrar buenos descuentos.
+        </p>
+      </motion.div>
+      <div className="flex gap-3 w-full max-w-xs mx-auto shrink-0">
+        <button
+          onClick={onBack}
+          className="flex-1 rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-transparent px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors"
+        >
+          ← Atrás
+        </button>
+        <motion.button
+          onClick={onNext}
+          whileTap={{ scale: 0.98 }}
+          className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all"
+        >
+          Continuar
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
 function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -848,7 +899,7 @@ export default function OnboardingV1() {
         </div>
 
         <div className="flex justify-center gap-1.5 pt-16 sm:pt-4 pb-2 sm:pb-4 shrink-0">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className={`h-1 rounded-full transition-all duration-300 ${
@@ -871,15 +922,18 @@ export default function OnboardingV1() {
               <PageWelcome onNext={() => setPage(2)} />
             )}
             {page === 2 && (
-              <PageHowItWorks
-                onNext={() => setPage(3)}
-                onBack={() => setPage(1)}
-              />
+              <PageQuienesSomos onNext={() => setPage(3)} onBack={() => setPage(1)} />
             )}
             {page === 3 && (
+              <PageHowItWorks
+                onNext={() => setPage(4)}
+                onBack={() => setPage(2)}
+              />
+            )}
+            {page === 4 && (
               <PageAuth
                 onSuccess={handleAuthSuccess}
-                onBack={() => setPage(2)}
+                onBack={() => setPage(3)}
               />
             )}
           </AnimatePresence>

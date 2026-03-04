@@ -232,12 +232,14 @@ export default function MetricsPage() {
                 {productMetrics.new_users_today}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Usuarios nuevos hoy</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">(zona horaria México)</p>
             </div>
             <div>
               <p className="text-3xl font-bold text-violet-600 dark:text-violet-400">
                 {productMetrics.active_users_24h}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Activos en las últimas 24h</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">(quienes abrieron la app)</p>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">

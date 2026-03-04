@@ -204,6 +204,18 @@ Resumen de todo lo que queda repartido en los demás docs, para tener un solo lu
 
 ---
 
+## 6.4 Mejoras aplicadas (sesión reciente)
+
+| Mejora | Dónde | Nota |
+|--------|--------|------|
+| **Métricas: “hoy” en México** | `app/api/admin/product-metrics/route.ts`, `app/admin/metrics/page.tsx` | "Usuarios nuevos hoy" usa medianoche en zona America/Mexico_City. En la UI se añadió la nota "(zona horaria México)" y "(quienes abrieron la app)" para activos 24h. |
+| **Equipo: integrar usuarios** | `app/api/admin/team/route.ts` (POST), `app/api/admin/users/route.ts` (GET), `app/admin/team/page.tsx` | Bloque "Agregar al equipo": búsqueda por nombre (mín. 2 letras) sobre perfiles; resultados con selector de rol (Moderador, Analista, Admin) y botón Agregar. Solo owner. |
+| **Onboarding: Quiénes somos** | `app/components/OnboardingV1.tsx` | Nuevo paso entre Bienvenida y Cómo funciona: "Quiénes somos" (comunidad cazadora, ofertas reales, votos, sin trucos ni spam). Flujo: Logo → Bienvenida → Quiénes somos → Cómo funciona → Auth. |
+| **Imagen oferta: error 2 MB** | `app/components/ActionBar.tsx` | Mensaje de error explícito: "La imagen no puede superar 2 MB. Usa una más pequeña o comprímela." (sin compresión automática). |
+| **Verificación de correo** | Supabase + UI | No implementado. Si quieres reactivarla: en Supabase Auth → Settings activar "Confirm email"; en la app, mostrar pantalla/animación amigable "Revisa tu correo para verificar" y opcionalmente bloquear acciones hasta `email_confirmed_at`. Ver `AuthProvider` (isVerified) y pantalla "Revisa tu correo" ya presente en onboarding. |
+
+---
+
 ## 7. Problemas abiertos para el siguiente chat
 
 | Problema | Dónde se ve | Acción sugerida / Estado |

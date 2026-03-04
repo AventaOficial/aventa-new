@@ -114,7 +114,7 @@ export default function ActionBar() {
     if (!file) return;
     try {
       if (file.size > MAX_IMAGE_SIZE) {
-        showToast('Máximo 2MB');
+        showToast('La imagen no puede superar 2 MB. Usa una más pequeña o comprímela.');
         return;
       }
       const mime = file.type?.toLowerCase() ?? '';
@@ -828,8 +828,8 @@ export default function ActionBar() {
                               transition={{ delay: 0.05 }}
                               className="rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 flex flex-row overflow-hidden shadow-sm"
                             >
-                              <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[200px] md:min-w-[200px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
-                                <div className="h-[160px] max-[400px]:h-[136px] md:h-[150px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
+                              <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
+                                <div className="h-[160px] max-[400px]:h-[136px] md:h-[165px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
                                   {imageUrl ? (
                                     <img src={imageUrl} alt="" className="w-full h-full object-contain md:object-cover object-center" />
                                   ) : (

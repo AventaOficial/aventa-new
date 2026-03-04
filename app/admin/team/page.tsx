@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { getReputationLabel } from '@/lib/reputation';
@@ -15,6 +15,12 @@ type TeamMember = {
   reputation_score: number;
 };
 
+type SearchUser = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 const ROLES: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
 const ROLE_LABELS: Record<Role, string> = {
   owner: 'Owner',
@@ -23,12 +29,19 @@ const ROLE_LABELS: Record<Role, string> = {
   analyst: 'Analista',
 };
 
+const ADDABLE_ROLES: Role[] = ['moderator', 'analyst', 'admin'];
+
 export default function TeamPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [searchName, setSearchName] = useState('');
+  const [addSearch, setAddSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingUserId, setAddingUserId] = useState<string | null>(null);
+  const addSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { session } = useAuth();
 
   const filteredTeam = team.filter((m) => {
@@ -63,6 +76,54 @@ export default function TeamPage() {
   useEffect(() => {
     loadTeam();
   }, [loadTeam]);
+
+  useEffect(() => {
+    const q = addSearch.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    if (addSearchDebounce.current) clearTimeout(addSearchDebounce.current);
+    addSearchDebounce.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}`, { headers });
+        const data = await res.json().catch(() => ({}));
+        setSearchResults(Array.isArray(data.users) ? data.users : []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => {
+      if (addSearchDebounce.current) clearTimeout(addSearchDebounce.current);
+    };
+  }, [addSearch, session?.access_token]);
+
+  const handleAddMember = async (userId: string, role: Role) => {
+    setAddingUserId(userId);
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/admin/team', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ user_id: userId, role }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Error al agregar');
+      setAddSearch('');
+      setSearchResults([]);
+      await loadTeam();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error al agregar');
+    } finally {
+      setAddingUserId(null);
+    }
+  };
 
   const handleRoleChange = async (userId: string, newRole: Role) => {
     setUpdating(userId);
@@ -100,15 +161,90 @@ export default function TeamPage() {
     );
   }
 
+  const teamIds = new Set(team.map((m) => m.user_id));
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
       <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Equipo
       </h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Asigna roles (moderador, analista, etc.). Busca por nombre para encontrar a quien dar de alta.
+        Integra usuarios y asigna roles (moderador, analista, etc.). Busca por nombre para agregar al equipo.
       </p>
 
+      {/* Bloque: Agregar al equipo — buscar usuarios registrados y asignar rol */}
+      <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          Agregar al equipo
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          Escribe el nombre del usuario (mín. 2 letras). Solo aparecen quienes ya tienen cuenta.
+        </p>
+        <input
+          type="search"
+          placeholder="Buscar por nombre..."
+          value={addSearch}
+          onChange={(e) => setAddSearch(e.target.value)}
+          className="w-full max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 mb-3"
+        />
+        {searching && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Buscando…</p>}
+        {searchResults.length > 0 && (
+          <ul className="space-y-2 max-h-48 overflow-y-auto">
+            {searchResults.map((u) => {
+              const alreadyInTeam = teamIds.has(u.user_id);
+              return (
+                <li
+                  key={u.user_id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-2"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0 text-violet-600 dark:text-violet-400 text-xs font-semibold">
+                        {(u.display_name || u.user_id).slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {u.display_name || u.user_id.slice(0, 8) + '…'}
+                    </span>
+                  </div>
+                  {alreadyInTeam ? (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Ya en el equipo</span>
+                  ) : (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <select
+                        id={`role-${u.user_id}`}
+                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs py-1.5 px-2"
+                        defaultValue="moderator"
+                      >
+                        {ADDABLE_ROLES.map((r) => (
+                          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={addingUserId === u.user_id}
+                        onClick={() => {
+                          const sel = document.getElementById(`role-${u.user_id}`) as HTMLSelectElement;
+                          handleAddMember(u.user_id, (sel?.value as Role) ?? 'moderator');
+                        }}
+                        className="rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-violet-700 disabled:opacity-50"
+                      >
+                        {addingUserId === u.user_id ? 'Agregando…' : 'Agregar'}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+        Miembros del equipo (buscar en la lista para cambiar rol):
+      </p>
       <div className="mb-4">
         <input
           type="search"
