@@ -589,44 +589,42 @@ export default function OfferModal({
             </div>
 
             <div className="p-4 pt-3 md:p-8 md:pt-7 md:pb-12 pb-10 space-y-5 md:space-y-7 min-h-[min(60vh,600px)]">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-8">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
-                    {brand}
-                  </p>
-                  <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 mt-1 md:mt-2 leading-tight tracking-tight">
-                    {title}
-                  </h2>
-                  {author?.username && (
-                    <div className="flex items-center gap-2 flex-wrap mt-3">
-                      <Link
-                        href={`/u/${slugFromUsername(author.username)}`}
-                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                      >
-                        {author.avatar_url ? (
-                          <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                        ) : (
-                          <User className="h-4 w-4" />
-                        )}
-                        <span>Cazado por {author.username}</span>
-                      </Link>
-                      {author.leaderBadge === 'cazador_estrella' && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador estrella">
-                          <BadgeCheck className="h-3.5 w-3.5" />
-                          Cazador estrella
-                        </span>
+              {/* Orden fijo en columna: marca → título → cazado por → precios (evita título roto y solapamientos en desktop) */}
+              <div className="flex flex-col gap-3 md:gap-4">
+                <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+                  {brand}
+                </p>
+                <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight break-words">
+                  {title}
+                </h2>
+                {author?.username && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                      href={`/u/${slugFromUsername(author.username)}`}
+                      className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                    >
+                      {author.avatar_url ? (
+                        <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <User className="h-4 w-4 shrink-0" />
                       )}
-                      {author.leaderBadge === 'cazador_aventa' && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador Aventa">
-                          <BadgeCheck className="h-3.5 w-3.5" />
-                          Cazador Aventa
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-shrink-0 md:text-right">
-                <div className="flex items-baseline gap-3 flex-wrap">
+                      <span>Cazado por {author.username}</span>
+                    </Link>
+                    {author.leaderBadge === 'cazador_estrella' && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador estrella">
+                        <BadgeCheck className="h-3.5 w-3.5" />
+                        Cazador estrella
+                      </span>
+                    )}
+                    {author.leaderBadge === 'cazador_aventa' && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador Aventa">
+                        <BadgeCheck className="h-3.5 w-3.5" />
+                        Cazador Aventa
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-baseline gap-3 pt-1">
                   <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#111827] dark:text-gray-100 tracking-tight">
                     {formatPriceMXN(discountPrice)}
                   </span>
@@ -644,16 +642,15 @@ export default function OfferModal({
                   )}
                 </div>
                 {originalPrice > 0 && savings > 0 && (
-                  <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1">
+                  <p className="text-sm text-[#6B7280] dark:text-gray-400 -mt-1">
                     Ahorras {formatPriceMXN(savings)}
                   </p>
                 )}
                 {msiMonths != null && msiMonths >= 1 && (
-                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-1">
+                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 -mt-1">
                     {msiMonths} MSI: {formatPriceMXN(discountPrice / msiMonths)}/mes
                   </p>
                 )}
-                </div>
               </div>
 
               {description?.trim() && (
