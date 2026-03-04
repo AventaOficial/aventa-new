@@ -358,6 +358,11 @@ function HomeContent() {
       : 'AVENTA - Comunidad de cazadores de ofertas';
   }, [selectedOffer?.id, selectedOffer?.title]);
 
+  // Cerrar modal cuando la URL ya no tiene ?o= (p. ej. usuario pulsó back)
+  useEffect(() => {
+    if (!searchParams.get('o')) setSelectedOffer(null);
+  }, [searchParams]);
+
   useEffect(() => {
     const offerId = searchParams.get('o');
     if (!offerId?.trim()) return;
@@ -576,7 +581,12 @@ function HomeContent() {
                     votes={offer.votes}
                     offerUrl={offer.offerUrl}
                     author={offer.author}
-                    onCardClick={() => setSelectedOffer(offer)}
+                    onCardClick={() => {
+                    setSelectedOffer(offer);
+                    const p = new URLSearchParams(searchParams?.toString() ?? '');
+                    p.set('o', offer.id);
+                    router.push(pathname + '?' + p.toString());
+                  }}
                     onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
                     userVote={voteMap[offer.id] ?? null}
                     isLiked={!!favoriteMap[offer.id]}
@@ -619,7 +629,13 @@ function HomeContent() {
         {selectedOffer && (
           <OfferModal
             isOpen={!!selectedOffer}
-            onClose={() => setSelectedOffer(null)}
+            onClose={() => {
+              setSelectedOffer(null);
+              const p = new URLSearchParams(searchParams?.toString() ?? '');
+              p.delete('o');
+              const q = p.toString();
+              router.replace(q ? `${pathname}?${q}` : pathname);
+            }}
             title={selectedOffer.title}
             brand={selectedOffer.brand}
             originalPrice={selectedOffer.originalPrice}

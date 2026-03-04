@@ -472,12 +472,14 @@ export default function OfferModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="relative z-10 w-full max-w-2xl md:max-w-2xl lg:max-w-3xl max-h-[92vh] md:max-h-[85vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
+          className="relative z-10 w-full max-w-2xl md:max-w-5xl lg:max-w-6xl max-h-[92vh] md:max-h-[85vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
-          {/* Desktop: imagen completa, proporción real, object-contain, fondo neutro, max-height razonable */}
-          <div className="relative hidden md:flex flex-shrink-0 w-full h-[380px] max-h-[420px] bg-gray-50 dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
+          {/* Desktop: contenedor grid — imagen izquierda, contenido derecha */}
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
+          {/* Desktop: imagen izquierda */}
+          <div className="relative hidden md:flex md:w-[44%] md:flex-shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
             <img src={currentImage} alt="" className="max-w-full max-h-full object-contain object-center" />
             {allImages.length > 1 && (
               <>
@@ -530,8 +532,8 @@ export default function OfferModal({
             </button>
           </div>
 
-          {/* Scroll único: en mobile incluye imagen hero + contenido; en desktop solo contenido */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col">
+          {/* Columna derecha: scroll (mobile imagen hero + contenido; desktop solo contenido) */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col md:min-w-0">
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
             <div className="md:hidden relative w-full aspect-[4/5] shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center overflow-hidden">
               <img src={currentImage} alt="" className="w-full h-full object-contain object-center" />
@@ -586,13 +588,13 @@ export default function OfferModal({
               </button>
             </div>
 
-            <div className="p-4 pt-3 md:p-8 md:pt-6 pb-10 space-y-5 md:space-y-6 min-h-[min(60vh,600px)]">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
+            <div className="p-4 pt-3 md:p-8 md:pt-7 md:pb-12 pb-10 space-y-5 md:space-y-7 min-h-[min(60vh,600px)]">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-8">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
                     {brand}
                   </p>
-                  <h2 className="text-xl md:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-gray-100 mt-1 leading-tight tracking-tight">
+                  <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 mt-1 md:mt-2 leading-tight tracking-tight">
                     {title}
                   </h2>
                   {author?.username && (
@@ -625,7 +627,7 @@ export default function OfferModal({
                 </div>
                 <div className="flex-shrink-0 md:text-right">
                 <div className="flex items-baseline gap-3 flex-wrap">
-                  <span className="text-3xl md:text-4xl font-bold text-[#111827] dark:text-gray-100 tracking-tight">
+                  <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#111827] dark:text-gray-100 tracking-tight">
                     {formatPriceMXN(discountPrice)}
                   </span>
                   {originalPrice > 0 && (
@@ -1032,6 +1034,7 @@ export default function OfferModal({
                 </div>
               </div>
             </div>
+          </div>
           </div>
 
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 md:px-5 md:py-2 flex-shrink-0">
