@@ -44,9 +44,14 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url')
+      .select('id, display_name, avatar_url, display_name_updated_at')
       .eq('id', user.id)
       .maybeSingle();
+
+    const userEditedDisplayName = !!(
+      existing &&
+      (existing as { display_name_updated_at?: string | null }).display_name_updated_at
+    );
 
     if (!existing) {
       const nameToSet = displayName || fallbackName || 'Usuario';
@@ -68,14 +73,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Siempre actualizar display_name desde Auth (y slug para perfil público /u/[slug])
-    const displayNameToSet =
+    // No sobrescribir display_name ni slug si el usuario lo cambió en Configuración
+    const displayNameFromAuth =
       (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Usuario') as string;
-    const finalDisplayName = typeof displayNameToSet === 'string' && displayNameToSet.trim() ? displayNameToSet.trim() : (user.email?.split('@')[0] || 'Usuario');
-    const slug = toSlug(finalDisplayName) || `user-${user.id.slice(0, 8)}`;
+    const finalDisplayNameFromAuth =
+      typeof displayNameFromAuth === 'string' && displayNameFromAuth.trim()
+        ? displayNameFromAuth.trim()
+        : (user.email?.split('@')[0] || 'Usuario');
+
+    const displayNameToPersist = userEditedDisplayName
+      ? (existing!.display_name?.trim() || finalDisplayNameFromAuth)
+      : finalDisplayNameFromAuth;
+    const slug = toSlug(displayNameToPersist) || `user-${user.id.slice(0, 8)}`;
+
     const updates: { avatar_url: string | null; display_name: string; slug?: string } = {
       avatar_url: avatarUrlVal,
-      display_name: finalDisplayName,
+      display_name: displayNameToPersist,
       ...(slug && { slug }),
     };
 

@@ -222,6 +222,7 @@ export default function OfferCard({
     sendVote(2, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
+      showToast('No se pudo registrar el voto. Intenta de nuevo.');
     }, () => onVoteChange?.(offerId, newVote));
   };
 
@@ -241,6 +242,7 @@ export default function OfferCard({
     sendVote(-1, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
+      showToast('No se pudo registrar el voto. Intenta de nuevo.');
     }, () => onVoteChange?.(offerId, newVote));
   };
 

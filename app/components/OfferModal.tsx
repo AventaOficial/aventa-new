@@ -316,6 +316,7 @@ export default function OfferModal({
         setLocalVote(prevVote);
         setLocalUpvotes(prevUp);
         setLocalDownvotes(prevDown);
+        showToast?.('No se pudo registrar el voto. Intenta de nuevo.');
       });
   };
 
@@ -787,7 +788,13 @@ export default function OfferModal({
                             }`}>
                               <div className="mb-2 flex items-center gap-2">
                                 <p className={`text-sm font-medium ${isOwn ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>
-                                  {comment.author.username}
+                                  {slugFromUsername(comment.author.username) ? (
+                                    <Link href={`/u/${slugFromUsername(comment.author.username)}`} className="hover:underline focus:outline-none focus:underline">
+                                      {comment.author.username}
+                                    </Link>
+                                  ) : (
+                                    comment.author.username
+                                  )}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
                                   {formatRelativeDate(comment.created_at)}
@@ -828,7 +835,15 @@ export default function OfferModal({
                                       : 'border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80'
                                   }`}>
                                     <div className="mb-1 flex items-center gap-2">
-                                      <p className={`text-sm font-medium ${isOwnReply ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>{reply.author.username}</p>
+                                      <p className={`text-sm font-medium ${isOwnReply ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>
+                                        {slugFromUsername(reply.author.username) ? (
+                                          <Link href={`/u/${slugFromUsername(reply.author.username)}`} className="hover:underline focus:outline-none focus:underline">
+                                            {reply.author.username}
+                                          </Link>
+                                        ) : (
+                                          reply.author.username
+                                        )}
+                                      </p>
                                       <p className="text-xs text-gray-500 dark:text-gray-400">{formatRelativeDate(reply.created_at)}</p>
                                     </div>
                                     <p className="text-gray-700 dark:text-gray-300 text-sm">{reply.content}</p>
@@ -868,7 +883,11 @@ export default function OfferModal({
                           const replyingTo = comments.flatMap((c) => [c, ...(c.replies ?? [])]).find((x) => x.id === replyingToId);
                           return replyingTo ? (
                             <p className="text-sm text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 rounded-lg px-3 py-2">
-                              Respondiendo a <span className="font-semibold">{replyingTo.author.username}</span>: &quot;{replyingTo.content.slice(0, 60)}{replyingTo.content.length > 60 ? '…' : ''}&quot;
+                              Respondiendo a {slugFromUsername(replyingTo.author.username) ? (
+                              <Link href={`/u/${slugFromUsername(replyingTo.author.username)}`} className="font-semibold hover:underline">{replyingTo.author.username}</Link>
+                            ) : (
+                              <span className="font-semibold">{replyingTo.author.username}</span>
+                            )}: &quot;{replyingTo.content.slice(0, 60)}{replyingTo.content.length > 60 ? '…' : ''}&quot;
                             </p>
                           ) : (
                             <p className="text-xs text-purple-600 dark:text-purple-400">Respondiendo a un comentario — escribe abajo y envía.</p>

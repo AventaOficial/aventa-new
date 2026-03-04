@@ -81,7 +81,7 @@ export async function GET(
   const offers = (rows ?? []).map((row: OfferRow) => {
     const up = row.upvotes_count ?? 0;
     const down = row.downvotes_count ?? 0;
-    const score = up - down;
+    const score = up * 2 - down;
     totalScore += score;
     const originalPrice = Number(row.original_price) || 0;
     const discountPrice = Number(row.price) || 0;

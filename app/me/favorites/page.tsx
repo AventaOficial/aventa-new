@@ -55,7 +55,7 @@ function rowToOffer(row: OfferRow): MappedOffer {
     originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0
   const up = row.upvotes_count ?? 0
   const down = row.downvotes_count ?? 0
-  const score = up - down
+  const score = up * 2 - down
   const rawProf = row.profiles
   const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf
   return {

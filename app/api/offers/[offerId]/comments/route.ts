@@ -218,6 +218,37 @@ export async function POST(
     return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
   }
 
+  // Notificar al dueño de la oferta (si no es el mismo que comentó)
+  try {
+    const { data: offerRow } = await supabase
+      .from('offers')
+      .select('created_by, title')
+      .eq('id', offerId)
+      .maybeSingle();
+    const createdBy = (offerRow as { created_by?: string; title?: string } | null)?.created_by;
+    const offerTitle = (offerRow as { created_by?: string; title?: string } | null)?.title?.trim() || 'tu oferta';
+    const shortTitle = offerTitle.length > 40 ? offerTitle.slice(0, 37) + '…' : offerTitle;
+    if (createdBy && createdBy !== userId) {
+      const { data: authorProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', userId)
+        .maybeSingle();
+      const authorName = (authorProfile as { display_name?: string | null } | null)?.display_name?.trim() || 'Alguien';
+      await supabase.from('notifications').insert({
+        user_id: createdBy,
+        type: 'offer_comment',
+        title: 'Nuevo comentario',
+        body: `${authorName} comentó en tu oferta: ${shortTitle}`,
+        link: `/?o=${offerId}`,
+      }).then(({ error: notifErr }) => {
+        if (notifErr) console.error('[comments] notification insert failed:', notifErr.message);
+      });
+    }
+  } catch (e) {
+    console.error('[comments] notify owner:', e);
+  }
+
   const { data: withProfile } = await supabase
     .from('comments')
     .select('id, content, created_at, user_id, parent_id, image_url, profiles:public_profiles_view!user_id(display_name)')

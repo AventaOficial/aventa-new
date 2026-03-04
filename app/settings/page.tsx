@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User, Check, Lock, Mail, Smartphone, Bell } from 'lucide-react';
+import { User, Check, Lock, Smartphone, Bell, Camera, Loader2 } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
 
 const DAYS_LIMIT = 14;
+const AVATAR_MAX_MB = 1;
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { resetPassword } = useAuth();
+  const { resetPassword, session } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [displayNameUpdatedAt, setDisplayNameUpdatedAt] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,6 +26,9 @@ export default function SettingsPage() {
   const [emailDailyDigest, setEmailDailyDigest] = useState(false);
   const [emailWeeklyDigest, setEmailWeeklyDigest] = useState(false);
   const [emailPrefsSaving, setEmailPrefsSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -52,7 +57,7 @@ export default function SettingsPage() {
       setUserEmail(user.email ?? '');
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('display_name, display_name_updated_at')
+        .select('display_name, display_name_updated_at, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
       if (profileError) {
@@ -61,6 +66,7 @@ export default function SettingsPage() {
       }
       setDisplayName(profile?.display_name ?? '');
       setDisplayNameUpdatedAt((profile as { display_name_updated_at?: string } | null)?.display_name_updated_at ?? null);
+      setAvatarUrl((profile as { avatar_url?: string | null } | null)?.avatar_url ?? null);
       setLoading(false);
     };
     loadProfile();
@@ -155,6 +161,40 @@ export default function SettingsPage() {
     if (!error) setPasswordResetSent(true);
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session?.access_token) return;
+    setAvatarError('');
+    if (file.size > AVATAR_MAX_MB * 1024 * 1024) {
+      setAvatarError(`Máximo ${AVATAR_MAX_MB}MB`);
+      return;
+    }
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type?.toLowerCase() ?? '')) {
+      setAvatarError('Solo jpg, png o webp');
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/upload-avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAvatarError(data?.error ?? 'Error al subir');
+        return;
+      }
+      if (data?.url) setAvatarUrl(data.url);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <ClientLayout>
@@ -177,9 +217,13 @@ export default function SettingsPage() {
             Configuración
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-            Gestiona tu perfil y preferencias
+            Perfil, seguridad y notificaciones
           </p>
 
+          {/* General: Perfil (avatar + nombre) */}
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+            General
+          </h2>
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">
@@ -187,12 +231,59 @@ export default function SettingsPage() {
                   <User className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Perfil</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Nombre visible en la comunidad</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Perfil</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Nombre visible y foto de perfil</p>
                 </div>
               </div>
             </div>
             <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  className="sr-only"
+                  disabled={avatarUploading}
+                  aria-label="Subir foto de perfil"
+                />
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="h-20 w-20 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-60"
+                  >
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-10 w-10 text-gray-400 dark:text-gray-500" />
+                    )}
+                  </button>
+                  {avatarUploading && (
+                    <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center pointer-events-none">
+                      <Loader2 className="h-8 w-8 text-white animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-60"
+                  >
+                    <Camera className="h-4 w-4" />
+                    {avatarUrl ? 'Cambiar foto' : 'Añadir foto de perfil'}
+                  </button>
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    JPG, PNG o WebP. Máximo {AVATAR_MAX_MB}MB.
+                  </p>
+                  {avatarError && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{avatarError}</p>
+                  )}
+                </div>
+              </div>
               <div>
                 <label
                   htmlFor="display_name"
@@ -236,52 +327,18 @@ export default function SettingsPage() {
             </form>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
-                  <Bell className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Correos</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Resumen diario y semanal en tu correo</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-5 md:p-6 space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={emailDailyDigest}
-                  onChange={(e) => handleEmailPrefChange('daily', e.target.checked)}
-                  disabled={emailPrefsSaving}
-                  className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recibir resumen diario (Top 10 ofertas del día)</span>
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Un correo al día con las mejores ofertas. Hora de envío aproximada: salida del trabajo.</p>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={emailWeeklyDigest}
-                  onChange={(e) => handleEmailPrefChange('weekly', e.target.checked)}
-                  disabled={emailPrefsSaving}
-                  className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recibir resumen semanal (domingos)</span>
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Resumen: más comentadas, mejor votadas de la semana.</p>
-            </div>
-          </section>
-
-          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+          {/* Seguridad */}
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-8 mb-3">
+            Seguridad
+          </h2>
+          <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-200 dark:bg-gray-700">
                   <Lock className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Contraseña</h2>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Contraseña</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Restablecer contraseña por correo</p>
                 </div>
               </div>
@@ -308,6 +365,52 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* Notificaciones */}
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-8 mb-3">
+            Notificaciones
+          </h2>
+          <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                  <Bell className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Correos</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Resumen diario y semanal</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 md:p-6 space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emailDailyDigest}
+                  onChange={(e) => handleEmailPrefChange('daily', e.target.checked)}
+                  disabled={emailPrefsSaving}
+                  className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Resumen diario (Top 10 ofertas)</span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Un correo al día. Hora aproximada: salida del trabajo.</p>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emailWeeklyDigest}
+                  onChange={(e) => handleEmailPrefChange('weekly', e.target.checked)}
+                  disabled={emailPrefsSaving}
+                  className="rounded border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Resumen semanal (domingos)</span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Más comentadas y mejor votadas de la semana.</p>
+            </div>
+          </section>
+
+          {/* App */}
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-8 mb-3 md:hidden">
+            App
+          </h2>
           <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden md:hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">

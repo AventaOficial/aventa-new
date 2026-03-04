@@ -17,9 +17,11 @@ type Row = {
   score: number;
   score_final: number;
   created_at: string;
+  /** Número de votos (cazadas) por oferta */
+  cazadas: number;
 };
 
-type SortKey = 'views' | 'outbound' | 'ctr' | 'shares';
+type SortKey = 'views' | 'outbound' | 'ctr' | 'shares' | 'cazadas';
 
 type OfferWithRelations = {
   id: string;
@@ -69,6 +71,7 @@ function computeRowsFromOffers(offers: OfferWithRelations[], dateLimit: Date): R
       score,
       score_final,
       created_at: o.created_at,
+      cazadas: votes.length,
     };
   });
 }
@@ -89,8 +92,8 @@ export default function MetricsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('outbound');
   const sorted = [...data].sort((a, b) => {
     const key = sortBy;
-    const va = key === 'views' ? a.views : a[key];
-    const vb = key === 'views' ? b.views : b[key];
+    const va = key === 'views' ? a.views : key === 'cazadas' ? (a.cazadas ?? 0) : a[key];
+    const vb = key === 'views' ? b.views : key === 'cazadas' ? (b.cazadas ?? 0) : b[key];
     if (va == null && vb == null) return 0;
     if (va == null) return 1;
     if (vb == null) return -1;
@@ -117,6 +120,7 @@ export default function MetricsPage() {
         (rows ?? []).map((r: Record<string, unknown>) => ({
           ...r,
           shares: r.shares ?? 0,
+          cazadas: (r.cazadas as number) ?? (r.votes_count as number) ?? 0,
         })) as Row[]
       );
       return;
@@ -307,16 +311,17 @@ export default function MetricsPage() {
 
         <div className="mb-3 flex items-center gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400">Ordenar por:</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-1.5 text-sm"
-          >
-            <option value="outbound">Clics a tienda</option>
-            <option value="views">Vistas</option>
-            <option value="ctr">CTR</option>
-            <option value="shares">Compartidos</option>
-          </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-1.5 text-sm"
+            >
+              <option value="outbound">Clics a tienda</option>
+              <option value="cazadas">Cazadas</option>
+              <option value="views">Vistas</option>
+              <option value="ctr">CTR</option>
+              <option value="shares">Compartidos</option>
+            </select>
         </div>
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
           <table className="w-full text-sm">
@@ -331,7 +336,7 @@ export default function MetricsPage() {
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">
                     No hay datos en este período
                   </td>
                 </tr>
@@ -349,6 +354,7 @@ export default function MetricsPage() {
                     </td>
                     <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.views}</td>
                     <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.outbound}</td>
+                    <td className="p-3 text-right text-gray-700 dark:text-gray-300">{row.cazadas ?? 0}</td>
                     <td className="p-3 text-right text-gray-700 dark:text-gray-300">
                       {row.ctr != null ? `${row.ctr}%` : '—'}
                     </td>

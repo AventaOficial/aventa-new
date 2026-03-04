@@ -25,6 +25,8 @@ type OfferRow = {
   created_at?: string | null;
   upvotes_count?: number | null;
   downvotes_count?: number | null;
+  status?: string | null;
+  expires_at?: string | null;
 };
 
 type MappedOffer = {
@@ -41,7 +43,18 @@ type MappedOffer = {
   image?: string;
   votes: { up: number; down: number; score: number };
   author: { username: string; avatar_url?: string | null };
+  /** Estado para mostrar en /me: Pendiente, Aprobada, Rechazada, Expirada */
+  offerStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
 };
+
+function getOfferStatus(status: string | null | undefined, expiresAt: string | null | undefined): MappedOffer['offerStatus'] {
+  const now = new Date().toISOString();
+  if (status === 'rejected') return 'rejected';
+  if (status === 'pending') return 'pending';
+  if (expiresAt && expiresAt < now) return 'expired';
+  if (status === 'approved' || status === 'published') return 'approved';
+  return 'approved';
+}
 
 export default function MePage() {
   useTheme();
@@ -95,7 +108,7 @@ export default function MePage() {
 
       const { data: rows } = await supabase
         .from('offers')
-        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count')
+        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, status, expires_at')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -111,7 +124,7 @@ export default function MePage() {
       const mapped: MappedOffer[] = (rows ?? []).map((row: OfferRow) => {
         const up = row.upvotes_count ?? 0;
         const down = row.downvotes_count ?? 0;
-        const score = up - down;
+        const score = up * 2 - down;
         totalUp += up;
         totalDown += down;
         totalScore += score;
@@ -135,6 +148,7 @@ export default function MePage() {
           description: row.description?.trim() || undefined,
           votes: { up, down, score },
           author,
+          offerStatus: getOfferStatus(row.status, row.expires_at),
         };
       });
 
@@ -261,6 +275,29 @@ export default function MePage() {
             ) : (
               offers.map((offer) => (
                 <div key={offer.id} className="space-y-2">
+                  {offer.offerStatus && (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          offer.offerStatus === 'approved'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                            : offer.offerStatus === 'pending'
+                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                              : offer.offerStatus === 'rejected'
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                        }`}
+                      >
+                        {offer.offerStatus === 'approved'
+                          ? 'Aprobada'
+                          : offer.offerStatus === 'pending'
+                            ? 'Pendiente de revisión'
+                            : offer.offerStatus === 'rejected'
+                              ? 'Rechazada'
+                              : 'Expirada (no visible en el feed)'}
+                      </span>
+                    </div>
+                  )}
                   <OfferCard
                     offerId={offer.id}
                     title={offer.title}
