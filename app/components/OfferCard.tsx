@@ -185,7 +185,7 @@ export default function OfferCard({
   };
 
   /** API: upvote = 2, downvote = -1 (un voto vale 2). */
-  const sendVote = (value: 2 | -1, onRevert: () => void, onSuccess?: (newVote: UserVote) => void): void => {
+  const sendVote = (value: 2 | -1, onRevert: () => void, onSuccess?: () => void): void => {
     if (!offerId) return;
     const token = session?.access_token ?? null;
     fetch('/api/votes', {
