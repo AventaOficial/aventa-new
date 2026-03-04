@@ -12,7 +12,7 @@ type AuthContextType = {
   isPending: boolean
   isVerified: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null; needsEmailConfirmation?: boolean }>
   signInWithOAuth: (provider: 'google') => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
@@ -76,12 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, displayName?: string) => {
     if (!isSupabaseConfigured()) return { error: new Error('Supabase no configurado') }
-    const { error } = await createClient().auth.signUp({
+    const { data, error } = await createClient().auth.signUp({
       email,
       password,
       options: { data: { display_name: displayName || null } },
     })
-    return { error: error as Error | null }
+    const needsEmailConfirmation = !error && !!data?.user && !data?.session
+    return { error: error as Error | null, needsEmailConfirmation }
   }
 
   const signOut = async () => {

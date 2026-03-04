@@ -93,11 +93,12 @@ export default function OfferCard({
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const userVote = localVote !== null ? localVote : (userVoteProp ?? 0);
   const isLiked = localLiked !== null ? localLiked : (isLikedProp ?? false);
-  const [localScore, setLocalScore] = useState(() => votes?.score ?? upvotes - downvotes);
+  const scoreFromFeed = votes?.score ?? upvotes * 2 - downvotes;
+  const [localScore, setLocalScore] = useState(() => scoreFromFeed);
   const [imgError, setImgError] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
-  const baseScore = votes?.score ?? upvotes - downvotes;
+  const baseScore = scoreFromFeed;
 
   const cardRef = useRef<HTMLDivElement>(null);
   const viewTrackedRef = useRef(false);
@@ -197,6 +198,8 @@ export default function OfferCard({
       .catch(onRevert);
   };
 
+  const scoreDelta = (v: UserVote) => (v === 1 ? 2 : v === -1 ? -1 : 0);
+
   const handleVoteUp = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!offerId) return;
@@ -207,7 +210,7 @@ export default function OfferCard({
     const prevVote = userVote;
     const prevScore = localScore;
     const newVote: UserVote = prevVote === 1 ? 0 : 1;
-    const delta = newVote - prevVote;
+    const delta = scoreDelta(newVote) - scoreDelta(prevVote);
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
     sendVote(2, () => {
@@ -226,7 +229,7 @@ export default function OfferCard({
     const prevVote = userVote;
     const prevScore = localScore;
     const newVote: UserVote = prevVote === -1 ? 0 : -1;
-    const delta = newVote - prevVote;
+    const delta = scoreDelta(newVote) - scoreDelta(prevVote);
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
     sendVote(-1, () => {

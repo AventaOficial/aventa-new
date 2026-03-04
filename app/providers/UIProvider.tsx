@@ -14,6 +14,7 @@ type UIContextType = {
   openGuideModal: () => void
   closeGuideModal: () => void
   showPendingMessage: boolean
+  openPendingMessage: () => void
   dismissPendingMessage: () => void
   markJustSignedUp: () => void
   showRegisterModal: boolean
@@ -201,6 +202,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showGuide, session, clearOverlayState])
 
+  const openPendingMessage = useCallback(() => setShowPendingMessage(true), [])
   const dismissPendingMessage = useCallback(() => setShowPendingMessage(false), [])
   const markJustSignedUp = useCallback(() => setSuppressOnboardingOnce(true), [])
   const openRegisterModal = useCallback((mode?: 'signup' | 'signin') => {
@@ -225,6 +227,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         openGuideModal,
         closeGuideModal,
         showPendingMessage,
+        openPendingMessage,
         dismissPendingMessage,
         markJustSignedUp,
         showRegisterModal,

@@ -281,19 +281,20 @@ export default function OfferModal({
 
   const handleVote = (vote: 'up' | 'down') => {
     if (!offerId || !session?.access_token) return;
-    const value = vote === 'up' ? 2 : -1;
+    const apiValue = vote === 'up' ? 2 : -1;
+    const displayVote = vote === 'up' ? 1 : -1;
     const prevVote = userVote;
     const prevUp = localUpvotes;
     const prevDown = localDownvotes;
 
-    if (prevVote === value) {
+    if (prevVote === displayVote) {
       setLocalVote(0);
       if (vote === 'up') setLocalUpvotes((p) => p - 1);
       else setLocalDownvotes((p) => p - 1);
     } else {
       if (prevVote === 1) setLocalUpvotes((p) => p - 1);
       if (prevVote === -1) setLocalDownvotes((p) => p - 1);
-      setLocalVote(value);
+      setLocalVote(displayVote);
       if (vote === 'up') setLocalUpvotes((p) => p + 1);
       else setLocalDownvotes((p) => p + 1);
     }
@@ -301,7 +302,7 @@ export default function OfferModal({
     fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ offerId, value }),
+      body: JSON.stringify({ offerId, value: apiValue }),
     })
       .then((res) => { if (!res.ok) throw new Error(); })
       .catch(() => {
@@ -719,7 +720,7 @@ export default function OfferModal({
                     }`}
                   >
                     <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-purple-600 text-purple-600 dark:fill-purple-400 dark:text-purple-400' : ''}`} />
-                    <span className="font-semibold">{localUpvotes}</span>
+                    <span className="font-semibold">{localUpvotes * 2}</span>
                   </button>
                   <button
                     onClick={() => handleVote('down')}

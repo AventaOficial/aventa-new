@@ -500,11 +500,13 @@ const RegisterModal = ({
   onClose,
   onSuccess,
   onJustSignedUp,
+  onNeedsEmailConfirmation,
   initialMode,
 }: {
   onClose: () => void;
   onSuccess: () => void;
   onJustSignedUp?: () => void;
+  onNeedsEmailConfirmation?: () => void;
   initialMode?: AuthModalMode;
 }) => {
   const { signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
@@ -526,9 +528,14 @@ const RegisterModal = ({
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const { error: err } = await signUp(email.trim(), password, name.trim() || undefined);
+        const { error: err, needsEmailConfirmation } = await signUp(email.trim(), password, name.trim() || undefined);
         if (err) {
           setError(err.message);
+          return;
+        }
+        if (needsEmailConfirmation) {
+          onNeedsEmailConfirmation?.();
+          onClose();
           return;
         }
         onJustSignedUp?.();
@@ -770,6 +777,7 @@ export default function OnboardingV1() {
   const {
     showGuide,
     showPendingMessage,
+    openPendingMessage,
     dismissPendingMessage,
     markJustSignedUp,
     showRegisterModal,
@@ -845,6 +853,10 @@ export default function OnboardingV1() {
           closeRegisterModal();
           openGuide();
         }}
+        onNeedsEmailConfirmation={() => {
+          openPendingMessage();
+          closeRegisterModal();
+        }}
         onClose={closeRegisterModal}
         onSuccess={() => closeRegisterModal()}
       />
@@ -869,9 +881,18 @@ export default function OnboardingV1() {
           <div className="absolute top-4 left-4 z-10">
             <DarkModeToggle />
           </div>
-          <p className="text-center text-lg text-[#1d1d1f] dark:text-[#fafafa]">
-            Revisa tu correo para verificar tu cuenta
+          <h2 className="text-center text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
+            Confirmar inscripción
+          </h2>
+          <p className="text-center text-[#6e6e73] dark:text-[#a3a3a3] text-sm leading-relaxed">
+            Revisa tu correo. Te enviamos un enlace para activar tu cuenta. Haz clic en el enlace del correo para continuar.
           </p>
+          <button
+            onClick={handleDismissPending}
+            className="mt-6 w-full rounded-xl bg-violet-600 dark:bg-violet-500 text-white py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
+          >
+            Entendido
+          </button>
         </div>
       </div>
     );
