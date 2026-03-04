@@ -34,7 +34,7 @@
 | **offer_events** | Views, outbound, share. APIs: `/api/events`, `/api/track-view`, `/api/track-outbound` |
 | **offer_favorites** | Favoritos por usuario |
 | **moderation_logs** | Log al aprobar/rechazar en `/api/admin/moderate-offer` |
-| **offer_reports** | Tabla creada (025), UI en admin/reports dice "Próximamente" |
+| **offer_reports** | Tabla creada (025), UI admin/reports implementada (listado, filtros, panel oferta) |
 
 ### Tablas en Supabase pero no en migraciones del repo
 
@@ -52,9 +52,7 @@ La auditoría menciona `username` (unique, nullable). En las migraciones del rep
 
 ### 3.1 Sistema de reportes (offer_reports)
 
-- **Estado:** Tabla creada, RLS configurado.
-- **UI:** `/admin/reports` muestra "Próximamente (Fase 3)".
-- **Falta:** Botón "Reportar" en OfferModal/OfferCard que inserte en `offer_reports`. Flujo de revisión por moderadores.
+- **Estado:** ✅ Implementado. Tabla y RLS configurados. Botón "Reportar" en OfferModal con tipo y comentario; POST `/api/reports`. Panel `/admin/reports` con listado, filtros por estado y panel de oferta. Flujo de revisión por moderadores operativo.
 
 ### 3.2 RPCs de reputación (profiles)
 

@@ -18,6 +18,8 @@
 - **Precios:** Redondeo a 2 decimales en front y API para evitar errores de coma flotante (p. ej. 12000 no se guarda como 11998).
 - **RLS y roles:** Políticas de Supabase revisadas (offer_events, offers, comments, etc.). Rol `owner` incluido en la lógica de moderación. Un solo trigger en `offer_votes` para métricas.
 - **Perfil público:** API `/api/profile/[username]` usa RPC `get_profile_by_slug`; no se cargan todos los perfiles.
+- **Moderación:** Panel pendientes/aprobadas/rechazadas/comentarios/baneos; reportes en `/admin/reports` (listado, filtros, panel oferta). Vista completa de oferta en modal (descripción, pasos, condiciones, URL).
+- **Docs:** Alineación en `docs/DOCS_ALINEACION_AUDITORIA.md`. Reportes implementados (ANALISIS actualizado).
 
 ---
 
