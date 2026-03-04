@@ -12,7 +12,7 @@ const AVATAR_MAX_MB = 1;
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { resetPassword, session } = useAuth();
+  const { resetPassword, session, user } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [displayNameUpdatedAt, setDisplayNameUpdatedAt] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -72,7 +72,6 @@ export default function SettingsPage() {
     loadProfile();
   }, [router]);
 
-  const { session, user } = useAuth();
   useEffect(() => {
     if (!user?.id) {
       setEmailDailyDigest(false);
