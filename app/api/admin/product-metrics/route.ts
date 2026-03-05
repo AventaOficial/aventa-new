@@ -39,6 +39,7 @@ export async function GET(request: Request) {
 
   // Retención 48h: de usuarios con first_seen >= 48h atrás, % que tienen last_seen > first_seen + 5 min y last_seen <= first_seen + 48h
   let retention48hPct: number | null = null;
+  let avg_duration_minutes_retention_48h: number | null = null;
   try {
     const { data: activity } = await supabase
       .from('user_activity')
@@ -53,6 +54,15 @@ export async function GET(request: Request) {
       return last - first >= fiveMin && last <= first + fortyEight;
     });
     retention48hPct = cohort.length > 0 ? Math.round((returned.length / cohort.length) * 10000) / 100 : null;
+    // Tiempo est. dentro: media (last_seen - first_seen) en minutos para los retornados 48h
+    if (returned.length > 0) {
+      const sumMinutes = returned.reduce((acc, r) => {
+        const first = new Date(r.first_seen_at).getTime();
+        const last = new Date(r.last_seen_at).getTime();
+        return acc + (last - first) / (60 * 1000);
+      }, 0);
+      avg_duration_minutes_retention_48h = Math.round(sumMinutes / returned.length);
+    }
   } catch {
     // ignore
   }
@@ -85,6 +95,7 @@ export async function GET(request: Request) {
     new_users_today: newUsersToday ?? 0,
     active_users_24h: activeUsers24h,
     retention_48h_pct: retention48hPct,
+    avg_duration_minutes_retention_48h: avg_duration_minutes_retention_48h,
     best_hour_utc: bestHour,
     best_hour_count: bestHourCount,
   });

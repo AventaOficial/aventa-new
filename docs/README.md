@@ -1,18 +1,13 @@
 # Documentación AVENTA
 
-Índice de la documentación del proyecto.
-
-## Documentos activos
+Solo tres documentos activos en `docs/`:
 
 | Archivo | Descripción |
 |---------|-------------|
-| [moderacion.md](./moderacion.md) | Panel de moderación, modelo multinivel, fases |
-| [modelo-votos.md](./modelo-votos.md) | Reglas de votos up +2 down -1 |
-| [DOCS_ALINEACION_AUDITORIA.md](./DOCS_ALINEACION_AUDITORIA.md) | Alineación docs vs código, auditorías y checklist |
+| [GUIA_AVENTA.md](./GUIA_AVENTA.md) | **Estado, roadmap y checklist** — documento único de referencia para el día a día |
+| [SUPABASE_CONTEXTO.md](./SUPABASE_CONTEXTO.md) | Schema public, funciones, triggers y extensiones Supabase |
+| [README.md](./README.md) | Este índice |
 
-*Nota: supabase-contexto.md y migraciones.md no están en el repo; las migraciones SQL están en `docs/supabase-migrations/`.*
+Las migraciones SQL están en `docs/supabase-migrations/`.
 
-## Archivados
-
-- `../archived/auditorias/` — Auditorías y análisis antiguos
-- `../archived/prompts-aplicados/` — Prompts ya ejecutados en Supabase
+El resto de la documentación (auditorías, avisos, checklist técnico, comparativas, métricas, limpieza, modelo de votos, moderación, roadmap de producto, etc.) está archivada en **`archived/docs/`** para mantener `docs/` limpio.

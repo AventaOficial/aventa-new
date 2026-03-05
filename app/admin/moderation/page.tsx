@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { Search, CheckSquare, Square, Clock, Check, X } from 'lucide-react';
+import { Search, CheckSquare, Square, Clock, Check, X, FlaskConical } from 'lucide-react';
 import ModerationOfferCard from '../components/ModerationOfferCard';
 
 const CATEGORY_OPTIONS = [
@@ -104,6 +104,43 @@ export default function ModerationPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [riskHighOnly, setRiskHighOnly] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [showTesterOffers, setShowTesterOffers] = useState(false);
+  const [testerOffersSaving, setTesterOffersSaving] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setIsOwner(false);
+      return;
+    }
+    const supabase = createClient();
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .then(({ data }) => setIsOwner((data ?? []).some((r: { role: string }) => r.role === 'owner')));
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (pathname !== MODERATION_PATH) return;
+    fetch('/api/app-config?key=show_tester_offers')
+      .then((r) => r.json())
+      .then((data) => setShowTesterOffers(data?.value === true))
+      .catch(() => setShowTesterOffers(false));
+  }, [pathname]);
+
+  const setTesterOffersEnabled = useCallback(async (enabled: boolean) => {
+    setTesterOffersSaving(true);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const res = await fetch('/api/admin/app-config', {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ key: 'show_tester_offers', value: enabled }),
+    });
+    setTesterOffersSaving(false);
+    if (res.ok) setShowTesterOffers(enabled);
+  }, [session?.access_token]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -256,6 +293,32 @@ export default function ModerationPage() {
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         Revisa cada oferta. Si está bien → Aprobar. Si no cumple → Rechazar.
       </p>
+
+      {isOwner && (
+        <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Ofertas de testers</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Activa ofertas de ejemplo en el home (iPhone, PC gamer, tenis, etc.). Solo relleno; no afectan métricas.</p>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {showTesterOffers ? 'Activado' : 'Desactivado'}
+              </span>
+              <input
+                type="checkbox"
+                checked={showTesterOffers}
+                disabled={testerOffersSaving}
+                onChange={(e) => setTesterOffersEnabled(e.target.checked)}
+                className="rounded border-gray-400 text-amber-500 focus:ring-amber-500 disabled:opacity-50"
+              />
+            </label>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">

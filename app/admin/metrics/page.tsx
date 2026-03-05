@@ -77,6 +77,7 @@ type ProductMetrics = {
   new_users_today: number;
   active_users_24h: number;
   retention_48h_pct: number | null;
+  avg_duration_minutes_retention_48h: number | null;
   best_hour_utc: number | null;
   best_hour_count: number;
 };
@@ -121,21 +122,30 @@ export default function MetricsPage() {
       );
       return;
     }
-    const days = period === 'day' ? 1 : period === 'week' ? 7 : 30;
-    const dateLimit = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const { data: offers, error: err } = await supabase
-      .from('offers')
-      .select(`id, title, category, created_at, offer_events(event_type, created_at), offer_votes(value)`)
-      .or('status.eq.approved,status.eq.published');
-    if (err) {
-      setError(err.message);
+    // day/week/month: usar API con service role para que vistas y clics (outbound) se cuenten bien aunque RLS restrinja offer_events en el cliente
+    if (!session?.access_token) {
+      setError('Inicia sesión para ver actividad por período');
+      setData([]);
       return;
     }
     setError(null);
-    let rows = computeRowsFromOffers((offers ?? []) as OfferWithRelations[], dateLimit);
-    rows = rows.filter((row) => row.views > 0 || row.outbound > 0);
-    setData(rows);
-  }, [period]);
+    try {
+      const res = await fetch(`/api/admin/offer-activity?period=${period}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j?.error ?? 'Error al cargar actividad');
+        setData([]);
+        return;
+      }
+      const json = await res.json();
+      setData(Array.isArray(json?.rows) ? json.rows : []);
+    } catch {
+      setError('Error de red');
+      setData([]);
+    }
+  }, [period, session?.access_token]);
 
   useEffect(() => {
     setLoading(true);
@@ -248,6 +258,11 @@ export default function MetricsPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Retención 48h <span className="text-violet-600 dark:text-violet-400">(métrica clave en beta)</span>
               </p>
+              {productMetrics.avg_duration_minutes_retention_48h != null && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  Tiempo est. dentro (retornados): {productMetrics.avg_duration_minutes_retention_48h} min
+                </p>
+              )}
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">

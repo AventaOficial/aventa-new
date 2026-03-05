@@ -63,6 +63,8 @@ interface OfferCardProps {
   msiMonths?: number | null;
   /** Badge "Destacada" cuando la oferta tiene alta calidad (ranking_blend alto). */
   isDestacada?: boolean;
+  /** Oferta de prueba (relleno): badge "Prueba", click solo toast, no voto/favorito. */
+  isTesterOffer?: boolean;
 }
 
 export default function OfferCard({
@@ -87,6 +89,7 @@ export default function OfferCard({
   msiMonths,
   createdAt,
   isDestacada = false,
+  isTesterOffer = false,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -157,6 +160,7 @@ export default function OfferCard({
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isTesterOffer) return;
     if (!session) {
       router.push('/');
       return;
@@ -208,6 +212,7 @@ export default function OfferCard({
 
   const handleVoteUp = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isTesterOffer) return;
     if (!offerId) return;
     if (!session) {
       showToast('Crea una cuenta para votar y ayudar a la comunidad');
@@ -227,6 +232,7 @@ export default function OfferCard({
 
   const handleVoteDown = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isTesterOffer) return;
     if (!offerId) return;
     if (!session) {
       showToast('Crea una cuenta para votar y ayudar a la comunidad');
@@ -287,7 +293,7 @@ export default function OfferCard({
   return (
     <div
       ref={cardRef}
-      onClick={onCardClick}
+      onClick={isTesterOffer ? () => showToast('Oferta de prueba') : onCardClick}
       className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
     >
       <button
@@ -373,6 +379,11 @@ export default function OfferCard({
               <span className="inline-flex items-center gap-0.5 text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300" title="Alta calidad: la comunidad y el tiempo la destacan">
                 <Award className="h-3 w-3 md:h-3.5 md:w-3.5" />
                 Destacada
+              </span>
+            )}
+            {isTesterOffer && (
+              <span className="inline-flex text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" title="Oferta de ejemplo (relleno)">
+                Prueba
               </span>
             )}
           </div>
