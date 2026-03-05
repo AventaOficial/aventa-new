@@ -90,5 +90,7 @@ Criterio: “qué tan lejos estamos de algo bien” en sistemas, estructura, dis
 ## 7. Referencias
 
 - **Contexto Supabase (schema, funciones, triggers):** [SUPABASE_CONTEXTO.md](./SUPABASE_CONTEXTO.md) — en `docs/`.
+- **Feedback de encuestas, roadmap resumido y filtros (AVENTA vs Promodescuentos):** [FEEDBACK_Y_ROADMAP.md](./FEEDBACK_Y_ROADMAP.md).
+- **Sistemas (app por partes) y notificaciones:** [SISTEMAS_AVENTA.md](./SISTEMAS_AVENTA.md) — mapa actual; propuestas detalladas en archived/docs/SISTEMAS_Y_PROPUESTAS_POST_AUDITORIA.md.
 
-Documentación por tema (beta, checklist técnico, modelo votos, moderación, etc.) está en **`archived/docs/`**: BETA_PRIVADA_COMO_LANZAR.md, PREGUNTAS_BETA_TESTERS.md, AUDITORIA_PRE_BETA_Y_CHECKLIST.md, CHECKLIST_LANZAMIENTO.md, modelo-votos.md, moderacion.md, ROADMAP_PRODUCTO.md, y el resto. Para el día a día basta esta guía.
+Documentación por tema (beta, checklist técnico, modelo votos, moderación, etc.) está en **`archived/docs/`**: BETA_PRIVADA_COMO_LANZAR.md, PREGUNTAS_BETA_TESTERS.md, ROADMAP_PRODUCTO.md, y el resto. Para el día a día basta esta guía y, si acaso, FEEDBACK_Y_ROADMAP.md.

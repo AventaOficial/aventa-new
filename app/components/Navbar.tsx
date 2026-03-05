@@ -179,13 +179,11 @@ export default function Navbar() {
               transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative rounded-full p-2.5 md:p-3 text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors duration-200"
-              aria-label="Notificaciones"
+              aria-label={unreadCount > 0 ? `Notificaciones (${unreadCount} sin leer)` : 'Notificaciones'}
             >
               <Bell className="h-5 w-5 md:h-6 md:w-6" />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-bold">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+                <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-violet-600 ring-2 ring-white dark:ring-[#141414]" title={`${unreadCount} sin leer`} aria-hidden />
               )}
             </motion.button>
           )}
