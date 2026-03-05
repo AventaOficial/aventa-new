@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, Star, Image as ImageIcon, AlertCircle, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
+import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -73,60 +73,6 @@ function slugFromUsername(name: string | null | undefined): string {
   return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
-const mockReviews = [
-  {
-    id: 1,
-    user: 'Juan P.',
-    avatar: null,
-    rating: 5,
-    text: 'Producto excelente, superó mis expectativas. La oferta fue real y el envío rápido.',
-    time: 'Hace 3 días',
-    hasPhoto: true,
-  },
-  {
-    id: 2,
-    user: 'Laura M.',
-    avatar: null,
-    rating: 4.5,
-    text: 'Muy buena calidad, solo que el color es un poco diferente a la foto.',
-    time: 'Hace 1 semana',
-    hasPhoto: true,
-  },
-  {
-    id: 3,
-    user: 'Roberto S.',
-    avatar: null,
-    rating: 3.5,
-    text: 'Está bien, pero esperaba más por el precio. La oferta fue real al menos.',
-    time: 'Hace 2 semanas',
-    hasPhoto: false,
-  },
-];
-
-function StarRating({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' | 'lg' }) {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.5;
-  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-  
-  const starSize = size === 'sm' ? 'h-4 w-4' : size === 'lg' ? 'h-6 w-6' : 'h-5 w-5';
-
-  return (
-    <div className="flex items-center gap-0.5">
-      {[...Array(fullStars)].map((_, i) => (
-        <Star key={`full-${i}`} className={`${starSize} fill-yellow-400 text-yellow-400`} />
-      ))}
-      {hasHalfStar && (
-        <div className="relative">
-          <Star className={`${starSize} text-gray-300`} />
-          <Star className={`${starSize} fill-yellow-400 text-yellow-400 absolute left-0 top-0 overflow-hidden`} style={{ width: '50%' }} />
-        </div>
-      )}
-      {[...Array(emptyStars)].map((_, i) => (
-        <Star key={`empty-${i}`} className={`${starSize} text-gray-300`} />
-      ))}
-    </div>
-  );
-}
 
 export default function OfferModal({
   isOpen,
@@ -173,10 +119,7 @@ export default function OfferModal({
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [likingId, setLikingId] = useState<string | null>(null);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewText, setReviewText] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
-  const [reviewHasMedia, setReviewHasMedia] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportType, setReportType] = useState<string>('');
   const [reportComment, setReportComment] = useState('');
@@ -195,7 +138,6 @@ export default function OfferModal({
   }, [offerId]);
 
   const savings = originalPrice - discountPrice;
-  const averageRating = mockReviews.reduce((acc, review) => acc + review.rating, 0) / mockReviews.length;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -410,14 +352,6 @@ export default function OfferModal({
     }
   };
 
-  const handleSubmitReview = () => {
-    if (reviewRating > 0 && reviewText.trim() && reviewHasMedia) {
-      setReviewRating(0);
-      setReviewText('');
-      setReviewHasMedia(false);
-    }
-  };
-
   const handleSubmitReport = async () => {
     if (!reportType || !offerId || reportSubmitting) return;
     if (!session?.access_token) {
@@ -449,6 +383,33 @@ export default function OfferModal({
       showToast?.('Error al enviar');
     } finally {
       setReportSubmitting(false);
+    }
+  };
+
+  const handleReportComment = async (commentId: string) => {
+    if (!offerId || !session?.access_token) {
+      showToast?.('Inicia sesión para reportar');
+      return;
+    }
+    try {
+      const res = await fetch(
+        `/api/offers/${encodeURIComponent(offerId)}/comments/${encodeURIComponent(commentId)}/report`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ reason: 'Reportado por usuario' }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        showToast?.('Comentario reportado. Gracias por ayudar.');
+      } else if (res.status === 409) {
+        showToast?.('Ya reportaste este comentario.');
+      } else {
+        showToast?.(data?.error ?? 'Error al reportar');
+      }
+    } catch {
+      showToast?.('Error al reportar');
     }
   };
 
@@ -815,6 +776,16 @@ export default function OfferModal({
                                   <MessageCircle className="h-3.5 w-3.5" />
                                   Responder
                                 </button>
+                                {session && !isOwn && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReportComment(comment.id)}
+                                    className="text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1"
+                                  >
+                                    <Flag className="h-3.5 w-3.5" />
+                                    Reportar
+                                  </button>
+                                )}
                               </div>
                             </div>
                             {(comment.replies?.length ?? 0) > 0 && (
@@ -850,6 +821,16 @@ export default function OfferModal({
                                         <MessageCircle className="h-3.5 w-3.5" />
                                         Responder
                                       </button>
+                                      {session && !isOwnReply && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleReportComment(reply.id)}
+                                          className="text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1"
+                                        >
+                                          <Flag className="h-3.5 w-3.5" />
+                                          Reportar
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 );
@@ -909,133 +890,24 @@ export default function OfferModal({
                     <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/80 dark:bg-amber-900/20 p-6 text-center">
                       <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Reseñas próximamente</p>
                       <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                        La comunidad podrá dejar reseñas verificadas. Estamos construyendo esta función.
+                        La comunidad podrá dejar reseñas verificadas con foto o video. Estamos construyendo esta función.
                       </p>
-                    </div>
-                    <div className="hidden">
-                    <div className="rounded-xl border border-purple-100 dark:border-purple-800/30 bg-purple-50/50 dark:bg-purple-900/20 p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="text-center">
-                          <div className="text-4xl font-bold text-gray-900 dark:text-gray-100">{averageRating.toFixed(1)}</div>
-                          <StarRating rating={averageRating} size="lg" />
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{mockReviews.length} reseñas</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      {mockReviews.map((review) => (
-                        <div key={review.id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 transition-all duration-600 ease-[0.16,1,0.3,1]" />
-                              <div>
-                                <p className="font-semibold text-gray-900 dark:text-gray-100">{review.user}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{review.time}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <StarRating rating={review.rating} size="sm" />
-                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{review.rating}</span>
-                            </div>
-                          </div>
-                          <p className="text-gray-700 dark:text-gray-300 mb-2">{review.text}</p>
-                          {review.hasPhoto && (
-                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                              <ImageIcon className="h-4 w-4" />
-                              <span>Incluye foto</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
-                      <div className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-                        <AlertCircle className="h-4 w-4" />
-                        <span className="font-semibold">Sé respetuoso. Las reseñas ofensivas serán eliminadas.</span>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Calificación *
-                        </label>
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              onClick={() => setReviewRating(star)}
-                              className="transition-transform duration-200 ease-out hover:scale-110"
-                            >
-                              <Star
-                                className={`h-8 w-8 ${
-                                  star <= reviewRating
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-gray-300'
-                                }`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Reseña *
-                        </label>
-                        <textarea
-                          value={reviewText}
-                          onChange={(e) => setReviewText(e.target.value)}
-                          placeholder="Comparte tu experiencia..."
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-purple-500 focus:outline-none resize-none"
-                          rows={4}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Foto o video * (obligatorio)
-                        </label>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setReviewHasMedia(true)}
-                            className={`flex-1 rounded-lg border-2 px-4 py-3 transition-colors duration-200 ease-out ${
-                              reviewHasMedia
-                                ? 'border-purple-500 dark:border-purple-400 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:border-purple-300 dark:hover:border-purple-500'
-                            }`}
-                          >
-                            <div className="flex items-center justify-center gap-2">
-                              <ImageIcon className="h-5 w-5" />
-                              <span>Agregar foto/video</span>
-                            </div>
-                          </button>
-                        </div>
-                        {reviewHasMedia && (
-                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">✓ Media adjuntado</p>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={handleSubmitReview}
-                        disabled={reviewRating === 0 || !reviewText.trim() || !reviewHasMedia}
-                        className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-600 dark:to-pink-500 px-4 py-2.5 font-semibold text-white transition-transform duration-200 ease-out hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Publicar reseña
-                      </button>
-                    </div>
                     </div>
                   </div>
                 )}
 
                 <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => { openLuna(); onClose(); }}
+                    className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                  >
                     <MessageCircle className="h-4 w-4 shrink-0" />
                     <span>Preguntar a Luna sobre esta oferta</span>
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                       Próximamente
                     </span>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
 
 type OfferRow = {
   id: string;
@@ -23,6 +24,9 @@ export async function GET(
   if (!username) {
     return NextResponse.json({ error: 'Username required' }, { status: 400 });
   }
+
+  const rl = await enforceRateLimit(`prof:${getClientIp(_request)}`);
+  if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const supabase = createServerClient();
 

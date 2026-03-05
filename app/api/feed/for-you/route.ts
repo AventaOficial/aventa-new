@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = 60;
@@ -46,6 +47,9 @@ export async function GET(request: Request) {
   if (authError || !user?.id) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
+
+  const rl = await enforceRateLimit(`feed:${user.id}`);
+  if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get('limit')) || DEFAULT_LIMIT, 24);

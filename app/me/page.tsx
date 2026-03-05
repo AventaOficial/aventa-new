@@ -260,32 +260,25 @@ export default function MePage() {
               </p>
             ) : (
               offers.map((offer) => (
-                <div key={offer.id} className="space-y-2">
-                  <OfferCard
-                    offerId={offer.id}
-                    title={offer.title}
-                    brand={offer.brand}
-                    originalPrice={offer.originalPrice}
-                    discountPrice={offer.discountPrice}
-                    discount={offer.discount}
-                    description={offer.description}
-                    image={offer.image}
-                    upvotes={offer.upvotes}
-                    downvotes={offer.downvotes}
-                    votes={offer.votes}
-                    offerUrl={offer.offerUrl}
-                    author={offer.author}
-                    onCardClick={() => setSelectedOffer(offer)}
-                    userVote={voteMap[offer.id] ?? null}
-                    isLiked={!!favoriteMap[offer.id]}
-                  />
-                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>Solicitar cambios</span>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
-                      Próximamente
-                    </span>
-                  </div>
-                </div>
+                <OfferCard
+                  key={offer.id}
+                  offerId={offer.id}
+                  title={offer.title}
+                  brand={offer.brand}
+                  originalPrice={offer.originalPrice}
+                  discountPrice={offer.discountPrice}
+                  discount={offer.discount}
+                  description={offer.description}
+                  image={offer.image}
+                  upvotes={offer.upvotes}
+                  downvotes={offer.downvotes}
+                  votes={offer.votes}
+                  offerUrl={offer.offerUrl}
+                  author={offer.author}
+                  onCardClick={() => setSelectedOffer(offer)}
+                  userVote={voteMap[offer.id] ?? null}
+                  isLiked={!!favoriteMap[offer.id]}
+                />
               ))
             )}
           </div>

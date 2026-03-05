@@ -41,13 +41,30 @@
 
 ### Pendiente antes de lanzar abierto
 
-- [ ] **Privacidad:** Sustituir placeholder del correo de contacto por correo real. En `/privacy` suele haber un email tipo “contacto@ejemplo.com”; reemplazarlo por el correo real de contacto (legal/compliance).
+- [x] **Privacidad:** Sustituir placeholder del correo de contacto por correo real. En `/privacy` suele haber un email tipo “contacto@ejemplo.com”; reemplazarlo por el correo real de contacto (legal/compliance).
 - [x] **Vercel/Supabase/Google:** Producción verificada. Variables en Vercel (Supabase, Resend, Upstash, CRON_SECRET); OAuth 2.0 en Google Cloud con redirect de producción; el usuario ya puede iniciar sesión con Google en prod.
 - [ ] **Prueba punta a punta:** Recorrido manual (o E2E): registrarse → subir oferta → votar → comentar → reportar → (como mod) aprobar/rechazar. Objetivo: asegurar que nada está roto antes de abrir a más usuarios.
 
 ### Placeholders (no bloquean)
 
 - /communities: placeholder; se deja para más adelante.
+
+---
+
+## 3.1 Para lanzamiento oficial (después de beta)
+
+Cuando quieras pasar de “beta abierta” a **lanzamiento oficial** (comunicarlo como producto listo, no beta), suele faltar:
+
+| Área | Qué hacer |
+|------|-----------|
+| **Cierre de beta** | Prueba punta a punta hecha; correo real en /privacy (ya: aventasoportelegal@gmail.com). Migraciones aplicadas (app_config, preferred_categories). |
+| **Contenido** | Tener un mínimo de ofertas vivas (ej. ~50+ al día o semanales) para que el feed no se vea vacío; tú o el equipo pueden subir/curar al inicio (OBJETIVOS_Y_NECESIDADES). |
+| **Mensaje** | Definir si quitas la palabra “beta” de la app y de la comunicación; usar FRASES_AVENTA.md para redes y landing. |
+| **Legal (opcional)** | Revisión con abogado cuando haya ingresos o compromisos fuertes; hasta entonces, privacy/terms coherentes con la app y correo de contacto real es suficiente. |
+| **Empresa (opcional)** | Si habrá facturación, socios o contratos: orden con contador/abogado; nombre, qué hace AVENTA, métrica norte (COMO_LLEVAR_AVENTA). |
+| **Observación** | Revisar métricas (retención 48h, CTR, ofertas por categoría) y PENDIENTES.md para bugs/copy; no es obligatorio tener todo perfecto el día 1. |
+
+En resumen: para **lanzamiento oficial** lo crítico es tener el flujo probado, legal con correo real, contenido mínimo en el feed y mensaje claro. El resto (revisión legal formal, estructura empresa) puede ser cuando haya ingresos o crecimiento.
 
 ---
 

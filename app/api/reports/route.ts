@@ -52,6 +52,17 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServerClient()
+
+    const { data: existing } = await supabase
+      .from('offer_reports')
+      .select('id')
+      .eq('offer_id', offerId)
+      .eq('reporter_id', reporterId)
+      .maybeSingle()
+    if (existing) {
+      return NextResponse.json({ error: 'Ya reportaste esta oferta.' }, { status: 409 })
+    }
+
     const { error } = await supabase.from('offer_reports').insert({
       offer_id: offerId,
       reporter_id: reporterId,

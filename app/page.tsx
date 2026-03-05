@@ -747,9 +747,6 @@ function HomeContent() {
 
         <div className="h-20 md:h-0" />
 
-      <div className="luna-chat">
-        <ChatBubble />
-      </div>
 
         {selectedOffer && (() => {
           const liveOffer = offers.find((o) => o.id === selectedOffer.id) ?? selectedOffer;
@@ -787,6 +784,10 @@ function HomeContent() {
           />
           );
         })()}
+
+      <div className="luna-chat">
+        <ChatBubble />
+      </div>
 
       </div>
     </ClientLayout>

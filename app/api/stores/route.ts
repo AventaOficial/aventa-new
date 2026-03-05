@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
 
 /** GET: lista de tiendas distintas (ofertas aprobadas/publicadas) para filtros. */
-export async function GET() {
+export async function GET(request: Request) {
+  const rl = await enforceRateLimit(`stores:${getClientIp(request)}`);
+  if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
+
   try {
     const supabase = createServerClient();
     const now = new Date().toISOString();

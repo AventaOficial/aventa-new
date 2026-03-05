@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 /** GET: preferencias de correo del usuario */
 export async function GET(request: NextRequest) {
@@ -10,6 +11,9 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const rl = await enforceRateLimit(`emailpref:${user.id}`);
+  if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const { data, error } = await supabase
     .from('user_email_preferences')
@@ -34,6 +38,9 @@ export async function PATCH(request: NextRequest) {
   const supabase = createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const rl2 = await enforceRateLimit(`emailpref:${user.id}`);
+  if (!rl2.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const body = await request.json().catch(() => ({}));
   const email_daily_digest = typeof body?.email_daily_digest === 'boolean' ? body.email_daily_digest : undefined;

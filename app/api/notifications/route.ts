@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 const DEFAULT_LIMIT = 30;
 
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
   if (authError || !user?.id) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
+
+  const rl = await enforceRateLimit(`notif:${user.id}`);
+  if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get('limit')) || DEFAULT_LIMIT, 50);
@@ -59,6 +63,9 @@ export async function PATCH(request: NextRequest) {
   if (authError || !user?.id) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
+
+  const rl2 = await enforceRateLimit(`notif:${user.id}`);
+  if (!rl2.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const body = await request.json().catch(() => ({}));
   const id = typeof body?.id === 'string' ? body.id.trim() : null;

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 /** POST: registra actividad del usuario (first_seen / last_seen). Llamar desde el cliente cuando hay sesión. */
 export async function POST(request: Request) {
@@ -10,6 +11,9 @@ export async function POST(request: Request) {
   const supabase = createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user?.id) return NextResponse.json({ ok: false }, { status: 401 });
+
+  const rl = await enforceRateLimit(`hb:${user.id}`);
+  if (!rl.success) return NextResponse.json({ ok: false }, { status: 429 });
 
   const { error } = await supabase.rpc('upsert_user_activity', { p_user_id: user.id });
   if (error) {

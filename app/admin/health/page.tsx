@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-
-const ALLOWED_EMAIL = 'jafetalonsovazquez@gmail.com'
+import { canAccessHealth, type Role } from '@/lib/admin/roles'
 
 type MetricRow = {
   date: string
@@ -24,7 +23,13 @@ export default function HealthPage() {
     const supabase = createClient()
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user || user.email !== ALLOWED_EMAIL) {
+      if (!user) { router.push('/'); setLoading(false); return }
+      const { data: roleRow } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!canAccessHealth((roleRow?.role as Role) ?? null)) {
         router.push('/')
         setLoading(false)
         return

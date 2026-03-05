@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /mi-panel/
+Disallow: /settings/
+Disallow: /me/
+
+Sitemap: https://aventaofertas.com/sitemap.xml

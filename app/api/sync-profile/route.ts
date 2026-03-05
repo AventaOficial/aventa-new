@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 /** Misma lógica que el frontend (slugFromUsername): minúsculas, espacios→-, solo a-z0-9- */
 function toSlug(name: string | null): string | null {
@@ -30,8 +31,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
     }
 
-    // Temporal: confirmar que el sync se ejecuta (ver consola del servidor)
-    console.log('SYNC PROFILE EXECUTED FOR:', user.id);
+    const rl = await enforceRateLimit(`sync:${user.id}`);
+    if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
     const displayNameFromMeta =
       (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.user_metadata?.display_name) as string | undefined;
