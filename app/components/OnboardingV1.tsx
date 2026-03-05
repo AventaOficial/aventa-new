@@ -1,12 +1,14 @@
 'use client';
 
-import { X, Plus, ThumbsUp, Heart } from 'lucide-react';
+import { X, Plus, ThumbsUp, Heart, Search } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { createClient } from '@/lib/supabase/client';
 import DarkModeToggle from './DarkModeToggle';
 import AventaIcon from './AventaIcon';
+import { GENERAL_CATEGORIES_FOR_ONBOARDING, ONBOARDING_SEARCHABLE_EXTRA } from '@/lib/categories';
 
 const GUIDE_STEPS = [
   {
@@ -152,39 +154,106 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
   );
 }
 
-/** Paso: qué es AVENTA — breve, sin repetir lo del primer page (comunidad cazadora). */
-function PageQueEsAventa({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+const ONBOARDING_MAX_CATEGORIES = 3;
+const STORAGE_KEY_ONBOARDING_CATEGORIES = 'onboarding_selected_categories';
+
+/** Paso: seleccionar hasta 3 categorías antes de iniciar sesión. Estilo Apple: botones claros, buscador para marcas. */
+function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+  const allOptions: { value: string; label: string }[] = [
+    ...GENERAL_CATEGORIES_FOR_ONBOARDING.map((c) => ({ value: c.value, label: c.label })),
+    ...ONBOARDING_SEARCHABLE_EXTRA.map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) })),
+  ];
+  const filtered = search.trim()
+    ? allOptions.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase()))
+    : GENERAL_CATEGORIES_FOR_ONBOARDING.map((c) => ({ value: c.value, label: c.label }));
+
+  const toggle = (value: string, label: string) => {
+    setSelected((prev) => {
+      if (prev.includes(value)) return prev.filter((x) => x !== value);
+      if (prev.length >= ONBOARDING_MAX_CATEGORIES) return prev;
+      return [...prev, value];
+    });
+  };
+
+  const handleContinue = () => {
+    if (selected.length === 0) return;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_ONBOARDING_CATEGORIES, JSON.stringify(selected));
+      } catch (_) {}
+    }
+    onNext();
+  };
+
   return (
     <motion.div
-      key="what-is-aventa"
+      key="categories"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={t}
-      className="flex flex-col items-center justify-center text-center flex-1 min-h-0 px-6 py-6 md:py-12"
+      className="flex flex-col flex-1 min-h-0 px-6 py-4 md:py-6 overflow-hidden"
     >
       <motion.h2
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, ...t }}
-        className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-4 md:mb-6"
+        className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-1 text-center"
       >
-        <WaveText text="¿Qué es AVENTA?" />
+        Una cosita más
       </motion.h2>
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, ...t }}
-        className="flex flex-col gap-3 max-w-sm text-[#6e6e73] dark:text-[#a3a3a3] text-sm sm:text-base leading-relaxed mb-8"
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, ...t }}
+        className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-4"
       >
-        <p>
-          Recopilamos día a día las ofertas más atractivas para ti.
-        </p>
-        <p>
-          Contamos con un control de calidad en las ofertas que asegura que sean las mejores.
-        </p>
-      </motion.div>
-      <div className="flex gap-3 w-full max-w-xs mx-auto shrink-0">
+        Las primeras 3 solo son para conocerte mejor. Puedes añadir más categorías después en Configuración.
+      </motion.p>
+
+      <div className="mb-3 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6e6e73] dark:text-[#a3a3a3]" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar categoría o tienda (ej. Zara)"
+          className="w-full rounded-xl border border-[#d2d2d7] dark:border-[#404040] bg-[#f5f5f7] dark:bg-[#1a1a1a] pl-10 pr-4 py-2.5 text-sm text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
+        />
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto pb-2">
+        <div className="flex flex-wrap gap-2 justify-center">
+          {filtered.map((opt) => {
+            const isSelected = selected.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggle(opt.value, opt.label)}
+                className={`
+                  rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200
+                  ${isSelected
+                    ? 'bg-violet-600 dark:bg-violet-500 text-white shadow-md shadow-violet-500/25'
+                    : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
+                  }
+                `}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        {selected.length > 0 && (
+          <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3] text-center mt-3">
+            {selected.length}/{ONBOARDING_MAX_CATEGORIES} seleccionadas
+          </p>
+        )}
+      </div>
+
+      <div className="flex gap-3 w-full max-w-xs mx-auto shrink-0 pt-2">
         <button
           onClick={onBack}
           className="flex-1 rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-transparent px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors"
@@ -192,9 +261,10 @@ function PageQueEsAventa({ onNext, onBack }: { onNext: () => void; onBack: () =>
           ← Atrás
         </button>
         <motion.button
-          onClick={onNext}
-          whileTap={{ scale: 0.98 }}
-          className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all"
+          onClick={handleContinue}
+          disabled={selected.length === 0}
+          whileTap={selected.length > 0 ? { scale: 0.98 } : undefined}
+          className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 disabled:opacity-50 disabled:shadow-none transition-all"
         >
           Continuar
         </motion.button>
@@ -319,7 +389,7 @@ function PageAuth({
   onSuccess,
   onBack,
 }: {
-  onSuccess: () => void;
+  onSuccess: (accessToken?: string) => void;
   onBack: () => void;
 }) {
   const { session, signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
@@ -329,7 +399,7 @@ function PageAuth({
   useEffect(() => {
     if (session && !didAutoSuccess.current) {
       didAutoSuccess.current = true;
-      onSuccess();
+      onSuccess(session.access_token ?? undefined);
     }
   }, [session, onSuccess]);
   const [name, setName] = useState('');
@@ -358,7 +428,8 @@ function PageAuth({
           return;
         }
       }
-      onSuccess();
+      const { data: { session: s } } = await createClient().auth.getSession();
+      onSuccess(s?.access_token ?? undefined);
     } finally {
       setLoading(false);
     }
@@ -828,9 +899,26 @@ export default function OnboardingV1() {
     }, 200);
   };
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = (accessToken?: string) => {
     setClosing(true);
     setTimeout(async () => {
+      let cats: string[] = [];
+      try {
+        const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_ONBOARDING_CATEGORIES) : null;
+        if (raw) cats = JSON.parse(raw);
+      } catch (_) {}
+      if (cats.length > 0 && accessToken) {
+        try {
+          await fetch('/api/me/preferred-categories', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ preferred_categories: cats }),
+          });
+        } catch (_) {}
+        try {
+          localStorage.removeItem(STORAGE_KEY_ONBOARDING_CATEGORIES);
+        } catch (_) {}
+      }
       await finalizeOnboarding();
       setClosing(false);
     }, 200);
@@ -943,7 +1031,7 @@ export default function OnboardingV1() {
               <PageWelcome onNext={() => setPage(2)} />
             )}
             {page === 2 && (
-              <PageQueEsAventa onNext={() => setPage(3)} onBack={() => setPage(1)} />
+              <PageCategories onNext={() => setPage(3)} onBack={() => setPage(1)} />
             )}
             {page === 3 && (
               <PageHowItWorks

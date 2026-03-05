@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -38,6 +38,7 @@ export default function Navbar() {
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [canAccessModeration, setCanAccessModeration] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [reputationLevel, setReputationLevel] = useState<number>(1);
   const [reputationScore, setReputationScore] = useState<number>(0);
 
@@ -68,7 +69,9 @@ export default function Navbar() {
         .select('role')
         .eq('user_id', user.id)
         .in('role', ['owner', 'admin', 'moderator']);
-      setCanAccessModeration(Array.isArray(roles) && roles.length > 0);
+      const roleList = (roles ?? []) as { role: string }[];
+      setCanAccessModeration(roleList.length > 0);
+      setIsOwner(roleList.some((r) => r.role === 'owner'));
     };
     loadProfileAndRole();
   }, [user?.id]);
@@ -237,6 +240,16 @@ export default function Navbar() {
                     <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
                   </Link>
                   <UserMenuContent />
+                  {isOwner && (
+                    <Link
+                      href="/admin/owner"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <LayoutDashboard className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      Mi panel
+                    </Link>
+                  )}
                   {canAccessModeration && (
                     <Link
                       href="/admin/moderation"

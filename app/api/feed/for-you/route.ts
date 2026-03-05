@@ -79,10 +79,11 @@ export async function GET(request: Request) {
     }
   }
 
-  // 2) Traer ofertas del feed (período reciente), orden por ranking_blend
+  // 2) Traer ofertas del feed. Intentar vista; si falla (ej. vista sin columnas en prod), usar tabla offers.
+  let list: OfferRow[] = [];
   let query = supabase
     .from('ofertas_ranked_general')
-    .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, category, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+    .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
     .or('status.eq.approved,status.eq.published')
     .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
     .gte('created_at', weekAgo)
@@ -92,19 +93,49 @@ export async function GET(request: Request) {
   if (storeFilter) query = query.eq('store', storeFilter);
   if (categoryFilter) query = query.eq('category', categoryFilter);
 
-  const { data: rows, error } = await query;
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data: viewRows, error: viewError } = await query;
+  if (!viewError && viewRows?.length !== undefined) {
+    list = viewRows as OfferRow[];
+  } else {
+    let offerQuery = supabase
+      .from('offers')
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, reputation_weighted_score, category')
+      .or('status.eq.approved,status.eq.published')
+      .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
+      .gte('created_at', weekAgo)
+      .order('ranking_momentum', { ascending: false })
+      .limit(FETCH_LIMIT);
+    if (storeFilter) offerQuery = offerQuery.eq('store', storeFilter);
+    if (categoryFilter) offerQuery = offerQuery.eq('category', categoryFilter);
+    const { data: offerRows, error: offerError } = await offerQuery;
+    if (offerError) {
+      return NextResponse.json({ error: offerError.message }, { status: 500 });
+    }
+    const offers = (offerRows ?? []) as Array<Record<string, unknown> & { upvotes_count?: number; downvotes_count?: number; ranking_momentum?: number; reputation_weighted_score?: number }>;
+    list = offers.map((o) => {
+      const up = o.upvotes_count ?? 0;
+      const down = o.downvotes_count ?? 0;
+      const score = up * 2 - down;
+      const blend = (o.ranking_momentum ?? 0) + (o.reputation_weighted_score ?? 0);
+      return {
+        ...o,
+        up_votes: up,
+        down_votes: down,
+        score,
+        score_final: score,
+        ranking_blend: blend,
+        profiles: null,
+      } as unknown as OfferRow;
+    });
   }
 
-  const list = (rows ?? []) as OfferRow[];
 
-  // 3) Priorizar: misma categoría o tienda que sus favoritos/votos primero, luego ranking_blend
+  // 3) Priorizar por tienda (y categoría si viene en la fila); luego ranking_blend
   const hasAffinity = userCategories.size > 0 || userStores.size > 0;
   const sorted = hasAffinity
     ? [...list].sort((a, b) => {
-        const aMatch = (a.category && userCategories.has(a.category)) || (a.store && userStores.has(a.store));
-        const bMatch = (b.category && userCategories.has(b.category)) || (b.store && userStores.has(b.store));
+        const aMatch = (typeof (a as { category?: string }).category !== 'undefined' && userCategories.has((a as { category?: string }).category!)) || (a.store && userStores.has(a.store));
+        const bMatch = (typeof (b as { category?: string }).category !== 'undefined' && userCategories.has((b as { category?: string }).category!)) || (b.store && userStores.has(b.store));
         if (aMatch && !bMatch) return -1;
         if (!aMatch && bMatch) return 1;
         const blendA = a.ranking_blend ?? 0;

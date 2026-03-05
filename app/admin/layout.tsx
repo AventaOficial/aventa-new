@@ -19,6 +19,7 @@ import {
   ShieldOff,
   UserCog,
   Megaphone,
+  LayoutDashboard,
 } from 'lucide-react';
 import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, canManageAnnouncements, type Role } from '@/lib/admin/roles';
 
@@ -102,10 +103,13 @@ export default function AdminLayout({
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
+    const isOwnerPanelPath = pathname === '/admin/owner';
     const isAnnouncementsPath = pathname === '/admin/announcements';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
-    if (isAnnouncementsPath && !canAnnouncements) {
+    if (isOwnerPanelPath && !canTeam) {
+      router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isAnnouncementsPath && !canAnnouncements) {
       router.replace(canTeam ? '/admin/team' : canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isTeamPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
@@ -211,6 +215,23 @@ export default function AdminLayout({
               <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Solo owner
               </p>
+              {canTeam && (
+                <Link
+                  href="/admin/owner"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === '/admin/owner'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  <LayoutDashboard className="h-4 w-4 shrink-0" />
+                  Mi panel
+                </Link>
+              )}
               {canTeam && (
                 <Link
                   href={TEAM_ITEM.href}

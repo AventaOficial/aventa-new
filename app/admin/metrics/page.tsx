@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { ALL_CATEGORIES } from '@/lib/categories';
 
 type Period = 'all' | 'day' | 'week' | 'month';
 
@@ -188,6 +189,24 @@ export default function MetricsPage() {
     totalShares: data.reduce((s, r) => s + (r.shares ?? 0), 0),
     activeOffers: data.length,
   };
+
+  const byCategory = (() => {
+    const map = new Map<string, { views: number; outbound: number; shares: number; count: number }>();
+    for (const row of data) {
+      const cat = row.category?.trim() || 'other';
+      const cur = map.get(cat) ?? { views: 0, outbound: 0, shares: 0, count: 0 };
+      cur.views += row.views;
+      cur.outbound += row.outbound;
+      cur.shares += row.shares ?? 0;
+      cur.count += 1;
+      map.set(cat, cur);
+    }
+    const labelByValue = Object.fromEntries(ALL_CATEGORIES.map((c) => [c.value, c.label]));
+    return Array.from(map.entries())
+      .map(([value, agg]) => ({ value, label: labelByValue[value] ?? value, ...agg }))
+      .sort((a, b) => b.views - a.views);
+  })();
+
   const globalCtr =
     summary.totalViews > 0 ? ((summary.totalOutbound / summary.totalViews) * 100).toFixed(1) : null;
   const bestHourMexico =
@@ -377,6 +396,38 @@ export default function MetricsPage() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             Mostrando las 50 primeras. Total: {sorted.length} ofertas.
           </p>
+        )}
+
+        {byCategory.length > 0 && (
+          <>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-8 mb-3">
+              Por categoría — qué tipo de comunidad mueve la página
+            </h3>
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Categoría</th>
+                    <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Ofertas</th>
+                    <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Vistas</th>
+                    <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Clics</th>
+                    <th className="text-right p-3 font-medium text-gray-700 dark:text-gray-300">Compartidos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byCategory.map((c) => (
+                    <tr key={c.value} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                      <td className="p-3 font-medium text-gray-900 dark:text-gray-100">{c.label}</td>
+                      <td className="p-3 text-right text-gray-700 dark:text-gray-300">{c.count}</td>
+                      <td className="p-3 text-right text-gray-700 dark:text-gray-300">{formatNum(c.views)}</td>
+                      <td className="p-3 text-right text-gray-700 dark:text-gray-300">{formatNum(c.outbound)}</td>
+                      <td className="p-3 text-right text-gray-700 dark:text-gray-300">{formatNum(c.shares)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 

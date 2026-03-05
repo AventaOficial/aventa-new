@@ -18,7 +18,10 @@ import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers
 import { getSearchTerms } from '@/lib/searchGroups';
 
 type TimeFilter = 'day' | 'week' | 'month';
-type ViewMode = 'general' | 'top' | 'personalized' | 'latest';
+type ViewMode = 'vitales' | 'top' | 'personalized' | 'latest';
+
+/** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
+const DIA_A_DIA_SCORE_CAP = 90;
 
 interface OfferAuthor {
   username: string;
@@ -83,23 +86,23 @@ interface Offer {
 /** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
 const DESTACADA_RANKING_BLEND_MIN = 15;
 
-/** URLs de imágenes placeholder para ofertas tester (picsum.photos, seeds estables por producto). */
+/** Imágenes placeholder por oferta tester: texto acorde al producto (placehold.co) para no romper diseño/confianza. */
 const MOCK_TESTER_IMAGES: Record<string, string> = {
-  'tester-1': 'https://picsum.photos/seed/aventa-iphone/400/300',
-  'tester-2': 'https://picsum.photos/seed/aventa-pc/400/300',
-  'tester-3': 'https://picsum.photos/seed/aventa-nike/400/300',
-  'tester-4': 'https://picsum.photos/seed/aventa-midea/400/300',
-  'tester-5': 'https://picsum.photos/seed/aventa-vasconia/400/300',
-  'tester-6': 'https://picsum.photos/seed/aventa-macbook/400/300',
-  'tester-7': 'https://picsum.photos/seed/aventa-sony/400/300',
-  'tester-8': 'https://picsum.photos/seed/aventa-silla/400/300',
-  'tester-9': 'https://picsum.photos/seed/aventa-tv/400/300',
-  'tester-10': 'https://picsum.photos/seed/aventa-nespresso/400/300',
-  'tester-11': 'https://picsum.photos/seed/aventa-mochila/400/300',
-  'tester-12': 'https://picsum.photos/seed/aventa-tablet/400/300',
-  'tester-13': 'https://picsum.photos/seed/aventa-dyson/400/300',
-  'tester-14': 'https://picsum.photos/seed/aventa-reloj/400/300',
-  'tester-15': 'https://picsum.photos/seed/aventa-bici/400/300',
+  'tester-1': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=iPhone+16+Pro',
+  'tester-2': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=PC+Gamer',
+  'tester-3': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Nike+Air+Max',
+  'tester-4': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Lavasecadora',
+  'tester-5': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Sartenes',
+  'tester-6': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=MacBook+Air',
+  'tester-7': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Audifonos+Sony',
+  'tester-8': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Silla+Gamer',
+  'tester-9': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=TV+Samsung',
+  'tester-10': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Cafetera',
+  'tester-11': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Mochila',
+  'tester-12': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Tablet+Galaxy',
+  'tester-13': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Aspiradora',
+  'tester-14': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Reloj+Smart',
+  'tester-15': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Bici+Electrica',
 };
 
 /** Ofertas de ejemplo (solo relleno, no afectan métricas). Solo se muestran si el owner activa "Ofertas de testers" en moderación. */
@@ -121,15 +124,7 @@ const MOCK_TESTER_OFFERS: Offer[] = [
   { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 31 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
 ];
 
-/** Opciones de categoría para el filtro del feed (mismo orden que en el formulario de ofertas). */
-const FEED_CATEGORY_OPTIONS: { value: string; label: string }[] = [
-  { value: 'electronics', label: 'Electrónica' },
-  { value: 'fashion', label: 'Moda' },
-  { value: 'home', label: 'Hogar' },
-  { value: 'sports', label: 'Deportes' },
-  { value: 'books', label: 'Libros' },
-  { value: 'other', label: 'Otros' },
-];
+import { VITAL_FILTER_VALUES, ALL_CATEGORIES } from '@/lib/categories';
 
 function rowToOffer(row: OfferRow): Offer {
   const originalPrice = Number(row.original_price) || 0;
@@ -185,7 +180,7 @@ function HomeContent() {
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('day');
-  const [viewMode, setViewMode] = useState<ViewMode>('general');
+  const [viewMode, setViewMode] = useState<ViewMode>('vitales');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
@@ -281,6 +276,9 @@ function HomeContent() {
     if (categoryFilter?.trim()) {
       query = query.eq('category', categoryFilter.trim());
     }
+    if (viewMode === 'vitales' && VITAL_FILTER_VALUES.length > 0) {
+      query = query.in('category', VITAL_FILTER_VALUES);
+    }
     if (viewMode === 'top') {
       query = query.gt('score', 0);
     }
@@ -290,15 +288,30 @@ function HomeContent() {
       query = query.order('created_at', { ascending: false });
     }
 
-    query.limit(effectiveLimit)
+    const fetchLimit = viewMode === 'vitales' ? 60 : effectiveLimit;
+    query.limit(fetchLimit)
       .then(({ data, error }) => {
         setLoading(false);
         if (error) {
           return;
         }
         const rows = data ?? [];
-        setOffers(rows.map(rowToOffer));
-        setHasMoreCursor(rows.length >= effectiveLimit);
+        let list = rows.map(rowToOffer);
+        if (viewMode === 'vitales') {
+          list = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
+          list.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
+          const half = Math.ceil(list.length / 2);
+          const high = list.slice(0, half);
+          const low = list.slice(half);
+          const interleaved: typeof list = [];
+          for (let i = 0; i < Math.max(high.length, low.length); i++) {
+            if (high[i]) interleaved.push(high[i]);
+            if (low[i]) interleaved.push(low[i]);
+          }
+          list = interleaved.slice(0, effectiveLimit);
+        }
+        setOffers(list);
+        setHasMoreCursor(viewMode === 'vitales' ? false : rows.length >= effectiveLimit);
       });
   }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token]);
 
@@ -532,15 +545,15 @@ function HomeContent() {
           <div className="mb-3 max-[400px]:mb-2 md:mb-5">
             <div className="flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 md:p-2 border border-[#e5e5e7] dark:border-[#262626] transition-all duration-200">
               <button
-                onClick={() => setViewMode('general')}
+                onClick={() => setViewMode('vitales')}
                 className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
-                  viewMode === 'general'
+                  viewMode === 'vitales'
                     ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
                     : 'text-[#6e6e73] dark:text-[#a3a3a3]'
                 }`}
-                title="Calidad + novedad: lo que la comunidad y el tiempo destacan"
+                title="Lo esencial, nosotros lo cazamos por ti"
               >
-                Recomendado
+                Día a día
               </button>
               <button
                 onClick={() => setViewMode('top')}
@@ -578,11 +591,41 @@ function HomeContent() {
               </button>
             </div>
             <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] hidden sm:block">
-              {viewMode === 'general' && 'Calidad + novedad. Lo que la comunidad y el tiempo destacan.'}
+              {viewMode === 'vitales' && 'Lo esencial, nosotros lo cazamos por ti.'}
               {viewMode === 'top' && 'Mejor puntuadas en el período elegido.'}
               {viewMode === 'personalized' && 'Priorizado por lo que guardaste y votaste (misma categoría o tienda).'}
               {viewMode === 'latest' && 'Solo lo más nuevo, por fecha de publicación.'}
             </p>
+
+            {viewMode === 'vitales' && (
+              <div className="flex flex-wrap gap-2 mt-3 max-[400px]:mt-2">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter(null)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                    !categoryFilter
+                      ? 'bg-[#1d1d1f] dark:bg-[#fafafa] text-white dark:text-[#1d1d1f]'
+                      : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
+                  }`}
+                >
+                  Todas
+                </button>
+                {ALL_CATEGORIES.filter((c) => c.vital).map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setCategoryFilter(categoryFilter === c.value ? null : c.value)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                      categoryFilter === c.value
+                        ? 'bg-[#1d1d1f] dark:bg-[#fafafa] text-white dark:text-[#1d1d1f]'
+                        : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {viewMode === 'top' && (

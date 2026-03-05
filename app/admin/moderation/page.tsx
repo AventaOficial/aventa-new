@@ -7,14 +7,11 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { Search, CheckSquare, Square, Clock, Check, X, FlaskConical } from 'lucide-react';
 import ModerationOfferCard from '../components/ModerationOfferCard';
 
+import { ALL_CATEGORIES } from '@/lib/categories';
+
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
-  { value: 'electronics', label: 'Electrónica' },
-  { value: 'fashion', label: 'Moda' },
-  { value: 'home', label: 'Hogar' },
-  { value: 'sports', label: 'Deportes' },
-  { value: 'books', label: 'Libros' },
-  { value: 'other', label: 'Otros' },
+  ...ALL_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
 ];
 
 type ModerationOffer = {

@@ -10,6 +10,7 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
+import { ALL_CATEGORIES } from '@/lib/categories';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -569,12 +570,9 @@ export default function ActionBar() {
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     >
                       <option value="">Selecciona una categoría</option>
-                      <option value="electronics">Electrónica</option>
-                      <option value="fashion">Moda</option>
-                      <option value="home">Hogar</option>
-                      <option value="sports">Deportes</option>
-                      <option value="books">Libros</option>
-                      <option value="other">Otros</option>
+                      {ALL_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
                     </select>
                   </div>
 

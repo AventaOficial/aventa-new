@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User, Check, Lock, Mail, Smartphone, Bell } from 'lucide-react';
+import { User, Check, Lock, Mail, Smartphone, Bell, Tag } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { ALL_CATEGORIES } from '@/lib/categories';
 
 const DAYS_LIMIT = 14;
 
@@ -24,6 +25,9 @@ export default function SettingsPage() {
   const [emailDailyDigest, setEmailDailyDigest] = useState(false);
   const [emailWeeklyDigest, setEmailWeeklyDigest] = useState(false);
   const [emailPrefsSaving, setEmailPrefsSaving] = useState(false);
+  const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
+  const [categoriesSaving, setCategoriesSaving] = useState(false);
+  const [categoriesSaved, setCategoriesSaved] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -90,6 +94,37 @@ export default function SettingsPage() {
     };
     loadPrefs();
   }, [user?.id, session?.access_token]);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    fetch('/api/me/preferred-categories', { headers: { Authorization: 'Bearer ' + session.access_token } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setPreferredCategories(Array.isArray(data?.preferred_categories) ? data.preferred_categories : []))
+      .catch(() => setPreferredCategories([]));
+  }, [session?.access_token]);
+
+  const handleCategoryToggle = (value: string) => {
+    setPreferredCategories((prev) =>
+      prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
+    );
+    setCategoriesSaved(false);
+  };
+
+  const handleSaveCategories = async () => {
+    if (!session?.access_token) return;
+    setCategoriesSaving(true);
+    setCategoriesSaved(false);
+    try {
+      const res = await fetch('/api/me/preferred-categories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ preferred_categories: preferredCategories }),
+      });
+      if (res.ok) setCategoriesSaved(true);
+    } finally {
+      setCategoriesSaving(false);
+    }
+  };
 
   const handleEmailPrefChange = async (which: 'daily' | 'weekly', value: boolean) => {
     if (!session?.access_token) return;
@@ -210,7 +245,7 @@ export default function SettingsPage() {
                   disabled={saving || !canChangeName()}
                 />
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  Solo puedes cambiarlo una vez cada 14 días.
+                  La primera vez puedes cambiarlo cuando quieras; después, solo una vez cada 14 días.
                   {!canChangeName() && daysUntilNextChange() > 0 && (
                     <span className="block mt-0.5 text-amber-600 dark:text-amber-400">
                       Podrás cambiarlo de nuevo en {daysUntilNextChange()} día{daysUntilNextChange() !== 1 ? 's' : ''}.
@@ -271,6 +306,62 @@ export default function SettingsPage() {
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recibir resumen semanal (domingos)</span>
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Resumen: más comentadas, mejor votadas de la semana.</p>
+            </div>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
+                  <Tag className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Preferencias de categorías</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Qué ofertas te interesan más</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 md:p-6 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                En el inicio elegiste hasta 3 categorías para conocerte mejor. Aquí puedes añadir o quitar las que quieras: así afinamos tu feed sin saturarlo con todo.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_CATEGORIES.map((c) => {
+                  const isSelected = preferredCategories.includes(c.value);
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => handleCategoryToggle(c.value)}
+                      className={`
+                        rounded-full px-4 py-2 text-sm font-medium transition-all
+                        ${isSelected
+                          ? 'bg-violet-600 dark:bg-violet-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }
+                      `}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveCategories}
+                  disabled={categoriesSaving}
+                  className="rounded-xl bg-violet-600 hover:bg-violet-500 text-white px-6 py-2.5 font-medium text-sm transition-colors disabled:opacity-60"
+                >
+                  {categoriesSaving ? 'Guardando…' : 'Guardar preferencias'}
+                </button>
+                {categoriesSaved && (
+                  <span className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                    <Check className="h-4 w-4" />
+                    Guardado
+                  </span>
+                )}
+              </div>
             </div>
           </section>
 
