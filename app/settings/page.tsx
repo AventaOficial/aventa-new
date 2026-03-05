@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User, Check, Lock, Mail, Smartphone, Bell, Tag } from 'lucide-react';
+import { User, Check, Lock, Mail, Smartphone, Bell, Tag, Search } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
   const [categoriesSaving, setCategoriesSaving] = useState(false);
   const [categoriesSaved, setCategoriesSaved] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -325,27 +326,55 @@ export default function SettingsPage() {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 En el inicio elegiste hasta 3 categorías para conocerte mejor. Aquí puedes añadir o quitar las que quieras: así afinamos tu feed sin saturarlo con todo.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {ALL_CATEGORIES.map((c) => {
-                  const isSelected = preferredCategories.includes(c.value);
-                  return (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => handleCategoryToggle(c.value)}
-                      className={`
-                        rounded-full px-4 py-2 text-sm font-medium transition-all
-                        ${isSelected
-                          ? 'bg-violet-600 dark:bg-violet-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }
-                      `}
-                    >
-                      {c.label}
-                    </button>
-                  );
-                })}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
+                <input
+                  type="search"
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  placeholder="Buscar categoría..."
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 pl-9 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors"
+                  aria-label="Buscar categoría"
+                />
               </div>
+              <div className="flex flex-wrap gap-2">
+                {(() => {
+                  const q = categorySearch.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+                  const filtered = !q ? ALL_CATEGORIES : ALL_CATEGORIES.filter((c) =>
+                    c.label.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q)
+                  );
+                  return (
+                    <>
+                      {filtered.map((c) => {
+                        const isSelected = preferredCategories.includes(c.value);
+                        return (
+                          <button
+                            key={c.value}
+                            type="button"
+                            onClick={() => handleCategoryToggle(c.value)}
+                            className={`
+                              rounded-full px-4 py-2 text-sm font-medium transition-all
+                              ${isSelected
+                                ? 'bg-violet-600 dark:bg-violet-500 text-white'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                              }
+                            `}
+                          >
+                            {c.label}
+                          </button>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </div>
+              {categorySearch.trim() && (() => {
+                const q = categorySearch.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+                const hasMatch = ALL_CATEGORIES.some((c) =>
+                  c.label.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q)
+                );
+                return !hasMatch ? <p className="text-sm text-gray-500 dark:text-gray-400">Ninguna categoría coincide con tu búsqueda.</p> : null;
+              })()}
               <div className="flex items-center gap-3">
                 <button
                   type="button"

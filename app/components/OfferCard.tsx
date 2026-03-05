@@ -65,6 +65,10 @@ interface OfferCardProps {
   isDestacada?: boolean;
   /** Oferta de prueba (relleno): badge "Prueba", click solo toast, no voto/favorito. */
   isTesterOffer?: boolean;
+  /** Status for "My Deals" page: show badge (Pending / Approved / Rejected / Expired). */
+  dealStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
+  /** Rejection reason from moderation (shown when dealStatus === 'rejected'). */
+  rejectionReason?: string | null;
 }
 
 export default function OfferCard({
@@ -90,6 +94,8 @@ export default function OfferCard({
   createdAt,
   isDestacada = false,
   isTesterOffer = false,
+  dealStatus,
+  rejectionReason,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -354,6 +360,32 @@ export default function OfferCard({
 
       <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 justify-between gap-1.5 max-[400px]:gap-1 md:gap-2 pt-6 max-[400px]:pt-5 md:pt-0">
         <div className="min-w-0">
+          {dealStatus && (
+            <span
+              className={`inline-block text-[10px] max-[400px]:text-[9px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md mb-1.5 ${
+                dealStatus === 'pending'
+                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
+                  : dealStatus === 'approved'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
+                    : dealStatus === 'rejected'
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {dealStatus === 'pending'
+                ? 'Pending'
+                : dealStatus === 'approved'
+                  ? 'Approved'
+                  : dealStatus === 'rejected'
+                    ? 'Rejected'
+                    : 'Expired'}
+            </span>
+          )}
+          {dealStatus === 'rejected' && rejectionReason && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2 mb-1">
+              {rejectionReason}
+            </p>
+          )}
           <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug">
             {title}
           </h3>

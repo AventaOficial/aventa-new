@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Plus, ThumbsUp, Heart, Search } from 'lucide-react';
+import { X, Plus, ThumbsUp, Heart, Search, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
@@ -157,19 +157,33 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
 const ONBOARDING_MAX_CATEGORIES = 3;
 const STORAGE_KEY_ONBOARDING_CATEGORIES = 'onboarding_selected_categories';
 
-/** Paso: seleccionar hasta 3 categorías antes de iniciar sesión. Estilo Apple: botones claros, buscador para marcas. */
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Smartphone,
+  Gamepad2,
+  Home,
+  ShoppingCart,
+  Shirt,
+  Sparkles,
+  Plane,
+  CreditCard,
+  Package,
+};
+
+/** Paso: seleccionar hasta 3 categorías. Grid con iconos minimalistas y subtítulos (no genérico). */
 function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState('');
-  const allOptions: { value: string; label: string }[] = [
-    ...GENERAL_CATEGORIES_FOR_ONBOARDING.map((c) => ({ value: c.value, label: c.label })),
-    ...ONBOARDING_SEARCHABLE_EXTRA.map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) })),
-  ];
-  const filtered = search.trim()
-    ? allOptions.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase()))
-    : GENERAL_CATEGORIES_FOR_ONBOARDING.map((c) => ({ value: c.value, label: c.label }));
+  const q = search.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  const filteredCategories = !q
+    ? GENERAL_CATEGORIES_FOR_ONBOARDING
+    : GENERAL_CATEGORIES_FOR_ONBOARDING.filter(
+        (c) =>
+          c.label.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q) ||
+          (c.subtitle?.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q))
+      );
+  const filteredBrands = !q ? [] : ONBOARDING_SEARCHABLE_EXTRA.filter((v) => v.toLowerCase().includes(q)).map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) }));
 
-  const toggle = (value: string, label: string) => {
+  const toggle = (value: string) => {
     setSelected((prev) => {
       if (prev.includes(value)) return prev.filter((x) => x !== value);
       if (prev.length >= ONBOARDING_MAX_CATEGORIES) return prev;
@@ -202,7 +216,7 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.1, ...t }}
         className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-1 text-center"
       >
-        Una cosita más
+        ¿Qué te interesa cazar?
       </motion.h2>
       <motion.p
         initial={{ opacity: 0 }}
@@ -210,42 +224,83 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.2, ...t }}
         className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-4"
       >
-        Las primeras 3 solo son para conocerte mejor. Puedes añadir más categorías después en Configuración.
+        Elige hasta 3 para afinar tu feed. Puedes cambiar o añadir más en Configuración.
       </motion.p>
 
-      <div className="mb-3 relative">
+      <div className="mb-3 relative shrink-0">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6e6e73] dark:text-[#a3a3a3]" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar categoría o tienda (ej. Zara)"
+          placeholder="Buscar categoría o tienda (ej. Amazon, Zara)"
           className="w-full rounded-xl border border-[#d2d2d7] dark:border-[#404040] bg-[#f5f5f7] dark:bg-[#1a1a1a] pl-10 pr-4 py-2.5 text-sm text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
         />
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-2">
-        <div className="flex flex-wrap gap-2 justify-center">
-          {filtered.map((opt) => {
-            const isSelected = selected.includes(opt.value);
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+          {filteredCategories.map((c) => {
+            const IconComponent = CATEGORY_ICONS[c.icon] ?? Package;
+            const isSelected = selected.includes(c.value);
             return (
-              <button
-                key={opt.value}
+              <motion.button
+                key={c.value}
                 type="button"
-                onClick={() => toggle(opt.value, opt.label)}
+                onClick={() => toggle(c.value)}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
                 className={`
-                  rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200
+                  rounded-2xl border-2 p-3 sm:p-4 text-left transition-all duration-200 flex flex-col gap-1
                   ${isSelected
-                    ? 'bg-violet-600 dark:bg-violet-500 text-white shadow-md shadow-violet-500/25'
-                    : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
+                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/30 dark:border-violet-500 shadow-md shadow-violet-500/20'
+                    : 'border-[#e8e8ed] dark:border-[#2c2c2e] bg-[#f5f5f7] dark:bg-[#1a1a1a] hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50/50 dark:hover:bg-violet-900/20'
                   }
                 `}
               >
-                {opt.label}
-              </button>
+                <span className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl shrink-0 ${isSelected ? 'bg-violet-500 text-white' : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3]'}`}>
+                  <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
+                </span>
+                <span className="font-semibold text-sm text-[#1d1d1f] dark:text-[#fafafa] leading-tight">
+                  {c.label}
+                </span>
+                {c.subtitle && (
+                  <span className="text-xs text-[#6e6e73] dark:text-[#a3a3a3] leading-tight line-clamp-2">
+                    {c.subtitle}
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
+          {filteredBrands.map((b) => {
+            const isSelected = selected.includes(b.value);
+            return (
+              <motion.button
+                key={`brand-${b.value}`}
+                type="button"
+                onClick={() => toggle(b.value)}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`
+                  rounded-2xl border-2 p-3 sm:p-4 text-left transition-all duration-200 flex items-center gap-2
+                  ${isSelected
+                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/30 dark:border-violet-500'
+                    : 'border-[#e8e8ed] dark:border-[#2c2c2e] bg-[#f5f5f7] dark:bg-[#1a1a1a] hover:border-violet-300 dark:hover:border-violet-700'
+                  }
+                `}
+              >
+                <span className="flex h-9 w-9 rounded-xl bg-[#e8e8ed] dark:bg-[#2c2c2e] items-center justify-center text-xs font-bold text-[#1d1d1f] dark:text-[#fafafa]">
+                  {b.label.charAt(0)}
+                </span>
+                <span className="font-semibold text-sm text-[#1d1d1f] dark:text-[#fafafa]">{b.label}</span>
+              </motion.button>
             );
           })}
         </div>
+        {filteredCategories.length === 0 && filteredBrands.length === 0 && q && (
+          <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center py-4">Ningún resultado. Prueba otra búsqueda.</p>
+        )}
         {selected.length > 0 && (
           <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3] text-center mt-3">
             {selected.length}/{ONBOARDING_MAX_CATEGORIES} seleccionadas

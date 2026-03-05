@@ -32,6 +32,10 @@ type UIContextType = {
   openGuide: () => void
   closeOnboarding: () => void
   finalizeOnboarding: () => Promise<void>
+  /** Request to open the upload-offer modal (e.g. from feed empty state). ActionBar reacts and opens its modal. */
+  openUploadModal: () => void
+  uploadModalRequested: boolean
+  clearUploadModalRequest: () => void
 }
 
 const UIContext = createContext<UIContextType | null>(null)
@@ -51,8 +55,12 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [isOfferOpen, setOfferOpen] = useState(false)
   const [lunaOpenRequested, setLunaOpenRequested] = useState(false)
+  const [uploadModalRequested, setUploadModalRequested] = useState(false)
   const [profileOnboardingCompleted, setProfileOnboardingCompleted] = useState<boolean | null>(null)
   const hasAutoOpenedGuide = useRef(false)
+
+  const openUploadModal = useCallback(() => setUploadModalRequested(true), [])
+  const clearUploadModalRequest = useCallback(() => setUploadModalRequested(false), [])
 
   const clearOverlayState = useCallback(() => {
     setShowGuide(false)
@@ -245,6 +253,9 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         openGuide,
         closeOnboarding,
         finalizeOnboarding,
+        openUploadModal,
+        uploadModalRequested,
+        clearUploadModalRequest,
       }}
     >
       {children}

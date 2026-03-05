@@ -25,7 +25,12 @@ type OfferRow = {
   created_at?: string | null;
   upvotes_count?: number | null;
   downvotes_count?: number | null;
+  status?: string | null;
+  rejection_reason?: string | null;
+  expires_at?: string | null;
 };
+
+type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
 type MappedOffer = {
   id: string;
@@ -41,6 +46,8 @@ type MappedOffer = {
   image?: string;
   votes: { up: number; down: number; score: number };
   author: { username: string; avatar_url?: string | null };
+  dealStatus: DealStatus;
+  rejectionReason: string | null;
 };
 
 export default function MePage() {
@@ -95,7 +102,7 @@ export default function MePage() {
 
       const { data: rows } = await supabase
         .from('offers')
-        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count')
+        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, status, rejection_reason, expires_at')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -108,6 +115,7 @@ export default function MePage() {
       let totalDown = 0;
       let totalScore = 0;
 
+      const now = new Date().toISOString();
       const mapped: MappedOffer[] = (rows ?? []).map((row: OfferRow) => {
         const up = row.upvotes_count ?? 0;
         const down = row.downvotes_count ?? 0;
@@ -120,6 +128,14 @@ export default function MePage() {
         const discountPrice = Number(row.price) || 0;
         const discount =
           originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
+
+        let dealStatus: DealStatus = 'pending';
+        const status = (row.status ?? 'pending').toLowerCase();
+        if (status === 'rejected') {
+          dealStatus = 'rejected';
+        } else if (status === 'approved' || status === 'published') {
+          dealStatus = row.expires_at && row.expires_at < now ? 'expired' : 'approved';
+        }
 
         return {
           id: row.id,
@@ -135,6 +151,8 @@ export default function MePage() {
           description: row.description?.trim() || undefined,
           votes: { up, down, score },
           author,
+          dealStatus,
+          rejectionReason: row.rejection_reason?.trim() || null,
         };
       });
 
@@ -278,6 +296,8 @@ export default function MePage() {
                   onCardClick={() => setSelectedOffer(offer)}
                   userVote={voteMap[offer.id] ?? null}
                   isLiked={!!favoriteMap[offer.id]}
+                  dealStatus={offer.dealStatus}
+                  rejectionReason={offer.rejectionReason}
                 />
               ))
             )}

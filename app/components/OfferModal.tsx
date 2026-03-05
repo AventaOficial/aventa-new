@@ -736,6 +736,10 @@ export default function OfferModal({
                     <div className="space-y-4">
                       {commentsLoading ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">Cargando comentarios…</p>
+                      ) : comments.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+                          No one has commented yet. Be the first to start the discussion.
+                        </p>
                       ) : (
                         comments.map((comment) => {
                           const isOwn = !!session?.user?.id && comment.user_id === session.user.id;

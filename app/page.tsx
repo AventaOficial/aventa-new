@@ -124,7 +124,7 @@ const MOCK_TESTER_OFFERS: Offer[] = [
   { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 31 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
 ];
 
-import { VITAL_FILTER_VALUES, ALL_CATEGORIES } from '@/lib/categories';
+import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getDbCategoryValuesForMacro } from '@/lib/categories';
 
 function rowToOffer(row: OfferRow): Offer {
   const originalPrice = Number(row.original_price) || 0;
@@ -169,7 +169,7 @@ function rowToOffer(row: OfferRow): Offer {
 
 function HomeContent() {
   useTheme();
-  const { showToast } = useUI();
+  const { showToast, openUploadModal, openRegisterModal } = useUI();
   const { session } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -189,6 +189,7 @@ function HomeContent() {
   const [limit, setLimit] = useState(12);
   const [hasMoreCursor, setHasMoreCursor] = useState(true);
   const [showTesterOffers, setShowTesterOffers] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
 
   useOffersRealtime(setOffers);
@@ -227,6 +228,7 @@ function HomeContent() {
 
   const fetchOffers = useCallback((overrideLimit?: number) => {
     setLoading(true);
+    setFeedError(null);
     const effectiveLimit = overrideLimit ?? limit;
 
     // "Para ti": feed por afinidad (favoritos y votos) — API dedicada
@@ -243,7 +245,10 @@ function HomeContent() {
           setOffers(rows.map(rowToOffer));
           setHasMoreCursor(false);
         })
-        .catch(() => setOffers([]))
+        .catch(() => {
+          setFeedError('load');
+          setOffers([]);
+        })
         .finally(() => setLoading(false));
       return;
     }
@@ -274,7 +279,8 @@ function HomeContent() {
       query = query.eq('store', storeFilter.trim());
     }
     if (categoryFilter?.trim()) {
-      query = query.eq('category', categoryFilter.trim());
+      const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
+      query = catValues.length === 1 ? query.eq('category', catValues[0]) : query.in('category', catValues);
     }
     if (viewMode === 'vitales' && VITAL_FILTER_VALUES.length > 0) {
       query = query.in('category', VITAL_FILTER_VALUES);
@@ -293,8 +299,11 @@ function HomeContent() {
       .then(({ data, error }) => {
         setLoading(false);
         if (error) {
+          setFeedError('load');
+          setOffers([]);
           return;
         }
+        setFeedError(null);
         const rows = data ?? [];
         let list = rows.map(rowToOffer);
         if (viewMode === 'vitales') {
@@ -312,6 +321,11 @@ function HomeContent() {
         }
         setOffers(list);
         setHasMoreCursor(viewMode === 'vitales' ? false : rows.length >= effectiveLimit);
+      })
+      .catch(() => {
+        setLoading(false);
+        setFeedError('load');
+        setOffers([]);
       });
   }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token]);
 
@@ -347,7 +361,8 @@ function HomeContent() {
       nextQuery = nextQuery.eq('store', storeFilter.trim());
     }
     if (categoryFilter?.trim()) {
-      nextQuery = nextQuery.eq('category', categoryFilter.trim());
+      const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
+      nextQuery = catValues.length === 1 ? nextQuery.eq('category', catValues[0]) : nextQuery.in('category', catValues);
     }
     nextQuery.then(({ data, error }) => {
       setLoading(false);
@@ -406,15 +421,22 @@ function HomeContent() {
         searchQueryBuilder = searchQueryBuilder.eq('store', storeFilter.trim());
       }
       if (categoryFilter?.trim()) {
-        searchQueryBuilder = searchQueryBuilder.eq('category', categoryFilter.trim());
+        const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
+        searchQueryBuilder = catValues.length === 1 ? searchQueryBuilder.eq('category', catValues[0]) : searchQueryBuilder.in('category', catValues);
       }
       searchQueryBuilder.then(({ data, error }) => {
         setLoading(false);
         if (error) {
+          setFeedError('load');
           setOffers([]);
           return;
         }
+        setFeedError(null);
         setOffers((data ?? []).map((r: OfferRow) => rowToOffer(r)));
+      }).catch(() => {
+        setLoading(false);
+        setFeedError('load');
+        setOffers([]);
       });
     } else {
       fetchOffers(filtersChanged ? 12 : undefined);
@@ -676,6 +698,44 @@ function HomeContent() {
                 </motion.div>
               ))}
             </>
+          ) : feedError ? (
+            <div className="py-12 px-4 text-center">
+              <p className="text-[#1d1d1f] dark:text-[#fafafa] font-medium mb-2">
+                We couldn&apos;t load the deals. Please check your connection and try again.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFeedError(null);
+                  fetchOffers(12);
+                }}
+                className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+              >
+                Retry
+              </button>
+            </div>
+          ) : !debouncedQuery.trim() && offers.length === 0 ? (
+            <div className="py-12 px-4 text-center max-w-md mx-auto">
+              <h2 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
+                No deals yet
+              </h2>
+              <p className="text-[#6e6e73] dark:text-[#a3a3a3] text-sm mb-6">
+                Be the first to share a great deal with the community.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (session) {
+                    openUploadModal();
+                  } else {
+                    openRegisterModal('signup');
+                  }
+                }}
+                className="rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 text-sm font-semibold transition-all duration-200 hover:bg-violet-700 dark:hover:bg-violet-600"
+              >
+                Post a deal
+              </button>
+            </div>
           ) : debouncedQuery.trim() && offers.length === 0 ? (
             <div className="py-12 text-center text-[#6e6e73] dark:text-[#a3a3a3]">
               No se encontraron resultados

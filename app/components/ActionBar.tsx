@@ -44,7 +44,7 @@ export default function ActionBar() {
   useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { isOfferOpen, showToast, openRegisterModal } = useUI();
+  const { isOfferOpen, showToast, openRegisterModal, uploadModalRequested, clearUploadModalRequest } = useUI();
 
   const isActive = (path: string, exact?: boolean) =>
     exact ? pathname === path : pathname.startsWith(path);
@@ -87,6 +87,13 @@ export default function ActionBar() {
       document.body.style.overflow = 'unset';
     };
   }, [showUploadModal]);
+
+  useEffect(() => {
+    if (uploadModalRequested) {
+      setShowUploadModal(true);
+      clearUploadModalRequest();
+    }
+  }, [uploadModalRequested, clearUploadModalRequest]);
 
   useEffect(() => {
     if (!showSuccessMessage) return;
@@ -259,13 +266,6 @@ export default function ActionBar() {
             <Home className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
             <span className="text-[10px] max-[400px]:text-[9px] font-semibold">Inicio</span>
           </Link>
-          <Link
-            href="/communities"
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/communities') ? activeClasses : inactiveClasses}`}
-          >
-            <Users2 className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
-            <span className="text-[10px] max-[400px]:text-[9px] font-medium">Comunidades</span>
-          </Link>
           <button
             type="button"
             disabled={cooldownRemaining > 0}
@@ -336,11 +336,12 @@ export default function ActionBar() {
         </Link>
         <Link
           href="/communities"
-          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname.startsWith('/communities') ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
-          aria-label="Comunidades"
+          className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 cursor-default"
+          aria-label="Comunidades (próximamente)"
+          title="Comunidades (próximamente)"
         >
           <Users2 className="h-6 w-6" />
-          <span className="text-[10px] font-medium">Comunidades</span>
+          <span className="text-[10px] font-medium">Comunidades (próximamente)</span>
         </Link>
         <button
           type="button"
