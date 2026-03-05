@@ -242,7 +242,7 @@ export default function Navbar() {
                   <UserMenuContent />
                   {isOwner && (
                     <Link
-                      href="/admin/owner"
+                      href="/mi-panel"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
                       onClick={() => setShowUserMenu(false)}
                     >

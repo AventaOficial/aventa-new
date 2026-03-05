@@ -45,7 +45,7 @@ export default function PrivacyPage() {
               Correo de contacto:
             </p>
             <p className="text-gray-700 dark:text-gray-300">
-              <a href="mailto:aventasoporte1@gmail.com" className="text-violet-600 dark:text-violet-400 hover:underline">aventasoporte1@gmail.com</a>
+              <a href="mailto:aventasoportelegal@gmail.com" className="text-violet-600 dark:text-violet-400 hover:underline">aventasoportelegal@gmail.com</a>
             </p>
             <p className="mt-2 font-medium text-gray-900 dark:text-gray-100">País de referencia:</p>
             <p className="text-gray-700 dark:text-gray-300">Estados Unidos Mexicanos (México)</p>
@@ -284,7 +284,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
               El usuario puede solicitar la eliminación de su cuenta siguiendo los mecanismos
-              disponibles en la plataforma o contactando a aventasoporte1@gmail.com.
+              disponibles en la plataforma o contactando a aventasoportelegal@gmail.com.
             </li>
             <li>
               Tras la eliminación de la cuenta, ciertos datos pueden mantenerse bloqueados

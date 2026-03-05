@@ -1031,13 +1031,13 @@ export default function OnboardingV1() {
               <PageWelcome onNext={() => setPage(2)} />
             )}
             {page === 2 && (
-              <PageCategories onNext={() => setPage(3)} onBack={() => setPage(1)} />
+              <PageHowItWorks
+                onNext={() => setPage(3)}
+                onBack={() => setPage(1)}
+              />
             )}
             {page === 3 && (
-              <PageHowItWorks
-                onNext={() => setPage(4)}
-                onBack={() => setPage(2)}
-              />
+              <PageCategories onNext={() => setPage(4)} onBack={() => setPage(2)} />
             )}
             {page === 4 && (
               <PageAuth

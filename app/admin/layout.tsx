@@ -104,11 +104,16 @@ export default function AdminLayout({
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
     const isOwnerPanelPath = pathname === '/admin/owner';
+    const isAnalistaPath = pathname === '/admin/analista';
     const isAnnouncementsPath = pathname === '/admin/announcements';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
-    if (isOwnerPanelPath && !canTeam) {
+    if (pathname === '/admin/owner') {
+      router.replace('/mi-panel');
+    } else if (isOwnerPanelPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isAnalistaPath && !canMet && !canHea) {
+      router.replace(canMod ? '/admin/moderation' : '/admin/users');
     } else if (isAnnouncementsPath && !canAnnouncements) {
       router.replace(canTeam ? '/admin/team' : canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isTeamPath && !canTeam) {
@@ -217,16 +222,9 @@ export default function AdminLayout({
               </p>
               {canTeam && (
                 <Link
-                  href="/admin/owner"
+                  href="/mi-panel"
                   onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/owner'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <LayoutDashboard className="h-4 w-4 shrink-0" />
                   Mi panel
@@ -299,8 +297,23 @@ export default function AdminLayout({
           {(canMet || canHea) && (
             <>
               <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Métricas
+                Análisis
               </p>
+              <Link
+                href="/admin/analista"
+                onClick={() => setSidebarOpen(false)}
+                className={`
+                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                  ${
+                    pathname === '/admin/analista'
+                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                Panel
+              </Link>
               {canMet && (
                 <Link
                   href="/admin/metrics"

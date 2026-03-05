@@ -47,7 +47,7 @@
 
 ### Placeholders (no bloquean)
 
-- /communities: placeholder.
+- /communities: placeholder; se deja para más adelante.
 
 ---
 
