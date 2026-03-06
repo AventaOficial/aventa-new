@@ -6,8 +6,6 @@ import { useTheme } from '@/app/providers/ThemeProvider';
 import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado es un peso ganado.';
-const VALUE_PROP =
-  'La comunidad que caza las mejores ofertas por ti. Tú subes, la comunidad vota.';
 
 interface HeroProps {
   searchQuery?: string;
@@ -34,9 +32,6 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             <p className="text-sm max-[400px]:text-xs text-[#6e6e73] dark:text-[#a3a3a3] mt-0.5 leading-tight break-words">
               {TAGLINE}
             </p>
-            <p className="text-xs max-[400px]:text-[11px] text-[#6e6e73] dark:text-[#a3a3a3] mt-1 leading-snug max-w-md">
-              {VALUE_PROP}
-            </p>
           </div>
         </div>
         <div className="px-4 max-[400px]:px-3 pt-3 max-[400px]:pt-2 pb-4 max-[400px]:pb-3">
@@ -61,11 +56,8 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             <AventaIcon size={48} className="lg:w-14 lg:h-14 text-white shrink-0" />
             AVENTA
           </h1>
-          <p className="text-center text-base lg:text-lg text-gray-400 mt-2">
+          <p className="text-center text-base lg:text-lg text-gray-400 mt-2 mb-5">
             {TAGLINE}
-          </p>
-          <p className="text-center text-sm lg:text-base text-gray-500 mt-1 mb-5 max-w-2xl mx-auto">
-            {VALUE_PROP}
           </p>
           <div className="flex items-center w-full max-w-3xl lg:max-w-4xl mx-auto rounded-xl border border-gray-600/60 bg-white/5 backdrop-blur-sm px-5 py-3 focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
             <Search className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />

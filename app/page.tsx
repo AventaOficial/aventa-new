@@ -302,6 +302,7 @@ function HomeContent() {
       .then(({ data, error }) => {
         setLoading(false);
         if (error) {
+          console.error('[feed] ofertas_ranked_general error:', error.message, (error as { details?: string; hint?: string }).details, (error as { details?: string; hint?: string }).hint);
           setFeedError('load');
           setOffers([]);
           return;
@@ -431,6 +432,7 @@ function HomeContent() {
         .then(({ data, error }) => {
           setLoading(false);
           if (error) {
+            console.error('[feed] search ofertas_ranked_general error:', error.message, (error as { details?: string; hint?: string }).details);
             setFeedError('load');
             setOffers([]);
             return;
