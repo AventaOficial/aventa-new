@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { User, Check, Lock, Mail, Smartphone, Bell, Tag, Search } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
 
 const DAYS_LIMIT = 14;
@@ -13,6 +14,7 @@ const DAYS_LIMIT = 14;
 export default function SettingsPage() {
   const router = useRouter();
   const { resetPassword } = useAuth();
+  const { showToast } = useUI();
   const [displayName, setDisplayName] = useState('');
   const [displayNameUpdatedAt, setDisplayNameUpdatedAt] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
@@ -101,8 +103,11 @@ export default function SettingsPage() {
     fetch('/api/me/preferred-categories', { headers: { Authorization: 'Bearer ' + session.access_token } })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setPreferredCategories(Array.isArray(data?.preferred_categories) ? data.preferred_categories : []))
-      .catch(() => setPreferredCategories([]));
-  }, [session?.access_token]);
+      .catch(() => {
+        setPreferredCategories([]);
+        showToast?.('No se pudieron cargar tus categorías preferidas.');
+      });
+  }, [session?.access_token, showToast]);
 
   const handleCategoryToggle = (value: string) => {
     setPreferredCategories((prev) =>

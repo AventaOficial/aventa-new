@@ -581,13 +581,13 @@ export default function OfferModal({
                       <span>Cazado por {author.username}</span>
                     </Link>
                     {author.leaderBadge === 'cazador_estrella' && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador estrella">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
                         <BadgeCheck className="h-3.5 w-3.5" />
                         Cazador estrella
                       </span>
                     )}
                     {author.leaderBadge === 'cazador_aventa' && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador Aventa">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador destacado">
                         <BadgeCheck className="h-3.5 w-3.5" />
                         Cazador Aventa
                       </span>
@@ -739,7 +739,7 @@ export default function OfferModal({
                         <p className="text-sm text-gray-500 dark:text-gray-400">Cargando comentarios…</p>
                       ) : comments.length === 0 ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
-                          No one has commented yet. Be the first to start the discussion.
+                          Nadie ha comentado. ¡Sé el primero!
                         </p>
                       ) : (
                         comments.map((comment) => {

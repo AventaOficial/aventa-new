@@ -66,6 +66,33 @@ export const LEGACY_CATEGORY_MAP: Record<string, string> = {
   other: 'other',
 };
 
+/**
+ * Valores de categoría que existen en la BD (offers.category / ofertas_ranked_general).
+ * docs/supabase-migrations/offers_category.sql: electronics, fashion, home, sports, books, other.
+ * Solo estos evitan 400 en la vista.
+ */
+const DB_CATEGORY_WHITELIST = new Set<string>([
+  'electronics',
+  'fashion',
+  'home',
+  'sports',
+  'books',
+  'other',
+]);
+
+/** Mapeo de macro (UI) a valores de DB para el feed. Solo valores que existen en la vista. */
+const MACRO_TO_DB_CATEGORIES: Record<string, string[]> = {
+  tecnologia: ['electronics'],
+  gaming: ['other'],
+  hogar: ['home'],
+  supermercado: ['other'],
+  moda: ['fashion'],
+  belleza: ['other'],
+  viajes: ['other'],
+  servicios: ['other'],
+  other: ['other'],
+};
+
 /** Para filtrar en el feed: devuelve el valor macro y todos los legacy que mapean a él. */
 function getDbCategoryValuesForMacro(macro: string): string[] {
   const fromMap = Object.entries(LEGACY_CATEGORY_MAP)
@@ -74,10 +101,26 @@ function getDbCategoryValuesForMacro(macro: string): string[] {
   return [...new Set([macro, ...fromMap])];
 }
 
+/** Valores de category para la query al feed. Solo incluye valores que existen en ofertas_ranked_general. */
+export function getValidCategoryValuesForFeed(macro: string): string[] {
+  const mapped = MACRO_TO_DB_CATEGORIES[macro];
+  if (mapped?.length) return mapped;
+  const all = getDbCategoryValuesForMacro(macro);
+  const valid = all.filter((v) => DB_CATEGORY_WHITELIST.has(v));
+  return valid.length > 0 ? valid : [macro];
+}
+
 /** Valores de DB que cuentan como "vital" (macro vitales + legacy). Para .in('category', ...) en el feed. */
-export const VITAL_FILTER_VALUES: string[] = [
+const VITAL_RAW_VALUES = [
   ...new Set(VITAL_CATEGORY_IDS.flatMap((macro) => getDbCategoryValuesForMacro(macro))),
 ];
+
+/** Solo valores que existen en la BD; evita 400 en ofertas_ranked_general. */
+export const VITAL_FILTER_VALUES: string[] =
+  (() => {
+    const valid = VITAL_RAW_VALUES.filter((v) => DB_CATEGORY_WHITELIST.has(v));
+    return valid.length > 0 ? [...new Set(valid)] : ['electronics', 'fashion', 'home', 'other'];
+  })();
 
 /** Categorías para onboarding (todas menos Otros). */
 export const GENERAL_CATEGORIES_FOR_ONBOARDING: CategoryOption[] = ALL_CATEGORIES.filter((c) => c.value !== 'other');

@@ -7,7 +7,7 @@ import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado es un peso ganado.';
 const VALUE_PROP =
-  'Community-powered deals. Users share the best offers, and the community votes them up.';
+  'La comunidad que caza las mejores ofertas por ti. Tú subes, la comunidad vota.';
 
 interface HeroProps {
   searchQuery?: string;

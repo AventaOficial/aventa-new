@@ -181,8 +181,8 @@ export default function ProfilePage() {
                   @{profile.username}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{offersCount} ofertas publicadas</span>
-                  <span>Score total: {totalScore}</span>
+                  <span>{offersCount} ofertas cazadas</span>
+                  <span>Contribución a la comunidad: {totalScore}</span>
                 </div>
               </div>
             </div>
@@ -206,7 +206,7 @@ export default function ProfilePage() {
             >
               {offers.length === 0 ? (
                 <p className="py-6 text-center text-gray-500 dark:text-gray-400">
-                  Aún no hay ofertas publicadas.
+                  Aún no hay ofertas cazadas.
                 </p>
               ) : (
                 offers.map((offer, index) => (

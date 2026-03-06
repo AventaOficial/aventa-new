@@ -186,15 +186,19 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     setLocalUp((u) => u + (newVote === 1 ? 1 : userVote === 1 ? -1 : 0));
     setLocalDown((d) => d + (newVote === -1 ? 1 : userVote === -1 ? -1 : 0));
 
+    // API acepta 2 (up) o -1 (down). Para quitar voto enviamos el valor actual y la API borra la fila.
+    const apiValue = newVote === 1 ? 2 : newVote === -1 ? -1 : (userVote === 1 ? 2 : -1);
+
     const res = await fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ offerId: offer.id, value: newVote }),
+      body: JSON.stringify({ offerId: offer.id, value: apiValue }),
     });
     if (!res.ok) {
       setLocalVote(userVote);
       setLocalUp(prevUp);
       setLocalDown(prevDown);
+      showToast?.('No se pudo registrar el voto. Revisa tu conexión.');
     }
   };
 
@@ -354,12 +358,12 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     <span>Cazado por {offer.author.username}</span>
                   </Link>
                   {offer.author.leaderBadge === 'cazador_estrella' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
                       <BadgeCheck className="h-3.5 w-3.5" /> Cazador estrella
                     </span>
                   )}
                   {offer.author.leaderBadge === 'cazador_aventa' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador destacado">
                       <BadgeCheck className="h-3.5 w-3.5" /> Cazador Aventa
                     </span>
                   )}

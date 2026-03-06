@@ -7,7 +7,6 @@ import ClientLayout from './ClientLayout';
 import Hero from './components/Hero';
 import OfferCard from './components/OfferCard';
 import OfferCardSkeleton from './components/OfferCardSkeleton';
-import OfferModal from './components/OfferModal';
 import ChatBubble from './components/ChatBubble';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
@@ -124,7 +123,7 @@ const MOCK_TESTER_OFFERS: Offer[] = [
   { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 31 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
 ];
 
-import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getDbCategoryValuesForMacro } from '@/lib/categories';
+import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getValidCategoryValuesForFeed } from '@/lib/categories';
 
 function rowToOffer(row: OfferRow): Offer {
   const originalPrice = Number(row.original_price) || 0;
@@ -175,7 +174,6 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
@@ -199,15 +197,20 @@ function HomeContent() {
     fetch('/api/app-config?key=show_tester_offers')
       .then((r) => r.json())
       .then((data) => setShowTesterOffers(data?.value === true))
-      .catch(() => setShowTesterOffers(false));
-  }, [pathname]);
+      .catch(() => {
+        setShowTesterOffers(false);
+        showToast?.('No se pudo cargar la configuración. Usa la app con normalidad.');
+      });
+  }, [pathname, showToast]);
 
   useEffect(() => {
     fetch('/api/stores')
       .then((r) => r.json())
       .then((body) => (Array.isArray(body?.stores) ? setStoreList(body.stores) : null))
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        showToast?.('No se pudieron cargar las tiendas. Revisa tu conexión.');
+      });
+  }, [showToast]);
 
   // Mostrar error de OAuth si el callback redirigió con ?error=... y limpiar la URL
   const router = useRouter();
@@ -279,7 +282,7 @@ function HomeContent() {
       query = query.eq('store', storeFilter.trim());
     }
     if (categoryFilter?.trim()) {
-      const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
+      const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
       query = catValues.length === 1 ? query.eq('category', catValues[0]) : query.in('category', catValues);
     }
     if (viewMode === 'vitales' && VITAL_FILTER_VALUES.length > 0) {
@@ -361,7 +364,7 @@ function HomeContent() {
       nextQuery = nextQuery.eq('store', storeFilter.trim());
     }
     if (categoryFilter?.trim()) {
-      const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
+      const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
       nextQuery = catValues.length === 1 ? nextQuery.eq('category', catValues[0]) : nextQuery.in('category', catValues);
     }
     nextQuery.then(({ data, error }) => {
@@ -421,7 +424,7 @@ function HomeContent() {
         searchQueryBuilder = searchQueryBuilder.eq('store', storeFilter.trim());
       }
       if (categoryFilter?.trim()) {
-        const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
+        const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
         searchQueryBuilder = catValues.length === 1 ? searchQueryBuilder.eq('category', catValues[0]) : searchQueryBuilder.in('category', catValues);
       }
       Promise.resolve(searchQueryBuilder)
@@ -456,70 +459,7 @@ function HomeContent() {
     }
   }, [session, viewMode]);
 
-  useEffect(() => {
-    document.title = selectedOffer?.title
-      ? `${selectedOffer.title} | AVENTA - Comunidad de cazadores de ofertas`
-      : 'AVENTA - Comunidad de cazadores de ofertas';
-  }, [selectedOffer?.id, selectedOffer?.title]);
-
-  // Cerrar modal cuando la URL ya no tiene ?o= (p. ej. usuario pulsó back)
-  useEffect(() => {
-    if (!searchParams.get('o')) setSelectedOffer(null);
-  }, [searchParams]);
-
   const displayOffers = showTesterOffers && !debouncedQuery.trim() ? [...offers, ...MOCK_TESTER_OFFERS] : offers;
-
-  useEffect(() => {
-    const offerId = searchParams.get('o');
-    if (!offerId?.trim()) return;
-    if (offerId.startsWith('tester-')) return;
-    const list = showTesterOffers && !debouncedQuery.trim() ? [...offers, ...MOCK_TESTER_OFFERS] : offers;
-    const existing = list.find((o) => o.id === offerId);
-    if (existing) {
-      setSelectedOffer(existing);
-      return;
-    }
-    const supabase = createClient();
-    supabase
-      .from('offers')
-      .select('id, title, price, original_price, image_url, store, offer_url, description, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
-      .eq('id', offerId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          const up = data.upvotes_count ?? 0;
-          const down = data.downvotes_count ?? 0;
-          const prof = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
-          const offer: Offer = {
-            id: data.id,
-            title: data.title,
-            brand: data.store ?? '',
-            originalPrice: Number(data.original_price) || 0,
-            discountPrice: Number(data.price) || 0,
-            discount: data.original_price ? Math.round((1 - Number(data.price) / Number(data.original_price)) * 100) : 0,
-            description: data.description?.trim() || undefined,
-            steps: (data as { steps?: string }).steps?.trim() || undefined,
-            conditions: (data as { conditions?: string }).conditions?.trim() || undefined,
-            coupons: (data as { coupons?: string }).coupons?.trim() || undefined,
-            upvotes: up,
-            downvotes: down,
-            offerUrl: data.offer_url?.trim() ?? '',
-            image: data.image_url ?? undefined,
-            votes: { up, down, score: up * 2 - down },
-            author: {
-              username: prof?.display_name?.trim() || 'Usuario',
-              avatar_url: prof?.avatar_url ?? null,
-              leaderBadge: (prof as { leader_badge?: string | null })?.leader_badge ?? null,
-              creatorMlTag: (prof as { ml_tracking_tag?: string | null })?.ml_tracking_tag ?? null,
-            },
-            ranking_momentum: 0,
-            createdAt: data.created_at ?? null,
-          };
-          setSelectedOffer(offer);
-          setOffers((prev) => (prev.some((o) => o.id === offer.id) ? prev : [...prev, offer]));
-        }
-      });
-  }, [searchParams, offers, showTesterOffers, debouncedQuery]);
 
   useEffect(() => {
     if (!session?.user?.id || offers.length === 0) {
@@ -703,7 +643,7 @@ function HomeContent() {
           ) : feedError ? (
             <div className="py-12 px-4 text-center">
               <p className="text-[#1d1d1f] dark:text-[#fafafa] font-medium mb-2">
-                We couldn&apos;t load the deals. Please check your connection and try again.
+                No pudimos cargar las ofertas. Revisa tu conexión e intenta de nuevo.
               </p>
               <button
                 type="button"
@@ -713,16 +653,16 @@ function HomeContent() {
                 }}
                 className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
               >
-                Retry
+                Reintentar
               </button>
             </div>
           ) : !debouncedQuery.trim() && offers.length === 0 ? (
             <div className="py-12 px-4 text-center max-w-md mx-auto">
               <h2 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
-                No deals yet
+                Aún no hay ofertas
               </h2>
               <p className="text-[#6e6e73] dark:text-[#a3a3a3] text-sm mb-6">
-                Be the first to share a great deal with the community.
+                Sé el primero en subir una buena oferta a la comunidad.
               </p>
               <button
                 type="button"
@@ -735,7 +675,7 @@ function HomeContent() {
                 }}
                 className="rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 text-sm font-semibold transition-all duration-200 hover:bg-violet-700 dark:hover:bg-violet-600"
               >
-                Post a deal
+                Subir oferta
               </button>
             </div>
           ) : debouncedQuery.trim() && offers.length === 0 ? (
@@ -805,44 +745,6 @@ function HomeContent() {
       </section>
 
         <div className="h-20 md:h-0" />
-
-
-        {selectedOffer && (() => {
-          const liveOffer = offers.find((o) => o.id === selectedOffer.id) ?? selectedOffer;
-          return (
-          <OfferModal
-            isOpen={!!selectedOffer}
-            onClose={() => {
-              setSelectedOffer(null);
-              const p = new URLSearchParams(searchParams?.toString() ?? '');
-              p.delete('o');
-              const q = p.toString();
-              router.replace(q ? `${pathname}?${q}` : pathname);
-            }}
-            title={liveOffer.title}
-            brand={liveOffer.brand}
-            originalPrice={liveOffer.originalPrice}
-            discountPrice={liveOffer.discountPrice}
-            discount={liveOffer.discount}
-            description={liveOffer.description}
-            steps={liveOffer.steps}
-            conditions={liveOffer.conditions}
-            coupons={liveOffer.coupons}
-            offerUrl={liveOffer.offerUrl}
-            upvotes={liveOffer.upvotes}
-            downvotes={liveOffer.downvotes}
-            offerId={liveOffer.id}
-            author={liveOffer.author}
-            image={liveOffer.image}
-            imageUrls={liveOffer.imageUrls}
-            msiMonths={liveOffer.msiMonths}
-            isLiked={!!favoriteMap[selectedOffer.id]}
-            onFavoriteChange={(fav) => handleFavoriteChange(selectedOffer.id, fav)}
-            onVoteChange={handleVoteChange}
-            userVote={voteMap[selectedOffer.id] ?? 0}
-          />
-          );
-        })()}
 
       <div className="luna-chat">
         <ChatBubble />

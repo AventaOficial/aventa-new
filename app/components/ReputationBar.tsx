@@ -60,7 +60,7 @@ export default function ReputationBar({ level, score, className = '' }: Reputati
               </button>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              La reputación sube con ofertas aprobadas, comentarios aprobados y likes recibidos. No expira por tiempo.
+              Tu reputación refleja la confianza que la comunidad tiene en tus aportes. La reputación sube con ofertas aprobadas, comentarios aprobados y likes recibidos. No expira por tiempo.
             </p>
             <ul className="space-y-3">
               {REPUTATION_LEVELS.map(({ level: l, label: lbl }) => (
