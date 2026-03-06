@@ -1,13 +1,26 @@
 import type { MetadataRoute } from 'next';
+import {
+  getSitemapStatic,
+  getSitemapCategories,
+  getSitemapStores,
+  getSitemapOffers,
+} from '@/lib/sitemap';
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
+/**
+ * Single sitemap for now. When URLs exceed SITEMAP_INDEX_THRESHOLD (50k),
+ * consider switching to a sitemap index that references:
+ * - /sitemaps/offers-1.xml, /sitemaps/offers-2.xml, ...
+ * - /sitemaps/categories.xml
+ * - /sitemaps/stores.xml
+ * (and static URLs in the index or a /sitemaps/static.xml)
+ */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const [staticUrls, categoryUrls, storeUrls, offerUrls] = await Promise.all([
+    Promise.resolve(getSitemapStatic()),
+    Promise.resolve(getSitemapCategories()),
+    getSitemapStores(),
+    getSitemapOffers(),
+  ]);
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    { url: BASE_URL, lastModified: new Date(), changeFrequency: 'hourly', priority: 1 },
-    { url: `${BASE_URL}/descubre`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE_URL}/privacy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${BASE_URL}/terms`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
-  ];
+  return [...staticUrls, ...categoryUrls, ...storeUrls, ...offerUrls];
 }

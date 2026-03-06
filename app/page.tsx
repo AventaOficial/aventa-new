@@ -295,7 +295,7 @@ function HomeContent() {
     }
 
     const fetchLimit = viewMode === 'vitales' ? 60 : effectiveLimit;
-    query.limit(fetchLimit)
+    Promise.resolve(query.limit(fetchLimit))
       .then(({ data, error }) => {
         setLoading(false);
         if (error) {
@@ -424,20 +424,22 @@ function HomeContent() {
         const catValues = getDbCategoryValuesForMacro(categoryFilter.trim());
         searchQueryBuilder = catValues.length === 1 ? searchQueryBuilder.eq('category', catValues[0]) : searchQueryBuilder.in('category', catValues);
       }
-      searchQueryBuilder.then(({ data, error }) => {
-        setLoading(false);
-        if (error) {
+      Promise.resolve(searchQueryBuilder)
+        .then(({ data, error }) => {
+          setLoading(false);
+          if (error) {
+            setFeedError('load');
+            setOffers([]);
+            return;
+          }
+          setFeedError(null);
+          setOffers((data ?? []).map((r: OfferRow) => rowToOffer(r)));
+        })
+        .catch(() => {
+          setLoading(false);
           setFeedError('load');
           setOffers([]);
-          return;
-        }
-        setFeedError(null);
-        setOffers((data ?? []).map((r: OfferRow) => rowToOffer(r)));
-      }).catch(() => {
-        setLoading(false);
-        setFeedError('load');
-        setOffers([]);
-      });
+        });
     } else {
       fetchOffers(filtersChanged ? 12 : undefined);
       const onVisible = () => {
@@ -765,10 +767,7 @@ function HomeContent() {
                     offerUrl={offer.offerUrl}
                     author={offer.author}
                     onCardClick={() => {
-                    setSelectedOffer(offer);
-                    const p = new URLSearchParams(searchParams?.toString() ?? '');
-                    p.set('o', offer.id);
-                    router.push(pathname + '?' + p.toString());
+                    router.push(`/oferta/${offer.id}`);
                   }}
                     onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
                     onVoteChange={handleVoteChange}

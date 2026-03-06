@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -448,8 +449,8 @@ export default function OfferModal({
           {/* Desktop: contenedor grid — imagen izquierda, contenido derecha */}
           <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
           {/* Desktop: imagen izquierda */}
-          <div className="relative hidden md:flex md:w-[44%] md:flex-shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
-            <img src={currentImage} alt="" className="max-w-full max-h-full object-contain object-center" />
+          <div className="relative hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
+            <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
             {allImages.length > 1 && (
               <>
                 <button
@@ -505,7 +506,7 @@ export default function OfferModal({
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col md:min-w-0">
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
             <div className="md:hidden relative w-full aspect-[4/5] shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center overflow-hidden">
-              <img src={currentImage} alt="" className="w-full h-full object-contain object-center" />
+              <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
               {allImages.length > 1 && (
                 <>
                   <button
@@ -931,7 +932,7 @@ export default function OfferModal({
               {offerId && (
                 <button
                   onClick={() => {
-                    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/?o=${offerId}`;
+                    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/oferta/${offerId}`;
                     navigator.clipboard.writeText(url).then(() => {
                       setShareCopied(true);
                       setTimeout(() => setShareCopied(false), 2000);

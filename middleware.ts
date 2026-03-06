@@ -5,7 +5,18 @@ const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel'];
 const ADMIN_PREFIX = '/admin';
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
+
+  // SEO: redirect ?o=id to canonical /oferta/id
+  if (pathname === '/' && searchParams.get('o')) {
+    const id = searchParams.get('o')?.trim();
+    if (id && !id.startsWith('tester-')) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/oferta/${id}`;
+      url.search = '';
+      return NextResponse.redirect(url, 301);
+    }
+  }
 
   const isProtected =
     PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
@@ -42,5 +53,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/me/:path*', '/settings/:path*', '/mi-panel/:path*', '/admin/:path*'],
+  matcher: ['/', '/me/:path*', '/settings/:path*', '/mi-panel/:path*', '/admin/:path*'],
 };

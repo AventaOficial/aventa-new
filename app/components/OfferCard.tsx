@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Heart, Sparkles, ThumbsUp, ThumbsDown, ExternalLink, Search, User, Share2, Award, BadgeCheck } from 'lucide-react';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { useState, useEffect, useRef } from 'react';
@@ -318,7 +319,7 @@ export default function OfferCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/?o=${offerId}`;
+            const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/oferta/${offerId}`;
             navigator.clipboard.writeText(url).then(() => {
               setShareCopied(true);
               setTimeout(() => setShareCopied(false), 2000);
@@ -339,13 +340,16 @@ export default function OfferCard({
       )}
 
       <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
-        <div className="h-[160px] max-[400px]:h-[136px] md:h-[165px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
+        <div className="relative h-[160px] max-[400px]:h-[136px] md:h-[165px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
           {showImage ? (
-            <img
+            <Image
               src={image}
               alt=""
-              className="w-full h-full object-contain md:object-cover object-center"
+              fill
+              sizes="(max-width: 400px) 90px, (max-width: 768px) 38vw, 220px"
+              className="object-contain md:object-cover object-center"
               onError={() => setImgError(true)}
+              unoptimized={image.startsWith('/')}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
