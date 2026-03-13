@@ -42,6 +42,12 @@ El navegador muestra algo como:
 - En la consola del navegador ahora se hace **log del error** cuando falla el feed:  
   `[feed] ofertas_ranked_general error: <message> <details> <hint>`.  
   Revisa ese mensaje; suele indicar columna inexistente o problema de permisos/relación.
+
+- **Si el error es "column ofertas_ranked_general.category does not exist":**  
+  Ejecuta en Supabase → **SQL Editor** el script:  
+  **`docs/supabase-migrations/fix_ofertas_ranked_general_category.sql`**  
+  (añade la columna `category` a `offers` y recrea la vista con esa columna).
+
 - Comprueba en Supabase:
   - Que existan las vistas `ofertas_ranked_general` y `public_profiles_view` con las columnas que usa el código.
   - Que RLS (si está activo) permita `SELECT` para `anon`/`authenticated` sobre esas vistas (o sobre `offers` si la vista las usa).

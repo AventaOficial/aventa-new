@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Home, Users2, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,6 +44,7 @@ export default function ActionBar() {
   useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isOfferOpen, showToast, openRegisterModal, uploadModalRequested, clearUploadModalRequest } = useUI();
 
   const isActive = (path: string, exact?: boolean) =>
@@ -76,6 +77,7 @@ export default function ActionBar() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
+  const [urlParseLoading, setUrlParseLoading] = useState(false);
 
   useEffect(() => {
     if (showUploadModal) {
@@ -95,6 +97,25 @@ export default function ActionBar() {
     }
   }, [uploadModalRequested, clearUploadModalRequest]);
 
+  // Prefill upload modal from URL params (extension or /subir deep link)
+  useEffect(() => {
+    if (!showUploadModal || pathname !== '/') return;
+    const upload = searchParams.get('upload');
+    const title = searchParams.get('title');
+    const image = searchParams.get('image');
+    const offer_url = searchParams.get('offer_url');
+    const store = searchParams.get('store');
+    if (upload !== '1' || (!title && !image && !offer_url && !store)) return;
+    setFormData((prev) => ({
+      ...prev,
+      ...(title != null && { title: decodeURIComponent(title) }),
+      ...(offer_url != null && { offer_url: decodeURIComponent(offer_url) }),
+      ...(store != null && { store: decodeURIComponent(store) }),
+    }));
+    if (image != null) setImageUrl(decodeURIComponent(image));
+    router.replace('/', { scroll: false });
+  }, [showUploadModal, pathname, searchParams, router]);
+
   useEffect(() => {
     if (!showSuccessMessage) return;
     const t = setTimeout(() => setShowSuccessMessage(false), 4000);
@@ -112,6 +133,46 @@ export default function ActionBar() {
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  // Parse offer URL for OG metadata and auto-fill title, store, image (no override of existing fields)
+  useEffect(() => {
+    const url = formData.offer_url.trim();
+    if (!url || !url.startsWith('http')) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setUrlParseLoading(true);
+      try {
+        const res = await fetch('/api/parse-offer-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        if (cancelled) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data) {
+          setUrlParseLoading(false);
+          return;
+        }
+        setFormData((prev) => {
+          if (prev.offer_url.trim() !== url) return prev;
+          return {
+            ...prev,
+            ...(data.title && !prev.title.trim() && { title: data.title }),
+            ...(data.store && !prev.store.trim() && { store: data.store }),
+          };
+        });
+        if (data.image && !cancelled) setImageUrl(data.image);
+      } catch {
+        // do nothing; form continues as before
+      } finally {
+        if (!cancelled) setUrlParseLoading(false);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [formData.offer_url]);
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -336,12 +397,15 @@ export default function ActionBar() {
         </Link>
         <Link
           href="/communities"
-          className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 cursor-default"
-          aria-label="Comunidades (próximamente)"
-          title="Comunidades (próximamente)"
+          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${
+            pathname.startsWith('/communities')
+              ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'
+          }`}
+          aria-label="Comunidades"
         >
           <Users2 className="h-6 w-6" />
-          <span className="text-[10px] font-medium">Comunidades (próximamente)</span>
+          <span className="text-[10px] font-medium">Comunidades</span>
         </Link>
         <button
           type="button"
@@ -488,12 +552,17 @@ export default function ActionBar() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Enlace de la oferta (URL)
+                      {urlParseLoading && (
+                        <span className="ml-2 text-xs font-normal text-violet-600 dark:text-violet-400">
+                          Obteniendo datos…
+                        </span>
+                      )}
                     </label>
                     <input
                       type="url"
                       value={formData.offer_url}
                       onChange={(e) => handleInputChange('offer_url', e.target.value)}
-                      placeholder="https://..."
+                      placeholder="https://... (pega el enlace para rellenar título e imagen)"
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     />
                   </div>
