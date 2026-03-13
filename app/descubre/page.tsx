@@ -1,10 +1,11 @@
-'use client';
+ 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import ClientLayout from '@/app/ClientLayout';
 import { Mail, Bell, Heart, Shield, Sparkles } from 'lucide-react';
 
-export default function DescubrePage() {
+function DescubrePageInner() {
   return (
     <ClientLayout>
       <div className="min-h-screen bg-transparent">
@@ -92,5 +93,19 @@ export default function DescubrePage() {
         </div>
       </div>
     </ClientLayout>
+  );
+}
+
+export default function DescubrePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+          <div className="text-gray-500 dark:text-gray-400">Cargando…</div>
+        </div>
+      }
+    >
+      <DescubrePageInner />
+    </Suspense>
   );
 }

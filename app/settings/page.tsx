@@ -1,6 +1,6 @@
-'use client';
+ 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { User, Check, Lock, Mail, Smartphone, Bell, Tag, Search } from 'lucide-react';
@@ -11,7 +11,7 @@ import { ALL_CATEGORIES } from '@/lib/categories';
 
 const DAYS_LIMIT = 14;
 
-export default function SettingsPage() {
+function SettingsPageInner() {
   const router = useRouter();
   const { resetPassword } = useAuth();
   const { showToast } = useUI();
@@ -473,5 +473,19 @@ export default function SettingsPage() {
         </div>
       </div>
     </ClientLayout>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+          <p className="text-gray-500 dark:text-gray-400">Cargando configuración…</p>
+        </div>
+      }
+    >
+      <SettingsPageInner />
+    </Suspense>
   );
 }

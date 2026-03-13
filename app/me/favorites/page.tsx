@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import ClientLayout from '@/app/ClientLayout'
@@ -78,7 +78,7 @@ function rowToOffer(row: OfferRow): MappedOffer {
   }
 }
 
-export default function FavoritesPage() {
+function FavoritesPageInner() {
   useTheme()
   const router = useRouter()
   const { showToast } = useUI()
@@ -239,5 +239,19 @@ export default function FavoritesPage() {
         )}
       </div>
     </ClientLayout>
+  )
+}
+
+export default function FavoritesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+          <div className="text-gray-500 dark:text-gray-400">Cargando favoritos…</div>
+        </div>
+      }
+    >
+      <FavoritesPageInner />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
-'use client';
+ 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
@@ -50,7 +50,7 @@ type MappedOffer = {
   rejectionReason: string | null;
 };
 
-export default function MePage() {
+function MePageInner() {
   useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -333,5 +333,19 @@ export default function MePage() {
         )}
       </div>
     </ClientLayout>
+  );
+}
+
+export default function MePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+          <p className="text-gray-500 dark:text-gray-400">Cargando tu perfil…</p>
+        </div>
+      }
+    >
+      <MePageInner />
+    </Suspense>
   );
 }

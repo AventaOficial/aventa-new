@@ -1,13 +1,13 @@
-'use client';
+ 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import ClientLayout from '@/app/ClientLayout';
 import { LayoutDashboard, FlaskConical, UserCog, Megaphone, ClipboardList, ChevronRight } from 'lucide-react';
 
-export default function MiPanelPage() {
+function MiPanelPageInner() {
   const router = useRouter();
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
 
@@ -116,5 +116,19 @@ export default function MiPanelPage() {
         </div>
       </div>
     </ClientLayout>
+  );
+}
+
+export default function MiPanelPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+          <p className="text-gray-500 dark:text-gray-400">Cargando…</p>
+        </div>
+      }
+    >
+      <MiPanelPageInner />
+    </Suspense>
   );
 }
