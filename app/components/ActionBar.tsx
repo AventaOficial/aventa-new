@@ -110,10 +110,12 @@ export default function ActionBar() {
       .select('reputation_level')
       .eq('id', session.user.id)
       .maybeSingle()
-      .then(({ data }) => {
-        setReputationLevel(Math.max(1, (data as { reputation_level?: number } | null)?.reputation_level ?? 1));
-      })
-      .catch(() => setReputationLevel(1));
+      .then(
+        ({ data }) => {
+          setReputationLevel(Math.max(1, (data as { reputation_level?: number } | null)?.reputation_level ?? 1));
+        },
+        () => setReputationLevel(1)
+      );
   }, [session?.user?.id]);
 
   // Prefill upload modal from URL params (extension or /subir deep link)

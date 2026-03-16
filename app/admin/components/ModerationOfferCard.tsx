@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2 } from 'lucide-react';
+import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 
 type ModerationOffer = {
@@ -80,6 +80,7 @@ export default function ModerationOfferCard({
   const [showHistory, setShowHistory] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [expiring, setExpiring] = useState(false);
 
   const fetchHistory = useCallback(() => {
     if (historyLogs.length > 0) {
@@ -258,6 +259,33 @@ export default function ModerationOfferCard({
               <History className="h-4 w-4" />
               Historial
             </button>
+            {status === 'approved' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm('¿Eliminar esta oferta del feed? Se notificará al autor.')) return;
+                  setExpiring(true);
+                  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+                  try {
+                    const res = await fetch('/api/admin/expire-offer', {
+                      method: 'POST',
+                      headers,
+                      body: JSON.stringify({ offerId: offer.id }),
+                    });
+                    if (res.ok) onOfferUpdated?.();
+                  } finally {
+                    setExpiring(false);
+                  }
+                }}
+                disabled={expiring}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                title="Retirar oferta del feed (marca como expirada y notifica al autor)"
+              >
+                <Trash2 className="h-4 w-4" />
+                Eliminar oferta
+              </button>
+            )}
             {status === 'pending' && onApprove && onReject && (
               <>
                 <div className="w-full flex flex-col gap-2">

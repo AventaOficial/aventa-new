@@ -65,7 +65,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0`}
       >
         <Providers>
           {children}
