@@ -461,7 +461,9 @@ export default function OfferCard({
           )}
 
           <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-            {storeLabel}
+            <span className="bg-gradient-to-r from-slate-500 via-gray-400 to-slate-600 dark:from-slate-400 dark:via-gray-500 dark:to-slate-600 bg-clip-text text-transparent font-medium">
+              {storeLabel}
+            </span>
             {timeLabel ? ` • hace ${timeLabel}` : ''}
           </p>
           {description?.trim() && (

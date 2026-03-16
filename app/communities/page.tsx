@@ -42,9 +42,14 @@ export default function CommunitiesPage() {
           />
 
           <div className="relative max-w-3xl mx-auto px-4 py-8 md:py-12">
+            <div className="flex justify-center mb-4">
+              <span className="inline-flex items-center rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs font-medium px-3 py-1">
+                Próximamente
+              </span>
+            </div>
             <header className="text-center mb-10 md:mb-14">
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Comunidades</h1>
-              <p className="text-gray-600 text-lg">Las personas que encuentran las mejores ofertas.</p>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">Comunidades</h1>
+              <p className="text-gray-600 dark:text-gray-400 text-lg">Las personas que encuentran las mejores ofertas.</p>
             </header>
 
             <section>

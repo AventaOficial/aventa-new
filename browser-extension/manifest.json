@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "AVENTA — Cazar oferta",
+  "version": "1.0.0",
+  "description": "Envía ofertas de Amazon y Mercado Libre a AVENTA con un clic.",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "https://www.amazon.com/*",
+    "https://amazon.com/*",
+    "https://www.amazon.com.mx/*",
+    "https://amazon.com.mx/*",
+    "https://www.mercadolibre.com.mx/*",
+    "https://mercadolibre.com.mx/*",
+    "https://articulo.mercadolibre.com.mx/*",
+    "https://www.mercadolibre.com/*",
+    "https://mercadolibre.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.com/*",
+        "https://amazon.com/*",
+        "https://www.amazon.com.mx/*",
+        "https://amazon.com.mx/*",
+        "https://www.mercadolibre.com.mx/*",
+        "https://mercadolibre.com.mx/*",
+        "https://articulo.mercadolibre.com.mx/*",
+        "https://www.mercadolibre.com/*",
+        "https://mercadolibre.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

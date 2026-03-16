@@ -229,6 +229,13 @@ function HomeContent() {
     }
   }, [searchParams, showToast, router, pathname]);
 
+  // Abrir modal de subir oferta cuando se llega desde extensión o /subir (?upload=1&title=...&image=...&offer_url=...&store=...)
+  useEffect(() => {
+    if (pathname === '/' && searchParams.get('upload') === '1') {
+      openUploadModal();
+    }
+  }, [pathname, searchParams, openUploadModal]);
+
   const fetchOffers = useCallback((overrideLimit?: number) => {
     setLoading(true);
     setFeedError(null);
