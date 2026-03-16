@@ -347,6 +347,32 @@ export default function Navbar() {
             <div className="flex-1 overflow-y-auto p-4 min-h-0">
               {notifTab === 'ofertas' && (
                 <>
+                  {unreadCount > 0 && notifications.length > 0 && (
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!session?.access_token) return;
+                          try {
+                            const res = await fetch('/api/notifications', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                              body: JSON.stringify({}),
+                            });
+                            if (res.ok) {
+                              setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+                              setUnreadCount(0);
+                            }
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                      >
+                        Marcar todas como leídas
+                      </button>
+                    </div>
+                  )}
                   {notifications.length === 0 ? (
                     <p className="text-base text-gray-500 dark:text-gray-400">Ninguna notificación.</p>
                   ) : (

@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Flag,
   Copy,
+  Share2,
 } from 'lucide-react';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
@@ -115,6 +116,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [reportComment, setReportComment] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
   const reportModalRef = useRef<HTMLDivElement>(null);
 
   const closeReportModal = useCallback(() => {
@@ -166,6 +169,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
+
+  useEffect(() => {
+    if (!showShareMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node)) {
+        setShowShareMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [showShareMenu]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -457,75 +471,89 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 </a>
               )}
 
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Compartir:</span>
-                {(() => {
-                  const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}/oferta/${offer.id}` : '';
-                  const shareText = generateDealShareText(
-                    { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice },
-                    dealUrl
-                  );
-                  const trackShare = () => {
-                    if (session?.access_token) {
-                      fetch('/api/events', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                        body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
-                      }).catch(() => {});
-                    }
-                  };
-                  return (
-                    <>
-                      <a
-                        href={`https://t.me/share/url?url=${encodeURIComponent(dealUrl)}&text=${encodeURIComponent(shareText)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 text-xs font-medium transition-colors"
-                        onClick={trackShare}
-                        aria-label="Compartir en Telegram"
-                      >
-                        Telegram
-                      </a>
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 text-xs font-medium transition-colors"
-                        onClick={trackShare}
-                        aria-label="Compartir en WhatsApp"
-                      >
-                        WhatsApp
-                      </a>
-                      <a
-                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 text-xs font-medium transition-colors"
-                        onClick={trackShare}
-                        aria-label="Compartir en X"
-                      >
-                        X
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(shareText).then(() => {
-                            setShareCopied(true);
-                            setTimeout(() => setShareCopied(false), 2000);
-                            showToast?.('Mensaje copiado. Listo para compartir.');
+              <div className="mt-4 relative" ref={shareMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowShareMenu((v) => !v)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
+                  aria-label="Compartir"
+                  aria-expanded={showShareMenu}
+                >
+                  <Share2 className="h-4 w-4" />
+                  Compartir
+                </button>
+                {showShareMenu && (
+                  <div className="absolute left-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg py-2">
+                    {(() => {
+                      const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}/oferta/${offer.id}` : '';
+                      const shareText = generateDealShareText(
+                        { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice },
+                        dealUrl
+                      );
+                      const trackShare = () => {
+                        if (session?.access_token) {
+                          fetch('/api/events', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
                           }).catch(() => {});
-                          trackShare();
-                        }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 text-xs font-medium transition-colors"
-                        title={shareCopied ? '¡Copiado!' : 'Copiar mensaje'}
-                        aria-label="Copiar mensaje"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        Copiar mensaje
-                      </button>
-                    </>
-                  );
-                })()}
+                        }
+                      };
+                      return (
+                        <>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onClick={() => { trackShare(); setShowShareMenu(false); }}
+                            aria-label="Compartir en WhatsApp"
+                          >
+                            WhatsApp
+                          </a>
+                          <a
+                            href={`https://t.me/share/url?url=${encodeURIComponent(dealUrl)}&text=${encodeURIComponent(shareText)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onClick={() => { trackShare(); setShowShareMenu(false); }}
+                            aria-label="Compartir en Telegram"
+                          >
+                            Telegram
+                          </a>
+                          <a
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onClick={() => { trackShare(); setShowShareMenu(false); }}
+                            aria-label="Compartir en X"
+                          >
+                            X
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = typeof window !== 'undefined' ? `${window.location.origin}/oferta/${offer.id}` : '';
+                              navigator.clipboard.writeText(url).then(() => {
+                                setShareCopied(true);
+                                setTimeout(() => setShareCopied(false), 2000);
+                                showToast?.('Enlace copiado.');
+                              }).catch(() => {});
+                              trackShare();
+                              setShowShareMenu(false);
+                            }}
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+                            aria-label="Copiar enlace"
+                          >
+                            <Copy className="h-4 w-4 shrink-0" />
+                            {shareCopied ? '¡Copiado!' : 'Copiar enlace'}
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 flex items-center gap-3">
