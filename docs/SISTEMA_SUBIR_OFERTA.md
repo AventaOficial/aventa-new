@@ -13,7 +13,7 @@ Documento de referencia: flujo completo, componentes, API, base de datos y consi
 5. La API valida sesión, rate limit, bans, datos y escribe en la tabla **`offers`**.
 6. Si el usuario tiene **reputación nivel ≥ 3**, la oferta se crea con `status: 'approved'` y `expires_at` 7 días; si no, `status: 'pending'` (moderación).
 7. Se llama al RPC **`increment_offers_submitted_count`** para el perfil del usuario.
-8. El modal se cierra, se muestra mensaje de éxito y un **cooldown de 60 segundos** antes de poder subir otra.
+8. El modal se cierra, se muestra mensaje de éxito y un **cooldown** antes de poder subir otra: 15 s por defecto; 5 s si el usuario tiene reputación nivel ≥ 4.
 
 ---
 
@@ -112,8 +112,11 @@ Documento de referencia: flujo completo, componentes, API, base de datos y consi
 - **Límites:** 2 MB máx.; tipos permitidos: jpeg, jpg, png, webp.
 - **Storage Supabase:** bucket `offer-images`, nombre `{uuid}.{ext}`.
 - **Respuesta:** `{ url: string }` (URL pública de la imagen).
+- Tras subir, la API comprueba que la URL sea accesible (HEAD). Si no (p. ej. bucket privado), devuelve error claro y elimina el archivo subido.
 
-El formulario puede subir varias imágenes; la primera se usa como `image_url` y el resto se añaden a `image_urls`.
+**Importante:** El bucket `offer-images` debe ser **público** para que las fotos se vean en el feed. Si no, la subida puede devolver 200 pero la imagen no cargará (403). Ver `docs/supabase-migrations/storage_offer_images_public.sql` y en Supabase: Storage → offer-images → Configuration → "Public bucket" = ON.
+
+El formulario puede subir varias imágenes; la primera se usa como `image_url` y el resto se añaden a `image_urls`. No se puede publicar la oferta mientras una imagen sigue subiendo (botón "Publicar oferta" deshabilitado hasta que termine).
 
 ---
 
@@ -165,7 +168,7 @@ Recomendación: mapear en **POST /api/offers** de macro a un valor de BD antes d
 
 ## 8. Cooldown y UX
 
-- **COOLDOWN_SECONDS = 60:** Tras un envío exitoso, el botón "Subir" queda deshabilitado 60 segundos y se muestra "Espera Xs para enviar otra oferta".
+- **Cooldown tras publicar:** 15 segundos por defecto; 5 segundos si el usuario tiene reputación nivel ≥ 4. El botón "Subir" queda deshabilitado y se muestra "Espera Xs para enviar otra oferta".
 - **Mensaje de éxito:** "Gracias por compartir. Revisaremos tu oferta pronto." (se oculta a los 4 segundos).
 - **Al cerrar el modal:** Se resetea el formulario (`handleCancel`).
 

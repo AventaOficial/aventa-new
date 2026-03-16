@@ -38,7 +38,8 @@ function formatPreviewPrice(s: string): string {
   return `$${formatted}`;
 }
 
-const COOLDOWN_SECONDS = 60;
+const COOLDOWN_SECONDS_DEFAULT = 15;
+const COOLDOWN_SECONDS_LEVEL_4 = 5;
 
 export default function ActionBar() {
   useTheme();
@@ -52,6 +53,7 @@ export default function ActionBar() {
   const activeClasses = 'text-violet-600 dark:text-violet-400 bg-violet-100/80 dark:bg-violet-900/25';
   const inactiveClasses = 'text-[#6e6e73] dark:text-[#a3a3a3]';
   const { session } = useAuth();
+  const [reputationLevel, setReputationLevel] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOptionalSection, setShowOptionalSection] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
@@ -96,6 +98,23 @@ export default function ActionBar() {
       clearUploadModalRequest();
     }
   }, [uploadModalRequested, clearUploadModalRequest]);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setReputationLevel(1);
+      return;
+    }
+    const supabase = createClient();
+    supabase
+      .from('profiles')
+      .select('reputation_level')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setReputationLevel(Math.max(1, (data as { reputation_level?: number } | null)?.reputation_level ?? 1));
+      })
+      .catch(() => setReputationLevel(1));
+  }, [session?.user?.id]);
 
   // Prefill upload modal from URL params (extension or /subir deep link)
   useEffect(() => {
@@ -298,7 +317,8 @@ export default function ActionBar() {
       return;
     }
     setShowSuccessMessage(true);
-    setCooldownRemaining(COOLDOWN_SECONDS);
+    const cooldownSec = reputationLevel >= 4 ? COOLDOWN_SECONDS_LEVEL_4 : COOLDOWN_SECONDS_DEFAULT;
+    setCooldownRemaining(cooldownSec);
     handleCancel();
   };
 
@@ -1027,10 +1047,10 @@ export default function ActionBar() {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={!isFormValid() || isSubmitting}
+                    disabled={!isFormValid() || isSubmitting || imageUploading}
                     className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
                   >
-                    {isSubmitting ? 'Publicando…' : 'Publicar oferta'}
+                    {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
                   </button>
                 </div>
               </div>

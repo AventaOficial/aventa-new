@@ -1,7 +1,7 @@
 /**
  * Categorías de ofertas: 8 macro categorías tipo Promodescuentos.
  * Pocas categorías fuertes = más claridad. Las etiquetas/marcas pueden crecer después.
- * Vitales = las que aparecen en el tab "Día a día" del feed (empezamos con 5).
+ * Vitales = las que aparecen en el tab "Día a día" del feed (Tecnología, Gaming, Hogar, Supermercado, Moda, Belleza, Viajes, Servicios).
  */
 
 export type CategoryId =
@@ -33,9 +33,9 @@ export const ALL_CATEGORIES: CategoryOption[] = [
   { value: 'hogar', label: 'Hogar', subtitle: 'Electrodomésticos, cocina, herramientas', vital: true, icon: 'Home' },
   { value: 'supermercado', label: 'Supermercado', subtitle: 'Comida, bebidas, limpieza', vital: true, icon: 'ShoppingCart' },
   { value: 'moda', label: 'Moda', subtitle: 'Ropa, tenis, accesorios', vital: true, icon: 'Shirt' },
-  { value: 'belleza', label: 'Belleza', subtitle: 'Perfumes, cuidado personal', vital: false, icon: 'Sparkles' },
-  { value: 'viajes', label: 'Viajes', subtitle: 'Vuelos, hoteles', vital: false, icon: 'Plane' },
-  { value: 'servicios', label: 'Servicios', subtitle: 'Suscripciones, bancos, apps', vital: false, icon: 'CreditCard' },
+  { value: 'belleza', label: 'Belleza', subtitle: 'Perfumes, cuidado personal', vital: true, icon: 'Sparkles' },
+  { value: 'viajes', label: 'Viajes', subtitle: 'Vuelos, hoteles', vital: true, icon: 'Plane' },
+  { value: 'servicios', label: 'Servicios', subtitle: 'Suscripciones, bancos, apps', vital: true, icon: 'CreditCard' },
   { value: 'other', label: 'Otros', vital: false, icon: 'Package' },
 ];
 

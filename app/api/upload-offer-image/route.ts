@@ -65,6 +65,27 @@ export async function POST(request: Request) {
     }
 
     const publicUrl = supabase.storage.from('offer-images').getPublicUrl(name).data.publicUrl;
+
+    // Verificar que la URL sea accesible (bucket debe ser público para lectura)
+    try {
+      const headRes = await fetch(publicUrl, { method: 'HEAD', cache: 'no-store' });
+      if (!headRes.ok) {
+        await supabase.storage.from('offer-images').remove([name]).catch(() => {});
+        console.error('[upload-offer-image] URL no accesible:', headRes.status, publicUrl);
+        return NextResponse.json(
+          { error: 'La imagen se subió pero no es visible. Revisa que el bucket "offer-images" sea público en Supabase.' },
+          { status: 500 }
+        );
+      }
+    } catch (headErr) {
+      await supabase.storage.from('offer-images').remove([name]).catch(() => {});
+      console.error('[upload-offer-image] HEAD check failed:', headErr);
+      return NextResponse.json(
+        { error: 'No se pudo verificar la imagen. Comprueba que el bucket "offer-images" sea público.' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({ url: publicUrl });
   } catch {
     return NextResponse.json({ error: 'Error al subir' }, { status: 500 });

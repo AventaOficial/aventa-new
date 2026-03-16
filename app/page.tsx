@@ -178,7 +178,7 @@ function HomeContent() {
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('day');
-  const [viewMode, setViewMode] = useState<ViewMode>('vitales');
+  const [viewMode, setViewMode] = useState<ViewMode>('latest');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
@@ -571,11 +571,11 @@ function HomeContent() {
             </p>
 
             {viewMode === 'vitales' && (
-              <div className="flex flex-wrap gap-2 mt-3 max-[400px]:mt-2">
+              <div className="mt-3 max-[400px]:mt-2 flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:overflow-visible md:flex-wrap">
                 <button
                   type="button"
                   onClick={() => setCategoryFilter(null)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all shrink-0 ${
                     !categoryFilter
                       ? 'bg-[#1d1d1f] dark:bg-[#fafafa] text-white dark:text-[#1d1d1f]'
                       : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
@@ -588,7 +588,7 @@ function HomeContent() {
                     key={c.value}
                     type="button"
                     onClick={() => setCategoryFilter(categoryFilter === c.value ? null : c.value)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all shrink-0 ${
                       categoryFilter === c.value
                         ? 'bg-[#1d1d1f] dark:bg-[#fafafa] text-white dark:text-[#1d1d1f]'
                         : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
