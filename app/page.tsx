@@ -16,6 +16,9 @@ import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { getSearchTerms } from '@/lib/searchGroups';
 
+/** When true, home feed uses /api/feed/home first; on failure falls back to existing Supabase fetch. */
+const USE_NEW_FEED = true;
+
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = 'vitales' | 'top' | 'personalized' | 'latest';
 
@@ -166,6 +169,63 @@ function rowToOffer(row: OfferRow): Offer {
   };
 }
 
+type FeedApiItem = {
+  id: string;
+  title: string;
+  price: number;
+  original_price: number | null;
+  created_at: string;
+  score: number;
+  images?: string[];
+  store?: string | null;
+  category?: string | null;
+  slug?: string;
+};
+
+async function fetchFeedFromAPI(type: 'trending' | 'recent' = 'trending'): Promise<FeedApiItem[] | null> {
+  try {
+    const res = await fetch(`/api/feed/home?limit=20&type=${type}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('API response failed');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error ?? 'API error');
+    return data.data ?? null;
+  } catch (error) {
+    console.error('[FEED API FALLBACK]', error);
+    return null;
+  }
+}
+
+function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
+  return apiData.map((item) => {
+    const originalPrice = item.original_price ?? 0;
+    const discountPrice = item.price ?? 0;
+    const discount = originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
+    const score = item.score ?? 0;
+    const up = score >= 0 ? Math.max(0, Math.ceil(score / 2)) : 0;
+    const down = score < 0 ? -score : 0;
+    const images = Array.isArray(item.images) ? item.images : [];
+    const image = images[0] ?? null;
+    return {
+      id: item.id ?? '',
+      title: item.title ?? '',
+      brand: item.store ?? '',
+      originalPrice,
+      discountPrice,
+      discount,
+      upvotes: up,
+      downvotes: down,
+      offerUrl: '',
+      image: image ?? undefined,
+      imageUrls: images.length > 0 ? images : undefined,
+      votes: { up, down, score },
+      author: { username: 'Usuario' },
+      ranking_momentum: score,
+      ranking_blend: score,
+      createdAt: item.created_at ?? null,
+    };
+  });
+}
+
 function HomeContent() {
   useTheme();
   const { showToast, openUploadModal, openRegisterModal } = useUI();
@@ -263,81 +323,107 @@ function HomeContent() {
       return;
     }
 
-    const supabase = createClient();
-    const now = new Date();
-    const nowISO = now.toISOString();
-    const msPerDay = 24 * 60 * 60 * 1000;
-    let fechaLimite: Date;
-    if (timeFilter === 'day') {
-      fechaLimite = new Date(now.getTime() - 1 * msPerDay);
-    } else if (timeFilter === 'week') {
-      fechaLimite = new Date(now.getTime() - 7 * msPerDay);
-    } else {
-      fechaLimite = new Date(now.getTime() - 30 * msPerDay);
-    }
-    const fechaLimiteISO = fechaLimite.toISOString();
+    console.log('[FEED SOURCE]', USE_NEW_FEED ? 'API' : 'SUPABASE');
 
-    let query = supabase
-      .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
-      .order('ranking_blend', { ascending: false })
-      .or('status.eq.approved,status.eq.published')
-      .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-      .gte('created_at', fechaLimiteISO);
+    const runSupabaseFetch = () => {
+      const supabase = createClient();
+      const now = new Date();
+      const nowISO = now.toISOString();
+      const msPerDay = 24 * 60 * 60 * 1000;
+      let fechaLimite: Date;
+      if (timeFilter === 'day') {
+        fechaLimite = new Date(now.getTime() - 1 * msPerDay);
+      } else if (timeFilter === 'week') {
+        fechaLimite = new Date(now.getTime() - 7 * msPerDay);
+      } else {
+        fechaLimite = new Date(now.getTime() - 30 * msPerDay);
+      }
+      const fechaLimiteISO = fechaLimite.toISOString();
 
-    if (storeFilter?.trim()) {
-      query = query.eq('store', storeFilter.trim());
-    }
-    if (categoryFilter?.trim()) {
-      const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
-      query = catValues.length === 1 ? query.eq('category', catValues[0]) : query.in('category', catValues);
-    }
-    if (viewMode === 'vitales' && VITAL_FILTER_VALUES.length > 0) {
-      query = query.in('category', VITAL_FILTER_VALUES);
-    }
-    if (viewMode === 'top') {
-      query = query.gt('score', 0);
-    }
-    if (viewMode === 'top') {
-      query = query.order('score_final', { ascending: false });
-    } else if (viewMode === 'latest') {
-      query = query.order('created_at', { ascending: false });
-    }
+      let query = supabase
+        .from('ofertas_ranked_general')
+        .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+        .order('ranking_blend', { ascending: false })
+        .or('status.eq.approved,status.eq.published')
+        .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
+        .gte('created_at', fechaLimiteISO);
 
-    const fetchLimit = viewMode === 'vitales' ? 60 : effectiveLimit;
-    Promise.resolve(query.limit(fetchLimit))
-      .then(({ data, error }) => {
-        setLoading(false);
-        if (error) {
-          console.error('[feed] ofertas_ranked_general error:', error.message, (error as { details?: string; hint?: string }).details, (error as { details?: string; hint?: string }).hint);
+      if (storeFilter?.trim()) {
+        query = query.eq('store', storeFilter.trim());
+      }
+      if (categoryFilter?.trim()) {
+        const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
+        query = catValues.length === 1 ? query.eq('category', catValues[0]) : query.in('category', catValues);
+      }
+      if (viewMode === 'vitales' && VITAL_FILTER_VALUES.length > 0) {
+        query = query.in('category', VITAL_FILTER_VALUES);
+      }
+      if (viewMode === 'top') {
+        query = query.gt('score', 0);
+      }
+      if (viewMode === 'top') {
+        query = query.order('score_final', { ascending: false });
+      } else if (viewMode === 'latest') {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const fetchLimit = viewMode === 'vitales' ? 60 : effectiveLimit;
+      Promise.resolve(query.limit(fetchLimit))
+        .then(({ data, error }) => {
+          setLoading(false);
+          if (error) {
+            console.error('[feed] ofertas_ranked_general error:', error.message, (error as { details?: string; hint?: string }).details, (error as { details?: string; hint?: string }).hint);
+            setFeedError('load');
+            setOffers([]);
+            return;
+          }
+          setFeedError(null);
+          const rows = data ?? [];
+          let list = rows.map(rowToOffer);
+          if (viewMode === 'vitales') {
+            list = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
+            list.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
+            const half = Math.ceil(list.length / 2);
+            const high = list.slice(0, half);
+            const low = list.slice(half);
+            const interleaved: typeof list = [];
+            for (let i = 0; i < Math.max(high.length, low.length); i++) {
+              if (high[i]) interleaved.push(high[i]);
+              if (low[i]) interleaved.push(low[i]);
+            }
+            list = interleaved.slice(0, effectiveLimit);
+          }
+          setOffers(list);
+          setHasMoreCursor(viewMode === 'vitales' ? false : rows.length >= effectiveLimit);
+        })
+        .catch(() => {
+          setLoading(false);
           setFeedError('load');
           setOffers([]);
-          return;
-        }
-        setFeedError(null);
-        const rows = data ?? [];
-        let list = rows.map(rowToOffer);
-        if (viewMode === 'vitales') {
-          list = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
-          list.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
-          const half = Math.ceil(list.length / 2);
-          const high = list.slice(0, half);
-          const low = list.slice(half);
-          const interleaved: typeof list = [];
-          for (let i = 0; i < Math.max(high.length, low.length); i++) {
-            if (high[i]) interleaved.push(high[i]);
-            if (low[i]) interleaved.push(low[i]);
+        });
+    };
+
+    if (USE_NEW_FEED) {
+      const feedType = viewMode === 'latest' ? 'recent' : 'trending';
+      fetchFeedFromAPI(feedType)
+        .then((data) => {
+          if (data != null && Array.isArray(data)) {
+            setOffers(adaptFeedData(data));
+            setLoading(false);
+            setFeedError(null);
+            setHasMoreCursor(false);
+            return;
           }
-          list = interleaved.slice(0, effectiveLimit);
-        }
-        setOffers(list);
-        setHasMoreCursor(viewMode === 'vitales' ? false : rows.length >= effectiveLimit);
-      })
-      .catch(() => {
-        setLoading(false);
-        setFeedError('load');
-        setOffers([]);
-      });
+          runSupabaseFetch();
+        })
+        .catch((err) => {
+          console.error('[FEED API FALLBACK]', err);
+          runSupabaseFetch();
+        });
+      return;
+    }
+
+    runSupabaseFetch();
   }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token]);
 
   const fetchNextPage = useCallback(() => {
