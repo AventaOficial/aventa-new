@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { buildDailyHtml } from '@/lib/email/templates';
+import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
+
+const RESEND_CONCURRENCY = 12;
 
 /** Cron: Top 10 del día. Secret por query ?secret=, cabecera x-cron-secret o Authorization: Bearer (Vercel lo envía si CRON_SECRET está definido) */
 export async function GET(request: NextRequest) {
@@ -55,23 +58,31 @@ export async function GET(request: NextRequest) {
   }
 
   const offerList = (offers ?? []) as { id: string; title: string; created_by?: string | null }[];
-  for (let i = 0; i < recipients.length; i++) {
-    const r = recipients[i];
-    const email = r.email;
-    if (!email) continue;
-    const yourOffersInTop = offerList.filter((o) => o.created_by === r.user_id).map((o) => ({ id: o.id, title: o.title }));
-    const html = buildDailyHtml(offerList, baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined);
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: email, subject, html }),
-      });
-      if (res.ok) sent++;
-      else console.error('[daily-digest] Resend', email, await res.text());
-    } catch (e) {
-      console.error('[daily-digest] send', email, e);
-    }
-  }
+
+  const tasks = recipients
+    .filter((r): r is { user_id: string; email: string } => Boolean(r.email?.trim()))
+    .map((r) => async () => {
+      const email = r.email.trim();
+      const yourOffersInTop = offerList
+        .filter((o) => o.created_by === r.user_id)
+        .map((o) => ({ id: o.id, title: o.title }));
+      const html = buildDailyHtml(offerList, baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined);
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, to: email, subject, html }),
+        });
+        if (res.ok) return true;
+        console.error('[daily-digest] Resend', email, await res.text());
+      } catch (e) {
+        console.error('[daily-digest] send', email, e);
+      }
+      return false;
+    });
+
+  const results = await runWithConcurrency(tasks, RESEND_CONCURRENCY);
+  sent = results.filter(Boolean).length;
+
   return NextResponse.json({ ok: true, sent, recipients: emails.length });
 }

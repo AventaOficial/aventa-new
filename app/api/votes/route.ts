@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       rawValue === 2 || rawValue === -1 ? rawValue : null
 
     if (!offerId || value === null || !isValidUuid(offerId)) {
-      return NextResponse.json({ ok: false }, { status: 400 })
+      return NextResponse.json({ ok: false, error: 'Solicitud inválida' }, { status: 400 })
     }
 
     const authHeader = request.headers.get('authorization')
@@ -58,14 +58,14 @@ export async function POST(request: Request) {
       ? authHeader.slice(7).trim()
       : null
     if (!token) {
-      return NextResponse.json({ ok: false }, { status: 200 })
+      return NextResponse.json({ ok: false, error: 'No autorizado' }, { status: 401 })
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     if (!url || !anonKey) {
       console.error('[votes] Missing Supabase URL or anon key')
-      return NextResponse.json({ ok: false }, { status: 200 })
+      return NextResponse.json({ ok: false, error: 'Servicio no disponible' }, { status: 503 })
     }
 
     const userRes = await fetch(`${url}/auth/v1/user`, {
@@ -75,15 +75,21 @@ export async function POST(request: Request) {
       },
     })
     if (!userRes.ok) {
-      return NextResponse.json({ ok: false }, { status: 200 })
+      return NextResponse.json({ ok: false, error: 'Sesión inválida' }, { status: 401 })
     }
     const userData = await userRes.json().catch(() => null)
     const userId = userData?.id ?? null
     if (!userId) {
-      return NextResponse.json({ ok: false }, { status: 200 })
+      return NextResponse.json({ ok: false, error: 'Sesión inválida' }, { status: 401 })
     }
 
-    const supabase = createServerClient()
+    let supabase
+    try {
+      supabase = createServerClient()
+    } catch (e) {
+      console.error('[votes] Supabase server client:', e)
+      return NextResponse.json({ ok: false, error: 'Servicio no disponible' }, { status: 503 })
+    }
 
     const col = 'value' as const
     const { data: existing, error: selectError } = await supabase
@@ -95,7 +101,7 @@ export async function POST(request: Request) {
 
     if (selectError) {
       console.error('[votes] select failed:', selectError.message)
-      return NextResponse.json({ ok: false }, { status: 200 })
+      return NextResponse.json({ ok: false, error: 'Error al consultar voto' }, { status: 500 })
     }
 
     if (!existing) {
@@ -106,7 +112,7 @@ export async function POST(request: Request) {
       })
       if (insertError) {
         console.error('[votes] insert failed:', insertError.message)
-        return NextResponse.json({ ok: false }, { status: 200 })
+        return NextResponse.json({ ok: false, error: 'No se pudo guardar el voto' }, { status: 500 })
       }
       if (value === 2) {
         notifyOfferOwnerLike(supabase, offerId, userId).catch((e) => console.error('[votes] notify owner:', e))
@@ -123,7 +129,7 @@ export async function POST(request: Request) {
         .eq('user_id', userId)
       if (deleteError) {
         console.error('[votes] delete failed:', deleteError.message)
-        return NextResponse.json({ ok: false }, { status: 200 })
+        return NextResponse.json({ ok: false, error: 'No se pudo actualizar el voto' }, { status: 500 })
       }
       return NextResponse.json({ ok: true }, { status: 200 })
     }
@@ -135,7 +141,7 @@ export async function POST(request: Request) {
       .eq('user_id', userId)
     if (updateError) {
       console.error('[votes] update failed:', updateError.message)
-      return NextResponse.json({ ok: false }, { status: 200 })
+      return NextResponse.json({ ok: false, error: 'No se pudo actualizar el voto' }, { status: 500 })
     }
     if (value === 2) {
       notifyOfferOwnerLike(supabase, offerId, userId).catch((e) => console.error('[votes] notify owner:', e))
@@ -144,6 +150,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true }, { status: 200 })
   } catch (e) {
     console.error('[votes] error:', e)
-    return NextResponse.json({ ok: false }, { status: 200 })
+    return NextResponse.json({ ok: false, error: 'Error interno' }, { status: 500 })
   }
 }

@@ -159,13 +159,18 @@ export default function ActionBar() {
   useEffect(() => {
     const url = formData.offer_url.trim();
     if (!url || !url.startsWith('http')) return;
+    const token = session?.access_token;
+    if (!token) return;
     let cancelled = false;
     const t = setTimeout(async () => {
       setUrlParseLoading(true);
       try {
         const res = await fetch('/api/parse-offer-url', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ url }),
         });
         if (cancelled) return;
@@ -193,7 +198,7 @@ export default function ActionBar() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [formData.offer_url]);
+  }, [formData.offer_url, session?.access_token]);
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;

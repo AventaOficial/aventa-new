@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
     const type = typeParam === 'recent' ? 'recent' : 'trending';
     const cursor = searchParams.get('cursor') ?? null;
 
-    console.log('[FEED API] Fetching home feed', { limit, type });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[FEED API] Fetching home feed', { limit, type });
+    }
 
     const result = await getHomeFeed({ limit, cursor, type });
 

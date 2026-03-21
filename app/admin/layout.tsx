@@ -65,6 +65,7 @@ export default function AdminLayout({
   const router = useRouter();
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
+  const [authGateReady, setAuthGateReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function AdminLayout({
       setUser(u ? { id: u.id } : null);
       if (!u) {
         setUserRole(null);
+        setAuthGateReady(true);
         return;
       }
       supabase
@@ -84,12 +86,14 @@ export default function AdminLayout({
           if (error) {
             console.error('Error fetching user roles:', error);
             setUserRole(null);
+            setAuthGateReady(true);
             return;
           }
           const roles = ((data ?? []) as { role: Role }[]).map((x) => x.role);
           const priority: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
           const r = priority.find((p) => roles.includes(p)) ?? null;
           setUserRole(r);
+          setAuthGateReady(true);
         });
     });
   }, []);
@@ -103,7 +107,7 @@ export default function AdminLayout({
   const canHea = canAccessHealth(userRole);
 
   useEffect(() => {
-    if (!hasAllowedRole) return;
+    if (!authGateReady || !hasAllowedRole) return;
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
@@ -134,9 +138,9 @@ export default function AdminLayout({
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
     }
-  }, [pathname, hasAllowedRole, canMod, canUsersLogs, canTeam, canAnnouncements, canMet, canHea, router]);
+  }, [pathname, authGateReady, hasAllowedRole, canMod, canUsersLogs, canTeam, canAnnouncements, canMet, canHea, router]);
 
-  if (hasAllowedRole === null) {
+  if (!authGateReady) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-gray-500 dark:text-gray-400">Cargando…</div>

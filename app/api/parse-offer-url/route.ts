@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 
 const FETCH_TIMEOUT_MS = 8000;
 const USER_AGENT =
@@ -45,9 +47,19 @@ function getById(html: string, id: string, attr: 'content' | 'src' | 'text'): st
 function absoluteUrl(base: string, path: string | null): string | null {
   if (!path || !path.trim()) return null;
   const trimmed = path.trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  let href: string;
+  if (/^https?:\/\//i.test(trimmed)) href = trimmed;
+  else {
+    try {
+      href = new URL(trimmed, base).href;
+    } catch {
+      return null;
+    }
+  }
   try {
-    return new URL(trimmed, base).href;
+    const u = new URL(href);
+    if (isBlockedOfferParseUrl(u).blocked) return null;
+    return u.href;
   } catch {
     return null;
   }
@@ -104,6 +116,31 @@ function parseGeneric(html: string, base: string): { title: string | null; image
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const rl = await enforceRateLimitCustom(ip, 'parseOffer');
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Espera un momento.' }, { status: 429 });
+    }
+
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    if (!token) {
+      return NextResponse.json({ error: 'Inicia sesión para analizar enlaces' }, { status: 401 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) {
+      return NextResponse.json({ error: 'Configuración inválida' }, { status: 500 });
+    }
+
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
+    });
+    if (!userRes.ok) {
+      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
     if (!rawUrl) {
@@ -130,6 +167,14 @@ export async function POST(request: Request) {
         image: null,
         store: null,
       });
+    }
+
+    const block = isBlockedOfferParseUrl(url);
+    if (block.blocked) {
+      return NextResponse.json(
+        { error: block.reason ?? 'URL no permitida' },
+        { status: 400 }
+      );
     }
 
     const controller = new AbortController();

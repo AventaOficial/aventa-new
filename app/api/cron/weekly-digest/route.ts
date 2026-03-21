@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { buildWeeklyHtml } from '@/lib/email/templates';
+import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
+
+const RESEND_CONCURRENCY = 12;
 
 /** Cron: resumen semanal (domingos). Secret por query, x-cron-secret o Authorization: Bearer (Vercel) */
 export async function GET(request: NextRequest) {
@@ -111,18 +114,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0 });
   }
 
-  for (const email of emails) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: email, subject, html }),
-      });
-      if (res.ok) sent++;
-    } catch (e) {
-      console.error('[weekly-digest] send error', email, e);
+  const tasks = emails.map(
+    (email) => async () => {
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, to: email, subject, html }),
+        });
+        return res.ok;
+      } catch (e) {
+        console.error('[weekly-digest] send error', email, e);
+        return false;
+      }
     }
-  }
+  );
+
+  const results = await runWithConcurrency(tasks, RESEND_CONCURRENCY);
+  sent = results.filter(Boolean).length;
 
   return NextResponse.json({ ok: true, sent, recipients: emails.length });
 }

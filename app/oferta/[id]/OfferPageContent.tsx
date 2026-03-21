@@ -209,7 +209,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ offerId: offer.id, value: apiValue }),
     });
-    if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok) {
       setLocalVote(userVote);
       setLocalUp(prevUp);
       setLocalDown(prevDown);
