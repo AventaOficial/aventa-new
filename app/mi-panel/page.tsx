@@ -1,11 +1,86 @@
- 'use client';
+'use client';
 
 import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import ClientLayout from '@/app/ClientLayout';
-import { LayoutDashboard, FlaskConical, UserCog, Megaphone, ClipboardList, ChevronRight } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  BarChart3,
+  Shield,
+  UserCog,
+  Megaphone,
+  FlaskConical,
+  ChevronRight,
+  ClipboardList,
+  CheckCircle,
+  XCircle,
+  MessageCircle,
+  Flag,
+  ShieldOff,
+  Building2,
+  Heart,
+  FileText,
+} from 'lucide-react';
+
+type PanelLink = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+
+const SECTIONS: {
+  id: string;
+  title: string;
+  context: string;
+  links: PanelLink[];
+}[] = [
+  {
+    id: 'comunidad',
+    title: 'Comunidad y calidad',
+    context:
+      'Todo lo que la gente publica y consume: cola de ofertas, comentarios, reportes de la comunidad y accesos restringidos. Es el núcleo operativo del día a día.',
+    links: [
+      { href: '/admin/moderation', label: 'Pendientes', icon: ClipboardList },
+      { href: '/admin/moderation/approved', label: 'Aprobadas', icon: CheckCircle },
+      { href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
+      { href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
+      { href: '/admin/reports', label: 'Reportes', icon: Flag },
+      { href: '/admin/moderation/bans', label: 'Baneos', icon: ShieldOff },
+      { href: '/admin/communities', label: 'Comunidades', icon: Building2 },
+    ],
+  },
+  {
+    id: 'analisis',
+    title: 'Análisis y salud',
+    context:
+      'Métricas de uso y rendimiento del producto: actividad, retención, vistas/clics y comprobaciones de salud. Sirve para priorizar y detectar incidencias.',
+    links: [
+      { href: '/admin/metrics', label: 'Métricas', icon: BarChart3 },
+      { href: '/admin/health', label: 'Health', icon: Heart },
+      { href: '/admin/analista', label: 'Panel analista', icon: LayoutDashboard },
+    ],
+  },
+  {
+    id: 'admin',
+    title: 'Administración',
+    context:
+      'Usuarios del sistema y registro de acciones (moderación, equipo). Útil para auditoría y soporte.',
+    links: [
+      { href: '/admin/users', label: 'Usuarios', icon: Users },
+      { href: '/admin/logs', label: 'Logs', icon: FileText },
+    ],
+  },
+  {
+    id: 'equipo',
+    title: 'Equipo y comunicación',
+    context:
+      'Quién tiene acceso al panel, avisos globales en la app y la opción de mostrar ofertas de ejemplo (testers) en la home — se configura desde moderación.',
+    links: [
+      { href: '/admin/team', label: 'Equipo y roles', icon: UserCog },
+      { href: '/admin/announcements', label: 'Avisos del sitio', icon: Megaphone },
+      { href: '/admin/moderation', label: 'Ofertas de testers (config)', icon: FlaskConical },
+    ],
+  },
+];
 
 function MiPanelPageInner() {
   const router = useRouter();
@@ -46,73 +121,63 @@ function MiPanelPageInner() {
   return (
     <ClientLayout>
       <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a]">
-        <div className="max-w-xl mx-auto px-4 py-8">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <LayoutDashboard className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-            Mi panel
-          </h1>
-
-          <ul className="mt-6 space-y-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-            <li>
-              <Link
-                href="/admin/moderation"
-                className="flex items-center justify-between px-4 py-3 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <span className="flex items-center gap-3">
-                  <FlaskConical className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  Ofertas de testers
-                </span>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
-              </Link>
-            </li>
-            <li className="border-t border-gray-200 dark:border-gray-700">
-              <Link
-                href="/admin/team"
-                className="flex items-center justify-between px-4 py-3 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <span className="flex items-center gap-3">
-                  <UserCog className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                  Equipo
-                </span>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
-              </Link>
-            </li>
-            <li className="border-t border-gray-200 dark:border-gray-700">
-              <Link
-                href="/admin/announcements"
-                className="flex items-center justify-between px-4 py-3 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <span className="flex items-center gap-3">
-                  <Megaphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  Avisos
-                </span>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
-              </Link>
-            </li>
-            <li className="border-t border-gray-200 dark:border-gray-700">
-              <Link
-                href="/admin/moderation"
-                className="flex items-center justify-between px-4 py-3 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <span className="flex items-center gap-3">
-                  <ClipboardList className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                  Moderación
-                </span>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
-              </Link>
-            </li>
-          </ul>
-
-          <section className="mt-8 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Qué toca ahora</h2>
-            <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1 list-disc list-inside">
-              <li>Privacidad: correo real en /privacy (sustituir placeholder).</li>
-              <li>Prueba punta a punta: registro → subir oferta → votar → comentar → reportar → moderar.</li>
-            </ul>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              <span className="font-medium">docs/GUIA_AVENTA.md</span> · <span className="font-medium">docs/COMO_LLEVAR_AVENTA.md</span>
+        <div className="max-w-3xl mx-auto px-4 py-8 md:py-10 pb-28 md:pb-10">
+          <header className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400">
+                <Shield className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  Panel owner
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Mapa de AVENTA por áreas: enlaces al mismo panel admin, ordenado por función.
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mt-4 pl-0 md:pl-14">
+              Cada bloque resume <strong className="text-gray-800 dark:text-gray-200">qué parte del producto</strong>{' '}
+              tocas ahí. No duplica lógica: solo te orienta antes de entrar a Moderación, Métricas, Equipo, etc.
             </p>
-          </section>
+          </header>
+
+          <div className="space-y-8">
+            {SECTIONS.map((section) => (
+              <section
+                key={section.id}
+                className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 overflow-hidden shadow-sm"
+              >
+                <div className="px-4 py-4 md:px-5 md:py-5 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/80 dark:bg-gray-900/40">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
+                    {section.title}
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">{section.context}</p>
+                </div>
+                <ul className="divide-y divide-gray-100 dark:divide-gray-700/80">
+                  {section.links.map(({ href, label, icon: Icon }) => (
+                    <li key={href + label}>
+                      <Link
+                        href={href}
+                        className="flex items-center justify-between gap-3 px-4 py-3.5 md:px-5 text-gray-900 dark:text-gray-100 hover:bg-violet-50/60 dark:hover:bg-violet-900/15 transition-colors"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <Icon className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" />
+                          <span className="font-medium truncate">{label}</span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+
+          <p className="mt-10 text-center text-xs text-gray-500 dark:text-gray-500">
+            Documentación interna:{' '}
+            <span className="font-medium text-gray-600 dark:text-gray-400">docs/GUIA_AVENTA.md</span>
+          </p>
         </div>
       </div>
     </ClientLayout>
