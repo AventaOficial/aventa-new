@@ -8,6 +8,7 @@ import ClientLayout from '@/app/ClientLayout';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
+import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 
 const DAYS_LIMIT = 14;
 
@@ -174,18 +175,33 @@ function SettingsPageInner() {
       router.replace('/');
       return;
     }
+    const trimmed = displayName.trim();
+    if (!trimmed) {
+      setSaving(false);
+      showToast?.('Escribe un nombre visible.');
+      return;
+    }
     const updatedAt = new Date().toISOString();
+    const slug = profileSlugFromDisplayName(trimmed, user.id);
     const { data: updated, error } = await supabase
       .from('profiles')
       .update({
-        display_name: displayName,
+        display_name: trimmed,
         display_name_updated_at: updatedAt,
+        slug,
       })
       .eq('id', user.id)
       .select('display_name_updated_at')
       .single();
     setSaving(false);
-    if (error) return;
+    if (error) {
+      showToast?.(error.message || 'No se pudo guardar el nombre. Revisa permisos o intenta de nuevo.');
+      return;
+    }
+    await supabase.auth.updateUser({
+      data: { display_name: trimmed, full_name: trimmed },
+    });
+    setDisplayName(trimmed);
     setDisplayNameUpdatedAt(updated?.display_name_updated_at ?? updatedAt);
     setSuccessMessage('Cambios guardados');
   };

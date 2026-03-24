@@ -1,16 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
-
-/** Misma lógica que el frontend (slugFromUsername): minúsculas, espacios→-, solo a-z0-9- */
-function toSlug(name: string | null): string | null {
-  if (typeof name !== 'string' || !name.trim()) return null;
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-}
+import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 
 /**
  * Sincroniza el perfil público (profiles) con los datos de Supabase Auth.
@@ -45,18 +36,18 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url')
+      .select('id, display_name, avatar_url, display_name_updated_at')
       .eq('id', user.id)
       .maybeSingle();
 
     if (!existing) {
       const nameToSet = displayName || fallbackName || 'Usuario';
-      const slug = toSlug(nameToSet) || `user-${user.id.slice(0, 8)}`;
+      const slug = profileSlugFromDisplayName(nameToSet, user.id);
       const { error: insertError } = await supabase.from('profiles').insert({
         id: user.id,
         display_name: nameToSet,
         avatar_url: avatarUrlVal,
-        ...(slug && { slug }),
+        slug,
       });
       if (insertError) {
         console.error('[sync-profile] insert failed:', insertError.message, insertError.details, insertError.code);
@@ -69,15 +60,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Siempre actualizar display_name desde Auth (y slug para perfil público /u/[slug])
+    // Si el usuario ya guardó nombre desde Configuración, no sobrescribir display_name/slug con OAuth
+    const customNameAt = (existing as { display_name_updated_at?: string | null }).display_name_updated_at;
+    if (customNameAt) {
+      const { error: avatarOnlyError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrlVal })
+        .eq('id', user.id);
+      if (avatarOnlyError) {
+        console.error('[sync-profile] avatar-only update failed:', avatarOnlyError.message);
+        return NextResponse.json(
+          { error: 'Error al actualizar perfil' },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const displayNameToSet =
       (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Usuario') as string;
     const finalDisplayName = typeof displayNameToSet === 'string' && displayNameToSet.trim() ? displayNameToSet.trim() : (user.email?.split('@')[0] || 'Usuario');
-    const slug = toSlug(finalDisplayName) || `user-${user.id.slice(0, 8)}`;
+    const slug = profileSlugFromDisplayName(finalDisplayName, user.id);
     const updates: { avatar_url: string | null; display_name: string; slug?: string } = {
       avatar_url: avatarUrlVal,
       display_name: finalDisplayName,
-      ...(slug && { slug }),
+      slug,
     };
 
     const { error: updateError } = await supabase

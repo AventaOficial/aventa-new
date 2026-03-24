@@ -88,3 +88,36 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+/** DELETE: eliminar una notificación del usuario (body: { id }) */
+export async function DELETE(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!token) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  const supabase = createServerClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user?.id) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  const rl = await enforceRateLimit(`notif-del:${user.id}`);
+  if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
+
+  const body = await request.json().catch(() => ({}));
+  const id = typeof body?.id === 'string' ? body.id.trim() : null;
+  if (!id) {
+    return NextResponse.json({ error: 'Falta id' }, { status: 400 });
+  }
+
+  const { error } = await supabase.from('notifications').delete().eq('user_id', user.id).eq('id', id);
+
+  if (error) {
+    console.error('[notifications] delete:', error.message);
+    return NextResponse.json({ error: 'No se pudo eliminar' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

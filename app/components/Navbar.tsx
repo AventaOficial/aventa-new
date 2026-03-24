@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard, Sparkles } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard, Sparkles, Trash2, Droplet } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { playNotificationDropSound } from '@/lib/playNotificationSound';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
@@ -34,6 +35,7 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string | null; link: string | null; created_at: string }[]>([]);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const loadNotifSoundPrimedRef = useRef(false);
 
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -97,10 +99,36 @@ export default function Navbar() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showUserMenu]);
 
+  const deleteNotifications = useCallback(
+    async (ids: string[]) => {
+      if (!session?.access_token || ids.length === 0) return;
+      try {
+        await Promise.all(
+          ids.map((id) =>
+            fetch('/api/notifications', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ id }),
+            })
+          )
+        );
+        setNotifications((prev) => {
+          const removedUnread = prev.filter((n) => ids.includes(n.id) && !n.read_at).length;
+          setUnreadCount((c) => Math.max(0, c - removedUnread));
+          return prev.filter((n) => !ids.includes(n.id));
+        });
+      } catch {
+        // ignore
+      }
+    },
+    [session?.access_token]
+  );
+
   useEffect(() => {
     if (!user || !session?.access_token) {
       setNotifications([]);
       setUnreadCount(0);
+      loadNotifSoundPrimedRef.current = false;
       return;
     }
     const load = async () => {
@@ -110,8 +138,16 @@ export default function Navbar() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        setNotifications(data.notifications ?? []);
-        setUnreadCount(data.unreadCount ?? 0);
+        const list = data.notifications ?? [];
+        const newUnread = data.unreadCount ?? 0;
+        setNotifications(list);
+        setUnreadCount((prev) => {
+          if (loadNotifSoundPrimedRef.current && newUnread > prev) {
+            playNotificationDropSound();
+          }
+          loadNotifSoundPrimedRef.current = true;
+          return newUnread;
+        });
       } catch {
         // ignore
       }
@@ -415,41 +451,78 @@ export default function Navbar() {
                         const others = notifications.filter((n) => likeKey(n) === null);
                         const all = [...items, ...others.map((n) => ({ ids: [n.id], display: n }))];
                         const sortedItems = all.sort((a, b) => new Date(b.display.created_at).getTime() - new Date(a.display.created_at).getTime());
-                        return sortedItems.map(({ ids, display: n }) => (
-                          <li key={ids[0]}>
-                            <a
-                              href={n.link || '#'}
-                              onClick={async () => {
-                                const toMark = ids.filter((id) => !notifications.find((x) => x.id === id)?.read_at);
-                                if (toMark.length > 0 && session?.access_token) {
-                                  try {
-                                    await Promise.all(
-                                      toMark.map((id) =>
-                                        fetch('/api/notifications', {
-                                          method: 'PATCH',
-                                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                                          body: JSON.stringify({ id }),
-                                        })
-                                      )
-                                    );
-                                    setNotifications((prev) =>
-                                      prev.map((x) => (ids.includes(x.id) ? { ...x, read_at: new Date().toISOString() } : x))
-                                    );
-                                    setUnreadCount((c) => Math.max(0, c - toMark.length));
-                                  } catch {
-                                    // ignore
+                        return sortedItems.map(({ ids, display: n }) => {
+                          const isUnread = ids.some((nid) => {
+                            const row = notifications.find((x) => x.id === nid);
+                            return row && !row.read_at;
+                          });
+                          return (
+                            <li key={ids[0]} className="relative group">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void deleteNotifications(ids);
+                                }}
+                                className="absolute right-2 top-2 z-10 rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/25 transition-colors opacity-80 group-hover:opacity-100"
+                                aria-label="Eliminar notificación"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                              <a
+                                href={n.link || '#'}
+                                onClick={async () => {
+                                  const toMark = ids.filter((id) => !notifications.find((x) => x.id === id)?.read_at);
+                                  if (toMark.length > 0 && session?.access_token) {
+                                    try {
+                                      await Promise.all(
+                                        toMark.map((id) =>
+                                          fetch('/api/notifications', {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                            body: JSON.stringify({ id }),
+                                          })
+                                        )
+                                      );
+                                      setNotifications((prev) =>
+                                        prev.map((x) => (ids.includes(x.id) ? { ...x, read_at: new Date().toISOString() } : x))
+                                      );
+                                      setUnreadCount((c) => Math.max(0, c - toMark.length));
+                                    } catch {
+                                      // ignore
+                                    }
                                   }
-                                }
-                                setShowNotifications(false);
-                              }}
-                              className={`block rounded-xl p-3 text-base transition-colors ${n.read_at ? 'text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30' : 'text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20'}`}
-                            >
-                              <span className="font-semibold text-[15px]">{n.title}</span>
-                              {n.body && <p className="mt-1 text-sm opacity-90">{n.body}</p>}
-                              <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                            </a>
-                          </li>
-                        ));
+                                  setShowNotifications(false);
+                                }}
+                                className={`block rounded-2xl pl-3.5 pr-12 py-3.5 text-base border transition-all shadow-sm ${
+                                  isUnread
+                                    ? 'border-sky-300/70 dark:border-sky-600/50 bg-gradient-to-br from-sky-50/95 via-white to-violet-50/40 dark:from-sky-950/40 dark:via-[#141414] dark:to-violet-950/20 text-[#1d1d1f] dark:text-[#fafafa]'
+                                    : 'border-gray-200/90 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-gray-50/60 dark:bg-gray-800/40'
+                                }`}
+                              >
+                                <div className="flex gap-2.5 items-start">
+                                  <Droplet
+                                    className={`h-4 w-4 shrink-0 mt-0.5 ${isUnread ? 'text-sky-500 dark:text-sky-400' : 'text-gray-300 dark:text-gray-600'}`}
+                                    aria-hidden
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-semibold text-[15px]">{n.title}</span>
+                                    {n.body && <p className="mt-1 text-sm opacity-90 leading-snug">{n.body}</p>}
+                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                                      {new Date(n.created_at).toLocaleDateString('es-MX', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </a>
+                            </li>
+                          );
+                        });
                       })()}
                     </ul>
                   )}
