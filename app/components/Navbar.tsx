@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard, Sparkles } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -268,6 +268,14 @@ export default function Navbar() {
                     <Settings className="h-4 w-4" />
                     Configuración
                   </Link>
+                  <Link
+                    href="/descubre"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    Descubre AVENTA
+                  </Link>
                   <button
                     onClick={async () => {
                       setSignOutStatus('closing');
@@ -452,18 +460,14 @@ export default function Navbar() {
               )}
               {notifTab === 'avisos' && (
                 <ul className="space-y-3">
-                  <li>
-                    <Link
-                      href="/descubre"
-                      onClick={() => setShowNotifications(false)}
-                      className="block rounded-xl p-3 text-base font-semibold text-[#1d1d1f] dark:text-[#fafafa] bg-violet-50/80 dark:bg-violet-900/20 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
-                    >
-                      Descubre AVENTA
-                    </Link>
-                    <p className="px-3 pb-1 text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
-                      Conoce las funciones y cómo sacar partido a la comunidad.
-                    </p>
-                  </li>
+                  {announcements.length === 0 && (
+                    <li className="rounded-xl border border-dashed border-[#e5e5e7] dark:border-[#333] p-4 text-center">
+                      <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
+                        No hay avisos del equipo por ahora. Puedes ver todas las funciones en el menú de tu foto:{' '}
+                        <span className="font-medium text-violet-600 dark:text-violet-400">Descubre AVENTA</span>.
+                      </p>
+                    </li>
+                  )}
                   {announcements.map((a) => (
                     <li key={a.id}>
                       <Link
