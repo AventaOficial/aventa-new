@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel'];
+const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
 
 export async function middleware(request: NextRequest) {
@@ -58,5 +58,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/me/:path*', '/settings/:path*', '/mi-panel/:path*', '/admin/:path*'],
+  matcher: [
+    '/',
+    '/me/:path*',
+    '/settings/:path*',
+    '/mi-panel/:path*',
+    '/contexto/:path*',
+    '/operaciones/:path*',
+    '/admin/:path*',
+  ],
 };

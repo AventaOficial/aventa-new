@@ -4,6 +4,8 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /auth/
 Disallow: /mi-panel/
+Disallow: /contexto/
+Disallow: /operaciones/
 Disallow: /settings/
 Disallow: /me/
 

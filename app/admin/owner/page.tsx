@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-/** Redirige a la página standalone Mi panel. El layout también redirige /admin/owner → /mi-panel. */
+/** Redirige al centro de operaciones del dueño. */
 export default function AdminOwnerRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/mi-panel');
+    router.replace('/operaciones');
   }, [router]);
   return (
     <div className="min-h-screen flex items-center justify-center">

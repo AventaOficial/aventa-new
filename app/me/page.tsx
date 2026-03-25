@@ -25,6 +25,7 @@ type OfferRow = {
   created_at?: string | null;
   upvotes_count?: number | null;
   downvotes_count?: number | null;
+  ranking_momentum?: number | null;
   status?: string | null;
   rejection_reason?: string | null;
   expires_at?: string | null;
@@ -67,7 +68,7 @@ function MePageInner() {
     totalOffers: 0,
     upVotes: 0,
     downVotes: 0,
-    score: 0,
+    rankingImpulse: 0,
   });
   const [selectedOffer, setSelectedOffer] = useState<MappedOffer | null>(null);
 
@@ -102,7 +103,7 @@ function MePageInner() {
 
       const { data: rows } = await supabase
         .from('offers')
-        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, status, rejection_reason, expires_at')
+        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, ranking_momentum, status, rejection_reason, expires_at')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -113,16 +114,19 @@ function MePageInner() {
 
       let totalUp = 0;
       let totalDown = 0;
-      let totalScore = 0;
+      let totalRankingImpulse = 0;
 
       const now = new Date().toISOString();
       const mapped: MappedOffer[] = (rows ?? []).map((row: OfferRow) => {
         const up = row.upvotes_count ?? 0;
         const down = row.downvotes_count ?? 0;
-        const score = up - down;
+        const impulse =
+          row.ranking_momentum != null && Number.isFinite(Number(row.ranking_momentum))
+            ? Number(row.ranking_momentum)
+            : up * 2 - down;
         totalUp += up;
         totalDown += down;
-        totalScore += score;
+        totalRankingImpulse += impulse;
 
         const originalPrice = Number(row.original_price) || 0;
         const discountPrice = Number(row.price) || 0;
@@ -149,7 +153,7 @@ function MePageInner() {
           offerUrl: row.offer_url?.trim() ?? '',
           image: row.image_url ? row.image_url : undefined,
           description: row.description?.trim() || undefined,
-          votes: { up, down, score },
+          votes: { up, down, score: up - down },
           author,
           dealStatus,
           rejectionReason: row.rejection_reason?.trim() || null,
@@ -160,7 +164,7 @@ function MePageInner() {
         totalOffers: mapped.length,
         upVotes: totalUp,
         downVotes: totalDown,
-        score: totalScore,
+        rankingImpulse: totalRankingImpulse,
       });
       setOffers(mapped);
       setLoading(false);
@@ -244,10 +248,13 @@ function MePageInner() {
             </div>
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Votos positivos
+                Likes (personas)
               </p>
               <p className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">
                 {metrics.upVotes}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500 leading-snug">
+                Cada persona cuenta 1 aquí; en el ranking el peso del like es mayor (×2 hoy).
               </p>
             </div>
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
@@ -260,10 +267,13 @@ function MePageInner() {
             </div>
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Score total
+                Impulso en ranking
               </p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {metrics.score}
+                {metrics.rankingImpulse}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500 leading-snug">
+                Suma del peso que usa el feed (likes ponderados − dislikes). Nivel de reputación del votante aún no multiplica esto; es mejora futura.
               </p>
             </div>
           </div>

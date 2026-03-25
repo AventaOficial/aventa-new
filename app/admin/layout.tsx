@@ -21,6 +21,7 @@ import {
   Megaphone,
   LayoutDashboard,
   Building2,
+  Map,
 } from 'lucide-react';
 import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, canManageAnnouncements, type Role } from '@/lib/admin/roles';
 
@@ -118,7 +119,7 @@ export default function AdminLayout({
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
     if (pathname === '/admin/owner') {
-      router.replace('/mi-panel');
+      router.replace('/operaciones');
     } else if (isOwnerPanelPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isAnalistaPath && !canMet && !canHea) {
@@ -233,12 +234,22 @@ export default function AdminLayout({
               </p>
               {canTeam && (
                 <Link
-                  href="/mi-panel"
+                  href="/operaciones"
                   onClick={() => setSidebarOpen(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <LayoutDashboard className="h-4 w-4 shrink-0" />
-                  Mi panel
+                  Centro de operaciones
+                </Link>
+              )}
+              {canTeam && (
+                <Link
+                  href="/contexto"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Map className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                  Contexto
                 </Link>
               )}
               {canTeam && (
