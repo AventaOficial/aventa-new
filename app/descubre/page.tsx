@@ -100,11 +100,6 @@ function DescubrePageInner() {
                   </Link>
                   <span className="text-gray-500 dark:text-gray-500"> — el slug cambia según la tienda.</span>
                 </li>
-                <li>
-                  <Link href="/communities" className="font-medium text-violet-600 dark:text-violet-400 hover:underline">
-                    Comunidades
-                  </Link>
-                </li>
               </ul>
             </section>
 

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Protege rutas invocadas por Vercel Cron u otros schedulers.
- * Configura CRON_SECRET en producción y el mismo valor en el dashboard de Vercel (header o query).
+ * Con CRON_SECRET definido en Vercel, los cron jobs suelen enviar `Authorization: Bearer <CRON_SECRET>`.
+ * Abrir la URL en el navegador (sin secreto) devuelve 401; es el comportamiento esperado.
  */
 export function requireCronSecret(request: NextRequest): NextResponse | null {
   const fromQuery = request.nextUrl.searchParams.get('secret');

@@ -104,10 +104,6 @@ export async function POST(request: Request) {
     }
 
     const category = typeof body?.category === 'string' && body.category.trim() ? body.category.trim() : null;
-    const communityId =
-      typeof body?.community_id === 'string' && body.community_id.trim()
-        ? body.community_id.trim()
-        : null;
     const payload = {
       title,
       price,
@@ -149,14 +145,6 @@ export async function POST(request: Request) {
         { error: 'Error al crear la oferta', ...(devMessage && { details: devMessage }) },
         { status: 500 }
       );
-    }
-
-    if (data?.id && communityId) {
-      try {
-        await supabase.from('community_offers').insert({ community_id: communityId, offer_id: data.id });
-      } catch {
-        // si falla la relación con comunidad, no bloqueamos la creación de la oferta
-      }
     }
 
     try {

@@ -20,7 +20,6 @@ import {
   UserCog,
   Megaphone,
   LayoutDashboard,
-  Building2,
   Map,
   Scale,
 } from 'lucide-react';
@@ -56,9 +55,6 @@ const TEAM_ITEM = { href: '/admin/team', label: 'Equipo', icon: UserCog } as con
 
 /** Avisos del sitio: owner y admin */
 const ANNOUNCEMENTS_ITEM = { href: '/admin/announcements', label: 'Avisos', icon: Megaphone } as const;
-
-/** Comunidades (página pública /communities): solo owner */
-const COMMUNITIES_ITEM = { href: '/admin/communities', label: 'Comunidades', icon: Building2 } as const;
 
 const METRICS_ITEMS = [
   { href: '/admin/metrics', label: 'Métricas', icon: BarChart3 },
@@ -123,7 +119,6 @@ export default function AdminLayout({
     const isOwnerPanelPath = pathname === '/admin/owner';
     const isAnalistaPath = pathname === '/admin/analista';
     const isAnnouncementsPath = pathname === '/admin/announcements';
-    const isCommunitiesPath = pathname === '/admin/communities';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
     const isVoteWeightsPath = pathname === '/admin/vote-weights';
@@ -138,8 +133,6 @@ export default function AdminLayout({
     } else if (isAnnouncementsPath && !canAnnouncements) {
       router.replace(canTeam ? '/admin/team' : canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isTeamPath && !canTeam) {
-      router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
-    } else if (isCommunitiesPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isUsersLogsPath && !canUsersLogs) {
       router.replace(canTeam ? '/admin/team' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
@@ -312,23 +305,6 @@ export default function AdminLayout({
                 >
                   <ANNOUNCEMENTS_ITEM.icon className="h-4 w-4 shrink-0" />
                   {ANNOUNCEMENTS_ITEM.label}
-                </Link>
-              )}
-              {canTeam && (
-                <Link
-                  href={COMMUNITIES_ITEM.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === COMMUNITIES_ITEM.href
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <COMMUNITIES_ITEM.icon className="h-4 w-4 shrink-0" />
-                  {COMMUNITIES_ITEM.label}
                 </Link>
               )}
             </>

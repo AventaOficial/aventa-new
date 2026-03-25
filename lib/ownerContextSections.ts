@@ -6,7 +6,6 @@ import {
   MessageCircle,
   Flag,
   ShieldOff,
-  Building2,
   BarChart3,
   Heart,
   LayoutDashboard,
@@ -37,7 +36,6 @@ export const OWNER_CONTEXT_SECTIONS: {
       { href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
       { href: '/admin/reports', label: 'Reportes', icon: Flag },
       { href: '/admin/moderation/bans', label: 'Baneos', icon: ShieldOff },
-      { href: '/admin/communities', label: 'Comunidades', icon: Building2 },
     ],
   },
   {

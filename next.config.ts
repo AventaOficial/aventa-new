@@ -4,6 +4,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : '';
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: '/communities', destination: '/', permanent: true },
+      { source: '/communities/:path*', destination: '/', permanent: true },
+      { source: '/admin/communities', destination: '/admin/moderation', permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
       ...(supabaseHost ? [{ protocol: 'https' as const, hostname: supabaseHost, pathname: '/storage/**' }] : []),
