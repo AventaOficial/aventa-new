@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, Sparkles, Trash2, Droplet, Compass, Puzzle } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, Sparkles, Trash2, Droplet, Compass, Puzzle, ShieldCheck } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { playNotificationDropSound } from '@/lib/playNotificationSound';
@@ -274,6 +274,16 @@ export default function Navbar() {
                     <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
                   </Link>
                   <UserMenuContent />
+                  {canAccessModeration && (
+                    <Link
+                      href="/admin/moderation"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <ShieldCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      Moderación
+                    </Link>
+                  )}
                   <Link
                     href="/extension"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
