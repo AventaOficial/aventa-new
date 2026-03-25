@@ -103,7 +103,7 @@ type OfferRow = {
 
 /** Tarjeta de oferta para email, estilo similar al OfferCard del home */
 function offerCardHtml(o: OfferRow, index: number, baseUrl: string): string {
-  const link = baseUrl.replace(/\/$/, '') + '/?o=' + o.id;
+  const link = `${baseUrl.replace(/\/$/, '')}/oferta/${o.id}`;
   const title = escapeHtml(o.title || 'Sin título');
   const store = escapeHtml(o.store || '—');
   const price =
@@ -138,59 +138,66 @@ function offerCardHtml(o: OfferRow, index: number, baseUrl: string): string {
 export function buildDailyHtml(
   offers: OfferRow[],
   baseUrl: string,
-  yourOffersInTop?: { id: string; title: string }[]
+  yourOffersInTop?: { id: string; title: string }[],
+  opts?: { title?: string; preheader?: string; dayLabel?: string }
 ): string {
   const cardsHtml =
     offers.length > 0
       ? offers.map((o, i) => offerCardHtml(o, i, baseUrl)).join('')
-      : `<p style="margin:0; padding:16px 0; color:${TEXT_MUTED}; font-size:14px;">No hay ofertas publicadas hoy.</p>`;
+      : `<p style="margin:0; padding:16px 0; color:${TEXT_MUTED}; font-size:14px;">No hay ofertas publicadas en este día.</p>`;
 
   const yourBlock =
     yourOffersInTop && yourOffersInTop.length > 0
       ? `
     <div style="margin-bottom:20px; padding:14px 16px; background:${BRAND_COLOR}12; border-radius:10px; border-left:4px solid ${BRAND_COLOR};">
-      <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:${TEXT_DARK};">¡Tu oferta está en el Top 10!</p>
+      <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:${TEXT_DARK};">¡Tu oferta está en el ranking de hoy!</p>
       ${yourOffersInTop
         .map(
           (o) =>
-            `<a href="${baseUrl.replace(/\/$/, '')}/?o=${o.id}" style="color:${BRAND_COLOR}; font-weight:500; text-decoration:none;">${escapeHtml(o.title)}</a>`
+            `<a href="${baseUrl.replace(/\/$/, '')}/oferta/${o.id}" style="color:${BRAND_COLOR}; font-weight:500; text-decoration:none;">${escapeHtml(o.title)}</a>`
         )
         .join('<br />')}
     </div>`
       : '';
 
+  const dayLine = opts?.dayLabel
+    ? `<p style="margin:0 0 8px; font-size:13px; color:${TEXT_MUTED};">${escapeHtml(opts.dayLabel)}</p>`
+    : '';
+
   const inner = `
-    <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:${TEXT_DARK};">Top 10 ofertas del día</h1>
-    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Las ofertas mejor valoradas por la comunidad hoy.</p>
+    <h1 style="margin:0 0 12px; font-size:20px; font-weight:700; color:${TEXT_DARK};">${escapeHtml(opts?.title ?? 'Mejores ofertas de hoy')}</h1>
+    ${dayLine}
+    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Ofertas publicadas hoy (zona ${escapeHtml(process.env.DIGEST_TIMEZONE || 'America/Mexico_City')}), ordenadas por apoyo de la comunidad.</p>
     ${yourBlock}
     ${cardsHtml}
   `;
 
   return emailLayout(inner, {
-    title: 'Top 10 del día — AVENTA',
-    preheader: 'Nuevas ofertas cada día. Las 10 mejores elegidas por la comunidad.',
+    title: opts?.title ?? 'Ofertas de la noche — AVENTA',
+    preheader: opts?.preheader ?? 'Las mejores ofertas del día en AVENTA.',
     baseUrl,
   });
 }
 
+export type WeeklyDayBlock = {
+  dayLabel: string;
+  offers: OfferRow[];
+};
+
 export function buildWeeklyHtml(
+  dayBlocks: WeeklyDayBlock[],
   topCommented: { id: string; title: string; price?: number; store?: string | null }[],
-  topVoted: { id: string; title: string; price?: number; store?: string | null }[],
   baseUrl: string,
   topHunters?: { display_name: string; slug?: string | null }[]
 ): string {
   const offerLi = (o: { id: string; title: string; store?: string | null }) => {
-    const link = baseUrl.replace(/\/$/, '') + '/?o=' + o.id;
+    const link = `${baseUrl.replace(/\/$/, '')}/oferta/${o.id}`;
     return `<li style="margin-bottom:10px;"><a href="${link}" style="color:${BRAND_COLOR}; text-decoration:none; font-weight:500;">${escapeHtml(o.title)}</a>${o.store ? ` <span style="color:${TEXT_MUTED}; font-size:13px;">— ${escapeHtml(o.store)}</span>` : ''}</li>`;
   };
 
   const commentedList =
     topCommented.length > 0
       ? topCommented.map(offerLi).join('')
-      : '<li style="color:' + TEXT_MUTED + ';">No hay datos esta semana.</li>';
-  const votedList =
-    topVoted.length > 0
-      ? topVoted.map(offerLi).join('')
       : '<li style="color:' + TEXT_MUTED + ';">No hay datos esta semana.</li>';
 
   const huntersBlock =
@@ -208,20 +215,31 @@ export function buildWeeklyHtml(
     </ul>`
       : '';
 
+  const daySectionsHtml = dayBlocks
+    .map((block) => {
+      const cards =
+        block.offers.length > 0
+          ? block.offers.map((o, i) => offerCardHtml(o as OfferRow, i, baseUrl)).join('')
+          : `<p style="margin:0; font-size:13px; color:${TEXT_MUTED};">Sin ofertas este día.</p>`;
+      return `
+    <h2 style="margin:24px 0 12px; font-size:16px; font-weight:600; color:${TEXT_DARK}; border-bottom:1px solid ${BORDER}; padding-bottom:8px;">${escapeHtml(block.dayLabel)}</h2>
+    <p style="margin:0 0 12px; font-size:13px; color:${TEXT_MUTED};">Las 3 mejor apoyadas ese día (por votos).</p>
+    ${cards}`;
+    })
+    .join('');
+
   const inner = `
     <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:${TEXT_DARK};">Resumen de la semana</h1>
-    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Lo más comentado y mejor votado en los últimos 7 días.</p>
+    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Últimos 7 días (${escapeHtml(process.env.DIGEST_TIMEZONE || 'America/Mexico_City')}): cada día, las 3 ofertas con más apoyo. Más comentadas de la semana abajo.</p>
     ${huntersBlock}
+    ${daySectionsHtml}
 
-    <h2 style="margin:0 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Más comentadas (3)</h2>
-    <ul style="list-style:none; padding:0; margin:0 0 24px;">${commentedList}</ul>
-
-    <h2 style="margin:0 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Mejor votadas (5)</h2>
-    <ul style="list-style:none; padding:0; margin:0;">${votedList}</ul>`;
+    <h2 style="margin:28px 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Más comentadas de la semana (3)</h2>
+    <ul style="list-style:none; padding:0; margin:0;">${commentedList}</ul>`;
 
   return emailLayout(inner, {
     title: 'Resumen semanal — AVENTA',
-    preheader: 'Las ofertas más comentadas y mejor votadas de la semana.',
+    preheader: 'Top 3 por día, cazadores y ofertas más comentadas.',
     baseUrl,
   });
 }

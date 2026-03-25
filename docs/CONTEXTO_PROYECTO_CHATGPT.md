@@ -21,6 +21,13 @@ Copia este bloque cuando cambies de herramienta o quieras alinear memoria con ot
 - Trigger `recalculate_offer_metrics`: actualiza `offers.upvotes_count` (nº de personas), `ranking_momentum`, etc.
 - **Peso por usuario (owner):** columna `profiles.vote_weight_multiplier` (default 1). Cada like aporta **2 × multiplicador** al `ranking_momentum`. Migración: `docs/supabase-migrations/profiles_vote_weight_multiplier.sql`. UI: `/admin/vote-weights`.
 
+## Correos (Resend + crons)
+
+- **Diario** (`/api/cron/daily-digest`): usuarios con `email_daily_digest` en `user_email_preferences`. Ofertas **del día civil** en `DIGEST_TIMEZONE` (default `America/Mexico_City`), top por `upvotes_count`. Vercel: `vercel.json` cron `0 1 * * *` (~19:00 CDMX según época; ajustar si hace falta).
+- **Semanal** (`/api/cron/weekly-digest`): `email_weekly_digest`. Últimos 7 días: **top 3 por día** + más comentadas + cazadores. Lunes 00:00 UTC en `vercel.json` (ajustable).
+- Plantillas: `lib/email/templates.ts` — enlaces canónicos `/oferta/[id]`.
+- Autenticación cron: `CRON_SECRET` (query `secret`, header `x-cron-secret` o `Authorization: Bearer`).
+
 ## Documentación útil
 
 - `docs/SYSTEMS/SYSTEM_voting.md` — flujo de votos.

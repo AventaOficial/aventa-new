@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { buildDailyHtml } from '@/lib/email/templates';
 import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
+import { formatZonedDayLabel, getZonedDayRange } from '@/lib/server/digestDay';
 
 const RESEND_CONCURRENCY = 12;
+const TZ = process.env.DIGEST_TIMEZONE || 'America/Mexico_City';
 
-/** Cron: Top 10 del día. Secret por query ?secret=, cabecera x-cron-secret o Authorization: Bearer (Vercel lo envía si CRON_SECRET está definido) */
+/**
+ * Cron nocturno: mejores ofertas del día civil (zona DIGEST_TIMEZONE, default México).
+ * Programar ~19:00–20:00 hora local: en vercel.json 0 1 * * * ≈ 19:00 CDMX (UTC-6).
+ * Secret: ?secret=, x-cron-secret o Authorization: Bearer CRON_SECRET
+ */
 export async function GET(request: NextRequest) {
   const fromQuery = request.nextUrl.searchParams.get('secret');
   const fromHeader = request.headers.get('x-cron-secret');
@@ -18,13 +24,16 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServerClient();
   const now = new Date();
+  const { start, end } = getZonedDayRange(now, TZ);
+  const dayLabel = formatZonedDayLabel(start, TZ);
 
-  // Usar tabla offers y orden por upvotes_count (la vista ofertas_ranked_general puede no existir o fallar)
   const { data: offers, error: offersErr } = await supabase
     .from('offers')
-    .select('id, title, price, original_price, store, offer_url, image_url, created_by')
+    .select('id, title, price, original_price, store, offer_url, image_url, created_by, created_at, upvotes_count')
     .in('status', ['approved', 'published'])
     .or('expires_at.is.null,expires_at.gte.' + now.toISOString())
+    .gte('created_at', start.toISOString())
+    .lt('created_at', end.toISOString())
     .order('upvotes_count', { ascending: false, nullsFirst: false })
     .limit(10);
 
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
-  const subject = 'Top 10 ofertas del día — AVENTA';
+  const subject = `Mejores ofertas de hoy — AVENTA (${dayLabel})`;
   const key = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'AVENTA <onboarding@resend.dev>';
   let sent = 0;
@@ -66,7 +75,11 @@ export async function GET(request: NextRequest) {
       const yourOffersInTop = offerList
         .filter((o) => o.created_by === r.user_id)
         .map((o) => ({ id: o.id, title: o.title }));
-      const html = buildDailyHtml(offerList, baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined);
+      const html = buildDailyHtml(offerList as Parameters<typeof buildDailyHtml>[0], baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined, {
+        title: 'Mejores ofertas de hoy',
+        preheader: `Resumen del ${dayLabel}. Las más apoyadas por la comunidad.`,
+        dayLabel,
+      });
       try {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -84,5 +97,5 @@ export async function GET(request: NextRequest) {
   const results = await runWithConcurrency(tasks, RESEND_CONCURRENCY);
   sent = results.filter(Boolean).length;
 
-  return NextResponse.json({ ok: true, sent, recipients: emails.length });
+  return NextResponse.json({ ok: true, sent, recipients: emails.length, window: { start: start.toISOString(), end: end.toISOString(), tz: TZ } });
 }
