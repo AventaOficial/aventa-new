@@ -93,6 +93,88 @@ function parseMercadoLibre(html: string, base: string): { title: string | null; 
   };
 }
 
+function parsePositiveNumber(raw: string | null | undefined): number | null {
+  if (!raw || !String(raw).trim()) return null;
+  const n = parseFloat(String(raw).replace(/[^\d.]/g, ''));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+type ExtractedPrices = { discount: number | null; original: number | null };
+
+/** Heurística: meta og:price, JSON-LD Offer / AggregateOffer (ML, muchas tiendas). */
+function extractSuggestedPrices(html: string): ExtractedPrices {
+  let discount: number | null = parsePositiveNumber(getMetaContent(html, 'og:price:amount'));
+  let original: number | null = parsePositiveNumber(getMetaContent(html, 'product:original_price:amount'));
+
+  const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = scriptRe.exec(html)) !== null) {
+    const raw = m[1].trim();
+    if (!raw || raw.length > 500_000) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      scanLdJson(parsed);
+    } catch {
+      // JSON inválido o fragmentado
+    }
+  }
+
+  function considerOffer(off: Record<string, unknown>) {
+    const low = off.lowPrice;
+    const high = off.highPrice;
+    if (typeof low === 'number' && low > 0) discount = discount ?? low;
+    else if (typeof low === 'string') {
+      const n = parsePositiveNumber(low);
+      if (n) discount = discount ?? n;
+    }
+    const p = off.price;
+    if (typeof p === 'number' && p > 0) discount = discount ?? p;
+    else if (typeof p === 'string') {
+      const n = parsePositiveNumber(p);
+      if (n) discount = discount ?? n;
+    }
+    if (typeof high === 'number' && high > 0) original = original ?? high;
+    else if (typeof high === 'string') {
+      const n = parsePositiveNumber(high);
+      if (n) original = original ?? n;
+    }
+  }
+
+  function scanLdJson(node: unknown) {
+    if (node == null) return;
+    if (Array.isArray(node)) {
+      node.forEach(scanLdJson);
+      return;
+    }
+    if (typeof node !== 'object') return;
+    const o = node as Record<string, unknown>;
+    if (o['@graph']) scanLdJson(o['@graph']);
+
+    const types = o['@type'];
+    const typeStr = Array.isArray(types) ? types.map(String).join(',') : String(types ?? '');
+
+    if (typeStr.includes('AggregateOffer')) {
+      considerOffer(o);
+    }
+    if (typeStr.includes('Offer')) {
+      considerOffer(o);
+    }
+    if (typeStr.includes('Product') && o.offers) {
+      scanLdJson(o.offers);
+    }
+  }
+
+  return { discount, original };
+}
+
+function pricePayload(p: ExtractedPrices) {
+  return {
+    suggested_discount_price: p.discount,
+    suggested_original_price: p.original,
+  };
+}
+
 function parseGeneric(html: string, base: string): { title: string | null; image: string | null; store: string | null } {
   const title =
     getMetaContent(html, 'og:title') ||
@@ -202,6 +284,7 @@ export async function POST(request: Request) {
     const html = await res.text();
     const base = url.origin + url.pathname;
     const domain = getDomain(url.hostname);
+    const prices = extractSuggestedPrices(html);
 
     const isAmazon =
       domain === 'amazon.com' ||
@@ -210,7 +293,7 @@ export async function POST(request: Request) {
       domain.endsWith('.amazon.com.mx');
     if (isAmazon) {
       const data = parseAmazon(html, base);
-      return NextResponse.json(data);
+      return NextResponse.json({ ...data, ...pricePayload(prices) });
     }
 
     const isMercadoLibre =
@@ -220,11 +303,11 @@ export async function POST(request: Request) {
       domain.endsWith('.mercadolibre.com.mx');
     if (isMercadoLibre) {
       const data = parseMercadoLibre(html, base);
-      return NextResponse.json(data);
+      return NextResponse.json({ ...data, ...pricePayload(prices) });
     }
 
     const data = parseGeneric(html, base);
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, ...pricePayload(prices) });
   } catch {
     return NextResponse.json({
       title: null,

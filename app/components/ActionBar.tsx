@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Home, Users2, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText } from 'lucide-react';
+import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -181,11 +181,28 @@ export default function ActionBar() {
         }
         setFormData((prev) => {
           if (prev.offer_url.trim() !== url) return prev;
-          return {
+          const sd =
+            typeof data.suggested_discount_price === 'number' && data.suggested_discount_price > 0
+              ? data.suggested_discount_price
+              : null;
+          const so =
+            typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
+              ? data.suggested_original_price
+              : null;
+          const next = {
             ...prev,
             ...(data.title && !prev.title.trim() && { title: data.title }),
             ...(data.store && !prev.store.trim() && { store: data.store }),
           };
+          const discEmpty = !parseDecimalPrice(prev.discountPrice);
+          const origEmpty = !parseDecimalPrice(prev.originalPrice);
+          if (hasDiscount) {
+            if (sd != null && discEmpty) next.discountPrice = String(roundPrice(sd));
+            if (so != null && origEmpty) next.originalPrice = String(roundPrice(so));
+          } else if (sd != null && origEmpty) {
+            next.originalPrice = String(roundPrice(sd));
+          }
+          return next;
         });
         if (data.image && !cancelled) setImageUrl(data.image);
       } catch {
@@ -198,7 +215,7 @@ export default function ActionBar() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [formData.offer_url, session?.access_token]);
+  }, [formData.offer_url, session?.access_token, hasDiscount]);
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -423,13 +440,16 @@ export default function ActionBar() {
           <span className="text-[10px] font-medium">Inicio</span>
         </Link>
         <Link
-          href="/communities"
-          className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 cursor-default"
-          aria-label="Comunidades (próximamente)"
-          title="Comunidades (próximamente)"
+          href="/descubre"
+          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${
+            pathname.startsWith('/descubre')
+              ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'
+          }`}
+          aria-label="Descubre AVENTA"
         >
-          <Users2 className="h-6 w-6" />
-          <span className="text-[10px] font-medium">Comunidades (próximamente)</span>
+          <Compass className="h-6 w-6" />
+          <span className="text-[10px] font-medium">Descubre</span>
         </Link>
         <button
           type="button"
@@ -560,19 +580,6 @@ export default function ActionBar() {
                   }`}
                 >
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Título de la oferta *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => handleInputChange('title', e.target.value)}
-                      placeholder="Ej: iPhone 15 Pro Max 256GB"
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
-                      />
-                    </div>
-
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Enlace de la oferta (URL)
@@ -586,10 +593,23 @@ export default function ActionBar() {
                       type="url"
                       value={formData.offer_url}
                       onChange={(e) => handleInputChange('offer_url', e.target.value)}
-                      placeholder="https://... (pega el enlace para rellenar título e imagen)"
+                      placeholder="https://... (pega primero el enlace: título, imagen y a veces precio)"
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     />
                   </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Título de la oferta *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.title}
+                        onChange={(e) => handleInputChange('title', e.target.value)}
+                      placeholder="Ej: iPhone 15 Pro Max 256GB"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                      />
+                    </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">

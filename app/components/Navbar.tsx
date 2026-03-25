@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard, Sparkles, Trash2, Droplet } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard, Sparkles, Trash2, Droplet, Compass } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { playNotificationDropSound } from '@/lib/playNotificationSound';
@@ -10,7 +10,7 @@ import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 
-type NotifTab = 'ofertas' | 'comunidades' | 'avisos';
+type NotifTab = 'ofertas' | 'explorar' | 'avisos';
 
 type NotificationItem = {
   id: string;
@@ -368,14 +368,14 @@ export default function Navbar() {
                 Ofertas
               </button>
               <button
-                onClick={() => setNotifTab('comunidades')}
+                onClick={() => setNotifTab('explorar')}
                 className={`px-4 py-2.5 text-base font-semibold transition-colors duration-200 ease-out border-b-2 rounded-t-lg ${
-                  notifTab === 'comunidades'
+                  notifTab === 'explorar'
                     ? 'border-violet-600 dark:border-violet-400 text-violet-600 dark:text-violet-400'
                     : 'border-transparent text-[#6e6e73] dark:text-[#a3a3a3] hover:text-[#1d1d1f] dark:hover:text-[#fafafa]'
                 }`}
               >
-                Comunidades
+                Explorar
               </button>
               <button
                 onClick={() => setNotifTab('avisos')}
@@ -528,8 +528,25 @@ export default function Navbar() {
                   )}
                 </>
               )}
-              {notifTab === 'comunidades' && (
-                <p className="text-base text-[#6e6e73] dark:text-[#a3a3a3]">Sin actividad en comunidades.</p>
+              {notifTab === 'explorar' && (
+                <div className="rounded-2xl border border-[#e5e5e7] dark:border-[#333] bg-gray-50/80 dark:bg-gray-800/40 p-4">
+                  <div className="flex gap-3 items-start">
+                    <Compass className="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-400 mt-0.5" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Descubre AVENTA</p>
+                      <p className="mt-1 text-sm text-[#6e6e73] dark:text-[#a3a3a3] leading-relaxed">
+                        Novedades, guías y cómo sacarle más provecho a la plataforma.
+                      </p>
+                      <Link
+                        href="/descubre"
+                        onClick={() => setShowNotifications(false)}
+                        className="mt-3 inline-flex text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                      >
+                        Ir a Descubre →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               )}
               {notifTab === 'avisos' && (
                 <ul className="space-y-3">

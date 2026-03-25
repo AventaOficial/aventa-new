@@ -180,6 +180,12 @@ type FeedApiItem = {
   store?: string | null;
   category?: string | null;
   slug?: string;
+  author?: {
+    display_name?: string | null;
+    avatar_url?: string | null;
+    leader_badge?: string | null;
+    ml_tracking_tag?: string | null;
+  };
 };
 
 async function fetchFeedFromAPI(type: 'trending' | 'recent' = 'trending'): Promise<FeedApiItem[] | null> {
@@ -205,6 +211,13 @@ function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
     const down = score < 0 ? -score : 0;
     const images = Array.isArray(item.images) ? item.images : [];
     const image = images[0] ?? null;
+    const a = item.author;
+    const author: OfferAuthor = {
+      username: a?.display_name?.trim() || 'Usuario',
+      avatar_url: a?.avatar_url ?? null,
+      leaderBadge: a?.leader_badge ?? null,
+      creatorMlTag: a?.ml_tracking_tag ?? null,
+    };
     return {
       id: item.id ?? '',
       title: item.title ?? '',
@@ -218,7 +231,7 @@ function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
       image: image ?? undefined,
       imageUrls: images.length > 0 ? images : undefined,
       votes: { up, down, score },
-      author: { username: 'Usuario' },
+      author,
       ranking_momentum: score,
       ranking_blend: score,
       createdAt: item.created_at ?? null,
@@ -322,8 +335,6 @@ function HomeContent() {
         .finally(() => setLoading(false));
       return;
     }
-
-    console.log('[FEED SOURCE]', USE_NEW_FEED ? 'API' : 'SUPABASE');
 
     const runSupabaseFetch = () => {
       const supabase = createClient();

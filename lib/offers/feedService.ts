@@ -1,5 +1,12 @@
 import { createServerClient } from '@/lib/supabase/server';
 
+export type FeedOfferAuthor = {
+  display_name: string;
+  avatar_url: string | null;
+  leader_badge: string | null;
+  ml_tracking_tag: string | null;
+};
+
 export type FeedOffer = {
   id: string;
   title: string;
@@ -11,6 +18,7 @@ export type FeedOffer = {
   store: string | null;
   category: string | null;
   slug: string;
+  author: FeedOfferAuthor;
 };
 
 type GetHomeFeedParams = {
@@ -41,7 +49,9 @@ export async function getHomeFeed({
 
     let query = supabase
       .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, created_at, score, image_url, image_urls, store, category')
+      .select(
+        'id, title, price, original_price, created_at, score, image_url, image_urls, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
+      )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
@@ -73,6 +83,12 @@ export async function getHomeFeed({
       const imageUrl = row.image_url as string | null | undefined;
       const imageUrls = Array.isArray(row.image_urls) ? (row.image_urls as string[]) : [];
       const images = [imageUrl, ...imageUrls].filter((u): u is string => typeof u === 'string' && u.length > 0);
+      const rawProf = row.profiles as
+        | { display_name?: string | null; avatar_url?: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }
+        | { display_name?: string | null; avatar_url?: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[]
+        | null
+        | undefined;
+      const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf;
 
       return {
         id: String(row.id ?? ''),
@@ -85,6 +101,12 @@ export async function getHomeFeed({
         store: row.store != null ? String(row.store) : null,
         category: row.category != null ? String(row.category) : null,
         slug: String(row.id ?? ''),
+        author: {
+          display_name: prof?.display_name?.trim() || 'Usuario',
+          avatar_url: prof?.avatar_url ?? null,
+          leader_badge: prof?.leader_badge ?? null,
+          ml_tracking_tag: prof?.ml_tracking_tag ?? null,
+        },
       };
     });
 
