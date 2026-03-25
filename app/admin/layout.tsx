@@ -24,9 +24,16 @@ import {
   Map,
   Scale,
 } from 'lucide-react';
-import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, canManageAnnouncements, type Role } from '@/lib/admin/roles';
-
-const ALLOWED_ROLES = ['owner', 'admin', 'moderator', 'analyst'] as const;
+import {
+  ROLES,
+  canAccessModeration,
+  canAccessMetrics,
+  canAccessHealth,
+  canAccessUsersLogs,
+  canManageTeam,
+  canManageAnnouncements,
+  type Role,
+} from '@/lib/admin/roles';
 
 /** Solo moderación: Pendientes, Aprobadas, Rechazadas, Comentarios, Reportes (visible para moderator + owner/admin) */
 const MODERATION_ONLY_ITEMS = [
@@ -83,7 +90,7 @@ export default function AdminLayout({
         .from('user_roles')
         .select('role')
         .eq('user_id', u.id)
-        .in('role', ALLOWED_ROLES)
+        .in('role', ROLES)
         .then(({ data, error }) => {
           if (error) {
             console.error('Error fetching user roles:', error);

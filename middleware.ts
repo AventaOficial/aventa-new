@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { ROLES } from '@/lib/admin/roles';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
@@ -52,6 +53,24 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/';
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname.startsWith(ADMIN_PREFIX)) {
+    const { data: roleRows, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', [...ROLES]);
+
+    if (rolesError) {
+      console.error('[middleware] user_roles:', rolesError.message);
+    }
+
+    if (!roleRows?.length) {
+      const home = request.nextUrl.clone();
+      home.pathname = '/';
+      return NextResponse.redirect(home);
+    }
   }
 
   return response;

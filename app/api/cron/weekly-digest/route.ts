@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { buildWeeklyHtml, type WeeklyDayBlock } from '@/lib/email/templates';
 import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
 import { formatZonedDayLabel, getZonedDayRange, zonedCalendarKey } from '@/lib/server/digestDay';
+import { requireCronSecret } from '@/lib/server/cronAuth';
 
 const RESEND_CONCURRENCY = 12;
 const TZ = process.env.DIGEST_TIMEZONE || 'America/Mexico_City';
@@ -23,14 +24,8 @@ type OfferDigestRow = {
 
 /** Cron: resumen semanal — top 3 por cada uno de los últimos 7 días (zona DIGEST_TIMEZONE) + más comentadas + cazadores. */
 export async function GET(request: NextRequest) {
-  const fromQuery = request.nextUrl.searchParams.get('secret');
-  const fromHeader = request.headers.get('x-cron-secret');
-  const authHeader = request.headers.get('authorization');
-  const fromBearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  const secret = fromQuery ?? fromHeader ?? fromBearer ?? '';
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = requireCronSecret(request);
+  if (unauthorized) return unauthorized;
 
   const supabase = createServerClient();
   const now = new Date();

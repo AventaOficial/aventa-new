@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHomeFeed } from '@/lib/offers/feedService';
+import { enforceRateLimitCustom, getClientIp } from '@/lib/server/rateLimit';
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await enforceRateLimitCustom(`feed:${ip}`, 'feed');
+  if (!rl.success) {
+    return NextResponse.json({ success: false, error: 'Too many requests' }, { status: rl.status });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get('limit');

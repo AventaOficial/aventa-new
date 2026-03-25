@@ -87,10 +87,10 @@ export async function enforceRateLimit(identifier: string): Promise<EnforceResul
   return ok ? { success: true } : { success: false, status: 429 };
 }
 
-/** reports | comments | events | offers | parseOffer */
+/** reports | comments | events | offers | parseOffer | feed (API feed público, alto por IP) */
 export async function enforceRateLimitCustom(
   identifier: string,
-  preset: 'reports' | 'comments' | 'events' | 'offers' | 'parseOffer'
+  preset: 'reports' | 'comments' | 'events' | 'offers' | 'parseOffer' | 'feed'
 ): Promise<EnforceResult> {
   const configs: Record<string, [number, Duration]> = {
     reports: [10, '1 m'],
@@ -98,6 +98,7 @@ export async function enforceRateLimitCustom(
     events: [60, '1 m'],
     offers: [5, '1 m'],
     parseOffer: [20, '1 m'],
+    feed: [120, '1 m'],
   };
   const [limit, window] = configs[preset];
   const rl = getRatelimit(`rl:${preset}`, limit, window);
