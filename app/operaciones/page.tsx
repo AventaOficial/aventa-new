@@ -141,14 +141,19 @@ function OperacionesPageInner() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-dashed border-violet-300/80 dark:border-violet-700/50 bg-violet-50/40 dark:bg-violet-950/20 p-5 md:p-6">
+            <section className="rounded-2xl border border-violet-200/80 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-950/25 p-5 md:p-6">
               <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Crecimiento y “marea”</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                <strong className="text-gray-800 dark:text-gray-200">Multiplicador de voto por usuario</strong> (solo
-                owner): poder elegir cuentas cuyo like pese más en el ranking (ej. ×50) para las primeras semanas. Requiere
-                columna en perfiles o tabla admin, API de votos y UI en admin; lo dejamos como siguiente entrega técnica
-                para no romper el trigger actual de <code className="text-xs">offer_votes</code> sin migración probada.
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
+                Ajusta cuánto pesa el like de cuentas concretas en el ranking (útil al inicio). Ejecuta en Supabase la
+                migración SQL y luego usa el panel admin.
               </p>
+              <Link
+                href="/admin/vote-weights"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                Ir a Peso de voto
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </section>
           </div>
         </div>

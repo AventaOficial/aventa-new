@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, ShieldCheck, LayoutDashboard, Sparkles, Trash2, Droplet, Compass, Puzzle } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, Sparkles, Trash2, Droplet, Compass, Puzzle } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { playNotificationDropSound } from '@/lib/playNotificationSound';
@@ -40,7 +40,6 @@ export default function Navbar() {
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [canAccessModeration, setCanAccessModeration] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
   const [reputationLevel, setReputationLevel] = useState<number>(1);
   const [reputationScore, setReputationScore] = useState<number>(0);
 
@@ -73,7 +72,6 @@ export default function Navbar() {
         .in('role', ['owner', 'admin', 'moderator']);
       const roleList = (roles ?? []) as { role: string }[];
       setCanAccessModeration(roleList.length > 0);
-      setIsOwner(roleList.some((r) => r.role === 'owner'));
     };
     loadProfileAndRole();
   }, [user?.id]);
@@ -276,36 +274,6 @@ export default function Navbar() {
                     <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
                   </Link>
                   <UserMenuContent />
-                  {isOwner && (
-                    <Link
-                      href="/operaciones"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <LayoutDashboard className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                      Centro de operaciones
-                    </Link>
-                  )}
-                  {isOwner && (
-                    <Link
-                      href="/contexto"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <Compass className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                      Contexto
-                    </Link>
-                  )}
-                  {canAccessModeration && (
-                    <Link
-                      href="/admin/moderation"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <ShieldCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                      Moderación
-                    </Link>
-                  )}
                   <Link
                     href="/extension"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"

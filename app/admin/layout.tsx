@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   Building2,
   Map,
+  Scale,
 } from 'lucide-react';
 import { canAccessModeration, canAccessMetrics, canAccessHealth, canAccessUsersLogs, canManageTeam, canManageAnnouncements, type Role } from '@/lib/admin/roles';
 
@@ -118,8 +119,11 @@ export default function AdminLayout({
     const isCommunitiesPath = pathname === '/admin/communities';
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
+    const isVoteWeightsPath = pathname === '/admin/vote-weights';
     if (pathname === '/admin/owner') {
       router.replace('/operaciones');
+    } else if (isVoteWeightsPath && !canTeam) {
+      router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : '/admin/metrics');
     } else if (isOwnerPanelPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isAnalistaPath && !canMet && !canHea) {
@@ -250,6 +254,23 @@ export default function AdminLayout({
                 >
                   <Map className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
                   Contexto
+                </Link>
+              )}
+              {canTeam && (
+                <Link
+                  href="/admin/vote-weights"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === '/admin/vote-weights'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  <Scale className="h-4 w-4 shrink-0" />
+                  Peso de voto
                 </Link>
               )}
               {canTeam && (
