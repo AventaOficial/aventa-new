@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     const tags = Array.isArray(body?.tags)
       ? [...new Set(body.tags
         .filter((v: unknown): v is string => typeof v === 'string')
-        .map((v) => v.trim().toLowerCase())
+        .map((v: string) => v.trim().toLowerCase())
         .filter(Boolean)
         .slice(0, 20))]
       : [];
