@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -73,10 +74,50 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
-        <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4 px-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          <a href="/privacy" className="underline hover:text-violet-600 dark:hover:text-violet-400">Política de Privacidad</a>
-          <span className="mx-2">·</span>
-          <a href="/terms" className="underline hover:text-violet-600 dark:hover:text-violet-400">Términos y Condiciones</a>
+        <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-8 md:py-10 text-sm text-gray-600 dark:text-gray-400">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-8 md:grid-cols-4">
+              <div className="md:col-span-2">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  Bienvenido a AVENTA
+                </h3>
+                <p className="mt-2 max-w-xl leading-relaxed">
+                  Comunidad de cazadores de ofertas reales. Compartimos oportunidades, opiniones y contexto para decidir mejor.
+                </p>
+                <p className="mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-500">
+                  Transparencia: la visibilidad de las ofertas depende del apoyo de la comunidad y señales de calidad. Los acuerdos comerciales no compran posición en el feed.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">Producto</h4>
+                <ul className="mt-2 space-y-1.5">
+                  <li><Link href="/" className="hover:text-violet-600 dark:hover:text-violet-400">Inicio</Link></li>
+                  <li><Link href="/descubre" className="hover:text-violet-600 dark:hover:text-violet-400">Descubre</Link></li>
+                  <li><Link href="/subir" className="hover:text-violet-600 dark:hover:text-violet-400">Subir oferta</Link></li>
+                  <li><Link href="/extension" className="hover:text-violet-600 dark:hover:text-violet-400">Extensión</Link></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">Legal y soporte</h4>
+                <ul className="mt-2 space-y-1.5">
+                  <li><Link href="/privacy" className="hover:text-violet-600 dark:hover:text-violet-400">Política de privacidad</Link></li>
+                  <li><Link href="/terms" className="hover:text-violet-600 dark:hover:text-violet-400">Términos y condiciones</Link></li>
+                  <li><Link href="/settings" className="hover:text-violet-600 dark:hover:text-violet-400">Configuración de cuenta</Link></li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-4">
+              <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-500">
+                Podemos recibir compensación por algunos enlaces comerciales. Esto ayuda a mantener AVENTA gratuita; no altera el criterio de ranking comunitario.
+              </p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                Copyright © {new Date().getFullYear()} AVENTA. Todos los derechos reservados.
+              </p>
+            </div>
+          </div>
         </footer>
       </body>
     </html>
