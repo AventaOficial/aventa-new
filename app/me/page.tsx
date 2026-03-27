@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import { normalizeVoteCounts } from '@/lib/offers/scoring';
 
 type OfferRow = {
   id: string;
@@ -114,8 +115,7 @@ function MePageInner() {
 
       const now = new Date().toISOString();
       const mapped: MappedOffer[] = (rows ?? []).map((row: OfferRow) => {
-        const up = row.upvotes_count ?? 0;
-        const down = row.downvotes_count ?? 0;
+        const { up, down, score } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
 
         const originalPrice = Number(row.original_price) || 0;
         const discountPrice = Number(row.price) || 0;
@@ -142,7 +142,7 @@ function MePageInner() {
           offerUrl: row.offer_url?.trim() ?? '',
           image: row.image_url ? row.image_url : undefined,
           description: row.description?.trim() || undefined,
-          votes: { up, down, score: up - down },
+          votes: { up, down, score },
           author,
           dealStatus,
           rejectionReason: row.rejection_reason?.trim() || null,
@@ -241,6 +241,9 @@ function MePageInner() {
                 score={profile?.reputation_score ?? 0}
               />
             </div>
+            <div className="mt-3">
+              <CommissionProgramPanel />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -283,8 +286,6 @@ function MePageInner() {
               </p>
             </div>
           </div>
-
-          <CommissionProgramPanel />
 
           <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
             Tus ofertas

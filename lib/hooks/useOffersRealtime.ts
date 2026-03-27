@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { computeOfferScore } from '@/lib/offers/scoring';
 
 type OffersRealtimePayload = {
   new?: {
@@ -45,7 +46,7 @@ export function useOffersRealtime<T extends OfferWithVotes>(
 
       const up = safeNum(row?.upvotes_count);
       const down = safeNum(row?.downvotes_count);
-      const score = up * 2 - down;
+      const score = computeOfferScore(up, down);
       const momentum = safeNum(row?.ranking_momentum);
 
       setterRef.current((prev) => {

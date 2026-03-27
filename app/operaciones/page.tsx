@@ -26,6 +26,7 @@ import {
   TrendingUp,
   Wrench,
   Target,
+  FlaskConical,
 } from 'lucide-react';
 import {
   applyAlertConfigToAreas,
@@ -115,6 +116,8 @@ function OperacionesPageInner() {
   const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [pulse, setPulse] = useState<PulseAlerts | null>(null);
   const [pulseError, setPulseError] = useState<string | null>(null);
+  const [showTesterOffers, setShowTesterOffers] = useState(false);
+  const [testerOffersSaving, setTesterOffersSaving] = useState(false);
 
   const areaStatuses = useMemo(() => {
     const base = deriveAreaStatusesFromIntegrity(integrity);
@@ -139,13 +142,14 @@ function OperacionesPageInner() {
           return;
         }
 
-        const [pulseRes, intRes] = await Promise.all([
+        const [pulseRes, intRes, testerRes] = await Promise.all([
           fetch('/api/admin/operations-pulse', {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`/api/admin/system-integrity${runIntegrityNow ? '?run=1' : ''}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch('/api/app-config?key=show_tester_offers'),
         ]);
 
         const pulseBody = await pulseRes.json().catch(() => ({}));
@@ -161,6 +165,8 @@ function OperacionesPageInner() {
           return;
         }
         setIntegrity((intBody?.result ?? null) as IntegrityResult | null);
+        const testerBody = await testerRes.json().catch(() => ({}));
+        setShowTesterOffers(testerBody?.value === true);
       } catch {
         setIntegrityError('Error de red al cargar el panel');
         setPulseError('Error de red al cargar alertas');
@@ -190,6 +196,12 @@ function OperacionesPageInner() {
           loadPanel(false).catch(() => {});
         });
     });
+
+    const refreshTimer = window.setInterval(() => {
+      loadPanel(false).catch(() => {});
+    }, 60_000);
+
+    return () => window.clearInterval(refreshTimer);
   }, [router]);
 
   const runIntegrityManual = async () => {
@@ -227,6 +239,29 @@ function OperacionesPageInner() {
     } finally {
       setIntegrityRunning(false);
       setIntegrityLoading(false);
+    }
+  };
+
+  const setTesterOffersEnabled = async (enabled: boolean) => {
+    const supabase = createClient();
+    setTesterOffersSaving(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const res = await fetch('/api/admin/app-config', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ key: 'show_tester_offers', value: enabled }),
+      });
+      if (res.ok) setShowTesterOffers(enabled);
+    } finally {
+      setTesterOffersSaving(false);
     }
   };
 
@@ -310,7 +345,7 @@ function OperacionesPageInner() {
                   bancario y formulario alineados con la API y la BD (si migraste SQL en Supabase).
                 </li>
                 <li>
-                  <strong className="text-gray-800 dark:text-gray-200">Calidad:</strong> GitHub Actions ejecuta lint +
+                  <strong className="text-gray-800 dark:text-gray-200">Calidad:</strong> GitHub Actions ejecuta
                   contratos + build en cada push a <code className="text-xs">master</code>.
                 </li>
                 <li>
@@ -369,6 +404,32 @@ function OperacionesPageInner() {
                   );
                 })}
               </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
+                  <FlaskConical className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Control owner: ofertas tester</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Solo para pruebas visuales internas. No usar durante campañas reales.
+                  </p>
+                </div>
+              </div>
+              <label className="inline-flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/15 px-3 py-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showTesterOffers}
+                  disabled={testerOffersSaving}
+                  onChange={(e) => setTesterOffersEnabled(e.target.checked)}
+                  className="rounded border-gray-400 text-amber-500 focus:ring-amber-500 disabled:opacity-50"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {showTesterOffers ? 'Tester activado en home' : 'Tester desactivado en home'}
+                </span>
+              </label>
             </section>
 
             <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
@@ -544,7 +605,7 @@ function OperacionesPageInner() {
                   <div>
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100">Estado automático del sistema</h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Chequeo diario por cron + ejecución manual cuando quieras.
+                      Chequeo diario por cron + refresco visual cada minuto + ejecución manual cuando quieras.
                     </p>
                   </div>
                 </div>

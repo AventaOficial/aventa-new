@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { voteInputSchema } from '@/lib/contracts/votes'
 
 /** Un voto positivo vale 2, uno negativo -1. Así se guarda en offer_votes y el trigger debe contar value=2 como upvote. */
 type VoteValue = 2 | -1
@@ -44,12 +45,13 @@ export async function POST(request: Request) {
   }
   try {
     const body = await request.json().catch(() => ({}))
-    const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null
-    const rawValue = body?.value
-    const value: VoteValue | null =
-      rawValue === 2 || rawValue === -1 ? rawValue : null
-
-    if (!offerId || value === null || !isValidUuid(offerId)) {
+    const parsed = voteInputSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ ok: false, error: 'Solicitud inválida' }, { status: 400 })
+    }
+    const offerId = parsed.data.offerId.trim()
+    const value: VoteValue = parsed.data.value
+    if (!isValidUuid(offerId)) {
       return NextResponse.json({ ok: false, error: 'Solicitud inválida' }, { status: 400 })
     }
 

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 import { getValidCategoryValuesForFeed, normalizeCategoryForStorage } from '@/lib/categories';
+import { feedForYouQuerySchema } from '@/lib/contracts/feed';
+import { computeOfferScore } from '@/lib/offers/scoring';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = 60;
@@ -54,9 +56,17 @@ export async function GET(request: Request) {
   if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(Number(searchParams.get('limit')) || DEFAULT_LIMIT, 24);
-  const storeFilter = searchParams.get('store')?.trim() || null;
-  const categoryFilter = searchParams.get('category')?.trim() || null;
+  const parsed = feedForYouQuerySchema.safeParse({
+    limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
+    store: searchParams.get('store'),
+    category: searchParams.get('category'),
+  });
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 });
+  }
+  const limit = parsed.data.limit ?? DEFAULT_LIMIT;
+  const storeFilter = parsed.data.store;
+  const categoryFilter = parsed.data.category;
   const categoryFilterValues = categoryFilter ? getValidCategoryValuesForFeed(categoryFilter) : [];
 
   const now = new Date();
@@ -112,7 +122,7 @@ export async function GET(request: Request) {
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
       .gte('created_at', weekAgo)
-      .order('ranking_momentum', { ascending: false })
+      .order('ranking_blend', { ascending: false })
       .limit(FETCH_LIMIT);
     if (storeFilter) offerQuery = offerQuery.eq('store', storeFilter);
     if (categoryFilterValues.length === 1) offerQuery = offerQuery.eq('category', categoryFilterValues[0]);
@@ -125,7 +135,7 @@ export async function GET(request: Request) {
     list = offers.map((o) => {
       const up = o.upvotes_count ?? 0;
       const down = o.downvotes_count ?? 0;
-      const score = up * 2 - down;
+      const score = computeOfferScore(up, down);
       const blend = (o.ranking_momentum ?? 0) + (o.reputation_weighted_score ?? 0);
       return {
         ...o,

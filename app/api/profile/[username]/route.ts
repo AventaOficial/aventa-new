@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
+import { normalizeVoteCounts } from '@/lib/offers/scoring';
 
 type OfferRow = {
   id: string;
@@ -83,9 +84,7 @@ export async function GET(
   const author = { username: displayName, avatar_url: (profile as { avatar_url?: string | null }).avatar_url ?? null };
   let totalScore = 0;
   const offers = (rows ?? []).map((row: OfferRow) => {
-    const up = row.upvotes_count ?? 0;
-    const down = row.downvotes_count ?? 0;
-    const score = up - down;
+    const { up, down, score } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
     totalScore += score;
     const originalPrice = Number(row.original_price) || 0;
     const discountPrice = Number(row.price) || 0;

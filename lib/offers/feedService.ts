@@ -14,6 +14,10 @@ export type FeedOffer = {
   original_price: number | null;
   created_at: string;
   score: number;
+  up_votes: number;
+  down_votes: number;
+  ranking_blend: number | null;
+  ranking_momentum: number | null;
   images: string[];
   bank_coupon: string | null;
   store: string | null;
@@ -51,14 +55,14 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, created_at, score, image_url, image_urls, bank_coupon, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
+        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
       )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
 
     if (type === 'trending') {
-      query = query.order('score', { ascending: false });
+      query = query.order('ranking_blend', { ascending: false });
     } else {
       query = query.order('created_at', { ascending: false });
     }
@@ -98,6 +102,10 @@ export async function getHomeFeed({
         original_price: row.original_price != null ? Number(row.original_price) : null,
         created_at: row.created_at != null ? new Date(row.created_at as string).toISOString() : '',
         score: Number(row.score ?? 0),
+        up_votes: Number(row.up_votes ?? 0),
+        down_votes: Number(row.down_votes ?? 0),
+        ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : null,
+        ranking_momentum: row.ranking_momentum != null ? Number(row.ranking_momentum) : null,
         images,
         bank_coupon: row.bank_coupon != null ? String(row.bank_coupon) : null,
         store: row.store != null ? String(row.store) : null,

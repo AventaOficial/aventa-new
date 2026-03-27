@@ -18,6 +18,9 @@ type UserRow = {
   ban_reason: string | null;
   ban_expires_at: string | null;
   last_seen_at: string | null;
+  commissions_accepted_at: string | null;
+  commissions_terms_version: string | null;
+  commission_qualifying_offers: number;
 };
 
 function formatDate(iso: string): string {
@@ -109,6 +112,7 @@ export default function UsersPage() {
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Roles</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rep.</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Ofertas</th>
+                  <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Comisiones</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Última actividad</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Registro</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Estado</th>
@@ -139,6 +143,22 @@ export default function UsersPage() {
                     <td className="p-3 text-gray-700 dark:text-gray-300">{u.reputation_score}</td>
                     <td className="p-3 text-gray-600 dark:text-gray-400">
                       {u.offers_submitted_count} / {u.offers_approved_count} aprob. / {u.offers_rejected_count} rech.
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          {u.commission_qualifying_offers}/15 calificadas
+                        </span>
+                        {u.commissions_accepted_at ? (
+                          <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
+                            Activo ({u.commissions_terms_version ?? 'sin versión'})
+                          </span>
+                        ) : (
+                          <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                            No activo
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3 text-gray-600 dark:text-gray-400">
                       {u.last_seen_at ? formatRelative(u.last_seen_at) : '—'}

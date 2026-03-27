@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { getSearchTerms } from '@/lib/searchGroups';
+import { normalizeVoteCounts } from '@/lib/offers/scoring';
 
 /** When true, home feed uses /api/feed/home first; on failure falls back to existing Supabase fetch. */
 const USE_NEW_FEED = true;
@@ -179,6 +180,10 @@ type FeedApiItem = {
   original_price: number | null;
   created_at: string;
   score: number;
+  up_votes?: number;
+  down_votes?: number;
+  ranking_blend?: number | null;
+  ranking_momentum?: number | null;
   images?: string[];
   bank_coupon?: string | null;
   store?: string | null;
@@ -210,9 +215,10 @@ function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
     const originalPrice = item.original_price ?? 0;
     const discountPrice = item.price ?? 0;
     const discount = originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
-    const score = item.score ?? 0;
-    const up = score >= 0 ? Math.max(0, Math.ceil(score / 2)) : 0;
-    const down = score < 0 ? -score : 0;
+    const fromCounts = normalizeVoteCounts(item.up_votes ?? 0, item.down_votes ?? 0);
+    const up = fromCounts.up;
+    const down = fromCounts.down;
+    const score = typeof item.score === 'number' ? item.score : fromCounts.score;
     const images = Array.isArray(item.images) ? item.images : [];
     const image = images[0] ?? null;
     const a = item.author;
@@ -237,8 +243,8 @@ function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
       bankCoupon: item.bank_coupon?.trim() || undefined,
       votes: { up, down, score },
       author,
-      ranking_momentum: score,
-      ranking_blend: score,
+      ranking_momentum: item.ranking_momentum != null ? Number(item.ranking_momentum) : score,
+      ranking_blend: item.ranking_blend != null ? Number(item.ranking_blend) : score,
       createdAt: item.created_at ?? null,
     };
   });

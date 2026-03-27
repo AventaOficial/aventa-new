@@ -226,6 +226,13 @@ export default function TermsPage() {
               expresa no hay participación ni obligación de pago.
             </li>
             <li>
+              <span className="font-medium">Enlaces y afiliación durante elegibilidad:</span>{' '}
+              mientras un usuario no cumpla requisitos y no active participación, los enlaces
+              comerciales se gestionan bajo la operación estándar de la plataforma (incluido el
+              reemplazo de links cuando corresponda). El hecho de publicar ofertas no concede por
+              sí mismo derechos económicos sobre cada enlace.
+            </li>
+            <li>
               <span className="font-medium">Pagos y fiscalidad:</span> cualquier liquidación
               estará sujeta a verificación antifraude, disponibilidad del programa, y a la
               normativa fiscal aplicable (incluida la posible retención de impuestos o solicitud

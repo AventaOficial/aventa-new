@@ -4,6 +4,7 @@ import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '@/lib/server/reputation';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
+import { createOfferInputSchema } from '@/lib/contracts/offers';
 
 type OfferInsertPayload = {
   title: string;
@@ -86,8 +87,23 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const title = typeof body?.title === 'string' ? body.title.trim() : '';
-    const store = typeof body?.store === 'string' ? body.store.trim() : '';
+    const parsed = createOfferInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: 'Datos inválidos para crear oferta',
+          issues: parsed.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
+        },
+        { status: 400 },
+      );
+    }
+    const input = parsed.data;
+
+    const title = input.title.trim();
+    const store = input.store.trim();
     if (!title || !store) {
       return NextResponse.json(
         { error: 'Título y tienda son obligatorios' },
@@ -95,9 +111,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const hasDiscount = body?.hasDiscount !== false;
-    const rawOriginal = hasDiscount && body?.original_price != null ? Number(body.original_price) : null;
-    const rawPrice = hasDiscount && body?.price != null ? Number(body.price) : (rawOriginal ?? Number(body.original_price) ?? 0);
+    const hasDiscount = input.hasDiscount !== false;
+    const rawOriginal = hasDiscount && input.original_price != null ? Number(input.original_price) : null;
+    const rawPrice = hasDiscount && input.price != null ? Number(input.price) : (rawOriginal ?? Number(input.original_price) ?? 0);
     const originalPrice = rawOriginal != null && Number.isFinite(rawOriginal) ? Math.round(rawOriginal * 100) / 100 : null;
     const price = Number.isFinite(rawPrice) ? Math.round(rawPrice * 100) / 100 : 0;
 
@@ -105,15 +121,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Precio inválido' }, { status: 400 });
     }
 
-    const imageUrlRaw = typeof body?.image_url === 'string' ? body.image_url : null;
-    const imageUrlsArr = Array.isArray(body?.image_urls)
-      ? (body.image_urls as unknown[]).filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '')
+    const imageUrlRaw = typeof input.image_url === 'string' ? input.image_url : null;
+    const imageUrlsArr = Array.isArray(input.image_urls)
+      ? input.image_urls.filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '')
       : [];
     const firstImage = imageUrlRaw ?? imageUrlsArr[0] ?? '/placeholder.png';
-    const msiMonths =
-      body?.msi_months != null && Number.isInteger(body.msi_months) && body.msi_months >= 1 && body.msi_months <= 24
-        ? body.msi_months
-        : null;
+    const msiMonths = input.msi_months ?? null;
 
     let offerStatus: 'pending' | 'approved' = 'pending';
     let expiresAt: string | undefined;
@@ -132,11 +145,11 @@ export async function POST(request: Request) {
       // si no existe la columna, mantener pending
     }
 
-    const categoryRaw = typeof body?.category === 'string' ? body.category : null;
+    const categoryRaw = typeof input.category === 'string' ? input.category : null;
     const category = normalizeCategoryForStorage(categoryRaw);
-    const bankCoupon = normalizeBankCoupon(typeof body?.bank_coupon === 'string' ? body.bank_coupon : null);
-    const tags = Array.isArray(body?.tags)
-      ? [...new Set(body.tags
+    const bankCoupon = normalizeBankCoupon(typeof input.bank_coupon === 'string' ? input.bank_coupon : null);
+    const tags = Array.isArray(input.tags)
+      ? [...new Set(input.tags
         .filter((v: unknown): v is string => typeof v === 'string')
         .map((v: string) => v.trim().toLowerCase())
         .filter(Boolean)
@@ -157,23 +170,23 @@ export async function POST(request: Request) {
       image_url: firstImage,
       ...(imageUrlsArr.length > 0 && { image_urls: imageUrlsArr }),
       ...(msiMonths != null && { msi_months: msiMonths }),
-      ...(typeof body?.offer_url === 'string' && body.offer_url.trim() && {
-        offer_url: body.offer_url.trim(),
+      ...(typeof input.offer_url === 'string' && input.offer_url.trim() && {
+        offer_url: input.offer_url.trim(),
       }),
-      ...(typeof body?.description === 'string' && body.description.trim() && {
-        description: body.description.trim(),
+      ...(typeof input.description === 'string' && input.description.trim() && {
+        description: input.description.trim(),
       }),
-      ...(typeof body?.steps === 'string' && body.steps.trim() && { steps: body.steps.trim() }),
-      ...(typeof body?.conditions === 'string' && body.conditions.trim() && {
-        conditions: body.conditions.trim(),
+      ...(typeof input.steps === 'string' && input.steps.trim() && { steps: input.steps.trim() }),
+      ...(typeof input.conditions === 'string' && input.conditions.trim() && {
+        conditions: input.conditions.trim(),
       }),
-      ...(typeof body?.coupons === 'string' && body.coupons.trim() && {
-        coupons: body.coupons.trim(),
+      ...(typeof input.coupons === 'string' && input.coupons.trim() && {
+        coupons: input.coupons.trim(),
       }),
       ...(bankCoupon && { bank_coupon: bankCoupon }),
       ...(tags.length > 0 && { tags }),
-      ...(typeof body?.moderator_comment === 'string' && body.moderator_comment.trim() && {
-        moderator_comment: body.moderator_comment.trim().slice(0, 500),
+      ...(typeof input.moderator_comment === 'string' && input.moderator_comment.trim() && {
+        moderator_comment: input.moderator_comment.trim().slice(0, 500),
       }),
     };
 

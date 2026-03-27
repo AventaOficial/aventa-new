@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import Providers from "./providers";
+import CookieNotice from "./components/CookieNotice";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -73,6 +74,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <CookieNotice />
         </Providers>
         <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-8 md:py-10 text-sm text-gray-600 dark:text-gray-400">
           <div className="mx-auto max-w-6xl">

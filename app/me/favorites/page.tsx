@@ -12,6 +12,7 @@ import { useTheme } from '@/app/providers/ThemeProvider'
 import { useUI } from '@/app/providers/UIProvider'
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime'
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData'
+import { normalizeVoteCounts } from '@/lib/offers/scoring'
 
 type OfferRow = {
   id: string
@@ -53,9 +54,7 @@ function rowToOffer(row: OfferRow): MappedOffer {
   const discountPrice = Number(row.price) || 0
   const discount =
     originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0
-  const up = row.upvotes_count ?? 0
-  const down = row.downvotes_count ?? 0
-  const score = up - down
+  const { up, down, score } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count)
   const rawProf = row.profiles
   const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf
   return {
