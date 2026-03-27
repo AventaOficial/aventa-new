@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
+import { getBankCouponLabel } from '@/lib/bankCoupons';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -61,6 +62,7 @@ interface OfferCardProps {
   isLiked?: boolean;
   createdAt?: string | null;
   msiMonths?: number | null;
+  bankCoupon?: string | null;
   /** Badge "Destacada" cuando la oferta tiene alta calidad (ranking_blend alto). */
   isDestacada?: boolean;
   /** Oferta de prueba (relleno): badge "Prueba", click solo toast, no voto/favorito. */
@@ -91,6 +93,7 @@ export default function OfferCard({
   userVote: userVoteProp = 0,
   isLiked: isLikedProp = false,
   msiMonths,
+  bankCoupon,
   createdAt,
   isDestacada = false,
   isTesterOffer = false,
@@ -262,6 +265,7 @@ export default function OfferCard({
   const showImage = image && !imgError;
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
+  const bankCouponLabel = getBankCouponLabel(bankCoupon);
 
   const VotesBlock = () => (
     <div className="flex items-center gap-2 max-[400px]:gap-1 text-gray-900 dark:text-gray-100">
@@ -425,11 +429,20 @@ export default function OfferCard({
               </span>
             )}
           </div>
-          {msiMonths != null && msiMonths >= 1 && (
-            <p className="text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {msiMonths} MSI
-            </p>
-          )}
+          {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
+            <div className="mt-0.5 flex items-center gap-2">
+              {msiMonths != null && msiMonths >= 1 && (
+                <p className="text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  {msiMonths} MSI
+                </p>
+              )}
+              {bankCouponLabel && (
+                <p className="text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                  Cupón {bankCouponLabel}
+                </p>
+              )}
+            </div>
+          ) : null}
 
           {author?.username && (
             <span className="inline-flex items-center gap-1.5 flex-wrap mt-0.5 min-w-0">

@@ -11,6 +11,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 import { ALL_CATEGORIES } from '@/lib/categories';
+import { BANK_COUPON_OPTIONS } from '@/lib/bankCoupons';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -67,6 +68,8 @@ export default function ActionBar() {
     store: '',
     conditions: '',
     coupons: '',
+    bank_coupon: '',
+    tags: '',
     moderator_comment: '',
   });
   const [stepsList, setStepsList] = useState<string[]>(['']);
@@ -283,6 +286,8 @@ export default function ActionBar() {
       store: '',
       conditions: '',
       coupons: '',
+      bank_coupon: '',
+      tags: '',
       moderator_comment: '',
     });
     setStepsList(['']);
@@ -323,6 +328,10 @@ export default function ActionBar() {
       }),
       ...(formData.conditions.trim() && { conditions: formData.conditions.trim() }),
       ...(formData.coupons.trim() && { coupons: formData.coupons.trim() }),
+      ...(formData.bank_coupon.trim() && { bank_coupon: formData.bank_coupon.trim() }),
+      ...(formData.tags.trim() && {
+        tags: [...new Set(formData.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))],
+      }),
       ...(formData.moderator_comment.trim() && { moderator_comment: formData.moderator_comment.trim().slice(0, 500) }),
     };
     const token = session?.access_token ?? (await supabase.auth.getSession()).data.session?.access_token;
@@ -880,6 +889,38 @@ export default function ActionBar() {
                             placeholder="Ej: DESCUENTO20"
                             className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                           />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Cupón bancario
+                          </label>
+                          <select
+                            value={formData.bank_coupon}
+                            onChange={(e) => handleInputChange('bank_coupon', e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                          >
+                            <option value="">Sin cupón bancario</option>
+                            {BANK_COUPON_OPTIONS.map((b) => (
+                              <option key={b.value} value={b.value}>{b.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Etiquetas (opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.tags}
+                            onChange={(e) => handleInputChange('tags', e.target.value)}
+                            placeholder="Ej: playstation, amazon, smart-tv"
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Separa por comas. No reemplaza la categoría macro.
+                          </p>
                         </div>
 
                         <div>

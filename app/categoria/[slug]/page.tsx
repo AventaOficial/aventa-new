@@ -16,6 +16,7 @@ type OfferRow = {
   image_url: string | null;
   image_urls: string[] | null;
   msi_months: number | null;
+  bank_coupon: string | null;
   store: string | null;
   offer_url: string | null;
   description: string | null;
@@ -49,6 +50,7 @@ function rowToOffer(row: OfferRow) {
     image: row.image_url ?? undefined,
     imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
     msiMonths: row.msi_months ?? undefined,
+    bankCoupon: row.bank_coupon?.trim() || undefined,
     votes: { up, down, score: row.score ?? up * 2 - down },
     author: {
       username: prof?.display_name?.trim() || 'Usuario',
@@ -91,7 +93,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
 
   const { data: rows, error } = await supabase
     .from('ofertas_ranked_general')
-    .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, created_at, created_by, up_votes, down_votes, score, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+    .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, created_at, created_by, up_votes, down_votes, score, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
     .in('category', categoryValues)
     .or('status.eq.approved,status.eq.published')
     .or(`expires_at.is.null,expires_at.gte.${now}`)

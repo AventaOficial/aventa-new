@@ -42,6 +42,7 @@ interface OfferRow {
   image_url?: string | null;
   image_urls?: string[] | null;
   msi_months?: number | null;
+  bank_coupon?: string | null;
   store: string | null;
   offer_url: string | null;
   description: string | null;
@@ -78,6 +79,7 @@ interface Offer {
   image?: string;
   imageUrls?: string[];
   msiMonths?: number | null;
+  bankCoupon?: string | null;
   votes: { up: number; down: number; score: number };
   author: OfferAuthor;
   ranking_momentum: number;
@@ -157,6 +159,7 @@ function rowToOffer(row: OfferRow): Offer {
     image: row.image_url ? row.image_url : undefined,
     imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
     msiMonths: typeof row.msi_months === 'number' ? row.msi_months : undefined,
+    bankCoupon: row.bank_coupon?.trim() || undefined,
     description: row.description?.trim() || undefined,
     steps: row.steps?.trim() || undefined,
     conditions: row.conditions?.trim() || undefined,
@@ -177,6 +180,7 @@ type FeedApiItem = {
   created_at: string;
   score: number;
   images?: string[];
+  bank_coupon?: string | null;
   store?: string | null;
   category?: string | null;
   slug?: string;
@@ -230,6 +234,7 @@ function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
       offerUrl: '',
       image: image ?? undefined,
       imageUrls: images.length > 0 ? images : undefined,
+      bankCoupon: item.bank_coupon?.trim() || undefined,
       votes: { up, down, score },
       author,
       ranking_momentum: score,
@@ -353,7 +358,7 @@ function HomeContent() {
 
       let query = supabase
         .from('ofertas_ranked_general')
-        .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+        .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
         .order('ranking_blend', { ascending: false })
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
@@ -458,7 +463,7 @@ function HomeContent() {
     const fechaLimiteISO = fechaLimite.toISOString();
     let nextQuery = supabase
       .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
       .gte('created_at', fechaLimiteISO)
@@ -518,7 +523,7 @@ function HomeContent() {
       let searchQueryBuilder = supabase
         .from('ofertas_ranked_general')
         .select(
-          'id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
+          'id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
         )
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
@@ -821,6 +826,7 @@ function HomeContent() {
                     isLiked={!!favoriteMap[offer.id]}
                     createdAt={offer.createdAt}
                     msiMonths={offer.msiMonths}
+                    bankCoupon={offer.bankCoupon}
                     isDestacada={offer.ranking_blend != null && offer.ranking_blend >= DESTACADA_RANKING_BLEND_MIN}
                     isTesterOffer={offer.id.startsWith('tester-')}
                   />

@@ -41,6 +41,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
 
 /** Valores de categoría que se muestran en el tab "Día a día" del feed. */
 export const VITAL_CATEGORY_IDS: string[] = ALL_CATEGORIES.filter((c) => c.vital).map((c) => c.value);
+const CATEGORY_IDS_SET = new Set<string>(ALL_CATEGORIES.map((c) => c.value));
 
 /**
  * Valores legacy en DB se mapean a las 8 macro.
@@ -66,61 +67,56 @@ export const LEGACY_CATEGORY_MAP: Record<string, string> = {
   other: 'other',
 };
 
-/**
- * Valores de categoría que existen en la BD (offers.category / ofertas_ranked_general).
- * docs/supabase-migrations/offers_category.sql: electronics, fashion, home, sports, books, other.
- * Solo estos evitan 400 en la vista.
- */
-const DB_CATEGORY_WHITELIST = new Set<string>([
-  'electronics',
-  'fashion',
-  'home',
-  'sports',
-  'books',
-  'other',
-]);
-
-/** Mapeo de macro (UI) a valores de DB para el feed. Solo valores que existen en la vista. */
-const MACRO_TO_DB_CATEGORIES: Record<string, string[]> = {
-  tecnologia: ['electronics'],
-  gaming: ['other'],
+/** Alias históricos que pueden existir en BD y deben seguir encontrándose durante la transición. */
+const CATEGORY_QUERY_ALIASES: Record<string, string[]> = {
+  tecnologia: ['electronics', 'electrones'],
+  gaming: [],
   hogar: ['home'],
-  supermercado: ['other'],
-  moda: ['fashion'],
-  belleza: ['other'],
-  viajes: ['other'],
-  servicios: ['other'],
-  other: ['other'],
+  supermercado: ['despensa', 'comida', 'bebidas'],
+  moda: ['fashion', 'ropa_mujer', 'ropa_hombre'],
+  belleza: [],
+  viajes: [],
+  servicios: ['bancaria'],
+  other: ['sports', 'books', 'deportes', 'libros', 'mascotas'],
 };
+
+/** Normaliza cualquier valor de categoría a macro canónica del producto. */
+export function normalizeCategoryForStorage(category: string | null | undefined): CategoryId | null {
+  if (!category?.trim()) return null;
+  const lower = category.trim().toLowerCase();
+  const mapped = LEGACY_CATEGORY_MAP[lower] ?? lower;
+  if (CATEGORY_IDS_SET.has(mapped)) return mapped as CategoryId;
+  return null;
+}
+
+export function isValidCategoryId(value: string | null | undefined): value is CategoryId {
+  if (!value?.trim()) return false;
+  return CATEGORY_IDS_SET.has(value.trim().toLowerCase());
+}
 
 /** Para filtrar en el feed: devuelve el valor macro y todos los legacy que mapean a él. */
 function getDbCategoryValuesForMacro(macro: string): string[] {
+  const normalized = normalizeCategoryForStorage(macro);
+  if (!normalized) return [];
   const fromMap = Object.entries(LEGACY_CATEGORY_MAP)
-    .filter(([, v]) => v === macro)
+    .filter(([, v]) => v === normalized)
     .map(([k]) => k);
-  return [...new Set([macro, ...fromMap])];
+  const aliases = CATEGORY_QUERY_ALIASES[normalized] ?? [];
+  return [...new Set([normalized, ...fromMap, ...aliases])];
 }
 
-/** Valores de category para la query al feed. Solo incluye valores que existen en ofertas_ranked_general. */
+/** Valores de category para la query al feed. Incluye macro canónica + alias legacy durante transición. */
 export function getValidCategoryValuesForFeed(macro: string): string[] {
-  const mapped = MACRO_TO_DB_CATEGORIES[macro];
-  if (mapped?.length) return mapped;
   const all = getDbCategoryValuesForMacro(macro);
-  const valid = all.filter((v) => DB_CATEGORY_WHITELIST.has(v));
-  return valid.length > 0 ? valid : [macro];
+  if (all.length > 0) return all;
+  const raw = macro?.trim().toLowerCase();
+  return raw ? [raw] : [];
 }
 
-/** Valores de DB que cuentan como "vital" (macro vitales + legacy). Para .in('category', ...) en el feed. */
-const VITAL_RAW_VALUES = [
+/** Valores que cuentan como "vital" (macro vitales + alias). Para .in('category', ...) en el feed. */
+export const VITAL_FILTER_VALUES: string[] = [
   ...new Set(VITAL_CATEGORY_IDS.flatMap((macro) => getDbCategoryValuesForMacro(macro))),
 ];
-
-/** Solo valores que existen en la BD; evita 400 en ofertas_ranked_general. */
-export const VITAL_FILTER_VALUES: string[] =
-  (() => {
-    const valid = VITAL_RAW_VALUES.filter((v) => DB_CATEGORY_WHITELIST.has(v));
-    return valid.length > 0 ? [...new Set(valid)] : ['electronics', 'fashion', 'home', 'other'];
-  })();
 
 /** Categorías para onboarding (todas menos Otros). */
 export const GENERAL_CATEGORIES_FOR_ONBOARDING: CategoryOption[] = ALL_CATEGORIES.filter((c) => c.value !== 'other');
@@ -130,9 +126,7 @@ export const ONBOARDING_SEARCHABLE_EXTRA = ['zara', 'nike', 'amazon', 'walmart',
 export const FEED_CATEGORY_OPTIONS = ALL_CATEGORIES;
 
 export function normalizeCategoryForVitales(category: string | null | undefined): string | null {
-  if (!category?.trim()) return null;
-  const lower = category.trim().toLowerCase();
-  return LEGACY_CATEGORY_MAP[lower] ?? lower;
+  return normalizeCategoryForStorage(category);
 }
 
 export function isVitalCategory(category: string | null | undefined): boolean {

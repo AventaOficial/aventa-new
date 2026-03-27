@@ -17,6 +17,7 @@ type Offer = {
   image?: string;
   imageUrls?: string[];
   msiMonths?: number;
+  bankCoupon?: string | null;
   votes: { up: number; down: number; score: number };
   author: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
   createdAt: string | null;
@@ -44,6 +45,7 @@ export default function CategoriaOfferList({ offers }: { offers: Offer[] }) {
           author={offer.author}
           createdAt={offer.createdAt}
           msiMonths={offer.msiMonths}
+          bankCoupon={offer.bankCoupon}
           onCardClick={() => router.push(`/oferta/${offer.id}`)}
         />
       ))}

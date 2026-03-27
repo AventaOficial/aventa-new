@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
-import { ALL_CATEGORIES, LEGACY_CATEGORY_MAP } from '@/lib/categories';
+import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
 import { slugifyStore } from '@/lib/slug';
 import OfferPageContent from './OfferPageContent';
 
@@ -111,10 +111,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
   const up = offer.upvotes_count ?? 0;
   const down = offer.downvotes_count ?? 0;
-  const rawCategory = offer.category?.trim().toLowerCase();
-  const categoryMacro = rawCategory
-    ? (LEGACY_CATEGORY_MAP[rawCategory] ?? rawCategory)
-    : null;
+  const categoryMacro = normalizeCategoryForStorage(offer.category);
   const categorySlugForUrl = categoryMacro && ALL_CATEGORIES.some((c) => c.value === categoryMacro) ? categoryMacro : (categoryMacro || undefined);
   const storeSlug = slugifyStore(offer.store);
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
+import { getValidCategoryValuesForFeed, normalizeCategoryForStorage } from '@/lib/categories';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = 60;
@@ -13,6 +14,7 @@ type OfferRow = {
   image_url: string | null;
   image_urls: string[] | null;
   msi_months: number | null;
+  bank_coupon: string | null;
   store: string | null;
   offer_url: string | null;
   description: string | null;
@@ -55,6 +57,7 @@ export async function GET(request: Request) {
   const limit = Math.min(Number(searchParams.get('limit')) || DEFAULT_LIMIT, 24);
   const storeFilter = searchParams.get('store')?.trim() || null;
   const categoryFilter = searchParams.get('category')?.trim() || null;
+  const categoryFilterValues = categoryFilter ? getValidCategoryValuesForFeed(categoryFilter) : [];
 
   const now = new Date();
   const nowISO = now.toISOString();
@@ -69,8 +72,8 @@ export async function GET(request: Request) {
   const votedIds = new Set((voteRes.data ?? []).map((r: { offer_id: string }) => r.offer_id));
   const affinityOfferIds = [...new Set([...favoriteIds, ...votedIds])];
 
-  let userCategories = new Set<string>();
-  let userStores = new Set<string>();
+  const userCategories = new Set<string>();
+  const userStores = new Set<string>();
 
   if (affinityOfferIds.length > 0) {
     const { data: affinityOffers } = await supabase
@@ -78,7 +81,8 @@ export async function GET(request: Request) {
       .select('category, store')
       .in('id', affinityOfferIds.slice(0, 50));
     for (const o of (affinityOffers ?? []) as { category: string | null; store: string | null }[]) {
-      if (o.category) userCategories.add(o.category);
+      const normalized = normalizeCategoryForStorage(o.category);
+      if (normalized) userCategories.add(normalized);
       if (o.store) userStores.add(o.store);
     }
   }
@@ -87,7 +91,7 @@ export async function GET(request: Request) {
   let list: OfferRow[] = [];
   let query = supabase
     .from('ofertas_ranked_general')
-    .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+    .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, category, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
     .or('status.eq.approved,status.eq.published')
     .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
     .gte('created_at', weekAgo)
@@ -95,7 +99,8 @@ export async function GET(request: Request) {
     .limit(FETCH_LIMIT);
 
   if (storeFilter) query = query.eq('store', storeFilter);
-  if (categoryFilter) query = query.eq('category', categoryFilter);
+  if (categoryFilterValues.length === 1) query = query.eq('category', categoryFilterValues[0]);
+  else if (categoryFilterValues.length > 1) query = query.in('category', categoryFilterValues);
 
   const { data: viewRows, error: viewError } = await query;
   if (!viewError && viewRows?.length !== undefined) {
@@ -103,14 +108,15 @@ export async function GET(request: Request) {
   } else {
     let offerQuery = supabase
       .from('offers')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, store, offer_url, description, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, reputation_weighted_score, category')
+      .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, reputation_weighted_score, category')
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
       .gte('created_at', weekAgo)
       .order('ranking_momentum', { ascending: false })
       .limit(FETCH_LIMIT);
     if (storeFilter) offerQuery = offerQuery.eq('store', storeFilter);
-    if (categoryFilter) offerQuery = offerQuery.eq('category', categoryFilter);
+    if (categoryFilterValues.length === 1) offerQuery = offerQuery.eq('category', categoryFilterValues[0]);
+    else if (categoryFilterValues.length > 1) offerQuery = offerQuery.in('category', categoryFilterValues);
     const { data: offerRows, error: offerError } = await offerQuery;
     if (offerError) {
       return NextResponse.json({ error: offerError.message }, { status: 500 });
@@ -138,8 +144,10 @@ export async function GET(request: Request) {
   const hasAffinity = userCategories.size > 0 || userStores.size > 0;
   const sorted = hasAffinity
     ? [...list].sort((a, b) => {
-        const aMatch = (typeof (a as { category?: string }).category !== 'undefined' && userCategories.has((a as { category?: string }).category!)) || (a.store && userStores.has(a.store));
-        const bMatch = (typeof (b as { category?: string }).category !== 'undefined' && userCategories.has((b as { category?: string }).category!)) || (b.store && userStores.has(b.store));
+        const aCategory = normalizeCategoryForStorage((a as { category?: string | null }).category ?? null);
+        const bCategory = normalizeCategoryForStorage((b as { category?: string | null }).category ?? null);
+        const aMatch = (aCategory ? userCategories.has(aCategory) : false) || (a.store && userStores.has(a.store));
+        const bMatch = (bCategory ? userCategories.has(bCategory) : false) || (b.store && userStores.has(b.store));
         if (aMatch && !bMatch) return -1;
         if (!aMatch && bMatch) return 1;
         const blendA = a.ranking_blend ?? 0;

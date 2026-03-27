@@ -2,6 +2,35 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '@/lib/server/reputation';
+import { normalizeCategoryForStorage } from '@/lib/categories';
+import { normalizeBankCoupon } from '@/lib/bankCoupons';
+
+type OfferInsertPayload = {
+  title: string;
+  price: number;
+  original_price: number | null;
+  store: string;
+  category?: string;
+  status: 'pending' | 'approved';
+  created_by: string;
+  expires_at?: string;
+  image_url: string;
+  image_urls?: string[];
+  msi_months?: number;
+  offer_url?: string;
+  description?: string;
+  steps?: string;
+  conditions?: string;
+  coupons?: string;
+  bank_coupon?: string;
+  tags?: string[];
+  moderator_comment?: string;
+};
+
+function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
+  const msg = (error?.message ?? '').toLowerCase();
+  return msg.includes(columnName.toLowerCase());
+}
 
 export async function POST(request: Request) {
   try {
@@ -103,15 +132,25 @@ export async function POST(request: Request) {
       // si no existe la columna, mantener pending
     }
 
-    const category = typeof body?.category === 'string' && body.category.trim() ? body.category.trim() : null;
-    const payload = {
+    const categoryRaw = typeof body?.category === 'string' ? body.category : null;
+    const category = normalizeCategoryForStorage(categoryRaw);
+    const bankCoupon = normalizeBankCoupon(typeof body?.bank_coupon === 'string' ? body.bank_coupon : null);
+    const tags = Array.isArray(body?.tags)
+      ? [...new Set(body.tags
+        .filter((v: unknown): v is string => typeof v === 'string')
+        .map((v) => v.trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 20))]
+      : [];
+
+    const payload: OfferInsertPayload = {
       title,
       price,
       original_price: hasDiscount && originalPrice != null && Number.isFinite(originalPrice)
         ? originalPrice
         : null,
       store,
-      ...(category && { category }),
+      ...(category ? { category } : { category: 'other' }),
       status: offerStatus,
       created_by: createdBy,
       ...(expiresAt && { expires_at: expiresAt }),
@@ -131,12 +170,22 @@ export async function POST(request: Request) {
       ...(typeof body?.coupons === 'string' && body.coupons.trim() && {
         coupons: body.coupons.trim(),
       }),
+      ...(bankCoupon && { bank_coupon: bankCoupon }),
+      ...(tags.length > 0 && { tags }),
       ...(typeof body?.moderator_comment === 'string' && body.moderator_comment.trim() && {
         moderator_comment: body.moderator_comment.trim().slice(0, 500),
       }),
     };
 
-    const { data, error } = await supabase.from('offers').insert([payload]).select('id').single();
+    let insertPayload: OfferInsertPayload = payload;
+    let { data, error } = await supabase.from('offers').insert([insertPayload]).select('id').single();
+    if (error && (hasMissingColumn(error, 'bank_coupon') || hasMissingColumn(error, 'tags'))) {
+      const fallbackPayload: OfferInsertPayload = { ...payload };
+      delete fallbackPayload.bank_coupon;
+      delete fallbackPayload.tags;
+      insertPayload = fallbackPayload;
+      ({ data, error } = await supabase.from('offers').insert([insertPayload]).select('id').single());
+    }
 
     if (error) {
       console.error('[offers] insert failed:', error.message, error.details, error.code);

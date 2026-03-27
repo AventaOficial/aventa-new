@@ -15,6 +15,7 @@ export type FeedOffer = {
   created_at: string;
   score: number;
   images: string[];
+  bank_coupon: string | null;
   store: string | null;
   category: string | null;
   slug: string;
@@ -50,7 +51,7 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, created_at, score, image_url, image_urls, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
+        'id, title, price, original_price, created_at, score, image_url, image_urls, bank_coupon, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
       )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
@@ -98,6 +99,7 @@ export async function getHomeFeed({
         created_at: row.created_at != null ? new Date(row.created_at as string).toISOString() : '',
         score: Number(row.score ?? 0),
         images,
+        bank_coupon: row.bank_coupon != null ? String(row.bank_coupon) : null,
         store: row.store != null ? String(row.store) : null,
         category: row.category != null ? String(row.category) : null,
         slug: String(row.id ?? ''),
