@@ -12,14 +12,58 @@ import {
   Sparkles,
   LayoutDashboard,
   ArrowRight,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
+
+type IntegrityCheck = { name: string; ok: boolean; detail: string };
+type IntegrityResult = {
+  ok: boolean;
+  startedAt: string;
+  finishedAt: string;
+  checks: IntegrityCheck[];
+  summary: { total: number; failed: number; passed: number };
+};
 
 function OperacionesPageInner() {
   const router = useRouter();
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const [integrity, setIntegrity] = useState<IntegrityResult | null>(null);
+  const [integrityLoading, setIntegrityLoading] = useState(true);
+  const [integrityRunning, setIntegrityRunning] = useState(false);
+  const [integrityError, setIntegrityError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
+    const fetchIntegrity = async (runNow = false) => {
+      setIntegrityError(null);
+      if (runNow) setIntegrityRunning(true);
+      else setIntegrityLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setIntegrityError('Sin sesión para consultar integridad');
+          return;
+        }
+        const res = await fetch(`/api/admin/system-integrity${runNow ? '?run=1' : ''}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setIntegrityError(body?.error ?? 'No se pudo obtener estado de integridad');
+          return;
+        }
+        setIntegrity((body?.result ?? null) as IntegrityResult | null);
+      } catch {
+        setIntegrityError('Error de red al consultar integridad');
+      } finally {
+        setIntegrityLoading(false);
+        setIntegrityRunning(false);
+      }
+    };
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         router.replace('/');
@@ -33,7 +77,11 @@ function OperacionesPageInner() {
         .maybeSingle()
         .then(({ data }) => {
           setIsOwner(!!data);
-          if (!data) router.replace('/');
+          if (!data) {
+            router.replace('/');
+            return;
+          }
+          fetchIntegrity(false).catch(() => {});
         });
     });
   }, [router]);
@@ -94,6 +142,85 @@ function OperacionesPageInner() {
                 Lista detallada en el repo: <code className="text-gray-600 dark:text-gray-400">docs/LAUNCH_CHECKLIST_BETA.md</code>{' '}
                 y <code className="text-gray-600 dark:text-gray-400">docs/AUDITORIA_PRE_LANZAMIENTO.md</code>.
               </p>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                    <Gauge className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900 dark:text-gray-100">Estado automático del sistema</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Chequeo diario por cron + ejecución manual cuando quieras.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const supabase = createClient();
+                    setIntegrityError(null);
+                    setIntegrityRunning(true);
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const token = session?.access_token;
+                      if (!token) {
+                        setIntegrityError('Sin sesión para ejecutar chequeo');
+                        return;
+                      }
+                      const res = await fetch('/api/admin/system-integrity?run=1', {
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      const body = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        setIntegrityError(body?.error ?? 'No se pudo ejecutar chequeo');
+                        return;
+                      }
+                      setIntegrity((body?.result ?? null) as IntegrityResult | null);
+                    } catch {
+                      setIntegrityError('Error de red al ejecutar chequeo');
+                    } finally {
+                      setIntegrityRunning(false);
+                      setIntegrityLoading(false);
+                    }
+                  }}
+                  disabled={integrityRunning}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-violet-50/60 dark:hover:bg-violet-900/20 disabled:opacity-60"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${integrityRunning ? 'animate-spin' : ''}`} />
+                  {integrityRunning ? 'Ejecutando…' : 'Ejecutar ahora'}
+                </button>
+              </div>
+
+              {integrityLoading ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Cargando estado…</p>
+              ) : integrityError ? (
+                <p className="text-sm text-amber-600 dark:text-amber-400">{integrityError}</p>
+              ) : integrity ? (
+                <div className="space-y-3">
+                  <div className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold ${integrity.ok ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+                    {integrity.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                    {integrity.ok ? 'Integridad OK' : `Integridad con fallos (${integrity.summary.failed})`}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Última ejecución: {new Date(integrity.finishedAt).toLocaleString('es-MX')}
+                  </p>
+                  <div className="grid gap-2">
+                    {integrity.checks.slice(0, 6).map((check) => (
+                      <div key={check.name} className="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs">
+                        <p className={`font-semibold ${check.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                          {check.ok ? 'OK' : 'FALLO'} · {check.name}
+                        </p>
+                        <p className="mt-1 text-gray-600 dark:text-gray-400">{check.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Sin datos previos de integridad.</p>
+              )}
             </section>
 
             <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
