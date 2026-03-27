@@ -255,3 +255,21 @@ Detalle completo:
 
 - `docs/FASE0_BLINDAJE_SISTEMA.md`
 
+## Actualizacion Blindaje final (enforcement pre-lanzamiento)
+
+Se agrego una capa final para convertir auditoria en control real:
+
+- constraints SQL no invasivos para votos/precios/msi/bank_coupon,
+- endpoint owner dedicado para disparar chequeo manual:
+  - `/api/admin/integrity-check`
+- nuevos checks automáticos de integridad:
+  - `offers.price_logic.integrity`
+  - `offer_votes.legacy_value_1`
+  - `offers.msi_range.integrity`
+  - `offers.image_url.integrity`
+
+Detalle completo:
+
+- `docs/BLINDAJE_FINAL_LANZAMIENTO.md`
+- `docs/supabase-migrations/final_hardening_constraints.sql`
+

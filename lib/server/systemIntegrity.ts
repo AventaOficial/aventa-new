@@ -78,33 +78,67 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
       detail: `total=${totalOffers}, valid=${validBank}, null=${nullBank}, empty=${emptyBank}, invalid=${invalidBank}`,
     });
 
-    const [missingTitleRes, missingStoreRes, negativePriceRes] = await Promise.all([
+    const [missingTitleRes, missingStoreRes, negativePriceRes, negativeOriginalPriceRes, priceGreaterThanOriginalRes] = await Promise.all([
       supabase.from('offers').select('id', { count: 'exact', head: true }).or('title.is.null,title.eq.'),
       supabase.from('offers').select('id', { count: 'exact', head: true }).or('store.is.null,store.eq.'),
       supabase.from('offers').select('id', { count: 'exact', head: true }).lt('price', 0),
+      supabase.from('offers').select('id', { count: 'exact', head: true }).lt('original_price', 0),
+      supabase.from('offers').select('id', { count: 'exact', head: true }).not('original_price', 'is', null).filter('price', 'gt', 'original_price'),
     ]);
     const missingTitle = missingTitleRes.count ?? 0;
     const missingStore = missingStoreRes.count ?? 0;
     const negativePrice = negativePriceRes.count ?? 0;
+    const negativeOriginalPrice = negativeOriginalPriceRes.count ?? 0;
+    const priceGreaterThanOriginal = priceGreaterThanOriginalRes.count ?? 0;
     checks.push({
       name: 'offers.required_fields.integrity',
-      ok: missingTitle === 0 && missingStore === 0 && negativePrice === 0,
-      detail: `missing_title=${missingTitle}, missing_store=${missingStore}, negative_price=${negativePrice}`,
+      ok: missingTitle === 0 && missingStore === 0 && negativePrice === 0 && negativeOriginalPrice === 0,
+      detail: `missing_title=${missingTitle}, missing_store=${missingStore}, negative_price=${negativePrice}, negative_original_price=${negativeOriginalPrice}`,
     });
 
-    const [totalVotesRes, validVotesRes, nullVotesRes] = await Promise.all([
+    checks.push({
+      name: 'offers.price_logic.integrity',
+      ok: priceGreaterThanOriginal === 0,
+      detail: `price_gt_original=${priceGreaterThanOriginal}`,
+    });
+
+    const [totalVotesRes, validVotesRes, legacyVotesRes, nullVotesRes] = await Promise.all([
       supabase.from('offer_votes').select('id', { count: 'exact', head: true }),
       supabase.from('offer_votes').select('id', { count: 'exact', head: true }).in('value', [-1, 2]),
+      supabase.from('offer_votes').select('id', { count: 'exact', head: true }).eq('value', 1),
       supabase.from('offer_votes').select('id', { count: 'exact', head: true }).is('value', null),
     ]);
     const totalVotes = totalVotesRes.count ?? 0;
     const validVotes = validVotesRes.count ?? 0;
+    const legacyVotes = legacyVotesRes.count ?? 0;
     const nullVotes = nullVotesRes.count ?? 0;
     const invalidVotes = Math.max(0, totalVotes - validVotes - nullVotes);
     checks.push({
       name: 'offer_votes.value.integrity',
       ok: invalidVotes === 0,
       detail: `total=${totalVotes}, valid=${validVotes}, null=${nullVotes}, invalid=${invalidVotes}`,
+    });
+    checks.push({
+      name: 'offer_votes.legacy_value_1',
+      ok: legacyVotes === 0,
+      detail: `legacy_value_1=${legacyVotes}`,
+    });
+
+    const [msiInvalidRes, missingImageRes] = await Promise.all([
+      supabase.from('offers').select('id', { count: 'exact', head: true }).or('msi_months.lt.1,msi_months.gt.24'),
+      supabase.from('offers').select('id', { count: 'exact', head: true }).or('image_url.is.null,image_url.eq.'),
+    ]);
+    const msiInvalid = msiInvalidRes.count ?? 0;
+    const missingImage = missingImageRes.count ?? 0;
+    checks.push({
+      name: 'offers.msi_range.integrity',
+      ok: msiInvalid === 0,
+      detail: `invalid_msi_months=${msiInvalid}`,
+    });
+    checks.push({
+      name: 'offers.image_url.integrity',
+      ok: missingImage === 0,
+      detail: `missing_image_url=${missingImage}`,
     });
 
     const { data: viewRow, error: viewError } = await supabase
