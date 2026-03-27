@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
+import { createServerClient } from '@/lib/supabase/server'
+import { recordOfferEvent } from '@/lib/server/writeQueue'
 
 type EventType = 'view' | 'outbound' | 'share'
 
@@ -59,16 +60,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error } = await supabase.from('offer_events').insert({
+    await recordOfferEvent({
       offer_id: offerId,
       user_id: userId,
       event_type: eventType,
     })
-
-    if (error) {
-      console.error('[events] insert failed:', error.message)
-      return NextResponse.json({ error: 'Error al registrar evento' }, { status: 500 })
-    }
 
     return NextResponse.json({}, { status: 200 })
   } catch {

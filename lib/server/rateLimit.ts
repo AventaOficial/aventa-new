@@ -64,6 +64,19 @@ function getRatelimit(key: string, limit: number, window: Duration): Ratelimit |
   return limiters[key];
 }
 
+function readPositiveIntEnv(name: string): number | null {
+  const raw = process.env[name];
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function applyAdaptiveMultiplier(baseLimit: number): number {
+  const multiplier = readPositiveIntEnv('RATE_LIMIT_MULTIPLIER') ?? 1;
+  return Math.max(1, baseLimit * multiplier);
+}
+
 export type EnforceResult =
   | { success: true }
   | { success: false; status: 429 };
@@ -78,12 +91,13 @@ export function getClientIp(request: Request): string {
 
 /** Límite por defecto: 30 req/min (track-view, votes, upload) */
 export async function enforceRateLimit(identifier: string): Promise<EnforceResult> {
-  const rl = getRatelimit('default', 30, '1 m');
+  const defaultLimit = applyAdaptiveMultiplier(readPositiveIntEnv('RATE_LIMIT_DEFAULT_PER_MIN') ?? 30);
+  const rl = getRatelimit('default', defaultLimit, '1 m');
   if (rl) {
     const { success } = await rl.limit(identifier);
     return success ? { success: true } : { success: false, status: 429 };
   }
-  const ok = memoryAllow(`def:${identifier}`, 30, durationToMs('1 m'));
+  const ok = memoryAllow(`def:${identifier}`, defaultLimit, durationToMs('1 m'));
   return ok ? { success: true } : { success: false, status: 429 };
 }
 
@@ -92,15 +106,16 @@ export async function enforceRateLimitCustom(
   identifier: string,
   preset: 'reports' | 'comments' | 'events' | 'offers' | 'parseOffer' | 'feed'
 ): Promise<EnforceResult> {
-  const configs: Record<string, [number, Duration]> = {
-    reports: [10, '1 m'],
-    comments: [20, '1 m'],
-    events: [60, '1 m'],
-    offers: [5, '1 m'],
-    parseOffer: [20, '1 m'],
-    feed: [120, '1 m'],
+  const configs: Record<string, [number, Duration, string]> = {
+    reports: [10, '1 m', 'RATE_LIMIT_REPORTS_PER_MIN'],
+    comments: [20, '1 m', 'RATE_LIMIT_COMMENTS_PER_MIN'],
+    events: [60, '1 m', 'RATE_LIMIT_EVENTS_PER_MIN'],
+    offers: [5, '1 m', 'RATE_LIMIT_OFFERS_PER_MIN'],
+    parseOffer: [20, '1 m', 'RATE_LIMIT_PARSE_OFFER_PER_MIN'],
+    feed: [120, '1 m', 'RATE_LIMIT_FEED_PER_MIN'],
   };
-  const [limit, window] = configs[preset];
+  const [baseLimit, window, envName] = configs[preset];
+  const limit = applyAdaptiveMultiplier(readPositiveIntEnv(envName) ?? baseLimit);
   const rl = getRatelimit(`rl:${preset}`, limit, window);
   if (rl) {
     const { success } = await rl.limit(identifier);

@@ -81,6 +81,7 @@ type ProductMetrics = {
   avg_duration_minutes_retention_48h: number | null;
   best_hour_utc: number | null;
   best_hour_count: number;
+  growth_weekly_pct: number | null;
 };
 
 export default function MetricsPage() {
@@ -255,7 +256,7 @@ export default function MetricsPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
             Resumen de la comunidad
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 {productMetrics.new_users_today}
@@ -288,6 +289,25 @@ export default function MetricsPage() {
                 {bestHourMexico != null ? `${bestHourMexico}:00` : '—'}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Mejor hora (MX)</p>
+            </div>
+            <div>
+              <p
+                className={`text-3xl font-bold ${
+                  productMetrics.growth_weekly_pct == null
+                    ? 'text-gray-900 dark:text-gray-100'
+                    : productMetrics.growth_weekly_pct >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                {productMetrics.growth_weekly_pct != null ? `${productMetrics.growth_weekly_pct}%` : '—'}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Crecimiento (7d vs 7d anterior)
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                Basado en usuarios nuevos registrados
+              </p>
             </div>
           </div>
         </section>

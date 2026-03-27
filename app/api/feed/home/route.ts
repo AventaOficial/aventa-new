@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
 
     const result = await getHomeFeed({ limit, cursor, type });
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        // Cache corto para absorber picos de lectura sin perder frescura.
+        'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     console.error('[FEED API ERROR]', error);
     return NextResponse.json(

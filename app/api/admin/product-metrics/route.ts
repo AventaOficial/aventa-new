@@ -18,6 +18,8 @@ export async function GET(request: Request) {
   const todayStart = new Date(`${y}-${m}-${d}T06:00:00.000Z`).toISOString(); // 00:00 MX = 06:00 UTC
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
   // Usuarios nuevos hoy (profiles creados hoy)
   const { count: newUsersToday } = await supabase
@@ -91,6 +93,29 @@ export async function GET(request: Request) {
     // ignore
   }
 
+  // Crecimiento semanal: usuarios nuevos últimos 7 días vs 7 días anteriores.
+  // Fórmula: ((actual - previo) / max(previo,1)) * 100
+  let growthWeeklyPct: number | null = null;
+  try {
+    const [currentWindow, previousWindow] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', sevenDaysAgo.toISOString()),
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', fourteenDaysAgo.toISOString())
+        .lt('created_at', sevenDaysAgo.toISOString()),
+    ]);
+
+    const current = currentWindow.count ?? 0;
+    const previous = previousWindow.count ?? 0;
+    growthWeeklyPct = Math.round((((current - previous) / Math.max(previous, 1)) * 100) * 100) / 100;
+  } catch {
+    // ignore
+  }
+
   return NextResponse.json({
     new_users_today: newUsersToday ?? 0,
     active_users_24h: activeUsers24h,
@@ -98,5 +123,6 @@ export async function GET(request: Request) {
     avg_duration_minutes_retention_48h: avg_duration_minutes_retention_48h,
     best_hour_utc: bestHour,
     best_hour_count: bestHourCount,
+    growth_weekly_pct: growthWeeklyPct,
   });
 }

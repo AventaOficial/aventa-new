@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
+import { recordOfferEvent } from '@/lib/server/writeQueue';
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -34,16 +34,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const supabase = createServerClient();
-    const { error } = await supabase.from('offer_events').insert({
+    await recordOfferEvent({
       offer_id: offerId,
       user_id: userId,
       event_type: 'outbound',
     });
-
-    if (error) {
-      console.error('[track-outbound] insert failed:', error.message);
-    }
   } catch {}
 
   return new NextResponse(null, { status: 204 });

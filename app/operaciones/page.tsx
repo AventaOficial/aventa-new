@@ -45,6 +45,21 @@ type IntegrityResult = {
   summary: { total: number; failed: number; passed: number };
 };
 
+type GoNoGoResponse = {
+  overall: 'green' | 'yellow' | 'red';
+  signals: {
+    integrity: { status: 'green' | 'yellow' | 'red'; failed_checks: number };
+    alerting: {
+      status: 'green' | 'yellow' | 'red';
+      emailConfigured: boolean;
+      webhookConfigured: boolean;
+      resendConfigured: boolean;
+    };
+    queue: { status: 'green' | 'yellow' | 'red'; pending: number; failed: number };
+    growth: { status: 'green' | 'yellow' | 'red'; weekly_pct: number | null };
+  };
+};
+
 const AREA_META: Record<
   AreaId,
   { title: string; description: string; icon: typeof Database }
@@ -107,6 +122,18 @@ function statusClasses(s: AreaStatus): string {
   }
 }
 
+function signalDot(status: 'green' | 'yellow' | 'red'): string {
+  if (status === 'green') return 'bg-emerald-500';
+  if (status === 'yellow') return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+function signalLabel(status: 'green' | 'yellow' | 'red'): string {
+  if (status === 'green') return 'Listo';
+  if (status === 'yellow') return 'Atención';
+  return 'Bloqueante';
+}
+
 function OperacionesPageInner() {
   const router = useRouter();
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
@@ -118,6 +145,9 @@ function OperacionesPageInner() {
   const [pulseError, setPulseError] = useState<string | null>(null);
   const [showTesterOffers, setShowTesterOffers] = useState(false);
   const [testerOffersSaving, setTesterOffersSaving] = useState(false);
+  const [goNoGo, setGoNoGo] = useState<GoNoGoResponse | null>(null);
+  const [goNoGoError, setGoNoGoError] = useState<string | null>(null);
+  const [queueFlushing, setQueueFlushing] = useState(false);
 
   const areaStatuses = useMemo(() => {
     const base = deriveAreaStatusesFromIntegrity(integrity);
@@ -130,6 +160,7 @@ function OperacionesPageInner() {
     const loadPanel = async (runIntegrityNow = false) => {
       setIntegrityError(null);
       setPulseError(null);
+      setGoNoGoError(null);
       if (runIntegrityNow) setIntegrityRunning(true);
       else setIntegrityLoading(true);
       try {
@@ -142,7 +173,7 @@ function OperacionesPageInner() {
           return;
         }
 
-        const [pulseRes, intRes, testerRes] = await Promise.all([
+        const [pulseRes, intRes, testerRes, goNoGoRes] = await Promise.all([
           fetch('/api/admin/operations-pulse', {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -150,6 +181,9 @@ function OperacionesPageInner() {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch('/api/app-config?key=show_tester_offers'),
+          fetch('/api/admin/go-no-go', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         const pulseBody = await pulseRes.json().catch(() => ({}));
@@ -167,9 +201,16 @@ function OperacionesPageInner() {
         setIntegrity((intBody?.result ?? null) as IntegrityResult | null);
         const testerBody = await testerRes.json().catch(() => ({}));
         setShowTesterOffers(testerBody?.value === true);
+        const goNoGoBody = await goNoGoRes.json().catch(() => ({}));
+        if (!goNoGoRes.ok) {
+          setGoNoGoError(goNoGoBody?.error ?? 'No se pudo obtener semáforo Go/No-Go');
+        } else {
+          setGoNoGo((goNoGoBody ?? null) as GoNoGoResponse | null);
+        }
       } catch {
         setIntegrityError('Error de red al cargar el panel');
         setPulseError('Error de red al cargar alertas');
+        setGoNoGoError('Error de red al cargar semáforo');
       } finally {
         setIntegrityLoading(false);
         setIntegrityRunning(false);
@@ -208,6 +249,7 @@ function OperacionesPageInner() {
     const supabase = createClient();
     setIntegrityError(null);
     setPulseError(null);
+    setGoNoGoError(null);
     setIntegrityRunning(true);
     try {
       const {
@@ -218,11 +260,14 @@ function OperacionesPageInner() {
         setIntegrityError('Sin sesión para ejecutar chequeo');
         return;
       }
-      const [pulseRes, intRes] = await Promise.all([
+      const [pulseRes, intRes, goNoGoRes] = await Promise.all([
         fetch('/api/admin/operations-pulse', {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch('/api/admin/system-integrity?run=1', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('/api/admin/go-no-go', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -234,11 +279,37 @@ function OperacionesPageInner() {
         return;
       }
       setIntegrity((intBody?.result ?? null) as IntegrityResult | null);
+      const goNoGoBody = await goNoGoRes.json().catch(() => ({}));
+      if (goNoGoRes.ok) setGoNoGo((goNoGoBody ?? null) as GoNoGoResponse | null);
     } catch {
       setIntegrityError('Error de red al ejecutar chequeo');
     } finally {
       setIntegrityRunning(false);
       setIntegrityLoading(false);
+    }
+  };
+
+  const flushQueue = async () => {
+    const supabase = createClient();
+    setQueueFlushing(true);
+    setGoNoGoError(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      await fetch('/api/admin/process-write-queue?batch=200', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const refreshed = await fetch('/api/admin/go-no-go', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await refreshed.json().catch(() => ({}));
+      if (refreshed.ok) setGoNoGo((body ?? null) as GoNoGoResponse | null);
+    } finally {
+      setQueueFlushing(false);
     }
   };
 
@@ -404,6 +475,90 @@ function OperacionesPageInner() {
                   );
                 })}
               </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Semáforo Go / No-Go</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Señal rápida para decidir si empujar tráfico o pausar y estabilizar.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {goNoGo ? (
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold ${
+                        goNoGo.overall === 'green'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
+                          : goNoGo.overall === 'yellow'
+                          ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100'
+                          : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                      }`}
+                    >
+                      {goNoGo.overall === 'green' ? 'GO' : goNoGo.overall === 'yellow' ? 'GO con atención' : 'NO-GO'}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => flushQueue()}
+                    disabled={queueFlushing}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-violet-50/60 dark:hover:bg-violet-900/20 disabled:opacity-60"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${queueFlushing ? 'animate-spin' : ''}`} />
+                    {queueFlushing ? 'Procesando cola…' : 'Procesar cola'}
+                  </button>
+                </div>
+              </div>
+              {goNoGoError ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">{goNoGoError}</p>
+              ) : null}
+              {goNoGo ? (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    {
+                      key: 'integrity',
+                      label: 'Integridad',
+                      status: goNoGo.signals.integrity.status,
+                      detail: `${goNoGo.signals.integrity.failed_checks} checks fallidos`,
+                    },
+                    {
+                      key: 'alerting',
+                      label: 'Alertas',
+                      status: goNoGo.signals.alerting.status,
+                      detail: goNoGo.signals.alerting.status === 'green' ? 'Notificación configurada' : 'Configurar email/webhook',
+                    },
+                    {
+                      key: 'queue',
+                      label: 'Cola de escrituras',
+                      status: goNoGo.signals.queue.status,
+                      detail: `pendientes=${goNoGo.signals.queue.pending}, fallidas=${goNoGo.signals.queue.failed}`,
+                    },
+                    {
+                      key: 'growth',
+                      label: 'Crecimiento',
+                      status: goNoGo.signals.growth.status,
+                      detail:
+                        goNoGo.signals.growth.weekly_pct == null
+                          ? 'sin datos'
+                          : `${goNoGo.signals.growth.weekly_pct}% semana vs semana`,
+                    },
+                  ].map((s) => (
+                    <div key={s.key} className="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${signalDot(s.status)}`} />
+                        <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{s.label}</p>
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{s.detail}</p>
+                      <p className="text-[10px] font-medium text-gray-600 dark:text-gray-300 mt-1.5">
+                        {signalLabel(s.status)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Sin datos de Go/No-Go todavía.</p>
+              )}
             </section>
 
             <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
