@@ -380,6 +380,13 @@ export default function ActionBar() {
             <Home className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
             <span className="text-[10px] max-[400px]:text-[9px] font-semibold">Inicio</span>
           </Link>
+          <Link
+            href="/descubre"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/descubre') ? activeClasses : inactiveClasses}`}
+          >
+            <Compass className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
+            <span className="text-[10px] max-[400px]:text-[9px] font-semibold">Descubre</span>
+          </Link>
           <button
             type="button"
             disabled={cooldownRemaining > 0}
