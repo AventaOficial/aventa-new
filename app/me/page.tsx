@@ -8,6 +8,7 @@ import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
 import OfferModal from '@/app/components/OfferModal';
 import ReputationBar from '@/app/components/ReputationBar';
+import CommissionProgramPanel from '@/app/me/CommissionProgramPanel';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -282,6 +283,8 @@ function MePageInner() {
               </p>
             </div>
           </div>
+
+          <CommissionProgramPanel />
 
           <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
             Tus ofertas

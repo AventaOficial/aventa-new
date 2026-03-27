@@ -16,7 +16,7 @@ export default function PrivacyPage() {
             Política de Privacidad
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Última actualización: 27 de febrero de 2026
+            Última actualización: 27 de marzo de 2026
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Este documento describe cómo AVENTA recopila, usa, protege y comparte los datos
@@ -150,6 +150,12 @@ export default function PrivacyPage() {
             <li>
               Enviar comunicaciones informativas o de novedades de la plataforma, siempre con
               opción de darse de baja cuando la ley lo requiera.
+            </li>
+            <li>
+              Si participas en un programa de compensación para creadores, tratar los datos
+              necesarios para validar identidad, liquidar pagos y cumplir obligaciones fiscales o
+              regulatorias que correspondan, con fundamento en el consentimiento y en los
+              términos específicos de ese programa.
             </li>
           </ul>
           <p className="text-sm text-gray-700 dark:text-gray-300">

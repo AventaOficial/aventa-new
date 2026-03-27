@@ -16,7 +16,7 @@ export default function TermsPage() {
             Términos y Condiciones de Uso
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Última actualización: 27 de febrero de 2026
+            Última actualización: 27 de marzo de 2026
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Estos Términos y Condiciones regulan el acceso y uso de la plataforma AVENTA,
@@ -202,18 +202,42 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">
-            8. Programas de recompensas o compensación futura
+            8. Programa de comisiones para creadores (elegibilidad y activación)
           </h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            AVENTA puede, en el futuro, implementar programas de recompensas o participación
-            económica ligados al impacto de las ofertas compartidas por los usuarios.
+            AVENTA puede ofrecer un programa opcional de participación económica para usuarios
+            que publican ofertas de calidad. El programa no está activo hasta que el equipo lo
+            comunique por canales oficiales; mientras tanto, la plataforma sigue siendo gratuita
+            para la comunidad.
           </p>
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            Cualquier programa de este tipo estará sujeto a términos y condiciones
-            adicionales, criterios de elegibilidad y validaciones de seguridad. La mención de
-            esta posibilidad no constituye una promesa de pago ni una obligación actual de
-            AVENTA de remunerar a los usuarios.
-          </p>
+          <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+            <li>
+              <span className="font-medium">Requisitos numéricos mínimos (referencia):</span>{' '}
+              podrán considerarse elegibles quienes acrediten al menos{' '}
+              <span className="font-semibold">15 ofertas aprobadas</span>, cada una de ellas con
+              al menos <span className="font-semibold">120 votos positivos</span> registrados en
+              la plataforma (según las métricas internas visibles en el perfil). Publicar un
+              número mayor de ofertas sin cumplir el umbral de votos en cada una no sustituye
+              este requisito.
+            </li>
+            <li>
+              <span className="font-medium">Activación:</span> quien cumpla los requisitos podrá
+              aceptar en su cuenta los términos específicos del programa. Sin esa aceptación
+              expresa no hay participación ni obligación de pago.
+            </li>
+            <li>
+              <span className="font-medium">Pagos y fiscalidad:</span> cualquier liquidación
+              estará sujeta a verificación antifraude, disponibilidad del programa, y a la
+              normativa fiscal aplicable (incluida la posible retención de impuestos o solicitud
+              de datos fiscales). Los montos, métodos y calendarios se comunicarán aparte cuando
+              el programa aplique.
+            </li>
+            <li>
+              <span className="font-medium">Sin promesa de ingreso:</span> la mera publicación
+              de ofertas o el cumplimiento de umbrales numéricos no garantiza remuneración
+              alguna. AVENTA puede modificar o suspender el programa previo aviso razonable.
+            </li>
+          </ul>
         </section>
 
         <section className="space-y-3">

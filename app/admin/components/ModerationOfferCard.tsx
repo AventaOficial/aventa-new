@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2, Trash2 } from 'lucide-react';
+import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2, Trash2, Tag, Link2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
+import { getBankCouponLabel } from '@/lib/bankCoupons';
 
 type ModerationOffer = {
   id: string;
@@ -11,6 +13,9 @@ type ModerationOffer = {
   price: number;
   original_price: number | null;
   store: string | null;
+  category?: string | null;
+  bank_coupon?: string | null;
+  coupons?: string | null;
   image_url: string | null;
   offer_url: string | null;
   description?: string | null;
@@ -104,6 +109,15 @@ export default function ModerationOfferCard({
     offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug = slugFromUsername(offer.profiles?.display_name);
 
+  const categoryLabel = useMemo(() => {
+    const n = normalizeCategoryForStorage(offer.category ?? null);
+    if (!n) return null;
+    return ALL_CATEGORIES.find((c) => c.value === n)?.label ?? n;
+  }, [offer.category]);
+
+  const vital = isVitalCategory(offer.category ?? null);
+  const bankCouponLabel = getBankCouponLabel(offer.bank_coupon);
+
   const handleReject = () => {
     if (onReject && rejectReason.trim()) {
       onReject(offer.id, rejectReason.trim());
@@ -116,11 +130,11 @@ export default function ModerationOfferCard({
 
   return (
     <article
-      className={`bg-white dark:bg-gray-800 rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-shadow ${selected ? 'border-violet-500 ring-2 ring-violet-500/30' : 'border-gray-200 dark:border-gray-700'}`}
+      className={`bg-white dark:bg-gray-800 rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all ${selected ? 'border-violet-500 ring-2 ring-violet-500/25' : 'border-gray-200/90 dark:border-gray-700'}`}
       data-testid="moderation-offer-card"
     >
       <div className="flex flex-col sm:flex-row">
-        <div className="relative w-full sm:w-32 h-40 sm:h-auto sm:min-h-[120px] shrink-0 bg-gray-100 dark:bg-gray-700">
+        <div className="relative w-full sm:w-36 md:w-40 h-44 sm:h-auto sm:min-h-[132px] shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
           {offer.image_url ? (
             <img
               src={offer.image_url}
@@ -128,13 +142,13 @@ export default function ModerationOfferCard({
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs px-2 text-center">
               Sin imagen
             </div>
           )}
           {offer.risk_score != null && offer.risk_score > 50 && (
             <span
-              className="absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/90 text-white"
+              className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500 text-white shadow-sm"
               title="Risk score alto"
             >
               Risk {offer.risk_score}
@@ -142,37 +156,65 @@ export default function ModerationOfferCard({
           )}
         </div>
 
-        <div className="flex-1 p-4 flex flex-col gap-3">
+        <div className="flex-1 p-4 md:p-5 flex flex-col gap-3 min-w-0">
           <div className="flex items-start gap-2">
             {batchMode && onToggleSelect && (
               <button
                 type="button"
                 onClick={onToggleSelect}
-                className="shrink-0 flex items-center justify-center w-7 h-7 rounded border-2 border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800 hover:border-violet-500 mt-0.5"
+                className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-violet-500 mt-0.5"
                 aria-label={selected ? 'Quitar de selección' : 'Seleccionar'}
               >
-                {selected ? <span className="text-violet-600 text-sm leading-none">✓</span> : null}
+                {selected ? <span className="text-violet-600 text-sm font-bold">✓</span> : null}
               </button>
             )}
-            <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+            <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {categoryLabel ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 px-2 py-0.5 text-[11px] font-semibold">
+                  <Tag className="h-3 w-3 shrink-0 opacity-80" />
+                  {categoryLabel}
+                  {vital ? (
+                    <span className="text-[10px] font-normal text-violet-600/90 dark:text-violet-300/90">· vital</span>
+                  ) : null}
+                </span>
+              ) : (
+                <span className="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] text-gray-600 dark:text-gray-400">Sin categoría</span>
+              )}
+              {bankCouponLabel ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-100 dark:bg-indigo-900/35 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 text-[11px] font-medium">
+                  Cupón {bankCouponLabel}
+                </span>
+              ) : null}
+              {offer.offer_url?.trim() ? (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                  <Link2 className="h-3 w-3" />
+                  Enlace listo
+                </span>
+              ) : (
+                <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">Sin URL</span>
+              )}
+            </div>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-3">
               {offer.title}
             </h3>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
-              <span className="font-medium text-green-600 dark:text-green-400">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                 ${Number(offer.price).toLocaleString('es-MX')}
               </span>
               {offer.original_price != null && (
-                <span className="line-through">
+                <span className="text-sm line-through text-gray-400 dark:text-gray-500 tabular-nums">
                   ${Number(offer.original_price).toLocaleString('es-MX')}
                 </span>
               )}
-              <span className="flex items-center gap-1">
-                <Store className="h-3.5 w-3.5" />
-                {offer.store ?? '—'}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+              <span className="inline-flex items-center gap-1">
+                <Store className="h-3.5 w-3.5 shrink-0" />
+                <span className="font-medium text-gray-700 dark:text-gray-300">{offer.store ?? '—'}</span>
               </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 shrink-0" />
                 {new Date(offer.created_at).toLocaleString('es-MX', {
                   day: 'numeric',
                   month: 'short',
@@ -181,17 +223,17 @@ export default function ModerationOfferCard({
                 })}
               </span>
             </div>
-            <div className="mt-1 flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-              <User className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <User className="h-3.5 w-3.5 shrink-0" />
               {authorSlug ? (
                 <Link
                   href={`/u/${authorSlug}`}
-                  className="text-purple-600 dark:text-purple-400 hover:underline"
+                  className="font-medium text-violet-600 dark:text-violet-400 hover:underline truncate"
                 >
                   {authorName}
                 </Link>
               ) : (
-                <span>{authorName}</span>
+                <span className="font-medium">{authorName}</span>
               )}
             </div>
             {offer.moderator_comment && offer.moderator_comment.trim() && (

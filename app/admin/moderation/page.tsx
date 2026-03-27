@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { Search, CheckSquare, Square, Clock, Check, X, FlaskConical } from 'lucide-react';
 import ModerationOfferCard from '../components/ModerationOfferCard';
+import ModerationObjectivesSidebar from '../components/ModerationObjectivesSidebar';
 
 import { ALL_CATEGORIES } from '@/lib/categories';
 
@@ -21,6 +22,8 @@ type ModerationOffer = {
   original_price: number | null;
   store: string | null;
   category?: string | null;
+  bank_coupon?: string | null;
+  coupons?: string | null;
   image_url: string | null;
   offer_url: string | null;
   description?: string | null;
@@ -72,7 +75,7 @@ export default function ModerationPage() {
     return supabase
       .from('offers')
       .select(
-        'id, title, price, original_price, store, category, image_url, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)'
+        'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)'
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
@@ -283,13 +286,17 @@ export default function ModerationPage() {
   });
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-1">
-        Ofertas pendientes
-      </h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Revisa cada oferta. Si está bien → Aprobar. Si no cumple → Rechazar.
-      </p>
+    <div className="lg:grid lg:grid-cols-[1fr_minmax(260px,300px)] xl:grid-cols-[1fr_minmax(280px,320px)] lg:gap-8 lg:items-start">
+      <div className="min-w-0">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+          Cola de moderación
+        </h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 max-w-2xl leading-relaxed">
+          Revisa enlace, precio y duplicados. Las etiquetas muestran categoría (y si aplica, cupón bancario). A la
+          derecha verás objetivos de catálogo para el equipo.
+        </p>
+      </div>
 
       {isOwner && (
         <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4">
@@ -470,6 +477,11 @@ export default function ModerationPage() {
           ))}
         </ul>
       )}
+      </div>
+
+      <div className="mt-8 lg:mt-0">
+        <ModerationObjectivesSidebar />
+      </div>
     </div>
   );
 }
