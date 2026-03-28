@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
@@ -12,6 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS } from '@/lib/bankCoupons';
+import { logClientError } from '@/lib/utils/handleError';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -75,7 +77,7 @@ export default function ActionBar() {
   const [imageUploading, setImageUploading] = useState(false);
   const [msiMonths, setMsiMonths] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showSubmitThanksModal, setShowSubmitThanksModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
   const [cooldownExempt, setCooldownExempt] = useState(false);
@@ -129,7 +131,10 @@ export default function ActionBar() {
     })
       .then((r) => (r.ok ? r.json() : { exempt: false }))
       .then((data) => setCooldownExempt(Boolean(data?.exempt)))
-      .catch(() => setCooldownExempt(false));
+      .catch((err) => {
+        logClientError('actionbar:upload-cooldown-status', err);
+        setCooldownExempt(false);
+      });
   }, [session?.access_token]);
 
   // Prefill upload modal from URL params (extension or /subir deep link)
@@ -150,12 +155,6 @@ export default function ActionBar() {
     if (image != null) setImageUrl(decodeURIComponent(image));
     router.replace('/', { scroll: false });
   }, [showUploadModal, pathname, searchParams, router]);
-
-  useEffect(() => {
-    if (!showSuccessMessage) return;
-    const t = setTimeout(() => setShowSuccessMessage(false), 4000);
-    return () => clearTimeout(t);
-  }, [showSuccessMessage]);
 
   useEffect(() => {
     if (cooldownRemaining <= 0) return;
@@ -342,10 +341,13 @@ export default function ActionBar() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setIsSubmitting(true);
-    const originalPriceNum = parseDecimalPrice(formData.originalPrice);
-    const price = hasDiscount
-      ? parseDecimalPrice(formData.discountPrice)
-      : originalPriceNum;
+    let originalPriceNum = parseDecimalPrice(formData.originalPrice);
+    let price = hasDiscount ? parseDecimalPrice(formData.discountPrice) : originalPriceNum;
+    if (hasDiscount && originalPriceNum > 0 && price > 0 && price > originalPriceNum) {
+      const t = originalPriceNum;
+      originalPriceNum = price;
+      price = t;
+    }
     const dedupImages = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)).filter((u, i, arr) => arr.indexOf(u) === i);
     const firstImage = dedupImages[0] ?? '/placeholder.png';
     const extraImages = dedupImages.slice(1);
@@ -388,7 +390,7 @@ export default function ActionBar() {
       showToast(firstIssue || data?.error || 'Error al crear la oferta');
       return;
     }
-    setShowSuccessMessage(true);
+    setShowSubmitThanksModal(true);
     const cooldownSec = cooldownExempt ? 0 : reputationLevel >= 4 ? COOLDOWN_SECONDS_LEVEL_4 : COOLDOWN_SECONDS_DEFAULT;
     setCooldownRemaining(cooldownSec);
     handleCancel();
@@ -399,13 +401,6 @@ export default function ActionBar() {
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] flex flex-col items-center ${isOfferOpen ? 'opacity-0 translate-y-6 pointer-events-none' : ''}`}
       >
-        {showSuccessMessage && (
-          <div className="w-full max-w-[calc(100%-2rem)] mx-4 mb-2 rounded-2xl bg-[#f5f5f7] dark:bg-[#1a1a1a] border border-[#e5e5e7] dark:border-[#262626] px-4 py-3 shadow-lg">
-            <p className="text-sm text-[#1d1d1f] dark:text-[#fafafa]">
-              Gracias por compartir. Revisaremos tu oferta pronto.
-            </p>
-          </div>
-        )}
         {cooldownRemaining > 0 && (
           <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mx-4 mb-2">
             Espera {cooldownRemaining}s para enviar otra oferta.
@@ -434,7 +429,7 @@ export default function ActionBar() {
                 openRegisterModal('signup');
                 return;
               }
-              setShowSuccessMessage(false);
+              setShowSubmitThanksModal(false);
               setShowUploadModal(true);
             }}
             className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-500/25 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -514,7 +509,7 @@ export default function ActionBar() {
               openRegisterModal('signup');
               return;
             }
-            setShowSuccessMessage(false);
+            setShowSubmitThanksModal(false);
             setShowUploadModal(true);
           }}
           className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-all duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#2d2d2f] active:scale-95'} bg-[#1d1d1f] dark:bg-[#1d1d1f] text-white shadow-lg`}
@@ -1209,6 +1204,42 @@ export default function ActionBar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {typeof document !== 'undefined' &&
+        showSubmitThanksModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-thanks-title"
+          >
+            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 md:p-8 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
+                <Sparkles className="h-7 w-7 text-violet-600 dark:text-violet-400" aria-hidden />
+              </div>
+              <h2
+                id="submit-thanks-title"
+                className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight"
+              >
+                ¡Gracias por compartir!
+              </h2>
+              <p className="mt-3 text-sm md:text-[15px] text-gray-600 dark:text-gray-400 leading-relaxed">
+                Tu oferta entrará a la cola de moderación. El equipo la revisa para mantener precios claros,
+                enlaces válidos y un buen nivel para toda la comunidad. En cuanto sea aprobada, aparecerá en el
+                feed.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowSubmitThanksModal(false)}
+                className="mt-6 w-full rounded-xl bg-violet-600 dark:bg-violet-500 px-5 py-3 text-[15px] font-semibold text-white hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 }

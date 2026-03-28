@@ -13,47 +13,17 @@ import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
-import { normalizeVoteCounts } from '@/lib/offers/scoring';
-
-type OfferRow = {
-  id: string;
-  title: string;
-  price: number;
-  original_price: number | null;
-  image_url: string | null;
-  store: string | null;
-  offer_url: string | null;
-  description: string | null;
-  created_at?: string | null;
-  upvotes_count?: number | null;
-  downvotes_count?: number | null;
-  status?: string | null;
-  rejection_reason?: string | null;
-  expires_at?: string | null;
-};
+import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform';
+import { notifyUserError } from '@/lib/utils/handleError';
+import { useUI } from '@/app/providers/UIProvider';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
-type MappedOffer = {
-  id: string;
-  title: string;
-  brand: string;
-  originalPrice: number;
-  discountPrice: number;
-  discount: number;
-  description?: string;
-  upvotes: number;
-  downvotes: number;
-  offerUrl: string;
-  image?: string;
-  votes: { up: number; down: number; score: number };
-  author: { username: string; avatar_url?: string | null };
-  dealStatus: DealStatus;
-  rejectionReason: string | null;
-};
+type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
 
 function MePageInner() {
   useTheme();
+  const { showToast } = useUI();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
@@ -108,44 +78,35 @@ function MePageInner() {
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
-      const author = {
-        username: profileData.display_name?.trim() || 'Usuario',
-        avatar_url: profileData.avatar_url ?? null,
+      const profileForCard = {
+        display_name: profileData.display_name,
+        avatar_url: profileData.avatar_url,
       };
 
       const now = new Date().toISOString();
-      const mapped: MappedOffer[] = (rows ?? []).map((row: OfferRow) => {
-        const { up, down, score } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
-
-        const originalPrice = Number(row.original_price) || 0;
-        const discountPrice = Number(row.price) || 0;
-        const discount =
-          originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
+      const mapped: MappedOffer[] = (rows ?? []).map((row) => {
+        const r = row as RankedOfferSource & {
+          status?: string | null;
+          rejection_reason?: string | null;
+          expires_at?: string | null;
+        };
+        const card = mapOfferToCard({
+          ...r,
+          profiles: profileForCard,
+        } as RankedOfferSource);
 
         let dealStatus: DealStatus = 'pending';
-        const status = (row.status ?? 'pending').toLowerCase();
+        const status = (r.status ?? 'pending').toLowerCase();
         if (status === 'rejected') {
           dealStatus = 'rejected';
         } else if (status === 'approved' || status === 'published') {
-          dealStatus = row.expires_at && row.expires_at < now ? 'expired' : 'approved';
+          dealStatus = r.expires_at && r.expires_at < now ? 'expired' : 'approved';
         }
 
         return {
-          id: row.id,
-          title: row.title,
-          brand: row.store ?? '',
-          originalPrice,
-          discountPrice,
-          discount,
-          upvotes: up,
-          downvotes: down,
-          offerUrl: row.offer_url?.trim() ?? '',
-          image: row.image_url ? row.image_url : undefined,
-          description: row.description?.trim() || undefined,
-          votes: { up, down, score },
-          author,
+          ...card,
           dealStatus,
-          rejectionReason: row.rejection_reason?.trim() || null,
+          rejectionReason: r.rejection_reason?.trim() || null,
         };
       });
 
@@ -172,7 +133,9 @@ function MePageInner() {
               cazadoresAyudados: typeof data.cazadoresAyudados === 'number' ? data.cazadoresAyudados : prev.cazadoresAyudados,
             }));
           })
-          .catch(() => {});
+          .catch((err) => {
+            notifyUserError(showToast, 'No pudimos cargar tus estadísticas de impacto.', 'me:impact-stats', err);
+          });
       }
 
       if (mapped.length > 0 && user.id) {
@@ -184,7 +147,7 @@ function MePageInner() {
     };
 
     load();
-  }, [router]);
+  }, [router, showToast]);
 
   if (loading) {
     return (

@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import { recalculateUserReputation } from '@/lib/server/reputation'
+import { sendCommentApprovedUserEmail } from '@/lib/email/sendModerationEmail'
 
 /** GET: listar comentarios para moderación (pending por defecto; moderadores ven todos por RLS) */
 export async function GET(request: Request) {
@@ -67,11 +68,24 @@ export async function PATCH(request: Request) {
     }
 
     const supabase = createServerClient()
-    const { data: comment } = await supabase
+    const { data: row, error: fetchErr } = await supabase
       .from('comments')
-      .select('user_id')
+      .select('user_id, status, content, offer_id, offers(title)')
       .eq('id', commentId)
       .single()
+
+    if (fetchErr || !row) {
+      console.error('[admin/comments] fetch failed:', fetchErr?.message)
+      return NextResponse.json({ error: 'Comentario no encontrado' }, { status: 404 })
+    }
+
+    const prevStatus = String((row as { status?: string }).status ?? '')
+    const authorId = (row as { user_id?: string }).user_id
+    const offerId = (row as { offer_id?: string }).offer_id
+    const content = String((row as { content?: string }).content ?? '')
+    const rawOffers = (row as { offers?: { title?: string | null } | { title?: string | null }[] | null }).offers
+    const offerTitle =
+      (Array.isArray(rawOffers) ? rawOffers[0]?.title : rawOffers?.title)?.trim() || 'Oferta'
 
     const { error } = await supabase
       .from('comments')
@@ -83,8 +97,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Error al actualizar comentario' }, { status: 500 })
     }
 
-    const authorId = (comment as { user_id?: string } | null)?.user_id
     if (authorId) recalculateUserReputation(authorId).catch(() => {})
+
+    if (status === 'approved' && prevStatus === 'pending' && authorId && offerId) {
+      const { data: userRow } = await supabase.auth.admin.getUserById(authorId)
+      const email = userRow?.user?.email?.trim()
+      if (email) {
+        sendCommentApprovedUserEmail(email, offerTitle, offerId, content).catch((err) =>
+          console.error('[admin/comments] email:', err)
+        )
+      }
+    }
 
     return NextResponse.json({ ok: true })
   } catch (e) {

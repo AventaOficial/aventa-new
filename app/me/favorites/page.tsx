@@ -12,95 +12,34 @@ import { useTheme } from '@/app/providers/ThemeProvider'
 import { useUI } from '@/app/providers/UIProvider'
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime'
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData'
-import { normalizeVoteCounts } from '@/lib/offers/scoring'
-
-type OfferRow = {
-  id: string
-  title: string
-  price: number
-  original_price: number | null
-  image_url: string | null
-  store: string | null
-  offer_url: string | null
-  description: string | null
-  created_at?: string | null
-  created_by?: string | null
-  upvotes_count?: number | null
-  downvotes_count?: number | null
-  profiles?:
-    | { display_name: string | null; avatar_url: string | null }
-    | { display_name: string | null; avatar_url: string | null }[]
-    | null
-}
-
-type MappedOffer = {
-  id: string
-  title: string
-  brand: string
-  originalPrice: number
-  discountPrice: number
-  discount: number
-  description?: string
-  upvotes: number
-  downvotes: number
-  offerUrl: string
-  image?: string
-  votes: { up: number; down: number; score: number }
-  author: { username: string; avatar_url?: string | null }
-}
-
-function rowToOffer(row: OfferRow): MappedOffer {
-  const originalPrice = Number(row.original_price) || 0
-  const discountPrice = Number(row.price) || 0
-  const discount =
-    originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0
-  const { up, down, score } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count)
-  const rawProf = row.profiles
-  const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf
-  return {
-    id: row.id,
-    title: row.title,
-    brand: row.store ?? '',
-    originalPrice,
-    discountPrice,
-    discount,
-    upvotes: up,
-    downvotes: down,
-    offerUrl: row.offer_url?.trim() ?? '',
-    image: row.image_url ? row.image_url : undefined,
-    description: row.description?.trim() || undefined,
-    votes: { up, down, score },
-    author: {
-      username: prof?.display_name?.trim() || 'Usuario',
-      avatar_url: prof?.avatar_url ?? null,
-    },
-  }
-}
+import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform'
+import { notifyUserError } from '@/lib/utils/handleError'
 
 function FavoritesPageInner() {
   useTheme()
   const router = useRouter()
   const { showToast } = useUI()
   const [loading, setLoading] = useState(true)
-  const [offers, setOffers] = useState<MappedOffer[]>([])
+  const [offers, setOffers] = useState<CardOffer[]>([])
   const [voteMap, setVoteMap] = useState<VoteMap>({})
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({})
-  const [selectedOffer, setSelectedOffer] = useState<MappedOffer | null>(null)
+  const [selectedOffer, setSelectedOffer] = useState<CardOffer | null>(null)
 
   useOffersRealtime(setOffers)
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.replace('/')
-        return
-      }
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.replace('/')
+          return
+        }
 
-      const { data: rows } = await supabase
-        .from('offer_favorites')
-        .select(`
+        const { data: rows, error } = await supabase
+          .from('offer_favorites')
+          .select(`
           offer_id,
           offers (
             id,
@@ -115,31 +54,43 @@ function FavoritesPageInner() {
             created_by,
             upvotes_count,
             downvotes_count,
-            profiles:public_profiles_view!created_by(display_name, avatar_url)
+            profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)
           )
         `)
-        .eq('user_id', user.id)
+          .eq('user_id', user.id)
 
-      const extracted: MappedOffer[] = []
-      for (const row of rows ?? []) {
-        const raw = row as { offer_id: string; offers: OfferRow | OfferRow[] | null }
-        const offerData = Array.isArray(raw.offers) ? raw.offers[0] : raw.offers
-        if (offerData) {
-          extracted.push(rowToOffer(offerData))
+        if (error) {
+          notifyUserError(showToast, 'No pudimos cargar tus favoritos. Revisa tu conexión.', 'me:favorites', error)
+          setOffers([])
+          setLoading(false)
+          return
         }
-      }
-      setOffers(extracted)
-      setLoading(false)
 
-      if (extracted.length > 0 && user.id) {
-        fetchBatchUserData(user.id, extracted.map((o) => o.id)).then(({ voteMap: vm, favoriteMap: fm }) => {
-          setVoteMap(vm)
-          setFavoriteMap(fm)
-        })
+        const extracted: CardOffer[] = []
+        for (const row of rows ?? []) {
+          const raw = row as { offer_id: string; offers: RankedOfferSource | RankedOfferSource[] | null }
+          const offerData = Array.isArray(raw.offers) ? raw.offers[0] : raw.offers
+          if (offerData) {
+            extracted.push(mapOfferToCard(offerData))
+          }
+        }
+        setOffers(extracted)
+        setLoading(false)
+
+        if (extracted.length > 0 && user.id) {
+          fetchBatchUserData(user.id, extracted.map((o) => o.id)).then(({ voteMap: vm, favoriteMap: fm }) => {
+            setVoteMap(vm)
+            setFavoriteMap(fm)
+          })
+        }
+      } catch (e) {
+        notifyUserError(showToast, 'No pudimos cargar tus favoritos.', 'me:favorites', e)
+        setOffers([])
+        setLoading(false)
       }
     }
     load()
-  }, [router])
+  }, [router, showToast])
 
   const handleFavoriteChange = (isFavorite: boolean) => {
     if (isFavorite && typeof window !== 'undefined' && !localStorage.getItem('favorite_onboarding_seen')) {

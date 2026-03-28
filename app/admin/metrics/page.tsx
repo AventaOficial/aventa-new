@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
+import { logClientError } from '@/lib/utils/handleError';
 
 type Period = 'all' | 'day' | 'week' | 'month';
 
@@ -159,7 +160,7 @@ export default function MetricsPage() {
     fetch('/api/admin/product-metrics', { headers: { Authorization: 'Bearer ' + session.access_token } })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => json && setProductMetrics(json))
-      .catch(() => {});
+      .catch((err) => logClientError('admin-metrics:product-metrics', err));
   }, [session?.access_token]);
 
   useEffect(() => {

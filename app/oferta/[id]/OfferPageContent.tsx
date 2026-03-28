@@ -17,12 +17,15 @@ import {
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
+import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
+import { voteApiValueForTransition } from '@/lib/votes/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 
 function slugFromUsername(name: string | null | undefined): string {
   if (!name || !name.trim()) return '';
@@ -117,6 +120,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [imageIndex, setImageIndex] = useState(0);
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const reportModalRef = useRef<HTMLDivElement>(null);
 
@@ -136,12 +140,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showReportModal, closeReportModal]);
 
+  useEffect(() => {
+    setImageIndex(0);
+  }, [offer.id]);
+
   const userVote = localVote ?? 0;
   const displayUp = localVote === 1 ? localUp : offer.upvotes;
   const displayDown = localVote === -1 ? localDown : offer.downvotes;
   const savings = offer.originalPrice - offer.discountPrice;
-  const allImages = (offer.imageUrls?.length ? offer.imageUrls : offer.image ? [offer.image] : []) as string[];
-  const currentImage = allImages[0] || offer.image || '/placeholder.png';
+  const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
+  const currentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
+  const publicPath = buildOfferPublicPath(offer.id, offer.title);
 
   const fetchComments = useCallback(() => {
     if (!offer.id) return;
@@ -171,6 +180,13 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   }, [fetchComments]);
 
   useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchComments();
+    }, 25_000);
+    return () => clearInterval(id);
+  }, [fetchComments]);
+
+  useEffect(() => {
     if (!showShareMenu) return;
     const onPointerDown = (e: PointerEvent) => {
       if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node)) {
@@ -195,14 +211,14 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const handleVote = async (value: 1 | -1) => {
     if (!session) return;
     const newVote = userVote === value ? 0 : value;
+    const apiValue = voteApiValueForTransition(newVote, userVote);
+    if (apiValue === null) return;
+
     const prevUp = localUp;
     const prevDown = localDown;
     setLocalVote(newVote);
     setLocalUp((u) => u + (newVote === 1 ? 1 : userVote === 1 ? -1 : 0));
     setLocalDown((d) => d + (newVote === -1 ? 1 : userVote === -1 ? -1 : 0));
-
-    // API acepta 2 (up) o -1 (down). Para quitar voto enviamos el valor actual y la API borra la fila.
-    const apiValue = newVote === 1 ? 2 : newVote === -1 ? -1 : (userVote === 1 ? 2 : -1);
 
     const res = await fetch('/api/votes', {
       method: 'POST',
@@ -344,10 +360,43 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 priority
                 unoptimized={currentImage.startsWith('/')}
               />
+              {allImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1))}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
+                    aria-label="Foto anterior"
+                  >
+                    <span className="sr-only">Anterior</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1))}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
+                    aria-label="Foto siguiente"
+                  >
+                    <span className="sr-only">Siguiente</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 18 6-6-6-6" /></svg>
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                    {allImages.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setImageIndex(i)}
+                        className={`h-1.5 rounded-full transition-all ${i === imageIndex ? 'w-4 bg-violet-600 dark:bg-violet-400' : 'w-1.5 bg-gray-400/70 dark:bg-gray-500/70'}`}
+                        aria-label={`Foto ${i + 1} de ${allImages.length}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
               <button
                 type="button"
                 onClick={handleFavoriteClick}
-                className="absolute right-3 top-3 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-2.5 shadow border border-gray-200 dark:border-gray-700"
+                className="absolute right-3 top-3 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-2.5 shadow border border-gray-200 dark:border-gray-700 z-10"
                 aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
                 <Heart className={`h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400'}`} />
@@ -424,7 +473,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     }`}
                   >
                     <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`} />
-                    <span className="font-semibold">{displayUp * 2}</span>
+                    <span className="font-semibold">{displayUp}</span>
                   </button>
                   <button
                     type="button"
@@ -486,7 +535,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 {showShareMenu && (
                   <div className="absolute left-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg py-2">
                     {(() => {
-                      const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}/oferta/${offer.id}` : '';
+                      const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
                       const shareText = generateDealShareText(
                         { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice },
                         dealUrl
@@ -497,7 +546,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
                             body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
-                          }).catch(() => {});
+                          }).catch((err) => logClientError('offer-page:share-event', err));
                         }
                       };
                       return (
@@ -535,12 +584,14 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                           <button
                             type="button"
                             onClick={() => {
-                              const url = typeof window !== 'undefined' ? `${window.location.origin}/oferta/${offer.id}` : '';
+                              const url = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
                               navigator.clipboard.writeText(url).then(() => {
                                 setShareCopied(true);
                                 setTimeout(() => setShareCopied(false), 2000);
                                 showToast?.('Enlace copiado.');
-                              }).catch(() => {});
+                              }).catch((err) =>
+                                notifyUserError(showToast, 'No se pudo copiar el enlace.', 'offer-page:clipboard', err)
+                              );
                               trackShare();
                               setShowShareMenu(false);
                             }}

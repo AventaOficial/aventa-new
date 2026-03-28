@@ -9,6 +9,7 @@ import AventaIcon from './components/AventaIcon';
 import { useUI } from './providers/UIProvider';
 import { useAuth } from './providers/AuthProvider';
 import { ReactNode } from 'react';
+import { logClientError } from '@/lib/utils/handleError';
 
 const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 min
 
@@ -41,7 +42,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     fetch('/api/activity/heartbeat', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + session.access_token },
-    }).catch(() => {});
+    }).catch((err) => logClientError('client-layout:heartbeat', err));
   }, [session?.access_token]);
 
   return (

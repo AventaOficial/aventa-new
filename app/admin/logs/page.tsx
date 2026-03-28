@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/app/providers/AuthProvider';
 
+const PAGE_SIZE = 50;
+
 type LogRow = {
   id: string;
   offer_id: string | null;
@@ -33,7 +35,14 @@ export default function LogsPage() {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { session } = useAuth();
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
+  const { session, user } = useAuth();
+
+  useEffect(() => {
+    setPage(1);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!session?.access_token) {
@@ -43,17 +52,19 @@ export default function LogsPage() {
     }
     setLoading(true);
     setError(null);
-    fetch('/api/admin/logs', { headers: { Authorization: `Bearer ${session.access_token}` } })
+    fetch(`/api/admin/logs?page=${page}&limit=${PAGE_SIZE}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
       .then((res) => {
         if (!res.ok) return res.json().then((j) => Promise.reject(new Error(j?.error ?? 'Error')));
         return res.json();
       })
       .then((data) => {
         setLogs(Array.isArray(data?.logs) ? data.logs : []);
+        setTotal(typeof data?.total === 'number' ? data.total : 0);
+        setPageLimit(typeof data?.limit === 'number' ? data.limit : PAGE_SIZE);
       })
       .catch((e) => setError(e?.message ?? 'Error al cargar logs'))
       .finally(() => setLoading(false));
-  }, [session?.access_token]);
+  }, [session?.access_token, page]);
 
   if (loading) {
     return (
@@ -85,7 +96,7 @@ export default function LogsPage() {
         Logs de auditoría
       </h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Cambios de estado en moderación, penalizaciones y ajustes. Últimos 200 registros.
+        Cambios de estado en moderación, penalizaciones y ajustes (paginado).
       </p>
       {logs.length === 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
@@ -144,6 +155,31 @@ export default function LogsPage() {
               </tbody>
             </table>
           </div>
+          {total > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Página {page} de {Math.max(1, Math.ceil(total / pageLimit))} · {total} registros
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= Math.max(1, Math.ceil(total / pageLimit)) || loading}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

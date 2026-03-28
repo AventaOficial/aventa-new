@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { slugifyStore } from '@/lib/slug';
+import { buildOfferPublicPath } from '@/lib/offerPath';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
@@ -65,7 +66,7 @@ export async function getSitemapOffers(
 
   let query = supabase
     .from('offers')
-    .select('id, updated_at, created_at')
+    .select('id, title, updated_at, created_at')
     .eq('status', 'approved')
     .or(`expires_at.is.null,expires_at.gte.${now}`)
     .order('created_at', { ascending: false })
@@ -73,8 +74,8 @@ export async function getSitemapOffers(
 
   const { data: rows } = await query;
 
-  return (rows ?? []).map((row: { id: string; updated_at?: string | null; created_at?: string | null }) => ({
-    url: `${BASE_URL}/oferta/${row.id}`,
+  return (rows ?? []).map((row: { id: string; title?: string | null; updated_at?: string | null; created_at?: string | null }) => ({
+    url: `${BASE_URL}${buildOfferPublicPath(row.id, row.title ?? undefined)}`,
     lastModified: row.updated_at ? new Date(row.updated_at) : (row.created_at ? new Date(row.created_at) : new Date()),
     changeFrequency: 'weekly' as const,
     priority: 0.6,

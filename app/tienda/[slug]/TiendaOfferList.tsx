@@ -2,28 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import OfferCard from '@/app/components/OfferCard';
+import { buildOfferPublicPath } from '@/lib/offerPath';
+import type { CardOffer } from '@/lib/offers/transform';
 
-type Offer = {
-  id: string;
-  title: string;
-  brand: string;
-  originalPrice: number;
-  discountPrice: number;
-  discount: number;
-  description?: string;
-  upvotes: number;
-  downvotes: number;
-  offerUrl: string;
-  image?: string;
-  imageUrls?: string[];
-  msiMonths?: number;
-  bankCoupon?: string | null;
-  votes: { up: number; down: number; score: number };
-  author: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
-  createdAt: string | null;
-};
-
-export default function TiendaOfferList({ offers }: { offers: Offer[] }) {
+export default function TiendaOfferList({ offers }: { offers: CardOffer[] }) {
   const router = useRouter();
   return (
     <div className="space-y-4 md:space-y-6">
@@ -46,7 +28,7 @@ export default function TiendaOfferList({ offers }: { offers: Offer[] }) {
           createdAt={offer.createdAt}
           msiMonths={offer.msiMonths}
           bankCoupon={offer.bankCoupon}
-          onCardClick={() => router.push(`/oferta/${offer.id}`)}
+          onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
         />
       ))}
     </div>

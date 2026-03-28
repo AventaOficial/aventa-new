@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2, Trash2, Tag, Link2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { getBankCouponLabel } from '@/lib/bankCoupons';
+import { mergeOfferImageUrls } from '@/lib/offerPath';
 
 type ModerationOffer = {
   id: string;
@@ -17,6 +18,7 @@ type ModerationOffer = {
   bank_coupon?: string | null;
   coupons?: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   offer_url: string | null;
   description?: string | null;
   steps?: unknown;
@@ -75,6 +77,15 @@ export default function ModerationOfferCard({
   const [modMessage, setModMessage] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [showImageExpand, setShowImageExpand] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const allPreviewImages = useMemo(
+    () => mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null),
+    [offer.image_url, offer.image_urls]
+  );
+
+  useEffect(() => {
+    setGalleryIndex(0);
+  }, [offer.id]);
   const [showEdit, setShowEdit] = useState(false);
   const [editTitle, setEditTitle] = useState(offer.title);
   const [editOfferUrl, setEditOfferUrl] = useState(offer.offer_url ?? '');
@@ -130,17 +141,51 @@ export default function ModerationOfferCard({
 
   return (
     <article
-      className={`bg-white dark:bg-gray-800 rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all ${selected ? 'border-violet-500 ring-2 ring-violet-500/25' : 'border-gray-200/90 dark:border-gray-700'}`}
+      className={`bg-white dark:bg-gray-900 rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg hover:border-violet-200/80 dark:hover:border-violet-800/50 transition-all duration-200 ${selected ? 'border-violet-500 ring-2 ring-violet-500/30 shadow-md' : 'border-gray-200/90 dark:border-gray-700/90'}`}
       data-testid="moderation-offer-card"
     >
       <div className="flex flex-col sm:flex-row">
-        <div className="relative w-full sm:w-36 md:w-40 h-44 sm:h-auto sm:min-h-[132px] shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
-          {offer.image_url ? (
-            <img
-              src={offer.image_url}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+        <div className="relative w-full sm:w-36 md:w-44 h-44 sm:h-auto sm:min-h-[140px] shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900">
+          {allPreviewImages.length > 0 ? (
+            <>
+              <img
+                src={allPreviewImages[galleryIndex] ?? allPreviewImages[0]}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {allPreviewImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGalleryIndex((i) => (i === 0 ? allPreviewImages.length - 1 : i - 1))
+                    }
+                    className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-black/45 text-white p-1 shadow-md"
+                    aria-label="Imagen anterior"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGalleryIndex((i) => (i === allPreviewImages.length - 1 ? 0 : i + 1))
+                    }
+                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-black/45 text-white p-1 shadow-md"
+                    aria-label="Siguiente imagen"
+                  >
+                    ›
+                  </button>
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                    {allPreviewImages.map((_, i) => (
+                      <span
+                        key={i}
+                        className={`h-1 rounded-full ${i === galleryIndex ? 'w-2 bg-white' : 'w-1 bg-white/50'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs px-2 text-center">
               Sin imagen

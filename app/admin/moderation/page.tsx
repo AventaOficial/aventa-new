@@ -25,6 +25,7 @@ type ModerationOffer = {
   bank_coupon?: string | null;
   coupons?: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   offer_url: string | null;
   description?: string | null;
   steps?: unknown;
@@ -75,7 +76,7 @@ export default function ModerationPage() {
     return supabase
       .from('offers')
       .select(
-        'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)'
+        'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)'
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
@@ -271,32 +272,35 @@ export default function ModerationPage() {
   return (
     <div className="lg:grid lg:grid-cols-[1fr_minmax(260px,300px)] xl:grid-cols-[1fr_minmax(280px,320px)] lg:gap-8 lg:items-start">
       <div className="min-w-0">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-          Cola de moderación
-        </h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 max-w-2xl leading-relaxed">
-          Revisa enlace, precio y duplicados. Las etiquetas muestran categoría (y si aplica, cupón bancario). A la
-          derecha verás objetivos de catálogo para el equipo.
+      <header className="mb-6 rounded-2xl border border-violet-200/70 dark:border-violet-900/50 bg-gradient-to-br from-violet-50 via-white to-slate-50 dark:from-violet-950/40 dark:via-gray-900 dark:to-gray-900 px-5 py-6 md:px-8 md:py-7 shadow-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-1">
+          Moderación
         </p>
-      </div>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+          Cola de revisión
+        </h1>
+        <p className="text-sm md:text-[15px] text-gray-600 dark:text-gray-400 mt-2 max-w-2xl leading-relaxed">
+          Valida enlace, precios e imágenes. Usa los filtros y el historial de cada tarjeta. A la derecha tienes
+          los objetivos del equipo.
+        </p>
+      </header>
 
-      <div className="mb-4 space-y-3">
+      <div className="mb-5 space-y-3 rounded-xl border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-500/80" />
             <input
               type="search"
               placeholder="Buscar por título, tienda o autor..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500"
+              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20 outline-none transition-shadow"
             />
           </div>
           <select
             value={storeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2 min-w-0 max-w-[160px]"
+            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[160px]"
             title="Filtrar por tienda"
           >
             <option value="">Todas las tiendas</option>
@@ -307,7 +311,7 @@ export default function ModerationPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2 min-w-0 max-w-[140px]"
+            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[140px]"
             title="Filtrar por categoría"
           >
             {CATEGORY_OPTIONS.map(({ value, label }) => (
@@ -413,15 +417,20 @@ export default function ModerationPage() {
       </div>
 
       {loading ? (
-        <div className="text-gray-500 dark:text-gray-400 py-8">Cargando…</div>
+        <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 py-16 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+          <span className="inline-block h-4 w-4 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" aria-hidden />
+          Cargando cola…
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center text-gray-500 dark:text-gray-400">
-          {pending.length === 0
-            ? 'No hay ofertas pendientes.'
-            : 'No hay resultados para tu búsqueda.'}
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gradient-to-b from-gray-50/80 to-white dark:from-gray-800/40 dark:to-gray-900 p-10 md:p-12 text-center">
+          <p className="text-gray-600 dark:text-gray-400 text-[15px]">
+            {pending.length === 0
+              ? 'No hay ofertas pendientes. Buen trabajo.'
+              : 'Ninguna coincide con los filtros. Prueba a limpiar la búsqueda.'}
+          </p>
         </div>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-5">
           {filtered.map((offer) => (
             <ModerationOfferCardWithSimilar
               key={offer.id}

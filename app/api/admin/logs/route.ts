@@ -16,17 +16,29 @@ export type AdminLogRow = {
   offer_title: string | null;
 };
 
-/** GET: últimos logs de moderación (solo owner/admin). Sin paginación, límite 200. */
+const DEFAULT_LOG_LIMIT = 50;
+const MAX_LOG_LIMIT = 100;
+
+/** GET: logs de moderación (solo owner/admin), paginados. */
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
+  const limitRaw = parseInt(url.searchParams.get('limit') ?? String(DEFAULT_LOG_LIMIT), 10) || DEFAULT_LOG_LIMIT;
+  const limit = Math.min(MAX_LOG_LIMIT, Math.max(1, limitRaw));
+  const offset = (page - 1) * limit;
+  const rangeEnd = offset + limit - 1;
+
   const supabase = createServerClient();
-  const { data: rows, error } = await supabase
+  const { data: rows, error, count } = await supabase
     .from('moderation_logs')
-    .select('id, offer_id, user_id, action, previous_status, new_status, reason, metadata, created_at')
+    .select('id, offer_id, user_id, action, previous_status, new_status, reason, metadata, created_at', {
+      count: 'exact',
+    })
     .order('created_at', { ascending: false })
-    .limit(200);
+    .range(offset, rangeEnd);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -59,5 +71,5 @@ export async function GET(request: Request) {
     offer_title: r.offer_id ? (titles[r.offer_id] ?? null) : null,
   }));
 
-  return NextResponse.json({ logs });
+  return NextResponse.json({ logs, total: count ?? 0, page, limit });
 }

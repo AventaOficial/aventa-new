@@ -9,6 +9,10 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { getBankCouponLabel } from '@/lib/bankCoupons';
+import { buildOfferPublicPath } from '@/lib/offerPath';
+import { VOTE_API_DOWN, VOTE_API_UP } from '@/lib/votes/client';
+import { logClientError } from '@/lib/utils/handleError';
+import { logEvent } from '@/lib/monitoring/clientLogger';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -146,7 +150,7 @@ export default function OfferCard({
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: payload,
               keepalive: true,
-            }).catch(() => {});
+            }).catch((err) => logClientError('offer-card:track-view', err));
           } else {
             const blob = new Blob([payload], { type: 'application/json' });
             navigator.sendBeacon('/api/track-view', blob);
@@ -197,8 +201,7 @@ export default function OfferCard({
     }
   };
 
-  /** API: upvote = 2, downvote = -1 (un voto vale 2). */
-  const sendVote = (value: 2 | -1, onRevert: () => void, onSuccess?: () => void): void => {
+  const sendVote = (value: typeof VOTE_API_UP | typeof VOTE_API_DOWN, onRevert: () => void, onSuccess?: () => void): void => {
     if (!offerId) return;
     const token = session?.access_token ?? null;
     fetch('/api/votes', {
@@ -212,9 +215,19 @@ export default function OfferCard({
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !(data?.ok)) throw new Error();
+        logEvent({
+          type: 'vote',
+          source: 'votes:post',
+          metadata: { offerId, value },
+        });
         onSuccess?.();
       })
       .catch(() => {
+        logEvent({
+          type: 'api_error',
+          source: 'votes:post',
+          metadata: { offerId, value },
+        });
         showToast?.('No se pudo registrar el voto. Revisa tu conexión.');
         onRevert();
       });
@@ -236,7 +249,7 @@ export default function OfferCard({
     const delta = scoreDelta(newVote) - scoreDelta(prevVote);
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
-    sendVote(2, () => {
+    sendVote(VOTE_API_UP, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
     }, () => onVoteChange?.(offerId, newVote));
@@ -256,7 +269,7 @@ export default function OfferCard({
     const delta = scoreDelta(newVote) - scoreDelta(prevVote);
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
-    sendVote(-1, () => {
+    sendVote(VOTE_API_DOWN, () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
     }, () => onVoteChange?.(offerId, newVote));
@@ -306,7 +319,16 @@ export default function OfferCard({
   return (
     <div
       ref={cardRef}
-      onClick={isTesterOffer ? () => showToast('Oferta de prueba') : onCardClick}
+      onClick={
+        isTesterOffer
+          ? () => showToast('Oferta de prueba')
+          : () => {
+              if (offerId) {
+                logEvent({ type: 'view', source: 'offer:click', metadata: { offerId } });
+              }
+              onCardClick?.();
+            }
+      }
       className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
     >
       <button
@@ -325,7 +347,7 @@ export default function OfferCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/oferta/${offerId}`;
+            const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${buildOfferPublicPath(offerId, title)}`;
             navigator.clipboard.writeText(url).then(() => {
               setShareCopied(true);
               setTimeout(() => setShareCopied(false), 2000);
@@ -335,7 +357,7 @@ export default function OfferCard({
               method: 'POST',
               headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
               body: JSON.stringify({ offer_id: offerId, event_type: 'share' }),
-            }).catch(() => {});
+            }).catch((err) => logClientError('offer-card:track-view', err));
           }}
           className="absolute top-2 right-2 max-[400px]:top-1.5 max-[400px]:right-1.5 z-10 p-1 max-[400px]:p-1 md:p-1.5 rounded-md md:rounded-lg bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm border border-[#e5e5e7]/80 dark:border-[#262626]/80 text-[#8e8e93] dark:text-[#737378] hover:text-violet-600 dark:hover:text-violet-400 hover:bg-white/95 dark:hover:bg-[#1a1a1a]/95 transition-colors"
           title={shareCopied ? '¡Copiado!' : 'Compartir (se abre la oferta expandida)'}

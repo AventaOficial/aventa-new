@@ -3,6 +3,8 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 import { recalculateUserReputation } from '@/lib/server/reputation'
+import { buildOfferPublicPath } from '@/lib/offerPath'
+import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
 
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
@@ -24,9 +26,18 @@ export async function POST(request: Request) {
     }
     const supabase = createServerClient()
 
-    const { data: offer } = await supabase.from('offers').select('status, created_by').eq('id', id).single()
+    const { data: offer } = await supabase
+      .from('offers')
+      .select('status, created_by, title')
+      .eq('id', id)
+      .single()
     const previousStatus = offer?.status ?? 'pending'
     const createdBy = (offer as { created_by?: string } | null)?.created_by
+    const offerTitle =
+      typeof (offer as { title?: string } | null)?.title === 'string'
+        ? String((offer as { title: string }).title).trim() || 'Tu oferta'
+        : 'Tu oferta'
+    const offerPublicPath = buildOfferPublicPath(id, offerTitle)
 
     if (status === 'approved') {
       const { data: row } = await supabase.from('offers').select('expires_at').eq('id', id).single()
@@ -72,8 +83,16 @@ export async function POST(request: Request) {
         type: 'offer_approved',
         title: notifTitle,
         body: notifBody,
-        link: `/?o=${id}`,
+        link: offerPublicPath,
       }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] notification insert failed:', notifErr.message); })
+
+      const { data: userRow } = await supabase.auth.admin.getUserById(createdBy)
+      const email = userRow?.user?.email?.trim()
+      if (email) {
+        sendOfferApprovedUserEmail(email, offerTitle, id).catch((err) =>
+          console.error('[moderate-offer] email:', err)
+        )
+      }
     }
 
     if (status === 'rejected' && createdBy) {

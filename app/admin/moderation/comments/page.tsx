@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { CheckCircle, XCircle, MessageCircle, Loader2 } from 'lucide-react';
+import { buildOfferPublicPath } from '@/lib/offerPath';
 
 const POLL_INTERVAL_MS = 25_000;
 
@@ -137,7 +138,12 @@ export default function ModerationCommentsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Oferta:{' '}
-                    <Link href={`/?o=${c.offer_id}`} className="text-violet-600 dark:text-violet-400 hover:underline truncate inline-block max-w-full" target="_blank" rel="noopener noreferrer">
+                    <Link
+                      href={buildOfferPublicPath(c.offer_id, c.offers?.title ?? undefined)}
+                      className="text-violet-600 dark:text-violet-400 hover:underline truncate inline-block max-w-full"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       {c.offers?.title ?? c.offers?.store ?? c.offer_id}
                     </Link>
                   </p>

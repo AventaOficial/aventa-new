@@ -9,6 +9,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
+import { notifyUserError } from '@/lib/utils/handleError';
 
 const DAYS_LIMIT = 14;
 
@@ -91,22 +92,23 @@ function SettingsPageInner() {
         const data = await res.json();
         setEmailDailyDigest(data.email_daily_digest ?? false);
         setEmailWeeklyDigest(data.email_weekly_digest ?? false);
-      } catch {
+      } catch (e) {
+        notifyUserError(showToast, 'No pudimos cargar tus preferencias de correo.', 'settings:email-prefs', e);
         setEmailDailyDigest(false);
         setEmailWeeklyDigest(false);
       }
     };
     loadPrefs();
-  }, [user?.id, session?.access_token]);
+  }, [user?.id, session?.access_token, showToast]);
 
   useEffect(() => {
     if (!session?.access_token) return;
     fetch('/api/me/preferred-categories', { headers: { Authorization: 'Bearer ' + session.access_token } })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setPreferredCategories(Array.isArray(data?.preferred_categories) ? data.preferred_categories : []))
-      .catch(() => {
+      .catch((err) => {
+        notifyUserError(showToast, 'No se pudieron cargar tus categorías preferidas.', 'settings:preferred-categories', err);
         setPreferredCategories([]);
-        showToast?.('No se pudieron cargar tus categorías preferidas.');
       });
   }, [session?.access_token, showToast]);
 

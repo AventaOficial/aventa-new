@@ -21,29 +21,47 @@ export type AdminUserRow = {
   commission_qualifying_offers: number;
 };
 
-/** GET: listado de usuarios para Admin (solo owner/admin). Incluye roles, baneo y última actividad. */
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+
+/** GET: listado de usuarios para Admin (solo owner/admin). Paginado; incluye roles, baneo y última actividad. */
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
+  const limitRaw = parseInt(url.searchParams.get('limit') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE;
+  const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, limitRaw));
+  const offset = (page - 1) * limit;
+  const rangeEnd = offset + limit - 1;
 
   const supabase = createServerClient();
 
   const withCommissionsRes = await supabase
     .from('profiles')
-    .select('id, username, display_name, created_at, reputation_score, offers_submitted_count, offers_approved_count, offers_rejected_count, commissions_accepted_at, commissions_terms_version')
-    .order('created_at', { ascending: false });
+    .select('id, username, display_name, created_at, reputation_score, offers_submitted_count, offers_approved_count, offers_rejected_count, commissions_accepted_at, commissions_terms_version', {
+      count: 'exact',
+    })
+    .order('created_at', { ascending: false })
+    .range(offset, rangeEnd);
 
   let profiles = withCommissionsRes.data as Record<string, unknown>[] | null;
   let errProfiles = withCommissionsRes.error;
+  let totalCount = withCommissionsRes.count;
 
   if (errProfiles && (errProfiles.message?.includes('commissions_accepted_at') || errProfiles.code === 'PGRST204')) {
     // Degradación suave para entornos que aún no aplican la migración de comisiones.
     const fallbackRes = await supabase
       .from('profiles')
-      .select('id, username, display_name, created_at, reputation_score, offers_submitted_count, offers_approved_count, offers_rejected_count')
-      .order('created_at', { ascending: false });
+      .select('id, username, display_name, created_at, reputation_score, offers_submitted_count, offers_approved_count, offers_rejected_count', {
+        count: 'exact',
+      })
+      .order('created_at', { ascending: false })
+      .range(offset, rangeEnd);
     profiles = fallbackRes.data as Record<string, unknown>[] | null;
     errProfiles = fallbackRes.error;
+    totalCount = fallbackRes.count;
   }
 
   if (errProfiles) return NextResponse.json({ error: errProfiles.message }, { status: 500 });
@@ -60,6 +78,12 @@ export async function GET(request: Request) {
     commissions_accepted_at?: string | null;
     commissions_terms_version?: string | null;
   }>;
+
+  const total = totalCount ?? 0;
+  if (list.length === 0) {
+    return NextResponse.json({ users: [], total, page, limit });
+  }
+
   const userIds = list.map((p) => p.id);
 
   const [rolesRes, bansRes, activityRes, qualifyingRes] = await Promise.all([
@@ -70,7 +94,8 @@ export async function GET(request: Request) {
       .from('offers')
       .select('created_by, upvotes_count')
       .in('created_by', userIds)
-      .in('status', ['approved', 'published']),
+      .in('status', ['approved', 'published'])
+      .limit(25000),
   ]);
 
   const rolesByUser: Record<string, string[]> = {};
@@ -114,5 +139,5 @@ export async function GET(request: Request) {
     };
   });
 
-  return NextResponse.json({ users });
+  return NextResponse.json({ users, total, page, limit });
 }

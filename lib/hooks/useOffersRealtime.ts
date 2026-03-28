@@ -4,6 +4,9 @@ import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { computeOfferScore } from '@/lib/offers/scoring';
 
+/** Desactiva suscripción global a `offers` (menos carga; el feed se actualiza con fetch). */
+export const ENABLE_OFFERS_REALTIME = false;
+
 type OffersRealtimePayload = {
   new?: {
     id?: string;
@@ -28,16 +31,28 @@ function safeNum(v: unknown): number {
   return typeof n === 'number' && !Number.isNaN(n) ? n : 0;
 }
 
+type RealtimeOptions = {
+  /** Cuando cambia una fila que no está en el feed (p. ej. pasa a aprobada), pedir recarga del listado. */
+  onFeedMaybeStale?: () => void;
+};
+
 export function useOffersRealtime<T extends OfferWithVotes>(
-  setOffers: React.Dispatch<React.SetStateAction<T[]>>
+  setOffers: React.Dispatch<React.SetStateAction<T[]>>,
+  options?: RealtimeOptions
 ) {
   const setterRef = useRef(setOffers);
   setterRef.current = setOffers;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !ENABLE_OFFERS_REALTIME) return;
 
     const supabase = createClient();
+
+    const bumpStale = () => {
+      optionsRef.current?.onFeedMaybeStale?.();
+    };
 
     const handlePayload = (payload: OffersRealtimePayload) => {
       const row = payload?.new;
@@ -51,7 +66,10 @@ export function useOffersRealtime<T extends OfferWithVotes>(
 
       setterRef.current((prev) => {
         const idx = prev.findIndex((o) => o.id === id);
-        if (idx < 0) return prev;
+        if (idx < 0) {
+          bumpStale();
+          return prev;
+        }
 
         const current = prev[idx];
         const curUp = current.upvotes ?? 0;

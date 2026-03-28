@@ -46,11 +46,16 @@ function formatRelative(iso: string): string {
   }
 }
 
+const PAGE_SIZE = 50;
+
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { session } = useAuth();
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
+  const { session, user } = useAuth();
 
   useEffect(() => {
     if (!session?.access_token) {
@@ -60,17 +65,23 @@ export default function UsersPage() {
     }
     setLoading(true);
     setError(null);
-    fetch('/api/admin/users', { headers: { Authorization: `Bearer ${session.access_token}` } })
+    fetch(`/api/admin/users?page=${page}&limit=${PAGE_SIZE}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
       .then((res) => {
         if (!res.ok) return res.json().then((j) => Promise.reject(new Error(j?.error ?? 'Error')));
         return res.json();
       })
       .then((data) => {
         setUsers(Array.isArray(data?.users) ? data.users : []);
+        setTotal(typeof data?.total === 'number' ? data.total : 0);
+        setPageLimit(typeof data?.limit === 'number' ? data.limit : PAGE_SIZE);
       })
       .catch((e) => setError(e?.message ?? 'Error al cargar usuarios'))
       .finally(() => setLoading(false));
-  }, [session?.access_token]);
+  }, [session?.access_token, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [user?.id]);
 
   if (loading) {
     return (
@@ -96,7 +107,7 @@ export default function UsersPage() {
     <div>
       <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Usuarios</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Listado de perfiles con roles, ofertas y baneos. Baneos se gestionan en Moderación → Baneos.
+        Listado de perfiles con roles, ofertas y baneos (paginado). Baneos se gestionan en Moderación → Baneos.
       </p>
       {users.length === 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
@@ -178,6 +189,31 @@ export default function UsersPage() {
               </tbody>
             </table>
           </div>
+          {total > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Página {page} de {Math.max(1, Math.ceil(total / pageLimit))} · {total} usuarios
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= Math.max(1, Math.ceil(total / pageLimit)) || loading}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

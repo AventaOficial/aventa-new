@@ -9,6 +9,9 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { buildOfferUrl } from '@/lib/offerUrl';
+import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
+import { VOTE_API_DOWN, VOTE_API_UP } from '@/lib/votes/client';
+import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -127,9 +130,9 @@ export default function OfferModal({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const hasTrackedRef = useRef(false);
   const outboundSentRef = useRef(false);
-  const allImages = (imageUrls?.length ? imageUrls : image ? [image] : []) as string[];
+  const allImages = mergeOfferImageUrls(image, imageUrls);
   const [imageIndex, setImageIndex] = useState(0);
-  const currentImage = allImages[imageIndex] || image || '/placeholder.png';
+  const currentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
 
   useEffect(() => {
     if (!isOpen) setImageIndex(0);
@@ -184,7 +187,7 @@ export default function OfferModal({
         ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
       body: JSON.stringify({ offer_id: offerId, event_type: 'view' }),
-    }).catch(() => {});
+    }).catch((err) => logClientError('offer-modal:view-event', err));
   }, [isOpen, offerId]);
 
   useEffect(() => {
@@ -212,9 +215,12 @@ export default function OfferModal({
         }));
         setComments(withReplies);
       })
-      .catch(() => setComments([]))
+      .catch((err) => {
+        notifyUserError(showToast, 'No pudimos cargar los comentarios.', 'offer-modal:comments', err);
+        setComments([]);
+      })
       .finally(() => setCommentsLoading(false));
-  }, [offerId, session?.access_token]);
+  }, [offerId, session?.access_token, showToast]);
 
   useEffect(() => {
     if (!isOpen || !offerId) {
@@ -226,7 +232,6 @@ export default function OfferModal({
 
   const handleVote = (vote: 'up' | 'down') => {
     if (!offerId || !session?.access_token) return;
-    const apiValue = vote === 'up' ? 2 : -1;
     const displayVote = vote === 'up' ? 1 : -1;
     const prevVote = userVote;
     const prevUp = localUpvotes;
@@ -245,10 +250,11 @@ export default function OfferModal({
       else setLocalDownvotes((p) => p + 1);
     }
 
+    const payloadValue = vote === 'up' ? VOTE_API_UP : VOTE_API_DOWN;
     fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ offerId, value: apiValue }),
+      body: JSON.stringify({ offerId, value: payloadValue }),
     })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -259,6 +265,7 @@ export default function OfferModal({
         setLocalVote(prevVote);
         setLocalUpvotes(prevUp);
         setLocalDownvotes(prevDown);
+        showToast?.('No se pudo registrar el voto. Revisa tu conexión.');
       });
   };
 
@@ -300,7 +307,7 @@ export default function OfferModal({
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
           body: JSON.stringify({ offerId }),
-        }).catch(() => {});
+        }).catch((err) => logClientError('offer-modal:track-outbound', err));
       }
       if (offerUrl?.trim()) {
         const url = buildOfferUrl(offerUrl, author?.creatorMlTag) || offerUrl.trim();
@@ -932,7 +939,7 @@ export default function OfferModal({
               {offerId && (
                 <button
                   onClick={() => {
-                    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/oferta/${offerId}`;
+                    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${buildOfferPublicPath(offerId!, title)}`;
                     navigator.clipboard.writeText(url).then(() => {
                       setShareCopied(true);
                       setTimeout(() => setShareCopied(false), 2000);
@@ -942,7 +949,7 @@ export default function OfferModal({
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
                       body: JSON.stringify({ offer_id: offerId, event_type: 'share' }),
-                    }).catch(() => {});
+                    }).catch((err) => logClientError('offer-modal:share-event', err));
                   }}
                   className="flex-shrink-0 p-2.5 md:p-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
                   title={shareCopied ? '¡Copiado!' : 'Compartir'}

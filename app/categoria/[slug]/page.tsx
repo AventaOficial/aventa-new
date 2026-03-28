@@ -5,63 +5,9 @@ import { ALL_CATEGORIES, getDbCategoryValuesForMacro } from '@/lib/categories';
 import Link from 'next/link';
 import ClientLayout from '@/app/ClientLayout';
 import CategoriaOfferList from './CategoriaOfferList';
+import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
-
-type OfferRow = {
-  id: string;
-  title: string;
-  price: number;
-  original_price: number | null;
-  image_url: string | null;
-  image_urls: string[] | null;
-  msi_months: number | null;
-  bank_coupon: string | null;
-  store: string | null;
-  offer_url: string | null;
-  description: string | null;
-  created_at: string | null;
-  created_by: string | null;
-  up_votes: number | null;
-  down_votes: number | null;
-  score: number | null;
-  ranking_blend: number | null;
-  profiles?: { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null } | { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[];
-};
-
-function rowToOffer(row: OfferRow) {
-  const originalPrice = Number(row.original_price) || 0;
-  const discountPrice = Number(row.price) || 0;
-  const discount = originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
-  const up = row.up_votes ?? 0;
-  const down = row.down_votes ?? 0;
-  const prof = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-  return {
-    id: row.id,
-    title: row.title,
-    brand: row.store ?? '',
-    originalPrice,
-    discountPrice,
-    discount,
-    description: row.description?.trim() || undefined,
-    upvotes: up,
-    downvotes: down,
-    offerUrl: row.offer_url?.trim() ?? '',
-    image: row.image_url ?? undefined,
-    imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
-    msiMonths: row.msi_months ?? undefined,
-    bankCoupon: row.bank_coupon?.trim() || undefined,
-    votes: { up, down, score: row.score ?? up * 2 - down },
-    author: {
-      username: prof?.display_name?.trim() || 'Usuario',
-      avatar_url: prof?.avatar_url ?? null,
-      leaderBadge: (prof as { leader_badge?: string | null })?.leader_badge ?? null,
-      creatorMlTag: (prof as { ml_tracking_tag?: string | null })?.ml_tracking_tag ?? null,
-    },
-    ranking_blend: row.ranking_blend ?? undefined,
-    createdAt: row.created_at ?? null,
-  };
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -93,7 +39,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
 
   const { data: rows, error } = await supabase
     .from('ofertas_ranked_general')
-    .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, created_at, created_by, up_votes, down_votes, score, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
+    .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
     .in('category', categoryValues)
     .or('status.eq.approved,status.eq.published')
     .or(`expires_at.is.null,expires_at.gte.${now}`)
@@ -101,7 +47,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
     .limit(60);
 
   if (error) notFound();
-  const offers = (rows ?? []).map((r) => rowToOffer(r as unknown as OfferRow));
+  const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
 
   return (
     <ClientLayout>

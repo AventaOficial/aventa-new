@@ -719,6 +719,10 @@ function OperacionesPageInner() {
                   <Link href="/admin/metrics" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">
                     /admin/metrics
                   </Link>
+                  ,{' '}
+                  <Link href="/admin/health" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">
+                    /admin/health
+                  </Link>
                   .
                 </li>
                 <li>
@@ -834,6 +838,13 @@ function OperacionesPageInner() {
                   className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-violet-50/60 dark:hover:bg-violet-900/15 transition-colors"
                 >
                   <span className="flex items-center gap-2">Métricas</span>
+                  <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
+                </Link>
+                <Link
+                  href="/admin/health"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-violet-50/60 dark:hover:bg-violet-900/15 transition-colors"
+                >
+                  <span className="flex items-center gap-2">Salud y visibilidad</span>
                   <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
                 </Link>
                 <Link

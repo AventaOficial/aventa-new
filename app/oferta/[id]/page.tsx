@@ -1,8 +1,10 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
 import { slugifyStore } from '@/lib/slug';
+import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offerPath';
+import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import OfferPageContent from './OfferPageContent';
 
 const BASE_URL =
@@ -57,17 +59,19 @@ async function getOffer(id: string) {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+  const { id: rawSegment } = await params;
+  const id = extractOfferIdFromPathSegment(rawSegment);
+  if (!id) return { title: 'Oferta no encontrada | AVENTA' };
   const offer = await getOffer(id);
   if (!offer) return { title: 'Oferta no encontrada | AVENTA' };
 
   const title = `${offer.title} | AVENTA`;
-  const store = offer.store?.trim() || 'Tienda';
+  const store = formatStoreDisplayName(offer.store) || 'Tienda';
   const desc =
     offer.description?.trim()?.slice(0, 155) ||
     `Oferta en ${store}. ${offer.original_price ? `Precio ${offer.price}` : ''}`;
 
-  const canonical = `${BASE_URL}/oferta/${id}`;
+  const canonical = `${BASE_URL}${buildOfferPublicPath(id, offer.title)}`;
   const ogImageUrl = offer.image_url
     ? (offer.image_url.startsWith('http') ? offer.image_url : new URL(offer.image_url, BASE_URL).toString())
     : undefined;
@@ -93,9 +97,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function OfertaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: rawSegment } = await params;
+  const id = extractOfferIdFromPathSegment(rawSegment);
+  if (!id) notFound();
   const offer = await getOffer(id);
   if (!offer) notFound();
+
+  const canonicalPath = buildOfferPublicPath(id, offer.title);
+  if (rawSegment !== canonicalPath.replace(/^\/oferta\//, '')) {
+    redirect(canonicalPath);
+  }
 
   const prof = Array.isArray(offer.profiles) ? offer.profiles[0] : offer.profiles;
   const author = {
@@ -118,7 +129,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   const offerPayload = {
     id: offer.id,
     title: offer.title,
-    brand: offer.store ?? '',
+    brand: formatStoreDisplayName(offer.store) || offer.store || '',
     originalPrice,
     discountPrice,
     discount,
@@ -138,7 +149,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     categorySlug: categorySlugForUrl,
     categoryLabel: categorySlugForUrl ? categorySlugToLabel(categorySlugForUrl) : undefined,
     storeSlug: storeSlug || undefined,
-    storeName: offer.store?.trim() || undefined,
+    storeName: formatStoreDisplayName(offer.store) || offer.store?.trim() || undefined,
   };
 
   const totalVotes = up + down;
@@ -152,11 +163,14 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     image: offer.image_url ? (offer.image_url.startsWith('http') ? offer.image_url : new URL(offer.image_url, BASE_URL).toString()) : undefined,
     offers: {
       '@type': 'Offer',
-      url: `${BASE_URL}/oferta/${id}`,
+      url: `${BASE_URL}${canonicalPath}`,
       price: discountPrice,
       priceCurrency: 'MXN',
       availability: 'https://schema.org/InStock',
-      seller: { '@type': 'Organization', name: offer.store?.trim() || 'Tienda' },
+      seller: {
+        '@type': 'Organization',
+        name: formatStoreDisplayName(offer.store) || offer.store?.trim() || 'Tienda',
+      },
     },
     ...(totalVotes > 0 &&
       typeof ratingValue === 'number' && {

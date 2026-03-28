@@ -15,7 +15,17 @@ import { createClient } from '@/lib/supabase/client';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { getSearchTerms } from '@/lib/searchGroups';
-import { normalizeVoteCounts } from '@/lib/offers/scoring';
+import {
+  mapOfferToCard,
+  type CardOffer,
+  type RankedOfferSource,
+  type FeedApiItemShape,
+} from '@/lib/offers/transform';
+import { logClientError, notifyUserError } from '@/lib/utils/handleError';
+import { logEvent } from '@/lib/monitoring/clientLogger';
+import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
+import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getValidCategoryValuesForFeed } from '@/lib/categories';
+import { buildOfferPublicPath } from '@/lib/offerPath';
 
 /** When true, home feed uses /api/feed/home first; on failure falls back to existing Supabase fetch. */
 const USE_NEW_FEED = true;
@@ -26,14 +36,7 @@ type ViewMode = 'vitales' | 'top' | 'personalized' | 'latest';
 /** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
 const DIA_A_DIA_SCORE_CAP = 90;
 
-interface OfferAuthor {
-  username: string;
-  avatar_url?: string | null;
-  /** Badge líder: 'cazador_estrella' | 'cazador_aventa'. Se muestra junto al nombre. */
-  leaderBadge?: string | null;
-  /** Etiqueta ML para añadir al link de la oferta (atribución). */
-  creatorMlTag?: string | null;
-}
+type Offer = CardOffer;
 
 interface OfferRow {
   id: string;
@@ -63,31 +66,6 @@ interface OfferRow {
     | null;
 }
 
-interface Offer {
-  id: string;
-  title: string;
-  brand: string;
-  originalPrice: number;
-  discountPrice: number;
-  discount: number;
-  description?: string;
-  steps?: string;
-  conditions?: string;
-  coupons?: string;
-  upvotes: number;
-  downvotes: number;
-  offerUrl: string;
-  image?: string;
-  imageUrls?: string[];
-  msiMonths?: number | null;
-  bankCoupon?: string | null;
-  votes: { up: number; down: number; score: number };
-  author: OfferAuthor;
-  ranking_momentum: number;
-  ranking_blend?: number;
-  createdAt?: string | null;
-}
-
 /** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
 const DESTACADA_RANKING_BLEND_MIN = 15;
 
@@ -110,26 +88,27 @@ const MOCK_TESTER_IMAGES: Record<string, string> = {
   'tester-15': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Bici+Electrica',
 };
 
-/** Ofertas de ejemplo (solo relleno, no afectan métricas). Solo se muestran si el owner activa "Ofertas de testers" en moderación. */
-const MOCK_TESTER_OFFERS: Offer[] = [
-  { id: 'tester-1', title: 'iPhone 16 Pro Max 256 GB Liberado', brand: 'Apple', originalPrice: 32999, discountPrice: 27999, discount: 15, upvotes: 24, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-1'], votes: { up: 24, down: 2, score: 46 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-2', title: 'PC Gamer AMD Ryzen 5 5600 RTX 4060 16GB', brand: 'Armada', originalPrice: 18999, discountPrice: 15999, discount: 16, upvotes: 18, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-2'], votes: { up: 18, down: 1, score: 35 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-3', title: 'Tenis Nike Air Max 270 Hombre', brand: 'Nike', originalPrice: 2499, discountPrice: 1799, discount: 28, upvotes: 12, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-3'], votes: { up: 12, down: 0, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-4', title: 'Lavasecadora Midea 12kg Titanium', brand: 'Midea', originalPrice: 8999, discountPrice: 6999, discount: 22, upvotes: 8, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-4'], votes: { up: 8, down: 1, score: 15 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-5', title: 'Juego 3 Sartenes Deleite Vasconia Negro', brand: 'Vasconia', originalPrice: 899, discountPrice: 599, discount: 33, upvotes: 6, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-5'], votes: { up: 6, down: 0, score: 12 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-6', title: 'MacBook Air M3 13" 8GB 256GB', brand: 'Apple', originalPrice: 24999, discountPrice: 21999, discount: 12, upvotes: 15, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-6'], votes: { up: 15, down: 2, score: 28 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-7', title: 'Audífonos Sony WH-1000XM5', brand: 'Sony', originalPrice: 6999, discountPrice: 5499, discount: 21, upvotes: 10, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-7'], votes: { up: 10, down: 0, score: 20 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-8', title: 'Silla Gamer Ergonómica Reclinable', brand: 'ProGear', originalPrice: 4499, discountPrice: 3499, discount: 22, upvotes: 7, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-8'], votes: { up: 7, down: 1, score: 13 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-9', title: 'Smart TV Samsung 55" 4K Crystal UHD', brand: 'Samsung', originalPrice: 12999, discountPrice: 9999, discount: 23, upvotes: 14, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-9'], votes: { up: 14, down: 2, score: 26 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-10', title: 'Cafetera Nespresso Vertuo Next', brand: 'Nespresso', originalPrice: 2499, discountPrice: 1999, discount: 20, upvotes: 9, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-10'], votes: { up: 9, down: 0, score: 18 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-11', title: 'Mochila Antirrobo USB Portátil', brand: 'Vagabond', originalPrice: 699, discountPrice: 449, discount: 36, upvotes: 5, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-11'], votes: { up: 5, down: 0, score: 10 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-12', title: 'Tablet Galaxy Tab S9 128GB', brand: 'Samsung', originalPrice: 9999, discountPrice: 7999, discount: 20, upvotes: 11, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-12'], votes: { up: 11, down: 1, score: 21 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-13', title: 'Aspiradora Inalámbrica Dyson V12', brand: 'Dyson', originalPrice: 11999, discountPrice: 9499, discount: 21, upvotes: 13, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-13'], votes: { up: 13, down: 2, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-14', title: 'Reloj Inteligente Amazfit GTR 4', brand: 'Amazfit', originalPrice: 3999, discountPrice: 2999, discount: 25, upvotes: 8, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-14'], votes: { up: 8, down: 0, score: 16 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-  { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 31 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-];
-
-import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getValidCategoryValuesForFeed } from '@/lib/categories';
+/** Ofertas de ejemplo: solo en desarrollo; en producción el array queda vacío aunque el flag esté activo. */
+const MOCK_TESTER_OFFERS: CardOffer[] =
+  process.env.NODE_ENV === 'development'
+    ? [
+        { id: 'tester-1', title: 'iPhone 16 Pro Max 256 GB Liberado', brand: 'Apple', originalPrice: 32999, discountPrice: 27999, discount: 15, upvotes: 24, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-1'], votes: { up: 24, down: 2, score: 46 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-2', title: 'PC Gamer AMD Ryzen 5 5600 RTX 4060 16GB', brand: 'Armada', originalPrice: 18999, discountPrice: 15999, discount: 16, upvotes: 18, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-2'], votes: { up: 18, down: 1, score: 35 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-3', title: 'Tenis Nike Air Max 270 Hombre', brand: 'Nike', originalPrice: 2499, discountPrice: 1799, discount: 28, upvotes: 12, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-3'], votes: { up: 12, down: 0, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-4', title: 'Lavasecadora Midea 12kg Titanium', brand: 'Midea', originalPrice: 8999, discountPrice: 6999, discount: 22, upvotes: 8, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-4'], votes: { up: 8, down: 1, score: 15 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-5', title: 'Juego 3 Sartenes Deleite Vasconia Negro', brand: 'Vasconia', originalPrice: 899, discountPrice: 599, discount: 33, upvotes: 6, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-5'], votes: { up: 6, down: 0, score: 12 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-6', title: 'MacBook Air M3 13" 8GB 256GB', brand: 'Apple', originalPrice: 24999, discountPrice: 21999, discount: 12, upvotes: 15, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-6'], votes: { up: 15, down: 2, score: 28 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-7', title: 'Audífonos Sony WH-1000XM5', brand: 'Sony', originalPrice: 6999, discountPrice: 5499, discount: 21, upvotes: 10, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-7'], votes: { up: 10, down: 0, score: 20 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-8', title: 'Silla Gamer Ergonómica Reclinable', brand: 'ProGear', originalPrice: 4499, discountPrice: 3499, discount: 22, upvotes: 7, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-8'], votes: { up: 7, down: 1, score: 13 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-9', title: 'Smart TV Samsung 55" 4K Crystal UHD', brand: 'Samsung', originalPrice: 12999, discountPrice: 9999, discount: 23, upvotes: 14, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-9'], votes: { up: 14, down: 2, score: 26 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-10', title: 'Cafetera Nespresso Vertuo Next', brand: 'Nespresso', originalPrice: 2499, discountPrice: 1999, discount: 20, upvotes: 9, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-10'], votes: { up: 9, down: 0, score: 18 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-11', title: 'Mochila Antirrobo USB Portátil', brand: 'Vagabond', originalPrice: 699, discountPrice: 449, discount: 36, upvotes: 5, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-11'], votes: { up: 5, down: 0, score: 10 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-12', title: 'Tablet Galaxy Tab S9 128GB', brand: 'Samsung', originalPrice: 9999, discountPrice: 7999, discount: 20, upvotes: 11, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-12'], votes: { up: 11, down: 1, score: 21 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-13', title: 'Aspiradora Inalámbrica Dyson V12', brand: 'Dyson', originalPrice: 11999, discountPrice: 9499, discount: 21, upvotes: 13, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-13'], votes: { up: 13, down: 2, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-14', title: 'Reloj Inteligente Amazfit GTR 4', brand: 'Amazfit', originalPrice: 3999, discountPrice: 2999, discount: 25, upvotes: 8, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-14'], votes: { up: 8, down: 0, score: 16 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 31 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+      ]
+    : [];
 
 const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'moda', label: 'Ropa' },
@@ -140,73 +119,7 @@ const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'servicios', label: 'Servicios' },
 ];
 
-function rowToOffer(row: OfferRow): Offer {
-  const originalPrice = Number(row.original_price) || 0;
-  const discountPrice = Number(row.price) || 0;
-  const discount =
-    originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
-  const up = row.up_votes ?? 0;
-  const down = row.down_votes ?? 0;
-  const score = row.score ?? 0;
-  const rawProf = row.profiles;
-  const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf;
-  const author: OfferAuthor = {
-    username: prof?.display_name?.trim() || 'Usuario',
-    avatar_url: prof?.avatar_url ?? null,
-    leaderBadge: (prof as { leader_badge?: string | null } | undefined)?.leader_badge ?? null,
-    creatorMlTag: (prof as { ml_tracking_tag?: string | null } | undefined)?.ml_tracking_tag ?? null,
-  };
-  return {
-    id: row.id,
-    title: row.title,
-    brand: row.store ?? '',
-    originalPrice,
-    discountPrice,
-    discount,
-    upvotes: up,
-    downvotes: down,
-    offerUrl: row.offer_url?.trim() ?? '',
-    image: row.image_url ? row.image_url : undefined,
-    imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
-    msiMonths: typeof row.msi_months === 'number' ? row.msi_months : undefined,
-    bankCoupon: row.bank_coupon?.trim() || undefined,
-    description: row.description?.trim() || undefined,
-    steps: row.steps?.trim() || undefined,
-    conditions: row.conditions?.trim() || undefined,
-    coupons: row.coupons?.trim() || undefined,
-    votes: { up, down, score },
-    author,
-    ranking_momentum: Number(row.ranking_momentum) || 0,
-    ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
-    createdAt: row.created_at ?? null,
-  };
-}
-
-type FeedApiItem = {
-  id: string;
-  title: string;
-  price: number;
-  original_price: number | null;
-  created_at: string;
-  score: number;
-  up_votes?: number;
-  down_votes?: number;
-  ranking_blend?: number | null;
-  ranking_momentum?: number | null;
-  images?: string[];
-  bank_coupon?: string | null;
-  store?: string | null;
-  category?: string | null;
-  slug?: string;
-  author?: {
-    display_name?: string | null;
-    avatar_url?: string | null;
-    leader_badge?: string | null;
-    ml_tracking_tag?: string | null;
-  };
-};
-
-async function fetchFeedFromAPI(type: 'trending' | 'recent' = 'trending'): Promise<FeedApiItem[] | null> {
+async function fetchFeedFromAPI(type: 'trending' | 'recent' = 'trending'): Promise<FeedApiItemShape[] | null> {
   try {
     const res = await fetch(`/api/feed/home?limit=20&type=${type}`, { cache: 'no-store' });
     if (!res.ok) throw new Error('API response failed');
@@ -217,46 +130,6 @@ async function fetchFeedFromAPI(type: 'trending' | 'recent' = 'trending'): Promi
     console.error('[FEED API FALLBACK]', error);
     return null;
   }
-}
-
-function adaptFeedData(apiData: FeedApiItem[]): Offer[] {
-  return apiData.map((item) => {
-    const originalPrice = item.original_price ?? 0;
-    const discountPrice = item.price ?? 0;
-    const discount = originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
-    const fromCounts = normalizeVoteCounts(item.up_votes ?? 0, item.down_votes ?? 0);
-    const up = fromCounts.up;
-    const down = fromCounts.down;
-    const score = typeof item.score === 'number' ? item.score : fromCounts.score;
-    const images = Array.isArray(item.images) ? item.images : [];
-    const image = images[0] ?? null;
-    const a = item.author;
-    const author: OfferAuthor = {
-      username: a?.display_name?.trim() || 'Usuario',
-      avatar_url: a?.avatar_url ?? null,
-      leaderBadge: a?.leader_badge ?? null,
-      creatorMlTag: a?.ml_tracking_tag ?? null,
-    };
-    return {
-      id: item.id ?? '',
-      title: item.title ?? '',
-      brand: item.store ?? '',
-      originalPrice,
-      discountPrice,
-      discount,
-      upvotes: up,
-      downvotes: down,
-      offerUrl: '',
-      image: image ?? undefined,
-      imageUrls: images.length > 0 ? images : undefined,
-      bankCoupon: item.bank_coupon?.trim() || undefined,
-      votes: { up, down, score },
-      author,
-      ranking_momentum: item.ranking_momentum != null ? Number(item.ranking_momentum) : score,
-      ranking_blend: item.ranking_blend != null ? Number(item.ranking_blend) : score,
-      createdAt: item.created_at ?? null,
-    };
-  });
 }
 
 function HomeContent() {
@@ -282,8 +155,22 @@ function HomeContent() {
   const [showTesterOffers, setShowTesterOffers] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
+  const fetchOffersRef = useRef<((overrideLimit?: number) => void) | null>(null);
+  const debouncedQueryRef = useRef(debouncedQuery);
+  const feedStaleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useOffersRealtime(setOffers);
+  useEffect(() => {
+    debouncedQueryRef.current = debouncedQuery;
+  }, [debouncedQuery]);
+
+  const scheduleFeedRefetch = useCallback(() => {
+    if (debouncedQueryRef.current.trim()) return;
+    if (feedStaleTimerRef.current) clearTimeout(feedStaleTimerRef.current);
+    feedStaleTimerRef.current = setTimeout(() => {
+      feedStaleTimerRef.current = null;
+      fetchOffersRef.current?.(undefined);
+    }, 700);
+  }, []);
 
   useEffect(() => {
     if (pathname !== '/') return;
@@ -345,10 +232,18 @@ function HomeContent() {
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Error'))))
         .then((data) => {
           const rows = (data?.offers ?? []) as OfferRow[];
-          setOffers(rows.map(rowToOffer));
+          setOffers(rows.map((r) => mapOfferToCard(r as RankedOfferSource)));
           setHasMoreCursor(false);
+          recordFeedLoadSuccess();
+          logEvent({
+            type: 'view',
+            source: 'feed:loaded',
+            metadata: { count: rows.length, viewMode: 'personalized' },
+          });
         })
-        .catch(() => {
+        .catch((err) => {
+          recordFeedLoadFailure({ branch: 'for-you' });
+          notifyUserError(showToast, 'No pudimos cargar tu feed personalizado. Revisa tu conexión.', 'feed:for-you', err);
           setFeedError('load');
           setOffers([]);
         })
@@ -390,7 +285,7 @@ function HomeContent() {
         query = query.in('category', VITAL_FILTER_VALUES);
       }
       if (viewMode === 'top') {
-        query = query.gt('score', 0);
+        query = query.gte('up_votes', 1);
       }
       if (viewMode === 'top') {
         query = query.order('score_final', { ascending: false });
@@ -403,14 +298,20 @@ function HomeContent() {
         .then(({ data, error }) => {
           setLoading(false);
           if (error) {
-            console.error('[feed] ofertas_ranked_general error:', error.message, (error as { details?: string; hint?: string }).details, (error as { details?: string; hint?: string }).hint);
+            recordFeedLoadFailure({ branch: 'ofertas_ranked' });
+            notifyUserError(
+              showToast,
+              'No pudimos cargar las ofertas. Revisa tu conexión.',
+              'feed:ofertas_ranked',
+              error
+            );
             setFeedError('load');
             setOffers([]);
             return;
           }
           setFeedError(null);
           const rows = data ?? [];
-          let list = rows.map(rowToOffer);
+          let list = rows.map((r) => mapOfferToCard(r as RankedOfferSource));
           if (viewMode === 'vitales') {
             list = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
             list.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
@@ -426,8 +327,16 @@ function HomeContent() {
           }
           setOffers(list);
           setHasMoreCursor(viewMode === 'vitales' ? false : rows.length >= effectiveLimit);
+          recordFeedLoadSuccess();
+          logEvent({
+            type: 'view',
+            source: 'feed:loaded',
+            metadata: { count: list.length, viewMode, source: 'supabase' },
+          });
         })
-        .catch(() => {
+        .catch((err) => {
+          recordFeedLoadFailure({ branch: 'ofertas_ranked' });
+          notifyUserError(showToast, 'No pudimos cargar las ofertas. Revisa tu conexión.', 'feed:ofertas_ranked', err);
           setLoading(false);
           setFeedError('load');
           setOffers([]);
@@ -439,23 +348,39 @@ function HomeContent() {
       fetchFeedFromAPI(feedType)
         .then((data) => {
           if (data != null && Array.isArray(data)) {
-            setOffers(adaptFeedData(data));
+            let list = data.map((item) => mapOfferToCard(item as FeedApiItemShape));
+            if (viewMode === 'top') {
+              list = list.filter((o) => (o.upvotes ?? 0) >= 1);
+            }
+            setOffers(list);
             setLoading(false);
             setFeedError(null);
             setHasMoreCursor(false);
+            recordFeedLoadSuccess();
+            logEvent({
+              type: 'view',
+              source: 'feed:loaded',
+              metadata: { count: list.length, viewMode, source: 'api/feed/home' },
+            });
             return;
           }
           runSupabaseFetch();
         })
         .catch((err) => {
-          console.error('[FEED API FALLBACK]', err);
+          logClientError('feed:home-api', err);
           runSupabaseFetch();
         });
       return;
     }
 
     runSupabaseFetch();
-  }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token]);
+  }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token, showToast]);
+
+  useEffect(() => {
+    fetchOffersRef.current = fetchOffers;
+  }, [fetchOffers]);
+
+  useOffersRealtime(setOffers, { onFeedMaybeStale: scheduleFeedRefetch });
 
   const fetchNextPage = useCallback(() => {
     if (viewMode !== 'latest') return;
@@ -492,14 +417,25 @@ function HomeContent() {
       const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
       nextQuery = catValues.length === 1 ? nextQuery.eq('category', catValues[0]) : nextQuery.in('category', catValues);
     }
-    nextQuery.then(({ data, error }) => {
-      setLoading(false);
-      if (error) return;
-      const rows = (data ?? []).map(rowToOffer);
-      setHasMoreCursor(rows.length >= 12);
-      setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
-    });
-  }, [viewMode, timeFilter, storeFilter, categoryFilter, offers]);
+    Promise.resolve(nextQuery)
+      .then(({ data, error }) => {
+        setLoading(false);
+        if (error) {
+          recordFeedLoadFailure({ branch: 'next-page' });
+          notifyUserError(showToast, 'No pudimos cargar más ofertas.', 'feed:next-page', error);
+          return;
+        }
+        const rows = (data ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
+        setHasMoreCursor(rows.length >= 12);
+        setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
+        recordFeedLoadSuccess();
+      })
+      .catch((err) => {
+        setLoading(false);
+        recordFeedLoadFailure({ branch: 'next-page' });
+        notifyUserError(showToast, 'No pudimos cargar más ofertas.', 'feed:next-page', err);
+      });
+  }, [viewMode, timeFilter, storeFilter, categoryFilter, offers, showToast]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -556,15 +492,25 @@ function HomeContent() {
         .then(({ data, error }) => {
           setLoading(false);
           if (error) {
-            console.error('[feed] search ofertas_ranked_general error:', error.message, (error as { details?: string; hint?: string }).details);
+            recordFeedLoadFailure({ branch: 'search' });
+            notifyUserError(showToast, 'No pudimos cargar la búsqueda. Revisa tu conexión.', 'feed:search', error);
             setFeedError('load');
             setOffers([]);
             return;
           }
           setFeedError(null);
-          setOffers((data ?? []).map((r: OfferRow) => rowToOffer(r)));
+          const searchRows = data ?? [];
+          setOffers(searchRows.map((r) => mapOfferToCard(r as RankedOfferSource)));
+          recordFeedLoadSuccess();
+          logEvent({
+            type: 'view',
+            source: 'feed:loaded',
+            metadata: { count: searchRows.length, search: true },
+          });
         })
-        .catch(() => {
+        .catch((err) => {
+          recordFeedLoadFailure({ branch: 'search' });
+          notifyUserError(showToast, 'No pudimos cargar la búsqueda. Revisa tu conexión.', 'feed:search', err);
           setLoading(false);
           setFeedError('load');
           setOffers([]);
@@ -577,7 +523,7 @@ function HomeContent() {
       document.addEventListener('visibilitychange', onVisible);
       return () => document.removeEventListener('visibilitychange', onVisible);
     }
-  }, [pathname, viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter, limit, fetchOffers]);
+  }, [pathname, viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter, limit, fetchOffers, showToast]);
 
   useEffect(() => {
     if (!session && viewMode === 'personalized') {
@@ -833,7 +779,7 @@ function HomeContent() {
                     offerUrl={offer.offerUrl}
                     author={offer.author}
                     onCardClick={() => {
-                    router.push(`/oferta/${offer.id}`);
+                    router.push(buildOfferPublicPath(offer.id, offer.title));
                   }}
                     onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
                     onVoteChange={handleVoteChange}
