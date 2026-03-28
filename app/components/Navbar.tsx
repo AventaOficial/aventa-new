@@ -214,7 +214,15 @@ export default function Navbar() {
             >
               Hola de nuevo
             </p>
-            <p className="text-base md:text-lg font-semibold text-gray-900 dark:text-white/95 border-b-2 border-gray-300 dark:border-white/30 pb-0.5">{userName}</p>
+            <p
+              className={
+                isHomePage
+                  ? 'text-base md:text-lg font-semibold text-white border-b-2 border-white/70 pb-0.5'
+                  : 'text-base md:text-lg font-semibold text-gray-900 dark:text-white/95 border-b-2 border-gray-300 dark:border-white/30 pb-0.5'
+              }
+            >
+              {userName}
+            </p>
           </div>
         )}
         <AnimatePresence mode="wait">

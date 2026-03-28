@@ -23,7 +23,7 @@ export const createOfferInputSchema = z
     price: numberLike.optional(),
     original_price: numberLike.optional(),
     image_url: optionalNullableString,
-    image_urls: z.array(z.string().trim().min(1).max(2048)).max(8).optional().default([]),
+    image_urls: z.array(z.string().trim().min(1).max(4096)).max(8).optional().default([]),
     msi_months: z
       .union([z.number().int(), z.null(), z.undefined()])
       .transform((v) => (typeof v === 'number' ? v : null))

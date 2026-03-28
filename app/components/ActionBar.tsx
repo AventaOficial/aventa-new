@@ -28,11 +28,6 @@ function parseDecimalPrice(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Redondea a 2 decimales para evitar 11999.999... por float (input number step="0.01") */
-function roundPrice(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 function formatPreviewPrice(s: string): string {
   const n = parseDecimalPrice(s);
   const formatted = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
@@ -83,6 +78,7 @@ export default function ActionBar() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
+  const [cooldownExempt, setCooldownExempt] = useState(false);
 
   useEffect(() => {
     if (showUploadModal) {
@@ -105,6 +101,7 @@ export default function ActionBar() {
   useEffect(() => {
     if (!session?.user?.id) {
       setReputationLevel(1);
+      setCooldownExempt(false);
       return;
     }
     const supabase = createClient();
@@ -120,6 +117,20 @@ export default function ActionBar() {
         () => setReputationLevel(1)
       );
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!token) {
+      setCooldownExempt(false);
+      return;
+    }
+    fetch('/api/me/upload-cooldown-status', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : { exempt: false }))
+      .then((data) => setCooldownExempt(Boolean(data?.exempt)))
+      .catch(() => setCooldownExempt(false));
+  }, [session?.access_token]);
 
   // Prefill upload modal from URL params (extension or /subir deep link)
   useEffect(() => {
@@ -200,10 +211,10 @@ export default function ActionBar() {
           const discEmpty = !parseDecimalPrice(prev.discountPrice);
           const origEmpty = !parseDecimalPrice(prev.originalPrice);
           if (hasDiscount) {
-            if (sd != null && discEmpty) next.discountPrice = String(roundPrice(sd));
-            if (so != null && origEmpty) next.originalPrice = String(roundPrice(so));
+            if (sd != null && discEmpty) next.discountPrice = String(sd);
+            if (so != null && origEmpty) next.originalPrice = String(so);
           } else if (sd != null && origEmpty) {
-            next.originalPrice = String(roundPrice(sd));
+            next.originalPrice = String(sd);
           }
           return next;
         });
@@ -255,8 +266,17 @@ export default function ActionBar() {
         return;
       }
       if (typeof data?.url !== 'string') return;
-      if (!imageUrl) setImageUrl(data.url);
-      else setImageUrls((prev) => [...prev, data.url]);
+      const nextUrl = data.url;
+      const total = (imageUrl ? 1 : 0) + imageUrls.length;
+      if (total >= 8) {
+        showToast('Máximo 8 fotos por oferta');
+        return;
+      }
+      if (!imageUrl) {
+        setImageUrl(nextUrl);
+      } else {
+        setImageUrls((prev) => (prev.includes(nextUrl) ? prev : [...prev, nextUrl]));
+      }
     } catch {
       showToast('Error al subir');
     } finally {
@@ -272,6 +292,23 @@ export default function ActionBar() {
       formData.store.trim() !== '';
     if (!hasDiscount) return baseValid;
     return baseValid && formData.discountPrice.trim() !== '';
+  };
+
+  const removeImageAt = (index: number) => {
+    const all = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u));
+    if (index < 0 || index >= all.length) return;
+    const next = all.filter((_, i) => i !== index);
+    setImageUrl(next[0] ?? null);
+    setImageUrls(next.slice(1));
+  };
+
+  const setCoverImageAt = (index: number) => {
+    const all = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u));
+    if (index < 0 || index >= all.length) return;
+    const cover = all[index];
+    const rest = all.filter((_, i) => i !== index);
+    setImageUrl(cover);
+    setImageUrls(rest);
   };
 
   const handleCancel = () => {
@@ -305,12 +342,13 @@ export default function ActionBar() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setIsSubmitting(true);
-    const originalPriceNum = roundPrice(parseDecimalPrice(formData.originalPrice));
-    const price = roundPrice(hasDiscount
+    const originalPriceNum = parseDecimalPrice(formData.originalPrice);
+    const price = hasDiscount
       ? parseDecimalPrice(formData.discountPrice)
-      : originalPriceNum);
-    const allImages = imageUrl ? [imageUrl, ...imageUrls.filter((u) => u !== imageUrl)] : imageUrls;
-    const firstImage = allImages[0] ?? '/placeholder.png';
+      : originalPriceNum;
+    const dedupImages = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)).filter((u, i, arr) => arr.indexOf(u) === i);
+    const firstImage = dedupImages[0] ?? '/placeholder.png';
+    const extraImages = dedupImages.slice(1);
     const payload = {
       title: formData.title.trim(),
       price,
@@ -319,7 +357,7 @@ export default function ActionBar() {
       store: formData.store.trim(),
       ...(formData.category.trim() && { category: formData.category.trim() }),
       image_url: firstImage,
-      ...(allImages.length > 0 && { image_urls: allImages }),
+      ...(extraImages.length > 0 && { image_urls: extraImages }),
       ...(msiMonths != null && msiMonths >= 1 && msiMonths <= 24 && { msi_months: msiMonths }),
       ...(formData.offer_url.trim() && { offer_url: formData.offer_url.trim() }),
       ...(formData.description.trim() && { description: formData.description.trim() }),
@@ -346,11 +384,12 @@ export default function ActionBar() {
     setIsSubmitting(false);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showToast(data?.error ?? 'Error al crear la oferta');
+      const firstIssue = Array.isArray(data?.issues) && data.issues.length > 0 ? data.issues[0]?.message : null;
+      showToast(firstIssue || data?.error || 'Error al crear la oferta');
       return;
     }
     setShowSuccessMessage(true);
-    const cooldownSec = reputationLevel >= 4 ? COOLDOWN_SECONDS_LEVEL_4 : COOLDOWN_SECONDS_DEFAULT;
+    const cooldownSec = cooldownExempt ? 0 : reputationLevel >= 4 ? COOLDOWN_SECONDS_LEVEL_4 : COOLDOWN_SECONDS_DEFAULT;
     setCooldownRemaining(cooldownSec);
     handleCancel();
   };
@@ -761,9 +800,46 @@ export default function ActionBar() {
                       </p>
                     </label>
                     {(imageUrl || imageUrls.length > 0) && (
-                      <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        Elige otro archivo para añadir más fotos.
-                      </p>
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Toca una foto para ponerla de portada o elimínala.
+                        </p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)).map((url, idx) => (
+                            <div
+                              key={`${url}-${idx}`}
+                              className={`relative rounded-lg overflow-hidden border ${
+                                idx === 0
+                                  ? 'border-violet-500 ring-1 ring-violet-500/30'
+                                  : 'border-gray-200 dark:border-gray-600'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setCoverImageAt(idx)}
+                                className="block w-full"
+                                title={idx === 0 ? 'Portada actual' : 'Poner como portada'}
+                              >
+                                <img src={url} alt={`Foto ${idx + 1}`} className="h-16 w-full object-cover" />
+                              </button>
+                              {idx === 0 && (
+                                <span className="absolute left-1 top-1 rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                  Portada
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeImageAt(idx)}
+                                className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white hover:bg-black/80"
+                                aria-label="Eliminar foto"
+                                title="Eliminar foto"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
 

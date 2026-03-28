@@ -114,8 +114,8 @@ export async function POST(request: Request) {
     const hasDiscount = input.hasDiscount !== false;
     const rawOriginal = hasDiscount && input.original_price != null ? Number(input.original_price) : null;
     const rawPrice = hasDiscount && input.price != null ? Number(input.price) : (rawOriginal ?? Number(input.original_price) ?? 0);
-    const originalPrice = rawOriginal != null && Number.isFinite(rawOriginal) ? Math.round(rawOriginal * 100) / 100 : null;
-    const price = Number.isFinite(rawPrice) ? Math.round(rawPrice * 100) / 100 : 0;
+    const originalPrice = rawOriginal != null && Number.isFinite(rawOriginal) ? rawOriginal : null;
+    const price = Number.isFinite(rawPrice) ? rawPrice : 0;
 
     if (!Number.isFinite(price) || price < 0) {
       return NextResponse.json({ error: 'Precio inválido' }, { status: 400 });

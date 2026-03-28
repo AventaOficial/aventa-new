@@ -100,11 +100,41 @@ function parsePositiveNumber(raw: string | null | undefined): number | null {
   return n;
 }
 
+function parsePositiveLocalizedNumber(raw: string | null | undefined): number | null {
+  if (!raw || !String(raw).trim()) return null;
+  const clean = String(raw).replace(/[^\d,.-]/g, '').trim();
+  if (!clean) return null;
+  const hasComma = clean.includes(',');
+  const hasDot = clean.includes('.');
+  let normalized = clean;
+  if (hasComma && hasDot) {
+    // 12,999.50 -> 12999.50 | 12.999,50 -> 12999.50
+    if (clean.lastIndexOf('.') > clean.lastIndexOf(',')) {
+      normalized = clean.replace(/,/g, '');
+    } else {
+      normalized = clean.replace(/\./g, '').replace(',', '.');
+    }
+  } else if (hasComma && !hasDot) {
+    // 12999,50 -> 12999.50 | 12,999 -> 12999
+    const parts = clean.split(',');
+    if (parts.length === 2 && parts[1].length <= 2) {
+      normalized = `${parts[0].replace(/,/g, '')}.${parts[1]}`;
+    } else {
+      normalized = clean.replace(/,/g, '');
+    }
+  }
+  const n = Number(normalized);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
 type ExtractedPrices = { discount: number | null; original: number | null };
 
 /** Heurística: meta og:price, JSON-LD Offer / AggregateOffer (ML, muchas tiendas). */
 function extractSuggestedPrices(html: string): ExtractedPrices {
-  let discount: number | null = parsePositiveNumber(getMetaContent(html, 'og:price:amount'));
+  let discount: number | null =
+    parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
+    parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount'));
   let original: number | null = parsePositiveNumber(getMetaContent(html, 'product:original_price:amount'));
 
   const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -125,18 +155,18 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
     const high = off.highPrice;
     if (typeof low === 'number' && low > 0) discount = discount ?? low;
     else if (typeof low === 'string') {
-      const n = parsePositiveNumber(low);
+      const n = parsePositiveLocalizedNumber(low);
       if (n) discount = discount ?? n;
     }
     const p = off.price;
     if (typeof p === 'number' && p > 0) discount = discount ?? p;
     else if (typeof p === 'string') {
-      const n = parsePositiveNumber(p);
+      const n = parsePositiveLocalizedNumber(p);
       if (n) discount = discount ?? n;
     }
     if (typeof high === 'number' && high > 0) original = original ?? high;
     else if (typeof high === 'string') {
-      const n = parsePositiveNumber(high);
+      const n = parsePositiveLocalizedNumber(high);
       if (n) original = original ?? n;
     }
   }
@@ -163,6 +193,33 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
     if (typeStr.includes('Product') && o.offers) {
       scanLdJson(o.offers);
     }
+  }
+
+  if (discount == null) {
+    const itemPropPrice = html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1];
+    discount = parsePositiveLocalizedNumber(itemPropPrice);
+  }
+
+  if (discount == null) {
+    const priceMatch =
+      html.match(/["']price["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
+      html.match(/["']price["']\s*:\s*([0-9][0-9.,]+)/i)?.[1] ??
+      null;
+    discount = parsePositiveLocalizedNumber(priceMatch);
+  }
+
+  if (original == null) {
+    const originalMatch =
+      html.match(/["']original_price["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
+      html.match(/["']priceBefore["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
+      null;
+    original = parsePositiveLocalizedNumber(originalMatch);
+  }
+
+  if (original != null && discount != null && original < discount) {
+    const tmp = original;
+    original = discount;
+    discount = tmp;
   }
 
   return { discount, original };

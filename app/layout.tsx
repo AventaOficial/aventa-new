@@ -32,7 +32,11 @@ export const metadata: Metadata = {
   description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día. No vendemos nada — somos cazadores de ofertas.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
-  icons: { icon: "/placeholder.png", apple: "/placeholder.png" },
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: ['/icon.svg'],
+    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
   openGraph: {
     title: "AVENTA - Comunidad de cazadores de ofertas",
     description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día.",

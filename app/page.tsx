@@ -131,6 +131,15 @@ const MOCK_TESTER_OFFERS: Offer[] = [
 
 import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getValidCategoryValuesForFeed } from '@/lib/categories';
 
+const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
+  { value: 'moda', label: 'Ropa' },
+  { value: 'supermercado', label: 'Comida' },
+  { value: 'hogar', label: 'Hogar' },
+  { value: 'belleza', label: 'Belleza' },
+  { value: 'viajes', label: 'Viajes' },
+  { value: 'servicios', label: 'Servicios' },
+];
+
 function rowToOffer(row: OfferRow): Offer {
   const originalPrice = Number(row.original_price) || 0;
   const discountPrice = Number(row.price) || 0;
@@ -691,7 +700,7 @@ function HomeContent() {
                 >
                   Todas
                 </button>
-                {ALL_CATEGORIES.filter((c) => c.vital).map((c) => (
+                {DIA_A_DIA_FILTERS.map((c) => (
                   <button
                     key={c.value}
                     type="button"
