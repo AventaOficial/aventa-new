@@ -1,11 +1,8 @@
 /**
- * Genera Codigo_Completo.txt con todo el código fuente del proyecto,
- * formato:
- *   --- Contenido de: <ruta> ---
- *   <contenido del archivo>
+ * Genera Codigo_Completo.txt: auditoría contextual + todo el código fuente útil.
  *
  * Uso: node scripts/export-codigo-completo.mjs
- * Salida: ./Codigo_Completo.txt (en la raíz del repo)
+ * Salida: ./Codigo_Completo.txt (raíz del repo; en .gitignore)
  */
 
 import fs from 'fs';
@@ -49,7 +46,6 @@ const EXT_OK = new Set([
   '.yaml',
 ]);
 
-/** No incluir JSON enormes salvo los útiles */
 const MAX_BYTES = 400_000;
 
 function shouldSkipDir(name) {
@@ -84,15 +80,122 @@ function walk(dir, files = []) {
   return files;
 }
 
+function walkDocsMd(dir, out = []) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) walkDocsMd(full, out);
+    else if (e.name.endsWith('.md')) out.push(full);
+  }
+  return out;
+}
+
+function topLevelDirs() {
+  try {
+    return fs
+      .readdirSync(ROOT, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !shouldSkipDir(d.name))
+      .map((d) => d.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function countByExt(files) {
+  const m = {};
+  for (const f of files) {
+    const ext = path.extname(f).toLowerCase() || '(sin ext)';
+    m[ext] = (m[ext] || 0) + 1;
+  }
+  return Object.entries(m)
+    .sort((a, b) => b[1] - a[1])
+    .map(([ext, n]) => `  ${ext}: ${n}`)
+    .join('\n');
+}
+
+function readJsonSafe(p) {
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function buildPreamble(allFiles) {
+  const pkg = readJsonSafe(path.join(ROOT, 'package.json'));
+  const dirs = topLevelDirs();
+  const docMds = walkDocsMd(path.join(ROOT, 'docs')).sort((a, b) => a.localeCompare(b, 'en'));
+  const docLines = docMds.map((f) => `  - ${path.relative(ROOT, f).split(path.sep).join('/')}`);
+
+  const lines = [];
+  lines.push('='.repeat(80));
+  lines.push('AVENTA — AUDITORÍA Y MAPA DEL PROYECTO (bloque generado automáticamente)');
+  lines.push('='.repeat(80));
+  lines.push(`Generado: ${new Date().toISOString()}`);
+  lines.push(`Raíz: ${ROOT}`);
+  lines.push('');
+  lines.push('--- 1. Qué es este archivo ---');
+  lines.push('Primero: contexto y mapa para revisión humana o herramientas externas.');
+  lines.push('Después: volcado concatenado de código y docs del repo (sin node_modules ni .next).');
+  lines.push('Archivos omitidos: >400KB por archivo, package-lock, este txt.');
+  lines.push('');
+  lines.push('--- 2. Identidad del paquete ---');
+  if (pkg) {
+    lines.push(`  nombre: ${pkg.name}`);
+    lines.push(`  versión: ${pkg.version}`);
+    lines.push(`  scripts: ${Object.keys(pkg.scripts || {}).join(', ')}`);
+    lines.push(`  dependencias principales: ${Object.keys(pkg.dependencies || {}).join(', ')}`);
+  }
+  lines.push('');
+  lines.push('--- 3. Carpetas en la raíz (visibles) ---');
+  lines.push(dirs.map((d) => `  /${d}`).join('\n'));
+  lines.push('');
+  lines.push('--- 4. Archivos incluidos en el volcado (resumen) ---');
+  lines.push(`  total: ${allFiles.length}`);
+  lines.push(countByExt(allFiles));
+  lines.push('');
+  lines.push('--- 5. Sistemas críticos (dónde mirar en código) ---');
+  lines.push('  Feed home: app/page.tsx, lib/offers/feedService.ts, lib/offers/homeFeedFilters.ts, app/api/feed/home/route.ts');
+  lines.push('  Feed personalizado: app/api/feed/for-you/route.ts');
+  lines.push('  Votos: app/api/votes/route.ts, lib/votes/, app/components/OfferCard.tsx');
+  lines.push('  Subir oferta: app/components/ActionBar.tsx, app/api/offers/route.ts');
+  lines.push('  Moderación: app/admin/moderation/, app/api/admin/moderate-offer/route.ts');
+  lines.push('  Auth / perfil: app/providers/, lib/supabase/, app/auth/');
+  lines.push('  Contratos Zod: lib/contracts/');
+  lines.push('  Visibilidad / health: lib/monitoring/, app/api/health/route.ts');
+  lines.push('');
+  lines.push('--- 6. Lista de documentación Markdown (docs/) ---');
+  lines.push(docLines.length ? docLines.join('\n') : '  (ninguno)');
+  lines.push('');
+  lines.push('--- 7. Checklist rápido pre-lanzamiento (manual) ---');
+  lines.push('  [ ] Feed: categorías, orden, paginación, “Día a día” vs API');
+  lines.push('  [ ] Votos: POST /api/votes, reflejo en tarjeta');
+  lines.push('  [ ] Subir oferta: flujo completo + moderación');
+  lines.push('  [ ] Navegación: enlaces /oferta, /tienda, /categoria, admin');
+  lines.push('  [ ] Móvil: tap targets, scroll, modales');
+  lines.push('');
+  lines.push('--- 8. Regenerar ---');
+  lines.push('  node scripts/export-codigo-completo.mjs');
+  lines.push('');
+  lines.push('='.repeat(80));
+  lines.push('INICIO DEL VOLCADO DE ARCHIVOS (uno tras otro)');
+  lines.push('='.repeat(80));
+  lines.push('');
+  return lines.join('\n');
+}
+
 function main() {
   const all = walk(ROOT);
   all.sort((a, b) => a.localeCompare(b, 'en'));
 
   const chunks = [];
-  chunks.push('Codigo_Completo.txt');
-  chunks.push(`--- Exportado: ${new Date().toISOString()} ---`);
-  chunks.push(`--- Raíz: ${ROOT} ---`);
-  chunks.push(`--- Archivos: ${all.length} ---`);
+  chunks.push(buildPreamble(all));
   chunks.push('');
 
   for (const full of all) {
@@ -112,8 +215,9 @@ function main() {
   }
 
   fs.writeFileSync(OUT, chunks.join('\n'), 'utf8');
+  const mb = (fs.statSync(OUT).size / 1024 / 1024).toFixed(2);
   console.log(`Listo: ${all.length} archivos → ${OUT}`);
-  console.log(`Tamaño aprox: ${(fs.statSync(OUT).size / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`Tamaño aprox: ${mb} MB`);
 }
 
 main();

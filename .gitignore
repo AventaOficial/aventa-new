@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Volcado local para análisis externo (muy grande)
+/Codigo_Completo.txt
