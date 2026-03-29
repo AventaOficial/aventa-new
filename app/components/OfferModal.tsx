@@ -10,7 +10,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
-import { VOTE_API_DOWN, VOTE_API_UP } from '@/lib/votes/client';
+import { VOTE_API_DOWN, VOTE_API_UP, postOfferVote } from '@/lib/votes/client';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -251,22 +251,16 @@ export default function OfferModal({
     }
 
     const payloadValue = vote === 'up' ? VOTE_API_UP : VOTE_API_DOWN;
-    fetch('/api/votes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ offerId, value: payloadValue }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !(data?.ok)) throw new Error();
+    void postOfferVote(offerId, payloadValue, session.access_token).then((result) => {
+      if (result.ok) {
         onVoteChange?.(offerId, newVote);
-      })
-      .catch(() => {
-        setLocalVote(prevVote);
-        setLocalUpvotes(prevUp);
-        setLocalDownvotes(prevDown);
-        showToast?.('No se pudo registrar el voto. Revisa tu conexión.');
-      });
+        return;
+      }
+      setLocalVote(prevVote);
+      setLocalUpvotes(prevUp);
+      setLocalDownvotes(prevDown);
+      showToast?.(result.message);
+    });
   };
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {

@@ -10,7 +10,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath } from '@/lib/offerPath';
-import { VOTE_API_DOWN, VOTE_API_UP } from '@/lib/votes/client';
+import { VOTE_API_DOWN, VOTE_API_UP, postOfferVote } from '@/lib/votes/client';
 import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 
@@ -204,33 +204,24 @@ export default function OfferCard({
   const sendVote = (value: typeof VOTE_API_UP | typeof VOTE_API_DOWN, onRevert: () => void, onSuccess?: () => void): void => {
     if (!offerId) return;
     const token = session?.access_token ?? null;
-    fetch('/api/votes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ offerId, value }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !(data?.ok)) throw new Error();
+    void postOfferVote(offerId, value, token).then((result) => {
+      if (result.ok) {
         logEvent({
           type: 'vote',
           source: 'votes:post',
           metadata: { offerId, value },
         });
         onSuccess?.();
-      })
-      .catch(() => {
-        logEvent({
-          type: 'api_error',
-          source: 'votes:post',
-          metadata: { offerId, value },
-        });
-        showToast?.('No se pudo registrar el voto. Revisa tu conexión.');
-        onRevert();
+        return;
+      }
+      logEvent({
+        type: 'api_error',
+        source: 'votes:post',
+        metadata: { offerId, value, network: result.isNetworkError },
       });
+      showToast?.(result.message);
+      onRevert();
+    });
   };
 
   const scoreDelta = (v: UserVote) => (v === 1 ? 2 : v === -1 ? -1 : 0);

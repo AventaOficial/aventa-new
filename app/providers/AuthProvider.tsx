@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { User, Session } from '@supabase/supabase-js'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
+import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded'
 
 type AuthContextType = {
   user: User | null
@@ -34,10 +35,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const supabase = createClient()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s)
-      setUser(s?.user ?? null)
-      if (!s?.user?.id) syncProfileDoneRef.current = null
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
+      const next = s ? await refreshSessionIfNeeded(supabase, s) : null
+      setSession(next)
+      setUser(next?.user ?? null)
+      if (!next?.user?.id) syncProfileDoneRef.current = null
       setIsLoading(false)
     })
 
@@ -46,14 +48,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.hash &&
       /access_token|refresh_token/.test(window.location.hash)
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s)
-      setUser(s?.user ?? null)
-      if (!s?.user?.id) syncProfileDoneRef.current = null
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      const next = await refreshSessionIfNeeded(supabase, s)
+      setSession(next)
+      setUser(next?.user ?? null)
+      if (!next?.user?.id) syncProfileDoneRef.current = null
       if (!hasAuthHash) setIsLoading(false)
     })
 
     return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return
+    const supabase = createClient()
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      void supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+        if (!s) return
+        const next = await refreshSessionIfNeeded(supabase, s)
+        if (next && next.access_token !== s.access_token) {
+          setSession(next)
+          setUser(next.user)
+        }
+      })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   useEffect(() => {

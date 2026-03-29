@@ -18,7 +18,7 @@ import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
-import { voteApiValueForTransition } from '@/lib/votes/client';
+import { voteApiValueForTransition, postOfferVote } from '@/lib/votes/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
@@ -246,17 +246,12 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     setLocalUp((u) => u + (newVote === 1 ? 1 : userVote === 1 ? -1 : 0));
     setLocalDown((d) => d + (newVote === -1 ? 1 : userVote === -1 ? -1 : 0));
 
-    const res = await fetch('/api/votes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ offerId: offer.id, value: apiValue }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.ok) {
+    const result = await postOfferVote(offer.id, apiValue, session.access_token);
+    if (!result.ok) {
       setLocalVote(userVote);
       setLocalUp(prevUp);
       setLocalDown(prevDown);
-      showToast?.('No se pudo registrar el voto. Revisa tu conexión.');
+      showToast?.(result.message);
     }
   };
 

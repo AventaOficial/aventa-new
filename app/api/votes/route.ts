@@ -41,7 +41,10 @@ export async function POST(request: Request) {
   const ip = getClientIp(request)
   const limitResult = await enforceRateLimit(ip)
   if (!limitResult.success) {
-    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
+    return NextResponse.json(
+      { ok: false, error: 'Demasiadas peticiones. Espera un minuto.' },
+      { status: 429 }
+    )
   }
   try {
     const body = await request.json().catch(() => ({}))
