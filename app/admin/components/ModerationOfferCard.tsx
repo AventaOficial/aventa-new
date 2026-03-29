@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { getBankCouponLabel } from '@/lib/bankCoupons';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
+import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 
 type ModerationOffer = {
   id: string;
@@ -44,15 +45,6 @@ type Props = {
   batchMode?: boolean;
   onOfferUpdated?: () => void;
 };
-
-function slugFromUsername(name: string | null | undefined): string {
-  if (!name || !name.trim()) return '';
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-}
 
 const ACTION_LABELS: Record<string, string> = {
   approved: 'Aprobada',
@@ -118,7 +110,10 @@ export default function ModerationOfferCard({
 
   const authorName =
     offer.profiles?.display_name?.trim() || 'Usuario';
-  const authorSlug = slugFromUsername(offer.profiles?.display_name);
+  const authorSlug =
+    offer.created_by != null
+      ? profileSlugFromDisplayName(offer.profiles?.display_name, offer.created_by)
+      : '';
 
   const categoryLabel = useMemo(() => {
     const n = normalizeCategoryForStorage(offer.category ?? null);

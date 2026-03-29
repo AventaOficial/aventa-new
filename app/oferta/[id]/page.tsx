@@ -28,6 +28,7 @@ type OfferRow = {
   created_by: string | null;
   upvotes_count: number | null;
   downvotes_count: number | null;
+  ranking_momentum: number | null;
   category: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null } | { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[];
 };
@@ -46,7 +47,7 @@ async function getOffer(id: string) {
     .select(`
       id, title, price, original_price, image_url, image_urls, msi_months,
       store, offer_url, description, steps, conditions, coupons,
-      created_at, created_by, upvotes_count, downvotes_count, category,
+      created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)
     `)
     .eq('id', id)
@@ -114,6 +115,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     avatar_url: prof?.avatar_url ?? null,
     leaderBadge: (prof as { leader_badge?: string | null })?.leader_badge ?? null,
     creatorMlTag: (prof as { ml_tracking_tag?: string | null })?.ml_tracking_tag ?? null,
+    userId: offer.created_by,
   };
 
   const originalPrice = Number(offer.original_price) || 0;
@@ -122,6 +124,10 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     originalPrice > 0 ? Math.round((1 - discountPrice / originalPrice) * 100) : 0;
   const up = offer.upvotes_count ?? 0;
   const down = offer.downvotes_count ?? 0;
+  const momentum =
+    offer.ranking_momentum != null && !Number.isNaN(Number(offer.ranking_momentum))
+      ? Number(offer.ranking_momentum)
+      : 2 * (up - down);
   const categoryMacro = normalizeCategoryForStorage(offer.category);
   const categorySlugForUrl = categoryMacro && ALL_CATEGORIES.some((c) => c.value === categoryMacro) ? categoryMacro : (categoryMacro || undefined);
   const storeSlug = slugifyStore(offer.store);
@@ -143,7 +149,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     msiMonths: offer.msi_months ?? undefined,
     upvotes: up,
     downvotes: down,
-    votes: { up, down, score: up * 2 - down },
+    votes: { up, down, score: momentum },
     author,
     createdAt: offer.created_at ?? null,
     categorySlug: categorySlugForUrl,

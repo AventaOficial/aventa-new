@@ -10,9 +10,11 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath } from '@/lib/offerPath';
-import { VOTE_API_DOWN, VOTE_API_UP, postOfferVote } from '@/lib/votes/client';
+import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
+import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
+import { publicProfilePath } from '@/lib/profileSlug';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -21,11 +23,6 @@ const formatPrice = (value: number) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value);
-
-function slugFromUsername(name: string | null | undefined): string {
-  if (!name || !name.trim()) return '';
-  return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
 
 function formatRelativeTime(iso: string): string {
   const d = new Date(iso);
@@ -59,9 +56,17 @@ interface OfferCardProps {
   downvotes: number;
   votes: { up: number; down: number; score: number };
   offerUrl?: string;
-  author?: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
+  author?: {
+    username: string;
+    avatar_url?: string | null;
+    leaderBadge?: string | null;
+    creatorMlTag?: string | null;
+    userId?: string | null;
+  };
   onFavoriteChange?: (isFavorite: boolean) => void;
-  onVoteChange?: (offerId: string, value: 1 | -1 | 0) => void;
+  onVoteChange?: (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => void;
+  /** Valor en `offer_votes.value` (p. ej. 2, -1) para optimismo del score. */
+  userVoteStoredValue?: number | null;
   userVote?: 1 | -1 | 0 | null;
   isLiked?: boolean;
   createdAt?: string | null;
@@ -94,6 +99,7 @@ export default function OfferCard({
   author,
   onFavoriteChange,
   onVoteChange,
+  userVoteStoredValue: userVoteStoredProp = null,
   userVote: userVoteProp = 0,
   isLiked: isLikedProp = false,
   msiMonths,
@@ -107,6 +113,7 @@ export default function OfferCard({
   const router = useRouter();
   const { showToast } = useUI();
   const { session } = useAuth();
+  const { up: wUp, down: wDown } = useVoterVoteWeights();
   const [localVote, setLocalVote] = useState<1 | -1 | 0 | null>(null);
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const userVote = localVote !== null ? localVote : (userVoteProp ?? 0);
@@ -117,6 +124,8 @@ export default function OfferCard({
   const [shareCopied, setShareCopied] = useState(false);
 
   const baseScore = scoreFromFeed;
+  const authorProfileHref =
+    author?.username ? publicProfilePath(author.username, author.userId) : null;
 
   const cardRef = useRef<HTMLDivElement>(null);
   const viewTrackedRef = useRef(false);
@@ -201,15 +210,15 @@ export default function OfferCard({
     }
   };
 
-  const sendVote = (value: typeof VOTE_API_UP | typeof VOTE_API_DOWN, onRevert: () => void, onSuccess?: () => void): void => {
+  const sendVote = (direction: VoteDirection, onRevert: () => void, onSuccess?: () => void): void => {
     if (!offerId) return;
     const token = session?.access_token ?? null;
-    void postOfferVote(offerId, value, token).then((result) => {
+    void postOfferVote(offerId, direction, token).then((result) => {
       if (result.ok) {
         logEvent({
           type: 'vote',
           source: 'votes:post',
-          metadata: { offerId, value },
+          metadata: { offerId, direction },
         });
         onSuccess?.();
         return;
@@ -217,14 +226,18 @@ export default function OfferCard({
       logEvent({
         type: 'api_error',
         source: 'votes:post',
-        metadata: { offerId, value, network: result.isNetworkError },
+        metadata: { offerId, direction, network: result.isNetworkError },
       });
       showToast?.(result.message);
       onRevert();
     });
   };
 
-  const scoreDelta = (v: UserVote) => (v === 1 ? 2 : v === -1 ? -1 : 0);
+  const contributionForDisplay = (display: UserVote, stored: number | null | undefined): number => {
+    if (display === 0) return 0;
+    if (display === 1) return stored != null && stored > 0 ? stored : wUp;
+    return stored != null && stored < 0 ? stored : wDown;
+  };
 
   const handleVoteUp = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -234,16 +247,18 @@ export default function OfferCard({
       showToast('Crea una cuenta para votar y ayudar a la comunidad');
       return;
     }
-    const prevVote = userVote;
+    const prevVote = userVote as UserVote;
     const prevScore = localScore;
     const newVote: UserVote = prevVote === 1 ? 0 : 1;
-    const delta = scoreDelta(newVote) - scoreDelta(prevVote);
+    const prevC = contributionForDisplay(prevVote, userVoteStoredProp);
+    const newC = contributionForDisplay(newVote, newVote === 0 ? 0 : wUp);
+    const delta = newC - prevC;
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
-    sendVote(VOTE_API_UP, () => {
+    sendVote('up', () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
-    }, () => onVoteChange?.(offerId, newVote));
+    }, () => onVoteChange?.(offerId, newVote, newVote === 0 ? undefined : wUp));
   };
 
   const handleVoteDown = (e: React.MouseEvent) => {
@@ -254,16 +269,18 @@ export default function OfferCard({
       showToast('Crea una cuenta para votar y ayudar a la comunidad');
       return;
     }
-    const prevVote = userVote;
+    const prevVote = userVote as UserVote;
     const prevScore = localScore;
     const newVote: UserVote = prevVote === -1 ? 0 : -1;
-    const delta = scoreDelta(newVote) - scoreDelta(prevVote);
+    const prevC = contributionForDisplay(prevVote, userVoteStoredProp);
+    const newC = contributionForDisplay(newVote, newVote === 0 ? 0 : wDown);
+    const delta = newC - prevC;
     setLocalVote(newVote);
     setLocalScore((s) => s + delta);
-    sendVote(VOTE_API_DOWN, () => {
+    sendVote('down', () => {
       setLocalVote(prevVote);
       setLocalScore(prevScore);
-    }, () => onVoteChange?.(offerId, newVote));
+    }, () => onVoteChange?.(offerId, newVote, newVote === 0 ? undefined : wDown));
   };
 
   const showImage = image && !imgError;
@@ -459,28 +476,49 @@ export default function OfferCard({
 
           {author?.username && (
             <span className="inline-flex items-center gap-1.5 flex-wrap mt-0.5 min-w-0">
-              <Link
-                href={`/u/${slugFromUsername(author.username)}`}
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline"
-              >
-                {author.avatar_url ? (
-                  <Image
-                    src={author.avatar_url}
-                    alt=""
-                    width={20}
-                    height={20}
-                    className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
-                    unoptimized={
-                      author.avatar_url.startsWith('http') &&
-                      !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
-                    }
-                  />
-                ) : (
-                  <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
-                )}
-                <span className="truncate">Cazado por {author.username}</span>
-              </Link>
+              {authorProfileHref ? (
+                <Link
+                  href={authorProfileHref}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline"
+                >
+                  {author.avatar_url ? (
+                    <Image
+                      src={author.avatar_url}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
+                      unoptimized={
+                        author.avatar_url.startsWith('http') &&
+                        !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                      }
+                    />
+                  ) : (
+                    <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
+                  )}
+                  <span className="truncate">Cazado por {author.username}</span>
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
+                  {author.avatar_url ? (
+                    <Image
+                      src={author.avatar_url}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
+                      unoptimized={
+                        author.avatar_url.startsWith('http') &&
+                        !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                      }
+                    />
+                  ) : (
+                    <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
+                  )}
+                  <span className="truncate">Cazado por {author.username}</span>
+                </span>
+              )}
               {author.leaderBadge === 'cazador_estrella' && (
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
                   <BadgeCheck className="h-3 w-3" />

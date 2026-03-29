@@ -61,8 +61,9 @@ export function useOffersRealtime<T extends OfferWithVotes>(
 
       const up = safeNum(row?.upvotes_count);
       const down = safeNum(row?.downvotes_count);
-      const score = computeOfferScore(up, down);
       const momentum = safeNum(row?.ranking_momentum);
+      const hasMomentumCol = row?.ranking_momentum != null && row.ranking_momentum !== ('' as unknown);
+      const score = hasMomentumCol ? momentum : computeOfferScore(up, down);
 
       setterRef.current((prev) => {
         const idx = prev.findIndex((o) => o.id === id);

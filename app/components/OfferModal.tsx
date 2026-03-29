@@ -10,7 +10,9 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
-import { VOTE_API_DOWN, VOTE_API_UP, postOfferVote } from '@/lib/votes/client';
+import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
+import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
+import { publicProfilePath } from '@/lib/profileSlug';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -32,14 +34,23 @@ interface OfferModalProps {
   offerUrl?: string;
   upvotes?: number;
   downvotes?: number;
+  /** Score ponderado (p. ej. `ranking_momentum`); si falta se usa 2×(up−down). */
+  votesScore?: number;
   offerId?: string;
-  author?: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
+  author?: {
+    username: string;
+    avatar_url?: string | null;
+    leaderBadge?: string | null;
+    creatorMlTag?: string | null;
+    userId?: string | null;
+  };
   image?: string;
   imageUrls?: string[];
   msiMonths?: number | null;
   isLiked?: boolean;
   onFavoriteChange?: (isFavorite: boolean) => void;
-  onVoteChange?: (offerId: string, value: 1 | -1 | 0) => void;
+  onVoteChange?: (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => void;
+  userVoteStoredValue?: number | null;
   userVote?: 1 | -1 | 0 | null;
 }
 
@@ -72,12 +83,6 @@ function formatRelativeDate(iso: string): string {
   return d.toLocaleDateString();
 }
 
-function slugFromUsername(name: string | null | undefined): string {
-  if (!name || !name.trim()) return '';
-  return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
-
-
 export default function OfferModal({
   isOpen,
   onClose,
@@ -93,6 +98,7 @@ export default function OfferModal({
   offerUrl,
   upvotes = 0,
   downvotes = 0,
+  votesScore,
   offerId,
   author,
   image,
@@ -101,11 +107,13 @@ export default function OfferModal({
   isLiked: isLikedProp = false,
   onFavoriteChange,
   onVoteChange,
+  userVoteStoredValue: userVoteStoredProp = null,
   userVote: userVoteProp = 0,
 }: OfferModalProps) {
   const router = useRouter();
   const { setOfferOpen, openLuna, showToast } = useUI();
   const { session } = useAuth();
+  const { up: wUp, down: wDown } = useVoterVoteWeights();
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const isLiked = localLiked !== null ? localLiked : isLikedProp;
   const [localVote, setLocalVote] = useState<1 | -1 | 0 | null>(null);
@@ -133,6 +141,13 @@ export default function OfferModal({
   const allImages = mergeOfferImageUrls(image, imageUrls);
   const [imageIndex, setImageIndex] = useState(0);
   const currentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
+  const authorProfileHref =
+    author?.username ? publicProfilePath(author.username, author.userId) : null;
+  const baseWeightedScore =
+    votesScore != null && !Number.isNaN(Number(votesScore))
+      ? Number(votesScore)
+      : 2 * (upvotes - downvotes);
+  const [localWeightedScore, setLocalWeightedScore] = useState(baseWeightedScore);
 
   useEffect(() => {
     if (!isOpen) setImageIndex(0);
@@ -194,8 +209,9 @@ export default function OfferModal({
     if (isOpen && offerId) {
       setLocalUpvotes(upvotes);
       setLocalDownvotes(downvotes);
+      setLocalWeightedScore(baseWeightedScore);
     }
-  }, [isOpen, offerId, upvotes, downvotes]);
+  }, [isOpen, offerId, upvotes, downvotes, baseWeightedScore]);
 
   const fetchComments = useCallback(() => {
     if (!offerId) return;
@@ -230,14 +246,30 @@ export default function OfferModal({
     fetchComments();
   }, [isOpen, offerId, fetchComments]);
 
-  const handleVote = (vote: 'up' | 'down') => {
+  const contributionForDisplay = (display: 0 | 1 | -1, stored: number | null | undefined): number => {
+    if (display === 0) return 0;
+    if (display === 1) return stored != null && stored > 0 ? stored : wUp;
+    return stored != null && stored < 0 ? stored : wDown;
+  };
+
+  const handleVote = (vote: VoteDirection) => {
     if (!offerId || !session?.access_token) return;
     const displayVote = vote === 'up' ? 1 : -1;
-    const prevVote = userVote;
+    const prevVote = userVote as 0 | 1 | -1;
     const prevUp = localUpvotes;
     const prevDown = localDownvotes;
+    const prevWeighted = localWeightedScore;
 
     const newVote: 1 | -1 | 0 = prevVote === displayVote ? 0 : displayVote;
+    const prevC = contributionForDisplay(prevVote, userVoteStoredProp);
+    const newC =
+      newVote === 0
+        ? 0
+        : newVote === 1
+          ? contributionForDisplay(1, wUp)
+          : contributionForDisplay(-1, wDown);
+    const wDelta = newC - prevC;
+
     if (prevVote === displayVote) {
       setLocalVote(0);
       if (vote === 'up') setLocalUpvotes((p) => p - 1);
@@ -249,16 +281,21 @@ export default function OfferModal({
       if (vote === 'up') setLocalUpvotes((p) => p + 1);
       else setLocalDownvotes((p) => p + 1);
     }
+    setLocalWeightedScore((s) => s + wDelta);
 
-    const payloadValue = vote === 'up' ? VOTE_API_UP : VOTE_API_DOWN;
-    void postOfferVote(offerId, payloadValue, session.access_token).then((result) => {
+    void postOfferVote(offerId, vote, session.access_token).then((result) => {
       if (result.ok) {
-        onVoteChange?.(offerId, newVote);
+        onVoteChange?.(
+          offerId,
+          newVote,
+          newVote === 0 ? undefined : newVote === 1 ? wUp : wDown
+        );
         return;
       }
       setLocalVote(prevVote);
       setLocalUpvotes(prevUp);
       setLocalDownvotes(prevDown);
+      setLocalWeightedScore(prevWeighted);
       showToast?.(result.message);
     });
   };
@@ -570,17 +607,28 @@ export default function OfferModal({
                 </h2>
                 {author?.username && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Link
-                      href={`/u/${slugFromUsername(author.username)}`}
-                      className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                    >
-                      {author.avatar_url ? (
-                        <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
-                      ) : (
-                        <User className="h-4 w-4 shrink-0" />
-                      )}
-                      <span>Cazado por {author.username}</span>
-                    </Link>
+                    {authorProfileHref ? (
+                      <Link
+                        href={authorProfileHref}
+                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                      >
+                        {author.avatar_url ? (
+                          <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <User className="h-4 w-4 shrink-0" />
+                        )}
+                        <span>Cazado por {author.username}</span>
+                      </Link>
+                    ) : (
+                      <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        {author.avatar_url ? (
+                          <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <User className="h-4 w-4 shrink-0" />
+                        )}
+                        <span>Cazado por {author.username}</span>
+                      </span>
+                    )}
                     {author.leaderBadge === 'cazador_estrella' && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
                         <BadgeCheck className="h-3.5 w-3.5" />
@@ -678,30 +726,35 @@ export default function OfferModal({
                 </div>
               )}
 
-              <div className="flex items-center gap-4 rounded-2xl border border-purple-100 dark:border-purple-800/30 bg-purple-50/50 dark:bg-purple-900/20 p-4">
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">¿Esta oferta te parece útil?</p>
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 rounded-2xl border border-purple-100 dark:border-purple-800/30 bg-purple-50/50 dark:bg-purple-900/20 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 shrink-0">
+                  ¿Esta oferta te parece útil?
+                </p>
+                <div className="flex items-center justify-center gap-2 text-gray-900 dark:text-gray-100">
                   <button
+                    type="button"
                     onClick={() => handleVote('up')}
-                    className={`flex items-center gap-2 rounded-xl px-4 py-2 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${
+                    aria-label="Votar positivo"
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === 1
                         ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/20'
+                        : 'bg-white/70 dark:bg-gray-800/70 text-gray-500 dark:text-gray-400'
                     }`}
                   >
                     <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-purple-600 text-purple-600 dark:fill-purple-400 dark:text-purple-400' : ''}`} />
-                    <span className="font-semibold">{localUpvotes * 2}</span>
                   </button>
+                  <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localWeightedScore}</span>
                   <button
+                    type="button"
                     onClick={() => handleVote('down')}
-                    className={`flex items-center gap-2 rounded-xl px-4 py-2 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${
+                    aria-label="Votar negativo"
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === -1
                         ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-pink-100 dark:hover:bg-pink-900/20'
+                        : 'bg-white/70 dark:bg-gray-800/70 text-gray-500 dark:text-gray-400'
                     }`}
                   >
                     <ThumbsDown className={`h-5 w-5 ${userVote === -1 ? 'fill-pink-600 text-pink-600 dark:fill-pink-400 dark:text-pink-400' : ''}`} />
-                    <span className="font-semibold">{localDownvotes}</span>
                   </button>
                 </div>
               </div>

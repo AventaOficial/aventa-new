@@ -4,11 +4,8 @@ import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { voteInputSchema } from '@/lib/contracts/votes'
+import { voteWeightPairForLevel, type VoteDirection } from '@/lib/votes/reputationWeights'
 
-/** Un voto positivo vale 2, uno negativo -1. Así se guarda en offer_votes y el trigger debe contar value=2 como upvote. */
-type VoteValue = 2 | -1
-
-/** Notifica al dueño de la oferta cuando alguien da like (value === 2). */
 async function notifyOfferOwnerLike(supabase: SupabaseClient, offerId: string, voterUserId: string) {
   const { data: offer } = await supabase
     .from('offers')
@@ -37,6 +34,12 @@ async function notifyOfferOwnerLike(supabase: SupabaseClient, offerId: string, v
   })
 }
 
+function shouldNotifyLike(targetVal: number, existingVal: number | null | undefined): boolean {
+  if (targetVal <= 0) return false
+  if (existingVal == null || existingVal === undefined) return true
+  return existingVal <= 0
+}
+
 export async function POST(request: Request) {
   const ip = getClientIp(request)
   const limitResult = await enforceRateLimit(ip)
@@ -53,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Solicitud inválida' }, { status: 400 })
     }
     const offerId = parsed.data.offerId.trim()
-    const value: VoteValue = parsed.data.value
+    const direction = parsed.data.direction as VoteDirection
     if (!isValidUuid(offerId)) {
       return NextResponse.json({ ok: false, error: 'Solicitud inválida' }, { status: 400 })
     }
@@ -96,6 +99,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Servicio no disponible' }, { status: 503 })
     }
 
+    const { data: voterProfile } = await supabase
+      .from('profiles')
+      .select('reputation_level')
+      .eq('id', userId)
+      .maybeSingle()
+    const repLevel = (voterProfile as { reputation_level?: number } | null)?.reputation_level
+    const { up: wUp, down: wDown } = voteWeightPairForLevel(repLevel)
+    const targetVal = direction === 'up' ? wUp : wDown
+
     const col = 'value' as const
     const { data: existing, error: selectError } = await supabase
       .from('offer_votes')
@@ -109,24 +121,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Error al consultar voto' }, { status: 500 })
     }
 
+    const existingVal = existing ? (existing as Record<string, number>)[col] : null
+
     if (!existing) {
       const { error: insertError } = await supabase.from('offer_votes').insert({
         offer_id: offerId,
         user_id: userId,
-        [col]: value,
+        [col]: targetVal,
       })
       if (insertError) {
         console.error('[votes] insert failed:', insertError.message)
         return NextResponse.json({ ok: false, error: 'No se pudo guardar el voto' }, { status: 500 })
       }
-      if (value === 2) {
+      if (shouldNotifyLike(targetVal, null)) {
         notifyOfferOwnerLike(supabase, offerId, userId).catch((e) => console.error('[votes] notify owner:', e))
       }
       return NextResponse.json({ ok: true }, { status: 200 })
     }
 
-    const existingVal = (existing as Record<string, number>)[col]
-    if (existingVal === value) {
+    const wantUp = direction === 'up'
+    const existingIsUp = existingVal != null && existingVal > 0
+    if (existingIsUp === wantUp) {
       const { error: deleteError } = await supabase
         .from('offer_votes')
         .delete()
@@ -141,14 +156,14 @@ export async function POST(request: Request) {
 
     const { error: updateError } = await supabase
       .from('offer_votes')
-      .update({ [col]: value })
+      .update({ [col]: targetVal })
       .eq('offer_id', offerId)
       .eq('user_id', userId)
     if (updateError) {
       console.error('[votes] update failed:', updateError.message)
       return NextResponse.json({ ok: false, error: 'No se pudo actualizar el voto' }, { status: 500 })
     }
-    if (value === 2) {
+    if (shouldNotifyLike(targetVal, existingVal)) {
       notifyOfferOwnerLike(supabase, offerId, userId).catch((e) => console.error('[votes] notify owner:', e))
     }
 

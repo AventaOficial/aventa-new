@@ -6,6 +6,8 @@ export type CardOfferAuthor = {
   avatar_url?: string | null;
   leaderBadge?: string | null;
   creatorMlTag?: string | null;
+  /** UUID del creador; necesario para el slug público igual que `profiles.slug`. */
+  userId?: string | null;
 };
 
 export type CardOffer = {
@@ -61,6 +63,7 @@ export type RankedOfferSource = {
   conditions?: string | null;
   coupons?: string | null;
   created_at?: string | null;
+  created_by?: string | null;
   ranking_momentum?: number | null;
   ranking_blend?: number | null;
   profiles?: ProfilesJoin;
@@ -86,15 +89,17 @@ export type FeedApiItemShape = {
     leader_badge?: string | null;
     ml_tracking_tag?: string | null;
   };
+  created_by?: string | null;
 };
 
-function unwrapProfiles(profiles: ProfilesJoin): CardOfferAuthor {
+function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undefined): CardOfferAuthor {
   const prof = Array.isArray(profiles) ? profiles[0] : profiles;
   return {
     username: prof?.display_name?.trim() || 'Usuario',
     avatar_url: prof?.avatar_url ?? null,
     leaderBadge: (prof as { leader_badge?: string | null } | undefined)?.leader_badge ?? null,
     creatorMlTag: (prof as { ml_tracking_tag?: string | null } | undefined)?.ml_tracking_tag ?? null,
+    userId: createdBy ?? null,
   };
 }
 
@@ -104,6 +109,10 @@ function unwrapProfiles(profiles: ProfilesJoin): CardOfferAuthor {
 export function resolveVotesFromSource(row: RankedOfferSource): { up: number; down: number; score: number } {
   const up = Number(row.up_votes ?? row.upvotes_count ?? 0) || 0;
   const down = Number(row.down_votes ?? row.downvotes_count ?? 0) || 0;
+  if (row.ranking_momentum != null && row.ranking_momentum !== ('' as unknown)) {
+    const m = Number(row.ranking_momentum);
+    if (!Number.isNaN(m)) return { up, down, score: m };
+  }
   if (row.score != null && row.score !== ('' as unknown)) {
     const s = Number(row.score);
     if (!Number.isNaN(s)) return { up, down, score: s };
@@ -136,7 +145,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     conditions: row.conditions?.trim() || undefined,
     coupons: row.coupons?.trim() || undefined,
     votes: { up, down, score },
-    author: unwrapProfiles(row.profiles),
+    author: unwrapProfiles(row.profiles, row.created_by ?? null),
     ranking_momentum: Number(row.ranking_momentum) || 0,
     ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
     createdAt: row.created_at ?? null,
@@ -154,8 +163,13 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
   const fromCounts = normalizeVoteCounts(item.up_votes ?? 0, item.down_votes ?? 0);
   const up = fromCounts.up;
   const down = fromCounts.down;
-  const score =
-    typeof item.score === 'number' && !Number.isNaN(item.score) ? item.score : fromCounts.score;
+  let score = fromCounts.score;
+  if (item.ranking_momentum != null && item.ranking_momentum !== ('' as unknown)) {
+    const m = Number(item.ranking_momentum);
+    if (!Number.isNaN(m)) score = m;
+  } else if (typeof item.score === 'number' && !Number.isNaN(item.score)) {
+    score = item.score;
+  }
   const images = Array.isArray(item.images) ? item.images : [];
   const image = images[0] ?? null;
   const a = item.author;
@@ -164,6 +178,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     avatar_url: a?.avatar_url ?? null,
     leaderBadge: a?.leader_badge ?? null,
     creatorMlTag: a?.ml_tracking_tag ?? null,
+    userId: item.created_by ?? null,
   };
   return {
     id: item.id ?? '',

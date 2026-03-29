@@ -12,7 +12,12 @@ import ReputationBar from '@/app/components/ReputationBar';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
-import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import {
+  fetchBatchUserData,
+  type VoteMap,
+  type VoteValueMap,
+  type FavoriteMap,
+} from '@/lib/offers/batchUserData';
 
 type ProfileData = {
   profile: {
@@ -36,7 +41,7 @@ type ProfileData = {
     offerUrl: string;
     image?: string;
     votes: { up: number; down: number; score: number };
-    author: { username: string; avatar_url?: string | null };
+    author: { username: string; avatar_url?: string | null; userId?: string | null };
   }[];
 };
 
@@ -48,6 +53,7 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
+  const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [notFound, setNotFound] = useState(false);
   const [data, setData] = useState<ProfileData | null>(null);
@@ -71,12 +77,14 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!data?.offers?.length || !session?.user?.id) {
       setVoteMap({});
+      setVoteValueMap({});
       setFavoriteMap({});
       return;
     }
     const offerIds = data.offers.map((o) => o.id);
-    fetchBatchUserData(session.user.id, offerIds).then(({ voteMap: vm, favoriteMap: fm }) => {
+    fetchBatchUserData(session.user.id, offerIds).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
       setVoteMap(vm);
+      setVoteValueMap(vvm);
       setFavoriteMap(fm);
     });
   }, [data?.offers, session?.user?.id]);
@@ -153,6 +161,21 @@ export default function ProfilePage() {
   }
 
   const { profile, offersCount, totalScore, offers } = data;
+
+  const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
+    setVoteMap((prev) => {
+      const next = { ...prev };
+      if (value === 0) delete next[offerId];
+      else next[offerId] = value;
+      return next;
+    });
+    setVoteValueMap((prev) => {
+      const next = { ...prev };
+      if (value === 0) delete next[offerId];
+      else if (storedWeight !== undefined) next[offerId] = storedWeight;
+      return next;
+    });
+  };
 
   return (
     <ClientLayout>
@@ -232,7 +255,9 @@ export default function ProfilePage() {
                       offerUrl={offer.offerUrl}
                       author={offer.author}
                       onCardClick={() => setSelectedOffer(offer)}
+                      onVoteChange={handleVoteChange}
                       userVote={voteMap[offer.id] ?? null}
+                      userVoteStoredValue={voteValueMap[offer.id] ?? null}
                       isLiked={!!favoriteMap[offer.id]}
                     />
                   </motion.div>
@@ -257,12 +282,15 @@ export default function ProfilePage() {
             offerUrl={selectedOffer.offerUrl}
             upvotes={selectedOffer.upvotes}
             downvotes={selectedOffer.downvotes}
+            votesScore={selectedOffer.votes.score}
             offerId={selectedOffer.id}
             author={selectedOffer.author}
             image={selectedOffer.image}
             isLiked={!!favoriteMap[selectedOffer.id]}
             onFavoriteChange={(fav) => setFavoriteMap((prev) => ({ ...prev, [selectedOffer.id]: fav }))}
             userVote={voteMap[selectedOffer.id] ?? 0}
+            userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
+            onVoteChange={handleVoteChange}
           />
         )}
       </div>

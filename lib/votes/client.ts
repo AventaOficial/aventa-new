@@ -1,38 +1,19 @@
 /**
- * Contrato con POST /api/votes: value === 2 (arriba) o -1 (abajo).
+ * POST /api/votes: cuerpo `{ offerId, direction: 'up' | 'down' }` (o legacy `value` con signo).
+ * El servidor asigna el peso según reputation_level.
  * @see lib/contracts/votes.ts
  */
-export const VOTE_API_UP = 2 as const;
-export const VOTE_API_DOWN = -1 as const;
-export type VoteApiValue = typeof VOTE_API_UP | typeof VOTE_API_DOWN;
+import type { VoteDirection } from '@/lib/votes/reputationWeights';
 
-export function isVoteApiValue(v: unknown): v is VoteApiValue {
-  return v === VOTE_API_UP || v === VOTE_API_DOWN;
-}
-
-/**
- * Tras decidir el siguiente estado de UI (1 | -1 | 0), devuelve el payload para la API.
- * Quitar voto: reenviar el mismo value almacenado (la API borra la fila).
- */
-export function voteApiValueForTransition(
-  nextDisplay: 0 | 1 | -1,
-  prevDisplay: 0 | 1 | -1
-): VoteApiValue | null {
-  if (nextDisplay === 1) return VOTE_API_UP;
-  if (nextDisplay === -1) return VOTE_API_DOWN;
-  if (prevDisplay === 1) return VOTE_API_UP;
-  if (prevDisplay === -1) return VOTE_API_DOWN;
-  return null;
-}
+export type { VoteDirection };
 
 export type PostOfferVoteResult =
   | { ok: true }
   | { ok: false; message: string; isNetworkError: boolean };
 
-/** POST /api/votes: interpreta cuerpo y status para no mostrar “conexión” en 401/429/500. */
 export async function postOfferVote(
   offerId: string,
-  value: VoteApiValue,
+  direction: VoteDirection,
   accessToken: string | null | undefined
 ): Promise<PostOfferVoteResult> {
   try {
@@ -42,7 +23,7 @@ export async function postOfferVote(
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ offerId, value }),
+      body: JSON.stringify({ offerId, direction }),
     });
     const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     if (res.ok && data.ok === true) return { ok: true };

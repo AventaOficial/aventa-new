@@ -15,6 +15,7 @@ type OfferRow = {
   created_at?: string | null;
   upvotes_count?: number | null;
   downvotes_count?: number | null;
+  ranking_momentum?: number | null;
 };
 
 export async function GET(
@@ -68,7 +69,7 @@ export async function GET(
   const { data: rows, error: offersError } = await supabase
     .from('offers')
     .select(
-      'id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count'
+      'id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, ranking_momentum'
     )
     .eq('created_by', profileId)
     .is('deleted_at', null)
@@ -81,10 +82,18 @@ export async function GET(
     return NextResponse.json({ error: 'Error loading offers' }, { status: 500 });
   }
 
-  const author = { username: displayName, avatar_url: (profile as { avatar_url?: string | null }).avatar_url ?? null };
+  const author = {
+    username: displayName,
+    avatar_url: (profile as { avatar_url?: string | null }).avatar_url ?? null,
+    userId: profileId,
+  };
   let totalScore = 0;
   const offers = (rows ?? []).map((row: OfferRow) => {
-    const { up, down, score } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
+    const { up, down, score: fallbackScore } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
+    const score =
+      row.ranking_momentum != null && !Number.isNaN(Number(row.ranking_momentum))
+        ? Number(row.ranking_momentum)
+        : fallbackScore;
     totalScore += score;
     const originalPrice = Number(row.original_price) || 0;
     const discountPrice = Number(row.price) || 0;

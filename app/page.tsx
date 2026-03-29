@@ -13,7 +13,12 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
-import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import {
+  fetchBatchUserData,
+  type VoteMap,
+  type VoteValueMap,
+  type FavoriteMap,
+} from '@/lib/offers/batchUserData';
 import { getSearchTerms } from '@/lib/searchGroups';
 import {
   mapOfferToCard,
@@ -92,21 +97,21 @@ const MOCK_TESTER_IMAGES: Record<string, string> = {
 const MOCK_TESTER_OFFERS: CardOffer[] =
   process.env.NODE_ENV === 'development'
     ? [
-        { id: 'tester-1', title: 'iPhone 16 Pro Max 256 GB Liberado', brand: 'Apple', originalPrice: 32999, discountPrice: 27999, discount: 15, upvotes: 24, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-1'], votes: { up: 24, down: 2, score: 46 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-2', title: 'PC Gamer AMD Ryzen 5 5600 RTX 4060 16GB', brand: 'Armada', originalPrice: 18999, discountPrice: 15999, discount: 16, upvotes: 18, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-2'], votes: { up: 18, down: 1, score: 35 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-1', title: 'iPhone 16 Pro Max 256 GB Liberado', brand: 'Apple', originalPrice: 32999, discountPrice: 27999, discount: 15, upvotes: 24, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-1'], votes: { up: 24, down: 2, score: 44 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-2', title: 'PC Gamer AMD Ryzen 5 5600 RTX 4060 16GB', brand: 'Armada', originalPrice: 18999, discountPrice: 15999, discount: 16, upvotes: 18, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-2'], votes: { up: 18, down: 1, score: 34 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
         { id: 'tester-3', title: 'Tenis Nike Air Max 270 Hombre', brand: 'Nike', originalPrice: 2499, discountPrice: 1799, discount: 28, upvotes: 12, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-3'], votes: { up: 12, down: 0, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-4', title: 'Lavasecadora Midea 12kg Titanium', brand: 'Midea', originalPrice: 8999, discountPrice: 6999, discount: 22, upvotes: 8, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-4'], votes: { up: 8, down: 1, score: 15 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-4', title: 'Lavasecadora Midea 12kg Titanium', brand: 'Midea', originalPrice: 8999, discountPrice: 6999, discount: 22, upvotes: 8, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-4'], votes: { up: 8, down: 1, score: 14 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
         { id: 'tester-5', title: 'Juego 3 Sartenes Deleite Vasconia Negro', brand: 'Vasconia', originalPrice: 899, discountPrice: 599, discount: 33, upvotes: 6, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-5'], votes: { up: 6, down: 0, score: 12 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-6', title: 'MacBook Air M3 13" 8GB 256GB', brand: 'Apple', originalPrice: 24999, discountPrice: 21999, discount: 12, upvotes: 15, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-6'], votes: { up: 15, down: 2, score: 28 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-6', title: 'MacBook Air M3 13" 8GB 256GB', brand: 'Apple', originalPrice: 24999, discountPrice: 21999, discount: 12, upvotes: 15, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-6'], votes: { up: 15, down: 2, score: 26 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
         { id: 'tester-7', title: 'Audífonos Sony WH-1000XM5', brand: 'Sony', originalPrice: 6999, discountPrice: 5499, discount: 21, upvotes: 10, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-7'], votes: { up: 10, down: 0, score: 20 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-8', title: 'Silla Gamer Ergonómica Reclinable', brand: 'ProGear', originalPrice: 4499, discountPrice: 3499, discount: 22, upvotes: 7, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-8'], votes: { up: 7, down: 1, score: 13 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-9', title: 'Smart TV Samsung 55" 4K Crystal UHD', brand: 'Samsung', originalPrice: 12999, discountPrice: 9999, discount: 23, upvotes: 14, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-9'], votes: { up: 14, down: 2, score: 26 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-8', title: 'Silla Gamer Ergonómica Reclinable', brand: 'ProGear', originalPrice: 4499, discountPrice: 3499, discount: 22, upvotes: 7, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-8'], votes: { up: 7, down: 1, score: 12 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-9', title: 'Smart TV Samsung 55" 4K Crystal UHD', brand: 'Samsung', originalPrice: 12999, discountPrice: 9999, discount: 23, upvotes: 14, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-9'], votes: { up: 14, down: 2, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
         { id: 'tester-10', title: 'Cafetera Nespresso Vertuo Next', brand: 'Nespresso', originalPrice: 2499, discountPrice: 1999, discount: 20, upvotes: 9, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-10'], votes: { up: 9, down: 0, score: 18 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
         { id: 'tester-11', title: 'Mochila Antirrobo USB Portátil', brand: 'Vagabond', originalPrice: 699, discountPrice: 449, discount: 36, upvotes: 5, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-11'], votes: { up: 5, down: 0, score: 10 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-12', title: 'Tablet Galaxy Tab S9 128GB', brand: 'Samsung', originalPrice: 9999, discountPrice: 7999, discount: 20, upvotes: 11, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-12'], votes: { up: 11, down: 1, score: 21 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-13', title: 'Aspiradora Inalámbrica Dyson V12', brand: 'Dyson', originalPrice: 11999, discountPrice: 9499, discount: 21, upvotes: 13, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-13'], votes: { up: 13, down: 2, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-12', title: 'Tablet Galaxy Tab S9 128GB', brand: 'Samsung', originalPrice: 9999, discountPrice: 7999, discount: 20, upvotes: 11, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-12'], votes: { up: 11, down: 1, score: 20 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-13', title: 'Aspiradora Inalámbrica Dyson V12', brand: 'Dyson', originalPrice: 11999, discountPrice: 9499, discount: 21, upvotes: 13, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-13'], votes: { up: 13, down: 2, score: 22 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
         { id: 'tester-14', title: 'Reloj Inteligente Amazfit GTR 4', brand: 'Amazfit', originalPrice: 3999, discountPrice: 2999, discount: 25, upvotes: 8, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-14'], votes: { up: 8, down: 0, score: 16 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 31 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
+        { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 30 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
       ]
     : [];
 
@@ -159,6 +164,7 @@ function HomeContent() {
   const [loading, setLoading] = useState(true);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
+  const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('day');
   const [viewMode, setViewMode] = useState<ViewMode>('latest');
@@ -549,12 +555,14 @@ function HomeContent() {
     if (!session?.user?.id || offers.length === 0) {
       if (!session) {
         setVoteMap({});
+        setVoteValueMap({});
         setFavoriteMap({});
       }
       return;
     }
-    fetchBatchUserData(session.user.id, offers.filter((o) => !o.id.startsWith('tester-')).map((o) => o.id)).then(({ voteMap: vm, favoriteMap: fm }) => {
+    fetchBatchUserData(session.user.id, offers.filter((o) => !o.id.startsWith('tester-')).map((o) => o.id)).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
       setVoteMap(vm);
+      setVoteValueMap(vvm);
       setFavoriteMap(fm);
     });
   }, [session, offers]);
@@ -572,11 +580,17 @@ function HomeContent() {
     }
   };
 
-  const handleVoteChange = (offerId: string, value: 1 | -1 | 0) => {
+  const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
     setVoteMap((prev) => {
       const next = { ...prev };
       if (value === 0) delete next[offerId];
       else next[offerId] = value;
+      return next;
+    });
+    setVoteValueMap((prev) => {
+      const next = { ...prev };
+      if (value === 0) delete next[offerId];
+      else if (storedWeight !== undefined) next[offerId] = storedWeight;
       return next;
     });
   };
@@ -797,6 +811,7 @@ function HomeContent() {
                     onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
                     onVoteChange={handleVoteChange}
                     userVote={voteMap[offer.id] ?? null}
+                    userVoteStoredValue={voteValueMap[offer.id] ?? null}
                     isLiked={!!favoriteMap[offer.id]}
                     createdAt={offer.createdAt}
                     msiMonths={offer.msiMonths}

@@ -24,6 +24,7 @@ export type FeedOffer = {
   store: string | null;
   category: string | null;
   slug: string;
+  created_by: string | null;
   author: FeedOfferAuthor;
 };
 
@@ -129,6 +130,8 @@ export async function getHomeFeed({
         | null
         | undefined;
       const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf;
+      const createdBy =
+        row.created_by != null && String(row.created_by).trim() !== '' ? String(row.created_by) : null;
 
       return {
         id: String(row.id ?? ''),
@@ -146,6 +149,7 @@ export async function getHomeFeed({
         store: row.store != null ? String(row.store) : null,
         category: row.category != null ? String(row.category) : null,
         slug: String(row.id ?? ''),
+        created_by: createdBy,
         author: {
           display_name: prof?.display_name?.trim() || 'Usuario',
           avatar_url: prof?.avatar_url ?? null,

@@ -18,19 +18,16 @@ import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
-import { voteApiValueForTransition, postOfferVote } from '@/lib/votes/client';
+import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
+import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
+import { publicProfilePath } from '@/lib/profileSlug';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
-
-function slugFromUsername(name: string | null | undefined): string {
-  if (!name || !name.trim()) return '';
-  return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
 
 function CommentAvatar({
   avatarUrl,
@@ -114,7 +111,13 @@ type OfferPayload = {
   upvotes: number;
   downvotes: number;
   votes: { up: number; down: number; score: number };
-  author: { username: string; avatar_url?: string | null; leaderBadge?: string | null; creatorMlTag?: string | null };
+  author: {
+    username: string;
+    avatar_url?: string | null;
+    leaderBadge?: string | null;
+    creatorMlTag?: string | null;
+    userId?: string | null;
+  };
   createdAt: string | null;
   categorySlug?: string;
   categoryLabel?: string;
@@ -125,12 +128,14 @@ type OfferPayload = {
 export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const { session } = useAuth();
   const { showToast } = useUI();
+  const { up: wUp, down: wDown } = useVoterVoteWeights();
 
-  const [voteMap, setVoteMap] = useState<VoteMap>({});
+  const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [localVote, setLocalVote] = useState<1 | -1 | 0 | null>(null);
   const [localUp, setLocalUp] = useState(offer.upvotes);
   const [localDown, setLocalDown] = useState(offer.downvotes);
+  const [localScore, setLocalScore] = useState(offer.votes.score);
   const [isLiked, setIsLiked] = useState(false);
 
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -170,13 +175,20 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     setImageIndex(0);
   }, [offer.id]);
 
+  useEffect(() => {
+    setLocalScore(offer.votes.score);
+    setLocalUp(offer.upvotes);
+    setLocalDown(offer.downvotes);
+  }, [offer.id, offer.votes.score, offer.upvotes, offer.downvotes]);
+
   const userVote = localVote ?? 0;
-  const displayUp = localVote === 1 ? localUp : offer.upvotes;
-  const displayDown = localVote === -1 ? localDown : offer.downvotes;
+  const storedVoteVal = voteValueMap[offer.id];
   const savings = offer.originalPrice - offer.discountPrice;
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
   const currentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
   const publicPath = buildOfferPublicPath(offer.id, offer.title);
+  const offerAuthorProfileHref =
+    offer.author?.username ? publicProfilePath(offer.author.username, offer.author.userId) : null;
 
   const fetchComments = useCallback(() => {
     if (!offer.id) return;
@@ -225,8 +237,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    fetchBatchUserData(session.user.id, [offer.id]).then(({ voteMap: vm, favoriteMap: fm }) => {
-      setVoteMap(vm);
+    fetchBatchUserData(session.user.id, [offer.id]).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
+      setVoteValueMap(vvm);
       setFavoriteMap(fm);
       setIsLiked(!!fm[offer.id]);
       const v = vm[offer.id];
@@ -234,25 +246,46 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     });
   }, [session?.user?.id, offer.id]);
 
-  const handleVote = async (value: 1 | -1) => {
+  const contributionForDisplay = (display: 0 | 1 | -1, stored: number | undefined): number => {
+    if (display === 0) return 0;
+    if (display === 1) return stored != null && stored > 0 ? stored : wUp;
+    return stored != null && stored < 0 ? stored : wDown;
+  };
+
+  const handleVote = async (dir: VoteDirection) => {
     if (!session) return;
-    const newVote = userVote === value ? 0 : value;
-    const apiValue = voteApiValueForTransition(newVote, userVote);
-    if (apiValue === null) return;
+    const displayVote = dir === 'up' ? 1 : -1;
+    const prevVote = userVote as 0 | 1 | -1;
+    const newVote: 0 | 1 | -1 = prevVote === displayVote ? 0 : displayVote;
+    const prevC = contributionForDisplay(prevVote, storedVoteVal);
+    const newC = newVote === 0 ? 0 : newVote === 1 ? wUp : wDown;
+    const wDelta = newC - prevC;
 
     const prevUp = localUp;
     const prevDown = localDown;
-    setLocalVote(newVote);
-    setLocalUp((u) => u + (newVote === 1 ? 1 : userVote === 1 ? -1 : 0));
-    setLocalDown((d) => d + (newVote === -1 ? 1 : userVote === -1 ? -1 : 0));
+    const prevScore = localScore;
+    const prevLocalVote = localVote;
 
-    const result = await postOfferVote(offer.id, apiValue, session.access_token);
+    setLocalVote(newVote);
+    setLocalUp((u) => u + (newVote === 1 ? 1 : prevVote === 1 ? -1 : 0));
+    setLocalDown((d) => d + (newVote === -1 ? 1 : prevVote === -1 ? -1 : 0));
+    setLocalScore((s) => s + wDelta);
+
+    const result = await postOfferVote(offer.id, dir, session.access_token);
     if (!result.ok) {
-      setLocalVote(userVote);
+      setLocalVote(prevLocalVote);
       setLocalUp(prevUp);
       setLocalDown(prevDown);
+      setLocalScore(prevScore);
       showToast?.(result.message);
+      return;
     }
+    setVoteValueMap((prev) => {
+      const next = { ...prev };
+      if (newVote === 0) delete next[offer.id];
+      else next[offer.id] = newVote === 1 ? wUp : wDown;
+      return next;
+    });
   };
 
   const handleSubmitComment = async () => {
@@ -432,17 +465,28 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               </h1>
               {offer.author?.username && (
                 <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  <Link
-                    href={`/u/${slugFromUsername(offer.author.username)}`}
-                    className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
-                  >
-                    {offer.author.avatar_url ? (
-                      <img src={offer.author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                    <span>Cazado por {offer.author.username}</span>
-                  </Link>
+                  {offerAuthorProfileHref ? (
+                    <Link
+                      href={offerAuthorProfileHref}
+                      className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
+                    >
+                      {offer.author.avatar_url ? (
+                        <img src={offer.author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
+                      <span>Cazado por {offer.author.username}</span>
+                    </Link>
+                  ) : (
+                    <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      {offer.author.avatar_url ? (
+                        <img src={offer.author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
+                      <span>Cazado por {offer.author.username}</span>
+                    </span>
+                  )}
                   {offer.author.leaderBadge === 'cazador_estrella' && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
                       <BadgeCheck className="h-3.5 w-3.5" /> Cazador estrella
@@ -482,33 +526,32 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 </p>
               )}
 
-              <div className="flex items-center gap-4 mt-6">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleVote(1)}
-                    className={`flex items-center gap-1.5 rounded-xl px-4 py-2 transition-colors ${
-                      userVote === 1
-                        ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/20'
-                    }`}
-                  >
-                    <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`} />
-                    <span className="font-semibold">{displayUp}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleVote(-1)}
-                    className={`flex items-center gap-1.5 rounded-xl px-4 py-2 transition-colors ${
-                      userVote === -1
-                        ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-pink-100 dark:hover:bg-pink-900/20'
-                    }`}
-                  >
-                    <ThumbsDown className={`h-5 w-5 ${userVote === -1 ? 'fill-current' : ''}`} />
-                    <span className="font-semibold">{displayDown}</span>
-                  </button>
-                </div>
+              <div className="flex items-center gap-3 mt-6 text-gray-900 dark:text-gray-100">
+                <button
+                  type="button"
+                  onClick={() => handleVote('up')}
+                  aria-label="Votar positivo"
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
+                    userVote === 1
+                      ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`} />
+                </button>
+                <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localScore}</span>
+                <button
+                  type="button"
+                  onClick={() => handleVote('down')}
+                  aria-label="Votar negativo"
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
+                    userVote === -1
+                      ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  <ThumbsDown className={`h-5 w-5 ${userVote === -1 ? 'fill-current' : ''}`} />
+                </button>
               </div>
 
               <div className="flex flex-wrap gap-2 mt-4">

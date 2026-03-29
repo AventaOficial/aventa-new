@@ -3,15 +3,33 @@ import { createOfferInputSchema } from '../../lib/contracts/offers';
 import { voteInputSchema } from '../../lib/contracts/votes';
 import { feedHomeQuerySchema, feedForYouQuerySchema } from '../../lib/contracts/feed';
 
+const SAMPLE_OFFER_UUID = '550e8400-e29b-41d4-a716-446655440000';
+
 describe('api validation contracts', () => {
-  it('rechaza voto inválido fuera de -1/2', () => {
-    const bad = voteInputSchema.safeParse({ offerId: '550e8400-e29b-41d4-a716-446655440000', value: 1 });
+  it('rechaza voto con value 0', () => {
+    const bad = voteInputSchema.safeParse({ offerId: SAMPLE_OFFER_UUID, value: 0 });
     expect(bad.success).toBe(false);
   });
 
-  it('acepta voto válido', () => {
-    const ok = voteInputSchema.safeParse({ offerId: '550e8400-e29b-41d4-a716-446655440000', value: 2 });
-    expect(ok.success).toBe(true);
+  it('normaliza value legacy negativo a direction down', () => {
+    const legacy = voteInputSchema.safeParse({ offerId: SAMPLE_OFFER_UUID, value: -1 });
+    expect(legacy.success).toBe(true);
+    if (legacy.success) expect(legacy.data.direction).toBe('down');
+  });
+
+  it('normaliza value legacy positivo a direction up', () => {
+    const legacy = voteInputSchema.safeParse({ offerId: SAMPLE_OFFER_UUID, value: 1 });
+    expect(legacy.success).toBe(true);
+    if (legacy.success) expect(legacy.data.direction).toBe('up');
+  });
+
+  it('acepta direction explícita arriba y abajo', () => {
+    const up = voteInputSchema.safeParse({ offerId: SAMPLE_OFFER_UUID, direction: 'up' });
+    expect(up.success).toBe(true);
+    if (up.success) expect(up.data.direction).toBe('up');
+    const down = voteInputSchema.safeParse({ offerId: SAMPLE_OFFER_UUID, direction: 'down' });
+    expect(down.success).toBe(true);
+    if (down.success) expect(down.data.direction).toBe('down');
   });
 
   it('rechaza oferta sin title/store', () => {

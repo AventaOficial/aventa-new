@@ -12,7 +12,12 @@ import CommissionProgramPanel from '@/app/me/CommissionProgramPanel';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
-import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData';
+import {
+  fetchBatchUserData,
+  type VoteMap,
+  type VoteValueMap,
+  type FavoriteMap,
+} from '@/lib/offers/batchUserData';
 import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform';
 import { notifyUserError } from '@/lib/utils/handleError';
 import { useUI } from '@/app/providers/UIProvider';
@@ -27,6 +32,7 @@ function MePageInner() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
+  const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [profile, setProfile] = useState<{
     display_name: string | null;
@@ -125,7 +131,7 @@ function MePageInner() {
 
       const { data: rows } = await supabase
         .from('offers')
-        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, status, rejection_reason, expires_at')
+        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, ranking_momentum, status, rejection_reason, expires_at')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -144,6 +150,7 @@ function MePageInner() {
         const card = mapOfferToCard({
           ...r,
           profiles: profileForCard,
+          created_by: user.id,
         } as RankedOfferSource);
 
         let dealStatus: DealStatus = 'pending';
@@ -190,8 +197,9 @@ function MePageInner() {
       }
 
       if (mapped.length > 0 && user.id) {
-        fetchBatchUserData(user.id, mapped.map((o) => o.id)).then(({ voteMap: vm, favoriteMap: fm }) => {
+        fetchBatchUserData(user.id, mapped.map((o) => o.id)).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
           setVoteMap(vm);
+          setVoteValueMap(vvm);
           setFavoriteMap(fm);
         });
       }
@@ -224,6 +232,21 @@ function MePageInner() {
   }
 
   const displayName = profile?.display_name?.trim() || 'Usuario';
+
+  const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
+    setVoteMap((prev) => {
+      const next = { ...prev };
+      if (value === 0) delete next[offerId];
+      else next[offerId] = value;
+      return next;
+    });
+    setVoteValueMap((prev) => {
+      const next = { ...prev };
+      if (value === 0) delete next[offerId];
+      else if (storedWeight !== undefined) next[offerId] = storedWeight;
+      return next;
+    });
+  };
 
   return (
     <ClientLayout>
@@ -345,7 +368,9 @@ function MePageInner() {
                   offerUrl={offer.offerUrl}
                   author={offer.author}
                   onCardClick={() => setSelectedOffer(offer)}
+                  onVoteChange={handleVoteChange}
                   userVote={voteMap[offer.id] ?? null}
+                  userVoteStoredValue={voteValueMap[offer.id] ?? null}
                   isLiked={!!favoriteMap[offer.id]}
                   dealStatus={offer.dealStatus}
                   rejectionReason={offer.rejectionReason}
@@ -370,11 +395,14 @@ function MePageInner() {
             offerUrl={selectedOffer.offerUrl}
             upvotes={selectedOffer.upvotes}
             downvotes={selectedOffer.downvotes}
+            votesScore={selectedOffer.votes.score}
             offerId={selectedOffer.id}
             author={selectedOffer.author}
             image={selectedOffer.image}
             isLiked={!!favoriteMap[selectedOffer.id]}
             userVote={voteMap[selectedOffer.id] ?? 0}
+            userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
+            onVoteChange={handleVoteChange}
             onFavoriteChange={(fav) => {
               if (selectedOffer.id) {
                 setFavoriteMap((prev) => (fav ? { ...prev, [selectedOffer.id]: true } : { ...prev, [selectedOffer.id]: false }));

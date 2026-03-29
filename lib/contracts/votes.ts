@@ -1,8 +1,23 @@
 import { z } from 'zod';
 
-export const voteInputSchema = z.object({
+/**
+ * Acepta `{ offerId, direction }` o legacy `{ offerId, value }` (cualquier signo ≠ 0).
+ * El servidor asigna el peso según reputation_level del votante.
+ */
+export const voteInputSchema = z.preprocess((raw) => {
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>;
+    if (o.direction === 'up' || o.direction === 'down') {
+      return { offerId: o.offerId, direction: o.direction };
+    }
+    if (typeof o.value === 'number' && o.value !== 0 && Number.isFinite(o.value)) {
+      return { offerId: o.offerId, direction: o.value > 0 ? 'up' : 'down' };
+    }
+  }
+  return raw;
+}, z.object({
   offerId: z.string().uuid(),
-  value: z.union([z.literal(2), z.literal(-1)]),
-});
+  direction: z.enum(['up', 'down']),
+}));
 
 export type VoteInput = z.infer<typeof voteInputSchema>;

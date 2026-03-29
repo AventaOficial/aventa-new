@@ -11,7 +11,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/app/providers/ThemeProvider'
 import { useUI } from '@/app/providers/UIProvider'
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime'
-import { fetchBatchUserData, type VoteMap, type FavoriteMap } from '@/lib/offers/batchUserData'
+import {
+  fetchBatchUserData,
+  type VoteMap,
+  type VoteValueMap,
+  type FavoriteMap,
+} from '@/lib/offers/batchUserData'
 import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform'
 import { notifyUserError } from '@/lib/utils/handleError'
 
@@ -22,6 +27,7 @@ function FavoritesPageInner() {
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<CardOffer[]>([])
   const [voteMap, setVoteMap] = useState<VoteMap>({})
+  const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({})
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({})
   const [selectedOffer, setSelectedOffer] = useState<CardOffer | null>(null)
 
@@ -54,6 +60,7 @@ function FavoritesPageInner() {
             created_by,
             upvotes_count,
             downvotes_count,
+            ranking_momentum,
             profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)
           )
         `)
@@ -78,8 +85,9 @@ function FavoritesPageInner() {
         setLoading(false)
 
         if (extracted.length > 0 && user.id) {
-          fetchBatchUserData(user.id, extracted.map((o) => o.id)).then(({ voteMap: vm, favoriteMap: fm }) => {
+          fetchBatchUserData(user.id, extracted.map((o) => o.id)).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
             setVoteMap(vm)
+            setVoteValueMap(vvm)
             setFavoriteMap(fm)
           })
         }
@@ -102,6 +110,21 @@ function FavoritesPageInner() {
   const handleRemoveFromList = (offerId: string) => {
     setOffers((prev) => prev.filter((o) => o.id !== offerId))
     if (selectedOffer?.id === offerId) setSelectedOffer(null)
+  }
+
+  const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
+    setVoteMap((prev) => {
+      const next = { ...prev }
+      if (value === 0) delete next[offerId]
+      else next[offerId] = value
+      return next
+    })
+    setVoteValueMap((prev) => {
+      const next = { ...prev }
+      if (value === 0) delete next[offerId]
+      else if (storedWeight !== undefined) next[offerId] = storedWeight
+      return next
+    })
   }
 
   return (
@@ -152,7 +175,9 @@ function FavoritesPageInner() {
                       handleFavoriteChange(isFav)
                       if (!isFav) handleRemoveFromList(offer.id)
                     }}
+                    onVoteChange={handleVoteChange}
                     userVote={voteMap[offer.id] ?? null}
+                    userVoteStoredValue={voteValueMap[offer.id] ?? null}
                     isLiked={!!favoriteMap[offer.id]}
                   />
                 </motion.div>
@@ -174,11 +199,14 @@ function FavoritesPageInner() {
             offerUrl={selectedOffer.offerUrl}
             upvotes={selectedOffer.upvotes}
             downvotes={selectedOffer.downvotes}
+            votesScore={selectedOffer.votes.score}
             offerId={selectedOffer.id}
             author={selectedOffer.author}
             image={selectedOffer.image}
             isLiked={true}
             userVote={voteMap[selectedOffer.id] ?? 0}
+            userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
+            onVoteChange={handleVoteChange}
             onFavoriteChange={(fav) => {
               if (!fav) {
                 handleRemoveFromList(selectedOffer.id)
