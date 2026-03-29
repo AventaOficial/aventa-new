@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMetrics } from '@/lib/server/requireAdmin';
 import { getHealthSnapshot } from '@/lib/monitoring/healthCheck';
+import { runSystemsAreasPulse } from '@/lib/monitoring/systemAreasPulse';
 import {
   getLastFeedLoadedCount,
   getRecentErrorEvents,
@@ -13,12 +14,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const health = await getHealthSnapshot();
+  const [health, areasPulse] = await Promise.all([getHealthSnapshot(), runSystemsAreasPulse()]);
   const recentErrors = getRecentErrorEvents(40);
   const lastFeedLoadedCount = getLastFeedLoadedCount();
 
   return NextResponse.json({
     health,
+    areasPulse,
     lastFeedLoadedCount,
     recentErrors,
   });
