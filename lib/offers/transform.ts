@@ -6,8 +6,10 @@ export type CardOfferAuthor = {
   avatar_url?: string | null;
   leaderBadge?: string | null;
   creatorMlTag?: string | null;
-  /** UUID del creador; necesario para el slug público igual que `profiles.slug`. */
+  /** UUID del creador; necesario para el slug público. */
   userId?: string | null;
+  /** `profiles.slug` cuando la vista lo expone; debe coincidir con get_profile_by_slug. */
+  slug?: string | null;
 };
 
 export type CardOffer = {
@@ -36,8 +38,20 @@ export type CardOffer = {
 };
 
 type ProfilesJoin =
-  | { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }
-  | { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[]
+  | {
+      display_name: string | null;
+      avatar_url: string | null;
+      leader_badge?: string | null;
+      ml_tracking_tag?: string | null;
+      slug?: string | null;
+    }
+  | {
+      display_name: string | null;
+      avatar_url: string | null;
+      leader_badge?: string | null;
+      ml_tracking_tag?: string | null;
+      slug?: string | null;
+    }[]
   | null
   | undefined;
 
@@ -88,6 +102,7 @@ export type FeedApiItemShape = {
     avatar_url?: string | null;
     leader_badge?: string | null;
     ml_tracking_tag?: string | null;
+    slug?: string | null;
   };
   created_by?: string | null;
 };
@@ -100,6 +115,7 @@ function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undef
     leaderBadge: (prof as { leader_badge?: string | null } | undefined)?.leader_badge ?? null,
     creatorMlTag: (prof as { ml_tracking_tag?: string | null } | undefined)?.ml_tracking_tag ?? null,
     userId: createdBy ?? null,
+    slug: (prof as { slug?: string | null } | undefined)?.slug?.trim() || null,
   };
 }
 
@@ -179,6 +195,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     leaderBadge: a?.leader_badge ?? null,
     creatorMlTag: a?.ml_tracking_tag ?? null,
     userId: item.created_by ?? null,
+    slug: a?.slug?.trim() || null,
   };
   return {
     id: item.id ?? '',

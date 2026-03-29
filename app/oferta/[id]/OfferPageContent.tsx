@@ -117,6 +117,7 @@ type OfferPayload = {
     leaderBadge?: string | null;
     creatorMlTag?: string | null;
     userId?: string | null;
+    slug?: string | null;
   };
   createdAt: string | null;
   categorySlug?: string;
@@ -188,7 +189,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const currentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
   const publicPath = buildOfferPublicPath(offer.id, offer.title);
   const offerAuthorProfileHref =
-    offer.author?.username ? publicProfilePath(offer.author.username, offer.author.userId) : null;
+    offer.author?.username ? publicProfilePath(offer.author.username, offer.author.userId, offer.author.slug) : null;
 
   const fetchComments = useCallback(() => {
     if (!offer.id) return;

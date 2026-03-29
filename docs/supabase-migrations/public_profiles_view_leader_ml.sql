@@ -8,9 +8,10 @@ SELECT
   display_name,
   avatar_url,
   leader_badge,
-  ml_tracking_tag
+  ml_tracking_tag,
+  slug
 FROM public.profiles;
 
-COMMENT ON VIEW public.public_profiles_view IS 'Vista pública para joins (ofertas, comentarios). Incluye leader_badge y ml_tracking_tag para badges y links ML.';
+COMMENT ON VIEW public.public_profiles_view IS 'Vista pública para joins (ofertas, comentarios). leader_badge, ml_tracking_tag, slug (enlace /u/[slug]). Requiere columna profiles.slug (profiles_slug.sql).';
 
 GRANT SELECT ON public.public_profiles_view TO anon, authenticated;

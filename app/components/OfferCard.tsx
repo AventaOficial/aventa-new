@@ -62,6 +62,7 @@ interface OfferCardProps {
     leaderBadge?: string | null;
     creatorMlTag?: string | null;
     userId?: string | null;
+    slug?: string | null;
   };
   onFavoriteChange?: (isFavorite: boolean) => void;
   onVoteChange?: (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => void;
@@ -125,7 +126,7 @@ export default function OfferCard({
 
   const baseScore = scoreFromFeed;
   const authorProfileHref =
-    author?.username ? publicProfilePath(author.username, author.userId) : null;
+    author?.username ? publicProfilePath(author.username, author.userId, author.slug) : null;
 
   const cardRef = useRef<HTMLDivElement>(null);
   const viewTrackedRef = useRef(false);

@@ -43,6 +43,7 @@ interface OfferModalProps {
     leaderBadge?: string | null;
     creatorMlTag?: string | null;
     userId?: string | null;
+    slug?: string | null;
   };
   image?: string;
   imageUrls?: string[];
@@ -142,7 +143,7 @@ export default function OfferModal({
   const [imageIndex, setImageIndex] = useState(0);
   const currentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
   const authorProfileHref =
-    author?.username ? publicProfilePath(author.username, author.userId) : null;
+    author?.username ? publicProfilePath(author.username, author.userId, author.slug) : null;
   const baseWeightedScore =
     votesScore != null && !Number.isNaN(Number(votesScore))
       ? Number(votesScore)

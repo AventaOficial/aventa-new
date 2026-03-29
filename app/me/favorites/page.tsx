@@ -61,7 +61,7 @@ function FavoritesPageInner() {
             upvotes_count,
             downvotes_count,
             ranking_momentum,
-            profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)
+            profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)
           )
         `)
           .eq('user_id', user.id)

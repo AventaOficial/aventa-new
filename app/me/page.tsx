@@ -113,7 +113,7 @@ function MePageInner() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, reputation_level, reputation_score')
+        .select('id, display_name, avatar_url, reputation_level, reputation_score, slug')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -138,6 +138,7 @@ function MePageInner() {
       const profileForCard = {
         display_name: profileData.display_name,
         avatar_url: profileData.avatar_url,
+        slug: (profileData as { slug?: string | null }).slug ?? null,
       };
 
       const now = new Date().toISOString();

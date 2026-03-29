@@ -6,6 +6,7 @@ export type FeedOfferAuthor = {
   avatar_url: string | null;
   leader_badge: string | null;
   ml_tracking_tag: string | null;
+  slug: string | null;
 };
 
 export type FeedOffer = {
@@ -66,7 +67,7 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)'
+        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)'
       )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
@@ -125,8 +126,20 @@ export async function getHomeFeed({
       const imageUrls = Array.isArray(row.image_urls) ? (row.image_urls as string[]) : [];
       const images = [imageUrl, ...imageUrls].filter((u): u is string => typeof u === 'string' && u.length > 0);
       const rawProf = row.profiles as
-        | { display_name?: string | null; avatar_url?: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }
-        | { display_name?: string | null; avatar_url?: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[]
+        | {
+            display_name?: string | null;
+            avatar_url?: string | null;
+            leader_badge?: string | null;
+            ml_tracking_tag?: string | null;
+            slug?: string | null;
+          }
+        | {
+            display_name?: string | null;
+            avatar_url?: string | null;
+            leader_badge?: string | null;
+            ml_tracking_tag?: string | null;
+            slug?: string | null;
+          }[]
         | null
         | undefined;
       const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf;
@@ -155,6 +168,7 @@ export async function getHomeFeed({
           avatar_url: prof?.avatar_url ?? null,
           leader_badge: prof?.leader_badge ?? null,
           ml_tracking_tag: prof?.ml_tracking_tag ?? null,
+          slug: prof?.slug != null && String(prof.slug).trim() !== '' ? String(prof.slug).trim() : null,
         },
       };
     });

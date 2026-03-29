@@ -30,7 +30,21 @@ type OfferRow = {
   downvotes_count: number | null;
   ranking_momentum: number | null;
   category: string | null;
-  profiles?: { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null } | { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[];
+  profiles?:
+    | {
+        display_name: string | null;
+        avatar_url: string | null;
+        leader_badge?: string | null;
+        ml_tracking_tag?: string | null;
+        slug?: string | null;
+      }
+    | {
+        display_name: string | null;
+        avatar_url: string | null;
+        leader_badge?: string | null;
+        ml_tracking_tag?: string | null;
+        slug?: string | null;
+      }[];
 };
 
 function categorySlugToLabel(slug: string): string {
@@ -48,7 +62,7 @@ async function getOffer(id: string) {
       id, title, price, original_price, image_url, image_urls, msi_months,
       store, offer_url, description, steps, conditions, coupons,
       created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
-      profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)
+      profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)
     `)
     .eq('id', id)
     .eq('status', 'approved')
@@ -116,6 +130,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     leaderBadge: (prof as { leader_badge?: string | null })?.leader_badge ?? null,
     creatorMlTag: (prof as { ml_tracking_tag?: string | null })?.ml_tracking_tag ?? null,
     userId: offer.created_by,
+    slug: (prof as { slug?: string | null })?.slug?.trim() || null,
   };
 
   const originalPrice = Number(offer.original_price) || 0;
