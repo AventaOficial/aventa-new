@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin } from '@/lib/offers/homeFeedFilters';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -30,6 +31,11 @@ type GetHomeFeedParams = {
   limit?: number;
   cursor?: string | null;
   type?: 'trending' | 'recent';
+  /** Con `view`, el feed replica filtros del home (periodo, categoría, tienda). */
+  view?: 'vitales' | 'top' | 'latest' | null;
+  period?: 'day' | 'week' | 'month';
+  category?: string | null;
+  store?: string | null;
 };
 
 type GetHomeFeedSuccess = {
@@ -47,6 +53,10 @@ export async function getHomeFeed({
   limit = 20,
   cursor = null,
   type = 'trending',
+  view = null,
+  period = 'day',
+  category = null,
+  store = null,
 }: GetHomeFeedParams = {}): Promise<GetHomeFeedSuccess | GetHomeFeedError> {
   try {
     const supabase = createServerClient();
@@ -61,15 +71,40 @@ export async function getHomeFeed({
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
 
-    if (type === 'trending') {
-      query = query.order('ranking_blend', { ascending: false });
-    } else {
-      query = query.order('created_at', { ascending: false });
-    }
+    const useHomePipeline = view != null;
 
-    if (cursor && type === 'recent') {
-      const cursorDate = new Date(cursor).toISOString();
-      query = query.lt('created_at', cursorDate);
+    if (useHomePipeline) {
+      const floor = homeFeedCreatedAtIsoMin(period);
+      query = query.gte('created_at', floor);
+      if (store?.trim()) {
+        query = query.eq('store', store.trim());
+      }
+      const catIn = homeFeedCategoryInList(view, category);
+      if (catIn != null && catIn.length > 0) {
+        query = query.in('category', catIn);
+      }
+      if (view === 'latest') {
+        query = query.order('created_at', { ascending: false });
+        if (cursor) {
+          const cursorDate = new Date(cursor).toISOString();
+          query = query.lt('created_at', cursorDate);
+        }
+      } else if (view === 'top') {
+        query = query.gte('up_votes', 1).order('score_final', { ascending: false });
+      } else {
+        query = query.order('ranking_blend', { ascending: false });
+      }
+    } else {
+      if (type === 'trending') {
+        query = query.order('ranking_blend', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      if (cursor && type === 'recent') {
+        const cursorDate = new Date(cursor).toISOString();
+        query = query.lt('created_at', cursorDate);
+      }
     }
 
     const safeLimit = Math.min(Math.max(1, limit), 100);

@@ -24,7 +24,7 @@ import {
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
-import { VITAL_FILTER_VALUES, ALL_CATEGORIES, getValidCategoryValuesForFeed } from '@/lib/categories';
+import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin, homeSearchCategoryInList } from '@/lib/offers/homeFeedFilters';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 
 /** When true, home feed uses /api/feed/home first; on failure falls back to existing Supabase fetch. */
@@ -119,9 +119,24 @@ const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'servicios', label: 'Servicios' },
 ];
 
-async function fetchFeedFromAPI(type: 'trending' | 'recent' = 'trending'): Promise<FeedApiItemShape[] | null> {
+async function fetchFeedFromAPI(opts: {
+  limit: number;
+  viewMode: 'vitales' | 'top' | 'latest';
+  timeFilter: TimeFilter;
+  categoryFilter: string | null;
+  storeFilter: string | null;
+}): Promise<FeedApiItemShape[] | null> {
   try {
-    const res = await fetch(`/api/feed/home?limit=20&type=${type}`, { cache: 'no-store' });
+    const type = opts.viewMode === 'latest' ? 'recent' : 'trending';
+    const params = new URLSearchParams({
+      limit: String(opts.limit),
+      type,
+      view: opts.viewMode,
+      period: opts.timeFilter,
+    });
+    if (opts.categoryFilter?.trim()) params.set('category', opts.categoryFilter.trim());
+    if (opts.storeFilter?.trim()) params.set('store', opts.storeFilter.trim());
+    const res = await fetch(`/api/feed/home?${params.toString()}`, { cache: 'no-store' });
     if (!res.ok) throw new Error('API response failed');
     const data = await res.json();
     if (!data.success) throw new Error(data.error ?? 'API error');
@@ -255,16 +270,7 @@ function HomeContent() {
       const supabase = createClient();
       const now = new Date();
       const nowISO = now.toISOString();
-      const msPerDay = 24 * 60 * 60 * 1000;
-      let fechaLimite: Date;
-      if (timeFilter === 'day') {
-        fechaLimite = new Date(now.getTime() - 1 * msPerDay);
-      } else if (timeFilter === 'week') {
-        fechaLimite = new Date(now.getTime() - 7 * msPerDay);
-      } else {
-        fechaLimite = new Date(now.getTime() - 30 * msPerDay);
-      }
-      const fechaLimiteISO = fechaLimite.toISOString();
+      const fechaLimiteISO = homeFeedCreatedAtIsoMin(timeFilter);
 
       let query = supabase
         .from('ofertas_ranked_general')
@@ -277,12 +283,11 @@ function HomeContent() {
       if (storeFilter?.trim()) {
         query = query.eq('store', storeFilter.trim());
       }
-      if (categoryFilter?.trim()) {
-        const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
-        query = catValues.length === 1 ? query.eq('category', catValues[0]) : query.in('category', catValues);
-      }
-      if (viewMode === 'vitales' && VITAL_FILTER_VALUES.length > 0) {
-        query = query.in('category', VITAL_FILTER_VALUES);
+      if (viewMode === 'vitales' || viewMode === 'top' || viewMode === 'latest') {
+        const catIn = homeFeedCategoryInList(viewMode, categoryFilter);
+        if (catIn != null && catIn.length > 0) {
+          query = catIn.length === 1 ? query.eq('category', catIn[0]) : query.in('category', catIn);
+        }
       }
       if (viewMode === 'top') {
         query = query.gte('up_votes', 1);
@@ -344,8 +349,14 @@ function HomeContent() {
     };
 
     if (USE_NEW_FEED) {
-      const feedType = viewMode === 'latest' ? 'recent' : 'trending';
-      fetchFeedFromAPI(feedType)
+      const apiLimit = viewMode === 'vitales' ? Math.max(effectiveLimit, 60) : effectiveLimit;
+      fetchFeedFromAPI({
+        limit: apiLimit,
+        viewMode: viewMode as 'vitales' | 'top' | 'latest',
+        timeFilter,
+        categoryFilter,
+        storeFilter,
+      })
         .then((data) => {
           if (data != null && Array.isArray(data)) {
             let list = data.map((item) => mapOfferToCard(item as FeedApiItemShape));
@@ -389,18 +400,8 @@ function HomeContent() {
     if (!lastCreatedAt) return;
     setLoading(true);
     const supabase = createClient();
-    const now = new Date();
-    const nowISO = now.toISOString();
-    const msPerDay = 24 * 60 * 60 * 1000;
-    let fechaLimite: Date;
-    if (timeFilter === 'day') {
-      fechaLimite = new Date(now.getTime() - 1 * msPerDay);
-    } else if (timeFilter === 'week') {
-      fechaLimite = new Date(now.getTime() - 7 * msPerDay);
-    } else {
-      fechaLimite = new Date(now.getTime() - 30 * msPerDay);
-    }
-    const fechaLimiteISO = fechaLimite.toISOString();
+    const nowISO = new Date().toISOString();
+    const fechaLimiteISO = homeFeedCreatedAtIsoMin(timeFilter);
     let nextQuery = supabase
       .from('ofertas_ranked_general')
       .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
@@ -413,9 +414,10 @@ function HomeContent() {
     if (storeFilter?.trim()) {
       nextQuery = nextQuery.eq('store', storeFilter.trim());
     }
-    if (categoryFilter?.trim()) {
-      const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
-      nextQuery = catValues.length === 1 ? nextQuery.eq('category', catValues[0]) : nextQuery.in('category', catValues);
+    const nextCatIn = homeFeedCategoryInList('latest', categoryFilter);
+    if (nextCatIn != null && nextCatIn.length > 0) {
+      nextQuery =
+        nextCatIn.length === 1 ? nextQuery.eq('category', nextCatIn[0]) : nextQuery.in('category', nextCatIn);
     }
     Promise.resolve(nextQuery)
       .then(({ data, error }) => {
@@ -484,9 +486,12 @@ function HomeContent() {
       if (storeFilter?.trim()) {
         searchQueryBuilder = searchQueryBuilder.eq('store', storeFilter.trim());
       }
-      if (categoryFilter?.trim()) {
-        const catValues = getValidCategoryValuesForFeed(categoryFilter.trim());
-        searchQueryBuilder = catValues.length === 1 ? searchQueryBuilder.eq('category', catValues[0]) : searchQueryBuilder.in('category', catValues);
+      const searchCatIn = homeSearchCategoryInList(viewMode, categoryFilter);
+      if (searchCatIn != null && searchCatIn.length > 0) {
+        searchQueryBuilder =
+          searchCatIn.length === 1
+            ? searchQueryBuilder.eq('category', searchCatIn[0])
+            : searchQueryBuilder.in('category', searchCatIn);
       }
       Promise.resolve(searchQueryBuilder)
         .then(({ data, error }) => {

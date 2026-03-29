@@ -16,17 +16,29 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
       type: searchParams.get('type') ?? undefined,
       cursor: searchParams.get('cursor'),
+      view: searchParams.get('view'),
+      period: searchParams.get('period') ?? undefined,
+      category: searchParams.get('category'),
+      store: searchParams.get('store'),
     });
     if (!parsed.success) {
       return NextResponse.json({ success: false, error: 'Parámetros inválidos' }, { status: 400 });
     }
-    const { limit, type, cursor } = parsed.data;
+    const { limit, type, cursor, view, period, category, store } = parsed.data;
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[FEED API] Fetching home feed', { limit, type });
+      console.log('[FEED API] Fetching home feed', { limit, type, view, period, category, store });
     }
 
-    const result = await getHomeFeed({ limit, cursor, type });
+    const result = await getHomeFeed({
+      limit,
+      cursor,
+      type,
+      view,
+      period,
+      category,
+      store,
+    });
 
     return NextResponse.json(result, {
       headers: {

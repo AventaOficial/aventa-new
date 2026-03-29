@@ -34,6 +34,10 @@ describe('api validation contracts', () => {
     expect(parsed.limit).toBe(20);
     expect(parsed.type).toBe('trending');
     expect(parsed.cursor).toBe(null);
+    expect(parsed.view).toBe(null);
+    expect(parsed.period).toBe('day');
+    expect(parsed.category).toBe(null);
+    expect(parsed.store).toBe(null);
   });
 
   it('normaliza query for-you con defaults seguros', () => {
