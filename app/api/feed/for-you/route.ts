@@ -7,6 +7,8 @@ import { computeOfferScore } from '@/lib/offers/scoring';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = 60;
+/** Ventana de ofertas candidatas: 30 días para tener suficiente material al ordenar por afinidad. */
+const FOR_YOU_LOOKBACK_DAYS = 30;
 
 type OfferRow = {
   id: string;
@@ -36,8 +38,11 @@ type OfferRow = {
 };
 
 /**
- * GET: feed "Para ti" — ofertas priorizadas por afinidad (favoritos y votos del usuario).
- * Orden: primero ofertas de la misma categoría o tienda que las que ha guardado/votado, luego por ranking_blend.
+ * GET: feed "Para ti" — ofertas priorizadas por afinidad.
+ * Señales: (1) categorías/tiendas inferidas de favoritos y votos; (2) preferred_categories del perfil
+ * (onboarding / Configuración), expandidas a valores de BD vía getValidCategoryValuesForFeed.
+ * Orden: primero filas que matchean categoría o tienda; luego ranking_blend.
+ * Candidatos: últimos FOR_YOU_LOOKBACK_DAYS días.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -71,12 +76,14 @@ export async function GET(request: Request) {
 
   const now = new Date();
   const nowISO = now.toISOString();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const lookbackMs = FOR_YOU_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(now.getTime() - lookbackMs).toISOString();
 
-  // 1) Obtener offer_ids de favoritos y votos del usuario
-  const [favRes, voteRes] = await Promise.all([
+  // 1) Favoritos, votos y categorías preferidas del perfil (onboarding / settings)
+  const [favRes, voteRes, profileRes] = await Promise.all([
     supabase.from('offer_favorites').select('offer_id').eq('user_id', user.id),
     supabase.from('offer_votes').select('offer_id').eq('user_id', user.id),
+    supabase.from('profiles').select('preferred_categories').eq('id', user.id).maybeSingle(),
   ]);
   const favoriteIds = new Set((favRes.data ?? []).map((r: { offer_id: string }) => r.offer_id));
   const votedIds = new Set((voteRes.data ?? []).map((r: { offer_id: string }) => r.offer_id));
@@ -84,6 +91,20 @@ export async function GET(request: Request) {
 
   const userCategories = new Set<string>();
   const userStores = new Set<string>();
+
+  const rawPrefs = (profileRes.data as { preferred_categories?: unknown } | null)?.preferred_categories;
+  if (Array.isArray(rawPrefs)) {
+    for (const pref of rawPrefs) {
+      if (typeof pref !== 'string' || !pref.trim()) continue;
+      const trimmed = pref.trim();
+      const selfNorm = normalizeCategoryForStorage(trimmed);
+      if (selfNorm) userCategories.add(selfNorm);
+      for (const v of getValidCategoryValuesForFeed(trimmed)) {
+        const n = normalizeCategoryForStorage(v);
+        if (n) userCategories.add(n);
+      }
+    }
+  }
 
   if (affinityOfferIds.length > 0) {
     const { data: affinityOffers } = await supabase
@@ -104,7 +125,7 @@ export async function GET(request: Request) {
     .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, category, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag)')
     .or('status.eq.approved,status.eq.published')
     .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-    .gte('created_at', weekAgo)
+    .gte('created_at', windowStart)
     .order('ranking_blend', { ascending: false })
     .limit(FETCH_LIMIT);
 
@@ -121,7 +142,7 @@ export async function GET(request: Request) {
       .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, reputation_weighted_score, category')
       .or('status.eq.approved,status.eq.published')
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-      .gte('created_at', weekAgo)
+      .gte('created_at', windowStart)
       .order('ranking_blend', { ascending: false })
       .limit(FETCH_LIMIT);
     if (storeFilter) offerQuery = offerQuery.eq('store', storeFilter);

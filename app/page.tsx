@@ -121,7 +121,7 @@ const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
 
 async function fetchFeedFromAPI(opts: {
   limit: number;
-  viewMode: 'vitales' | 'top' | 'latest';
+  viewMode: ViewMode;
   timeFilter: TimeFilter;
   categoryFilter: string | null;
   storeFilter: string | null;
@@ -131,9 +131,11 @@ async function fetchFeedFromAPI(opts: {
     const params = new URLSearchParams({
       limit: String(opts.limit),
       type,
-      view: opts.viewMode,
       period: opts.timeFilter,
     });
+    if (opts.viewMode === 'vitales' || opts.viewMode === 'top' || opts.viewMode === 'latest') {
+      params.set('view', opts.viewMode);
+    }
     if (opts.categoryFilter?.trim()) params.set('category', opts.categoryFilter.trim());
     if (opts.storeFilter?.trim()) params.set('store', opts.storeFilter.trim());
     const res = await fetch(`/api/feed/home?${params.toString()}`, { cache: 'no-store' });
@@ -348,11 +350,16 @@ function HomeContent() {
         });
     };
 
+    if (viewMode === 'personalized' && !session?.access_token) {
+      runSupabaseFetch();
+      return;
+    }
+
     if (USE_NEW_FEED) {
       const apiLimit = viewMode === 'vitales' ? Math.max(effectiveLimit, 60) : effectiveLimit;
       fetchFeedFromAPI({
         limit: apiLimit,
-        viewMode: viewMode as 'vitales' | 'top' | 'latest',
+        viewMode,
         timeFilter,
         categoryFilter,
         storeFilter,
@@ -634,7 +641,8 @@ function HomeContent() {
             <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] hidden sm:block">
               {viewMode === 'vitales' && 'Lo esencial, nosotros lo cazamos por ti.'}
               {viewMode === 'top' && 'Mejor puntuadas en el período elegido.'}
-              {viewMode === 'personalized' && 'Priorizado por lo que guardaste y votaste (misma categoría o tienda).'}
+              {viewMode === 'personalized' &&
+                'Prioriza tus categorías en Configuración y lo que guardas o votas (misma categoría o tienda; ofertas recientes).'}
               {viewMode === 'latest' && 'Solo lo más nuevo, por fecha de publicación.'}
             </p>
 

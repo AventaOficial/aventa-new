@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   Map,
   Scale,
+  Briefcase,
 } from 'lucide-react';
 import {
   ROLES,
@@ -122,8 +123,11 @@ export default function AdminLayout({
     const isMetPath = pathname === '/admin/metrics';
     const isHeaPath = pathname === '/admin/health';
     const isVoteWeightsPath = pathname === '/admin/vote-weights';
+    const isOperacionesPath = pathname.startsWith('/admin/operaciones');
     if (pathname === '/admin/owner') {
-      router.replace('/operaciones');
+      router.replace('/admin/operaciones');
+    } else if (isOperacionesPath && !canTeam) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isVoteWeightsPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : '/admin/metrics');
     } else if (isOwnerPanelPath && !canTeam) {
@@ -238,12 +242,36 @@ export default function AdminLayout({
               </p>
               {canTeam && (
                 <Link
-                  href="/operaciones"
+                  href="/admin/operaciones"
                   onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === '/admin/operaciones'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
                 >
                   <LayoutDashboard className="h-4 w-4 shrink-0" />
                   Centro de operaciones
+                </Link>
+              )}
+              {canTeam && (
+                <Link
+                  href="/admin/operaciones/trabajo"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === '/admin/operaciones/trabajo'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  <Briefcase className="h-4 w-4 shrink-0" />
+                  Trabajo
                 </Link>
               )}
               {canTeam && (
@@ -415,7 +443,11 @@ export default function AdminLayout({
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-medium text-gray-800 dark:text-gray-200">
-            Moderación
+            {pathname.startsWith('/admin/operaciones')
+              ? 'Operaciones'
+              : pathname.startsWith('/admin/metrics') || pathname === '/admin/health' || pathname === '/admin/analista'
+                ? 'Análisis'
+                : 'Moderación'}
           </span>
         </div>
         <div className="p-4 lg:p-6">{children}</div>

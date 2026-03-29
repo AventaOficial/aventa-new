@@ -474,9 +474,19 @@ export default function OfferCard({
                 className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline"
               >
                 {author.avatar_url ? (
-                  <img src={author.avatar_url} alt="" className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0" />
+                  <Image
+                    src={author.avatar_url}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
+                    unoptimized={
+                      author.avatar_url.startsWith('http') &&
+                      !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                    }
+                  />
                 ) : (
-                  <User className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                  <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
                 )}
                 <span className="truncate">Cazado por {author.username}</span>
               </Link>

@@ -63,7 +63,7 @@ function ContextoPageInner() {
             <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mt-4 pl-0 md:pl-14">
               Cada bloque resume <strong className="text-gray-800 dark:text-gray-200">qué parte del producto</strong>{' '}
               tocas ahí. Para tu día a día como fundador usa también{' '}
-              <Link href="/operaciones" className="font-medium text-violet-600 dark:text-violet-400 hover:underline">
+              <Link href="/admin/operaciones" className="font-medium text-violet-600 dark:text-violet-400 hover:underline">
                 Centro de operaciones
               </Link>
               .

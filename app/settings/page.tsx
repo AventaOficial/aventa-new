@@ -19,6 +19,8 @@ function SettingsPageInner() {
   const { showToast } = useUI();
   const [displayName, setDisplayName] = useState('');
   const [displayNameUpdatedAt, setDisplayNameUpdatedAt] = useState<string | null>(null);
+  /** Si es null, el usuario aún no guardó nombre desde Configuración → cambio libre (tras migración SQL). */
+  const [nameSavedInSettingsAt, setNameSavedInSettingsAt] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,7 +63,7 @@ function SettingsPageInner() {
       setUserEmail(user.email ?? '');
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('display_name, display_name_updated_at')
+        .select('display_name, display_name_updated_at, name_saved_in_settings_at')
         .eq('id', user.id)
         .maybeSingle();
       if (profileError) {
@@ -70,6 +72,9 @@ function SettingsPageInner() {
       }
       setDisplayName(profile?.display_name ?? '');
       setDisplayNameUpdatedAt((profile as { display_name_updated_at?: string } | null)?.display_name_updated_at ?? null);
+      setNameSavedInSettingsAt(
+        (profile as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ?? null
+      );
       setLoading(false);
     };
     loadProfile();
@@ -153,6 +158,7 @@ function SettingsPageInner() {
   };
 
   const canChangeName = (): boolean => {
+    if (!nameSavedInSettingsAt) return true;
     if (!displayNameUpdatedAt) return true;
     const updated = new Date(displayNameUpdatedAt).getTime();
     const now = Date.now();
@@ -160,7 +166,7 @@ function SettingsPageInner() {
   };
 
   const daysUntilNextChange = (): number => {
-    if (!displayNameUpdatedAt || canChangeName()) return 0;
+    if (!nameSavedInSettingsAt || !displayNameUpdatedAt || canChangeName()) return 0;
     const updated = new Date(displayNameUpdatedAt).getTime();
     const nextAllowed = updated + DAYS_LIMIT * 24 * 60 * 60 * 1000;
     return Math.ceil((nextAllowed - Date.now()) / (24 * 60 * 60 * 1000));
@@ -185,15 +191,19 @@ function SettingsPageInner() {
     }
     const updatedAt = new Date().toISOString();
     const slug = profileSlugFromDisplayName(trimmed, user.id);
+    const updatePayload: Record<string, string> = {
+      display_name: trimmed,
+      display_name_updated_at: updatedAt,
+      slug,
+    };
+    if (!nameSavedInSettingsAt) {
+      updatePayload.name_saved_in_settings_at = updatedAt;
+    }
     const { data: updated, error } = await supabase
       .from('profiles')
-      .update({
-        display_name: trimmed,
-        display_name_updated_at: updatedAt,
-        slug,
-      })
+      .update(updatePayload)
       .eq('id', user.id)
-      .select('display_name_updated_at')
+      .select('display_name_updated_at, name_saved_in_settings_at')
       .single();
     setSaving(false);
     if (error) {
@@ -205,6 +215,10 @@ function SettingsPageInner() {
     });
     setDisplayName(trimmed);
     setDisplayNameUpdatedAt(updated?.display_name_updated_at ?? updatedAt);
+    setNameSavedInSettingsAt(
+      (updated as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ??
+        updatedAt
+    );
     setSuccessMessage('Cambios guardados');
   };
 
@@ -269,7 +283,7 @@ function SettingsPageInner() {
                   disabled={saving || !canChangeName()}
                 />
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  La primera vez puedes cambiarlo cuando quieras; después, solo una vez cada 14 días.
+                  Hasta la primera vez que guardes desde aquí, el nombre es libre. Después, máximo un cambio cada 14 días.
                   {!canChangeName() && daysUntilNextChange() > 0 && (
                     <span className="block mt-0.5 text-amber-600 dark:text-amber-400">
                       Podrás cambiarlo de nuevo en {daysUntilNextChange()} día{daysUntilNextChange() !== 1 ? 's' : ''}.

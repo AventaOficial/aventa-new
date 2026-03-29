@@ -1,6 +1,6 @@
  'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
@@ -42,8 +42,59 @@ function MePageInner() {
     cazadoresAyudados: 0,
   });
   const [selectedOffer, setSelectedOffer] = useState<MappedOffer | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useOffersRealtime(setOffers);
+
+  const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const supabase = createClient();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      notifyUserError(showToast, 'Inicia sesión de nuevo para cambiar la foto.', 'me:avatar-no-session');
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload-profile-avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; avatar_url?: string };
+      if (!res.ok) {
+        notifyUserError(
+          showToast,
+          data.error ?? 'No se pudo subir la foto.',
+          'me:upload-profile-avatar',
+          new Error(data.error ?? res.statusText)
+        );
+        return;
+      }
+      if (typeof data.avatar_url === 'string') {
+        setProfile((prev) => (prev ? { ...prev, avatar_url: data.avatar_url! } : prev));
+        setOffers((prev) =>
+          prev.map((o) => ({
+            ...o,
+            author: { ...o.author, avatar_url: data.avatar_url },
+          }))
+        );
+        showToast('Foto de perfil actualizada.');
+      }
+    } catch (err) {
+      notifyUserError(showToast, 'No se pudo subir la foto.', 'me:upload-profile-avatar', err);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -180,16 +231,34 @@ function MePageInner() {
         <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
           <div className="rounded-3xl bg-white dark:bg-gray-900 p-6 shadow-lg mb-8">
             <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <User className="h-10 w-10 text-white" />
-                )}
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-10 w-10 text-white" />
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Elegir foto de perfil"
+                  onChange={handleAvatarChange}
+                />
+                <button
+                  type="button"
+                  disabled={avatarUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
+                </button>
               </div>
               <div className="text-center sm:text-left min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">

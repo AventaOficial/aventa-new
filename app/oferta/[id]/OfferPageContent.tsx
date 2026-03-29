@@ -32,6 +32,32 @@ function slugFromUsername(name: string | null | undefined): string {
   return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
+function CommentAvatar({
+  avatarUrl,
+  sizeClass,
+}: {
+  avatarUrl?: string | null;
+  sizeClass: string;
+}) {
+  if (avatarUrl) {
+    const dim = sizeClass.includes('h-7') ? 28 : 32;
+    return (
+      <Image
+        src={avatarUrl}
+        alt=""
+        width={dim}
+        height={dim}
+        className={`${sizeClass} rounded-full object-cover shrink-0`}
+        unoptimized={
+          avatarUrl.startsWith('http') &&
+          !avatarUrl.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+        }
+      />
+    );
+  }
+  return <User className={`${sizeClass} shrink-0 text-gray-400 dark:text-gray-500`} />;
+}
+
 function formatRelativeDate(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -52,7 +78,7 @@ type CommentItem = {
   id: string;
   content: string;
   created_at: string;
-  author: { username: string };
+  author: { username: string; avatar_url?: string | null };
   user_id?: string | null;
   parent_id?: string | null;
   image_url?: string | null;
@@ -675,6 +701,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                         }`}
                       >
                         <div className="mb-2 flex items-center gap-2">
+                          <CommentAvatar avatarUrl={comment.author.avatar_url} sizeClass="h-8 w-8" />
                           <p className={`text-sm font-medium ${isOwn ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>
                             {comment.author.username}
                           </p>
@@ -718,6 +745,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                                 }`}
                               >
                                 <div className="mb-1 flex items-center gap-2">
+                                  <CommentAvatar avatarUrl={reply.author.avatar_url} sizeClass="h-7 w-7" />
                                   <p className={`text-sm font-medium ${isOwnReply ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>
                                     {reply.author.username}
                                   </p>

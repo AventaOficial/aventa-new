@@ -48,6 +48,7 @@ export async function POST(request: Request) {
         display_name: nameToSet,
         avatar_url: avatarUrlVal,
         slug,
+        display_name_updated_at: null,
       });
       if (insertError) {
         console.error('[sync-profile] insert failed:', insertError.message, insertError.details, insertError.code);

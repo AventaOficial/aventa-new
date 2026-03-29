@@ -12,8 +12,8 @@ type CommentRow = {
   parent_id?: string | null;
   image_url?: string | null;
   profiles?:
-    | { display_name: string | null }
-    | { display_name: string | null }[]
+    | { display_name: string | null; avatar_url?: string | null }
+    | { display_name: string | null; avatar_url?: string | null }[]
     | null;
 };
 
@@ -24,11 +24,12 @@ function toComment(
 ) {
   const prof = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   const username = prof?.display_name?.trim() || 'Usuario';
+  const avatar_url = prof?.avatar_url?.trim() || null;
   return {
     id: row.id,
     content: row.content,
     created_at: row.created_at,
-    author: { username },
+    author: { username, avatar_url },
     user_id: row.user_id ?? null,
     parent_id: row.parent_id ?? null,
     image_url: row.image_url ?? null,
@@ -50,7 +51,7 @@ export async function GET(
   let list: CommentRow[];
   const { data: rows, error } = await supabase
     .from('comments')
-    .select('id, content, created_at, user_id, parent_id, image_url, profiles:public_profiles_view!user_id(display_name)')
+    .select('id, content, created_at, user_id, parent_id, image_url, profiles:public_profiles_view!user_id(display_name, avatar_url)')
     .eq('offer_id', offerId)
     .eq('status', 'approved')
     .order('created_at', { ascending: true });
@@ -59,7 +60,7 @@ export async function GET(
     if (error.message?.includes('parent_id') || error.message?.includes('image_url') || error.message?.includes('column')) {
       const { data: fallback, error: err2 } = await supabase
         .from('comments')
-        .select('id, content, created_at, user_id, profiles:public_profiles_view!user_id(display_name)')
+        .select('id, content, created_at, user_id, profiles:public_profiles_view!user_id(display_name, avatar_url)')
         .eq('offer_id', offerId)
         .eq('status', 'approved')
         .order('created_at', { ascending: true });
@@ -220,15 +221,22 @@ export async function POST(
 
   const { data: withProfile } = await supabase
     .from('comments')
-    .select('id, content, created_at, user_id, parent_id, image_url, profiles:public_profiles_view!user_id(display_name)')
+    .select('id, content, created_at, user_id, parent_id, image_url, profiles:public_profiles_view!user_id(display_name, avatar_url)')
     .eq('id', inserted.id)
     .single();
+
+  const fallbackName =
+    (userData?.user_metadata?.display_name?.trim() || userData?.email?.split('@')[0]) || 'Usuario';
+  const fallbackAvatar =
+    typeof userData?.user_metadata?.avatar_url === 'string' && userData.user_metadata.avatar_url.trim()
+      ? userData.user_metadata.avatar_url.trim()
+      : null;
 
   const comment = withProfile ? toComment(withProfile as CommentRow, 0, false) : {
     id: inserted.id,
     content: inserted.content,
     created_at: inserted.created_at,
-    author: { username: (userData?.user_metadata?.display_name?.trim() || userData?.email?.split('@')[0]) || 'Usuario' },
+    author: { username: fallbackName, avatar_url: fallbackAvatar },
     parent_id: parentId,
     image_url: null,
     like_count: 0,

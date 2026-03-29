@@ -25,7 +25,7 @@ type NotificationItem = {
 
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, session, signOut } = useAuth();
+  const { user, session, signOut, isLoading: authLoading } = useAuth();
   const { openRegisterModal, openGuideModal } = useUI();
   const pathname = usePathname();
   const isHomePage = pathname === '/';
@@ -126,7 +126,7 @@ export default function Navbar() {
   );
 
   useEffect(() => {
-    if (!user || !session?.access_token) {
+    if (authLoading || !user?.id || !session?.access_token) {
       setNotifications([]);
       setUnreadCount(0);
       loadNotifSoundPrimedRef.current = false;
@@ -156,7 +156,7 @@ export default function Navbar() {
     load();
     const interval = setInterval(load, 60 * 1000);
     return () => clearInterval(interval);
-  }, [user?.id, session?.access_token]);
+  }, [authLoading, user?.id, session?.access_token]);
 
   useEffect(() => {
     const loadAnnouncements = async () => {

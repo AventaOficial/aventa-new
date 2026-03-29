@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function AdminOwnerRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/operaciones');
+    router.replace('/admin/operaciones');
   }, [router]);
   return (
     <div className="min-h-screen flex items-center justify-center">
