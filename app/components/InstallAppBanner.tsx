@@ -17,6 +17,7 @@ export default function InstallAppBanner() {
   const [visible, setVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -28,14 +29,16 @@ export default function InstallAppBanner() {
     if (dismissed) return;
 
     const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: boolean }).MSStream;
+    const android = /Android/i.test(navigator.userAgent);
     setIsIOS(isApple);
+    setIsAndroid(android);
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as unknown as { prompt: () => Promise<void> });
       setVisible(true);
     };
     window.addEventListener('beforeinstallprompt', handler);
-    if (isApple) setVisible(true);
+    if (isApple || android) setVisible(true);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -44,7 +47,7 @@ export default function InstallAppBanner() {
       await deferredPrompt.prompt();
       setVisible(false);
       localStorage.setItem(STORAGE_KEY, 'true');
-    } else if (isIOS) {
+    } else if (isIOS || isAndroid) {
       setVisible(false);
       localStorage.setItem(STORAGE_KEY, 'true');
     }
@@ -76,7 +79,7 @@ export default function InstallAppBanner() {
           onClick={handleInstall}
           className="rounded-full bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold transition-colors"
         >
-          Añadir
+          {isAndroid ? 'Instalar app en Android' : isIOS ? 'Añadir' : deferredPrompt ? 'Instalar' : 'Añadir'}
         </button>
         <button
           type="button"

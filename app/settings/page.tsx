@@ -28,6 +28,7 @@ function SettingsPageInner() {
   const [passwordResetSent, setPasswordResetSent] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [emailDailyDigest, setEmailDailyDigest] = useState(false);
   const [emailWeeklyDigest, setEmailWeeklyDigest] = useState(false);
   const [emailPrefsSaving, setEmailPrefsSaving] = useState(false);
@@ -40,6 +41,7 @@ function SettingsPageInner() {
     if (typeof window === 'undefined') return;
     const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: boolean }).MSStream;
     setIsIOS(isApple);
+    setIsAndroid(/Android/i.test(navigator.userAgent));
     const handler = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as unknown as { prompt: () => Promise<void> });
@@ -487,7 +489,7 @@ function SettingsPageInner() {
                   onClick={handleInstallClick}
                   className="rounded-xl bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 font-medium transition-colors"
                 >
-                  Instalar en esta dispositivo
+                  {isAndroid ? 'Instalar app en Android' : 'Instalar en este dispositivo'}
                 </button>
               )}
               {isIOS && (
