@@ -6,7 +6,6 @@ import { motion } from 'framer-motion'
 import ClientLayout from '@/app/ClientLayout'
 import OfferCard from '@/app/components/OfferCard'
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton'
-import OfferModal from '@/app/components/OfferModal'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/app/providers/ThemeProvider'
 import { useUI } from '@/app/providers/UIProvider'
@@ -19,6 +18,7 @@ import {
 } from '@/lib/offers/batchUserData'
 import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform'
 import { notifyUserError } from '@/lib/utils/handleError'
+import { buildOfferPublicPath } from '@/lib/offerPath'
 
 function FavoritesPageInner() {
   useTheme()
@@ -29,7 +29,6 @@ function FavoritesPageInner() {
   const [voteMap, setVoteMap] = useState<VoteMap>({})
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({})
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({})
-  const [selectedOffer, setSelectedOffer] = useState<CardOffer | null>(null)
 
   useOffersRealtime(setOffers)
 
@@ -112,7 +111,6 @@ function FavoritesPageInner() {
 
   const handleRemoveFromList = (offerId: string) => {
     setOffers((prev) => prev.filter((o) => o.id !== offerId))
-    if (selectedOffer?.id === offerId) setSelectedOffer(null)
   }
 
   const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
@@ -173,7 +171,7 @@ function FavoritesPageInner() {
                     votes={offer.votes}
                     offerUrl={offer.offerUrl}
                     author={offer.author}
-                    onCardClick={() => setSelectedOffer(offer)}
+                    onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
                     onFavoriteChange={(isFav) => {
                       handleFavoriteChange(isFav)
                       if (!isFav) handleRemoveFromList(offer.id)
@@ -193,41 +191,6 @@ function FavoritesPageInner() {
           )}
         </section>
         <div className="h-24 md:h-0" />
-        {selectedOffer && (
-          <OfferModal
-            isOpen={!!selectedOffer}
-            onClose={() => setSelectedOffer(null)}
-            title={selectedOffer.title}
-            brand={selectedOffer.brand}
-            originalPrice={selectedOffer.originalPrice}
-            discountPrice={selectedOffer.discountPrice}
-            discount={selectedOffer.discount}
-            description={selectedOffer.description}
-            offerUrl={selectedOffer.offerUrl}
-            upvotes={selectedOffer.upvotes}
-            downvotes={selectedOffer.downvotes}
-            votesScore={selectedOffer.votes.score}
-            offerId={selectedOffer.id}
-            author={selectedOffer.author}
-            image={selectedOffer.image}
-            isLiked={true}
-            userVote={voteMap[selectedOffer.id] ?? 0}
-            userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
-            onVoteChange={handleVoteChange}
-            onFavoriteChange={(fav) => {
-              if (!fav) {
-                handleRemoveFromList(selectedOffer.id)
-                setSelectedOffer(null)
-              }
-            }}
-            steps={selectedOffer.steps}
-            conditions={selectedOffer.conditions}
-            coupons={selectedOffer.coupons}
-            msiMonths={selectedOffer.msiMonths}
-            bankCoupon={selectedOffer.bankCoupon}
-            imageUrls={selectedOffer.imageUrls}
-          />
-        )}
       </div>
     </ClientLayout>
   )

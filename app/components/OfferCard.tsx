@@ -295,7 +295,6 @@ export default function OfferCard({
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const personalCouponTrim = coupons?.trim() ?? '';
-  const showCouponBlock = Boolean(personalCouponTrim);
 
   const copyCouponsToClipboard = async (): Promise<void> => {
     if (isTesterOffer) return;
@@ -371,7 +370,7 @@ export default function OfferCard({
       onClick={() => {
         void runOpenOfferAction();
       }}
-      className="relative flex flex-row items-start overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
+      className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
     >
       <button
         onClick={handleFavoriteClick}
@@ -402,14 +401,14 @@ export default function OfferCard({
             }).catch((err) => logClientError('offer-card:track-view', err));
           }}
           className="absolute top-2 right-2 max-[400px]:top-1.5 max-[400px]:right-1.5 z-10 p-1 max-[400px]:p-1 md:p-1.5 rounded-md md:rounded-lg bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm border border-[#e5e5e7]/80 dark:border-[#262626]/80 text-[#8e8e93] dark:text-[#737378] hover:text-violet-600 dark:hover:text-violet-400 hover:bg-white/95 dark:hover:bg-[#1a1a1a]/95 transition-colors"
-          title={shareCopied ? '¡Copiado!' : 'Compartir (se abre la oferta expandida)'}
+          title={shareCopied ? '¡Copiado!' : 'Compartir (enlace a la página de la oferta)'}
           aria-label="Compartir oferta"
         >
           <Share2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
         </button>
       )}
 
-      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5">
+      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
         <div className="relative h-[152px] max-[400px]:h-[128px] md:h-[158px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
           {showImage ? (
             <Image
@@ -427,12 +426,14 @@ export default function OfferCard({
             </div>
           )}
         </div>
-        <div className="flex justify-center w-full shrink-0">
+        <div className="flex-1 min-h-[6px] min-w-0" aria-hidden />
+        <div className="flex justify-center w-full shrink-0 pb-0.5">
           <VotesBlock />
         </div>
       </div>
 
-      <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 gap-1 max-[400px]:gap-0.5 md:gap-1.5 pt-6 max-[400px]:pt-5 md:pt-0">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 pl-3 max-[400px]:pl-2 md:pl-4 pt-6 max-[400px]:pt-5 md:pt-0">
+        <div className="min-w-0 flex-1 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
         <div className="min-w-0">
           {dealStatus && (
             <span
@@ -585,7 +586,7 @@ export default function OfferCard({
         </div>
 
         {ownerMetrics != null && (
-          <div className="rounded-xl border border-dashed border-violet-300/70 dark:border-violet-800/60 bg-violet-50/50 dark:bg-violet-950/25 px-3 py-2.5 mt-2">
+          <div className="rounded-xl border border-dashed border-violet-300/70 dark:border-violet-800/60 bg-violet-50/50 dark:bg-violet-950/25 px-3 py-2.5 mt-1">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300 mb-2 text-center sm:text-left">
               Solo tú ves estas métricas
             </p>
@@ -608,8 +609,9 @@ export default function OfferCard({
             </div>
           </div>
         )}
+        </div>
 
-        <div className="mt-2 max-[400px]:mt-1.5 space-y-2">
+        <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-1 border-t border-gray-100/90 dark:border-gray-800/80">
           <div className="flex items-center gap-2 max-[400px]:gap-1.5">
             <button
               type="button"
@@ -640,19 +642,6 @@ export default function OfferCard({
               Cazar oferta
             </button>
           </div>
-          {showCouponBlock ? (
-            <div
-              className="rounded-lg border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/60 dark:bg-indigo-950/25 px-2.5 py-2 space-y-1.5"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {personalCouponTrim ? (
-                <p className="text-[10px] md:text-[11px] leading-snug text-gray-700 dark:text-gray-300 wrap-anywhere">
-                  <span className="font-semibold text-gray-600 dark:text-gray-400">Cupón: </span>
-                  <span className="font-mono text-gray-900 dark:text-gray-100">{personalCouponTrim}</span>
-                </p>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       </div>
     </div>

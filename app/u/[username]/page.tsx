@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
-import OfferModal from '@/app/components/OfferModal';
 import ReputationBar from '@/app/components/ReputationBar';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -18,6 +17,7 @@ import {
   type VoteValueMap,
   type FavoriteMap,
 } from '@/lib/offers/batchUserData';
+import { buildOfferPublicPath } from '@/lib/offerPath';
 
 type ProfileData = {
   profile: {
@@ -55,6 +55,7 @@ type ProfileData = {
 export default function ProfilePage() {
   useTheme();
   const params = useParams();
+  const router = useRouter();
   const { session } = useAuth();
   const username = typeof params?.username === 'string' ? params.username : '';
 
@@ -65,8 +66,6 @@ export default function ProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [data, setData] = useState<ProfileData | null>(null);
-  const [selectedOffer, setSelectedOffer] = useState<ProfileData['offers'][0] | null>(null);
-
   const setOffers = useCallback(
     (updater: React.SetStateAction<ProfileData['offers']>) => {
       setData((prev) =>
@@ -296,7 +295,7 @@ export default function ProfilePage() {
                       votes={offer.votes}
                       offerUrl={offer.offerUrl}
                       author={offer.author}
-                      onCardClick={() => setSelectedOffer(offer)}
+                      onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
                       onVoteChange={handleVoteChange}
                       userVote={voteMap[offer.id] ?? null}
                       userVoteStoredValue={voteValueMap[offer.id] ?? null}
@@ -315,36 +314,6 @@ export default function ProfilePage() {
           <div className="h-24 md:h-0" />
         </section>
 
-        {selectedOffer && (
-          <OfferModal
-            isOpen={!!selectedOffer}
-            onClose={() => setSelectedOffer(null)}
-            title={selectedOffer.title}
-            brand={selectedOffer.brand}
-            originalPrice={selectedOffer.originalPrice}
-            discountPrice={selectedOffer.discountPrice}
-            discount={selectedOffer.discount}
-            description={selectedOffer.description}
-            offerUrl={selectedOffer.offerUrl}
-            upvotes={selectedOffer.upvotes}
-            downvotes={selectedOffer.downvotes}
-            votesScore={selectedOffer.votes.score}
-            offerId={selectedOffer.id}
-            author={selectedOffer.author}
-            image={selectedOffer.image}
-            isLiked={!!favoriteMap[selectedOffer.id]}
-            onFavoriteChange={(fav) => setFavoriteMap((prev) => ({ ...prev, [selectedOffer.id]: fav }))}
-            userVote={voteMap[selectedOffer.id] ?? 0}
-            userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
-            onVoteChange={handleVoteChange}
-            steps={selectedOffer.steps}
-            conditions={selectedOffer.conditions}
-            coupons={selectedOffer.coupons ?? undefined}
-            msiMonths={selectedOffer.msiMonths ?? undefined}
-            bankCoupon={selectedOffer.bankCoupon ?? undefined}
-            imageUrls={selectedOffer.imageUrls}
-          />
-        )}
       </div>
     </ClientLayout>
   );

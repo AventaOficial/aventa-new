@@ -6,7 +6,6 @@ import { User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
-import OfferModal from '@/app/components/OfferModal';
 import ReputationBar from '@/app/components/ReputationBar';
 import CommissionProgramPanel from '@/app/me/CommissionProgramPanel';
 import { createClient } from '@/lib/supabase/client';
@@ -21,6 +20,7 @@ import {
 import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform';
 import { notifyUserError } from '@/lib/utils/handleError';
 import { useUI } from '@/app/providers/UIProvider';
+import { buildOfferPublicPath } from '@/lib/offerPath';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
@@ -49,7 +49,6 @@ function MePageInner() {
     commentsCount: 0,
     cazadoresAyudados: 0,
   });
-  const [selectedOffer, setSelectedOffer] = useState<MappedOffer | null>(null);
   const [ownerMetricsByOffer, setOwnerMetricsByOffer] = useState<Record<string, OfferOwnerMetrics> | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -382,7 +381,7 @@ function MePageInner() {
                   votes={offer.votes}
                   offerUrl={offer.offerUrl}
                   author={offer.author}
-                  onCardClick={() => setSelectedOffer(offer)}
+                  onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
                   onVoteChange={handleVoteChange}
                   userVote={voteMap[offer.id] ?? null}
                   userVoteStoredValue={voteValueMap[offer.id] ?? null}
@@ -410,40 +409,6 @@ function MePageInner() {
           <div className="h-24 md:h-0" />
         </section>
 
-        {selectedOffer && (
-          <OfferModal
-            isOpen={!!selectedOffer}
-            onClose={() => setSelectedOffer(null)}
-            title={selectedOffer.title}
-            brand={selectedOffer.brand}
-            originalPrice={selectedOffer.originalPrice}
-            discountPrice={selectedOffer.discountPrice}
-            discount={selectedOffer.discount}
-            description={selectedOffer.description}
-            offerUrl={selectedOffer.offerUrl}
-            upvotes={selectedOffer.upvotes}
-            downvotes={selectedOffer.downvotes}
-            votesScore={selectedOffer.votes.score}
-            offerId={selectedOffer.id}
-            author={selectedOffer.author}
-            image={selectedOffer.image}
-            isLiked={!!favoriteMap[selectedOffer.id]}
-            userVote={voteMap[selectedOffer.id] ?? 0}
-            userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
-            onVoteChange={handleVoteChange}
-            onFavoriteChange={(fav) => {
-              if (selectedOffer.id) {
-                setFavoriteMap((prev) => (fav ? { ...prev, [selectedOffer.id]: true } : { ...prev, [selectedOffer.id]: false }));
-              }
-            }}
-            steps={selectedOffer.steps}
-            conditions={selectedOffer.conditions}
-            coupons={selectedOffer.coupons}
-            msiMonths={selectedOffer.msiMonths}
-            bankCoupon={selectedOffer.bankCoupon}
-            imageUrls={selectedOffer.imageUrls}
-          />
-        )}
       </div>
     </ClientLayout>
   );
