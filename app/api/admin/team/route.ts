@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { requireOwner } from '@/lib/server/requireAdmin';
+import { requireTeamManagement } from '@/lib/server/requireAdmin';
 import type { Role } from '@/lib/admin/roles';
 
 const ROLE_PRIORITY: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
 
-/** GET: lista usuarios con rol (solo owner). Devuelve user_id, role efectivo, display_name. */
+function effectiveRoleFromRows(rows: { role: Role }[] | null | undefined): Role | null {
+  let best: Role | null = null;
+  let bestIdx = ROLE_PRIORITY.length;
+  for (const r of rows ?? []) {
+    const idx = ROLE_PRIORITY.indexOf(r.role);
+    if (idx >= 0 && idx < bestIdx) {
+      bestIdx = idx;
+      best = r.role;
+    }
+  }
+  return best;
+}
+
+/** GET: lista usuarios con rol (owner o admin). Devuelve user_id, role efectivo, display_name. */
 export async function GET(request: NextRequest) {
-  const auth = await requireOwner(request);
+  const auth = await requireTeamManagement(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -67,9 +80,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ team });
 }
 
-/** POST: agregar usuario al equipo (solo owner). Body: { user_id, role }. */
+/** POST: agregar usuario al equipo (owner o admin). Body: { user_id, role }. */
 export async function POST(request: NextRequest) {
-  const auth = await requireOwner(request);
+  const auth = await requireTeamManagement(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -92,6 +105,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (role === 'admin' && auth.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Solo el owner puede asignar el rol admin' },
+      { status: 403 }
+    );
+  }
+
   const supabase = createServerClient();
 
   const { data: existing } = await supabase.from('user_roles').select('user_id').eq('user_id', userId).maybeSingle();
@@ -111,9 +131,9 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/** PATCH: actualizar rol de un usuario (solo owner). Body: { user_id, role }. */
+/** PATCH: actualizar rol de un usuario (owner o admin). Body: { user_id, role }. */
 export async function PATCH(request: NextRequest) {
-  const auth = await requireOwner(request);
+  const auth = await requireTeamManagement(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -129,14 +149,45 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  if (userId === auth.user.id && role !== 'owner') {
+  const supabase = createServerClient();
+
+  const { data: targetRows } = await supabase.from('user_roles').select('role').eq('user_id', userId);
+  const targetEffective = effectiveRoleFromRows((targetRows ?? []) as { role: Role }[]);
+
+  if (role === 'owner' && auth.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Solo el owner puede asignar el rol owner' },
+      { status: 403 }
+    );
+  }
+
+  if (role === 'admin' && auth.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Solo el owner puede asignar el rol admin' },
+      { status: 403 }
+    );
+  }
+
+  if (targetEffective === 'owner' && auth.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Solo el owner puede modificar la cuenta owner' },
+      { status: 403 }
+    );
+  }
+
+  if (targetEffective === 'admin' && auth.role !== 'owner' && userId !== auth.user.id) {
+    return NextResponse.json(
+      { error: 'Solo el owner puede modificar a otros admins' },
+      { status: 403 }
+    );
+  }
+
+  if (userId === auth.user.id && auth.role === 'owner' && role !== 'owner') {
     return NextResponse.json(
       { error: 'No puedes quitarte el rol owner a ti mismo' },
       { status: 400 }
     );
   }
-
-  const supabase = createServerClient();
 
   const { error: delError } = await supabase.from('user_roles').delete().eq('user_id', userId);
   if (delError) {

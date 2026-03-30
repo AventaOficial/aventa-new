@@ -51,7 +51,7 @@ const USERS_LOGS_ITEMS = [
   { href: '/admin/logs', label: 'Logs', icon: FileText },
 ] as const;
 
-/** Equipo (gestionar roles): solo owner */
+/** Equipo (gestionar roles): owner y admin */
 const TEAM_ITEM = { href: '/admin/team', label: 'Equipo', icon: UserCog } as const;
 
 /** Avisos del sitio: owner y admin */
@@ -238,7 +238,7 @@ export default function AdminLayout({
           {(canTeam || canAnnouncements) && (
             <>
               <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Solo owner
+                Owner y admins
               </p>
               {canTeam && (
                 <Link

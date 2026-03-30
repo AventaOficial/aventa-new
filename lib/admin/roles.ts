@@ -3,7 +3,8 @@
  * owner: acceso total (moderación + usuarios/logs + métricas/health)
  * admin: igual que owner
  * moderator: solo moderación (Pendientes, Aprobadas, Rechazadas, Comentarios, Reportes). No ve Usuarios, Logs, Métricas, Health.
- * analyst: solo Métricas y Health
+ * analyst: solo Métricas y Health.
+ * Equipo (/admin/team): owner y admin; solo el owner puede tocar cuentas owner, asignar owner/admin o editar a otros admins.
  */
 
 export const ROLES = ['owner', 'admin', 'moderator', 'analyst'] as const;
@@ -14,8 +15,8 @@ export const ADMIN_NAV = {
   moderation: ['owner', 'admin', 'moderator'],
   /** Ver usuarios y logs (solo owner/admin) */
   usersLogs: ['owner', 'admin'],
-  /** Gestionar equipo: ver y editar roles (solo owner) */
-  team: ['owner'],
+  /** Gestionar equipo: ver y editar roles (owner y admin) */
+  team: ['owner', 'admin'],
   /** Gestionar avisos del sitio (solo owner) */
   announcements: ['owner'],
   metrics: ['owner', 'admin', 'analyst'],
@@ -31,9 +32,9 @@ export function canAccessUsersLogs(role: Role | null): boolean {
   return role !== null && (ADMIN_NAV.usersLogs as readonly Role[]).includes(role);
 }
 
-/** Solo owner ve Equipo (gestionar moderadores y roles). */
+/** Owner y admin ven Equipo (gestionar moderadores y roles). */
 export function canManageTeam(role: Role | null): boolean {
-  return role === 'owner';
+  return role === 'owner' || role === 'admin';
 }
 
 /** Solo owner gestiona avisos del sitio. */
