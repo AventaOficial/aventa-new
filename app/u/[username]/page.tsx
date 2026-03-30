@@ -44,6 +44,9 @@ type ProfileData = {
     msiMonths?: number | null;
     bankCoupon?: string | null;
     coupons?: string | null;
+    steps?: string;
+    conditions?: string;
+    imageUrls?: string[];
     votes: { up: number; down: number; score: number };
     author: { username: string; avatar_url?: string | null; userId?: string | null; slug?: string | null };
   }[];
@@ -336,9 +339,9 @@ export default function ProfilePage() {
             onVoteChange={handleVoteChange}
             steps={selectedOffer.steps}
             conditions={selectedOffer.conditions}
-            coupons={selectedOffer.coupons}
-            msiMonths={selectedOffer.msiMonths}
-            bankCoupon={selectedOffer.bankCoupon}
+            coupons={selectedOffer.coupons ?? undefined}
+            msiMonths={selectedOffer.msiMonths ?? undefined}
+            bankCoupon={selectedOffer.bankCoupon ?? undefined}
             imageUrls={selectedOffer.imageUrls}
           />
         )}

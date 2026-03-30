@@ -9,9 +9,12 @@ type OfferRow = {
   price: number;
   original_price: number;
   image_url: string | null;
+  image_urls: string[] | null;
   store: string | null;
   offer_url: string | null;
   description: string | null;
+  steps: string | null;
+  conditions: string | null;
   msi_months?: number | null;
   bank_coupon?: string | null;
   coupons?: string | null;
@@ -98,7 +101,7 @@ export async function GET(
   const { data: rows, error: offersError } = await supabase
     .from('offers')
     .select(
-      'id, title, price, original_price, image_url, store, offer_url, description, msi_months, bank_coupon, coupons, created_at, upvotes_count, downvotes_count, ranking_momentum'
+      'id, title, price, original_price, image_url, image_urls, store, offer_url, description, steps, conditions, msi_months, bank_coupon, coupons, created_at, upvotes_count, downvotes_count, ranking_momentum'
     )
     .eq('created_by', profileId)
     .is('deleted_at', null)
@@ -135,6 +138,7 @@ export async function GET(
         : undefined;
     const msiOk =
       msiMonths != null && Number.isFinite(msiMonths) && msiMonths >= 1 ? msiMonths : undefined;
+    const imageUrls = Array.isArray(row.image_urls) ? row.image_urls : undefined;
     return {
       id: row.id,
       title: row.title,
@@ -146,7 +150,10 @@ export async function GET(
       downvotes: down,
       offerUrl: row.offer_url?.trim() ?? '',
       image: row.image_url ? row.image_url : undefined,
+      imageUrls,
       description: row.description?.trim() || undefined,
+      steps: row.steps?.trim() || undefined,
+      conditions: row.conditions?.trim() || undefined,
       createdAt: row.created_at ?? null,
       msiMonths: msiOk,
       bankCoupon: row.bank_coupon?.trim() || undefined,

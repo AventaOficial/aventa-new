@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -28,6 +28,7 @@ import {
   Target,
   FlaskConical,
   History,
+  Copy,
 } from 'lucide-react';
 import {
   applyAlertConfigToAreas,
@@ -178,6 +179,122 @@ const OPERATIONS_ZONE_INDEX: { id: string; title: string; description: string }[
   },
 ];
 
+function areaStatusLabel(s: AreaStatus): string {
+  switch (s) {
+    case 'ok':
+      return 'ok';
+    case 'warn':
+      return 'revisar';
+    case 'fail':
+      return 'crítico';
+    default:
+      return 'sin datos';
+  }
+}
+
+function buildOperationsFullReportText(input: {
+  origin: string;
+  integrity: IntegrityResult | null;
+  integrityError: string | null;
+  pulse: PulseAlerts | null;
+  pulseError: string | null;
+  goNoGo: GoNoGoResponse | null;
+  goNoGoError: string | null;
+  areaStatuses: Record<AreaId, AreaStatus>;
+  showTesterOffers: boolean;
+}): string {
+  const lines: string[] = [];
+  const now = new Date().toISOString();
+  lines.push('# AVENTA — Reporte automático (Centro de operaciones)');
+  lines.push('');
+  lines.push(`Generado (UTC): ${now}`);
+  lines.push(`Origen: ${input.origin}`);
+  lines.push('');
+  lines.push('## Cómo usar este volcado');
+  lines.push(
+    'Pégalo en un asistente (IA) o en un ticket para validar estado, priorizar fallos o contrastar con Supabase/Vercel/GitHub. No incluye secretos ni tokens.'
+  );
+  lines.push('');
+  lines.push('## Errores al cargar el panel');
+  lines.push(
+    `- integridad: ${input.integrityError ?? 'ninguno'}`,
+    `- pulso/alertas: ${input.pulseError ?? 'ninguno'}`,
+    `- go/no-go: ${input.goNoGoError ?? 'ninguno'}`
+  );
+  lines.push('');
+  lines.push('## Go / No-Go');
+  if (input.goNoGo) {
+    lines.push(`- overall: ${input.goNoGo.overall}`);
+    lines.push(`- integridad: ${input.goNoGo.signals.integrity.status} (checks fallidos: ${input.goNoGo.signals.integrity.failed_checks})`);
+    lines.push(
+      `- alertas: ${input.goNoGo.signals.alerting.status} (email: ${input.goNoGo.signals.alerting.emailConfigured}, webhook: ${input.goNoGo.signals.alerting.webhookConfigured}, resend: ${input.goNoGo.signals.alerting.resendConfigured})`
+    );
+    lines.push(
+      `- cola escrituras: ${input.goNoGo.signals.queue.status} (pendientes=${input.goNoGo.signals.queue.pending}, fallidas=${input.goNoGo.signals.queue.failed})`
+    );
+    lines.push(
+      `- crecimiento: ${input.goNoGo.signals.growth.status} (weekly_pct=${input.goNoGo.signals.growth.weekly_pct ?? 'null'})`
+    );
+  } else {
+    lines.push('- sin datos');
+  }
+  lines.push('');
+  lines.push('## Semáforos por área (derivados de integridad + env de alertas)');
+  (Object.keys(AREA_META) as AreaId[]).forEach((id) => {
+    const st = input.areaStatuses[id];
+    lines.push(`- ${id}: ${areaStatusLabel(st)} (${st}) — ${AREA_META[id].title}`);
+  });
+  lines.push('');
+  lines.push('## Pulso operativo (solo flags de configuración)');
+  if (input.pulse) {
+    lines.push(`- email_to configurado: ${input.pulse.emailToConfigured}`);
+    lines.push(`- webhook configurado: ${input.pulse.webhookConfigured}`);
+    lines.push(`- resend configurado: ${input.pulse.resendConfigured}`);
+  } else {
+    lines.push('- sin datos de pulso');
+  }
+  lines.push('');
+  lines.push('## Integridad automática (último resultado en panel)');
+  if (input.integrity) {
+    lines.push(`- ok global: ${input.integrity.ok}`);
+    lines.push(`- inicio: ${input.integrity.startedAt}`);
+    lines.push(`- fin: ${input.integrity.finishedAt}`);
+    lines.push(
+      `- resumen: total=${input.integrity.summary.total}, ok=${input.integrity.summary.passed}, fallo=${input.integrity.summary.failed}`
+    );
+    lines.push('- checks:');
+    input.integrity.checks.forEach((c) => {
+      lines.push(`  - [${c.ok ? 'OK' : 'FALLO'}] ${c.name}: ${c.detail}`);
+    });
+  } else {
+    lines.push('- sin resultado de integridad cargado');
+  }
+  lines.push('');
+  lines.push('## Control por áreas (producto — registry en código)');
+  PRODUCT_CONTROL_AREAS.forEach((row) => {
+    lines.push(`- ${row.area} [${row.estado}]: último cambio ${row.ultimoCambio}, revisión ${row.ultimaRevision ?? '—'}`);
+  });
+  lines.push('');
+  lines.push('## Flags de app');
+  lines.push(`- show_tester_offers (home): ${input.showTesterOffers}`);
+  lines.push('');
+  lines.push('## Qué suele faltar en un panel así (checklist ampliación)');
+  lines.push(
+    '- Tasas de error recientes (API / edge) si tienes logs centralizados.',
+    '- Estado del último deploy (Vercel) y commit desplegado.',
+    '- Uso de cuota Supabase (DB, auth, storage) y latencia.',
+    '- Cola de moderación: conteo rápido pendiente/rechazadas (vía admin o RPC).',
+    '- RLS: prueba smoke automatizada por rol (usuario vs anon).',
+    '- Backups / PITR Supabase y última restauración de prueba.',
+    '- Dominios, SSL, cookies y consentimiento (banner) en producción.',
+    '- Sentry/uptime externo si lo añades después.'
+  );
+  lines.push('');
+  lines.push('---');
+  lines.push('Fin del reporte.');
+  return lines.join('\n');
+}
+
 export default function OperacionesPageContent() {
   const router = useRouter();
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
@@ -192,11 +309,33 @@ export default function OperacionesPageContent() {
   const [goNoGo, setGoNoGo] = useState<GoNoGoResponse | null>(null);
   const [goNoGoError, setGoNoGoError] = useState<string | null>(null);
   const [queueFlushing, setQueueFlushing] = useState(false);
+  const [reportFeedback, setReportFeedback] = useState<string | null>(null);
 
   const areaStatuses = useMemo(() => {
     const base = deriveAreaStatusesFromIntegrity(integrity);
     return applyAlertConfigToAreas(base, pulse);
   }, [integrity, pulse]);
+
+  const copyFullOperationsReport = useCallback(() => {
+    const text = buildOperationsFullReportText({
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      integrity,
+      integrityError,
+      pulse,
+      pulseError,
+      goNoGo,
+      goNoGoError,
+      areaStatuses,
+      showTesterOffers,
+    });
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        setReportFeedback('Copiado al portapapeles.');
+        window.setTimeout(() => setReportFeedback(null), 4000);
+      },
+      () => setReportFeedback('No se pudo copiar (revisa permisos del navegador).')
+    );
+  }, [integrity, integrityError, pulse, pulseError, goNoGo, goNoGoError, areaStatuses, showTesterOffers]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -424,6 +563,32 @@ export default function OperacionesPageContent() {
               .
             </p>
           </header>
+
+          <section className="rounded-2xl border border-dashed border-violet-300/90 dark:border-violet-700/80 bg-violet-50/50 dark:bg-violet-950/25 p-4 md:p-5 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <Copy className="h-4 w-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                  Reporte automático completo
+                </h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                  Un solo volcado en Markdown: Go/No-Go, semáforos por área, integridad (cada check), pulso de alertas,
+                  tabla de control de producto y checklist de qué más suele faltar. Pégalo en una IA o en un ticket.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={copyFullOperationsReport}
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 dark:hover:bg-violet-600"
+              >
+                <Copy className="h-4 w-4 shrink-0" />
+                Copiar reporte
+              </button>
+            </div>
+            {reportFeedback ? (
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-3">{reportFeedback}</p>
+            ) : null}
+          </section>
 
           <section
             id="indice-zonas"
