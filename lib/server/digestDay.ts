@@ -66,3 +66,14 @@ export function formatZonedDayLabel(d: Date, timeZone: string = DEFAULT_TZ): str
     month: 'short',
   }).format(d);
 }
+
+/** Etiqueta legible para asuntos y cabeceras (ej. "domingo, 29 de marzo"). */
+export function formatZonedDayLabelLong(d: Date, timeZone: string = DEFAULT_TZ): string {
+  const s = new Intl.DateTimeFormat('es-MX', {
+    timeZone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}

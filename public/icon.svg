@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AVENTA">
+  <rect width="512" height="512" rx="112" fill="#1a1a1a"/>
+  <!-- A abierta (sin travesaño); dos trazos hacia el vértice superior -->
+  <path
+    d="M 118 432 L 256 88"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="52"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M 394 432 L 256 88"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="52"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Chevron violeta en la apertura inferior -->
+  <path d="M 256 300 L 196 372 h 120 Z" fill="#8b5cf6"/>
+</svg>

@@ -33,8 +33,12 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    shortcut: ['/icon.svg'],
+    icon: [
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: ['/icon-512.png'],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '512x512', type: 'image/png' }],
   },
   openGraph: {
     title: "AVENTA - Comunidad de cazadores de ofertas",

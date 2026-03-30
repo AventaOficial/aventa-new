@@ -54,13 +54,13 @@ export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
     <tr>
       <td align="center" style="padding:32px 16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; background:#ffffff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; background:#ffffff; border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,0.06); overflow:hidden;">
           <!-- Cabecera (logo + texto; logo opcional para que Gmail muestre identidad visual) -->
           <tr>
             <td style="padding:28px 24px 20px; text-align:center; border-bottom:1px solid ${BORDER};">
               ${logoImg}
-              <a href="${baseUrl}" style="text-decoration:none; font-size:22px; font-weight:700; color:${BRAND_COLOR}; letter-spacing:-0.02em;">AVENTA</a>
-              <p style="margin:6px 0 0; font-size:13px; color:${TEXT_MUTED};">Las mejores ofertas, elegidas por la comunidad</p>
+              <a href="${baseUrl}" style="text-decoration:none; font-size:22px; font-weight:700; color:${TEXT_DARK}; letter-spacing:-0.03em;">AVENTA</a>
+              <p style="margin:8px 0 0; font-size:13px; color:${TEXT_MUTED}; line-height:1.4;">Elegidas por la comunidad.</p>
             </td>
           </tr>
           <!-- Contenido -->
@@ -160,21 +160,22 @@ export function buildDailyHtml(
     </div>`
       : '';
 
-  const dayLine = opts?.dayLabel
-    ? `<p style="margin:0 0 8px; font-size:13px; color:${TEXT_MUTED};">${escapeHtml(opts.dayLabel)}</p>`
-    : '';
+  const eyebrow = `<p style="margin:0 0 8px; font-size:11px; font-weight:600; color:${TEXT_MUTED}; letter-spacing:0.07em; text-transform:uppercase;">${escapeHtml(opts?.title ?? 'Hoy en AVENTA')}</p>`;
+  const headline = opts?.dayLabel
+    ? `<h1 style="margin:0 0 14px; font-size:26px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.03em; line-height:1.15;">${escapeHtml(opts.dayLabel)}</h1>`
+    : `<h1 style="margin:0 0 14px; font-size:26px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.03em;">${escapeHtml(opts?.title ?? 'Hoy en AVENTA')}</h1>`;
 
   const inner = `
-    <h1 style="margin:0 0 12px; font-size:20px; font-weight:700; color:${TEXT_DARK};">${escapeHtml(opts?.title ?? 'Mejores ofertas de hoy')}</h1>
-    ${dayLine}
-    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Ofertas publicadas hoy (zona ${escapeHtml(process.env.DIGEST_TIMEZONE || 'America/Mexico_City')}), ordenadas por apoyo de la comunidad.</p>
+    ${eyebrow}
+    ${headline}
+    <p style="margin:0 0 22px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">Lo más apoyado del día, en orden de apoyo.</p>
     ${yourBlock}
     ${cardsHtml}
   `;
 
   return emailLayout(inner, {
-    title: opts?.title ?? 'Ofertas de la noche — AVENTA',
-    preheader: opts?.preheader ?? 'Las mejores ofertas del día en AVENTA.',
+    title: opts?.title ?? 'Hoy en AVENTA',
+    preheader: opts?.preheader ?? 'Las ofertas del día con más apoyo.',
     baseUrl,
   });
 }
@@ -203,8 +204,8 @@ export function buildWeeklyHtml(
   const huntersBlock =
     topHunters && topHunters.length > 0
       ? `
-    <h2 style="margin:0 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Top 3 cazadores de la semana</h2>
-    <p style="margin:0 0 12px; font-size:14px; color:${TEXT_MUTED};">Quienes más aportaron con ofertas mejor votadas.</p>
+    <h2 style="margin:0 0 6px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Cazadores de la semana</h2>
+    <p style="margin:0 0 14px; font-size:14px; color:${TEXT_MUTED}; line-height:1.45;">Quienes publicaron ofertas que más gustaron.</p>
     <ul style="list-style:none; padding:0; margin:0 0 24px;">
       ${topHunters
         .map(
@@ -223,23 +224,23 @@ export function buildWeeklyHtml(
           : `<p style="margin:0; font-size:13px; color:${TEXT_MUTED};">Sin ofertas este día.</p>`;
       return `
     <h2 style="margin:24px 0 12px; font-size:16px; font-weight:600; color:${TEXT_DARK}; border-bottom:1px solid ${BORDER}; padding-bottom:8px;">${escapeHtml(block.dayLabel)}</h2>
-    <p style="margin:0 0 12px; font-size:13px; color:${TEXT_MUTED};">Las 3 mejor apoyadas ese día (por votos).</p>
+    <p style="margin:0 0 12px; font-size:13px; color:${TEXT_MUTED};">Hasta tres destacadas del día.</p>
     ${cards}`;
     })
     .join('');
 
   const inner = `
-    <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:${TEXT_DARK};">Resumen de la semana</h1>
-    <p style="margin:0 0 20px; font-size:14px; color:${TEXT_MUTED};">Últimos 7 días (${escapeHtml(process.env.DIGEST_TIMEZONE || 'America/Mexico_City')}): cada día, las 3 ofertas con más apoyo. Más comentadas de la semana abajo.</p>
+    <h1 style="margin:0 0 8px; font-size:22px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.02em;">Tu semana en AVENTA</h1>
+    <p style="margin:0 0 22px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">Siete días en un vistazo: cada día, hasta tres ofertas con más apoyo. Al final, las que más conversación tuvieron.</p>
     ${huntersBlock}
     ${daySectionsHtml}
 
-    <h2 style="margin:28px 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Más comentadas de la semana (3)</h2>
+    <h2 style="margin:28px 0 10px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Más comentadas</h2>
     <ul style="list-style:none; padding:0; margin:0;">${commentedList}</ul>`;
 
   return emailLayout(inner, {
-    title: 'Resumen semanal — AVENTA',
-    preheader: 'Top 3 por día, cazadores y ofertas más comentadas.',
+    title: 'Tu semana · AVENTA',
+    preheader: 'Destacadas por día y las que más comentaron.',
     baseUrl,
   });
 }

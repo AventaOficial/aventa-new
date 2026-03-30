@@ -1,9 +1,7 @@
 'use client';
 
 /**
- * Icono del logo AVENTA: "A" estilizada / flecha hacia arriba.
- * Dos trazos gruesos que convergen en el vértice superior, base abierta, extremos inferiores redondeados.
- * Usar junto al texto "AVENTA"; el color hereda (currentColor).
+ * Logo AVENTA: A abierta con chevron violeta (alineado con icono de marca /icon-512.png).
  */
 export default function AventaIcon({
   className = '',
@@ -12,6 +10,7 @@ export default function AventaIcon({
   className?: string;
   size?: number;
 }) {
+  const chevron = '#8b5cf6';
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -20,15 +19,23 @@ export default function AventaIcon({
       height={size}
       className={className}
       fill="none"
-      stroke="currentColor"
-      strokeWidth={2.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
       aria-hidden
     >
-      {/* Dos trazos gruesos que convergen en el vértice superior; base abierta, extremos redondeados (strokeLinecap) */}
-      <path d="M 5.5 21 L 12 2.5" />
-      <path d="M 18.5 21 L 12 2.5" />
+      <path
+        d="M 5.5 21 L 12 2.5"
+        stroke="currentColor"
+        strokeWidth={2.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M 18.5 21 L 12 2.5"
+        stroke="currentColor"
+        strokeWidth={2.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M 12 14.2 L 9.2 17.5 h 5.6 Z" fill={chevron} />
     </svg>
   );
 }

@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
-  const subject = `Resumen semanal — AVENTA`;
+  const subject = `AVENTA · Tu semana`;
   const html = buildWeeklyHtml(dayBlocks, topCommented, baseUrl, topHunters);
 
   let sent = 0;

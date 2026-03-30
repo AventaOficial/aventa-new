@@ -138,7 +138,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         transition={{ delay: 0.35, ...t }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
-        <WaveText text="Bienvenido a la mejor comunidad cazadora de ofertas" />
+        <WaveText text="Bienvenido: ofertas reales, elegidas entre todos" />
       </motion.p>
 
       <motion.button
@@ -216,7 +216,7 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.1, ...t }}
         className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-1 text-center"
       >
-        ¿Qué te interesa cazar?
+        ¿Qué te interesa ver?
       </motion.h2>
       <motion.p
         initial={{ opacity: 0 }}
@@ -224,7 +224,7 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.2, ...t }}
         className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-4"
       >
-        Elige hasta 3 para afinar tu feed. Puedes cambiar o añadir más en Configuración.
+        Elige hasta 3 temas para tu feed. Puedes cambiar o añadir más en Configuración.
       </motion.p>
 
       <div className="mb-3 relative shrink-0">

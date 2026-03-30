@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { buildDailyHtml } from '@/lib/email/templates';
 import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
-import { formatZonedDayLabel, getZonedDayRange } from '@/lib/server/digestDay';
+import { formatZonedDayLabelLong, getZonedDayRange } from '@/lib/server/digestDay';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 
 const RESEND_CONCURRENCY = 12;
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   const now = new Date();
   const { start, end } = getZonedDayRange(now, TZ);
-  const dayLabel = formatZonedDayLabel(start, TZ);
+  const dayLabelLong = formatZonedDayLabelLong(start, TZ);
 
   const { data: offers, error: offersErr } = await supabase
     .from('offers')
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
-  const subject = `Mejores ofertas de hoy — AVENTA (${dayLabel})`;
+  const subject = `AVENTA · ${dayLabelLong}`;
   const key = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'AVENTA <onboarding@resend.dev>';
   let sent = 0;
@@ -71,9 +71,9 @@ export async function GET(request: NextRequest) {
         .filter((o) => o.created_by === r.user_id)
         .map((o) => ({ id: o.id, title: o.title }));
       const html = buildDailyHtml(offerList as Parameters<typeof buildDailyHtml>[0], baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined, {
-        title: 'Mejores ofertas de hoy',
-        preheader: `Resumen del ${dayLabel}. Las más apoyadas por la comunidad.`,
-        dayLabel,
+        title: 'Hoy en AVENTA',
+        preheader: `${dayLabelLong}. Las ofertas del día con más apoyo.`,
+        dayLabel: dayLabelLong,
       });
       try {
         const res = await fetch('https://api.resend.com/emails', {
