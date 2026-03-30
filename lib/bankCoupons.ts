@@ -30,3 +30,8 @@ export function getBankCouponLabel(value: string | null | undefined): string | n
   if (!normalized) return null;
   return BANK_COUPON_LABEL_MAP.get(normalized) ?? normalized;
 }
+
+/** Texto estándar en UI: "Cupón bancario Inbursa", "Cupón bancario BBVA". */
+export function formatCupónBancarioDisplay(label: string): string {
+  return `Cupón bancario ${label}`;
+}

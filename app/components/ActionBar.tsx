@@ -12,7 +12,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 import { ALL_CATEGORIES } from '@/lib/categories';
-import { BANK_COUPON_OPTIONS, getBankCouponLabel } from '@/lib/bankCoupons';
+import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { storeLikelyHasPhysicalPresence } from '@/lib/storesPhysical';
 import { logClientError } from '@/lib/utils/handleError';
 
@@ -1263,8 +1263,8 @@ export default function ActionBar() {
                                         </span>
                                       )}
                                       {getBankCouponLabel(formData.bank_coupon) && (
-                                        <span className="text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400">
-                                          de cupón
+                                        <span className="max-w-[10rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-tight">
+                                          {formatCupónBancarioDisplay(getBankCouponLabel(formData.bank_coupon)!)}
                                         </span>
                                       )}
                                     </div>

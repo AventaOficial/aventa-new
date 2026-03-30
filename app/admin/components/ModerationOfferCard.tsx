@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2, Trash2, Tag, Link2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
-import { getBankCouponLabel } from '@/lib/bankCoupons';
+import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
+import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 
@@ -222,8 +223,8 @@ export default function ModerationOfferCard({
                 <span className="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] text-gray-600 dark:text-gray-400">Sin categoría</span>
               )}
               {bankCouponLabel ? (
-                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-100 dark:bg-indigo-900/35 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 text-[11px] font-medium">
-                  Cupón {bankCouponLabel}
+                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-100 dark:bg-indigo-900/35 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 text-[11px] font-medium max-w-[200px] leading-tight">
+                  {formatCupónBancarioDisplay(bankCouponLabel)}
                 </span>
               ) : null}
               {offer.offer_url?.trim() ? (
@@ -287,7 +288,7 @@ export default function ModerationOfferCard({
 
           {similarOffers.length > 0 && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-              <p className="font-medium">Ofertas similares</p>
+              <p className="font-medium">Posibles duplicados (tienda / título / URL parecida)</p>
               <ul className="mt-1 space-y-1 text-amber-700 dark:text-amber-300">
                 {similarOffers.slice(0, 3).map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-3">
@@ -299,7 +300,7 @@ export default function ModerationOfferCard({
                 ))}
               </ul>
               <p className="mt-2 text-xs text-amber-700/80 dark:text-amber-300/80">
-                Revisa si es duplicada o si hay mejor precio.
+                Si coincide con la misma promo, rechaza como duplicada o deja la versión con mejor precio / datos.
               </p>
             </div>
           )}
@@ -400,10 +401,24 @@ export default function ModerationOfferCard({
                     ✗ Rechazar
                   </button>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col gap-2 w-full">
+                    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Motivo rápido (clic para usar; puedes editar después)</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MODERATION_REJECTION_PRESETS.map((r) => (
+                        <button
+                          key={r.short}
+                          type="button"
+                          onClick={() => setRejectReason(r.full)}
+                          className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/80 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400 hover:bg-violet-50/80 dark:hover:bg-violet-900/20"
+                        >
+                          {r.short}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="text"
-                      placeholder="Motivo (obligatorio)"
+                      placeholder="Motivo detallado (obligatorio para rechazar)"
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                       onKeyDown={(e) => {
@@ -413,7 +428,7 @@ export default function ModerationOfferCard({
                           setRejectReason('');
                         }
                       }}
-                      className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-w-[180px]"
+                      className="flex-1 min-w-[180px] px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                       autoFocus
                     />
                     <button
@@ -434,6 +449,7 @@ export default function ModerationOfferCard({
                     >
                       Cancelar
                     </button>
+                    </div>
                   </div>
                 )}
               </>

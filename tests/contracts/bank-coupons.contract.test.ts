@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BANK_COUPON_OPTIONS, getBankCouponLabel, normalizeBankCoupon } from '../../lib/bankCoupons';
+import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel, normalizeBankCoupon } from '../../lib/bankCoupons';
 
 describe('Contrato de cupón bancario', () => {
   it('catálogo no contiene duplicados', () => {
@@ -18,5 +18,10 @@ describe('Contrato de cupón bancario', () => {
     expect(getBankCouponLabel('bbva')).toBe('BBVA');
     expect(getBankCouponLabel('rappi-card')).toBe('RappiCard');
     expect(getBankCouponLabel('invalido')).toBeNull();
+  });
+
+  it('formatea línea estándar cupón bancario', () => {
+    expect(formatCupónBancarioDisplay('BBVA')).toBe('Cupón bancario BBVA');
+    expect(formatCupónBancarioDisplay('Inbursa')).toBe('Cupón bancario Inbursa');
   });
 });

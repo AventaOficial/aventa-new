@@ -9,7 +9,7 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { buildOfferUrl } from '@/lib/offerUrl';
-import { getBankCouponLabel } from '@/lib/bankCoupons';
+import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -115,10 +115,9 @@ export default function OfferModal({
   userVote: userVoteProp = 0,
 }: OfferModalProps) {
   const bankCouponLabel = getBankCouponLabel(bankCoupon ?? null);
-  const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
   const personalCouponTrim = coupons?.trim() ?? '';
   const outboundUrlTrim = offerUrl?.trim() ?? '';
-  const showCtaCouponChip = Boolean(outboundUrlTrim && (bankCouponDisplay || personalCouponTrim));
+  const showCtaCouponChip = Boolean(outboundUrlTrim && (bankCouponLabel || personalCouponTrim));
 
   const router = useRouter();
   const { setOfferOpen, openLuna, showToast } = useUI();
@@ -345,7 +344,7 @@ export default function OfferModal({
     try {
       const parts: string[] = [];
       if (personalCouponTrim) parts.push(personalCouponTrim);
-      if (bankCouponDisplay) parts.push(`Cupón bancario: ${bankCouponDisplay}`);
+      if (bankCouponLabel) parts.push(formatCupónBancarioDisplay(bankCouponLabel));
       if (parts.length > 0) {
         void navigator.clipboard.writeText(parts.join('\n')).then(
           () => showToast?.('Cupón copiado al portapapeles'),
@@ -692,7 +691,9 @@ export default function OfferModal({
                       </p>
                     ) : null}
                     {bankCouponLabel ? (
-                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">de cupón</span>
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                        {formatCupónBancarioDisplay(bankCouponLabel)}
+                      </span>
                     ) : null}
                   </div>
                 ) : null}
@@ -1016,11 +1017,8 @@ export default function OfferModal({
                   aria-label="Cupón de la oferta"
                 >
                   <div className="flex min-w-0 flex-col gap-1">
-                    {bankCouponDisplay ? (
-                      <span className="leading-snug">
-                        <span className="text-white/90">Cupón bancario </span>
-                        <span className="font-bold tracking-wide">{bankCouponDisplay}</span>
-                      </span>
+                    {bankCouponLabel ? (
+                      <span className="leading-snug font-semibold">{formatCupónBancarioDisplay(bankCouponLabel)}</span>
                     ) : null}
                     {personalCouponTrim ? (
                       <span className="font-mono text-[11px] md:text-xs font-semibold break-all text-white">{personalCouponTrim}</span>

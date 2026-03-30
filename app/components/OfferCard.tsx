@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
-import { getBankCouponLabel } from '@/lib/bankCoupons';
+import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -294,7 +294,6 @@ export default function OfferCard({
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
-  const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
   const personalCouponTrim = coupons?.trim() ?? '';
   const showCouponBlock = Boolean(personalCouponTrim);
 
@@ -302,7 +301,7 @@ export default function OfferCard({
     if (isTesterOffer) return;
     const parts: string[] = [];
     if (personalCouponTrim) parts.push(personalCouponTrim);
-    if (bankCouponDisplay) parts.push(`Cupón bancario: ${bankCouponDisplay}`);
+    if (bankCouponLabel) parts.push(formatCupónBancarioDisplay(bankCouponLabel));
     if (parts.length === 0) return;
     try {
       await navigator.clipboard.writeText(parts.join('\n'));
@@ -503,8 +502,8 @@ export default function OfferCard({
                 </span>
               ) : null}
               {bankCouponLabel ? (
-                <span className="text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400">
-                  de cupón
+                <span className="max-w-[11rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-snug">
+                  {formatCupónBancarioDisplay(bankCouponLabel)}
                 </span>
               ) : null}
             </div>

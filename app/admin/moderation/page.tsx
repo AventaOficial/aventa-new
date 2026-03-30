@@ -9,6 +9,7 @@ import ModerationOfferCard from '../components/ModerationOfferCard';
 import ModerationObjectivesSidebar from '../components/ModerationObjectivesSidebar';
 
 import { ALL_CATEGORIES } from '@/lib/categories';
+import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -280,9 +281,29 @@ export default function ModerationPage() {
           Cola de revisión
         </h1>
         <p className="text-sm md:text-[15px] text-gray-600 dark:text-gray-400 mt-2 max-w-2xl leading-relaxed">
-          Valida enlace, precios e imágenes. Usa los filtros y el historial de cada tarjeta. A la derecha tienes
-          los objetivos del equipo.
+          Prioriza coherencia precio–enlace, duplicados y categoría. Usa filtros, vista previa e historial por tarjeta.
+          Los atajos de rechazo rellenan un motivo claro para el autor (siempre editable).
         </p>
+        <div className="mt-4 rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/70 dark:bg-gray-900/50 px-4 py-3 text-left">
+          <p className="text-xs font-semibold text-violet-800 dark:text-violet-200 mb-2">Checklist rápido (calidad y “vida” de la oferta)</p>
+          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1.5 list-disc list-inside leading-relaxed">
+            <li>
+              <strong className="text-gray-800 dark:text-gray-200">Enlace:</strong> abre, muestra el mismo producto y precio razonable.
+            </li>
+            <li>
+              <strong className="text-gray-800 dark:text-gray-200">Duplicados:</strong> revisa el bloque ámbar; evita publicar la misma oferta dos veces.
+            </li>
+            <li>
+              <strong className="text-gray-800 dark:text-gray-200">Categoría y tienda:</strong> coherente con el producto (afecta descubrimiento y ranking).
+            </li>
+            <li>
+              <strong className="text-gray-800 dark:text-gray-200">Cupón / MSI:</strong> si el cazador los indicó, que cuadren con lo visible en tienda.
+            </li>
+            <li>
+              <strong className="text-gray-800 dark:text-gray-200">Risk alto:</strong> filtro “Risk alto” primero cuando la cola crece.
+            </li>
+          </ul>
+        </div>
       </header>
 
       <div className="mb-5 space-y-3 rounded-xl border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-4 shadow-sm">
@@ -399,12 +420,24 @@ export default function ModerationPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !batchActing && setShowBatchReject(false)}>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Rechazar {selectedIds.size} ofertas</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Motivo (obligatorio para todas):</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mismo motivo para todas (obligatorio). Atajos:</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {MODERATION_REJECTION_PRESETS.map((r) => (
+                  <button
+                    key={r.short}
+                    type="button"
+                    onClick={() => setBatchRejectReason(r.full)}
+                    className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400"
+                  >
+                    {r.short}
+                  </button>
+                ))}
+              </div>
               <input
                 type="text"
                 value={batchRejectReason}
                 onChange={(e) => setBatchRejectReason(e.target.value)}
-                placeholder="Ej: No cumple normas, duplicada..."
+                placeholder="Motivo detallado para todas las seleccionadas…"
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 mb-4"
               />
               <div className="flex gap-2 justify-end">

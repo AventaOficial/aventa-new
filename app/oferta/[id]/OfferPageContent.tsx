@@ -17,7 +17,7 @@ import {
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
-import { getBankCouponLabel } from '@/lib/bankCoupons';
+import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -378,14 +378,13 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
   const ctaUrl = buildOfferUrl(offer.offerUrl, offer.author.creatorMlTag);
   const bankCouponLabel = getBankCouponLabel(offer.bankCoupon ?? null);
-  const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
   const personalCouponTrim = offer.coupons?.trim() ?? '';
-  const showCtaCouponChip = Boolean(ctaUrl && (bankCouponDisplay || personalCouponTrim));
+  const showCtaCouponChip = Boolean(ctaUrl && (bankCouponLabel || personalCouponTrim));
 
   const copyOfferCouponsToClipboard = async () => {
     const parts: string[] = [];
     if (personalCouponTrim) parts.push(personalCouponTrim);
-    if (bankCouponDisplay) parts.push(`Cupón bancario: ${bankCouponDisplay}`);
+    if (bankCouponLabel) parts.push(formatCupónBancarioDisplay(bankCouponLabel));
     if (parts.length === 0) return;
     try {
       await navigator.clipboard.writeText(parts.join('\n'));
@@ -548,7 +547,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     </p>
                   ) : null}
                   {bankCouponLabel ? (
-                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">de cupón</span>
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                      {formatCupónBancarioDisplay(bankCouponLabel)}
+                    </span>
                   ) : null}
                 </div>
               ) : null}
@@ -621,11 +622,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       aria-label="Cupón de la oferta"
                     >
                       <div className="flex min-w-0 flex-col gap-1">
-                        {bankCouponDisplay ? (
-                          <span className="leading-snug">
-                            <span className="text-white/90">Cupón bancario </span>
-                            <span className="font-bold tracking-wide">{bankCouponDisplay}</span>
-                          </span>
+                        {bankCouponLabel ? (
+                          <span className="leading-snug font-semibold">{formatCupónBancarioDisplay(bankCouponLabel)}</span>
                         ) : null}
                         {personalCouponTrim ? (
                           <span className="font-mono text-xs font-semibold break-all text-white">{personalCouponTrim}</span>
