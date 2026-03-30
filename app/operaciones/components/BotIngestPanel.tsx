@@ -39,6 +39,8 @@ export default function BotIngestPanel() {
   const [data, setData] = useState<BotStatusPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [runNowLoading, setRunNowLoading] = useState(false);
+  const [runNowMsg, setRunNowMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -100,6 +102,47 @@ export default function BotIngestPanel() {
 
       {!loading && !error && data ? (
         <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={runNowLoading}
+              onClick={async () => {
+                setRunNowLoading(true);
+                setRunNowMsg(null);
+                try {
+                  const supabase = createClient();
+                  const {
+                    data: { session },
+                  } = await supabase.auth.getSession();
+                  if (!session?.access_token) {
+                    setRunNowMsg('Sin sesión para ejecutar');
+                    return;
+                  }
+                  const res = await fetch('/api/admin/bot-ingest-run-now', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                  });
+                  const body = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    setRunNowMsg(typeof body?.error === 'string' ? body.error : 'Falló ejecución manual');
+                    return;
+                  }
+                  setRunNowMsg(
+                    `Corrida ejecutada: inserted=${body?.summary?.inserted ?? 0}, duplicate=${body?.summary?.duplicate ?? 0}, skipped=${body?.summary?.skipped ?? 0}, errors=${body?.summary?.errors ?? 0}`
+                  );
+                } catch {
+                  setRunNowMsg('Error de red al ejecutar bot');
+                } finally {
+                  setRunNowLoading(false);
+                }
+              }}
+              className="inline-flex items-center gap-1 rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-violet-700 disabled:opacity-50"
+            >
+              {runNowLoading ? 'Ejecutando…' : 'Ejecutar ahora'}
+            </button>
+            {runNowMsg ? <span className="text-xs text-gray-600 dark:text-gray-300">{runNowMsg}</span> : null}
+          </div>
+
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${

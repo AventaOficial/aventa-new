@@ -4,7 +4,6 @@
  * si no hay, tag del creador (ml_tracking_tag en perfil).
  */
 import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffiliateTags';
-import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 
 const RESOLVE_TIMEOUT_MS = 12_000;
 const RESOLVE_USER_AGENT =
@@ -49,6 +48,7 @@ export function getPlatformMercadoLibreAffiliateTag(): string | null {
  * Si falla la red o no es destino ML, devuelve la URL original.
  */
 export async function resolveMercadoLibreShortlinks(url: string): Promise<string> {
+  const { isBlockedOfferParseUrl } = await import('@/lib/server/fetchUrlSafety');
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (!isMeliLaShortUrl(trimmed)) return trimmed;
