@@ -5,7 +5,12 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
-import { normalizeMercadoLibreOfferUrlForStorage } from '@/lib/offerUrl'
+import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate'
+
+function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
+  const msg = (error?.message ?? '').toLowerCase()
+  return msg.includes(columnName.toLowerCase())
+}
 
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
@@ -19,6 +24,7 @@ export async function POST(request: Request) {
     const status = body?.status === 'approved' || body?.status === 'rejected' ? body.status : null
     const reason = typeof body?.reason === 'string' ? body.reason.trim() || null : null
     const modMessage = typeof body?.mod_message === 'string' ? body.mod_message.trim().slice(0, 500) || null : null
+    const batchApprove = body?.batch_approve === true
     if (!id || !status) {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
@@ -42,18 +48,36 @@ export async function POST(request: Request) {
 
     if (status === 'approved') {
       const { data: row } = await supabase.from('offers').select('expires_at, offer_url').eq('id', id).single()
-      const payload: { status: string; expires_at?: string; offer_url?: string } = { status: 'approved' }
+      const rawUrl = (row as { offer_url?: string | null })?.offer_url?.trim() ?? ''
+      if (rawUrl && !batchApprove && body?.link_mod_ok !== true) {
+        return NextResponse.json(
+          { error: 'Confirma que el enlace coincide con el producto antes de aprobar.' },
+          { status: 400 }
+        )
+      }
+      const payload: {
+        status: string
+        expires_at?: string
+        offer_url?: string
+        link_mod_ok?: boolean | null
+      } = { status: 'approved' }
       if (row?.expires_at == null) {
         payload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }
-      const rawUrl = (row as { offer_url?: string | null })?.offer_url?.trim() ?? ''
       if (rawUrl) {
-        const normalized = normalizeMercadoLibreOfferUrlForStorage(rawUrl)
+        const normalized = await resolveAndNormalizeAffiliateOfferUrl(rawUrl)
         if (normalized !== rawUrl) {
           payload.offer_url = normalized
         }
       }
-      const { error: updateError } = await supabase.from('offers').update(payload).eq('id', id)
+      if (!batchApprove) {
+        payload.link_mod_ok = rawUrl ? true : null
+      }
+      let { error: updateError } = await supabase.from('offers').update(payload).eq('id', id)
+      if (updateError && hasMissingColumn(updateError, 'link_mod_ok')) {
+        delete payload.link_mod_ok
+        ;({ error: updateError } = await supabase.from('offers').update(payload).eq('id', id))
+      }
       if (updateError) {
         console.error('[moderate-offer] update failed:', updateError.message)
         return NextResponse.json({ ok: false }, { status: 500 })

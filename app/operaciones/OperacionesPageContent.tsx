@@ -37,6 +37,7 @@ import {
   type AreaStatus,
   type PulseAlerts,
 } from '@/lib/operations/areaHealth';
+import AffiliateProgramsPanel from './components/AffiliateProgramsPanel';
 
 type IntegrityCheck = { name: string; ok: boolean; detail: string };
 type IntegrityResult = {
@@ -986,6 +987,8 @@ export default function OperacionesPageContent() {
               </a>
             </section>
 
+            <AffiliateProgramsPanel />
+
             <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
@@ -1190,6 +1193,16 @@ export default function OperacionesPageContent() {
                   <span className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                     Usuarios
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
+                </Link>
+                <Link
+                  href="/admin/commissions"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-violet-50/60 dark:hover:bg-violet-900/15 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    Comisiones (pools y pagos)
                   </span>
                   <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
                 </Link>

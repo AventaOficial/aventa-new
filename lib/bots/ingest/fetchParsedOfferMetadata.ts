@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+/**
+ * Fetch + parse de metadatos de página de producto (misma heurística que /api/parse-offer-url).
+ * Duplicado a propósito para no acoplar el cron al handler HTTP.
+ */
 import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
-import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 12_000;
 const USER_AGENT =
-  'Mozilla/5.0 (compatible; AVENTA-Bot/1.0; +https://aventaofertas.com)';
+  'Mozilla/5.0 (compatible; AVENTA-Bot-Ingest/1.0; +https://aventaofertas.com)';
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
@@ -110,14 +112,12 @@ function parsePositiveLocalizedNumber(raw: string | null | undefined): number | 
   const hasDot = clean.includes('.');
   let normalized = clean;
   if (hasComma && hasDot) {
-    // 12,999.50 -> 12999.50 | 12.999,50 -> 12999.50
     if (clean.lastIndexOf('.') > clean.lastIndexOf(',')) {
       normalized = clean.replace(/,/g, '');
     } else {
       normalized = clean.replace(/\./g, '').replace(',', '.');
     }
   } else if (hasComma && !hasDot) {
-    // 12999,50 -> 12999.50 | 12,999 -> 12999
     const parts = clean.split(',');
     if (parts.length === 2 && parts[1].length <= 2) {
       normalized = `${parts[0].replace(/,/g, '')}.${parts[1]}`;
@@ -132,7 +132,6 @@ function parsePositiveLocalizedNumber(raw: string | null | undefined): number | 
 
 type ExtractedPrices = { discount: number | null; original: number | null };
 
-/** Heurística: meta og:price, JSON-LD Offer / AggregateOffer (ML, muchas tiendas). */
 function extractSuggestedPrices(html: string): ExtractedPrices {
   let discount: number | null =
     parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
@@ -148,7 +147,7 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
       const parsed = JSON.parse(raw);
       scanLdJson(parsed);
     } catch {
-      // JSON inválido o fragmentado
+      /* inválido */
     }
   }
 
@@ -227,13 +226,6 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
   return { discount, original };
 }
 
-function pricePayload(p: ExtractedPrices) {
-  return {
-    suggested_discount_price: p.discount,
-    suggested_original_price: p.original,
-  };
-}
-
 function parseGeneric(html: string, base: string): { title: string | null; image: string | null; store: string | null } {
   const title =
     getMetaContent(html, 'og:title') ||
@@ -255,140 +247,115 @@ function parseGeneric(html: string, base: string): { title: string | null; image
   };
 }
 
-export async function POST(request: Request) {
+export type ParsedOfferMetadata = {
+  canonicalUrl: string;
+  title: string;
+  store: string;
+  imageUrl: string;
+  discountPrice: number;
+  originalPrice: number | null;
+  discountPercent: number;
+};
+
+export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOfferMetadata | null> {
+  let url: URL;
   try {
-    const ip = getClientIp(request);
-    const rl = await enforceRateLimitCustom(ip, 'parseOffer');
-    if (!rl.success) {
-      return NextResponse.json({ error: 'Demasiadas solicitudes. Espera un momento.' }, { status: 429 });
-    }
+    url = new URL(rawUrl.trim());
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return null;
 
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    if (!token) {
-      return NextResponse.json({ error: 'Inicia sesión para analizar enlaces' }, { status: 401 });
-    }
+  const block = isBlockedOfferParseUrl(url);
+  if (block.blocked) return null;
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !anonKey) {
-      return NextResponse.json({ error: 'Configuración inválida' }, { status: 500 });
-    }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-    });
-    if (!userRes.ok) {
-      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
-    }
-
-    const body = await request.json().catch(() => ({}));
-    const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
-    if (!rawUrl) {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
-
-    let url: URL;
-    try {
-      url = new URL(rawUrl);
-    } catch {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
-
-    const block = isBlockedOfferParseUrl(url);
-    if (block.blocked) {
-      return NextResponse.json(
-        { error: block.reason ?? 'URL no permitida' },
-        { status: 400 }
-      );
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    const res = await fetch(url.href, {
+  let res: Response;
+  try {
+    res = await fetch(url.href, {
       signal: controller.signal,
       headers: {
         'User-Agent': USER_AGENT,
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       redirect: 'follow',
     });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
-
-    const html = await res.text();
-    const pageUrl = res.url ? new URL(res.url) : url;
-    const base = pageUrl.origin + pageUrl.pathname;
-    const domain = getDomain(pageUrl.hostname);
-    const prices = extractSuggestedPrices(html);
-
-    const isAmazon =
-      domain === 'amazon.com' ||
-      domain === 'amazon.com.mx' ||
-      domain.endsWith('.amazon.com') ||
-      domain.endsWith('.amazon.com.mx');
-    if (isAmazon) {
-      const data = parseAmazon(html, base);
-      return NextResponse.json({
-        ...data,
-        title: sanitizeOfferTitle(data.title),
-        store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
-        ...pricePayload(prices),
-      });
-    }
-
-    const isMercadoLibre =
-      domain === 'mercadolibre.com' ||
-      domain === 'mercadolibre.com.mx' ||
-      domain.endsWith('.mercadolibre.com') ||
-      domain.endsWith('.mercadolibre.com.mx');
-    if (isMercadoLibre) {
-      const data = parseMercadoLibre(html, base);
-      return NextResponse.json({
-        ...data,
-        title: sanitizeOfferTitle(data.title),
-        store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
-        ...pricePayload(prices),
-      });
-    }
-
-    const data = parseGeneric(html, base);
-    const store = data.store ?? inferStoreFromHostname(pageUrl.hostname);
-    return NextResponse.json({
-      ...data,
-      title: sanitizeOfferTitle(data.title),
-      store,
-      ...pricePayload(prices),
-    });
   } catch {
-    return NextResponse.json({
-      title: null,
-      image: null,
-      store: null,
-    });
+    clearTimeout(timeoutId);
+    return null;
   }
+  clearTimeout(timeoutId);
+
+  if (!res.ok) return null;
+
+  const html = await res.text();
+  const finalUrl = res.url ? new URL(res.url) : url;
+  const base = finalUrl.origin + finalUrl.pathname;
+  const domain = getDomain(finalUrl.hostname);
+  const prices = extractSuggestedPrices(html);
+
+  const isAmazon =
+    domain === 'amazon.com' ||
+    domain === 'amazon.com.mx' ||
+    domain.endsWith('.amazon.com') ||
+    domain.endsWith('.amazon.com.mx');
+
+  const isMercadoLibre =
+    domain === 'mercadolibre.com' ||
+    domain === 'mercadolibre.com.mx' ||
+    domain.endsWith('.mercadolibre.com') ||
+    domain.endsWith('.mercadolibre.com.mx');
+
+  let data: { title: string | null; image: string | null; store: string | null };
+  if (isAmazon) {
+    const d = parseAmazon(html, base);
+    data = { ...d, store: d.store };
+  } else if (isMercadoLibre) {
+    const d = parseMercadoLibre(html, base);
+    data = { ...d, store: d.store };
+  } else {
+    data = parseGeneric(html, base);
+  }
+
+  const titleRaw = sanitizeOfferTitle(data.title) ?? data.title?.trim();
+  if (!titleRaw) return null;
+
+  const store =
+    (data.store && data.store.trim()) ||
+    inferStoreFromHostname(finalUrl.hostname) ||
+    'Tienda';
+
+  const imageUrl = data.image || '/placeholder.png';
+
+  const discount = prices.discount;
+  const original = prices.original;
+
+  let discountPrice: number;
+  let originalPrice: number | null;
+  if (discount != null && original != null && original > discount) {
+    discountPrice = discount;
+    originalPrice = original;
+  } else if (discount != null) {
+    discountPrice = discount;
+    originalPrice = original != null && original > discount ? original : null;
+  } else {
+    return null;
+  }
+
+  const discountPercent =
+    originalPrice != null && originalPrice > 0
+      ? Math.round((1 - discountPrice / originalPrice) * 100)
+      : 0;
+
+  return {
+    canonicalUrl: finalUrl.href,
+    title: titleRaw,
+    store,
+    imageUrl,
+    discountPrice,
+    originalPrice,
+    discountPercent,
+  };
 }

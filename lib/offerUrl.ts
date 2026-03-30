@@ -1,12 +1,29 @@
 /**
- * URLs de oferta: Mercado Libre puede llevar parámetro `tag` (afiliado).
+ * URLs de oferta: Mercado Libre (dominio mercadolibre.* y acortadores oficiales meli.la).
  * Prioridad: tag de plataforma (ML_AFFILIATE_TAG / NEXT_PUBLIC_ML_AFFILIATE_TAG);
  * si no hay, tag del creador (ml_tracking_tag en perfil).
  */
+import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffiliateTags';
+import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
+
+const RESOLVE_TIMEOUT_MS = 12_000;
+const RESOLVE_USER_AGENT =
+  'Mozilla/5.0 (compatible; AVENTA-OfferUrl/1.0; +https://aventaofertas.com)';
+
+/** Enlaces cortos del programa de colaboradores (redirigen a articulo.mercadolibre…). */
+export function isMeliLaShortUrl(url: string): boolean {
+  try {
+    const h = new URL(url.trim()).hostname.toLowerCase();
+    return h === 'meli.la' || h.endsWith('.meli.la');
+  } catch {
+    return false;
+  }
+}
 
 function isMercadoLibreOfferUrl(url: string): boolean {
   const lower = url.toLowerCase();
-  return lower.includes('mercadolibre.');
+  if (lower.includes('mercadolibre.')) return true;
+  return isMeliLaShortUrl(url);
 }
 
 export function applyMercadoLibreAffiliateTag(url: string, tag: string): string {
@@ -27,17 +44,62 @@ export function getPlatformMercadoLibreAffiliateTag(): string | null {
   return t || null;
 }
 
-/** Normaliza URL guardada en BD (creación, edición, aprobación): siempre tag de plataforma en ML. */
+/**
+ * Sigue redirecciones HTTP (p. ej. meli.la/xxx → articulo.mercadolibre.com.mx/…).
+ * Si falla la red o no es destino ML, devuelve la URL original.
+ */
+export async function resolveMercadoLibreShortlinks(url: string): Promise<string> {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if (!isMeliLaShortUrl(trimmed)) return trimmed;
+
+  let u: URL;
+  try {
+    u = new URL(trimmed);
+  } catch {
+    return trimmed;
+  }
+  if (isBlockedOfferParseUrl(u).blocked) return trimmed;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
+  try {
+    const res = await fetch(trimmed, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': RESOLVE_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    clearTimeout(timeoutId);
+    const final = res.url;
+    if (!final || final === trimmed) return trimmed;
+    let finalUrl: URL;
+    try {
+      finalUrl = new URL(final);
+    } catch {
+      return trimmed;
+    }
+    if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
+    if (final.toLowerCase().includes('mercadolibre.')) return final;
+    return trimmed;
+  } catch {
+    clearTimeout(timeoutId);
+    return trimmed;
+  }
+}
+
+/** Normaliza en memoria (tags de plataforma por dominio); no resuelve meli.la. */
 export function normalizeMercadoLibreOfferUrlForStorage(url: string): string {
-  const tag = getPlatformMercadoLibreAffiliateTag();
-  if (!tag || !isMercadoLibreOfferUrl(url)) return url;
-  return applyMercadoLibreAffiliateTag(url, tag);
+  return applyPlatformAffiliateTags(url);
 }
 
 export { isMercadoLibreOfferUrl };
 
 /**
- * URL final al abrir “Cazar” / modal: ML con tag de plataforma si existe; si no, tag del creador.
+ * URL final al abrir “Cazar” / modal: ML o meli.la con tag de plataforma si existe; si no, tag del creador.
  */
 export function buildOfferUrl(
   offerUrl: string | null | undefined,
@@ -45,13 +107,13 @@ export function buildOfferUrl(
 ): string {
   const url = offerUrl?.trim();
   if (!url) return '';
-  const platformTag = getPlatformMercadoLibreAffiliateTag();
-  const isMl = isMercadoLibreOfferUrl(url);
-  if (isMl && platformTag) {
-    return applyMercadoLibreAffiliateTag(url, platformTag);
+  let out = applyPlatformAffiliateTags(url);
+  if (
+    isMercadoLibreOfferUrl(out) &&
+    !getPlatformMercadoLibreAffiliateTag() &&
+    creatorMlTag?.trim()
+  ) {
+    out = applyMercadoLibreAffiliateTag(out, creatorMlTag.trim());
   }
-  if (isMl && creatorMlTag?.trim()) {
-    return applyMercadoLibreAffiliateTag(url, creatorMlTag.trim());
-  }
-  return url;
+  return out;
 }

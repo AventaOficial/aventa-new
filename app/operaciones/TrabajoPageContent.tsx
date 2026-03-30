@@ -17,6 +17,8 @@ import {
   Check,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import AffiliateProgramsPanel from './components/AffiliateProgramsPanel';
+import BotIngestPanel from './components/BotIngestPanel';
 
 const LS_TASKS = 'aventa_owner_tasks_v1';
 const LS_COSTS = 'aventa_owner_costs_v1';
@@ -568,6 +570,26 @@ export default function TrabajoPageContent() {
               </div>
               <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                 Total anotado: {totalIncome.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+              </p>
+            </section>
+
+            <BotIngestPanel />
+            <AffiliateProgramsPanel />
+
+            <section className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-900/15 p-5 shadow-sm">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3">
+                <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                Impuestos y cumplimiento (MX) — checklist operativo
+              </h2>
+              <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <li>Definir si operarás como persona física con actividad empresarial o persona moral (validar con contador).</li>
+                <li>Preparar facturación y control mensual de ingresos/gastos del proyecto (afiliados + otros).</li>
+                <li>Separar cuentas personales y del negocio para trazabilidad de pagos/comisiones.</li>
+                <li>Establecer evidencia de liquidaciones a creadores (pool mensual, estatus paid/pending, historial).</li>
+                <li>Guardar respaldos de reportes de Amazon/ML y su referencia en el ledger para auditoría.</li>
+              </ul>
+              <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Nota: este panel es guía operativa, no asesoría fiscal/legal. Para alta SAT, CFDI y retenciones, valida con contador.
               </p>
             </section>
 

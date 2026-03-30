@@ -37,13 +37,19 @@ type ModLog = { id: string; action: string; reason: string | null; created_at: s
 type Props = {
   offer: ModerationOffer;
   status: 'pending' | 'approved' | 'rejected';
-  onApprove?: (id: string, createdBy?: string | null, modMessage?: string) => void;
+  onApprove?: (
+    id: string,
+    createdBy?: string | null,
+    modMessage?: string,
+    offerHasUrl?: boolean
+  ) => void;
   onReject?: (id: string, reason?: string) => void;
   actingId?: string | null;
   similarOffers?: { id: string; title: string; price: number; original_price: number | null; store: string | null; created_at: string }[];
   selected?: boolean;
   onToggleSelect?: () => void;
   batchMode?: boolean;
+  qualityCandidate?: boolean;
   onOfferUpdated?: () => void;
 };
 
@@ -63,6 +69,7 @@ export default function ModerationOfferCard({
   selected = false,
   onToggleSelect,
   batchMode = false,
+  qualityCandidate = false,
   onOfferUpdated,
 }: Props) {
   const [rejectReason, setRejectReason] = useState('');
@@ -90,6 +97,11 @@ export default function ModerationOfferCard({
   const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expiring, setExpiring] = useState(false);
+  const [linkConfirmed, setLinkConfirmed] = useState(false);
+
+  useEffect(() => {
+    setLinkConfirmed(false);
+  }, [offer.id]);
 
   const fetchHistory = useCallback(() => {
     if (historyLogs.length > 0) {
@@ -124,6 +136,13 @@ export default function ModerationOfferCard({
 
   const vital = isVitalCategory(offer.category ?? null);
   const bankCouponLabel = getBankCouponLabel(offer.bank_coupon);
+  const isBotOffer =
+    (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
+    (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
+  const discountPercent =
+    offer.original_price != null && Number(offer.original_price) > Number(offer.price)
+      ? Math.round(((Number(offer.original_price) - Number(offer.price)) / Number(offer.original_price)) * 100)
+      : 0;
 
   const handleReject = () => {
     if (onReject && rejectReason.trim()) {
@@ -235,6 +254,26 @@ export default function ModerationOfferCard({
               ) : (
                 <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">Sin URL</span>
               )}
+              {qualityCandidate ? (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium rounded-md bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5">
+                  Calidad candidata
+                </span>
+              ) : null}
+              {isBotOffer ? (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-sky-700 dark:text-sky-300 font-medium rounded-md bg-sky-100 dark:bg-sky-900/30 px-2 py-0.5">
+                  Oferta del bot
+                </span>
+              ) : null}
+              {isBotOffer && Number(offer.price ?? 0) <= 0 ? (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium rounded-md bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5">
+                  Gratis
+                </span>
+              ) : null}
+              {isBotOffer && discountPercent > 0 ? (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-amber-700 dark:text-amber-300 font-medium rounded-md bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5">
+                  {discountPercent}% off
+                </span>
+              ) : null}
             </div>
             <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-3">
               {offer.title}
@@ -381,10 +420,33 @@ export default function ModerationOfferCard({
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-400"
                   />
                 </div>
+                {offer.offer_url?.trim() ? (
+                  <label className="flex items-start gap-2 w-full text-xs text-gray-600 dark:text-gray-400 cursor-pointer rounded-lg border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={linkConfirmed}
+                      onChange={(e) => setLinkConfirmed(e.target.checked)}
+                      className="mt-0.5 rounded border-gray-400 text-emerald-600 focus:ring-emerald-500 shrink-0"
+                    />
+                    <span>
+                      Confirmo que este enlace lleva al producto o promoción descrita. Al aprobar, AVENTA aplicará el tracking de afiliado (ML, Amazon, etc.) según la configuración del sitio.
+                    </span>
+                  </label>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => onApprove(offer.id, offer.created_by, modMessage.trim() || undefined)}
-                  disabled={actingId === offer.id}
+                  onClick={() =>
+                    onApprove(
+                      offer.id,
+                      offer.created_by,
+                      modMessage.trim() || undefined,
+                      Boolean(offer.offer_url?.trim())
+                    )
+                  }
+                  disabled={
+                    actingId === offer.id ||
+                    (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
+                  }
                   className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="La oferta se publicará y verán los usuarios"
                 >

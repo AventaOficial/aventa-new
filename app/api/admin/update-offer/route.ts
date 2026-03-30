@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
-import { normalizeMercadoLibreOfferUrlForStorage } from '@/lib/offerUrl'
+import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate'
 
 /** PATCH: editar oferta en moderación (solo pendientes). Campos: title, offer_url, description, image_url. */
 export async function PATCH(request: Request) {
@@ -41,7 +41,7 @@ export async function PATCH(request: Request) {
     }
     if (typeof body.offer_url === 'string') {
       const u = body.offer_url.trim().slice(0, 2048)
-      payload.offer_url = u ? normalizeMercadoLibreOfferUrlForStorage(u) : null
+      payload.offer_url = u ? await resolveAndNormalizeAffiliateOfferUrl(u) : null
     }
     if (body.description !== undefined) {
       payload.description = typeof body.description === 'string' ? body.description.trim().slice(0, 2000) || null : null

@@ -34,8 +34,17 @@ type ModerationOffer = {
   created_at: string;
   created_by: string | null;
   risk_score?: number | null;
+  moderator_comment?: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
 };
+
+function getOfferDiscountPercent(offer: ModerationOffer): number {
+  const price = Number(offer.price ?? 0);
+  const original = Number(offer.original_price ?? 0);
+  if (!Number.isFinite(price) || !Number.isFinite(original)) return 0;
+  if (original <= 0 || original <= price) return 0;
+  return Math.round(((original - price) / original) * 100);
+}
 
 const MODERATION_PATH = '/admin/moderation';
 
@@ -106,6 +115,7 @@ export default function ModerationPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [riskHighOnly, setRiskHighOnly] = useState(false);
+  const [onlyBot, setOnlyBot] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -147,7 +157,11 @@ export default function ModerationPage() {
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     for (const id of ids) {
       const offer = pending.find((o) => o.id === id);
-      await fetch('/api/admin/moderate-offer', { method: 'POST', headers, body: JSON.stringify({ id, status: 'approved' }) });
+      await fetch('/api/admin/moderate-offer', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id, status: 'approved', batch_approve: true }),
+      });
       if (offer?.created_by) {
         await fetch('/api/reputation/increment-approved', { method: 'POST', headers, body: JSON.stringify({ userId: offer.created_by }) }).catch(() => {});
       }
@@ -194,28 +208,44 @@ export default function ModerationPage() {
 
   useEffect(() => {
     if (pathname !== MODERATION_PATH) return;
-    refreshList(false);
+    const normalizeAndRefresh = async () => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      await fetch('/api/admin/moderation-normalize-links', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ limit: 250 }),
+      }).catch(() => {});
+      await refreshList(false);
+    };
+    void normalizeAndRefresh();
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') refreshList(true);
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [pathname, refreshList]);
+  }, [pathname, refreshList, session?.access_token]);
 
   const setStatus = async (
     id: string,
     status: 'approved' | 'rejected',
     createdBy?: string | null,
     reason?: string,
-    modMessage?: string
+    modMessage?: string,
+    /** Si la oferta tiene URL, el moderador debe haber marcado la casilla; se envía link_mod_ok al API. */
+    offerHasUrl?: boolean
   ) => {
     setActingId(id);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-    const body: { id: string; status: string; reason?: string; mod_message?: string } = { id, status };
+    const body: { id: string; status: string; reason?: string; mod_message?: string; link_mod_ok?: boolean } = {
+      id,
+      status,
+    };
     if (reason) body.reason = reason;
     if (status === 'approved' && modMessage?.trim()) body.mod_message = modMessage.trim();
+    if (status === 'approved' && offerHasUrl) body.link_mod_ok = true;
     const res = await fetch('/api/admin/moderate-offer', {
       method: 'POST',
       headers,
@@ -223,7 +253,9 @@ export default function ModerationPage() {
     });
     setActingId(null);
     if (!res.ok) {
-      console.error('Error updating offer');
+      const err = await res.json().catch(() => ({}));
+      console.error('Error updating offer', err);
+      alert(typeof err?.error === 'string' ? err.error : 'No se pudo actualizar la oferta');
       return;
     }
     const repHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -246,6 +278,24 @@ export default function ModerationPage() {
 
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
 
+  const isBotOffer = (o: ModerationOffer) =>
+    (o.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
+    (o.description ?? '').toLowerCase().includes('ingesta automática (bot)');
+
+  const isQualityCandidate = (o: ModerationOffer) => {
+    const hasUrl = Boolean(o.offer_url?.trim());
+    const hasImage = Boolean(o.image_url?.trim());
+    const hasPrice = Number(o.price ?? 0) > 0;
+    const hasContext = Boolean(
+      (o.description ?? '').trim() || (o.conditions ?? '').trim() || (o.coupons ?? '').trim()
+    );
+    const saneDiscount =
+      o.original_price == null ||
+      (Number(o.original_price) > Number(o.price) &&
+        ((Number(o.original_price) - Number(o.price)) / Number(o.original_price)) * 100 >= 5);
+    return hasUrl && hasImage && hasPrice && hasContext && saneDiscount;
+  };
+
   const filtered = pending.filter((o) => {
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
@@ -258,6 +308,7 @@ export default function ModerationPage() {
     if (storeFilter && o.store !== storeFilter) return false;
     if (categoryFilter && (o.category ?? '') !== categoryFilter) return false;
     if (riskHighOnly && (o.risk_score == null || o.risk_score <= 50)) return false;
+    if (onlyBot && !isBotOffer(o)) return false;
     if (dateFrom) {
       const d = new Date(o.created_at).toISOString().slice(0, 10);
       if (d < dateFrom) return false;
@@ -269,6 +320,25 @@ export default function ModerationPage() {
     return true;
   });
   const canAdvancedModeration = isOwner || isAdmin;
+  const botFiltered = [...filtered]
+    .filter((o) => isBotOffer(o))
+    .sort((a, b) => {
+      const aFree = Number(a.price ?? 0) <= 0 ? 1 : 0;
+      const bFree = Number(b.price ?? 0) <= 0 ? 1 : 0;
+      if (aFree !== bFree) return bFree - aFree; // gratis primero
+      const aDiscount = getOfferDiscountPercent(a);
+      const bDiscount = getOfferDiscountPercent(b);
+      if (aDiscount !== bDiscount) return bDiscount - aDiscount; // mayor % primero
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+  const userFiltered = filtered.filter((o) => !isBotOffer(o));
+
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  const qualityToday = pending.filter((o) => isQualityCandidate(o) && new Date(o.created_at).getTime() >= startOfDay).length;
+  const qualityWeek = pending.filter((o) => isQualityCandidate(o) && new Date(o.created_at).getTime() >= weekAgo).length;
+  const botPending = pending.filter((o) => isBotOffer(o)).length;
 
   return (
     <div className="lg:grid lg:grid-cols-[1fr_minmax(260px,300px)] xl:grid-cols-[1fr_minmax(280px,320px)] lg:gap-8 lg:items-start">
@@ -284,6 +354,20 @@ export default function ModerationPage() {
           Prioriza coherencia precio–enlace, duplicados y categoría. Usa filtros, vista previa e historial por tarjeta.
           Los atajos de rechazo rellenan un motivo claro para el autor (siempre editable).
         </p>
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          Al entrar a esta vista, el sistema normaliza automáticamente enlaces pendientes con tracking de afiliado de plataforma.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/35 text-emerald-800 dark:text-emerald-200 px-2.5 py-1 font-medium">
+            Calidad hoy: {qualityToday}
+          </span>
+          <span className="rounded-full bg-violet-100 dark:bg-violet-900/35 text-violet-800 dark:text-violet-200 px-2.5 py-1 font-medium">
+            Calidad 7 días: {qualityWeek}
+          </span>
+          <span className="rounded-full bg-sky-100 dark:bg-sky-900/35 text-sky-800 dark:text-sky-200 px-2.5 py-1 font-medium">
+            Pendientes del bot: {botPending}
+          </span>
+        </div>
         <div className="mt-4 rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/70 dark:bg-[#141414]/50 px-4 py-3 text-left">
           <p className="text-xs font-semibold text-violet-800 dark:text-violet-200 mb-2">Checklist rápido (calidad y “vida” de la oferta)</p>
           <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1.5 list-disc list-inside leading-relaxed">
@@ -364,10 +448,19 @@ export default function ModerationPage() {
                 />
                 <span>Risk alto</span>
               </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={onlyBot}
+                  onChange={(e) => setOnlyBot(e.target.checked)}
+                  className="rounded border-gray-400 text-sky-500 focus:ring-sky-500"
+                />
+                <span>Solo bot</span>
+              </label>
             </>
           ) : null}
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            {filtered.length} de {pending.length} pendientes
+            {filtered.length} de {pending.length} pendientes · Bot: {botFiltered.length} · Usuarios: {userFiltered.length}
           </span>
         </div>
 
@@ -389,6 +482,7 @@ export default function ModerationPage() {
                   onClick={runBatchApprove}
                   disabled={batchActing}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                  title="No marca verificación de enlace; conviene revisar ofertas con URL una a una."
                 >
                   <Check className="h-4 w-4" />
                   Aprobar
@@ -463,22 +557,67 @@ export default function ModerationPage() {
           </p>
         </div>
       ) : (
-        <ul className="space-y-5">
-          {filtered.map((offer) => (
-            <ModerationOfferCardWithSimilar
-              key={offer.id}
-              offer={offer}
-              status="pending"
-              onApprove={(id, createdBy, modMessage) => setStatus(id, 'approved', createdBy, undefined, modMessage)}
-              onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
-              actingId={actingId}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              batchMode={canAdvancedModeration}
-              onOfferUpdated={() => refreshList(true)}
-            />
-          ))}
-        </ul>
+        <div className="space-y-6">
+          {botFiltered.length > 0 ? (
+            <section className="rounded-2xl border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm md:text-base font-semibold text-sky-800 dark:text-sky-200">
+                  Ofertas del bot (priorizadas por gratis y mayor descuento)
+                </h2>
+                <span className="text-xs text-sky-700 dark:text-sky-300 font-medium">{botFiltered.length} en cola</span>
+              </div>
+              <ul className="space-y-4">
+                {botFiltered.map((offer) => (
+                  <ModerationOfferCardWithSimilar
+                    key={offer.id}
+                    offer={offer}
+                    status="pending"
+                    onApprove={(id, createdBy, modMessage, offerHasUrl) => {
+                      void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
+                    }}
+                    onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
+                    actingId={actingId}
+                    qualityCandidate={isQualityCandidate(offer)}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    batchMode={canAdvancedModeration}
+                    onOfferUpdated={() => refreshList(true)}
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {userFiltered.length > 0 ? (
+            <section className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200">
+                  Ofertas de usuarios
+                </h2>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{userFiltered.length} en cola</span>
+              </div>
+              <ul className="space-y-4">
+                {userFiltered.map((offer) => (
+                  <ModerationOfferCardWithSimilar
+                    key={offer.id}
+                    offer={offer}
+                    status="pending"
+                    onApprove={(id, createdBy, modMessage, offerHasUrl) => {
+                      void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
+                    }}
+                    onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
+                    actingId={actingId}
+                    qualityCandidate={isQualityCandidate(offer)}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    batchMode={canAdvancedModeration}
+                    onOfferUpdated={() => refreshList(true)}
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
       )}
       </div>
 
@@ -494,14 +633,21 @@ function ModerationOfferCardWithSimilar({
   selectedIds,
   onToggleSelect,
   batchMode,
+  qualityCandidate,
   onOfferUpdated,
   ...props
 }: {
   offer: ModerationOffer;
   status: 'pending';
-  onApprove: (id: string, createdBy?: string | null, modMessage?: string) => void;
+  onApprove: (
+    id: string,
+    createdBy?: string | null,
+    modMessage?: string,
+    offerHasUrl?: boolean
+  ) => void;
   onReject: (id: string, reason?: string) => void;
   actingId: string | null;
+  qualityCandidate?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   batchMode?: boolean;
@@ -516,6 +662,7 @@ function ModerationOfferCardWithSimilar({
         selected={selectedIds?.has(offer.id)}
         onToggleSelect={onToggleSelect ? () => onToggleSelect(offer.id) : undefined}
         batchMode={batchMode}
+        qualityCandidate={qualityCandidate}
         onOfferUpdated={onOfferUpdated}
         {...props}
       />

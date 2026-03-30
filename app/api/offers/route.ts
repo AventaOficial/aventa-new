@@ -5,7 +5,7 @@ import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '@/lib/server/reputation';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { createOfferInputSchema } from '@/lib/contracts/offers';
-import { normalizeMercadoLibreOfferUrlForStorage } from '@/lib/offerUrl';
+import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 
 type OfferInsertPayload = {
   title: string;
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       : [];
 
     const rawOfferUrl = typeof input.offer_url === 'string' ? input.offer_url.trim() : '';
-    const offerUrlNormalized = rawOfferUrl ? normalizeMercadoLibreOfferUrlForStorage(rawOfferUrl) : '';
+    const offerUrlNormalized = rawOfferUrl ? await resolveAndNormalizeAffiliateOfferUrl(rawOfferUrl) : '';
 
     const payload: OfferInsertPayload = {
       title,
