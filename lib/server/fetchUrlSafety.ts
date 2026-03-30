@@ -1,5 +1,3 @@
-import { isIPv4, isIPv6 } from 'node:net';
-
 const BLOCKED_HOSTNAMES = new Set(
   [
     'localhost',
@@ -9,6 +7,17 @@ const BLOCKED_HOSTNAMES = new Set(
     'kubernetes.default.svc',
   ].map((h) => h.toLowerCase())
 );
+
+function isIPv4Literal(host: string): boolean {
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
+  const parts = host.split('.').map((x) => Number(x));
+  return parts.length === 4 && parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255);
+}
+
+function isIPv6Literal(host: string): boolean {
+  // Detección conservadora sin depender de módulos node:* para evitar bundling en cliente.
+  return host.includes(':');
+}
 
 function ipv4PrivateOrReserved(parts: number[]): boolean {
   const [a, b] = parts;
@@ -51,7 +60,7 @@ export function isBlockedOfferParseUrl(url: URL): { blocked: boolean; reason?: s
     }
   }
 
-  if (isIPv4(host)) {
+  if (isIPv4Literal(host)) {
     const parts = host.split('.').map((x) => Number(x));
     if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
       return { blocked: true, reason: 'IP inválida' };
@@ -62,7 +71,7 @@ export function isBlockedOfferParseUrl(url: URL): { blocked: boolean; reason?: s
     return { blocked: false };
   }
 
-  if (isIPv6(host)) {
+  if (isIPv6Literal(host)) {
     return { blocked: true, reason: 'URLs con IP literal IPv6 no están permitidas' };
   }
 
