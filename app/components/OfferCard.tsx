@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Sparkles, ThumbsUp, ThumbsDown, Search, User, Share2, Award, BadgeCheck } from 'lucide-react';
+import { Heart, Sparkles, ThumbsUp, ThumbsDown, Search, User, Share2, Award, BadgeCheck, Eye, MousePointerClick } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
@@ -81,6 +81,8 @@ interface OfferCardProps {
   dealStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
   /** Rejection reason from moderation (shown when dealStatus === 'rejected'). */
   rejectionReason?: string | null;
+  /** Panel de métricas solo en el perfil del creador (vistas, compartidos, clics en Cazar). */
+  ownerMetrics?: { cazarClicks: number; views: number; shares: number } | null;
 }
 
 export default function OfferCard({
@@ -110,6 +112,7 @@ export default function OfferCard({
   isTesterOffer = false,
   dealStatus,
   rejectionReason,
+  ownerMetrics,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -288,6 +291,12 @@ export default function OfferCard({
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
+  const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
+  const descTrim = description?.trim() ?? '';
+  const descShown =
+    descTrim.length > OFFER_CARD_DESCRIPTION_MAX_LENGTH
+      ? `${descTrim.slice(0, OFFER_CARD_DESCRIPTION_MAX_LENGTH)}…`
+      : descTrim;
 
   const VotesBlock = () => (
     <div className="flex items-center gap-2 max-[400px]:gap-1 text-gray-900 dark:text-gray-100">
@@ -427,7 +436,7 @@ export default function OfferCard({
               {rejectionReason}
             </p>
           )}
-          <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug min-h-[2.35rem] md:min-h-[2.75rem]">
+          <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug min-h-[2.4rem] md:min-h-[3.1rem] wrap-anywhere">
             {title}
           </h3>
 
@@ -460,17 +469,18 @@ export default function OfferCard({
               </span>
             )}
           </div>
-          {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
-            <div className="mt-0.5 flex items-center gap-2">
+          {(msiMonths != null && msiMonths >= 1) || bankCouponDisplay ? (
+            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
               {msiMonths != null && msiMonths >= 1 && (
-                <p className="text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  {msiMonths} MSI
-                </p>
+                <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="uppercase tracking-wide">msi</span>
+                  <span>{msiMonths}</span>
+                </span>
               )}
-              {bankCouponLabel && (
-                <p className="text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                  Cupón {bankCouponLabel}
-                </p>
+              {bankCouponDisplay && (
+                <span className="text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wide">
+                  {bankCouponDisplay}
+                </span>
               )}
             </div>
           ) : null}
@@ -535,24 +545,62 @@ export default function OfferCard({
             </span>
           )}
 
-          <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-            <span className="bg-gradient-to-r from-slate-500 via-gray-400 to-slate-600 dark:from-slate-400 dark:via-gray-500 dark:to-slate-600 bg-clip-text text-transparent font-medium">
-              {storeLabel}
-            </span>
-            {timeLabel ? ` • hace ${timeLabel}` : ''}
+          <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
+            <span className="font-semibold text-pink-600 dark:text-pink-400">{storeLabel}</span>
+            {timeLabel ? (
+              <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
+            ) : null}
           </p>
-          {description?.trim() && (
-            <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-[2rem] min-w-0">
-              {description.trim().length > OFFER_CARD_DESCRIPTION_MAX_LENGTH
-                ? `${description.trim().slice(0, OFFER_CARD_DESCRIPTION_MAX_LENGTH)}…`
-                : description.trim()}
-            </p>
-          )}
+          <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-10 min-w-0 leading-snug wrap-anywhere">
+            {descShown ? (
+              descShown
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
+            )}
+          </p>
         </div>
+
+        {ownerMetrics != null && (
+          <div className="rounded-xl border border-dashed border-violet-300/70 dark:border-violet-800/60 bg-violet-50/50 dark:bg-violet-950/25 px-3 py-2.5 mt-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300 mb-2 text-center sm:text-left">
+              Solo tú ves estas métricas
+            </p>
+            <div className="grid grid-cols-3 gap-2 text-[10px] sm:text-[11px]">
+              <div className="text-center min-w-0">
+                <MousePointerClick className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
+                <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.cazarClicks}</p>
+                <p className="text-gray-500 dark:text-gray-400 leading-tight">Clics en cazar</p>
+              </div>
+              <div className="text-center min-w-0">
+                <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
+                <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.views}</p>
+                <p className="text-gray-500 dark:text-gray-400 leading-tight">Vistas</p>
+              </div>
+              <div className="text-center min-w-0">
+                <Share2 className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
+                <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.shares}</p>
+                <p className="text-gray-500 dark:text-gray-400 leading-tight">Compartido</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">
           <button
-            onClick={(e) => { e.stopPropagation(); onCardClick?.(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (offerId && !isTesterOffer) {
+                fetch('/api/events', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                  },
+                  body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
+                }).catch((err) => logClientError('offer-card:cazar-cta', err));
+              }
+              onCardClick?.();
+            }}
             className="w-full min-w-0 flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-3 max-[400px]:px-2 py-2.5 max-[400px]:py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-95"
           >
             <Search className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-4.5 md:w-4.5 shrink-0" />

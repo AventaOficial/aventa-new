@@ -4,7 +4,7 @@ import { isValidUuid } from '@/lib/server/validateUuid'
 import { createServerClient } from '@/lib/supabase/server'
 import { recordOfferEvent } from '@/lib/server/writeQueue'
 
-type EventType = 'view' | 'outbound' | 'share'
+type EventType = 'view' | 'outbound' | 'share' | 'cazar_cta'
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,10 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}))
     const offerId = (typeof body?.offer_id === 'string' ? body.offer_id : body?.offerId)?.trim() || null
     const eventType: EventType | null =
-      body?.event_type === 'view' || body?.event_type === 'outbound' || body?.event_type === 'share'
+      body?.event_type === 'view' ||
+      body?.event_type === 'outbound' ||
+      body?.event_type === 'share' ||
+      body?.event_type === 'cazar_cta'
         ? body.event_type
         : null
 

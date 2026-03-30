@@ -1,7 +1,7 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
-import { storeSlugToName } from '@/lib/slug';
+import { resolveStoreSlugToCanonicalName, slugifyStore } from '@/lib/slug';
 import Link from 'next/link';
 import ClientLayout from '@/app/ClientLayout';
 import TiendaOfferList from './TiendaOfferList';
@@ -27,8 +27,9 @@ async function getStores(): Promise<string[]> {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const stores = await getStores();
-  const storeName = storeSlugToName(slug, stores);
+  const storeName = resolveStoreSlugToCanonicalName(slug, stores);
   if (!storeName) return { title: 'Tienda | AVENTA' };
+  const canonicalSlug = slugifyStore(storeName);
 
   const title = `Ofertas en ${storeName} | AVENTA`;
   const description = `Las mejores ofertas y descuentos en ${storeName}. Encontradas por la comunidad.`;
@@ -36,8 +37,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description,
-    alternates: { canonical: `${BASE_URL}/tienda/${slug}` },
-    openGraph: { title, description, url: `${BASE_URL}/tienda/${slug}`, siteName: 'AVENTA', type: 'website' },
+    alternates: { canonical: `${BASE_URL}/tienda/${canonicalSlug}` },
+    openGraph: { title, description, url: `${BASE_URL}/tienda/${canonicalSlug}`, siteName: 'AVENTA', type: 'website' },
     twitter: { card: 'summary_large_image', title, description },
   };
 }
@@ -45,8 +46,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function TiendaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const stores = await getStores();
-  const storeName = storeSlugToName(slug, stores);
+  const storeName = resolveStoreSlugToCanonicalName(slug, stores);
   if (!storeName) notFound();
+  const canonicalSlug = slugifyStore(storeName);
+  if (slug.trim().toLowerCase() !== canonicalSlug.toLowerCase()) {
+    redirect(`/tienda/${canonicalSlug}`);
+  }
 
   const supabase = createServerClient();
   const now = new Date().toISOString();

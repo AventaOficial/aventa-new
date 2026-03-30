@@ -24,13 +24,15 @@ export type EmailLayoutOptions = {
   settingsPath?: string;
   /** URL de la imagen del logo (ej. https://aventaofertas.com/logo-email.png). Si no se define, solo se muestra el texto AVENTA. */
   logoUrl?: string | null;
+  /** Sustituye el botón violeta del pie (“Ver todas las ofertas…”) por un enlace concreto (p. ej. “Ver tu oferta”). */
+  primaryFooterCta?: { href: string; label: string };
 };
 
 /**
  * Envuelve el contenido en layout común: cabecera AVENTA, contenido, CTA y pie.
  */
 export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string {
-  const { title, preheader = '', baseUrl, settingsPath = '/settings', logoUrl: logoUrlOpt } = opts;
+  const { title, preheader = '', baseUrl, settingsPath = '/settings', logoUrl: logoUrlOpt, primaryFooterCta } = opts;
   const logoUrl = logoUrlOpt ?? (typeof process !== 'undefined' && process.env?.EMAIL_LOGO_URL) ?? null;
   const settingsUrl = baseUrl.replace(/\/$/, '') + settingsPath;
   const logoImg =
@@ -72,7 +74,7 @@ export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string
           <!-- CTA -->
           <tr>
             <td style="padding:0 24px 24px; text-align:center;">
-              <a href="${baseUrl}" style="display:inline-block; background:${BRAND_COLOR}; color:#ffffff; padding:14px 28px; text-decoration:none; border-radius:8px; font-weight:600; font-size:15px;">Ver todas las ofertas en AVENTA</a>
+              <a href="${primaryFooterCta ? escapeHtml(primaryFooterCta.href) : baseUrl}" style="display:inline-block; background:${BRAND_COLOR}; color:#ffffff; padding:14px 28px; text-decoration:none; border-radius:8px; font-weight:600; font-size:15px;">${primaryFooterCta ? escapeHtml(primaryFooterCta.label) : 'Ver todas las ofertas en AVENTA'}</a>
             </td>
           </tr>
           <!-- Pie -->
@@ -242,5 +244,65 @@ export function buildWeeklyHtml(
     title: 'Tu semana · AVENTA',
     preheader: 'Destacadas por día y las que más comentaron.',
     baseUrl,
+  });
+}
+
+/** Texto plano para asuntos y preheaders (sin HTML). */
+export function truncatePlainTextForEmail(s: string, maxLen: number): string {
+  const t = s.replace(/\s+/g, ' ').trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, Math.max(0, maxLen - 1))}…`;
+}
+
+/** Misma estética que diario/semanal: layout AVENTA + tarjeta de detalle + CTA a la oferta. */
+export function buildOfferPublishedNotificationHtml(opts: {
+  offerTitle: string;
+  offerUrl: string;
+  baseUrl: string;
+}): string {
+  const titleShort = truncatePlainTextForEmail(opts.offerTitle, 160);
+  const inner = `
+    <p style="margin:0 0 10px; font-size:11px; font-weight:600; color:${TEXT_MUTED}; letter-spacing:0.08em; text-transform:uppercase;">Notificación</p>
+    <h1 style="margin:0 0 12px; font-size:24px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.03em; line-height:1.2;">Tu oferta ya está publicada</h1>
+    <p style="margin:0 0 20px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">La comunidad ya puede verla en el feed. Gracias por cazar y compartir.</p>
+    <div style="padding:16px 18px; background:${BG_LIGHT}; border-radius:12px; border:1px solid ${BORDER}; border-left:4px solid ${BRAND_COLOR}; margin-bottom:20px;">
+      <p style="margin:0; font-size:11px; font-weight:600; color:${TEXT_MUTED}; text-transform:uppercase; letter-spacing:0.06em;">Producto</p>
+      <p style="margin:8px 0 0; font-size:16px; font-weight:600; color:${TEXT_DARK}; line-height:1.35;">${escapeHtml(titleShort)}</p>
+    </div>
+    <p style="margin:0; font-size:14px; color:${TEXT_MUTED}; line-height:1.5;">Puedes abrirla, compartirla o revisar comentarios cuando quieras.</p>
+  `;
+  return emailLayout(inner, {
+    title: 'Tu oferta en AVENTA',
+    preheader: truncatePlainTextForEmail(opts.offerTitle, 96),
+    baseUrl: opts.baseUrl,
+    primaryFooterCta: { href: opts.offerUrl, label: 'Ver tu oferta' },
+  });
+}
+
+export function buildCommentApprovedNotificationHtml(opts: {
+  offerTitle: string;
+  offerUrl: string;
+  excerpt: string;
+  baseUrl: string;
+}): string {
+  const offerShort = truncatePlainTextForEmail(opts.offerTitle, 120);
+  const excerptShort = truncatePlainTextForEmail(opts.excerpt, 240);
+  const inner = `
+    <p style="margin:0 0 10px; font-size:11px; font-weight:600; color:${TEXT_MUTED}; letter-spacing:0.08em; text-transform:uppercase;">Comentario aprobado</p>
+    <h1 style="margin:0 0 12px; font-size:24px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.03em; line-height:1.2;">Tu comentario ya es visible</h1>
+    <p style="margin:0 0 18px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">En la oferta:</p>
+    <div style="padding:14px 16px; background:#fff; border:1px solid ${BORDER}; border-radius:10px; margin-bottom:16px;">
+      <p style="margin:0; font-size:15px; font-weight:600; color:${TEXT_DARK}; line-height:1.35;">${escapeHtml(offerShort)}</p>
+    </div>
+    <div style="padding:14px 16px; background:${BG_LIGHT}; border-radius:10px; border-left:4px solid ${BRAND_COLOR}; margin-bottom:20px;">
+      <p style="margin:0 0 8px; font-size:11px; font-weight:600; color:${TEXT_MUTED}; text-transform:uppercase; letter-spacing:0.05em;">Tu texto</p>
+      <p style="margin:0; font-size:14px; color:#374151; line-height:1.45;">${escapeHtml(excerptShort)}</p>
+    </div>
+  `;
+  return emailLayout(inner, {
+    title: 'Comentario publicado · AVENTA',
+    preheader: truncatePlainTextForEmail(excerptShort, 88),
+    baseUrl: opts.baseUrl,
+    primaryFooterCta: { href: opts.offerUrl, label: 'Ver la oferta' },
   });
 }

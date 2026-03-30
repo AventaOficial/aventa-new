@@ -12,7 +12,8 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 import { ALL_CATEGORIES } from '@/lib/categories';
-import { BANK_COUPON_OPTIONS } from '@/lib/bankCoupons';
+import { BANK_COUPON_OPTIONS, getBankCouponLabel } from '@/lib/bankCoupons';
+import { storeLikelyHasPhysicalPresence } from '@/lib/storesPhysical';
 import { logClientError } from '@/lib/utils/handleError';
 
 function formatThousands(s: string): string {
@@ -81,6 +82,8 @@ export default function ActionBar() {
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
   const [cooldownExempt, setCooldownExempt] = useState(false);
+  /** Solo tiendas con sucursales probables: se guarda en `conditions` al publicar. */
+  const [offerScope, setOfferScope] = useState<'online' | 'in_store' | null>(null);
 
   useEffect(() => {
     if (showUploadModal) {
@@ -155,6 +158,10 @@ export default function ActionBar() {
     if (image != null) setImageUrl(decodeURIComponent(image));
     router.replace('/', { scroll: false });
   }, [showUploadModal, pathname, searchParams, router]);
+
+  useEffect(() => {
+    if (!storeLikelyHasPhysicalPresence(formData.store)) setOfferScope(null);
+  }, [formData.store]);
 
   useEffect(() => {
     if (cooldownRemaining <= 0) return;
@@ -331,6 +338,7 @@ export default function ActionBar() {
     setImageUrl(null);
     setImageUrls([]);
     setMsiMonths(null);
+    setOfferScope(null);
     setHasDiscount(true);
     setMobileTab('form');
   };
@@ -351,6 +359,14 @@ export default function ActionBar() {
     const dedupImages = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)).filter((u, i, arr) => arr.indexOf(u) === i);
     const firstImage = dedupImages[0] ?? '/placeholder.png';
     const extraImages = dedupImages.slice(1);
+    let conditionsOut = formData.conditions.trim();
+    if (offerScope === 'in_store') {
+      const line = 'Alcance: oferta en tienda física / sucursales.';
+      conditionsOut = conditionsOut ? `${line}\n\n${conditionsOut}` : line;
+    } else if (offerScope === 'online') {
+      const line = 'Alcance: compra en línea.';
+      conditionsOut = conditionsOut ? `${line}\n\n${conditionsOut}` : line;
+    }
     const payload = {
       title: formData.title.trim(),
       price,
@@ -366,7 +382,7 @@ export default function ActionBar() {
       ...(stepsList.filter((s) => s.trim()).length > 0 && {
         steps: JSON.stringify(stepsList.map((s) => s.trim()).filter(Boolean)),
       }),
-      ...(formData.conditions.trim() && { conditions: formData.conditions.trim() }),
+      ...(conditionsOut && { conditions: conditionsOut }),
       ...(formData.coupons.trim() && { coupons: formData.coupons.trim() }),
       ...(formData.bank_coupon.trim() && { bank_coupon: formData.bank_coupon.trim() }),
       ...(formData.tags.trim() && {
@@ -643,9 +659,14 @@ export default function ActionBar() {
                       type="url"
                       value={formData.offer_url}
                       onChange={(e) => handleInputChange('offer_url', e.target.value)}
-                      placeholder="https://... (pega primero el enlace: título, imagen y a veces precio)"
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                      placeholder="https://…"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                     />
+                    <ul className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                      <li>1. Pega el enlace de la oferta.</li>
+                      <li>2. Rellenamos título, imagen y precio cuando el sitio lo permite.</li>
+                      <li>3. Revisa y corrige lo que falte antes de publicar.</li>
+                    </ul>
                   </div>
 
                     <div>
@@ -689,7 +710,7 @@ export default function ActionBar() {
                     </div>
                   </div>
 
-                  <div className={`grid gap-4 ${hasDiscount ? 'grid-cols-2' : ''}`}>
+                  <div className={`grid gap-4 ${hasDiscount ? 'grid-cols-1 sm:grid-cols-2' : ''}`}>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                         Precio original *
@@ -752,6 +773,49 @@ export default function ActionBar() {
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     />
                   </div>
+
+                  {storeLikelyHasPhysicalPresence(formData.store) && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        ¿Dónde aplica la oferta?
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Para tiendas con sucursales: indica si es solo en línea o en tienda física.
+                      </p>
+                      <div className="flex flex-col gap-2.5">
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="offerScope"
+                            checked={offerScope === null}
+                            onChange={() => setOfferScope(null)}
+                            className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">No indicar (opcional)</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="offerScope"
+                            checked={offerScope === 'online'}
+                            onChange={() => setOfferScope('online')}
+                            className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Compra en línea</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="offerScope"
+                            checked={offerScope === 'in_store'}
+                            onChange={() => setOfferScope('in_store')}
+                            className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">En tienda / sucursal</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -849,20 +913,24 @@ export default function ActionBar() {
                       <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Meses sin intereses (MSI)</span>
                     </label>
                     {msiMonths != null && (
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <label className="text-sm text-gray-600 dark:text-gray-400">Meses:</label>
-                        <select
-                          value={msiMonths}
-                          onChange={(e) => setMsiMonths(parseInt(e.target.value, 10) || null)}
-                          className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                        >
-                          {[3, 6, 12, 18, 24].map((n) => (
-                            <option key={n} value={n}>{n} MSI</option>
-                          ))}
-                        </select>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className="text-sm text-gray-600 dark:text-gray-400">Meses:</label>
+                          <select
+                            value={msiMonths}
+                            onChange={(e) => setMsiMonths(parseInt(e.target.value, 10) || null)}
+                            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                          >
+                            {[3, 6, 12, 18, 24].map((n) => (
+                              <option key={n} value={n}>{n} MSI</option>
+                            ))}
+                          </select>
+                        </div>
                         {formData.discountPrice && (
-                          <span className="text-sm font-medium text-violet-600 dark:text-violet-400">
-                            {formatPreviewPrice(formData.discountPrice)} ÷ {msiMonths} = {formatPreviewPrice(String(parseDecimalPrice(formData.discountPrice) / msiMonths))}/mes
+                          <span className="text-sm font-medium text-violet-600 dark:text-violet-400 break-words max-w-full leading-snug">
+                            {formatPreviewPrice(formData.discountPrice)} ÷ {msiMonths} ={' '}
+                            {formatPreviewPrice(String(parseDecimalPrice(formData.discountPrice) / msiMonths))}
+                            /mes
                           </span>
                         )}
                       </div>
@@ -1075,6 +1143,9 @@ export default function ActionBar() {
                               </div>
                               <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 justify-between gap-1.5 max-[400px]:gap-1 md:gap-2 pt-6 max-[400px]:pt-5 md:pt-0">
                                 <div className="min-w-0">
+                                  <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
+                                    {formData.title.trim() || 'Título de la oferta'}
+                                  </h3>
                                   <div className="flex items-baseline gap-1.5 max-[400px]:gap-1 md:gap-2 flex-wrap mt-1 max-[400px]:mt-0.5 min-w-0">
                                     <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                                       {formatPreviewPrice(formData.discountPrice || formData.originalPrice || '0')}
@@ -1101,11 +1172,32 @@ export default function ActionBar() {
                                         ) : null;
                                       })()}
                                   </div>
-                                  <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug mt-1 max-[400px]:mt-0.5">
-                                    {formData.title.trim() || 'Título de la oferta'}
-                                  </h3>
-                                  <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                    {formData.store.trim() || 'Tienda'}
+                                  {(msiMonths != null && msiMonths >= 1) || getBankCouponLabel(formData.bank_coupon) ? (
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                      {msiMonths != null && msiMonths >= 1 && (
+                                        <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                          <span className="uppercase tracking-wide">msi</span>
+                                          <span>{msiMonths}</span>
+                                        </span>
+                                      )}
+                                      {getBankCouponLabel(formData.bank_coupon) && (
+                                        <span className="text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wide">
+                                          {getBankCouponLabel(formData.bank_coupon)!.toUpperCase()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                  <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
+                                    <span className="font-semibold text-pink-600 dark:text-pink-400">
+                                      {formData.store.trim() || 'Tienda'}
+                                    </span>
+                                  </p>
+                                  <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-10 leading-snug wrap-anywhere">
+                                    {formData.description.trim() ? (
+                                      formData.description.trim()
+                                    ) : (
+                                      <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
+                                    )}
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">

@@ -97,6 +97,8 @@ export type FeedApiItemShape = {
   images?: string[];
   bank_coupon?: string | null;
   store?: string | null;
+  msi_months?: number | null;
+  description?: string | null;
   author?: {
     display_name?: string | null;
     avatar_url?: string | null;
@@ -197,6 +199,11 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     userId: item.created_by ?? null,
     slug: a?.slug?.trim() || null,
   };
+  const msiRaw = item.msi_months;
+  const msiMonths =
+    msiRaw != null && msiRaw !== ('' as unknown) ? Number(msiRaw) : undefined;
+  const msiOk = msiMonths != null && Number.isFinite(msiMonths) && msiMonths >= 1 ? msiMonths : undefined;
+
   return {
     id: item.id ?? '',
     title: item.title ?? '',
@@ -209,7 +216,9 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     offerUrl: '',
     image: image ?? undefined,
     imageUrls: images.length > 0 ? images : undefined,
+    msiMonths: msiOk,
     bankCoupon: item.bank_coupon?.trim() || undefined,
+    description: item.description?.trim() || undefined,
     votes: { up, down, score },
     author,
     ranking_momentum: item.ranking_momentum != null ? Number(item.ranking_momentum) : score,

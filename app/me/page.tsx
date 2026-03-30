@@ -26,6 +26,8 @@ type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
 type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
 
+type OfferOwnerMetrics = { cazarClicks: number; views: number; shares: number };
+
 function MePageInner() {
   useTheme();
   const { showToast } = useUI();
@@ -48,6 +50,7 @@ function MePageInner() {
     cazadoresAyudados: 0,
   });
   const [selectedOffer, setSelectedOffer] = useState<MappedOffer | null>(null);
+  const [ownerMetricsByOffer, setOwnerMetricsByOffer] = useState<Record<string, OfferOwnerMetrics> | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,6 +184,17 @@ function MePageInner() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (token) {
+        fetch('/api/me/offer-metrics', { headers: { Authorization: `Bearer ${token}` } })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data: { metrics?: Record<string, OfferOwnerMetrics> } | null) => {
+            if (data?.metrics && typeof data.metrics === 'object') {
+              setOwnerMetricsByOffer(data.metrics);
+            } else {
+              setOwnerMetricsByOffer({});
+            }
+          })
+          .catch(() => setOwnerMetricsByOffer({}));
+
         fetch('/api/me/impact-stats', { headers: { Authorization: `Bearer ${token}` } })
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => {
@@ -375,6 +389,15 @@ function MePageInner() {
                   isLiked={!!favoriteMap[offer.id]}
                   dealStatus={offer.dealStatus}
                   rejectionReason={offer.rejectionReason}
+                  ownerMetrics={
+                    ownerMetricsByOffer
+                      ? (ownerMetricsByOffer[offer.id] ?? {
+                          cazarClicks: 0,
+                          views: 0,
+                          shares: 0,
+                        })
+                      : null
+                  }
                 />
               ))
             )}

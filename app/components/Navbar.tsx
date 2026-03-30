@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, Sparkles, Trash2, Droplet, Compass, Puzzle, ShieldCheck } from 'lucide-react';
+import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, Sparkles, Trash2, Droplet, Compass, Puzzle, ShieldCheck, Heart } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { playNotificationDropSound } from '@/lib/playNotificationSound';
@@ -467,6 +467,7 @@ export default function Navbar() {
                         const all = [...items, ...others.map((n) => ({ ids: [n.id], display: n }))];
                         const sortedItems = all.sort((a, b) => new Date(b.display.created_at).getTime() - new Date(a.display.created_at).getTime());
                         return sortedItems.map(({ ids, display: n }) => {
+                          const isMilestoneLikes = n.type === 'offer_likes_milestone';
                           const isUnread = ids.some((nid) => {
                             const row = notifications.find((x) => x.id === nid);
                             return row && !row.read_at;
@@ -517,13 +518,29 @@ export default function Navbar() {
                                 }`}
                               >
                                 <div className="flex gap-2.5 items-start">
-                                  <Droplet
-                                    className={`h-4 w-4 shrink-0 mt-0.5 ${isUnread ? 'text-sky-500 dark:text-sky-400' : 'text-gray-300 dark:text-gray-600'}`}
-                                    aria-hidden
-                                  />
+                                  {isMilestoneLikes ? (
+                                    <span className="flex shrink-0 items-center gap-0.5 mt-0.5" aria-hidden>
+                                      <Heart
+                                        className={`h-4 w-4 ${isUnread ? 'text-pink-500 fill-pink-500/35' : 'text-pink-400/80 fill-pink-400/20'}`}
+                                      />
+                                      <Heart
+                                        className={`h-4 w-4 -ml-1 ${isUnread ? 'text-pink-500 fill-pink-500/50' : 'text-pink-400/80 fill-pink-400/25'}`}
+                                      />
+                                    </span>
+                                  ) : (
+                                    <Droplet
+                                      className={`h-4 w-4 shrink-0 mt-0.5 ${isUnread ? 'text-sky-500 dark:text-sky-400' : 'text-gray-300 dark:text-gray-600'}`}
+                                      aria-hidden
+                                    />
+                                  )}
                                   <div className="min-w-0 flex-1">
                                     <span className="font-semibold text-[15px]">{n.title}</span>
                                     {n.body && <p className="mt-1 text-sm opacity-90 leading-snug">{n.body}</p>}
+                                    {isMilestoneLikes && n.link && (
+                                      <p className="mt-2 text-sm font-semibold text-violet-600 dark:text-violet-400">
+                                        Ver los likes de tu oferta →
+                                      </p>
+                                    )}
                                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
                                       {new Date(n.created_at).toLocaleDateString('es-MX', {
                                         day: 'numeric',

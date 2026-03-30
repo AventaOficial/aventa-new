@@ -5,8 +5,32 @@ import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { voteInputSchema } from '@/lib/contracts/votes'
 import { voteWeightPairForLevel, type VoteDirection } from '@/lib/votes/reputationWeights'
+import { buildOfferPublicPath } from '@/lib/offerPath'
 
-async function notifyOfferOwnerLike(supabase: SupabaseClient, offerId: string, voterUserId: string) {
+const LIKES_MILESTONE = 50
+
+async function getPositiveVoteCount(supabase: SupabaseClient, offerId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('offer_votes')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('offer_id', offerId)
+    .gt('value', 0)
+  if (error) {
+    console.error('[votes] count positive votes:', error.message)
+    return 0
+  }
+  return count ?? 0
+}
+
+/** Notificación al autor cada 50 votos positivos (apoyos), sin duplicar el mismo hito. */
+async function notifyOfferOwnerLikeMilestone(
+  supabase: SupabaseClient,
+  offerId: string,
+  voterUserId: string
+): Promise<void> {
+  const count = await getPositiveVoteCount(supabase, offerId)
+  if (count < LIKES_MILESTONE || count % LIKES_MILESTONE !== 0) return
+
   const { data: offer } = await supabase
     .from('offers')
     .select('created_by, title')
@@ -15,26 +39,30 @@ async function notifyOfferOwnerLike(supabase: SupabaseClient, offerId: string, v
   const ownerId = (offer as { created_by?: string } | null)?.created_by
   if (!ownerId || ownerId === voterUserId) return
 
-  const title = (offer as { title?: string } | null)?.title?.trim() || 'Tu oferta'
-  const shortTitle = title.length > 50 ? title.slice(0, 47) + '…' : title
+  const title = (offer as { title?: string } | null)?.title?.trim() || ''
+  const path = buildOfferPublicPath(offerId, title)
+  const link = `${path}?likes=${count}`
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', voterUserId)
-    .maybeSingle()
-  const voterName = (profile as { display_name?: string | null } | null)?.display_name?.trim() || 'Alguien'
+  const { data: existing } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('user_id', ownerId)
+    .eq('type', 'offer_likes_milestone')
+    .eq('link', link)
+    .limit(1)
+
+  if (existing && existing.length > 0) return
 
   await supabase.from('notifications').insert({
     user_id: ownerId,
-    type: 'offer_like',
-    title: 'Nuevo like',
-    body: `${voterName} dio like a tu oferta: ${shortTitle}`,
-    link: `/?o=${offerId}`,
+    type: 'offer_likes_milestone',
+    title: `¡${count} apoyos en tu oferta!`,
+    body: 'La comunidad sigue valorando tu cacería. Abre la oferta para ver los votos.',
+    link,
   })
 }
 
-function shouldNotifyLike(targetVal: number, existingVal: number | null | undefined): boolean {
+function shouldCountAsNewUpvote(targetVal: number, existingVal: number | null | undefined): boolean {
   if (targetVal <= 0) return false
   if (existingVal == null || existingVal === undefined) return true
   return existingVal <= 0
@@ -133,8 +161,10 @@ export async function POST(request: Request) {
         console.error('[votes] insert failed:', insertError.message)
         return NextResponse.json({ ok: false, error: 'No se pudo guardar el voto' }, { status: 500 })
       }
-      if (shouldNotifyLike(targetVal, null)) {
-        notifyOfferOwnerLike(supabase, offerId, userId).catch((e) => console.error('[votes] notify owner:', e))
+      if (shouldCountAsNewUpvote(targetVal, null)) {
+        notifyOfferOwnerLikeMilestone(supabase, offerId, userId).catch((e) =>
+          console.error('[votes] notify milestone:', e)
+        )
       }
       return NextResponse.json({ ok: true }, { status: 200 })
     }
@@ -163,8 +193,10 @@ export async function POST(request: Request) {
       console.error('[votes] update failed:', updateError.message)
       return NextResponse.json({ ok: false, error: 'No se pudo actualizar el voto' }, { status: 500 })
     }
-    if (shouldNotifyLike(targetVal, existingVal)) {
-      notifyOfferOwnerLike(supabase, offerId, userId).catch((e) => console.error('[votes] notify owner:', e))
+    if (shouldCountAsNewUpvote(targetVal, existingVal)) {
+      notifyOfferOwnerLikeMilestone(supabase, offerId, userId).catch((e) =>
+        console.error('[votes] notify milestone:', e)
+      )
     }
 
     return NextResponse.json({ ok: true }, { status: 200 })

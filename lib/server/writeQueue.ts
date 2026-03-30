@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 
-type EventType = 'view' | 'outbound' | 'share';
+type EventType = 'view' | 'outbound' | 'share' | 'cazar_cta';
 
 type EventPayload = {
   offer_id: string;
