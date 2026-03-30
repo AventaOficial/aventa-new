@@ -14,19 +14,17 @@ const GUIDE_STEPS = [
   {
     icon: Plus,
     title: 'Subir oferta',
-    description:
-      'Abre el botón + y pega primero el enlace de la tienda: intentamos rellenar título, foto y precios. Tú solo revisas y completas lo mínimo (categoría y tienda). Fotos extra, MSI o textos largos son opcionales.',
+    description: 'Pega el enlace y revisa los datos. Solo completa lo básico: categoría y tienda.',
   },
   {
     icon: ThumbsUp,
     title: 'Votar',
-    description:
-      'En cada oferta hay dos pulgares: arriba si te parece una buena oferta, abajo si no te convence. Eso mueve el ranking para que todos vean antes lo más útil. No hace falta votar en todas.',
+    description: 'Pulgar arriba si sí conviene, abajo si no. Tus votos ordenan el ranking.',
   },
   {
     icon: Heart,
     title: 'Guardar',
-    description: 'Toca el corazón para guardar y revisar después en Favoritos, desde la barra o tu perfil.',
+    description: 'Toca el corazón y la oferta se guarda en Favoritos.',
   },
 ];
 
@@ -140,7 +138,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         transition={{ delay: 0.35, ...t }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
-        <WaveText text="Bienvenido: ofertas reales, elegidas entre todos" />
+        <WaveText text="Bienvenido a tu comunidad cazadora de ofertas" />
       </motion.p>
 
       <motion.button

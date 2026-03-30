@@ -386,12 +386,6 @@ export default function DescubreGuide() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-transparent relative">
-      <div className="pointer-events-none fixed top-1/2 right-2 z-40 hidden -translate-y-1/2 sm:block md:right-4">
-        <div className="pointer-events-auto">
-          <VerticalDescubreNav count={n} activeIndex={activeIndex} onPrev={onPrev} onNext={onNext} />
-        </div>
-      </div>
-
       <div className="pointer-events-none fixed bottom-24 right-3 z-40 sm:hidden">
         <div className="pointer-events-auto">
           <VerticalDescubreNav count={n} activeIndex={activeIndex} onPrev={onPrev} onNext={onNext} />

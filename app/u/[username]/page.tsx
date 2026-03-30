@@ -56,6 +56,7 @@ export default function ProfilePage() {
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [data, setData] = useState<ProfileData | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<ProfileData['offers'][0] | null>(null);
 
@@ -90,29 +91,51 @@ export default function ProfilePage() {
   }, [data?.offers, session?.user?.id]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!username) {
       setLoading(false);
       setNotFound(true);
+      setLoadError(null);
       return;
     }
-    setLoading(true);
-    setNotFound(false);
-    fetch(`/api/profile/${encodeURIComponent(username)}`)
-      .then((res) => {
+
+    const run = async () => {
+      setLoading(true);
+      setNotFound(false);
+      setLoadError(null);
+      try {
+        const res = await fetch(`/api/profile/${encodeURIComponent(username)}`);
+        if (cancelled) return;
+
         if (res.status === 404) {
           setNotFound(true);
           setData(null);
           return;
         }
-        if (!res.ok) throw new Error('Error loading profile');
-        return res.json();
-      })
-      .then((json) => {
+
+        if (!res.ok) {
+          throw new Error('Error loading profile');
+        }
+
+        const json = (await res.json()) as ProfileData;
+        if (cancelled) return;
         setData(json);
         setNotFound(false);
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+      } catch {
+        if (cancelled) return;
+        setData(null);
+        setNotFound(false);
+        setLoadError('No se pudo cargar el perfil. Intenta de nuevo en unos segundos.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
   }, [username]);
 
   if (loading) {
@@ -143,6 +166,18 @@ export default function ProfilePage() {
               </div>
             </div>
           </section>
+        </div>
+      </ClientLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <ClientLayout>
+        <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100 flex items-center justify-center px-4">
+          <p className="text-center text-gray-600 dark:text-gray-400">
+            {loadError}
+          </p>
         </div>
       </ClientLayout>
     );

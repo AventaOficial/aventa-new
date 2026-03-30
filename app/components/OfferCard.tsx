@@ -427,7 +427,7 @@ export default function OfferCard({
               {rejectionReason}
             </p>
           )}
-          <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug">
+          <h3 className="text-sm max-[400px]:text-xs md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug min-h-[2.35rem] md:min-h-[2.75rem]">
             {title}
           </h3>
 
@@ -542,7 +542,7 @@ export default function OfferCard({
             {timeLabel ? ` • hace ${timeLabel}` : ''}
           </p>
           {description?.trim() && (
-            <p className="hidden md:block text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-w-0">
+            <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-[2rem] min-w-0">
               {description.trim().length > OFFER_CARD_DESCRIPTION_MAX_LENGTH
                 ? `${description.trim().slice(0, OFFER_CARD_DESCRIPTION_MAX_LENGTH)}…`
                 : description.trim()}

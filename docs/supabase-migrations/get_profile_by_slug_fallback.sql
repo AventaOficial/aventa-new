@@ -2,13 +2,12 @@
 -- slug derivado del display_name (misma idea que lib/profileSlug.ts).
 --
 -- IMPORTANTE:
--- 1) No uses CREATE OR REPLACE renombrando el parámetro (p. ej. slug → p_slug): Postgres devuelve
---    ERROR 42P13 "cannot change name of input parameter". Hay que DROP y CREATE.
--- 2) El parámetro debe seguir llamándose "slug" como en la migración original profiles_slug.sql.
+-- 1) Usamos DROP + CREATE para evitar conflictos 42P13 al reemplazar funciones existentes.
+-- 2) El parámetro interno se llama p_slug para evitar ambiguedad con la columna profiles.slug.
 
 DROP FUNCTION IF EXISTS public.get_profile_by_slug(text);
 
-CREATE FUNCTION public.get_profile_by_slug(slug text)
+CREATE FUNCTION public.get_profile_by_slug(p_slug text)
 RETURNS SETOF public.profiles
 LANGUAGE plpgsql
 STABLE
@@ -17,7 +16,7 @@ SET search_path = public
 AS $$
 DECLARE
   s text := regexp_replace(
-    lower(btrim(regexp_replace(coalesce(slug, ''), '\s+', '-', 'g'))),
+    lower(btrim(regexp_replace(coalesce(p_slug, ''), '\s+', '-', 'g'))),
     '[^a-z0-9-]',
     '',
     'g'
@@ -28,7 +27,7 @@ BEGIN
   FROM public.profiles p
   WHERE p.slug IS NOT NULL
     AND btrim(p.slug) <> ''
-    AND lower(btrim(p.slug)) = lower(btrim(slug))
+    AND lower(btrim(p.slug)) = lower(btrim(p_slug))
   LIMIT 1;
 
   IF FOUND THEN

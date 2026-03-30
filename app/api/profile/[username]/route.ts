@@ -18,6 +18,35 @@ type OfferRow = {
   ranking_momentum?: number | null;
 };
 
+type ProfileRpcRow = {
+  id: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+};
+
+async function fetchProfileBySlug(
+  supabase: ReturnType<typeof createServerClient>,
+  username: string
+): Promise<{ profile: ProfileRpcRow | null; error: { message: string } | null }> {
+  const attempts: Array<Record<string, string>> = [{ p_slug: username }, { slug: username }];
+  let lastError: { message: string } | null = null;
+
+  for (const args of attempts) {
+    const { data, error } = await supabase.rpc('get_profile_by_slug', args).maybeSingle();
+    if (!error) {
+      return { profile: (data as ProfileRpcRow | null) ?? null, error: null };
+    }
+
+    lastError = { message: error.message };
+    const msg = `${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase();
+    const looksLikeArgumentMismatch =
+      msg.includes('function') || msg.includes('schema cache') || msg.includes('argument');
+    if (!looksLikeArgumentMismatch) break;
+  }
+
+  return { profile: null, error: lastError };
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ username: string }> }
@@ -31,10 +60,7 @@ export async function GET(
   if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const supabase = createServerClient();
-
-  const { data: profile, error: profileError } = await supabase
-    .rpc('get_profile_by_slug', { slug: username })
-    .maybeSingle();
+  const { profile, error: profileError } = await fetchProfileBySlug(supabase, username);
 
   if (profileError) {
     console.error('[profile] get_profile_by_slug:', profileError.message);
