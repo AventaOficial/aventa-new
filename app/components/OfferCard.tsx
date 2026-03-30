@@ -503,6 +503,13 @@ export default function OfferCard({
             </div>
           ) : null}
 
+          <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
+            <span className="font-semibold text-fuchsia-500 dark:text-pink-300">{storeLabel}</span>
+            {timeLabel ? (
+              <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
+            ) : null}
+          </p>
+
           {author?.username && (
             <span className="inline-flex items-center gap-1.5 flex-wrap mt-0.5 min-w-0">
               {authorProfileHref ? (
@@ -562,13 +569,6 @@ export default function OfferCard({
               )}
             </span>
           )}
-
-          <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
-            <span className="font-semibold text-fuchsia-500 dark:text-pink-300">{storeLabel}</span>
-            {timeLabel ? (
-              <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
-            ) : null}
-          </p>
           <p className="text-[11px] md:text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 min-w-0 leading-snug wrap-anywhere">
             {descShown ? (
               descShown

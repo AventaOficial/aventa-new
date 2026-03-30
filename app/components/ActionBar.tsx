@@ -49,8 +49,14 @@ export default function ActionBar() {
 
   const isActive = (path: string, exact?: boolean) =>
     exact ? pathname === path : pathname.startsWith(path);
-  const activeClasses = 'text-violet-600 dark:text-violet-400 bg-violet-100/80 dark:bg-violet-900/25';
-  const inactiveClasses = 'text-[#6e6e73] dark:text-[#a3a3a3]';
+  /** Claro: violeta marca. Oscuro: superficie neutra + acento fuchsia (sin violeta/azulado). */
+  const activeClasses =
+    'text-violet-600 bg-violet-100/80 dark:text-fuchsia-300 dark:bg-[#262626]';
+  const inactiveClasses = 'text-[#6e6e73] dark:text-zinc-400';
+  const sidebarLinkInactive =
+    'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-[#262626] hover:text-violet-600 dark:hover:text-fuchsia-300';
+  const sidebarLinkActive =
+    'bg-violet-100 dark:bg-[#262626] text-violet-600 dark:text-fuchsia-300';
   const { session } = useAuth();
   const [reputationLevel, setReputationLevel] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -469,7 +475,7 @@ export default function ActionBar() {
               prevUrlParseLoadingRef.current = false;
               setShowUploadModal(true);
             }}
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-500/25 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-fuchsia-600 dark:to-pink-600 text-white shadow-lg shadow-violet-500/25 dark:shadow-fuchsia-950/50 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Plus className="h-6 w-6 max-[400px]:h-5 max-[400px]:w-5 text-white" />
             <span className="text-[10px] max-[400px]:text-[9px] font-semibold text-white">Subir</span>
@@ -515,12 +521,12 @@ export default function ActionBar() {
       </div>
 
       <aside
-        className={`hidden md:flex fixed left-0 top-0 h-screen w-28 z-50 flex-col items-center py-6 gap-1 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-r border-[#E5E7EB] dark:border-gray-700 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)] ${isOfferOpen ? 'pointer-events-none' : ''}`}
+        className={`hidden md:flex fixed left-0 top-0 h-screen w-28 z-50 flex-col items-center py-6 gap-1 bg-white/95 dark:bg-[#141414]/95 backdrop-blur-xl border-r border-[#E5E7EB] dark:border-[#262626] shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.45)] ${isOfferOpen ? 'pointer-events-none' : ''}`}
       >
-        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 px-2">Tus atajos</p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-3 px-2">Tus atajos</p>
         <Link
           href="/"
-          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
+          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/' ? sidebarLinkActive : sidebarLinkInactive}`}
           aria-label="Inicio"
         >
           <Home className="h-6 w-6" />
@@ -529,9 +535,7 @@ export default function ActionBar() {
         <Link
           href="/descubre"
           className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${
-            pathname.startsWith('/descubre')
-              ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
-              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'
+            pathname.startsWith('/descubre') ? sidebarLinkActive : sidebarLinkInactive
           }`}
           aria-label="Descubre AVENTA"
         >
@@ -551,7 +555,7 @@ export default function ActionBar() {
             prevUrlParseLoadingRef.current = false;
             setShowUploadModal(true);
           }}
-          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-all duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#2d2d2f] active:scale-95'} bg-[#1d1d1f] dark:bg-[#1d1d1f] text-white shadow-lg`}
+          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-all duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#2d2d2f] dark:hover:bg-[#333] active:scale-95'} bg-[#1d1d1f] dark:bg-[#2a2a2a] text-white shadow-lg dark:shadow-black/40 dark:ring-1 dark:ring-fuchsia-500/20`}
           aria-label="Subir oferta"
         >
           <Plus className="h-6 w-6" />
@@ -561,7 +565,7 @@ export default function ActionBar() {
           <>
             <Link
               href="/me/favorites"
-              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname.startsWith('/me/favorites') ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
+              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname.startsWith('/me/favorites') ? sidebarLinkActive : sidebarLinkInactive}`}
               aria-label="Favoritos"
             >
               <Heart className="h-6 w-6" />
@@ -569,7 +573,7 @@ export default function ActionBar() {
             </Link>
             <Link
               href="/me"
-              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/me' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400'}`}
+              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/me' ? sidebarLinkActive : sidebarLinkInactive}`}
               aria-label="Perfil"
             >
               <User className="h-6 w-6" />
@@ -581,7 +585,7 @@ export default function ActionBar() {
             <button
               type="button"
               onClick={() => showToast('Para acceder hay que iniciar sesión')}
-              className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${sidebarLinkInactive}`}
               aria-label="Favoritos"
             >
               <Heart className="h-6 w-6" />
@@ -590,7 +594,7 @@ export default function ActionBar() {
             <button
               type="button"
               onClick={() => showToast('Para acceder hay que iniciar sesión')}
-              className="flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${sidebarLinkInactive}`}
               aria-label="Perfil"
             >
               <User className="h-6 w-6" />
