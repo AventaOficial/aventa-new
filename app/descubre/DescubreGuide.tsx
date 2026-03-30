@@ -57,7 +57,7 @@ const BLOCKS: DescubreBlock[] = [
     title: 'Inicio y ranking',
     body: (
       <>
-        <p className="mb-3">
+        <p className="mb-2">
           En la página principal eliges cómo ver las ofertas: <strong>Día a día</strong>, <strong>Top</strong>,{' '}
           <strong>Para ti</strong> (según tus gustos) o <strong>Últimas</strong>. Vota para que suban o bajen en el
           ranking.
@@ -77,7 +77,7 @@ const BLOCKS: DescubreBlock[] = [
     title: 'Subir ofertas',
     body: (
       <>
-        <p className="mb-3">
+        <p className="mb-2">
           Usa el botón <strong className="text-gray-800 dark:text-gray-100">+</strong> en la barra inferior (móvil) o
           en el lateral (escritorio). Puedes pegar el enlace de la tienda: intentamos rellenar título, imagen y nombre
           de tienda. Las ofertas nuevas pasan por moderación salvo que tengas reputación alta (auto-aprobación).
@@ -97,7 +97,7 @@ const BLOCKS: DescubreBlock[] = [
     title: 'Categorías, tiendas y comunidades',
     body: (
       <>
-        <p className="mb-4">
+        <p className="mb-2">
           Explora por categoría (macro: Tecnología, Gaming, Hogar, etc.), por tienda concreta, o entra en comunidades
           por tema.
         </p>
@@ -151,7 +151,7 @@ const BLOCKS: DescubreBlock[] = [
     title: 'Resúmenes en tu correo',
     body: (
       <>
-        <p className="mb-3">
+        <p className="mb-2">
           Activa en <strong>Configuración</strong> el resumen diario (Top 10 del día) y/o el resumen semanal (más
           comentadas y mejor votadas).
         </p>
@@ -181,7 +181,7 @@ const BLOCKS: DescubreBlock[] = [
     title: 'Favoritos y tu espacio',
     body: (
       <>
-        <p className="mb-3">
+        <p className="mb-2">
           Guarda ofertas en favoritos, revisa <strong>Mis ofertas</strong> y tu actividad. El nombre visible se puede
           cambiar cada 14 días desde Configuración.
         </p>
@@ -220,7 +220,7 @@ const BLOCKS: DescubreBlock[] = [
   },
 ];
 
-const CONTENT_MIN_H = 'min-h-[min(72vh,520px)]';
+const CONTENT_MIN_H = 'min-h-[min(52vh,380px)]';
 
 function DescubreProgress({
   count,
@@ -386,8 +386,8 @@ export default function DescubreGuide() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-transparent relative">
-      <div className="pointer-events-none fixed inset-y-0 right-0 z-40 hidden sm:flex sm:w-20 md:w-24 items-center justify-center">
-        <div className="pointer-events-auto pr-2 md:pr-5">
+      <div className="pointer-events-none fixed top-1/2 right-2 z-40 hidden -translate-y-1/2 sm:block md:right-4">
+        <div className="pointer-events-auto">
           <VerticalDescubreNav count={n} activeIndex={activeIndex} onPrev={onPrev} onNext={onNext} />
         </div>
       </div>
@@ -398,25 +398,24 @@ export default function DescubreGuide() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 py-8 md:py-14 sm:pr-16 md:pr-20">
+      <div className="mx-auto max-w-2xl px-4 py-6 md:py-10 sm:pr-14 md:pr-16">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: EASE }}
-          className="mb-8"
+          className="mb-5 text-center sm:text-left"
         >
-          <h1 className="text-3xl md:text-[2rem] font-bold tracking-tight text-[#1d1d1f] dark:text-gray-50">
+          <h1 className="text-2xl md:text-[1.75rem] font-bold tracking-tight text-[#1d1d1f] dark:text-gray-50">
             Descubre AVENTA
           </h1>
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-gray-600 dark:text-gray-400">
-            Las mejores ofertas, elegidas por la comunidad. Recorre la guía con gestos o los controles; cada paso resume
-            una parte de la experiencia.
+          <p className="mt-2 max-w-xl mx-auto sm:mx-0 text-[14px] md:text-[15px] leading-snug text-gray-600 dark:text-gray-400">
+            Guía corta: gestos o flechas. Cada paso es una parte de la experiencia.
           </p>
         </motion.header>
 
         <DescubreProgress count={n} activeIndex={activeIndex} onDotClick={goToIndex} />
 
-        <div className={`relative mt-8 ${CONTENT_MIN_H}`}>
+        <div className={`relative mt-5 ${CONTENT_MIN_H}`}>
           <AnimatePresence mode="popLayout" custom={dir} initial={false}>
             <motion.div
               key={block.id}
@@ -438,28 +437,28 @@ export default function DescubreGuide() {
             >
               <article
                 id={`descubre-${block.id}`}
-                className="rounded-[1.35rem] border border-gray-200/70 dark:border-gray-700/60 bg-gradient-to-br from-white via-white to-violet-50/40 dark:from-gray-900 dark:via-gray-900 dark:to-violet-950/25 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.12)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-sm md:rounded-3xl"
+                className="rounded-2xl border border-gray-200/70 dark:border-gray-700/60 bg-gradient-to-br from-white via-white to-violet-50/40 dark:from-gray-900 dark:via-gray-900 dark:to-violet-950/25 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.12)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-sm md:rounded-[1.35rem]"
               >
-                <div className="flex flex-col p-6 md:p-8 md:min-h-[min(68vh,480px)]">
-                  <div className="mb-5 flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-transparent dark:from-violet-400/25 dark:via-fuchsia-500/10 ring-1 ring-inset ring-violet-500/20 dark:ring-violet-400/25">
-                      <Icon className="h-7 w-7 text-violet-600 dark:text-violet-400" strokeWidth={1.75} />
+                <div className="flex flex-col p-6 md:p-6 md:min-h-[min(52vh,360px)]">
+                  <div className="mb-5 flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:text-left sm:gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-transparent dark:from-violet-400/25 dark:via-fuchsia-500/10 ring-1 ring-inset ring-violet-500/20 dark:ring-violet-400/25">
+                      <Icon className="h-6 w-6 text-violet-600 dark:text-violet-400" strokeWidth={1.75} />
                     </div>
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-50 md:text-2xl">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-gray-50 md:text-xl">
                         {block.title}
                       </h2>
                     </div>
                   </div>
 
                   <div
-                    className="min-h-0 flex-1 text-[15px] leading-relaxed text-gray-600 dark:text-gray-400 [&_strong]:font-semibold [&_strong]:text-gray-800 dark:[&_strong]:text-gray-200"
+                    className="min-h-0 flex-1 text-[14px] md:text-[15px] leading-snug text-gray-600 dark:text-gray-400 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_strong]:text-gray-800 dark:[&_strong]:text-gray-200"
                     aria-live="polite"
                   >
                     {block.body}
                   </div>
 
-                  <div className="mt-8 flex flex-col gap-3 border-t border-gray-200/60 pt-6 dark:border-gray-700/50 sm:mt-auto sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mt-5 flex flex-col gap-2.5 border-t border-gray-200/60 pt-4 dark:border-gray-700/50 sm:mt-auto sm:flex-row sm:items-center sm:justify-between">
                     <motion.button
                       type="button"
                       onClick={onPrev}
@@ -487,8 +486,8 @@ export default function DescubreGuide() {
                     </motion.button>
                   </div>
 
-                  <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500 sm:hidden">
-                    Desliza el card horizontalmente para cambiar de paso
+                  <p className="mt-3 text-center text-[11px] text-gray-400 dark:text-gray-500 sm:hidden">
+                    Desliza el bloque horizontalmente para cambiar de paso
                   </p>
                 </div>
               </article>
@@ -497,7 +496,7 @@ export default function DescubreGuide() {
         </div>
 
         <motion.p
-          className="mt-10 text-center text-sm text-gray-500 dark:text-gray-500"
+          className="mt-6 text-center text-sm text-gray-500 dark:text-gray-500"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.4 }}

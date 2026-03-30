@@ -586,7 +586,7 @@ export default function ActionBar() {
                     Subir oferta
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    Comparte lo que encuentres con la comunidad
+                    Empieza con el enlace; te ayudamos a rellenar el resto. Solo lo esencial es obligatorio.
                   </p>
                 </div>
                 <button
@@ -625,11 +625,11 @@ export default function ActionBar() {
 
               <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
                 <div
-                  className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-5 sm:p-6 md:p-8 space-y-5 min-w-0 ${
+                  className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-4 sm:p-5 md:p-6 space-y-3 min-w-0 ${
                     mobileTab !== 'form' ? 'hidden md:block' : ''
                   }`}
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Enlace de la oferta (URL)

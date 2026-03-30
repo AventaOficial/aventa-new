@@ -14,17 +14,19 @@ const GUIDE_STEPS = [
   {
     icon: Plus,
     title: 'Subir oferta',
-    description: 'Comparte lo que encuentres. La comunidad decide las mejores ofertas.',
+    description:
+      'Abre el botón + y pega primero el enlace de la tienda: intentamos rellenar título, foto y precios. Tú solo revisas y completas lo mínimo (categoría y tienda). Fotos extra, MSI o textos largos son opcionales.',
   },
   {
     icon: ThumbsUp,
     title: 'Votar',
-    description: 'Ayuda a la comunidad votando. Las mejores suben.',
+    description:
+      'En cada oferta hay dos pulgares: arriba si te parece una buena oferta, abajo si no te convence. Eso mueve el ranking para que todos vean antes lo más útil. No hace falta votar en todas.',
   },
   {
     icon: Heart,
     title: 'Guardar',
-    description: 'Guarda tus ofertas favoritas para verlas después.',
+    description: 'Toca el corazón para guardar y revisar después en Favoritos, desde la barra o tu perfil.',
   },
 ];
 
@@ -398,7 +400,7 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
             <h3 className="text-xl sm:text-2xl font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-3">
               {step.title}
             </h3>
-            <p className="text-sm sm:text-base text-[#6e6e73] dark:text-[#a3a3a3] leading-relaxed">
+            <p className="text-sm sm:text-[15px] text-[#6e6e73] dark:text-[#a3a3a3] leading-relaxed max-w-[22rem] sm:max-w-md">
               {step.description}
             </p>
           </motion.div>
