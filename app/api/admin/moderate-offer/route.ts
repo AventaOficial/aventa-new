@@ -5,6 +5,7 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
+import { normalizeMercadoLibreOfferUrlForStorage } from '@/lib/offerUrl'
 
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
@@ -40,10 +41,17 @@ export async function POST(request: Request) {
     const offerPublicPath = buildOfferPublicPath(id, offerTitle)
 
     if (status === 'approved') {
-      const { data: row } = await supabase.from('offers').select('expires_at').eq('id', id).single()
-      const payload: { status: string; expires_at?: string } = { status: 'approved' }
+      const { data: row } = await supabase.from('offers').select('expires_at, offer_url').eq('id', id).single()
+      const payload: { status: string; expires_at?: string; offer_url?: string } = { status: 'approved' }
       if (row?.expires_at == null) {
         payload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      }
+      const rawUrl = (row as { offer_url?: string | null })?.offer_url?.trim() ?? ''
+      if (rawUrl) {
+        const normalized = normalizeMercadoLibreOfferUrlForStorage(rawUrl)
+        if (normalized !== rawUrl) {
+          payload.offer_url = normalized
+        }
       }
       const { error: updateError } = await supabase.from('offers').update(payload).eq('id', id)
       if (updateError) {

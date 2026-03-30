@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
+import { normalizeMercadoLibreOfferUrlForStorage } from '@/lib/offerUrl'
 
 /** PATCH: editar oferta en moderación (solo pendientes). Campos: title, offer_url, description, image_url. */
 export async function PATCH(request: Request) {
@@ -28,14 +29,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Solo se pueden editar ofertas pendientes o aprobadas' }, { status: 400 })
     }
 
-    const payload: { title?: string; offer_url?: string; description?: string | null; image_url?: string | null } = {}
+    const payload: {
+      title?: string
+      offer_url?: string | null
+      description?: string | null
+      image_url?: string | null
+    } = {}
     if (typeof body.title === 'string') {
       const t = body.title.trim().slice(0, 500)
       if (t) payload.title = t
     }
     if (typeof body.offer_url === 'string') {
       const u = body.offer_url.trim().slice(0, 2048)
-      payload.offer_url = u || null
+      payload.offer_url = u ? normalizeMercadoLibreOfferUrlForStorage(u) : null
     }
     if (body.description !== undefined) {
       payload.description = typeof body.description === 'string' ? body.description.trim().slice(0, 2000) || null : null

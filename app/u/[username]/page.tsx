@@ -46,6 +46,7 @@ type ProfileData = {
     coupons?: string | null;
     steps?: string;
     conditions?: string;
+    offerScope?: 'online' | 'in_store' | null;
     imageUrls?: string[];
     votes: { up: number; down: number; score: number };
     author: { username: string; avatar_url?: string | null; userId?: string | null; slug?: string | null };
@@ -304,6 +305,7 @@ export default function ProfilePage() {
                       msiMonths={offer.msiMonths}
                       bankCoupon={offer.bankCoupon}
                       coupons={offer.coupons}
+                      offerScope={offer.offerScope ?? null}
                     />
                   </motion.div>
                 ))

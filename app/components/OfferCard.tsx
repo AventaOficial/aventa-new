@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Sparkles, ThumbsUp, ThumbsDown, Search, User, Share2, Award, BadgeCheck, Eye, MousePointerClick } from 'lucide-react';
+import { Heart, Sparkles, ThumbsUp, ThumbsDown, Search, User, Share2, Award, BadgeCheck, Eye, MousePointerClick, Globe, Store } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
@@ -15,6 +15,7 @@ import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { publicProfilePath } from '@/lib/profileSlug';
+import type { OfferScopeUi } from '@/lib/offerScope';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -85,6 +86,8 @@ interface OfferCardProps {
   rejectionReason?: string | null;
   /** Panel de métricas solo en el perfil del creador (vistas, compartidos, clics en Cazar). */
   ownerMetrics?: { cazarClicks: number; views: number; shares: number } | null;
+  /** Alcance en línea vs tienda (desde `conditions`). */
+  offerScope?: OfferScopeUi | null;
 }
 
 export default function OfferCard({
@@ -115,6 +118,7 @@ export default function OfferCard({
   dealStatus,
   rejectionReason,
   ownerMetrics,
+  offerScope = null,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -465,7 +469,7 @@ export default function OfferCard({
           </h3>
 
           <div className="flex items-baseline gap-1.5 max-[400px]:gap-1 md:gap-2 flex-wrap mt-1 max-[400px]:mt-0.5 min-w-0">
-            <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+            <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
               {formatPrice(discountPrice)}
             </span>
             {originalPrice > 0 && (
@@ -474,10 +478,7 @@ export default function OfferCard({
               </span>
             )}
             {discount > 0 && (
-              <span
-                className="text-[10px] md:text-[11px] font-medium px-1 md:px-1.5 py-0.5 rounded"
-                style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444' }}
-              >
+              <span className="text-[10px] md:text-[11px] font-medium px-1 md:px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                 -{discount}%
               </span>
             )}
@@ -501,10 +502,23 @@ export default function OfferCard({
             </div>
           ) : null}
 
-          <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
-            <span className="font-semibold text-fuchsia-500 dark:text-pink-300">{storeLabel}</span>
+          <p className="text-[11px] md:text-xs mt-0.5 min-w-0 leading-snug break-words">
+            <span className="font-semibold text-gray-900 dark:text-white">{storeLabel}</span>
             {timeLabel ? (
               <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
+            ) : null}
+            {offerScope ? (
+              <>
+                <span className="text-gray-400 dark:text-gray-500"> · </span>
+                <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 font-normal">
+                  {offerScope === 'online' ? (
+                    <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  )}
+                  {offerScope === 'online' ? 'En línea' : 'En tienda'}
+                </span>
+              </>
             ) : null}
           </p>
 

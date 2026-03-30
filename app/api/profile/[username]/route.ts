@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
 import { normalizeVoteCounts } from '@/lib/offers/scoring';
+import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 
 type OfferRow = {
   id: string;
@@ -154,6 +155,7 @@ export async function GET(
       description: row.description?.trim() || undefined,
       steps: row.steps?.trim() || undefined,
       conditions: row.conditions?.trim() || undefined,
+      offerScope: parseOfferScopeFromConditions(row.conditions),
       createdAt: row.created_at ?? null,
       msiMonths: msiOk,
       bankCoupon: row.bank_coupon?.trim() || undefined,

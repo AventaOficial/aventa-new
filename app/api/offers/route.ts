@@ -5,6 +5,7 @@ import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '@/lib/server/reputation';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { createOfferInputSchema } from '@/lib/contracts/offers';
+import { normalizeMercadoLibreOfferUrlForStorage } from '@/lib/offerUrl';
 
 type OfferInsertPayload = {
   title: string;
@@ -156,6 +157,9 @@ export async function POST(request: Request) {
         .slice(0, 20))]
       : [];
 
+    const rawOfferUrl = typeof input.offer_url === 'string' ? input.offer_url.trim() : '';
+    const offerUrlNormalized = rawOfferUrl ? normalizeMercadoLibreOfferUrlForStorage(rawOfferUrl) : '';
+
     const payload: OfferInsertPayload = {
       title,
       price,
@@ -170,9 +174,7 @@ export async function POST(request: Request) {
       image_url: firstImage,
       ...(imageUrlsArr.length > 0 && { image_urls: imageUrlsArr }),
       ...(msiMonths != null && { msi_months: msiMonths }),
-      ...(typeof input.offer_url === 'string' && input.offer_url.trim() && {
-        offer_url: input.offer_url.trim(),
-      }),
+      ...(offerUrlNormalized && { offer_url: offerUrlNormalized }),
       ...(typeof input.description === 'string' && input.description.trim() && {
         description: input.description.trim(),
       }),

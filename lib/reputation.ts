@@ -1,9 +1,9 @@
-/** Límites de score por nivel (para UI; no expone score real al usuario si no quieres). */
+/** Límites de score por nivel (alineados con reputation_level_from_score en Supabase). */
 export const REPUTATION_LEVELS = [
-  { level: 1, minScore: 0, maxScore: 49, label: 'Nuevo' },
-  { level: 2, minScore: 50, maxScore: 199, label: 'Contribuidor' },
-  { level: 3, minScore: 200, maxScore: 499, label: 'Cazador Pro' },
-  { level: 4, minScore: 500, maxScore: Infinity, label: 'Elite' },
+  { level: 1, minScore: 0, maxScore: 99, label: 'Nuevo' },
+  { level: 2, minScore: 100, maxScore: 399, label: 'Contribuidor' },
+  { level: 3, minScore: 400, maxScore: 999, label: 'Cazador Pro' },
+  { level: 4, minScore: 1000, maxScore: Infinity, label: 'Elite' },
 ] as const;
 
 export function getReputationLabel(level: number): string {

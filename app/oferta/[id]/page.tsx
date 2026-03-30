@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
 import { slugifyStore } from '@/lib/slug';
 import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offerPath';
+import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import OfferPageContent from './OfferPageContent';
 
@@ -173,6 +174,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     categoryLabel: categorySlugForUrl ? categorySlugToLabel(categorySlugForUrl) : undefined,
     storeSlug: storeSlug || undefined,
     storeName: formatStoreDisplayName(offer.store) || offer.store?.trim() || undefined,
+    offerScope: parseOfferScopeFromConditions(offer.conditions),
   };
 
   const totalVotes = up + down;

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
+import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 
@@ -350,7 +352,12 @@ export async function POST(request: Request) {
       domain.endsWith('.amazon.com.mx');
     if (isAmazon) {
       const data = parseAmazon(html, base);
-      return NextResponse.json({ ...data, ...pricePayload(prices) });
+      return NextResponse.json({
+        ...data,
+        title: sanitizeOfferTitle(data.title),
+        store: data.store ?? inferStoreFromHostname(url.hostname),
+        ...pricePayload(prices),
+      });
     }
 
     const isMercadoLibre =
@@ -360,11 +367,22 @@ export async function POST(request: Request) {
       domain.endsWith('.mercadolibre.com.mx');
     if (isMercadoLibre) {
       const data = parseMercadoLibre(html, base);
-      return NextResponse.json({ ...data, ...pricePayload(prices) });
+      return NextResponse.json({
+        ...data,
+        title: sanitizeOfferTitle(data.title),
+        store: data.store ?? inferStoreFromHostname(url.hostname),
+        ...pricePayload(prices),
+      });
     }
 
     const data = parseGeneric(html, base);
-    return NextResponse.json({ ...data, ...pricePayload(prices) });
+    const store = data.store ?? inferStoreFromHostname(url.hostname);
+    return NextResponse.json({
+      ...data,
+      title: sanitizeOfferTitle(data.title),
+      store,
+      ...pricePayload(prices),
+    });
   } catch {
     return NextResponse.json({
       title: null,

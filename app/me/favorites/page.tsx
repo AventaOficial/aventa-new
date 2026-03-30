@@ -58,6 +58,7 @@ function FavoritesPageInner() {
             msi_months,
             bank_coupon,
             coupons,
+            conditions,
             created_at,
             created_by,
             upvotes_count,
@@ -184,6 +185,7 @@ function FavoritesPageInner() {
                     msiMonths={offer.msiMonths}
                     bankCoupon={offer.bankCoupon}
                     coupons={offer.coupons}
+                    offerScope={offer.offerScope ?? null}
                   />
                 </motion.div>
               ))}

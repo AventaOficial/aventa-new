@@ -13,7 +13,6 @@ import { createClient } from '@/lib/supabase/client';
 import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { storeLikelyHasPhysicalPresence } from '@/lib/storesPhysical';
 import { logClientError } from '@/lib/utils/handleError';
 
 function formatThousands(s: string): string {
@@ -91,7 +90,7 @@ export default function ActionBar() {
   /** Tras pegar el enlace (y parse si hay sesión), se desbloquea el formulario completo. */
   const [uploadLinkGatePassed, setUploadLinkGatePassed] = useState(false);
   const [cooldownExempt, setCooldownExempt] = useState(false);
-  /** Solo tiendas con sucursales probables: se guarda en `conditions` al publicar. */
+  /** Alcance en línea vs tienda; se guarda en `conditions` al publicar. */
   const [offerScope, setOfferScope] = useState<'online' | 'in_store' | null>(null);
 
   useEffect(() => {
@@ -169,10 +168,6 @@ export default function ActionBar() {
     setUploadLinkGatePassed(true);
     router.replace('/', { scroll: false });
   }, [showUploadModal, pathname, searchParams, router]);
-
-  useEffect(() => {
-    if (!storeLikelyHasPhysicalPresence(formData.store)) setOfferScope(null);
-  }, [formData.store]);
 
   useEffect(() => {
     if (cooldownRemaining <= 0) return;
@@ -755,12 +750,12 @@ export default function ActionBar() {
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                         Título de la oferta *
                       </label>
-                      <input
-                        type="text"
+                      <textarea
                         value={formData.title}
                         onChange={(e) => handleInputChange('title', e.target.value)}
-                      placeholder="Ej: iPhone 15 Pro Max 256GB"
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                        placeholder="Ej: iPhone 15 Pro Max 256GB"
+                        rows={2}
+                        className="w-full min-h-[4.25rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 resize-y break-words whitespace-pre-wrap"
                       />
                     </div>
 
@@ -856,13 +851,12 @@ export default function ActionBar() {
                     />
                   </div>
 
-                  {storeLikelyHasPhysicalPresence(formData.store) && (
-                    <div>
+                  <div>
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                         ¿Dónde aplica la oferta?
                       </label>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Para tiendas con sucursales: indica si es solo en línea o en tienda física.
+                        Opcional: indica si la compra es en web o en tienda física para que otros lo vean claro.
                       </p>
                       <div className="flex flex-col gap-2.5">
                         <label className="flex items-center gap-2.5 cursor-pointer">
@@ -897,7 +891,6 @@ export default function ActionBar() {
                         </label>
                       </div>
                     </div>
-                  )}
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -907,8 +900,8 @@ export default function ActionBar() {
                       value={formData.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
                       placeholder="Describe brevemente la oferta..."
-                      rows={3}
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
+                      rows={4}
+                      className="w-full min-h-[6.5rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y break-words whitespace-pre-wrap transition-colors duration-200"
                     />
                     <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                       En la tarjeta del home (escritorio) se muestran los primeros {OFFER_CARD_DESCRIPTION_MAX_LENGTH} caracteres.

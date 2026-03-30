@@ -1,4 +1,5 @@
 import { normalizeVoteCounts } from '@/lib/offers/scoring';
+import { parseOfferScopeFromConditions, type OfferScopeUi } from '@/lib/offerScope';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
 export type CardOfferAuthor = {
@@ -35,6 +36,8 @@ export type CardOffer = {
   ranking_momentum: number;
   ranking_blend?: number;
   createdAt?: string | null;
+  /** Derivado de `conditions` (Alcance: en línea / tienda). */
+  offerScope?: OfferScopeUi | null;
 };
 
 type ProfilesJoin =
@@ -100,6 +103,7 @@ export type FeedApiItemShape = {
   msi_months?: number | null;
   description?: string | null;
   coupons?: string | null;
+  conditions?: string | null;
   author?: {
     display_name?: string | null;
     avatar_url?: string | null;
@@ -163,6 +167,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     steps: row.steps?.trim() || undefined,
     conditions: row.conditions?.trim() || undefined,
     coupons: row.coupons?.trim() || undefined,
+    offerScope: parseOfferScopeFromConditions(row.conditions),
     votes: { up, down, score },
     author: unwrapProfiles(row.profiles, row.created_by ?? null),
     ranking_momentum: Number(row.ranking_momentum) || 0,
@@ -221,6 +226,8 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     bankCoupon: item.bank_coupon?.trim() || undefined,
     description: item.description?.trim() || undefined,
     coupons: item.coupons?.trim() || undefined,
+    conditions: item.conditions?.trim() || undefined,
+    offerScope: parseOfferScopeFromConditions(item.conditions),
     votes: { up, down, score },
     author,
     ranking_momentum: item.ranking_momentum != null ? Number(item.ranking_momentum) : score,

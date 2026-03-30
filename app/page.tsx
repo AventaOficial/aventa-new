@@ -819,6 +819,7 @@ function HomeContent() {
                     coupons={offer.coupons}
                     isDestacada={offer.ranking_blend != null && offer.ranking_blend >= DESTACADA_RANKING_BLEND_MIN}
                     isTesterOffer={offer.id.startsWith('tester-')}
+                    offerScope={offer.offerScope ?? null}
                   />
                 </motion.div>
               ))}

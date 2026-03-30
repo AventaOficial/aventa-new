@@ -13,6 +13,8 @@ import {
   Flag,
   Copy,
   Share2,
+  Globe,
+  Store,
 } from 'lucide-react';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
@@ -126,6 +128,7 @@ type OfferPayload = {
   categoryLabel?: string;
   storeSlug?: string;
   storeName?: string;
+  offerScope?: 'online' | 'in_store' | null;
 };
 
 export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
@@ -476,9 +479,19 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               </button>
             </div>
             <div className="p-6 md:p-8 flex-1">
-              <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+              <p className="text-xs font-medium text-gray-900 dark:text-white uppercase tracking-wider">
                 {offer.brand}
               </p>
+              {offer.offerScope ? (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {offer.offerScope === 'online' ? (
+                    <Globe className="h-4 w-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Store className="h-4 w-4 shrink-0" aria-hidden />
+                  )}
+                  <span>{offer.offerScope === 'online' ? 'Compra en línea' : 'En tienda / sucursal'}</span>
+                </p>
+              ) : null}
               <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 mt-1 leading-tight">
                 {offer.title}
               </h1>
@@ -520,7 +533,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               )}
 
               <div className="flex flex-wrap items-baseline gap-3 mt-4">
-                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">
                   {formatPriceMXN(offer.discountPrice)}
                 </span>
                 {offer.originalPrice > 0 && (
@@ -529,7 +542,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       {formatPriceMXN(offer.originalPrice)}
                     </span>
                     {offer.discount > 0 && (
-                      <span className="text-sm font-semibold px-2 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400">
+                      <span className="text-sm font-semibold px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                         -{offer.discount}%
                       </span>
                     )}

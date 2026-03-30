@@ -8,7 +8,7 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS is_trusted boolean NOT NULL DEFAULT false;
 
 -- 2) Función para calcular nivel desde score (solo lectura, sin efectos)
--- Nivel 1: 0-49, Nivel 2: 50-199, Nivel 3: 200-499, Nivel 4: 500+
+-- Umbrales históricos abajo; en producción usar reputation_level_thresholds_stricter.sql (L2≥100, L3≥400, L4≥1000).
 CREATE OR REPLACE FUNCTION public.reputation_level_from_score(score integer)
 RETURNS integer
 LANGUAGE sql

@@ -80,6 +80,7 @@ export const config = {
   matcher: [
     '/',
     '/me/:path*',
+    '/settings',
     '/settings/:path*',
     '/mi-panel/:path*',
     '/contexto/:path*',
