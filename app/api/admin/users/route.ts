@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const url = new URL(request.url);
+  const qRaw = url.searchParams.get('q')?.trim() ?? '';
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const limitRaw = parseInt(url.searchParams.get('limit') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE;
   const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, limitRaw));
@@ -37,6 +38,65 @@ export async function GET(request: Request) {
   const rangeEnd = offset + limit - 1;
 
   const supabase = createServerClient();
+
+  /** Búsqueda rápida por nombre (p. ej. Equipo): devuelve filas mínimas con `id` y alias `user_id`. */
+  if (qRaw.length >= 2) {
+    const safe = qRaw.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const pattern = `%${safe}%`;
+    const searchLimit = Math.min(40, Math.max(1, limitRaw));
+    const [byDisplay, byUsername] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .ilike('display_name', pattern)
+        .limit(searchLimit),
+      supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .ilike('username', pattern)
+        .limit(searchLimit),
+    ]);
+    const searchErr = byDisplay.error ?? byUsername.error;
+    if (searchErr) {
+      return NextResponse.json({ error: searchErr.message }, { status: 500 });
+    }
+    const seen = new Set<string>();
+    const hits: { id: string; username: string | null; display_name: string | null; avatar_url: string | null }[] = [];
+    for (const row of [...(byDisplay.data ?? []), ...(byUsername.data ?? [])]) {
+      const id = row.id as string;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      hits.push({
+        id,
+        username: (row.username as string | null) ?? null,
+        display_name: (row.display_name as string | null) ?? null,
+        avatar_url: (row.avatar_url as string | null) ?? null,
+      });
+    }
+
+    const users = hits.map((row) => ({
+      id: row.id,
+      user_id: row.id,
+      username: row.username,
+      display_name: row.display_name,
+      avatar_url: row.avatar_url,
+      created_at: '',
+      reputation_score: 0,
+      offers_submitted_count: 0,
+      offers_approved_count: 0,
+      offers_rejected_count: 0,
+      roles: [] as string[],
+      banned: false,
+      ban_reason: null,
+      ban_expires_at: null,
+      last_seen_at: null,
+      commissions_accepted_at: null,
+      commissions_terms_version: null,
+      commission_qualifying_offers: 0,
+    }));
+
+    return NextResponse.json({ users, total: users.length, page: 1, limit: users.length });
+  }
 
   const withCommissionsRes = await supabase
     .from('profiles')

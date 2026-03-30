@@ -569,18 +569,13 @@ export default function OfferCard({
               <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
             ) : null}
           </p>
-          <div className="mt-1 min-w-0 space-y-0.5">
-            <p className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Descripción del cazador
-            </p>
-            <p className="text-[11px] md:text-xs text-gray-600 dark:text-gray-400 line-clamp-2 min-w-0 leading-snug wrap-anywhere">
-              {descShown ? (
-                descShown
-              ) : (
-                <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
-              )}
-            </p>
-          </div>
+          <p className="text-[11px] md:text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 min-w-0 leading-snug wrap-anywhere">
+            {descShown ? (
+              descShown
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
+            )}
+          </p>
         </div>
 
         {ownerMetrics != null && (

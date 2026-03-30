@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { getReputationLabel } from '@/lib/reputation';
-import type { Role } from '@/lib/admin/roles';
+import { ROLES, type Role } from '@/lib/admin/roles';
 
 type TeamMember = {
   user_id: string;
@@ -21,7 +21,6 @@ type SearchUser = {
   avatar_url: string | null;
 };
 
-const ROLES: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
 const ROLE_LABELS: Record<Role, string> = {
   owner: 'Owner',
   admin: 'Admin',
@@ -89,9 +88,21 @@ export default function TeamPage() {
       try {
         const headers: Record<string, string> = {};
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        const res = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}`, { headers });
+        const res = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}&limit=30`, { headers });
         const data = await res.json().catch(() => ({}));
-        setSearchResults(Array.isArray(data.users) ? data.users : []);
+        const raw = Array.isArray(data.users) ? data.users : [];
+        setSearchResults(
+          raw
+            .map((u: { id?: string; user_id?: string; display_name?: string | null; avatar_url?: string | null }) => {
+              const user_id = typeof u.user_id === 'string' && u.user_id.trim() ? u.user_id.trim() : typeof u.id === 'string' && u.id.trim() ? u.id.trim() : '';
+              return {
+                user_id,
+                display_name: u.display_name ?? null,
+                avatar_url: u.avatar_url ?? null,
+              };
+            })
+            .filter((u: SearchUser) => u.user_id.length > 0)
+        );
       } catch {
         setSearchResults([]);
       } finally {
@@ -104,14 +115,19 @@ export default function TeamPage() {
   }, [addSearch, session?.access_token]);
 
   const handleAddMember = async (userId: string, role: Role) => {
-    setAddingUserId(userId);
+    const uid = userId?.trim();
+    if (!uid) {
+      alert('No se pudo obtener el ID del usuario. Vuelve a buscar e intenta de nuevo.');
+      return;
+    }
+    setAddingUserId(uid);
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
       const res = await fetch('/api/admin/team', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ user_id: userId, role }),
+        body: JSON.stringify({ user_id: uid, role }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Error al agregar');
@@ -125,19 +141,25 @@ export default function TeamPage() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: Role) => {
-    setUpdating(userId);
+  const handleRoleChange = async (userId: string, newRole: Role, previousRole: Role) => {
+    const uid = userId?.trim();
+    if (!uid) {
+      alert('ID de usuario no válido.');
+      return;
+    }
+    if (newRole === previousRole || !ROLES.includes(newRole)) return;
+    setUpdating(uid);
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
       const res = await fetch('/api/admin/team', {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ user_id: userId, role: newRole }),
+        body: JSON.stringify({ user_id: uid, role: newRole }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Error al actualizar');
-      setTeam((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role: newRole } : m)));
+      setTeam((prev) => prev.map((m) => (m.user_id === uid ? { ...m, role: newRole } : m)));
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Error al actualizar');
     } finally {
@@ -314,7 +336,9 @@ export default function TeamPage() {
                   <td className="p-3">
                     <select
                       value={m.role}
-                      onChange={(e) => handleRoleChange(m.user_id, e.target.value as Role)}
+                      onChange={(e) =>
+                        handleRoleChange(m.user_id, e.currentTarget.value as Role, m.role)
+                      }
                       disabled={updating === m.user_id || m.role === 'owner'}
                       className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
                     >
