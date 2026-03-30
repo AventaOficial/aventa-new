@@ -107,7 +107,6 @@ export default function OfferCard({
   userVoteStoredValue: userVoteStoredProp = null,
   userVote: userVoteProp = 0,
   isLiked: isLikedProp = false,
-  msiMonths,
   bankCoupon,
   coupons,
   createdAt,
@@ -494,19 +493,11 @@ export default function OfferCard({
               </span>
             )}
           </div>
-          {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
+          {bankCouponLabel ? (
             <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-              {msiMonths != null && msiMonths >= 1 ? (
-                <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="uppercase tracking-wide">msi</span>
-                  <span>{msiMonths}</span>
-                </span>
-              ) : null}
-              {bankCouponLabel ? (
-                <span className="max-w-[11rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-snug">
-                  {formatCupónBancarioDisplay(bankCouponLabel)}
-                </span>
-              ) : null}
+              <span className="max-w-[11rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-snug">
+                {formatCupónBancarioDisplay(bankCouponLabel)}
+              </span>
             </div>
           ) : null}
 
