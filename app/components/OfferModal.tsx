@@ -9,6 +9,7 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { buildOfferUrl } from '@/lib/offerUrl';
+import { getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -48,6 +49,7 @@ interface OfferModalProps {
   image?: string;
   imageUrls?: string[];
   msiMonths?: number | null;
+  bankCoupon?: string | null;
   isLiked?: boolean;
   onFavoriteChange?: (isFavorite: boolean) => void;
   onVoteChange?: (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => void;
@@ -105,12 +107,19 @@ export default function OfferModal({
   image,
   imageUrls,
   msiMonths,
+  bankCoupon,
   isLiked: isLikedProp = false,
   onFavoriteChange,
   onVoteChange,
   userVoteStoredValue: userVoteStoredProp = null,
   userVote: userVoteProp = 0,
 }: OfferModalProps) {
+  const bankCouponLabel = getBankCouponLabel(bankCoupon ?? null);
+  const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
+  const personalCouponTrim = coupons?.trim() ?? '';
+  const outboundUrlTrim = offerUrl?.trim() ?? '';
+  const showCtaCouponChip = Boolean(outboundUrlTrim && (bankCouponDisplay || personalCouponTrim));
+
   const router = useRouter();
   const { setOfferOpen, openLuna, showToast } = useUI();
   const { session } = useAuth();
@@ -334,6 +343,15 @@ export default function OfferModal({
     if (outboundSentRef.current) return;
     outboundSentRef.current = true;
     try {
+      const parts: string[] = [];
+      if (personalCouponTrim) parts.push(personalCouponTrim);
+      if (bankCouponDisplay) parts.push(`Cupón bancario: ${bankCouponDisplay}`);
+      if (parts.length > 0) {
+        void navigator.clipboard.writeText(parts.join('\n')).then(
+          () => showToast?.('Cupón copiado al portapapeles'),
+          () => {}
+        );
+      }
       if (offerId) {
         fetch('/api/track-outbound', {
           method: 'POST',
@@ -666,11 +684,18 @@ export default function OfferModal({
                     Ahorras {formatPriceMXN(savings)}
                   </p>
                 )}
-                {msiMonths != null && msiMonths >= 1 && (
-                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 -mt-1">
-                    {msiMonths} MSI: {formatPriceMXN(discountPrice / msiMonths)}/mes
-                  </p>
-                )}
+                {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
+                  <div className="-mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                    {msiMonths != null && msiMonths >= 1 ? (
+                      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        {msiMonths} MSI: {formatPriceMXN(discountPrice / msiMonths)}/mes
+                      </p>
+                    ) : null}
+                    {bankCouponLabel ? (
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">de cupón</span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {description?.trim() && (
@@ -680,7 +705,7 @@ export default function OfferModal({
                 </div>
               )}
 
-              {(steps?.trim() || conditions?.trim() || coupons?.trim()) && (
+              {(steps?.trim() || conditions?.trim() || (coupons?.trim() && !showCtaCouponChip)) && (
                 <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/50 p-4 md:p-5 space-y-5">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
                     Información adicional
@@ -716,7 +741,7 @@ export default function OfferModal({
                       <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{conditions.trim()}</p>
                     </div>
                   )}
-                  {coupons?.trim() && (
+                  {coupons?.trim() && !showCtaCouponChip && (
                     <div>
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cupón o código</p>
                       <p className="text-sm font-mono font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-3 py-2 rounded-lg inline-block">
@@ -975,15 +1000,34 @@ export default function OfferModal({
           </div>
 
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 md:px-5 md:py-2 flex-shrink-0">
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex flex-wrap items-stretch gap-2 md:gap-3">
               <button
                 onClick={handleOutboundClick}
                 disabled={!offerUrl?.trim()}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
+                className="flex-1 min-w-[min(100%,10rem)] rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
               >
                 <span>CAZAR OFERTA</span>
-                <ExternalLink className="h-4 w-4 md:h-4 md:w-4" />
+                <ExternalLink className="h-4 w-4 md:h-4 md:w-4 shrink-0" />
               </button>
+              {showCtaCouponChip ? (
+                <div
+                  className="flex min-w-0 max-w-full flex-1 basis-[min(100%,12rem)] items-center justify-center rounded-xl border-2 border-dashed border-white/90 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-3 py-2.5 text-center text-xs md:text-sm font-semibold text-white shadow-sm"
+                  role="note"
+                  aria-label="Cupón de la oferta"
+                >
+                  <div className="flex min-w-0 flex-col gap-1">
+                    {bankCouponDisplay ? (
+                      <span className="leading-snug">
+                        <span className="text-white/90">Cupón bancario </span>
+                        <span className="font-bold tracking-wide">{bankCouponDisplay}</span>
+                      </span>
+                    ) : null}
+                    {personalCouponTrim ? (
+                      <span className="font-mono text-[11px] md:text-xs font-semibold break-all text-white">{personalCouponTrim}</span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               {offerId && (
                 <button
                   onClick={() => {
@@ -999,7 +1043,7 @@ export default function OfferModal({
                       body: JSON.stringify({ offer_id: offerId, event_type: 'share' }),
                     }).catch((err) => logClientError('offer-modal:share-event', err));
                   }}
-                  className="flex-shrink-0 p-2.5 md:p-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
+                  className="flex-shrink-0 self-center p-2.5 md:p-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-all duration-200"
                   title={shareCopied ? '¡Copiado!' : 'Compartir'}
                   aria-label="Compartir oferta"
                 >

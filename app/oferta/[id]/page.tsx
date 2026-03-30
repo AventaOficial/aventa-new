@@ -18,6 +18,7 @@ type OfferRow = {
   image_url: string | null;
   image_urls: string[] | null;
   msi_months: number | null;
+  bank_coupon: string | null;
   store: string | null;
   offer_url: string | null;
   description: string | null;
@@ -59,7 +60,7 @@ async function getOffer(id: string) {
   const { data, error } = await supabase
     .from('offers')
     .select(`
-      id, title, price, original_price, image_url, image_urls, msi_months,
+      id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon,
       store, offer_url, description, steps, conditions, coupons,
       created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)
@@ -162,6 +163,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     image: offer.image_url ?? undefined,
     imageUrls: Array.isArray(offer.image_urls) ? offer.image_urls : undefined,
     msiMonths: offer.msi_months ?? undefined,
+    bankCoupon: offer.bank_coupon?.trim() || undefined,
     upvotes: up,
     downvotes: down,
     votes: { up, down, score: momentum },

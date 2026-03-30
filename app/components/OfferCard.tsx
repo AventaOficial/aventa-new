@@ -296,7 +296,7 @@ export default function OfferCard({
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
   const personalCouponTrim = coupons?.trim() ?? '';
-  const showCouponBlock = Boolean(personalCouponTrim) || Boolean(bankCouponDisplay);
+  const showCouponBlock = Boolean(personalCouponTrim);
 
   const copyCouponsToClipboard = async (): Promise<void> => {
     if (isTesterOffer) return;
@@ -494,12 +494,19 @@ export default function OfferCard({
               </span>
             )}
           </div>
-          {msiMonths != null && msiMonths >= 1 ? (
+          {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
             <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-              <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="uppercase tracking-wide">msi</span>
-                <span>{msiMonths}</span>
-              </span>
+              {msiMonths != null && msiMonths >= 1 ? (
+                <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="uppercase tracking-wide">msi</span>
+                  <span>{msiMonths}</span>
+                </span>
+              ) : null}
+              {bankCouponLabel ? (
+                <span className="text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  de cupón
+                </span>
+              ) : null}
             </div>
           ) : null}
 
@@ -639,14 +646,6 @@ export default function OfferCard({
               className="rounded-lg border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/60 dark:bg-indigo-950/25 px-2.5 py-2 space-y-1.5"
               onClick={(e) => e.stopPropagation()}
             >
-              {bankCouponDisplay ? (
-                <p className="text-[10px] md:text-[11px] leading-snug text-gray-800 dark:text-gray-200">
-                  <span className="font-semibold text-indigo-700 dark:text-indigo-300">Cupón bancario</span>
-                  <span className="mx-1.5 font-bold tracking-wide text-indigo-600 dark:text-indigo-400">
-                    {bankCouponDisplay}
-                  </span>
-                </p>
-              ) : null}
               {personalCouponTrim ? (
                 <p className="text-[10px] md:text-[11px] leading-snug text-gray-700 dark:text-gray-300 wrap-anywhere">
                   <span className="font-semibold text-gray-600 dark:text-gray-400">Cupón: </span>

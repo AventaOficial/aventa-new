@@ -17,6 +17,7 @@ import {
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
+import { getBankCouponLabel } from '@/lib/bankCoupons';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -108,6 +109,7 @@ type OfferPayload = {
   image?: string;
   imageUrls?: string[];
   msiMonths?: number;
+  bankCoupon?: string | null;
   upvotes: number;
   downvotes: number;
   votes: { up: number; down: number; score: number };
@@ -375,6 +377,23 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   };
 
   const ctaUrl = buildOfferUrl(offer.offerUrl, offer.author.creatorMlTag);
+  const bankCouponLabel = getBankCouponLabel(offer.bankCoupon ?? null);
+  const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
+  const personalCouponTrim = offer.coupons?.trim() ?? '';
+  const showCtaCouponChip = Boolean(ctaUrl && (bankCouponDisplay || personalCouponTrim));
+
+  const copyOfferCouponsToClipboard = async () => {
+    const parts: string[] = [];
+    if (personalCouponTrim) parts.push(personalCouponTrim);
+    if (bankCouponDisplay) parts.push(`Cupón bancario: ${bankCouponDisplay}`);
+    if (parts.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(parts.join('\n'));
+      showToast?.('Cupón copiado al portapapeles');
+    } catch {
+      /* noop */
+    }
+  };
 
   return (
     <ClientLayout>
@@ -521,11 +540,18 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               {offer.originalPrice > 0 && savings > 0 && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ahorras {formatPriceMXN(savings)}</p>
               )}
-              {offer.msiMonths != null && offer.msiMonths >= 1 && (
-                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-1">
-                  {offer.msiMonths} MSI: {formatPriceMXN(offer.discountPrice / offer.msiMonths)}/mes
-                </p>
-              )}
+              {(offer.msiMonths != null && offer.msiMonths >= 1) || bankCouponLabel ? (
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                  {offer.msiMonths != null && offer.msiMonths >= 1 ? (
+                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                      {offer.msiMonths} MSI: {formatPriceMXN(offer.discountPrice / offer.msiMonths)}/mes
+                    </p>
+                  ) : null}
+                  {bankCouponLabel ? (
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">de cupón</span>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="flex items-center gap-3 mt-6 text-gray-900 dark:text-gray-100">
                 <button
@@ -575,15 +601,39 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               </div>
 
               {ctaUrl && (
-                <a
-                  href={ctaUrl}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
-                >
-                  Ver oferta en tienda
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+                <div className="mt-6 flex flex-wrap items-stretch gap-2">
+                  <a
+                    href={ctaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    onClick={() => {
+                      void copyOfferCouponsToClipboard();
+                    }}
+                    className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
+                  >
+                    Ver oferta en tienda
+                    <ExternalLink className="h-4 w-4 shrink-0" />
+                  </a>
+                  {showCtaCouponChip ? (
+                    <div
+                      className="inline-flex min-w-0 max-w-full flex-1 basis-[min(100%,14rem)] items-center justify-center rounded-xl border-2 border-dashed border-white/90 bg-violet-600 dark:bg-violet-500 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm"
+                      role="note"
+                      aria-label="Cupón de la oferta"
+                    >
+                      <div className="flex min-w-0 flex-col gap-1">
+                        {bankCouponDisplay ? (
+                          <span className="leading-snug">
+                            <span className="text-white/90">Cupón bancario </span>
+                            <span className="font-bold tracking-wide">{bankCouponDisplay}</span>
+                          </span>
+                        ) : null}
+                        {personalCouponTrim ? (
+                          <span className="font-mono text-xs font-semibold break-all text-white">{personalCouponTrim}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               )}
 
               <div className="mt-4 relative" ref={shareMenuRef}>
@@ -686,7 +736,10 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             </div>
           </div>
 
-          {(offer.description?.trim() || offer.steps?.trim() || offer.conditions?.trim() || offer.coupons?.trim()) && (
+          {(offer.description?.trim() ||
+            offer.steps?.trim() ||
+            offer.conditions?.trim() ||
+            (offer.coupons?.trim() && !showCtaCouponChip)) && (
             <div className="border-t border-gray-200 dark:border-gray-700 p-6 md:p-8 space-y-6">
               {offer.description?.trim() && (
                 <div>
@@ -706,7 +759,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.conditions}</p>
                 </div>
               )}
-              {offer.coupons?.trim() && (
+              {offer.coupons?.trim() && !showCtaCouponChip && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cupones</h2>
                   <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.coupons}</p>

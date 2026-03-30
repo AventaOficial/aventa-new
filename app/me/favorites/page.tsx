@@ -220,6 +220,12 @@ function FavoritesPageInner() {
                 setSelectedOffer(null)
               }
             }}
+            steps={selectedOffer.steps}
+            conditions={selectedOffer.conditions}
+            coupons={selectedOffer.coupons}
+            msiMonths={selectedOffer.msiMonths}
+            bankCoupon={selectedOffer.bankCoupon}
+            imageUrls={selectedOffer.imageUrls}
           />
         )}
       </div>

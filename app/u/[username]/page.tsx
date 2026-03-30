@@ -334,6 +334,12 @@ export default function ProfilePage() {
             userVote={voteMap[selectedOffer.id] ?? 0}
             userVoteStoredValue={voteValueMap[selectedOffer.id] ?? null}
             onVoteChange={handleVoteChange}
+            steps={selectedOffer.steps}
+            conditions={selectedOffer.conditions}
+            coupons={selectedOffer.coupons}
+            msiMonths={selectedOffer.msiMonths}
+            bankCoupon={selectedOffer.bankCoupon}
+            imageUrls={selectedOffer.imageUrls}
           />
         )}
       </div>

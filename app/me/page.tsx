@@ -436,6 +436,12 @@ function MePageInner() {
                 setFavoriteMap((prev) => (fav ? { ...prev, [selectedOffer.id]: true } : { ...prev, [selectedOffer.id]: false }));
               }
             }}
+            steps={selectedOffer.steps}
+            conditions={selectedOffer.conditions}
+            coupons={selectedOffer.coupons}
+            msiMonths={selectedOffer.msiMonths}
+            bankCoupon={selectedOffer.bankCoupon}
+            imageUrls={selectedOffer.imageUrls}
           />
         )}
       </div>

@@ -24,6 +24,7 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#F5F5F7" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -77,7 +78,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[calc(5.5rem+0.65rem+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >
         <Providers>
           {children}

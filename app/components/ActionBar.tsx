@@ -440,7 +440,7 @@ export default function ActionBar() {
   return (
     <>
       <div
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] flex flex-col items-center ${isOfferOpen ? 'opacity-0 translate-y-6 pointer-events-none' : ''}`}
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 pb-[calc(0.65rem+env(safe-area-inset-bottom,0px))] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] flex flex-col items-center ${isOfferOpen ? 'opacity-0 translate-y-6 pointer-events-none' : ''}`}
       >
         {cooldownRemaining > 0 && (
           <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mx-4 mb-2">
@@ -1263,8 +1263,8 @@ export default function ActionBar() {
                                         </span>
                                       )}
                                       {getBankCouponLabel(formData.bank_coupon) && (
-                                        <span className="text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wide">
-                                          {getBankCouponLabel(formData.bank_coupon)!.toUpperCase()}
+                                        <span className="text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                          de cupón
                                         </span>
                                       )}
                                     </div>
