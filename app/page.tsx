@@ -816,6 +816,7 @@ function HomeContent() {
                     createdAt={offer.createdAt}
                     msiMonths={offer.msiMonths}
                     bankCoupon={offer.bankCoupon}
+                    coupons={offer.coupons}
                     isDestacada={offer.ranking_blend != null && offer.ranking_blend >= DESTACADA_RANKING_BLEND_MIN}
                     isTesterOffer={offer.id.startsWith('tester-')}
                   />

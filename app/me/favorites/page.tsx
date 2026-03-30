@@ -56,6 +56,9 @@ function FavoritesPageInner() {
             store,
             offer_url,
             description,
+            msi_months,
+            bank_coupon,
+            coupons,
             created_at,
             created_by,
             upvotes_count,
@@ -179,6 +182,10 @@ function FavoritesPageInner() {
                     userVote={voteMap[offer.id] ?? null}
                     userVoteStoredValue={voteValueMap[offer.id] ?? null}
                     isLiked={!!favoriteMap[offer.id]}
+                    createdAt={offer.createdAt}
+                    msiMonths={offer.msiMonths}
+                    bankCoupon={offer.bankCoupon}
+                    coupons={offer.coupons}
                   />
                 </motion.div>
               ))}

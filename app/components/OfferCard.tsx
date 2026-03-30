@@ -73,6 +73,8 @@ interface OfferCardProps {
   createdAt?: string | null;
   msiMonths?: number | null;
   bankCoupon?: string | null;
+  /** Código o texto de cupón que el cazador escribió a mano. */
+  coupons?: string | null;
   /** Badge "Destacada" cuando la oferta tiene alta calidad (ranking_blend alto). */
   isDestacada?: boolean;
   /** Oferta de prueba (relleno): badge "Prueba", click solo toast, no voto/favorito. */
@@ -107,6 +109,7 @@ export default function OfferCard({
   isLiked: isLikedProp = false,
   msiMonths,
   bankCoupon,
+  coupons,
   createdAt,
   isDestacada = false,
   isTesterOffer = false,
@@ -292,6 +295,35 @@ export default function OfferCard({
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const bankCouponDisplay = bankCouponLabel ? bankCouponLabel.toUpperCase() : null;
+  const personalCouponTrim = coupons?.trim() ?? '';
+  const showCouponBlock = Boolean(personalCouponTrim) || Boolean(bankCouponDisplay);
+
+  const copyCouponsToClipboard = async (): Promise<void> => {
+    if (isTesterOffer) return;
+    const parts: string[] = [];
+    if (personalCouponTrim) parts.push(personalCouponTrim);
+    if (bankCouponDisplay) parts.push(`Cupón bancario: ${bankCouponDisplay}`);
+    if (parts.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(parts.join('\n'));
+      showToast('Cupón copiado al portapapeles');
+    } catch {
+      // seguimos con la navegación aunque falle el portapapeles
+    }
+  };
+
+  const runOpenOfferAction = async () => {
+    if (isTesterOffer) {
+      showToast('Oferta de prueba');
+      return;
+    }
+    if (offerId) {
+      logEvent({ type: 'view', source: 'offer:click', metadata: { offerId } });
+    }
+    await copyCouponsToClipboard();
+    onCardClick?.();
+  };
+
   const descTrim = description?.trim() ?? '';
   const descShown =
     descTrim.length > OFFER_CARD_DESCRIPTION_MAX_LENGTH
@@ -299,32 +331,32 @@ export default function OfferCard({
       : descTrim;
 
   const VotesBlock = () => (
-    <div className="flex items-center gap-2 max-[400px]:gap-1 text-gray-900 dark:text-gray-100">
+    <div className="flex items-center justify-center gap-1 max-[400px]:gap-0.5 md:gap-1.5 text-gray-900 dark:text-gray-100">
       <button
         type="button"
         onClick={handleVoteUp}
-        className="flex h-9 w-9 max-[400px]:h-8 max-[400px]:w-8 md:h-10 md:w-10 items-center justify-center rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
+        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
         aria-label="Votar positivo"
       >
         <ThumbsUp
-          className={`h-5 w-5 max-[400px]:h-4 max-[400px]:w-4 md:h-5 md:w-5 ${
+          className={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
             userVote === 1
               ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
               : 'text-gray-500 dark:text-gray-400'
           }`}
         />
       </button>
-      <span className="min-w-[1.75rem] max-[400px]:min-w-[1.5rem] md:min-w-[2rem] text-center text-base max-[400px]:text-sm md:text-lg font-semibold">
+      <span className="min-w-6 max-[400px]:min-w-[1.35rem] md:min-w-7 text-center text-sm max-[400px]:text-[13px] md:text-base font-semibold tabular-nums">
         {localScore}
       </span>
       <button
         type="button"
         onClick={handleVoteDown}
-        className="flex h-9 w-9 max-[400px]:h-8 max-[400px]:w-8 md:h-10 md:w-10 items-center justify-center rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
+        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
         aria-label="Votar negativo"
       >
         <ThumbsDown
-          className={`h-5 w-5 max-[400px]:h-4 max-[400px]:w-4 md:h-5 md:w-5 ${
+          className={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
             userVote === -1
               ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
               : 'text-gray-500 dark:text-gray-400'
@@ -337,17 +369,10 @@ export default function OfferCard({
   return (
     <div
       ref={cardRef}
-      onClick={
-        isTesterOffer
-          ? () => showToast('Oferta de prueba')
-          : () => {
-              if (offerId) {
-                logEvent({ type: 'view', source: 'offer:click', metadata: { offerId } });
-              }
-              onCardClick?.();
-            }
-      }
-      className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
+      onClick={() => {
+        void runOpenOfferAction();
+      }}
+      className="relative flex flex-row items-start overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
     >
       <button
         onClick={handleFavoriteClick}
@@ -385,8 +410,8 @@ export default function OfferCard({
         </button>
       )}
 
-      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
-        <div className="relative h-[160px] max-[400px]:h-[136px] md:h-[165px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
+      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5">
+        <div className="relative h-[152px] max-[400px]:h-[128px] md:h-[158px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
           {showImage ? (
             <Image
               src={image}
@@ -403,12 +428,12 @@ export default function OfferCard({
             </div>
           )}
         </div>
-        <div className="flex justify-center">
+        <div className="flex justify-center w-full shrink-0">
           <VotesBlock />
         </div>
       </div>
 
-      <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 justify-between gap-1.5 max-[400px]:gap-1 md:gap-2 pt-6 max-[400px]:pt-5 md:pt-0">
+      <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 gap-1 max-[400px]:gap-0.5 md:gap-1.5 pt-6 max-[400px]:pt-5 md:pt-0">
         <div className="min-w-0">
           {dealStatus && (
             <span
@@ -436,7 +461,7 @@ export default function OfferCard({
               {rejectionReason}
             </p>
           )}
-          <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug min-h-[2.4rem] md:min-h-[3.1rem] wrap-anywhere">
+          <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
             {title}
           </h3>
 
@@ -469,19 +494,12 @@ export default function OfferCard({
               </span>
             )}
           </div>
-          {(msiMonths != null && msiMonths >= 1) || bankCouponDisplay ? (
+          {msiMonths != null && msiMonths >= 1 ? (
             <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-              {msiMonths != null && msiMonths >= 1 && (
-                <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="uppercase tracking-wide">msi</span>
-                  <span>{msiMonths}</span>
-                </span>
-              )}
-              {bankCouponDisplay && (
-                <span className="text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wide">
-                  {bankCouponDisplay}
-                </span>
-              )}
+              <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="uppercase tracking-wide">msi</span>
+                <span>{msiMonths}</span>
+              </span>
             </div>
           ) : null}
 
@@ -546,18 +564,23 @@ export default function OfferCard({
           )}
 
           <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
-            <span className="font-semibold text-pink-600 dark:text-pink-400">{storeLabel}</span>
+            <span className="font-semibold text-fuchsia-500 dark:text-pink-300">{storeLabel}</span>
             {timeLabel ? (
               <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
             ) : null}
           </p>
-          <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-10 min-w-0 leading-snug wrap-anywhere">
-            {descShown ? (
-              descShown
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
-            )}
-          </p>
+          <div className="mt-1 min-w-0 space-y-0.5">
+            <p className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Descripción del cazador
+            </p>
+            <p className="text-[11px] md:text-xs text-gray-600 dark:text-gray-400 line-clamp-2 min-w-0 leading-snug wrap-anywhere">
+              {descShown ? (
+                descShown
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
+              )}
+            </p>
+          </div>
         </div>
 
         {ownerMetrics != null && (
@@ -585,27 +608,58 @@ export default function OfferCard({
           </div>
         )}
 
-        <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (offerId && !isTesterOffer) {
-                fetch('/api/events', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-                  },
-                  body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
-                }).catch((err) => logClientError('offer-card:cazar-cta', err));
-              }
-              onCardClick?.();
-            }}
-            className="w-full min-w-0 flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-3 max-[400px]:px-2 py-2.5 max-[400px]:py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-95"
-          >
-            <Search className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-4.5 md:w-4.5 shrink-0" />
-            Cazar oferta
-          </button>
+        <div className="mt-2 max-[400px]:mt-1.5 space-y-2">
+          <div className="flex items-center gap-2 max-[400px]:gap-1.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isTesterOffer) {
+                  showToast('Oferta de prueba');
+                  return;
+                }
+                void (async () => {
+                  await copyCouponsToClipboard();
+                  if (offerId) {
+                    fetch('/api/events', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                      },
+                      body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
+                    }).catch((err) => logClientError('offer-card:cazar-cta', err));
+                  }
+                  onCardClick?.();
+                })();
+              }}
+              className="w-full min-w-0 flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-3 max-[400px]:px-2 py-2.5 max-[400px]:py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-95"
+            >
+              <Search className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-4.5 md:w-4.5 shrink-0" />
+              Cazar oferta
+            </button>
+          </div>
+          {showCouponBlock ? (
+            <div
+              className="rounded-lg border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/60 dark:bg-indigo-950/25 px-2.5 py-2 space-y-1.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {bankCouponDisplay ? (
+                <p className="text-[10px] md:text-[11px] leading-snug text-gray-800 dark:text-gray-200">
+                  <span className="font-semibold text-indigo-700 dark:text-indigo-300">Cupón bancario</span>
+                  <span className="mx-1.5 font-bold tracking-wide text-indigo-600 dark:text-indigo-400">
+                    {bankCouponDisplay}
+                  </span>
+                </p>
+              ) : null}
+              {personalCouponTrim ? (
+                <p className="text-[10px] md:text-[11px] leading-snug text-gray-700 dark:text-gray-300 wrap-anywhere">
+                  <span className="font-semibold text-gray-600 dark:text-gray-400">Cupón: </span>
+                  <span className="font-mono text-gray-900 dark:text-gray-100">{personalCouponTrim}</span>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

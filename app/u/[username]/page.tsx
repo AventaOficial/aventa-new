@@ -40,8 +40,12 @@ type ProfileData = {
     downvotes: number;
     offerUrl: string;
     image?: string;
+    createdAt?: string | null;
+    msiMonths?: number | null;
+    bankCoupon?: string | null;
+    coupons?: string | null;
     votes: { up: number; down: number; score: number };
-    author: { username: string; avatar_url?: string | null; userId?: string | null };
+    author: { username: string; avatar_url?: string | null; userId?: string | null; slug?: string | null };
   }[];
 };
 
@@ -294,6 +298,10 @@ export default function ProfilePage() {
                       userVote={voteMap[offer.id] ?? null}
                       userVoteStoredValue={voteValueMap[offer.id] ?? null}
                       isLiked={!!favoriteMap[offer.id]}
+                      createdAt={offer.createdAt}
+                      msiMonths={offer.msiMonths}
+                      bankCoupon={offer.bankCoupon}
+                      coupons={offer.coupons}
                     />
                   </motion.div>
                 ))

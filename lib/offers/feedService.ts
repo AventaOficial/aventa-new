@@ -26,6 +26,7 @@ export type FeedOffer = {
   category: string | null;
   msi_months: number | null;
   description: string | null;
+  coupons: string | null;
   slug: string;
   created_by: string | null;
   author: FeedOfferAuthor;
@@ -69,7 +70,7 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)'
+        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, coupons, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)'
       )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
@@ -170,6 +171,7 @@ export async function getHomeFeed({
           return Number.isFinite(n) && n >= 1 ? n : null;
         })(),
         description: row.description != null && String(row.description).trim() !== '' ? String(row.description) : null,
+        coupons: row.coupons != null && String(row.coupons).trim() !== '' ? String(row.coupons).trim() : null,
         slug: String(row.id ?? ''),
         created_by: createdBy,
         author: {

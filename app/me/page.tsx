@@ -134,7 +134,7 @@ function MePageInner() {
 
       const { data: rows } = await supabase
         .from('offers')
-        .select('id, title, price, original_price, image_url, store, offer_url, description, created_at, upvotes_count, downvotes_count, ranking_momentum, status, rejection_reason, expires_at')
+        .select('id, title, price, original_price, image_url, store, offer_url, description, msi_months, bank_coupon, coupons, created_at, upvotes_count, downvotes_count, ranking_momentum, status, rejection_reason, expires_at')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -387,6 +387,10 @@ function MePageInner() {
                   userVote={voteMap[offer.id] ?? null}
                   userVoteStoredValue={voteValueMap[offer.id] ?? null}
                   isLiked={!!favoriteMap[offer.id]}
+                  createdAt={offer.createdAt}
+                  msiMonths={offer.msiMonths}
+                  bankCoupon={offer.bankCoupon}
+                  coupons={offer.coupons}
                   dealStatus={offer.dealStatus}
                   rejectionReason={offer.rejectionReason}
                   ownerMetrics={

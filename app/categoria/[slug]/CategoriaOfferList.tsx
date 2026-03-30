@@ -28,6 +28,7 @@ export default function CategoriaOfferList({ offers }: { offers: CardOffer[] }) 
           createdAt={offer.createdAt}
           msiMonths={offer.msiMonths}
           bankCoupon={offer.bankCoupon}
+          coupons={offer.coupons}
           onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
         />
       ))}

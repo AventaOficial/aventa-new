@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -81,6 +81,9 @@ export default function ActionBar() {
   const [showSubmitThanksModal, setShowSubmitThanksModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
+  const prevUrlParseLoadingRef = useRef(false);
+  /** Tras pegar el enlace (y parse si hay sesión), se desbloquea el formulario completo. */
+  const [uploadLinkGatePassed, setUploadLinkGatePassed] = useState(false);
   const [cooldownExempt, setCooldownExempt] = useState(false);
   /** Solo tiendas con sucursales probables: se guarda en `conditions` al publicar. */
   const [offerScope, setOfferScope] = useState<'online' | 'in_store' | null>(null);
@@ -98,6 +101,7 @@ export default function ActionBar() {
 
   useEffect(() => {
     if (uploadModalRequested) {
+      setUploadLinkGatePassed(false);
       setShowUploadModal(true);
       clearUploadModalRequest();
     }
@@ -156,6 +160,7 @@ export default function ActionBar() {
       ...(store != null && { store: decodeURIComponent(store) }),
     }));
     if (image != null) setImageUrl(decodeURIComponent(image));
+    setUploadLinkGatePassed(true);
     router.replace('/', { scroll: false });
   }, [showUploadModal, pathname, searchParams, router]);
 
@@ -236,6 +241,18 @@ export default function ActionBar() {
       clearTimeout(t);
     };
   }, [formData.offer_url, session?.access_token, hasDiscount]);
+
+  useEffect(() => {
+    if (!showUploadModal || uploadLinkGatePassed) return;
+    const u = formData.offer_url.trim();
+    if (!u.startsWith('http')) return;
+    if (!session?.access_token) return;
+    const wasLoading = prevUrlParseLoadingRef.current;
+    prevUrlParseLoadingRef.current = urlParseLoading;
+    if (!wasLoading || urlParseLoading) return;
+    const t = window.setTimeout(() => setUploadLinkGatePassed(true), 350);
+    return () => window.clearTimeout(t);
+  }, [showUploadModal, uploadLinkGatePassed, formData.offer_url, urlParseLoading, session?.access_token]);
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -341,6 +358,8 @@ export default function ActionBar() {
     setOfferScope(null);
     setHasDiscount(true);
     setMobileTab('form');
+    setUploadLinkGatePassed(false);
+    prevUrlParseLoadingRef.current = false;
   };
 
   const handleSubmit = async () => {
@@ -446,6 +465,8 @@ export default function ActionBar() {
                 return;
               }
               setShowSubmitThanksModal(false);
+              setUploadLinkGatePassed(false);
+              prevUrlParseLoadingRef.current = false;
               setShowUploadModal(true);
             }}
             className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-500/25 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -526,6 +547,8 @@ export default function ActionBar() {
               return;
             }
             setShowSubmitThanksModal(false);
+            setUploadLinkGatePassed(false);
+            prevUrlParseLoadingRef.current = false;
             setShowUploadModal(true);
           }}
           className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-all duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#2d2d2f] active:scale-95'} bg-[#1d1d1f] dark:bg-[#1d1d1f] text-white shadow-lg`}
@@ -602,7 +625,9 @@ export default function ActionBar() {
                     Subir oferta
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    Empieza con el enlace; te ayudamos a rellenar el resto. Solo lo esencial es obligatorio.
+                    {uploadLinkGatePassed
+                      ? 'Revisa y corrige lo que falte. Solo lo esencial es obligatorio.'
+                      : 'Pega el enlace: obtenemos título, imagen y precios cuando el sitio lo permite.'}
                   </p>
                 </div>
                 <button
@@ -614,6 +639,61 @@ export default function ActionBar() {
                 </button>
               </div>
 
+              {!uploadLinkGatePassed ? (
+                <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white dark:bg-gray-900">
+                  {urlParseLoading && (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-6">
+                      <Loader2 className="h-12 w-12 animate-spin text-violet-600 dark:text-violet-400" aria-hidden />
+                      <p className="mt-5 text-sm font-medium text-gray-700 dark:text-gray-300 text-center max-w-xs">
+                        Obteniendo datos de la oferta…
+                      </p>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center max-w-sm">
+                        Esto suele tardar solo un momento.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 overflow-y-auto min-h-[40vh]">
+                    <div className="w-full max-w-md mx-auto space-y-5">
+                      <div className="text-center sm:text-left space-y-2">
+                        <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          Pega el enlace de tu oferta
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                          Nuestro sistema se encargará de obtener los datos por ti cuando sea posible.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="sr-only" htmlFor="upload-offer-url-gate">
+                          URL de la oferta
+                        </label>
+                        <input
+                          id="upload-offer-url-gate"
+                          type="url"
+                          value={formData.offer_url}
+                          onChange={(e) => handleInputChange('offer_url', e.target.value)}
+                          placeholder="https://…"
+                          className="w-full rounded-2xl border-2 border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-4 text-[16px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
+                          autoComplete="url"
+                          inputMode="url"
+                        />
+                      </div>
+                      {!session?.access_token ? (
+                        <p className="text-xs text-amber-700 dark:text-amber-300/90 text-center sm:text-left leading-snug">
+                          Inicia sesión para que podamos leer la página y rellenar título e imagen automáticamente.
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setUploadLinkGatePassed(true)}
+                        className="w-full text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline py-1"
+                      >
+                        Continuar sin enlace
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
               <div className="md:hidden flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setMobileTab('form')}
@@ -662,11 +742,9 @@ export default function ActionBar() {
                       placeholder="https://…"
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                     />
-                    <ul className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                      <li>1. Pega el enlace de la oferta.</li>
-                      <li>2. Rellenamos título, imagen y precio cuando el sitio lo permite.</li>
-                      <li>3. Revisa y corrige lo que falte antes de publicar.</li>
-                    </ul>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                      Puedes pegar otro enlace aquí si hace falta; volvemos a intentar obtener datos.
+                    </p>
                   </div>
 
                     <div>
@@ -1273,6 +1351,8 @@ export default function ActionBar() {
                   </div>
                 </div>
               </div>
+                </>
+              )}
 
               <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 px-5 sm:px-6 md:px-8 py-4 sm:py-5">
                 <div className="flex gap-3 sm:gap-4">
@@ -1282,14 +1362,24 @@ export default function ActionBar() {
                   >
                     Cancelar
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!isFormValid() || isSubmitting || imageUploading}
-                    className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
-                  >
-                    {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
-                  </button>
+                  {uploadLinkGatePassed ? (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={!isFormValid() || isSubmitting || imageUploading}
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
+                    >
+                      {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setUploadLinkGatePassed(true)}
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99]"
+                    >
+                      Continuar al formulario
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
