@@ -14,8 +14,6 @@ import {
   LayoutGrid,
   UserRound,
   Smartphone,
-  ChevronUp,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   type LucideIcon,
@@ -284,57 +282,6 @@ function DescubreProgress({
   );
 }
 
-const navFabClass =
-  'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gray-200/90 dark:border-gray-600/70 bg-white/90 dark:bg-gray-900/90 text-gray-700 dark:text-gray-200 shadow-sm backdrop-blur-md transition-shadow hover:shadow-md hover:border-violet-300/80 dark:hover:border-violet-600/50 disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none';
-
-function VerticalDescubreNav({
-  count,
-  activeIndex,
-  onPrev,
-  onNext,
-}: {
-  count: number;
-  activeIndex: number;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div
-      className="flex flex-col items-center gap-3 rounded-3xl border border-gray-200/60 dark:border-gray-700/60 bg-white/70 dark:bg-gray-900/70 p-2 shadow-lg shadow-gray-900/5 dark:shadow-black/40 backdrop-blur-xl"
-      role="navigation"
-      aria-label="Navegación entre secciones de la guía"
-    >
-      <motion.button
-        type="button"
-        className={navFabClass}
-        onClick={onPrev}
-        disabled={activeIndex <= 0}
-        aria-label="Sección anterior"
-        whileHover={{ scale: 1.04 }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.2, ease: EASE }}
-      >
-        <ChevronUp className="h-5 w-5" strokeWidth={2.25} />
-      </motion.button>
-      <span className="select-none text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 tabular-nums">
-        {activeIndex + 1}/{count}
-      </span>
-      <motion.button
-        type="button"
-        className={navFabClass}
-        onClick={onNext}
-        disabled={activeIndex >= count - 1}
-        aria-label="Siguiente sección"
-        whileHover={{ scale: 1.04 }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.2, ease: EASE }}
-      >
-        <ChevronDown className="h-5 w-5" strokeWidth={2.25} />
-      </motion.button>
-    </div>
-  );
-}
-
 type StepState = { index: number; dir: number };
 
 export default function DescubreGuide() {
@@ -386,12 +333,6 @@ export default function DescubreGuide() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-transparent relative">
-      <div className="pointer-events-none fixed bottom-24 right-3 z-40 sm:hidden">
-        <div className="pointer-events-auto">
-          <VerticalDescubreNav count={n} activeIndex={activeIndex} onPrev={onPrev} onNext={onNext} />
-        </div>
-      </div>
-
       <div className="mx-auto max-w-2xl px-4 py-6 md:py-10 sm:pr-14 md:pr-16">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
