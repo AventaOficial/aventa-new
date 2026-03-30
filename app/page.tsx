@@ -750,7 +750,7 @@ function HomeContent() {
                   setFeedError(null);
                   fetchOffers(12);
                 }}
-                className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
               >
                 Reintentar
               </button>
@@ -835,7 +835,7 @@ function HomeContent() {
                         setLimit((prev) => prev + 12);
                       }
                     }}
-                    className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-gray-900 px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                    className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
                   >
                     Cargar más
                   </button>

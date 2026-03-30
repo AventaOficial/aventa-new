@@ -137,7 +137,7 @@ export default function ModerationOfferCard({
 
   return (
     <article
-      className={`bg-white dark:bg-gray-900 rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg hover:border-violet-200/80 dark:hover:border-violet-800/50 transition-all duration-200 ${selected ? 'border-violet-500 ring-2 ring-violet-500/30 shadow-md' : 'border-gray-200/90 dark:border-gray-700/90'}`}
+      className={`bg-white dark:bg-[#141414] rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg hover:border-violet-200/80 dark:hover:border-violet-800/50 transition-all duration-200 ${selected ? 'border-violet-500 ring-2 ring-violet-500/30 shadow-md' : 'border-gray-200/90 dark:border-gray-700/90'}`}
       data-testid="moderation-offer-card"
     >
       <div className="flex flex-col sm:flex-row">
@@ -203,7 +203,7 @@ export default function ModerationOfferCard({
               <button
                 type="button"
                 onClick={onToggleSelect}
-                className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-violet-500 mt-0.5"
+                className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] hover:border-violet-500 mt-0.5"
                 aria-label={selected ? 'Quitar de selección' : 'Seleccionar'}
               >
                 {selected ? <span className="text-violet-600 text-sm font-bold">✓</span> : null}
@@ -223,7 +223,7 @@ export default function ModerationOfferCard({
                 <span className="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] text-gray-600 dark:text-gray-400">Sin categoría</span>
               )}
               {bankCouponLabel ? (
-                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-100 dark:bg-indigo-900/35 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 text-[11px] font-medium max-w-[200px] leading-tight">
+                <span className="inline-flex items-center gap-1 rounded-md bg-violet-100 dark:bg-violet-900/35 text-violet-800 dark:text-violet-200 px-2 py-0.5 text-[11px] font-medium max-w-[200px] leading-tight">
                   {formatCupónBancarioDisplay(bankCouponLabel)}
                 </span>
               ) : null}
@@ -378,7 +378,7 @@ export default function ModerationOfferCard({
                     value={modMessage}
                     onChange={(e) => setModMessage(e.target.value.slice(0, 500))}
                     rows={2}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-400"
                   />
                 </div>
                 <button
@@ -409,7 +409,7 @@ export default function ModerationOfferCard({
                           key={r.short}
                           type="button"
                           onClick={() => setRejectReason(r.full)}
-                          className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/80 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400 hover:bg-violet-50/80 dark:hover:bg-violet-900/20"
+                          className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a]/80 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400 hover:bg-violet-50/80 dark:hover:bg-violet-900/20"
                         >
                           {r.short}
                         </button>
@@ -428,7 +428,7 @@ export default function ModerationOfferCard({
                           setRejectReason('');
                         }
                       }}
-                      className="flex-1 min-w-[180px] px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      className="flex-1 min-w-[180px] px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
                       autoFocus
                     />
                     <button
@@ -460,7 +460,7 @@ export default function ModerationOfferCard({
 
       {showHistory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowHistory(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Historial de moderación</h3>
               <button type="button" onClick={() => setShowHistory(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Cerrar"><X className="h-5 w-5" /></button>
@@ -489,7 +489,7 @@ export default function ModerationOfferCard({
           onClick={() => setShowPreview(false)}
         >
           <div
-            className="relative max-w-lg w-full max-h-[90vh] overflow-auto rounded-xl bg-white dark:bg-gray-800 shadow-xl"
+            className="relative max-w-lg w-full max-h-[90vh] overflow-auto rounded-xl bg-white dark:bg-[#1a1a1a] shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -638,10 +638,10 @@ export default function ModerationOfferCard({
           onClick={() => setShowEdit(false)}
         >
           <div
-            className="relative max-w-lg w-full max-h-[90vh] overflow-auto rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700"
+            className="relative max-w-lg w-full max-h-[90vh] overflow-auto rounded-xl bg-white dark:bg-[#1a1a1a] shadow-xl border border-gray-200 dark:border-gray-700"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div className="sticky top-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a]">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Editar oferta</h3>
               <button type="button" onClick={() => setShowEdit(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Cerrar">
                 <X className="h-5 w-5" />
@@ -654,7 +654,7 @@ export default function ModerationOfferCard({
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value.slice(0, 500))}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
                   placeholder="Título de la oferta"
                 />
               </div>
@@ -664,7 +664,7 @@ export default function ModerationOfferCard({
                   type="url"
                   value={editOfferUrl}
                   onChange={(e) => setEditOfferUrl(e.target.value.slice(0, 2048))}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 font-mono"
                   placeholder="https://..."
                 />
               </div>
@@ -674,7 +674,7 @@ export default function ModerationOfferCard({
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value.slice(0, 2000))}
                   rows={3}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
                   placeholder="Descripción"
                 />
               </div>
@@ -684,7 +684,7 @@ export default function ModerationOfferCard({
                   type="url"
                   value={editImageUrl}
                   onChange={(e) => setEditImageUrl(e.target.value.slice(0, 2048))}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 font-mono"
                   placeholder="https://..."
                 />
                 {editImageUrl && (

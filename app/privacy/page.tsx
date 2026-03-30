@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen pb-24 md:pb-0 md:pl-28 bg-[#F5F5F7] dark:bg-[#030712] text-[#111827] dark:text-[#F9FAFB]">
+    <main className="min-h-screen pb-24 md:pb-0 md:pl-28 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
       <div className="mx-auto max-w-3xl px-4 pt-24 md:pt-28 pb-16 space-y-10">
         <header className="space-y-3">
           <p className="text-xs font-semibold tracking-[0.25em] uppercase text-violet-600 dark:text-violet-400">
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
             A efectos de esta Política, el responsable del tratamiento de los datos personales
             es la persona física o moral que determina los fines y medios de tratamiento.
           </p>
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-sm leading-relaxed">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 text-sm leading-relaxed">
             <p className="font-medium text-gray-900 dark:text-gray-100">Responsable:</p>
             <p className="text-gray-700 dark:text-gray-300">
               AVENTA (comunidad de cazadores de ofertas)

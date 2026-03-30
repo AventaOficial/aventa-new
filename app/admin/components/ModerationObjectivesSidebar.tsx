@@ -84,7 +84,7 @@ export default function ModerationObjectivesSidebar() {
           </div>
         </div>
 
-        <div className="flex rounded-xl bg-gray-100/80 dark:bg-gray-800/80 p-0.5 mb-4">
+        <div className="flex rounded-xl bg-gray-100/80 dark:bg-[#1a1a1a]/80 p-0.5 mb-4">
           {(['24h', '7d'] as const).map((p) => (
             <button
               key={p}
@@ -107,7 +107,7 @@ export default function ModerationObjectivesSidebar() {
           <p className="text-xs text-amber-600 dark:text-amber-400">{error}</p>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/80 dark:bg-gray-900/50 p-3">
+            <div className="rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/80 dark:bg-[#141414]/50 p-3">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                   <LayoutGrid className="h-3.5 w-3.5 text-violet-500" />
@@ -125,7 +125,7 @@ export default function ModerationObjectivesSidebar() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/40 bg-white/80 dark:bg-gray-900/50 p-3">
+            <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/40 bg-white/80 dark:bg-[#141414]/50 p-3">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -143,7 +143,7 @@ export default function ModerationObjectivesSidebar() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/50 p-3">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-[#141414]/50 p-3">
               <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 mb-2">Distribución por categoría</p>
               <div className="space-y-2">
                 {categoryRows.map((row) => (

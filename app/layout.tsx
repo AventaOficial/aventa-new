@@ -84,7 +84,7 @@ export default function RootLayout({
           {children}
           <CookieNotice />
         </Providers>
-        <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-8 md:py-10 text-sm text-gray-600 dark:text-gray-400">
+        <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#141414] px-4 py-8 md:py-10 text-sm text-gray-600 dark:text-gray-400">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-8 md:grid-cols-4">
               <div className="md:col-span-2">

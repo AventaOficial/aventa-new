@@ -9,7 +9,7 @@ export default function AnalistaPanelPage() {
       <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Análisis</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Métricas y estado del sistema.</p>
 
-      <ul className="space-y-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <ul className="space-y-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] overflow-hidden">
         <li>
           <Link
             href="/admin/metrics"

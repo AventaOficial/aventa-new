@@ -26,7 +26,7 @@ function ExtensionPageInner() {
           </p>
 
           <div className="space-y-6">
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
                   <Puzzle className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -40,7 +40,7 @@ function ExtensionPageInner() {
               </p>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
                   <Chrome className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -54,7 +54,7 @@ function ExtensionPageInner() {
                 </li>
                 <li>Activa &quot;Modo desarrollador&quot; (arriba a la derecha).</li>
                 <li>Pulsa &quot;Cargar descomprimida&quot; y elige la carpeta del proyecto llamada exactamente{' '}
-                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">browser-extension</code>.
+                  <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">browser-extension</code>.
                 </li>
                 <li>Entra a un producto en Amazon o Mercado Libre, haz clic en el icono de la extensión y luego en &quot;Cazar oferta en Aventa&quot;.</li>
               </ol>
@@ -63,7 +63,7 @@ function ExtensionPageInner() {
               </p>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
                   <ExternalLink className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -72,8 +72,8 @@ function ExtensionPageInner() {
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                 Misma información en el repositorio:{' '}
-                <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">browser-extension/README.md</code>{' '}
-                y <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">docs/PRD/browser-extension.md</code>.
+                <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">browser-extension/README.md</code>{' '}
+                y <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">docs/PRD/browser-extension.md</code>.
               </p>
               <Link
                 href="/subir"

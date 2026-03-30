@@ -297,7 +297,7 @@ export default function TrabajoPageContent() {
           </header>
 
           <div className="space-y-6">
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 shadow-sm">
               <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3">
                 <ListTodo className="h-5 w-5 text-violet-500" />
                 Tareas del día
@@ -322,7 +322,7 @@ export default function TrabajoPageContent() {
                       onChange={(e) =>
                         persistTasks(tasks.map((x) => (x.id === t.id ? { ...x, text: e.target.value } : x)))
                       }
-                      className="flex-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                      className="flex-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                     />
                     <button
                       type="button"
@@ -371,7 +371,7 @@ export default function TrabajoPageContent() {
                       onChange={(e) =>
                         persistPlans(planItems.map((x) => (x.id === p.id ? { ...x, text: e.target.value } : x)))
                       }
-                      className="flex-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                      className="flex-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                     />
                     <button
                       type="button"
@@ -399,7 +399,7 @@ export default function TrabajoPageContent() {
                   Prompts listos para pegar (Cursor / Gemini)
                 </p>
 
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
                       Para Cursor — auditoría total
@@ -422,7 +422,7 @@ export default function TrabajoPageContent() {
                   </pre>
                 </div>
 
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
                       Para Gemini — contexto del proyecto
@@ -447,7 +447,7 @@ export default function TrabajoPageContent() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 shadow-sm">
               <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3">
                 <ShieldCheck className="h-5 w-5 text-violet-500" />
                 Moderación (objetivo del día)
@@ -467,7 +467,7 @@ export default function TrabajoPageContent() {
                 min={0}
                 value={modTarget || ''}
                 onChange={(e) => persistMod(Number(e.target.value) || 0, modNote)}
-                className="w-full max-w-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm mb-3"
+                className="w-full max-w-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm mb-3"
               />
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nota</label>
               <textarea
@@ -475,11 +475,11 @@ export default function TrabajoPageContent() {
                 onChange={(e) => persistMod(modTarget, e.target.value)}
                 rows={2}
                 placeholder="Ej. priorizar ofertas con enlaces rotos"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 shadow-sm">
               <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3">
                 <Wallet className="h-5 w-5 text-violet-500" />
                 Costos fijos (MXN / mes, aprox.)
@@ -493,7 +493,7 @@ export default function TrabajoPageContent() {
                       onChange={(e) =>
                         persistCosts(costs.map((x) => (x.id === c.id ? { ...x, label: e.target.value } : x)))
                       }
-                      className="flex-1 min-w-[140px] rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm"
+                      className="flex-1 min-w-[140px] rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm"
                     />
                     <input
                       type="number"
@@ -505,7 +505,7 @@ export default function TrabajoPageContent() {
                           costs.map((x) => (x.id === c.id ? { ...x, amount: Number(e.target.value) || 0 } : x))
                         )
                       }
-                      className="w-28 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm"
+                      className="w-28 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm"
                     />
                     <button
                       type="button"
@@ -534,7 +534,7 @@ export default function TrabajoPageContent() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 shadow-sm">
               <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3">
                 <Calculator className="h-5 w-5 text-violet-500" />
                 Ingresos estimados (mensual, MXN)
@@ -551,7 +551,7 @@ export default function TrabajoPageContent() {
                     step="0.01"
                     value={incomeAffiliate || ''}
                     onChange={(e) => persistIncome(Number(e.target.value) || 0, incomeOther)}
-                    className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm mt-1"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm mt-1"
                   />
                 </div>
                 <div>
@@ -562,7 +562,7 @@ export default function TrabajoPageContent() {
                     step="0.01"
                     value={incomeOther || ''}
                     onChange={(e) => persistIncome(incomeAffiliate, Number(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm mt-1"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm mt-1"
                   />
                 </div>
               </div>
@@ -571,7 +571,7 @@ export default function TrabajoPageContent() {
               </p>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 shadow-sm">
               <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3">
                 <Lightbulb className="h-5 w-5 text-amber-500" />
                 Ideas y backlog
@@ -581,13 +581,13 @@ export default function TrabajoPageContent() {
                 onChange={(e) => persistIdeas(e.target.value)}
                 rows={8}
                 placeholder="Roadmap mental, features fase 2, recordatorios…"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
             </section>
 
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
               Comunidad / solicitudes (fase 2): ver{' '}
-              <code className="text-[10px] bg-gray-200 dark:bg-gray-800 px-1 rounded">docs/FASE2_COMUNIDAD_SOLICITUDES.md</code>
+              <code className="text-[10px] bg-gray-200 dark:bg-[#1a1a1a] px-1 rounded">docs/FASE2_COMUNIDAD_SOLICITUDES.md</code>
             </p>
           </div>
         </div>

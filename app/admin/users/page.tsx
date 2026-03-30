@@ -110,15 +110,15 @@ export default function UsersPage() {
         Listado de perfiles con roles, ofertas y baneos (paginado). Baneos se gestionan en Moderación → Baneos.
       </p>
       {users.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-8 text-center">
           <p className="text-gray-500 dark:text-gray-400">No hay usuarios.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1a1a]/50">
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Usuario</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Roles</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rep.</th>
@@ -165,7 +165,7 @@ export default function UsersPage() {
                             Activo ({u.commissions_terms_version ?? 'sin versión'})
                           </span>
                         ) : (
-                          <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                          <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300">
                             No activo
                           </span>
                         )}
@@ -190,7 +190,7 @@ export default function UsersPage() {
             </table>
           </div>
           {total > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-[#1a1a1a]/50">
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Página {page} de {Math.max(1, Math.ceil(total / pageLimit))} · {total} usuarios
               </p>

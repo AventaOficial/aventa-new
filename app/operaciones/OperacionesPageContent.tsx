@@ -592,7 +592,7 @@ export default function OperacionesPageContent() {
 
           <section
             id="indice-zonas"
-            className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 md:p-5 shadow-sm mb-6 scroll-mt-24"
+            className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 md:p-5 shadow-sm mb-6 scroll-mt-24"
           >
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
               <Layers className="h-4 w-4 text-violet-500 shrink-0" />
@@ -606,7 +606,7 @@ export default function OperacionesPageContent() {
                 <li key={z.id}>
                   <a
                     href={`#${z.id}`}
-                    className="block rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 px-3 py-2.5 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
+                    className="block rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-[#1a1a1a]/50 px-3 py-2.5 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
                   >
                     <span className="font-semibold text-gray-900 dark:text-gray-100">{z.title}</span>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
@@ -620,7 +620,7 @@ export default function OperacionesPageContent() {
 
           <section
             id="zona-control-producto"
-            className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 md:p-5 shadow-sm mb-6 scroll-mt-24"
+            className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 md:p-5 shadow-sm mb-6 scroll-mt-24"
           >
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
               <History className="h-4 w-4 text-violet-500 shrink-0" />
@@ -628,7 +628,7 @@ export default function OperacionesPageContent() {
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
               Fechas y estados los mantienes tú al desplegar o auditar: edita{' '}
-              <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">
+              <code className="text-[10px] bg-gray-100 dark:bg-[#1a1a1a] px-1 rounded">
                 lib/operations/productControlRegistry.ts
               </code>{' '}
               y vuelve a desplegar. Así ves cuándo se tocó cada bloque y si lo diste por OK.
@@ -636,7 +636,7 @@ export default function OperacionesPageContent() {
             <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1a1a]/80">
                     <th className="p-2.5 font-semibold text-gray-700 dark:text-gray-200">Área</th>
                     <th className="p-2.5 font-semibold text-gray-700 dark:text-gray-200 hidden sm:table-cell">
                       Último cambio
@@ -753,7 +753,7 @@ export default function OperacionesPageContent() {
 
             <section
               id="zona-salud"
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm scroll-mt-24"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm scroll-mt-24"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
@@ -800,7 +800,7 @@ export default function OperacionesPageContent() {
 
             <section
               id="zona-trafico"
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm scroll-mt-24"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm scroll-mt-24"
             >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div>
@@ -885,7 +885,7 @@ export default function OperacionesPageContent() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
                   <FlaskConical className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -913,7 +913,7 @@ export default function OperacionesPageContent() {
 
             <section
               id="zona-infra"
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm scroll-mt-24"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm scroll-mt-24"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
@@ -938,7 +938,7 @@ export default function OperacionesPageContent() {
               </ol>
               <ul className="text-sm space-y-2 mb-4 pl-2 border-l-2 border-violet-200 dark:border-violet-800">
                 <li className="flex flex-wrap items-center gap-2">
-                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">SYSTEM_ALERT_EMAIL_TO</code>
+                  <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">SYSTEM_ALERT_EMAIL_TO</code>
                   <span className="text-gray-600 dark:text-gray-400">= tu correo</span>
                   {pulse ? (
                     pulse.emailToConfigured ? (
@@ -949,7 +949,7 @@ export default function OperacionesPageContent() {
                   ) : null}
                 </li>
                 <li className="flex flex-wrap items-center gap-2">
-                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">SYSTEM_ALERT_WEBHOOK_URL</code>
+                  <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">SYSTEM_ALERT_WEBHOOK_URL</code>
                   <span className="text-gray-600 dark:text-gray-400">= URL del webhook (opcional)</span>
                   {pulse ? (
                     pulse.webhookConfigured ? (
@@ -960,7 +960,7 @@ export default function OperacionesPageContent() {
                   ) : null}
                 </li>
                 <li className="flex flex-wrap items-center gap-2">
-                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">RESEND_API_KEY</code>
+                  <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">RESEND_API_KEY</code>
                   <span className="text-gray-600 dark:text-gray-400">= necesario para que el correo de alerta se envíe</span>
                   {pulse ? (
                     pulse.resendConfigured ? (
@@ -986,7 +986,7 @@ export default function OperacionesPageContent() {
               </a>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
                   <TrendingUp className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -1031,7 +1031,7 @@ export default function OperacionesPageContent() {
 
             <section
               id="zona-rutina"
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm scroll-mt-24"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm scroll-mt-24"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
@@ -1066,7 +1066,7 @@ export default function OperacionesPageContent() {
               </ul>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
                   <Sparkles className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -1087,7 +1087,7 @@ export default function OperacionesPageContent() {
 
             <section
               id="zona-integridad"
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm scroll-mt-24"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm scroll-mt-24"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
@@ -1153,7 +1153,7 @@ export default function OperacionesPageContent() {
 
             <section
               id="zona-atajos"
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 md:p-6 shadow-sm scroll-mt-24"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm scroll-mt-24"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">

@@ -189,7 +189,7 @@ export default function AdminAnnouncementsPage() {
         </p>
       )}
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] overflow-hidden">
         {list.length === 0 ? (
           <p className="p-6 text-gray-500 dark:text-gray-400 text-sm">
             No hay avisos. Crea uno para que aparezca en la pestaña Avisos de la campana.
@@ -261,7 +261,7 @@ export default function AdminAnnouncementsPage() {
 
       {formOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-[#1a1a1a] p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               {editingId ? 'Editar aviso' : 'Nuevo aviso'}
             </h2>

@@ -498,7 +498,7 @@ export default function OfferModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="relative z-10 w-full max-w-2xl md:max-w-5xl lg:max-w-6xl max-h-[92vh] md:max-h-[85vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overscroll-contain touch-pan-y"
+          className="relative z-10 w-full max-w-2xl md:max-w-5xl lg:max-w-6xl max-h-[92vh] md:max-h-[85vh] overflow-hidden rounded-3xl bg-white dark:bg-[#141414] shadow-2xl flex flex-col overscroll-contain touch-pan-y"
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
@@ -512,7 +512,7 @@ export default function OfferModal({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1)); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
                   aria-label="Imagen anterior"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -520,7 +520,7 @@ export default function OfferModal({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1)); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
                   aria-label="Siguiente imagen"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -540,7 +540,7 @@ export default function OfferModal({
             )}
             <button
               onClick={handleFavoriteClick}
-              className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60 transition-all duration-200 hover:scale-105 active:scale-95"
+              className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-[#141414]/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60 transition-all duration-200 hover:scale-105 active:scale-95"
               aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
             >
               <Heart
@@ -551,7 +551,7 @@ export default function OfferModal({
             </button>
             <button
               onClick={onClose}
-              className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700 transition-all duration-200 hover:scale-105 active:scale-95"
+              className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-[#141414]/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700 transition-all duration-200 hover:scale-105 active:scale-95"
               aria-label="Cerrar"
             >
               <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
@@ -568,7 +568,7 @@ export default function OfferModal({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1)); }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
                     aria-label="Imagen anterior"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -576,7 +576,7 @@ export default function OfferModal({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1)); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
                     aria-label="Siguiente imagen"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -596,7 +596,7 @@ export default function OfferModal({
               )}
               <button
                 onClick={handleFavoriteClick}
-                className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60"
+                className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-[#141414]/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60"
                 aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
                 <Heart
@@ -607,7 +607,7 @@ export default function OfferModal({
               </button>
               <button
                 onClick={onClose}
-                className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700"
+                className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-[#141414]/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700"
                 aria-label="Cerrar"
               >
                 <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
@@ -707,7 +707,7 @@ export default function OfferModal({
               )}
 
               {(steps?.trim() || conditions?.trim() || (coupons?.trim() && !showCtaCouponChip)) && (
-                <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/50 p-4 md:p-5 space-y-5">
+                <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-[#1a1a1a]/50 p-4 md:p-5 space-y-5">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
                     Información adicional
                   </p>
@@ -765,7 +765,7 @@ export default function OfferModal({
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === 1
                         ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                        : 'bg-white/70 dark:bg-gray-800/70 text-gray-500 dark:text-gray-400'
+                        : 'bg-white/70 dark:bg-[#1a1a1a]/70 text-gray-500 dark:text-gray-400'
                     }`}
                   >
                     <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-purple-600 text-purple-600 dark:fill-purple-400 dark:text-purple-400' : ''}`} />
@@ -778,7 +778,7 @@ export default function OfferModal({
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === -1
                         ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
-                        : 'bg-white/70 dark:bg-gray-800/70 text-gray-500 dark:text-gray-400'
+                        : 'bg-white/70 dark:bg-[#1a1a1a]/70 text-gray-500 dark:text-gray-400'
                     }`}
                   >
                     <ThumbsDown className={`h-5 w-5 ${userVote === -1 ? 'fill-pink-600 text-pink-600 dark:fill-pink-400 dark:text-pink-400' : ''}`} />
@@ -830,7 +830,7 @@ export default function OfferModal({
                             <div className={`rounded-xl border p-4 ${
                               isOwn
                                 ? 'border-violet-300 dark:border-violet-600 bg-violet-50/60 dark:bg-violet-900/20'
-                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'
+                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1a1a]'
                             }`}>
                               <div className="mb-2 flex items-center gap-2">
                                 <p className={`text-sm font-medium ${isOwn ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>
@@ -882,7 +882,7 @@ export default function OfferModal({
                                   <div key={reply.id} className={`rounded-lg border p-3 ${
                                     isOwnReply
                                       ? 'border-violet-300 dark:border-violet-600 bg-violet-50/50 dark:bg-violet-900/15'
-                                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80'
+                                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-[#1a1a1a]/80'
                                   }`}>
                                     <div className="mb-1 flex items-center gap-2">
                                       <p className={`text-sm font-medium ${isOwnReply ? 'text-violet-700 dark:text-violet-300' : 'text-gray-900 dark:text-gray-100'}`}>{reply.author.username}</p>
@@ -930,7 +930,7 @@ export default function OfferModal({
                     </div>
 
                     {offerId && (
-                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
+                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4 space-y-3">
                         {replyingToId && (() => {
                           const replyingTo = comments.flatMap((c) => [c, ...(c.replies ?? [])]).find((x) => x.id === replyingToId);
                           return replyingTo ? (
@@ -1000,7 +1000,7 @@ export default function OfferModal({
           </div>
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 md:px-5 md:py-2 flex-shrink-0">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] px-4 py-3 md:px-5 md:py-2 flex-shrink-0">
             <div className="flex flex-wrap items-stretch gap-2 md:gap-3">
               <button
                 onClick={handleOutboundClick}
@@ -1079,7 +1079,7 @@ export default function OfferModal({
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.95, opacity: 0 }}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl p-6"
+                      className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1a1a1a] shadow-xl p-6"
                     >
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Reportar oferta</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">

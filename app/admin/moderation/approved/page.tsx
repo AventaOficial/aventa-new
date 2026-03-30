@@ -84,7 +84,7 @@ export default function ApprovedPage() {
             placeholder="Buscar por título, tienda o autor..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500"
+            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500"
           />
         </div>
         <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -95,7 +95,7 @@ export default function ApprovedPage() {
       {loading ? (
         <div className="text-gray-500 dark:text-gray-400 py-8">Cargando…</div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center text-gray-500 dark:text-gray-400">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-8 text-center text-gray-500 dark:text-gray-400">
           {offers.length === 0
             ? 'No hay ofertas aprobadas.'
             : 'No hay resultados para tu búsqueda.'}

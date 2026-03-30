@@ -186,7 +186,7 @@ export default function TeamPage() {
   const teamIds = new Set(team.map((m) => m.user_id));
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#141414] p-6">
       <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Equipo
       </h1>
@@ -195,7 +195,7 @@ export default function TeamPage() {
       </p>
 
       {/* Bloque: Agregar al equipo — buscar usuarios registrados y asignar rol */}
-      <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+      <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
           Agregar al equipo
         </h2>
@@ -207,7 +207,7 @@ export default function TeamPage() {
           placeholder="Buscar por nombre..."
           value={addSearch}
           onChange={(e) => setAddSearch(e.target.value)}
-          className="w-full max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 mb-3"
+          className="w-full max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 mb-3"
         />
         {searching && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Buscando…</p>}
         {searchResults.length > 0 && (
@@ -237,7 +237,7 @@ export default function TeamPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <select
                         id={`role-${u.user_id}`}
-                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs py-1.5 px-2"
+                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 text-xs py-1.5 px-2"
                         defaultValue="moderator"
                       >
                         {ADDABLE_ROLES.map((r) => (
@@ -273,11 +273,11 @@ export default function TeamPage() {
           placeholder="Buscar por nombre..."
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
-          className="w-full max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
+          className="w-full max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
         />
       </div>
 
-      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
@@ -340,7 +340,7 @@ export default function TeamPage() {
                         handleRoleChange(m.user_id, e.currentTarget.value as Role, m.role)
                       }
                       disabled={updating === m.user_id || m.role === 'owner'}
-                      className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
+                      className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
                     >
                       {ROLES.map((r) => (
                         <option key={r} value={r}>

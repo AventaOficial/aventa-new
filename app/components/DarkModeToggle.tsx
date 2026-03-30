@@ -20,7 +20,7 @@ export default function DarkModeToggle({ compact }: DarkModeToggleProps) {
         e.stopPropagation();
         toggleTheme();
       }}
-      className={`relative z-[100] flex ${size} items-center justify-center rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-[#E5E7EB] dark:border-gray-700 shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 pointer-events-auto`}
+      className={`relative z-[100] flex ${size} items-center justify-center rounded-full bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-sm border border-[#E5E7EB] dark:border-gray-700 shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 pointer-events-auto`}
       aria-label="Toggle dark mode"
     >
       {isDark ? (

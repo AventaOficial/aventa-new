@@ -621,9 +621,9 @@ export default function ActionBar() {
               exit={{ scale: 0.98, opacity: 0, y: 8 }}
               transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-7xl sm:rounded-3xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xl flex flex-col"
+              className="relative z-10 w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-7xl sm:rounded-3xl overflow-hidden bg-white dark:bg-[#141414] shadow-2xl flex flex-col"
             >
-              <div className="flex-shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5 border-b border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900">
+              <div className="flex-shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5 border-b border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-[#141414]">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
                     Subir oferta
@@ -644,9 +644,9 @@ export default function ActionBar() {
               </div>
 
               {!uploadLinkGatePassed ? (
-                <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white dark:bg-gray-900">
+                <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white dark:bg-[#141414]">
                   {urlParseLoading && (
-                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-6">
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 dark:bg-[#141414]/95 backdrop-blur-md px-6">
                       <Loader2 className="h-12 w-12 animate-spin text-violet-600 dark:text-violet-400" aria-hidden />
                       <p className="mt-5 text-sm font-medium text-gray-700 dark:text-gray-300 text-center max-w-xs">
                         Obteniendo datos de la oferta…
@@ -676,7 +676,7 @@ export default function ActionBar() {
                           value={formData.offer_url}
                           onChange={(e) => handleInputChange('offer_url', e.target.value)}
                           placeholder="https://…"
-                          className="w-full rounded-2xl border-2 border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-4 text-[16px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
+                          className="w-full rounded-2xl border-2 border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-[#1a1a1a]/50 px-4 py-4 text-[16px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                           autoComplete="url"
                           inputMode="url"
                         />
@@ -723,9 +723,9 @@ export default function ActionBar() {
                 </button>
               </div>
 
-              <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+              <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden bg-white dark:bg-[#141414]">
                 <div
-                  className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-4 sm:p-5 md:p-6 space-y-3 min-w-0 ${
+                  className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-4 sm:p-5 md:p-6 space-y-3 min-w-0 bg-white dark:bg-[#141414] ${
                     mobileTab !== 'form' ? 'hidden md:block' : ''
                   }`}
                 >
@@ -744,7 +744,7 @@ export default function ActionBar() {
                       value={formData.offer_url}
                       onChange={(e) => handleInputChange('offer_url', e.target.value)}
                       placeholder="https://…"
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                     />
                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-snug">
                       Puedes pegar otro enlace aquí si hace falta; volvemos a intentar obtener datos.
@@ -760,7 +760,7 @@ export default function ActionBar() {
                         value={formData.title}
                         onChange={(e) => handleInputChange('title', e.target.value)}
                       placeholder="Ej: iPhone 15 Pro Max 256GB"
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                       />
                     </div>
 
@@ -805,7 +805,7 @@ export default function ActionBar() {
                         value={formData.originalPrice}
                         onChange={(e) => handleInputChange('originalPrice', e.target.value)}
                         placeholder="$0"
-                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                       />
                     </div>
                     {hasDiscount && (
@@ -821,7 +821,7 @@ export default function ActionBar() {
                           value={formData.discountPrice}
                           onChange={(e) => handleInputChange('discountPrice', e.target.value)}
                           placeholder="$0"
-                          className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                          className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                         />
                       </div>
                     )}
@@ -834,7 +834,7 @@ export default function ActionBar() {
                     <select
                       value={formData.category}
                       onChange={(e) => handleInputChange('category', e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     >
                       <option value="">Selecciona una categoría</option>
                       {ALL_CATEGORIES.map((c) => (
@@ -852,7 +852,7 @@ export default function ActionBar() {
                       value={formData.store}
                       onChange={(e) => handleInputChange('store', e.target.value)}
                       placeholder="Ej: Tienda X, Tienda Y, etc."
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     />
                   </div>
 
@@ -908,7 +908,7 @@ export default function ActionBar() {
                       onChange={(e) => handleInputChange('description', e.target.value)}
                       placeholder="Describe brevemente la oferta..."
                       rows={3}
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
                     />
                     <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                       En la tarjeta del home (escritorio) se muestran los primeros {OFFER_CARD_DESCRIPTION_MAX_LENGTH} caracteres.
@@ -927,7 +927,7 @@ export default function ActionBar() {
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Fotos de la oferta
                     </label>
-                    <label className="block w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 cursor-pointer">
+                    <label className="block w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-[#1a1a1a]/50 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 cursor-pointer">
                       <input
                         type="file"
                         accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -1001,7 +1001,7 @@ export default function ActionBar() {
                           <select
                             value={msiMonths}
                             onChange={(e) => setMsiMonths(parseInt(e.target.value, 10) || null)}
-                            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                           >
                             {[3, 6, 12, 18, 24].map((n) => (
                               <option key={n} value={n}>{n} MSI</option>
@@ -1023,7 +1023,7 @@ export default function ActionBar() {
                 <div className="border-t border-gray-200/80 dark:border-gray-700/80 pt-5 mt-2">
                   <button
                     onClick={() => setShowOptionalSection(!showOptionalSection)}
-                    className="flex w-full items-center justify-between rounded-xl bg-gray-50/80 dark:bg-gray-800/50 px-4 py-3.5 transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    className="flex w-full items-center justify-between rounded-xl bg-gray-50/80 dark:bg-[#1a1a1a]/50 px-4 py-3.5 transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700/50"
                   >
                     <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Información adicional (opcional)
@@ -1066,7 +1066,7 @@ export default function ActionBar() {
                                     setStepsList(next);
                                   }}
                                   placeholder={`Descripción del paso ${i + 1}`}
-                                  className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-3 py-2.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                                  className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-3 py-2.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                                 />
                                 {stepsList.length > 1 && (
                                   <button
@@ -1102,7 +1102,7 @@ export default function ActionBar() {
                             onChange={(e) => handleInputChange('conditions', e.target.value)}
                             placeholder="Ej: Válido hasta el 31 de diciembre, solo en línea..."
                             rows={3}
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
                           />
                         </div>
 
@@ -1115,7 +1115,7 @@ export default function ActionBar() {
                             value={formData.coupons}
                             onChange={(e) => handleInputChange('coupons', e.target.value)}
                             placeholder="Ej: DESCUENTO20"
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                           />
                         </div>
 
@@ -1126,7 +1126,7 @@ export default function ActionBar() {
                           <select
                             value={formData.bank_coupon}
                             onChange={(e) => handleInputChange('bank_coupon', e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                           >
                             <option value="">Sin cupón bancario</option>
                             {BANK_COUPON_OPTIONS.map((b) => (
@@ -1144,7 +1144,7 @@ export default function ActionBar() {
                             value={formData.tags}
                             onChange={(e) => handleInputChange('tags', e.target.value)}
                             placeholder="Ej: playstation, amazon, smart-tv"
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                           />
                           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             Separa por comas. No reemplaza la categoría macro.
@@ -1161,7 +1161,7 @@ export default function ActionBar() {
                             placeholder="Notas para el equipo de moderación..."
                             maxLength={500}
                             rows={2}
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
+                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-colors duration-200"
                           />
                           {formData.moderator_comment.length > 0 && (
                             <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1183,7 +1183,7 @@ export default function ActionBar() {
                 </div>
 
                 <div
-                  className={`flex-1 md:flex-[0_0_55%] lg:flex-[0_0_58%] flex flex-col min-w-0 overflow-y-auto bg-[#F5F5F7] dark:bg-[#1d1d1f] md:border-l border-gray-200/80 dark:border-gray-700/80 ${
+                  className={`flex-1 md:flex-[0_0_55%] lg:flex-[0_0_58%] flex flex-col min-w-0 overflow-y-auto bg-[#F5F5F7] dark:bg-[#141414] md:border-l border-gray-200/80 dark:border-gray-700/80 ${
                     mobileTab !== 'preview' ? 'hidden md:flex' : 'flex'
                   }`}
                 >
@@ -1299,9 +1299,9 @@ export default function ActionBar() {
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.08 }}
-                              className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 overflow-hidden shadow-sm"
+                              className="rounded-2xl bg-white dark:bg-[#141414] border border-gray-200/80 dark:border-gray-700/80 overflow-hidden shadow-sm"
                             >
-                              <div className="h-32 md:h-40 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                              <div className="h-32 md:h-40 bg-gray-100 dark:bg-[#1a1a1a] flex items-center justify-center">
                                 {imageUrl ? (
                                   <img src={imageUrl} alt="" className="max-h-full w-auto object-contain" />
                                 ) : (
@@ -1340,7 +1340,7 @@ export default function ActionBar() {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="flex flex-col items-center justify-center min-h-[280px] rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-white/40 dark:bg-gray-800/30"
+                          className="flex flex-col items-center justify-center min-h-[280px] rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-white/40 dark:bg-[#1a1a1a]/30"
                         >
                           <Sparkles className="h-14 w-14 text-gray-300 dark:text-gray-500 mb-4" />
                           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 text-center px-6">
@@ -1358,11 +1358,11 @@ export default function ActionBar() {
                 </>
               )}
 
-              <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 px-5 sm:px-6 md:px-8 py-4 sm:py-5">
+              <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-[#141414] px-5 sm:px-6 md:px-8 py-4 sm:py-5">
                 <div className="flex gap-3 sm:gap-4">
                   <button
                     onClick={handleCancel}
-                    className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-5 py-3.5 text-[15px] font-semibold text-gray-700 dark:text-gray-300 transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 active:scale-[0.99]"
+                    className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-5 py-3.5 text-[15px] font-semibold text-gray-700 dark:text-gray-300 transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 active:scale-[0.99]"
                   >
                     Cancelar
                   </button>
@@ -1400,7 +1400,7 @@ export default function ActionBar() {
             aria-modal="true"
             aria-labelledby="submit-thanks-title"
           >
-            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 md:p-8 text-center">
+            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#141414] border border-gray-200 dark:border-gray-700 shadow-2xl p-6 md:p-8 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
                 <Sparkles className="h-7 w-7 text-violet-600 dark:text-violet-400" aria-hidden />
               </div>

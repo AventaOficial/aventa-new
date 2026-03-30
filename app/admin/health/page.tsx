@@ -135,7 +135,7 @@ export default function HealthPage() {
   const pulse = visibility?.areasPulse;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#141414] py-12 px-4">
       <div className="max-w-4xl mx-auto space-y-10">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Salud del sistema</h1>
@@ -176,7 +176,7 @@ export default function HealthPage() {
                     key={a.key}
                     className={`rounded-xl border p-4 ${
                       a.status === 'ok'
-                        ? 'border-emerald-200 dark:border-emerald-900/50 bg-white dark:bg-gray-800/80'
+                        ? 'border-emerald-200 dark:border-emerald-900/50 bg-white dark:bg-[#1a1a1a]/80'
                         : 'border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20'
                     }`}
                   >
@@ -209,7 +209,7 @@ export default function HealthPage() {
         </section>
 
         {/* Detalle técnico + errores cliente */}
-        <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm">
+        <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
             Resumen técnico y errores del navegador
           </h2>
@@ -284,7 +284,7 @@ export default function HealthPage() {
                     {visibility.recentErrors.map((e, i) => (
                       <li
                         key={`${e.at}-${e.source}-${i}`}
-                        className="rounded-lg bg-gray-50 dark:bg-gray-900/50 px-3 py-2 border border-gray-100 dark:border-gray-700"
+                        className="rounded-lg bg-gray-50 dark:bg-[#141414]/50 px-3 py-2 border border-gray-100 dark:border-gray-700"
                       >
                         <span className="text-gray-500 dark:text-gray-400 text-xs">
                           {new Date(e.at).toLocaleString('es-MX')}
@@ -322,7 +322,7 @@ export default function HealthPage() {
           {loading ? (
             <p className="text-gray-500 dark:text-gray-400">Cargando…</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a]">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead>
                   <tr>

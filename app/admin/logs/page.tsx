@@ -99,15 +99,15 @@ export default function LogsPage() {
         Cambios de estado en moderación, penalizaciones y ajustes (paginado).
       </p>
       {logs.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-8 text-center">
           <p className="text-gray-500 dark:text-gray-400">No hay registros aún.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1a1a]/50">
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Fecha</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Quién</th>
                   <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Acción</th>
@@ -156,7 +156,7 @@ export default function LogsPage() {
             </table>
           </div>
           {total > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-[#1a1a1a]/50">
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Página {page} de {Math.max(1, Math.ceil(total / pageLimit))} · {total} registros
               </p>

@@ -106,7 +106,7 @@ export default function BansPage() {
         Usuarios baneados no pueden publicar comentarios ni ofertas. Para banear necesitas el UUID del usuario (desde Logs o base de datos).
       </p>
 
-      <form onSubmit={handleBan} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 mb-6 space-y-3 max-w-md">
+      <form onSubmit={handleBan} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4 mb-6 space-y-3 max-w-md">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">User ID (UUID)</label>
           <input
@@ -136,7 +136,7 @@ export default function BansPage() {
         </button>
       </form>
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] overflow-hidden">
         {loading ? (
           <p className="p-6 text-sm text-gray-500 dark:text-gray-400">Cargando baneos…</p>
         ) : bans.length === 0 ? (

@@ -149,14 +149,14 @@ export default function ProfilePage() {
       <ClientLayout>
         <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
           <section className="container mx-auto px-4 md:px-8 py-12 max-w-5xl">
-            <div className="rounded-3xl bg-white dark:bg-gray-900 p-6 shadow-lg mb-10 opacity-70 animate-pulse">
+            <div className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-10 opacity-70 animate-pulse">
               <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
                 <div className="h-20 w-20 shrink-0 rounded-xl bg-gray-200 dark:bg-gray-700" />
                 <div className="h-8 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
               </div>
             </div>
             <div className="mb-8">
-              <div className="h-6 w-40 rounded-xl bg-gray-100 dark:bg-gray-800 mb-4 opacity-70 animate-pulse" />
+              <div className="h-6 w-40 rounded-xl bg-gray-100 dark:bg-[#1a1a1a] mb-4 opacity-70 animate-pulse" />
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <motion.div
@@ -226,7 +226,7 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="rounded-3xl bg-white dark:bg-gray-900 p-6 shadow-lg mb-10"
+            className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-10"
           >
             <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">

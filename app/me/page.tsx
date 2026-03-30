@@ -227,10 +227,10 @@ function MePageInner() {
       <ClientLayout>
         <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
           <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
-            <div className="h-20 rounded-3xl bg-gray-100 dark:bg-gray-800/50 mb-8 opacity-70 animate-pulse" />
+            <div className="h-20 rounded-3xl bg-gray-100 dark:bg-[#1a1a1a]/50 mb-8 opacity-70 animate-pulse" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-2xl bg-gray-100 dark:bg-gray-800/50 opacity-70 animate-pulse" />
+                <div key={i} className="h-24 rounded-2xl bg-gray-100 dark:bg-[#1a1a1a]/50 opacity-70 animate-pulse" />
               ))}
             </div>
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Tus ofertas</h2>
@@ -266,7 +266,7 @@ function MePageInner() {
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
         <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
-          <div className="rounded-3xl bg-white dark:bg-gray-900 p-6 shadow-lg mb-8">
+          <div className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-8">
             <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
               <div className="flex flex-col items-center gap-2 shrink-0">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">
@@ -316,7 +316,7 @@ function MePageInner() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Ofertas publicadas
               </p>
@@ -324,7 +324,7 @@ function MePageInner() {
                 {metrics.totalOffers}
               </p>
             </div>
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Votos positivos
               </p>
@@ -332,7 +332,7 @@ function MePageInner() {
                 {metrics.positiveVotesTotal}
               </p>
             </div>
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Comentarios
               </p>
@@ -343,7 +343,7 @@ function MePageInner() {
                 En tus ofertas (aprobados).
               </p>
             </div>
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Cazadores ayudados
               </p>

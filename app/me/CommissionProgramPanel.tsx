@@ -88,9 +88,9 @@ export default function CommissionProgramPanel() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 animate-pulse">
+      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 animate-pulse">
         <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-3" />
-        <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded" />
+        <div className="h-3 w-full bg-gray-100 dark:bg-[#1a1a1a] rounded" />
       </div>
     );
   }
@@ -165,14 +165,14 @@ export default function CommissionProgramPanel() {
             Elegible pendiente de activación
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 font-medium text-gray-700 dark:text-gray-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] px-2 py-0.5 font-medium text-gray-700 dark:text-gray-300">
             Te faltan {missing} ofertas calificadas
           </span>
         )}
       </div>
 
       {expanded ? (
-        <div className="mt-3 space-y-3 rounded-lg border border-violet-200/70 dark:border-violet-800/40 bg-white/70 dark:bg-gray-900/50 p-3">
+        <div className="mt-3 space-y-3 rounded-lg border border-violet-200/70 dark:border-violet-800/40 bg-white/70 dark:bg-[#141414]/50 p-3">
           <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
             Regla: necesitas {data.requiredOffers} ofertas aprobadas/publicadas y cada una con al menos {data.voteThreshold} votos positivos.
             Subir más ofertas sin ese umbral por oferta no activa el programa.
@@ -193,7 +193,7 @@ export default function CommissionProgramPanel() {
           ) : null}
 
           {data.eligible && !hasAccepted ? (
-            <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 p-3 space-y-2">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-[#1a1a1a]/80 p-3 space-y-2">
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 Cumples el requisito. Para activar participación, acepta términos del programa (sección 8 de{' '}
                 <Link href="/terms" className="font-semibold text-violet-600 dark:text-violet-400 hover:underline">

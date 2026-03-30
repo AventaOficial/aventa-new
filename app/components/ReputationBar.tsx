@@ -24,7 +24,7 @@ export default function ReputationBar({ level, score, className = '' }: Reputati
 
   return (
     <>
-      <div className={`rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 p-3 ${className}`}>
+      <div className={`rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1a1a]/80 p-3 ${className}`}>
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             Nivel {level} – {label}
@@ -50,7 +50,7 @@ export default function ReputationBar({ level, score, className = '' }: Reputati
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowHelp(false)}>
           <div
-            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl max-w-md w-full p-5 border border-gray-200 dark:border-gray-700"
+            className="bg-white dark:bg-[#141414] rounded-2xl shadow-xl max-w-md w-full p-5 border border-gray-200 dark:border-gray-700"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

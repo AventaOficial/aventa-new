@@ -398,7 +398,7 @@ export default function DescubreGuide() {
                       type="button"
                       onClick={onPrev}
                       disabled={activeIndex <= 0}
-                      className="order-2 inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-gray-200/90 bg-white/60 px-5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50/90 dark:border-gray-600/70 dark:bg-gray-800/50 dark:text-gray-200 dark:hover:bg-gray-800/80 sm:order-1 disabled:pointer-events-none disabled:opacity-35"
+                      className="order-2 inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-gray-200/90 bg-white/60 px-5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50/90 dark:border-gray-600/70 dark:bg-[#1a1a1a]/50 dark:text-gray-200 dark:hover:bg-gray-800/80 sm:order-1 disabled:pointer-events-none disabled:opacity-35"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.97 }}
                       transition={{ duration: 0.2, ease: EASE }}

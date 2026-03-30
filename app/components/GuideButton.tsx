@@ -18,7 +18,7 @@ export default function GuideButton({ compact }: GuideButtonProps) {
         e.stopPropagation();
         openGuide();
       }}
-      className={`relative z-[100] flex ${size} items-center justify-center rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-[#E5E7EB] dark:border-gray-700 shadow-sm transition-transform duration-200 active:scale-95 dark:shadow-none pointer-events-auto`}
+      className={`relative z-[100] flex ${size} items-center justify-center rounded-full bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-sm border border-[#E5E7EB] dark:border-gray-700 shadow-sm transition-transform duration-200 active:scale-95 dark:shadow-none pointer-events-auto`}
       aria-label="Abrir guía"
     >
       <HelpCircle className={`${iconSize} text-gray-700 dark:text-gray-300 pointer-events-none`} />

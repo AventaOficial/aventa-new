@@ -253,7 +253,7 @@ export default function MetricsPage() {
 
       {/* Bloque 1: Lo más importante — comunidad */}
       {productMetrics && (
-        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
             Resumen de la comunidad
           </h2>
@@ -315,7 +315,7 @@ export default function MetricsPage() {
       )}
 
       {/* Bloque 2: Actividad de ofertas */}
-      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Actividad de ofertas
@@ -325,7 +325,7 @@ export default function MetricsPage() {
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
               disabled={loading}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
             >
               {PERIOD_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -365,7 +365,7 @@ export default function MetricsPage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 px-3 py-1.5 text-sm"
           >
             <option value="outbound">Clics a tienda</option>
             <option value="views">Vistas</option>
@@ -453,7 +453,7 @@ export default function MetricsPage() {
       </section>
 
       {/* Opcional: Afiliados y líderes ML */}
-      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-6">
         <button
           type="button"
           onClick={() => setShowExtra(!showExtra)}
@@ -472,7 +472,7 @@ export default function MetricsPage() {
                 onChange={(e) => setMlLeadersPaste(e.target.value)}
                 onBlur={parseMlLeaders}
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm"
               />
               <button type="button" onClick={parseMlLeaders} className="mt-2 rounded-lg bg-amber-600 text-white px-3 py-1.5 text-sm">
                 Aplicar

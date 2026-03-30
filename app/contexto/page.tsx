@@ -74,9 +74,9 @@ function ContextoPageInner() {
             {OWNER_CONTEXT_SECTIONS.map((section) => (
               <section
                 key={section.id}
-                className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 overflow-hidden shadow-sm"
+                className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a]/80 overflow-hidden shadow-sm"
               >
-                <div className="px-4 py-4 md:px-5 md:py-5 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/80 dark:bg-gray-900/40">
+                <div className="px-4 py-4 md:px-5 md:py-5 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/80 dark:bg-[#141414]/40">
                   <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
                     {section.title}
                   </h2>

@@ -259,7 +259,7 @@ function SettingsPageInner() {
     return (
       <ClientLayout>
         <div className="mx-auto max-w-xl px-4 py-12">
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-8 shadow-sm animate-pulse">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-8 shadow-sm animate-pulse">
             <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg mb-4" />
             <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-6" />
             <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl" />
@@ -280,8 +280,8 @@ function SettingsPageInner() {
             Gestiona tu perfil y preferencias
           </p>
 
-          <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+          <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-pink-500">
                   <User className="h-5 w-5 text-white" />
@@ -305,7 +305,7 @@ function SettingsPageInner() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors disabled:opacity-60"
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-4 py-3 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors disabled:opacity-60"
                   placeholder="Tu nombre en AVENTA"
                   disabled={saving || !canChangeName()}
                 />
@@ -336,8 +336,8 @@ function SettingsPageInner() {
             </form>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
                   <Bell className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -374,8 +374,8 @@ function SettingsPageInner() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
                   <Tag className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -397,7 +397,7 @@ function SettingsPageInner() {
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
                   placeholder="Buscar categoría..."
-                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 pl-9 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors"
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] pl-9 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors"
                   aria-label="Buscar categoría"
                 />
               </div>
@@ -420,7 +420,7 @@ function SettingsPageInner() {
                               rounded-full px-4 py-2 text-sm font-medium transition-all
                               ${isSelected
                                 ? 'bg-violet-600 dark:bg-violet-500 text-white'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                               }
                             `}
                           >
@@ -458,8 +458,8 @@ function SettingsPageInner() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-200 dark:bg-gray-700">
                   <Lock className="h-5 w-5 text-gray-600 dark:text-gray-300" />
@@ -483,7 +483,7 @@ function SettingsPageInner() {
                   <button
                     type="button"
                     onClick={handlePasswordReset}
-                    className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-3 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-6 py-3 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     Enviar enlace para restablecer
                   </button>
@@ -492,8 +492,8 @@ function SettingsPageInner() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden md:hidden">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+          <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden md:hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
                   <Smartphone className="h-5 w-5 text-violet-600 dark:text-violet-400" />

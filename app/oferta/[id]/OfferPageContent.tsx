@@ -421,9 +421,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           </span>
         </nav>
 
-        <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="rounded-2xl bg-white dark:bg-[#141414] border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="flex flex-col md:flex-row">
-            <div className="relative md:w-[45%] aspect-square md:aspect-auto md:min-h-[400px] bg-gray-50 dark:bg-gray-800 flex items-center justify-center p-4 overflow-hidden">
+            <div className="relative md:w-[45%] aspect-square md:aspect-auto md:min-h-[400px] bg-gray-50 dark:bg-[#1a1a1a] flex items-center justify-center p-4 overflow-hidden">
               <Image
                 src={currentImage}
                 alt=""
@@ -438,7 +438,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <button
                     type="button"
                     onClick={() => setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1))}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
                     aria-label="Foto anterior"
                   >
                     <span className="sr-only">Anterior</span>
@@ -447,7 +447,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <button
                     type="button"
                     onClick={() => setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1))}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-gray-900/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
                     aria-label="Foto siguiente"
                   >
                     <span className="sr-only">Siguiente</span>
@@ -469,7 +469,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <button
                 type="button"
                 onClick={handleFavoriteClick}
-                className="absolute right-3 top-3 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-2.5 shadow border border-gray-200 dark:border-gray-700 z-10"
+                className="absolute right-3 top-3 rounded-full bg-white/80 dark:bg-[#141414]/80 backdrop-blur-sm p-2.5 shadow border border-gray-200 dark:border-gray-700 z-10"
                 aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
                 <Heart className={`h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400'}`} />
@@ -594,7 +594,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 {offer.storeSlug && offer.storeName && (
                   <Link
                     href={`/tienda/${offer.storeSlug}`}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                   >
                     {offer.storeName}
                   </Link>
@@ -638,7 +638,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 <button
                   type="button"
                   onClick={() => setShowShareMenu((v) => !v)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
                   aria-label="Compartir"
                   aria-expanded={showShareMenu}
                 >
@@ -646,7 +646,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   Compartir
                 </button>
                 {showShareMenu && (
-                  <div className="absolute left-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg py-2">
+                  <div className="absolute left-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] shadow-lg py-2">
                     {(() => {
                       const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
                       const shareText = generateDealShareText(
@@ -787,7 +787,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                         className={`rounded-xl border p-4 ${
                           isOwn
                             ? 'border-violet-300 dark:border-violet-600 bg-violet-50/60 dark:bg-violet-900/20'
-                            : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'
+                            : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1a1a]'
                         }`}
                       >
                         <div className="mb-2 flex items-center gap-2">
@@ -831,7 +831,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                                 className={`rounded-lg border p-3 ${
                                   isOwnReply
                                     ? 'border-violet-300 dark:border-violet-600 bg-violet-50/50 dark:bg-violet-900/15'
-                                    : 'border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80'
+                                    : 'border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-[#1a1a1a]/80'
                                 }`}
                               >
                                 <div className="mb-1 flex items-center gap-2">
@@ -872,7 +872,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               </div>
             )}
 
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4 space-y-3">
               {replyingToId && (() => {
                 const replyingTo = comments.flatMap((c) => [c, ...(c.replies ?? [])]).find((x) => x.id === replyingToId);
                 return replyingTo ? (
@@ -925,7 +925,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
         >
           <div
             ref={reportModalRef}
-            className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl p-6 border border-gray-200 dark:border-gray-700"
+            className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1a1a1a] shadow-xl p-6 border border-gray-200 dark:border-gray-700"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="report-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">

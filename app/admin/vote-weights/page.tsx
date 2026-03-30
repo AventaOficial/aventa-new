@@ -107,7 +107,7 @@ export default function VoteWeightsPage() {
       </p>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4">
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -115,7 +115,7 @@ export default function VoteWeightsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre o UUID…"
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 pl-9 pr-3 py-2 text-sm"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#141414] pl-9 pr-3 py-2 text-sm"
             />
           </div>
           <div className="max-h-[min(420px,50vh)] overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
@@ -141,7 +141,7 @@ export default function VoteWeightsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4 space-y-3">
           {!selectedId ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">Selecciona un usuario a la izquierda.</p>
           ) : (
@@ -157,7 +157,7 @@ export default function VoteWeightsPage() {
                 value={multiplier}
                 onChange={(e) => setMultiplier(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#141414] px-3 py-2 text-sm"
               />
               <button
                 type="button"

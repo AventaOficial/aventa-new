@@ -284,7 +284,7 @@ export default function ModerationPage() {
           Prioriza coherencia precio–enlace, duplicados y categoría. Usa filtros, vista previa e historial por tarjeta.
           Los atajos de rechazo rellenan un motivo claro para el autor (siempre editable).
         </p>
-        <div className="mt-4 rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/70 dark:bg-gray-900/50 px-4 py-3 text-left">
+        <div className="mt-4 rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/70 dark:bg-[#141414]/50 px-4 py-3 text-left">
           <p className="text-xs font-semibold text-violet-800 dark:text-violet-200 mb-2">Checklist rápido (calidad y “vida” de la oferta)</p>
           <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1.5 list-disc list-inside leading-relaxed">
             <li>
@@ -306,7 +306,7 @@ export default function ModerationPage() {
         </div>
       </header>
 
-      <div className="mb-5 space-y-3 rounded-xl border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-4 shadow-sm">
+      <div className="mb-5 space-y-3 rounded-xl border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-[#141414]/90 backdrop-blur-sm p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-500/80" />
@@ -315,13 +315,13 @@ export default function ModerationPage() {
               placeholder="Buscar por título, tienda o autor..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20 outline-none transition-shadow"
+              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-[#1a1a1a]/80 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20 outline-none transition-shadow"
             />
           </div>
           <select
             value={storeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
-            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[160px]"
+            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[160px]"
             title="Filtrar por tienda"
           >
             <option value="">Todas las tiendas</option>
@@ -332,7 +332,7 @@ export default function ModerationPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[140px]"
+            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[140px]"
             title="Filtrar por categoría"
           >
             {CATEGORY_OPTIONS.map(({ value, label }) => (
@@ -345,14 +345,14 @@ export default function ModerationPage() {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2"
                 title="Desde fecha"
               />
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-3 py-2"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2"
                 title="Hasta fecha"
               />
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
@@ -418,7 +418,7 @@ export default function ModerationPage() {
 
         {showBatchReject && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !batchActing && setShowBatchReject(false)}>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Rechazar {selectedIds.size} ofertas</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mismo motivo para todas (obligatorio). Atajos:</p>
               <div className="flex flex-wrap gap-1.5 mb-3">

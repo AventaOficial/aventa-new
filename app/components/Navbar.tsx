@@ -514,7 +514,7 @@ export default function Navbar() {
                                 className={`block rounded-2xl pl-3.5 pr-12 py-3.5 text-base border transition-all shadow-sm ${
                                   isUnread
                                     ? 'border-sky-300/70 dark:border-sky-600/50 bg-gradient-to-br from-sky-50/95 via-white to-violet-50/40 dark:from-sky-950/40 dark:via-[#141414] dark:to-violet-950/20 text-[#1d1d1f] dark:text-[#fafafa]'
-                                    : 'border-gray-200/90 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-gray-50/60 dark:bg-gray-800/40'
+                                    : 'border-gray-200/90 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-gray-50/60 dark:bg-[#1a1a1a]/40'
                                 }`}
                               >
                                 <div className="flex gap-2.5 items-start">
@@ -561,7 +561,7 @@ export default function Navbar() {
                 </>
               )}
               {notifTab === 'explorar' && (
-                <div className="rounded-2xl border border-[#e5e5e7] dark:border-[#333] bg-gray-50/80 dark:bg-gray-800/40 p-4">
+                <div className="rounded-2xl border border-[#e5e5e7] dark:border-[#333] bg-gray-50/80 dark:bg-[#1a1a1a]/40 p-4">
                   <div className="flex gap-3 items-start">
                     <Compass className="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-400 mt-0.5" aria-hidden />
                     <div className="min-w-0">

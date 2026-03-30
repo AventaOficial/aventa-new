@@ -137,7 +137,7 @@ export default function ReportsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="appearance-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 pl-4 pr-10 py-2 text-sm text-gray-900 dark:text-gray-100"
+            className="appearance-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] pl-4 pr-10 py-2 text-sm text-gray-900 dark:text-gray-100"
           >
             <option value="pending">Pendientes</option>
             <option value="reviewed">Revisados</option>
@@ -154,7 +154,7 @@ export default function ReportsPage() {
       {loading ? (
         <div className="text-gray-500 dark:text-gray-400 py-8">Cargando…</div>
       ) : reports.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-8 text-center">
           <Flag className="h-12 w-12 text-gray-300 dark:text-gray-500 mx-auto mb-3" />
           <p className="text-gray-500 dark:text-gray-400">
             No hay reportes {statusFilter !== 'all' ? `con estado "${statusFilter}"` : ''}.
@@ -165,7 +165,7 @@ export default function ReportsPage() {
           {reports.map((r) => (
             <li
               key={r.id}
-              className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 md:p-5"
+              className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4 md:p-5"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="min-w-0 flex-1">
@@ -251,7 +251,7 @@ export default function ReportsPage() {
             onClick={() => { setPanelOfferId(null); setPanelOffer(null); }}
             aria-hidden
           />
-          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white dark:bg-gray-800 shadow-xl flex flex-col">
+          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white dark:bg-[#1a1a1a] shadow-xl flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Vista previa de la oferta</h3>
               <button
