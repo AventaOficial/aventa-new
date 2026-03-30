@@ -1,6 +1,7 @@
 -- Marca la primera vez que el usuario guarda su nombre desde Configuración.
 -- Sin esto, display_name_updated_at con DEFAULT now() en inserts bloqueaba el primer cambio 14 días.
--- Ejecutar en Supabase SQL Editor.
+-- Fuente única en app: /settings lee y escribe solo esta columna (no user_metadata).
+-- Ejecutar en Supabase SQL Editor antes de depender de Configuración → nombre visible.
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS name_saved_in_settings_at timestamptz;

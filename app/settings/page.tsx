@@ -13,13 +13,22 @@ import { notifyUserError } from '@/lib/utils/handleError';
 
 const DAYS_LIMIT = 14;
 
+/** Quita la marca duplicada en Auth; la fuente de verdad es profiles.name_saved_in_settings_at. */
+async function clearNameSavedInAuthMetadata(supabase: ReturnType<typeof createClient>): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.user_metadata || !('name_saved_in_settings_at' in user.user_metadata)) return;
+  await supabase.auth.updateUser({
+    data: { name_saved_in_settings_at: null },
+  });
+}
+
 function SettingsPageInner() {
   const router = useRouter();
   const { resetPassword } = useAuth();
   const { showToast } = useUI();
   const [displayName, setDisplayName] = useState('');
   const [displayNameUpdatedAt, setDisplayNameUpdatedAt] = useState<string | null>(null);
-  /** Si es null, el usuario aún no guardó nombre desde Configuración → cambio libre (tras migración SQL). */
+  /** Si es null, aún no guardó nombre desde Configuración → cambio libre. Fuente única: profiles.name_saved_in_settings_at. */
   const [nameSavedInSettingsAt, setNameSavedInSettingsAt] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -72,11 +81,24 @@ function SettingsPageInner() {
         setLoading(false);
         return;
       }
+      let nameSaved =
+        (profile as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ?? null;
+      const meta = user.user_metadata as { name_saved_in_settings_at?: string } | null | undefined;
+      const fromMeta =
+        typeof meta?.name_saved_in_settings_at === 'string' ? meta.name_saved_in_settings_at : null;
+      if (!nameSaved && fromMeta) {
+        const { error: syncErr } = await supabase
+          .from('profiles')
+          .update({ name_saved_in_settings_at: fromMeta })
+          .eq('id', user.id);
+        if (!syncErr) {
+          nameSaved = fromMeta;
+          await clearNameSavedInAuthMetadata(supabase);
+        }
+      }
       setDisplayName(profile?.display_name ?? '');
       setDisplayNameUpdatedAt((profile as { display_name_updated_at?: string } | null)?.display_name_updated_at ?? null);
-      setNameSavedInSettingsAt(
-        (profile as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ?? null
-      );
+      setNameSavedInSettingsAt(nameSaved);
       setLoading(false);
     };
     loadProfile();
@@ -191,6 +213,7 @@ function SettingsPageInner() {
       showToast?.('Escribe un nombre visible.');
       return;
     }
+    const wasFirstSettingsNameSave = !nameSavedInSettingsAt;
     const updatedAt = new Date().toISOString();
     const slug = profileSlugFromDisplayName(trimmed, user.id);
     const updatePayload: Record<string, string> = {
@@ -215,11 +238,13 @@ function SettingsPageInner() {
     await supabase.auth.updateUser({
       data: { display_name: trimmed, full_name: trimmed },
     });
+    if (wasFirstSettingsNameSave) {
+      await clearNameSavedInAuthMetadata(supabase);
+    }
     setDisplayName(trimmed);
     setDisplayNameUpdatedAt(updated?.display_name_updated_at ?? updatedAt);
     setNameSavedInSettingsAt(
-      (updated as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ??
-        updatedAt
+      (updated as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ?? null
     );
     setSuccessMessage('Cambios guardados');
   };

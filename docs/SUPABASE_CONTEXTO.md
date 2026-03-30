@@ -28,6 +28,15 @@ Referencia del esquema y objetos que usa el proyecto. El “Copy as SQL” del D
 
 Vistas/materialized que usa el proyecto (entre otras): `offer_performance_metrics` (métricas por oferta desde offer_events + offer_votes), `ofertas_ranked_general` (feed ranking).
 
+### Convenciones (fuente de verdad y tablas aparcadas)
+
+| Tema | Convención |
+|------|------------|
+| **Nombre desde /settings** | `profiles.name_saved_in_settings_at` + `display_name_updated_at` para el límite de 14 días. La app no mantiene esa marca en `auth.user_metadata` (si quedaba de versiones anteriores, se copia a `profiles` y se borra en Auth). Migración: `docs/supabase-migrations/profiles_name_saved_in_settings_at.sql`. |
+| **Votos** | El código usa **`offer_votes.value`** (pesos según reputación). La columna **`vote`** (smallint) se considera legado; no usar en código nuevo. |
+| **`communities` / `community_offers`** | Existen en `public`; la web redirige `/communities` y no hay flujo producto. No construir features nuevas sobre ellas hasta definir roadmap. |
+| **`offer_quality_checks`** | Sin uso en el repositorio actual; revisar antes de invertir en reporting. |
+
 ---
 
 ## 2. Funciones (Database Functions) usadas
