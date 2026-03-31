@@ -23,7 +23,7 @@ Si alguna credencial (Redis, tokens, URLs con contraseña) apareció en chat, em
 - [ ] `CRON_SECRET` (mismo valor que usa Vercel al llamar crons)
 - [ ] Al menos una fuente: **`BOT_INGEST_URLS`** y/o **`BOT_INGEST_DISCOVER_ML=1`** y/o **`BOT_INGEST_AMAZON_ASINS`**
 - [ ] `app_config.bot_ingest_paused` = false (o sin fila) — panel Operaciones / Trabajo
-- [ ] Cron `*/api/cron/bot-ingest` activo en el proyecto desplegado
+- [ ] **Disparo del bot:** en Hobby no va en `vercel.json`. Elige una: cron externo (GET con `CRON_SECRET` cada ~15 min), **Vercel Pro** + entrada en `vercel.json`, o solo **Ejecutar ahora** en Trabajo.
 
 ### B.1 Afiliados (enlaces que monetizan)
 
