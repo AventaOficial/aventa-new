@@ -8,7 +8,7 @@ type BotStatusPayload = {
   enabled: boolean;
   env_ingest_enabled?: boolean;
   paused_by_owner?: boolean;
-  cron: { path: string; schedule: string; runs_per_day_estimate?: number };
+  cron: { path: string; schedule: string; runs_per_day_estimate?: number; deployment_note?: string };
   config: {
     bot_user_id_configured: boolean;
     timezone?: string;
@@ -113,8 +113,8 @@ export default function BotIngestPanel() {
           Bot de ingesta (motor v3)
         </h2>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Score, filtros de calidad, auto-aprobación de ofertas top y tope diario. Cron cada 15 min + boost
-          matutino (ver env).
+          Score, filtros de calidad, auto-aprobación de ofertas top y tope diario. Automatización: Pro/cron externo
+          cada ~15 min o «Ejecutar ahora» (Vercel Hobby no permite ese intervalo en vercel.json).
         </p>
       </div>
 
@@ -246,12 +246,17 @@ export default function BotIngestPanel() {
                     : 'No listo'}
             </span>
             <span className="text-gray-500 dark:text-gray-400">
-              Cron {data.cron.schedule}
+              Objetivo si automatizas: {data.cron.schedule}
               {typeof data.cron.runs_per_day_estimate === 'number'
                 ? ` (~${data.cron.runs_per_day_estimate} disparos/día)`
                 : null}
             </span>
           </div>
+          {data.cron.deployment_note ? (
+            <p className="text-xs text-amber-800 dark:text-amber-200/90 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
+              {data.cron.deployment_note}
+            </p>
+          ) : null}
 
           <div className="grid sm:grid-cols-2 gap-2 text-sm">
             <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">

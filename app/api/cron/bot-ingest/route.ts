@@ -9,7 +9,7 @@ export const maxDuration = 300;
  * GET: ciclo de ingesta v3 (score, filtros ML/Amazon, auto-aprobación, tope diario).
  * Protegido con CRON_SECRET (Authorization: Bearer, x-cron-secret o ?secret=).
  *
- * Cron: vercel.json (cada 15 min). Variables: .env.example (BOT_INGEST_*).
+ * Programación: en Hobby no va en vercel.json; Pro o cron externo (cada ~15 min) o manual. Ver .env.example.
  */
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);

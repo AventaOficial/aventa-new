@@ -8,8 +8,11 @@ import {
 } from '@/lib/bots/ingest/botIngestDailyState';
 import { createServerClient } from '@/lib/supabase/server';
 
+/** Objetivo si usas Vercel Pro o cron externo cada 15 min (no aplica en Hobby sin cron). */
 const CRON_SCHEDULE = '*/15 * * * *';
 const RUNS_PER_DAY_ESTIMATE = 96;
+const CRON_DEPLOYMENT_NOTE =
+  'En Vercel Hobby no puede haber cron del bot en vercel.json (máx. 1×/día). Para automatizar cada ~15 min: plan Pro y añade el job en vercel.json, o un servicio externo (GET con CRON_SECRET), o «Ejecutar ahora» en Trabajo.';
 
 const TRACKED_ENV_KEYS = [
   'BOT_INGEST_ENABLED',
@@ -117,6 +120,7 @@ export async function GET(request: Request) {
       path: '/api/cron/bot-ingest',
       schedule: CRON_SCHEDULE,
       runs_per_day_estimate: RUNS_PER_DAY_ESTIMATE,
+      deployment_note: CRON_DEPLOYMENT_NOTE,
     },
     config: {
       bot_user_id_configured: Boolean(cfg.botUserId),

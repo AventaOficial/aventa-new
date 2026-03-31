@@ -20,7 +20,7 @@ Con eso **ninguna** oferta del bot sale `approved` por el score: **todas entran 
 
 ## 2. Acercarte a ~50 ofertas nuevas por día
 
-El cron corre **cada 15 minutos** (~96 veces/día). El tope diario corta cuando se alcanza.
+Con **Vercel Pro** o un **cron externo** puedes disparar el bot cada **~15 minutos** (~96 veces/día). En **Vercel Hobby** no puede ir ese intervalo en `vercel.json`; automatiza con servicio externo + `CRON_SECRET` o usa **Ejecutar ahora**. El tope diario corta cuando se alcanza.
 
 Ejemplo de variables:
 

@@ -147,7 +147,7 @@ Frecuencias en `vercel.json`.
 ## 6. Bot de ingesta — flujo interno
 
 ```
-vercel.json (cron cada 15 min)
+Programador (Vercel Pro + vercel.json, o cron externo, o «Ejecutar ahora»)
     → GET /api/cron/bot-ingest + CRON_SECRET
         → runIngestCycle (lib/bots/ingest/runIngestCycle.ts)
             → ¿app_config bot_ingest_paused?
@@ -230,7 +230,7 @@ En la raíz del repo: **`Codigo_Completo.txt`** (volcado recursivo de fuentes: t
 2. `lib/offers/feedService.ts` — query principal.
 3. `lib/affiliate/resolveAffiliateOfferUrl.ts` — dinero en el enlace.
 4. `lib/bots/ingest/runIngestCycle.ts` — bot.
-5. `vercel.json` — cuándo corre cada cron.
+5. `vercel.json` — crons permitidos en tu plan (Hobby: máx. 1×/día por job; el bot no va en el archivo por defecto).
 6. `.env.example` — qué configurar en producción.
 
 ---
@@ -250,7 +250,7 @@ Marca en **Vercel** (Environment Variables) y **Supabase** lo siguiente. Detalle
   - [ ] **`BOT_INGEST_AMAZON_ASINS`** con ASINs, **y/o**
   - [ ] **`BOT_INGEST_URLS`** con URLs.
 - [ ] En **Supabase → `app_config`**: **`bot_ingest_paused`** = `false` o sin fila (si está en `true`, el bot no hace nada aunque el env diga enabled). También puedes usar **Operaciones → Trabajo** (interruptor).
-- [ ] **`vercel.json`** desplegado con el cron **`/api/cron/bot-ingest`** (cada 15 min). En plan **Hobby** confirma que tu proyecto permita esa frecuencia; si no, sube de plan o reduce frecuencia.
+- [ ] **Automatizar el bot:** en **Hobby**, Vercel **no** permite cron cada 15 min (solo 1 ejecución/día por cron). Este repo **no** incluye `bot-ingest` en `vercel.json` para que el deploy pase. Opciones: **Vercel Pro** y añade el job con `*/15 * * * *`, o **cron externo** (GET con `CRON_SECRET`), o **Ejecutar ahora** en Trabajo.
 - [ ] **Runtime:** la ruta del cron declara **`maxDuration`** alto enough para muchos fetches en el boost (revisar límites del plan Vercel).
 
 ### 13.2 Afiliados (para que el negocio tenga sentido en enlaces del bot)
