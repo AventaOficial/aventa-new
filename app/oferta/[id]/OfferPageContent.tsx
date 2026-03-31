@@ -622,6 +622,16 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     rel="noopener noreferrer sponsored"
                     onClick={() => {
                       void copyOfferCouponsToClipboard();
+                      if (offer.id) {
+                        fetch('/api/track-outbound', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                          },
+                          body: JSON.stringify({ offerId: offer.id }),
+                        }).catch((err) => logClientError('offer-page:track-outbound', err));
+                      }
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
                   >

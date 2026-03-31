@@ -1,5 +1,5 @@
 /**
- * URLs de oferta: Mercado Libre (dominio mercadolibre.* y acortadores oficiales meli.la).
+ * URLs de oferta: Mercado Libre (mercadolibre.*, meli.la) y acortadores Amazon (amzn.to, a.co).
  * Prioridad: tag de plataforma (ML_AFFILIATE_TAG / NEXT_PUBLIC_ML_AFFILIATE_TAG);
  * si no hay, tag del creador (ml_tracking_tag en perfil).
  */
@@ -84,6 +84,64 @@ export async function resolveMercadoLibreShortlinks(url: string): Promise<string
     }
     if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
     if (final.toLowerCase().includes('mercadolibre.')) return final;
+    return trimmed;
+  } catch {
+    clearTimeout(timeoutId);
+    return trimmed;
+  }
+}
+
+/** Acortadores de Associates (redirigen a amazon.* /dp/…). */
+export function isAmazonShortUrl(url: string): boolean {
+  try {
+    const h = new URL(url.trim()).hostname.toLowerCase();
+    return h === 'amzn.to' || h === 'a.co';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sigue redirecciones HTTP (amzn.to, a.co → amazon.*).
+ * Si falla la red o el destino no es Amazon, devuelve la URL original.
+ */
+export async function resolveAmazonShortlinks(url: string): Promise<string> {
+  const { isBlockedOfferParseUrl } = await import('@/lib/server/fetchUrlSafety');
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if (!isAmazonShortUrl(trimmed)) return trimmed;
+
+  let u: URL;
+  try {
+    u = new URL(trimmed);
+  } catch {
+    return trimmed;
+  }
+  if (isBlockedOfferParseUrl(u).blocked) return trimmed;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
+  try {
+    const res = await fetch(trimmed, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': RESOLVE_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    clearTimeout(timeoutId);
+    const final = res.url;
+    if (!final || final === trimmed) return trimmed;
+    let finalUrl: URL;
+    try {
+      finalUrl = new URL(final);
+    } catch {
+      return trimmed;
+    }
+    if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
+    if (final.toLowerCase().includes('amazon.')) return final;
     return trimmed;
   } catch {
     clearTimeout(timeoutId);

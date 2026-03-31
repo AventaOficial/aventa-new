@@ -1,16 +1,39 @@
 import { NextResponse } from 'next/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+import { getBotIngestPausedFromDb } from '@/lib/bots/ingest/botIngestPaused';
+import {
+  countBotOffersCreatedSince,
+  getBotOfferCountStartUtc,
+} from '@/lib/bots/ingest/botIngestDailyState';
 import { createServerClient } from '@/lib/supabase/server';
 
-const CRON_SCHEDULE = '0 */6 * * *';
-const RUNS_PER_DAY = 4;
-const REQUIRED_ENV_KEYS = [
+const CRON_SCHEDULE = '*/15 * * * *';
+const RUNS_PER_DAY_ESTIMATE = 96;
+
+const TRACKED_ENV_KEYS = [
   'BOT_INGEST_ENABLED',
   'BOT_INGEST_USER_ID',
+  'BOT_INGEST_TIMEZONE',
+  'BOT_INGEST_NORMAL_MAX_MIN',
+  'BOT_INGEST_NORMAL_MAX_MAX',
+  'BOT_INGEST_BOOST_MAX',
+  'BOT_INGEST_DAILY_MAX',
+  'BOT_INGEST_CANDIDATE_POOL_MAX',
   'BOT_INGEST_URLS',
-  'BOT_INGEST_MAX_PER_RUN',
+  'BOT_INGEST_DISCOVER_ML',
+  'BOT_INGEST_ML_QUERIES',
+  'BOT_INGEST_ML_CATEGORY_IDS',
+  'BOT_INGEST_ML_TECH_CATEGORY_IDS',
+  'BOT_INGEST_ML_MIN_SOLD',
+  'BOT_INGEST_ML_FETCH_REVIEWS',
+  'BOT_INGEST_MIN_RATING',
+  'BOT_INGEST_MIN_RATING_REVIEWS',
+  'BOT_INGEST_AMAZON_ASINS',
   'BOT_INGEST_MIN_DISCOUNT_PERCENT',
+  'BOT_INGEST_AUTO_APPROVE',
+  'BOT_INGEST_AUTO_APPROVE_MIN_SCORE',
+  'BOT_INGEST_REJECT_BELOW_SCORE',
   'BOT_INGEST_CATEGORY',
 ] as const;
 
@@ -25,7 +48,8 @@ export async function GET(request: Request) {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const cfg = loadBotIngestConfig();
-  const estimatedProcessedPerDay = cfg.maxPerRun * RUNS_PER_DAY;
+  const pausedByOwner = await getBotIngestPausedFromDb();
+
   let recentOffers: Array<{
     id: string;
     title: string;
@@ -35,6 +59,7 @@ export async function GET(request: Request) {
     price: number;
   }> = [];
   let pendingCount: number | null = null;
+  let insertedTodayApprox: number | null = null;
 
   if (cfg.botUserId) {
     const supabase = createServerClient();
@@ -52,37 +77,85 @@ export async function GET(request: Request) {
       .eq('created_by', cfg.botUserId)
       .eq('status', 'pending');
     pendingCount = count ?? null;
+
+    const start = getBotOfferCountStartUtc(cfg.timezone);
+    insertedTodayApprox = await countBotOffersCreatedSince(cfg.botUserId, start);
   }
 
   const envStatus = Object.fromEntries(
-    REQUIRED_ENV_KEYS.map((k) => [k, hasEnvValue(k)])
-  ) as Record<(typeof REQUIRED_ENV_KEYS)[number], boolean>;
-  const missingEnv = REQUIRED_ENV_KEYS.filter((k) => !envStatus[k]);
+    TRACKED_ENV_KEYS.map((k) => [k, hasEnvValue(k)])
+  ) as Record<(typeof TRACKED_ENV_KEYS)[number], boolean>;
+
+  const hasIngestSources =
+    cfg.urlsFromEnv.length > 0 ||
+    cfg.amazonAsins.length > 0 ||
+    (cfg.discoverMlEnabled &&
+      (cfg.mlQueries.length > 0 || cfg.mlCategoryIds.length > 0 || cfg.mlUseDefaultQueries));
+
+  const missingEnv: string[] = [];
+  if (!hasEnvValue('BOT_INGEST_ENABLED')) missingEnv.push('BOT_INGEST_ENABLED');
+  if (cfg.enabled) {
+    if (!hasEnvValue('BOT_INGEST_USER_ID')) missingEnv.push('BOT_INGEST_USER_ID');
+    if (!hasIngestSources) {
+      missingEnv.push(
+        'BOT_INGEST_fuentes: URLS o BOT_INGEST_DISCOVER_ML (queries/categorías o defaults) o BOT_INGEST_AMAZON_ASINS'
+      );
+    }
+  }
+
+  const avgNormal = (cfg.normalMaxPerRunMin + cfg.normalMaxPerRunMax) / 2;
+  const estimatedProcessedPerDay = Math.min(
+    cfg.dailyMaxOffers,
+    Math.round(avgNormal * RUNS_PER_DAY_ESTIMATE + cfg.boostMaxOffers)
+  );
 
   return NextResponse.json({
-    enabled: cfg.enabled,
+    enabled: cfg.enabled && !pausedByOwner,
+    env_ingest_enabled: cfg.enabled,
+    paused_by_owner: pausedByOwner,
     cron: {
       path: '/api/cron/bot-ingest',
       schedule: CRON_SCHEDULE,
-      runs_per_day: RUNS_PER_DAY,
+      runs_per_day_estimate: RUNS_PER_DAY_ESTIMATE,
     },
     config: {
       bot_user_id_configured: Boolean(cfg.botUserId),
-      max_per_run: cfg.maxPerRun,
+      timezone: cfg.timezone,
+      normal_max_range: [cfg.normalMaxPerRunMin, cfg.normalMaxPerRunMax],
+      boost_max_offers: cfg.boostMaxOffers,
+      boost_local_hour: cfg.boostLocalHourStart,
+      daily_max: cfg.dailyMaxOffers,
+      candidate_pool_max: cfg.candidatePoolMax,
       min_discount_percent: cfg.minDiscountPercent,
+      auto_approve_enabled: cfg.autoApproveEnabled,
+      auto_approve_min_score: cfg.autoApproveMinScore,
+      reject_below_score: cfg.rejectBelowScore,
       category: cfg.category,
       urls_count: cfg.urlsFromEnv.length,
       sample_urls: cfg.urlsFromEnv.slice(0, 8),
+      discover_ml: cfg.discoverMlEnabled,
+      ml_queries_count: cfg.mlQueries.length,
+      ml_categories_count: cfg.mlCategoryIds.length,
+      ml_use_default_queries: cfg.mlUseDefaultQueries,
+      ml_min_sold: cfg.minSoldQuantityMl,
+      ml_fetch_reviews: cfg.mlFetchReviews,
+      ml_review_fetch_max: cfg.mlReviewFetchMax,
+      min_rating: cfg.minRatingAverage,
+      min_rating_reviews: cfg.minRatingReviewsCount,
+      tech_categories_count: cfg.techCategoryIds.length,
+      amazon_asins_count: cfg.amazonAsins.length,
+      has_ingest_sources: hasIngestSources,
     },
     capacity: {
-      estimated_processed_per_day: estimatedProcessedPerDay,
-      note: 'Procesadas != insertadas (puede haber duplicadas/skipped/error).',
+      estimated_inserted_ceiling_per_day: estimatedProcessedPerDay,
+      inserted_today_approx: insertedTodayApprox,
+      note: 'El tope real lo marca BOT_INGEST_DAILY_MAX y la calidad del pool (skipped/duplicados).',
     },
     offers: {
       pending_count: pendingCount,
       recent: recentOffers,
     },
-    env_required: REQUIRED_ENV_KEYS,
+    env_required: [...TRACKED_ENV_KEYS],
     env_status: envStatus,
     env_missing: missingEnv,
   });

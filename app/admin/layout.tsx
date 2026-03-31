@@ -23,6 +23,7 @@ import {
   Map,
   Scale,
   Briefcase,
+  NotebookPen,
 } from 'lucide-react';
 import {
   ROLES,
@@ -32,6 +33,7 @@ import {
   canAccessUsersLogs,
   canManageTeam,
   canManageAnnouncements,
+  canAccessOwnerOperationsPanel,
   type Role,
 } from '@/lib/admin/roles';
 
@@ -54,7 +56,7 @@ const USERS_LOGS_ITEMS = [
 /** Equipo (gestionar roles): owner y admin */
 const TEAM_ITEM = { href: '/admin/team', label: 'Equipo', icon: UserCog } as const;
 
-/** Avisos del sitio: owner y admin */
+/** Avisos del sitio: solo owner */
 const ANNOUNCEMENTS_ITEM = { href: '/admin/announcements', label: 'Avisos', icon: Megaphone } as const;
 
 const METRICS_ITEMS = [
@@ -108,7 +110,8 @@ export default function AdminLayout({
   const canMod = canAccessModeration(userRole);
   const canUsersLogs = canAccessUsersLogs(userRole);
   const canTeam = canManageTeam(userRole);
-  const canAnnouncements = canManageAnnouncements(userRole); // mismo que canTeam: solo owner
+  const canAnnouncements = canManageAnnouncements(userRole);
+  const canOwnerOpsPanel = canAccessOwnerOperationsPanel(userRole);
   const canMet = canAccessMetrics(userRole);
   const canHea = canAccessHealth(userRole);
 
@@ -124,11 +127,14 @@ export default function AdminLayout({
     const isHeaPath = pathname === '/admin/health';
     const isVoteWeightsPath = pathname === '/admin/vote-weights';
     const isOperacionesPath = pathname.startsWith('/admin/operaciones');
+    const isMantenimientoPath = pathname === '/admin/mantenimiento';
     if (pathname === '/admin/owner') {
       router.replace('/admin/operaciones');
-    } else if (isOperacionesPath && !canTeam) {
+    } else if (isOperacionesPath && (!canTeam || !canOwnerOpsPanel)) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
-    } else if (isVoteWeightsPath && !canTeam) {
+    } else if (isMantenimientoPath && !canTeam) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isVoteWeightsPath && (!canTeam || !canOwnerOpsPanel)) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : '/admin/metrics');
     } else if (isOwnerPanelPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
@@ -147,7 +153,19 @@ export default function AdminLayout({
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
     }
-  }, [pathname, authGateReady, hasAllowedRole, canMod, canUsersLogs, canTeam, canAnnouncements, canMet, canHea, router]);
+  }, [
+    pathname,
+    authGateReady,
+    hasAllowedRole,
+    canMod,
+    canUsersLogs,
+    canTeam,
+    canOwnerOpsPanel,
+    canAnnouncements,
+    canMet,
+    canHea,
+    router,
+  ]);
 
   if (!authGateReady) {
     return (
@@ -237,10 +255,12 @@ export default function AdminLayout({
           )}
           {(canTeam || canAnnouncements) && (
             <>
-              <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Owner y admins
-              </p>
-              {canTeam && (
+              {canOwnerOpsPanel && (
+                <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Solo owner
+                </p>
+              )}
+              {canOwnerOpsPanel && (
                 <Link
                   href="/admin/operaciones"
                   onClick={() => setSidebarOpen(false)}
@@ -257,7 +277,7 @@ export default function AdminLayout({
                   Centro de operaciones
                 </Link>
               )}
-              {canTeam && (
+              {canOwnerOpsPanel && (
                 <Link
                   href="/admin/operaciones/trabajo"
                   onClick={() => setSidebarOpen(false)}
@@ -274,17 +294,7 @@ export default function AdminLayout({
                   Trabajo
                 </Link>
               )}
-              {canTeam && (
-                <Link
-                  href="/contexto"
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <Map className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                  Contexto
-                </Link>
-              )}
-              {canTeam && (
+              {canOwnerOpsPanel && (
                 <Link
                   href="/admin/vote-weights"
                   onClick={() => setSidebarOpen(false)}
@@ -299,6 +309,38 @@ export default function AdminLayout({
                 >
                   <Scale className="h-4 w-4 shrink-0" />
                   Peso de voto
+                </Link>
+              )}
+              {canTeam && (
+                <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Owner y admins
+                </p>
+              )}
+              {canTeam && (
+                <Link
+                  href="/admin/mantenimiento"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      pathname === '/admin/mantenimiento'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  <NotebookPen className="h-4 w-4 shrink-0" />
+                  Mantenimiento
+                </Link>
+              )}
+              {canTeam && (
+                <Link
+                  href="/contexto"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Map className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                  Contexto
                 </Link>
               )}
               {canTeam && (
@@ -443,7 +485,7 @@ export default function AdminLayout({
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-medium text-gray-800 dark:text-gray-200">
-            {pathname.startsWith('/admin/operaciones')
+            {pathname.startsWith('/admin/operaciones') || pathname === '/admin/mantenimiento'
               ? 'Operaciones'
               : pathname.startsWith('/admin/metrics') || pathname === '/admin/health' || pathname === '/admin/analista'
                 ? 'Análisis'

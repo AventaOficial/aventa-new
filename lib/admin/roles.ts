@@ -1,7 +1,7 @@
 /**
  * Roles AVENTA y permisos por sección.
  * owner: acceso total (moderación + usuarios/logs + métricas/health)
- * admin: igual que owner
+ * admin: casi igual que owner; **no** ve Centro de operaciones, Trabajo ni Peso de voto (solo owner).
  * moderator: solo moderación (Pendientes, Aprobadas, Rechazadas, Comentarios, Reportes). No ve Usuarios, Logs, Métricas, Health.
  * analyst: solo Métricas y Health.
  * Equipo (/admin/team): owner y admin; solo el owner puede tocar cuentas owner, asignar owner/admin o editar a otros admins.
@@ -35,6 +35,11 @@ export function canAccessUsersLogs(role: Role | null): boolean {
 /** Owner y admin ven Equipo (gestionar moderadores y roles). */
 export function canManageTeam(role: Role | null): boolean {
   return role === 'owner' || role === 'admin';
+}
+
+/** Centro de operaciones, Trabajo (bot/pausa) y Peso de voto: solo owner. */
+export function canAccessOwnerOperationsPanel(role: Role | null): boolean {
+  return role === 'owner';
 }
 
 /** Solo owner gestiona avisos del sitio. */

@@ -415,7 +415,7 @@ export default function OperacionesPageContent() {
         .then(({ data }) => {
           setIsOwner(!!data);
           if (!data) {
-            router.replace('/');
+            router.replace('/admin/moderation');
             return;
           }
           loadPanel(false).catch(() => {});

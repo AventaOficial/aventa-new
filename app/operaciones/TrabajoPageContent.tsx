@@ -153,7 +153,7 @@ export default function TrabajoPageContent() {
         .maybeSingle()
         .then(({ data }) => {
           setIsOwner(!!data);
-          if (!data) router.replace('/');
+          if (!data) router.replace('/admin/moderation');
         });
     });
   }, [router]);
@@ -294,6 +294,15 @@ export default function TrabajoPageContent() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Agenda y números personales. Todo se guarda solo en este navegador (localStorage); no sustituye contabilidad
                 ni facturación.
+              </p>
+              <p className="text-sm mt-2">
+                <Link
+                  href="/admin/mantenimiento"
+                  className="font-medium text-violet-600 dark:text-violet-400 hover:underline"
+                >
+                  Mantenimiento técnico →
+                </Link>
+                <span className="text-gray-500 dark:text-gray-400"> calendario, prompts para IA e historial</span>
               </p>
             </div>
           </header>

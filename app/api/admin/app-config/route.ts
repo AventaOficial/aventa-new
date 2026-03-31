@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireOwner } from '@/lib/server/requireAdmin';
 
-const ALLOWED_KEYS = ['show_tester_offers'] as const;
+const ALLOWED_KEYS = ['show_tester_offers', 'bot_ingest_paused'] as const;
 
 /** PATCH: solo owner. Body { key, value }. Actualiza app_config. */
 export async function PATCH(request: Request) {
@@ -16,7 +16,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'key inválido' }, { status: 400 });
   }
   let value: unknown = body?.value;
-  if (key === 'show_tester_offers') {
+  if (key === 'show_tester_offers' || key === 'bot_ingest_paused') {
     value = value === true || value === 'true';
   }
   const supabase = createServerClient();

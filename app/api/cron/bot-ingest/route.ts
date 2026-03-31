@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { runIngestCycle } from '@/lib/bots/ingest';
 
+/** Boost matutino puede superar el default de 10s en Vercel; ajustar según plan. */
+export const maxDuration = 300;
+
 /**
- * GET: ejecuta un ciclo de ingesta de ofertas (bot).
+ * GET: ciclo de ingesta v3 (score, filtros ML/Amazon, auto-aprobación, tope diario).
  * Protegido con CRON_SECRET (Authorization: Bearer, x-cron-secret o ?secret=).
  *
- * Configuración: ver .env.example (BOT_INGEST_*).
+ * Cron: vercel.json (cada 15 min). Variables: .env.example (BOT_INGEST_*).
  */
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);

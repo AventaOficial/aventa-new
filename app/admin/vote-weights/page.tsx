@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { createClient } from '@/lib/supabase/client';
 import { Scale, Search } from 'lucide-react';
 
 type AdminUserRow = {
@@ -11,7 +13,9 @@ type AdminUserRow = {
 };
 
 export default function VoteWeightsPage() {
+  const router = useRouter();
   const { session } = useAuth();
+  const [ownerGate, setOwnerGate] = useState<'loading' | 'ok' | 'denied'>('loading');
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -27,8 +31,33 @@ export default function VoteWeightsPage() {
     : undefined;
 
   useEffect(() => {
-    if (!authHeaders) {
-      setListLoading(false);
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        setOwnerGate('denied');
+        router.replace('/');
+        return;
+      }
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'owner')
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) {
+            setOwnerGate('denied');
+            router.replace('/admin/moderation');
+            return;
+          }
+          setOwnerGate('ok');
+        });
+    });
+  }, [router]);
+
+  useEffect(() => {
+    if (ownerGate !== 'ok' || !authHeaders) {
+      if (ownerGate === 'ok' && !authHeaders) setListLoading(false);
       return;
     }
     setListLoading(true);
@@ -39,7 +68,7 @@ export default function VoteWeightsPage() {
       })
       .catch(() => setUsers([]))
       .finally(() => setListLoading(false));
-  }, [session?.access_token]);
+  }, [session?.access_token, ownerGate]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -90,6 +119,14 @@ export default function VoteWeightsPage() {
       .catch((e) => setError(e?.message ?? 'Error'))
       .finally(() => setLoading(false));
   };
+
+  if (ownerGate !== 'ok') {
+    return (
+      <div className="min-h-[40vh] flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+        {ownerGate === 'loading' ? 'Cargando…' : null}
+      </div>
+    );
+  }
 
   return (
     <div>

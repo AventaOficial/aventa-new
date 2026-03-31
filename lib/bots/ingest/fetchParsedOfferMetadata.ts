@@ -5,10 +5,10 @@
 import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
+import type { OfferQualitySignals } from './offerQualitySignals';
+import { BOT_INGEST_USER_AGENT } from './ingestHttp';
 
 const FETCH_TIMEOUT_MS = 12_000;
-const USER_AGENT =
-  'Mozilla/5.0 (compatible; AVENTA-Bot-Ingest/1.0; +https://aventaofertas.com)';
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
@@ -226,6 +226,60 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
   return { discount, original };
 }
 
+function extractQualitySignalsFromLdJson(html: string): OfferQualitySignals {
+  const signals: OfferQualitySignals = {};
+  const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = scriptRe.exec(html)) !== null) {
+    const raw = m[1].trim();
+    if (!raw || raw.length > 500_000) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    scanLdForRating(parsed);
+  }
+
+  function considerProduct(o: Record<string, unknown>) {
+    const agg = o.aggregateRating as Record<string, unknown> | undefined;
+    if (agg) {
+      const av = agg.ratingValue ?? agg.ratingvalue;
+      const cnt = agg.ratingCount ?? agg.reviewCount ?? agg.reviewcount;
+      if (typeof av === 'number' && Number.isFinite(av)) signals.ratingAverage = av;
+      else if (typeof av === 'string') {
+        const n = Number.parseFloat(av);
+        if (Number.isFinite(n)) signals.ratingAverage = n;
+      }
+      if (typeof cnt === 'number' && Number.isFinite(cnt)) signals.ratingCount = cnt;
+      else if (typeof cnt === 'string') {
+        const n = Number.parseInt(cnt, 10);
+        if (Number.isFinite(n)) signals.ratingCount = n;
+      }
+    }
+  }
+
+  function scanLdForRating(node: unknown) {
+    if (node == null) return;
+    if (Array.isArray(node)) {
+      node.forEach(scanLdForRating);
+      return;
+    }
+    if (typeof node !== 'object') return;
+    const o = node as Record<string, unknown>;
+    if (o['@graph']) scanLdForRating(o['@graph']);
+
+    const types = o['@type'];
+    const typeStr = Array.isArray(types) ? types.map(String).join(',') : String(types ?? '');
+    if (typeStr.includes('Product')) {
+      considerProduct(o);
+    }
+  }
+
+  return signals;
+}
+
 function parseGeneric(html: string, base: string): { title: string | null; image: string | null; store: string | null } {
   const title =
     getMetaContent(html, 'og:title') ||
@@ -255,6 +309,7 @@ export type ParsedOfferMetadata = {
   discountPrice: number;
   originalPrice: number | null;
   discountPercent: number;
+  signals?: OfferQualitySignals;
 };
 
 export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOfferMetadata | null> {
@@ -277,7 +332,7 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
     res = await fetch(url.href, {
       signal: controller.signal,
       headers: {
-        'User-Agent': USER_AGENT,
+        'User-Agent': BOT_INGEST_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       redirect: 'follow',
@@ -349,6 +404,13 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
       ? Math.round((1 - discountPrice / originalPrice) * 100)
       : 0;
 
+  const ldSignals = extractQualitySignalsFromLdJson(html);
+  const hasSignal =
+    ldSignals.ratingAverage != null ||
+    ldSignals.ratingCount != null ||
+    ldSignals.soldQuantity != null ||
+    ldSignals.condition != null;
+
   return {
     canonicalUrl: finalUrl.href,
     title: titleRaw,
@@ -357,5 +419,6 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
     discountPrice,
     originalPrice,
     discountPercent,
+    ...(hasSignal ? { signals: ldSignals } : {}),
   };
 }
