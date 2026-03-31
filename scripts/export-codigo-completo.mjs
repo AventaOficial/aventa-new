@@ -46,7 +46,8 @@ const EXT_OK = new Set([
   '.yaml',
 ]);
 
-const MAX_BYTES = 400_000;
+/** Archivos mayores se omiten (evitar volcados gigantes). */
+const MAX_BYTES = 800_000;
 
 function shouldSkipDir(name) {
   return SKIP_DIRS.has(name);
@@ -143,7 +144,8 @@ function buildPreamble(allFiles) {
   lines.push('--- 1. Qué es este archivo ---');
   lines.push('Primero: contexto y mapa para revisión humana o herramientas externas.');
   lines.push('Después: volcado concatenado de código y docs del repo (sin node_modules ni .next).');
-  lines.push('Archivos omitidos: >400KB por archivo, package-lock, este txt.');
+  lines.push('Archivos omitidos: >800KB por archivo, package-lock, este txt.');
+  lines.push('Por archivo .ts/.tsx/.js: línea de conteo + lista heurística de funciones/exports antes del código.');
   lines.push('');
   lines.push('--- 2. Identidad del paquete ---');
   if (pkg) {
@@ -169,6 +171,7 @@ function buildPreamble(allFiles) {
   lines.push('  Auth / perfil: app/providers/, lib/supabase/, app/auth/');
   lines.push('  Contratos Zod: lib/contracts/');
   lines.push('  Visibilidad / health: lib/monitoring/, app/api/health/route.ts');
+  lines.push('  Bot ingesta: lib/bots/ingest/, app/api/cron/bot-ingest/route.ts, app/operaciones/components/BotIngestPanel.tsx');
   lines.push('');
   lines.push('--- 6. Lista de documentación Markdown (docs/) ---');
   lines.push(docLines.length ? docLines.join('\n') : '  (ninguno)');
@@ -190,6 +193,44 @@ function buildPreamble(allFiles) {
   return lines.join('\n');
 }
 
+/**
+ * Lista heurística de funciones/clases/exportaciones (TypeScript/JavaScript).
+ * No sustituye un parser; sirve como mapa rápido antes del código completo.
+ */
+function extractSymbolHints(source, ext) {
+  if (!['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'].includes(ext)) return [];
+  const seen = new Set();
+  const add = (name) => {
+    if (name && name.length < 80 && !seen.has(name)) {
+      seen.add(name);
+    }
+  };
+
+  const patterns = [
+    /^\s*export\s+async\s+function\s+(\w+)/gm,
+    /^\s*export\s+function\s+(\w+)/gm,
+    /^\s*export\s+default\s+async\s+function\s+(\w+)/gm,
+    /^\s*export\s+default\s+function\s+(\w+)/gm,
+    /^\s*async\s+function\s+(\w+)/gm,
+    /^\s*function\s+(\w+)\s*\(/gm,
+    /^\s*export\s+class\s+(\w+)/gm,
+    /^\s*class\s+(\w+)/gm,
+    /^\s*export\s+const\s+(\w+)\s*=\s*(?:async\s*)?\(/gm,
+    /^\s*export\s+const\s+(\w+)\s*=\s*function/gm,
+    /^\s*const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/gm,
+  ];
+
+  for (const re of patterns) {
+    let m;
+    const r = new RegExp(re.source, re.flags);
+    while ((m = r.exec(source)) !== null) {
+      add(m[1]);
+    }
+  }
+
+  return [...seen].sort((a, b) => a.localeCompare(b, 'en'));
+}
+
 function main() {
   const all = walk(ROOT);
   all.sort((a, b) => a.localeCompare(b, 'en'));
@@ -201,11 +242,22 @@ function main() {
   for (const full of all) {
     const rel = path.relative(ROOT, full);
     const display = rel.split(path.sep).join('/');
+    const ext = path.extname(full).toLowerCase();
     chunks.push(`--- Contenido de: ${full} ---`);
     chunks.push(`--- (relativo: ${display}) ---`);
     chunks.push('');
     try {
       const body = fs.readFileSync(full, 'utf8');
+      const lines = body.split(/\r?\n/);
+      chunks.push(`--- Líneas en archivo: ${lines.length} ---`);
+      const hints = extractSymbolHints(body, ext);
+      if (hints.length) {
+        chunks.push(
+          `--- Símbolos detectados (heurística, funciones/clases/const tipo función): ${hints.length} ---`
+        );
+        chunks.push(hints.join(', '));
+        chunks.push('');
+      }
       chunks.push(body);
     } catch (err) {
       chunks.push(`[Error leyendo archivo: ${err.message}]`);

@@ -226,6 +226,8 @@ En la raíz del repo: **`Codigo_Completo.txt`** (volcado recursivo de fuentes: t
 
 ## 12. Qué leer primero (onboarding 30 minutos)
 
+Narrativa de estado del producto (consultor, gaps vs gigantes): **`docs/INFORME_PROSA_ESTADO_PRODUCTO.md`**.
+
 1. `app/page.tsx` — cómo carga el feed.
 2. `lib/offers/feedService.ts` — query principal.
 3. `lib/affiliate/resolveAffiliateOfferUrl.ts` — dinero en el enlace.

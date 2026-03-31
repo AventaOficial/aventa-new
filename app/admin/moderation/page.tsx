@@ -80,31 +80,36 @@ export default function ModerationPage() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  const refreshList = useCallback((skipLoading = false) => {
-    if (!skipLoading) setLoading(true);
-    const supabase = createClient();
-    return supabase
-      .from('offers')
-      .select(
-        'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)'
-      )
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .then(({ data, error }) => {
-        if (!skipLoading) setLoading(false);
-        if (error) {
-          console.error('Error refreshing:', error);
-          return;
-        }
-        setPending(
-          (data ?? []).map((r: Record<string, unknown>) => ({
-            ...r,
-            profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
-          })) as ModerationOffer[]
-        );
-        setSelectedIds(new Set());
-      });
-  }, []);
+  const refreshList = useCallback(
+    (skipLoading = false) => {
+      if (!skipLoading) setLoading(true);
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      return fetch('/api/admin/moderation-pending-offers', { headers })
+        .then(async (res) => {
+          if (!skipLoading) setLoading(false);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error('Error refreshing:', err?.error ?? res.status);
+            return;
+          }
+          const body = (await res.json()) as { offers?: Record<string, unknown>[] };
+          const rows = body.offers ?? [];
+          setPending(
+            rows.map((r) => ({
+              ...r,
+              profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+            })) as ModerationOffer[]
+          );
+          setSelectedIds(new Set());
+        })
+        .catch((e) => {
+          if (!skipLoading) setLoading(false);
+          console.error('Error refreshing:', e);
+        });
+    },
+    [session?.access_token]
+  );
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchRejectReason, setBatchRejectReason] = useState('');
