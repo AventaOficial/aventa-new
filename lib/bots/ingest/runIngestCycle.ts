@@ -59,6 +59,7 @@ function emptySourceStats(): Record<IngestSourceId, IngestSourceStats> {
     rss: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
     ml_api: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
     amazon_asin: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
+    ml_worker: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
   };
 }
 

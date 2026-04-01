@@ -1,0 +1,13 @@
+{
+  "name": "aventa-mercadolibre-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "run:dry": "node src/index.mjs --dry-run"
+  },
+  "dependencies": {
+    "playwright": "^1.54.2"
+  }
+}

@@ -132,6 +132,42 @@ function parsePositiveLocalizedNumber(raw: string | null | undefined): number | 
 
 type ExtractedPrices = { discount: number | null; original: number | null };
 
+function extractJsonLikeNumber(html: string, field: string): number | null {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match =
+    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*["']([^"']+)["']`, 'i'))?.[1] ??
+    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*([0-9][0-9.,]*)`, 'i'))?.[1] ??
+    null;
+  return parsePositiveLocalizedNumber(match);
+}
+
+function extractMercadoLibreItemId(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl);
+    const directId =
+      url.searchParams.get('wid') ||
+      url.searchParams.get('item_id') ||
+      url.searchParams.get('itemId');
+    if (directId && /^ML[A-Z]{0,3}\d+$/i.test(directId.trim())) return directId.trim().toUpperCase();
+
+    const pdpFilters = url.searchParams.get('pdp_filters');
+    const fromFilters = pdpFilters?.match(/item_id:([A-Z]{2,6}\d+)/i)?.[1];
+    if (fromFilters) return fromFilters.toUpperCase();
+
+    const fromPath = url.pathname.match(/\/((?:ML|M[A-Z]{1,5})\d+)(?:[/?#-]|$)/i)?.[1];
+    return fromPath ? fromPath.toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildMercadoLibreCanonicalUrl(finalUrl: URL, rawUrl: string): string {
+  const canonical = new URL(finalUrl.origin + finalUrl.pathname);
+  const itemId = extractMercadoLibreItemId(rawUrl) ?? extractMercadoLibreItemId(finalUrl.href);
+  if (itemId) canonical.searchParams.set('wid', itemId);
+  return canonical.toString();
+}
+
 function extractSuggestedPrices(html: string): ExtractedPrices {
   let discount: number | null =
     parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
@@ -210,11 +246,9 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
   }
 
   if (original == null) {
-    const originalMatch =
-      html.match(/["']original_price["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
-      html.match(/["']priceBefore["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
-      null;
-    original = parsePositiveLocalizedNumber(originalMatch);
+    original =
+      extractJsonLikeNumber(html, 'original_price') ||
+      extractJsonLikeNumber(html, 'priceBefore');
   }
 
   if (original != null && discount != null && original < discount) {
@@ -432,7 +466,9 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
 
   return {
     meta: {
-      canonicalUrl: finalUrl.href,
+      canonicalUrl: isMercadoLibre
+        ? buildMercadoLibreCanonicalUrl(finalUrl, rawUrl)
+        : finalUrl.href,
       title: titleRaw,
       store,
       imageUrl,

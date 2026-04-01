@@ -132,6 +132,15 @@ function parsePositiveLocalizedNumber(raw: string | null | undefined): number | 
 
 type ExtractedPrices = { discount: number | null; original: number | null };
 
+function extractJsonLikeNumber(html: string, field: string): number | null {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match =
+    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*["']([^"']+)["']`, 'i'))?.[1] ??
+    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*([0-9][0-9.,]*)`, 'i'))?.[1] ??
+    null;
+  return parsePositiveLocalizedNumber(match);
+}
+
 /** Heurística: meta og:price, JSON-LD Offer / AggregateOffer (ML, muchas tiendas). */
 function extractSuggestedPrices(html: string): ExtractedPrices {
   let discount: number | null =
@@ -211,11 +220,9 @@ function extractSuggestedPrices(html: string): ExtractedPrices {
   }
 
   if (original == null) {
-    const originalMatch =
-      html.match(/["']original_price["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
-      html.match(/["']priceBefore["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
-      null;
-    original = parsePositiveLocalizedNumber(originalMatch);
+    original =
+      extractJsonLikeNumber(html, 'original_price') ||
+      extractJsonLikeNumber(html, 'priceBefore');
   }
 
   if (original != null && discount != null && original < discount) {

@@ -1,6 +1,6 @@
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 
-export type IngestSourceId = 'env_urls' | 'rss' | 'ml_api' | 'amazon_asin';
+export type IngestSourceId = 'env_urls' | 'rss' | 'ml_api' | 'amazon_asin' | 'ml_worker';
 export type IngestProfileId = 'standard' | 'mega';
 
 export type IngestSourceStats = {
