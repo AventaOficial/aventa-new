@@ -8,6 +8,7 @@ export type ScoreBreakdown = {
   rating: number;
   category: number;
   priceAppeal: number;
+  historical: number;
   total: number;
 };
 
@@ -66,13 +67,26 @@ export function scoreIngestCandidate(
   else if (price >= 5000 && price < 25000) priceAppeal = 70;
   else if (price >= 25000) priceAppeal = 55;
 
+  let historicalPts = 50;
+  const vsLowest90d = signals?.priceVsLowest90dPct ?? null;
+  if (vsLowest90d != null) {
+    if (vsLowest90d <= 3) historicalPts = 100;
+    else if (vsLowest90d <= 8) historicalPts = 85;
+    else if (vsLowest90d <= 15) historicalPts = 65;
+    else if (vsLowest90d <= 25) historicalPts = 45;
+    else historicalPts = 20;
+  }
+  if (signals?.suspectedArtificialListPrice) {
+    historicalPts = Math.min(historicalPts, 10);
+  }
+
   const w = config.scoreWeights;
   const total = clamp(
     discountPts * w.discount +
       popularityPts * w.popularity +
       ratingPts * w.rating +
       catPts * w.category +
-      priceAppeal * w.priceAppeal,
+      ((priceAppeal * 0.7) + historicalPts * 0.3) * w.priceAppeal,
     0,
     100
   );
@@ -83,6 +97,7 @@ export function scoreIngestCandidate(
     rating: Math.round(ratingPts),
     category: Math.round(catPts),
     priceAppeal: Math.round(priceAppeal),
+    historical: Math.round(historicalPts),
     total: Math.round(total),
   };
 

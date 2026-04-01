@@ -1,19 +1,31 @@
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 
 export type IngestSourceId = 'env_urls' | 'rss' | 'ml_api' | 'amazon_asin';
+export type IngestProfileId = 'standard' | 'mega';
+
+export type IngestSourceStats = {
+  collected: number;
+  evaluated: number;
+  inserted: number;
+  duplicate: number;
+  skipped: number;
+  errors: number;
+  skipReasonCounts?: Record<string, number>;
+};
 
 export type IngestItem = {
   url: string;
   source: IngestSourceId;
   /** Metadatos ya resueltos (p. ej. API de Mercado Libre); evita fetch HTML. */
   precomputedMeta?: ParsedOfferMetadata;
+  sourceDetail?: string | null;
 };
 
 export type IngestSingleResult =
-  | { url: string; status: 'inserted'; offerId: string }
-  | { url: string; status: 'duplicate' }
-  | { url: string; status: 'skipped'; reason: string }
-  | { url: string; status: 'error'; message: string };
+  | { url: string; source?: IngestSourceId; status: 'inserted'; offerId: string }
+  | { url: string; source?: IngestSourceId; status: 'duplicate' }
+  | { url: string; source?: IngestSourceId; status: 'skipped'; reason: string }
+  | { url: string; source?: IngestSourceId; status: 'error'; message: string };
 
 export type IngestRunMode =
   | 'normal'
@@ -29,6 +41,7 @@ export type IngestCycleReport = {
   enabled: boolean;
   pausedByOwner?: boolean;
   envIngestEnabled?: boolean;
+  profile: IngestProfileId;
   startedAt: string;
   finishedAt: string;
   /** Objetivo de inserciones exitosas en esta corrida (acotado por tope diario). */
@@ -48,5 +61,14 @@ export type IngestCycleReport = {
     autoApproved: number;
     /** Conteos por `reason` cuando status === skipped (diagnóstico en panel / logs). */
     skipReasonCounts?: Record<string, number>;
+    /** Telemetría por fuente para ver salud y rendimiento del bot. */
+    sourceStats?: Partial<Record<IngestSourceId, IngestSourceStats>>;
+    /** Conteos de etapas principales dentro de la corrida. */
+    stageCounts?: {
+      collected: number;
+      evaluated: number;
+      resolved: number;
+      insertedAttempted: number;
+    };
   };
 };

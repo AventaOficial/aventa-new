@@ -348,7 +348,7 @@ export default function ModerationPage() {
   return (
     <div className="lg:grid lg:grid-cols-[1fr_minmax(260px,300px)] xl:grid-cols-[1fr_minmax(280px,320px)] lg:gap-8 lg:items-start">
       <div className="min-w-0">
-      <header className="mb-6 rounded-2xl border border-violet-200/70 dark:border-violet-900/50 bg-gradient-to-br from-violet-50 via-white to-slate-50 dark:from-violet-950/40 dark:via-gray-900 dark:to-gray-900 px-5 py-6 md:px-8 md:py-7 shadow-sm">
+      <header className="mb-6 rounded-[28px] border border-violet-200/70 dark:border-violet-900/50 bg-linear-to-br from-violet-50 via-white to-slate-50 dark:from-violet-950/40 dark:via-[#151517] dark:to-[#101012] px-5 py-6 md:px-8 md:py-7 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-1">
           Moderación
         </p>
@@ -373,7 +373,7 @@ export default function ModerationPage() {
             Pendientes del bot: {botPending}
           </span>
         </div>
-        <div className="mt-4 rounded-xl border border-violet-100 dark:border-violet-900/40 bg-white/70 dark:bg-[#141414]/50 px-4 py-3 text-left">
+        <div className="mt-4 rounded-3xl border border-violet-100 dark:border-violet-900/40 bg-white/80 dark:bg-[#141414]/50 px-4 py-4 text-left">
           <p className="text-xs font-semibold text-violet-800 dark:text-violet-200 mb-2">Checklist rápido (calidad y “vida” de la oferta)</p>
           <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1.5 list-disc list-inside leading-relaxed">
             <li>
@@ -395,7 +395,7 @@ export default function ModerationPage() {
         </div>
       </header>
 
-      <div className="mb-5 space-y-3 rounded-xl border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-[#141414]/90 backdrop-blur-sm p-4 shadow-sm">
+      <div className="mb-5 space-y-3 rounded-[28px] border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-[#141414]/90 backdrop-blur-sm p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-500/80" />
@@ -434,14 +434,14 @@ export default function ModerationPage() {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2"
+                className="rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5"
                 title="Desde fecha"
               />
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2"
+                className="rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5"
                 title="Hasta fecha"
               />
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
@@ -474,7 +474,7 @@ export default function ModerationPage() {
             <button
               type="button"
               onClick={toggleSelectAll}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-transform active:scale-95"
             >
               {selectedIds.size >= filtered.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
               {selectedIds.size >= filtered.length ? 'Quitar todas' : 'Seleccionar todas'}
@@ -486,7 +486,7 @@ export default function ModerationPage() {
                   type="button"
                   onClick={runBatchApprove}
                   disabled={batchActing}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-transform active:scale-95"
                   title="No marca verificación de enlace; conviene revisar ofertas con URL una a una."
                 >
                   <Check className="h-4 w-4" />
@@ -496,7 +496,7 @@ export default function ModerationPage() {
                   type="button"
                   onClick={() => setShowBatchReject(true)}
                   disabled={batchActing}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-transform active:scale-95"
                 >
                   <X className="h-4 w-4" />
                   Rechazar
@@ -505,7 +505,7 @@ export default function ModerationPage() {
                   type="button"
                   onClick={runBatchExpire}
                   disabled={batchActing}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 transition-transform active:scale-95"
                 >
                   <Clock className="h-4 w-4" />
                   Marcar expiradas
@@ -517,7 +517,7 @@ export default function ModerationPage() {
 
         {showBatchReject && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !batchActing && setShowBatchReject(false)}>
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-[28px] shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Rechazar {selectedIds.size} ofertas</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mismo motivo para todas (obligatorio). Atajos:</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -526,7 +526,7 @@ export default function ModerationPage() {
                     key={r.short}
                     type="button"
                     onClick={() => setBatchRejectReason(r.full)}
-                    className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400"
+                    className="rounded-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 px-3 py-1.5 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400"
                   >
                     {r.short}
                   </button>
@@ -537,11 +537,11 @@ export default function ModerationPage() {
                 value={batchRejectReason}
                 onChange={(e) => setBatchRejectReason(e.target.value)}
                 placeholder="Motivo detallado para todas las seleccionadas…"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 mb-4"
+                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 mb-4"
               />
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setShowBatchReject(false)} className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">Cancelar</button>
-                <button type="button" onClick={runBatchReject} disabled={!batchRejectReason.trim() || batchActing} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">Rechazar</button>
+                <button type="button" onClick={() => setShowBatchReject(false)} className="rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">Cancelar</button>
+                <button type="button" onClick={runBatchReject} disabled={!batchRejectReason.trim() || batchActing} className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">Rechazar</button>
               </div>
             </div>
           </div>
@@ -554,7 +554,7 @@ export default function ModerationPage() {
           Cargando cola…
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gradient-to-b from-gray-50/80 to-white dark:from-gray-800/40 dark:to-gray-900 p-10 md:p-12 text-center">
+        <div className="rounded-[28px] border border-gray-200 dark:border-gray-700 bg-linear-to-b from-gray-50/80 to-white dark:from-gray-800/40 dark:to-gray-900 p-10 md:p-12 text-center">
           <p className="text-gray-600 dark:text-gray-400 text-[15px]">
             {pending.length === 0
               ? 'No hay ofertas pendientes. Buen trabajo.'
@@ -564,7 +564,7 @@ export default function ModerationPage() {
       ) : (
         <div className="space-y-6">
           {botFiltered.length > 0 ? (
-            <section className="rounded-2xl border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4">
+            <section className="rounded-[28px] border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm md:text-base font-semibold text-sky-800 dark:text-sky-200">
                   Ofertas del bot (priorizadas por gratis y mayor descuento)
@@ -594,7 +594,7 @@ export default function ModerationPage() {
           ) : null}
 
           {userFiltered.length > 0 ? (
-            <section className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4">
+            <section className="rounded-[28px] border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200">
                   Ofertas de usuarios

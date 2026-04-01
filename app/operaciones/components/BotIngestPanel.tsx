@@ -11,6 +11,7 @@ type BotStatusPayload = {
   cron: { path: string; schedule: string; runs_per_day_estimate?: number; deployment_note?: string };
   config: {
     bot_user_id_configured: boolean;
+    profile?: 'standard' | 'mega';
     timezone?: string;
     normal_max_range?: [number, number];
     boost_max_offers?: number;
@@ -36,6 +37,9 @@ type BotStatusPayload = {
     min_rating?: number;
     tech_categories_count?: number;
     amazon_asins_count?: number;
+    amazon_source?: 'scrape' | 'paapi';
+    amazon_paapi_enabled?: boolean;
+    keepa_enabled?: boolean;
     has_ingest_sources?: boolean;
   };
   capacity: {
@@ -68,6 +72,10 @@ export default function BotIngestPanel() {
   const [runNowSkipBreakdown, setRunNowSkipBreakdown] = useState<Array<{ reason: string; count: number }> | null>(
     null
   );
+  const [runNowSourceStats, setRunNowSourceStats] = useState<
+    Array<{ source: string; collected: number; evaluated: number; inserted: number; duplicate: number; skipped: number; errors: number }>
+    | null
+  >(null);
   const [pauseToggleSaving, setPauseToggleSaving] = useState(false);
   const [pauseToggleError, setPauseToggleError] = useState<string | null>(null);
 
@@ -113,13 +121,16 @@ export default function BotIngestPanel() {
   }, [loadStatus]);
 
   return (
-    <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 shadow-sm">
-      <div className="mb-3">
-        <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <section className="rounded-[28px] border border-gray-200/70 dark:border-gray-800 bg-white dark:bg-[#1C1C1E] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+      <div className="mb-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400 mb-2">
+          Operaciones
+        </p>
+        <h2 className="font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Bot className="h-5 w-5 text-violet-500" />
           Bot de ingesta (motor v3)
         </h2>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
           Score, filtros de calidad, auto-aprobación de ofertas top y tope diario. Automatización: Pro/cron externo
           cada ~15 min o «Ejecutar ahora» (Vercel Hobby no permite ese intervalo en vercel.json).
         </p>
@@ -129,8 +140,8 @@ export default function BotIngestPanel() {
       {!loading && error ? <p className="text-sm text-red-600 dark:text-red-300">{error}</p> : null}
 
       {!loading && !error && data ? (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/20 px-3 py-3">
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-violet-200/70 dark:border-violet-900/40 bg-violet-50/70 dark:bg-violet-950/20 px-4 py-4">
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -188,7 +199,8 @@ export default function BotIngestPanel() {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-3xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
+            <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={runNowLoading}
@@ -196,6 +208,7 @@ export default function BotIngestPanel() {
                 setRunNowLoading(true);
                 setRunNowMsg(null);
                 setRunNowSkipBreakdown(null);
+                setRunNowSourceStats(null);
                 try {
                   const supabase = createClient();
                   const {
@@ -241,20 +254,38 @@ export default function BotIngestPanel() {
                       .map(([reason, count]) => ({ reason, count }));
                     if (rows.length > 0) setRunNowSkipBreakdown(rows);
                   }
+                  const sourceStats = body?.summary?.sourceStats as
+                    | Record<string, { collected?: number; evaluated?: number; inserted?: number; duplicate?: number; skipped?: number; errors?: number }>
+                    | undefined;
+                  if (sourceStats && typeof sourceStats === 'object') {
+                    const rows = Object.entries(sourceStats)
+                      .map(([source, stats]) => ({
+                        source,
+                        collected: stats?.collected ?? 0,
+                        evaluated: stats?.evaluated ?? 0,
+                        inserted: stats?.inserted ?? 0,
+                        duplicate: stats?.duplicate ?? 0,
+                        skipped: stats?.skipped ?? 0,
+                        errors: stats?.errors ?? 0,
+                      }))
+                      .filter((row) => row.collected > 0 || row.evaluated > 0)
+                      .sort((a, b) => b.evaluated - a.evaluated);
+                    if (rows.length > 0) setRunNowSourceStats(rows);
+                  }
                 } catch {
                   setRunNowMsg('Error de red al ejecutar bot');
                 } finally {
                   setRunNowLoading(false);
                 }
               }}
-              className="inline-flex items-center gap-1 rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-violet-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-full bg-violet-600 text-white px-4 py-2 text-xs font-semibold transition-transform active:scale-95 hover:bg-violet-700 disabled:opacity-50"
             >
               {runNowLoading ? 'Ejecutando…' : 'Ejecutar ahora'}
             </button>
             <div className="flex flex-col gap-1 min-w-0 max-w-full">
               {runNowMsg ? <span className="text-xs text-gray-600 dark:text-gray-300">{runNowMsg}</span> : null}
               {runNowSkipBreakdown && runNowSkipBreakdown.length > 0 ? (
-                <div className="rounded-lg border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
+                <div className="rounded-2xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
                   <p className="text-[11px] font-medium text-amber-900 dark:text-amber-100">
                     Motivos de “skipped” (ajusta variables en Vercel según lo que más salga):
                   </p>
@@ -267,6 +298,22 @@ export default function BotIngestPanel() {
                   </ul>
                 </div>
               ) : null}
+              {runNowSourceStats && runNowSourceStats.length > 0 ? (
+                <div className="rounded-2xl border border-sky-200/80 dark:border-sky-900/50 bg-sky-50/60 dark:bg-sky-950/25 px-3 py-2">
+                  <p className="text-[11px] font-medium text-sky-900 dark:text-sky-100">
+                    Salud por fuente en esta corrida:
+                  </p>
+                  <ul className="mt-1.5 text-[11px] text-sky-950/85 dark:text-sky-100/90 list-disc pl-4 space-y-0.5">
+                    {runNowSourceStats.map((row) => (
+                      <li key={row.source}>
+                        <strong>{row.source}</strong> · collected={row.collected}, eval={row.evaluated}, inserted=
+                        {row.inserted}, dup={row.duplicate}, skip={row.skipped}, err={row.errors}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
             </div>
           </div>
 
@@ -297,19 +344,19 @@ export default function BotIngestPanel() {
             </span>
           </div>
           {data.cron.deployment_note ? (
-            <p className="text-xs text-amber-800 dark:text-amber-200/90 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
+            <p className="text-xs text-amber-800 dark:text-amber-200/90 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-4 py-3">
               {data.cron.deployment_note}
             </p>
           ) : null}
 
-          <div className="grid sm:grid-cols-2 gap-2 text-sm">
-            <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+          <div className="grid sm:grid-cols-2 gap-3 text-sm">
+            <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
               <span className="text-gray-500 dark:text-gray-400">`BOT_INGEST_USER_ID`:</span>{' '}
               <strong className={data.config.bot_user_id_configured ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}>
                 {data.config.bot_user_id_configured ? 'configurado' : 'faltante'}
               </strong>
             </p>
-            <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+            <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
               <span className="text-gray-500 dark:text-gray-400">Tope diario (env):</span>{' '}
               <strong>{data.config.daily_max ?? '—'}</strong>
               {typeof data.capacity.inserted_today_approx === 'number' ? (
@@ -319,7 +366,7 @@ export default function BotIngestPanel() {
                 </span>
               ) : null}
             </p>
-            <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+            <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
               <span className="text-gray-500 dark:text-gray-400">Por corrida (normal):</span>{' '}
               <strong>
                 {data.config.normal_max_range
@@ -339,11 +386,15 @@ export default function BotIngestPanel() {
                 </span>
               ) : null}
             </p>
+            <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
+              <span className="text-gray-500 dark:text-gray-400">Perfil:</span>{' '}
+              <strong>{data.config.profile ?? 'standard'}</strong>
+            </p>
             <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
               <span className="text-gray-500 dark:text-gray-400">URLs fuente:</span> {data.config.urls_count}
             </p>
             {typeof data.config.discover_ml === 'boolean' ? (
-              <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 sm:col-span-2">
+              <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 sm:col-span-2 bg-white dark:bg-[#151517]">
                 <span className="text-gray-500 dark:text-gray-400">Descubrimiento ML (API):</span>{' '}
                 <strong>{data.config.discover_ml ? 'activo' : 'off'}</strong>
                 {data.config.discover_ml ? (
@@ -358,7 +409,7 @@ export default function BotIngestPanel() {
               </p>
             ) : null}
             {typeof data.config.auto_approve_min_score === 'number' ? (
-              <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 sm:col-span-2">
+              <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 sm:col-span-2 bg-white dark:bg-[#151517]">
                 <span className="text-gray-500 dark:text-gray-400">Score:</span>{' '}
                 {data.config.auto_approve_enabled === false ? (
                   <strong className="text-amber-700 dark:text-amber-300">solo moderación</strong>
@@ -376,13 +427,19 @@ export default function BotIngestPanel() {
               </p>
             ) : null}
             {typeof data.config.amazon_asins_count === 'number' ? (
-              <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+              <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
                 <span className="text-gray-500 dark:text-gray-400">ASINs Amazon (pool):</span>{' '}
                 <strong>{data.config.amazon_asins_count}</strong>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}
+                  · fuente {data.config.amazon_source ?? 'scrape'}
+                  {data.config.amazon_paapi_enabled ? ' · PA-API on' : ''}
+                  {data.config.keepa_enabled ? ' · Keepa on' : ''}
+                </span>
               </p>
             ) : null}
             {data.config.has_ingest_sources === false ? (
-              <p className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 sm:col-span-2 text-amber-900 dark:text-amber-100 text-xs">
+              <p className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 sm:col-span-2 text-amber-900 dark:text-amber-100 text-xs">
                 No hay fuentes de ingesta: define URLs, <code className="text-[11px]">BOT_INGEST_DISCOVER_ML=1</code> o{' '}
                 <code className="text-[11px]">BOT_INGEST_AMAZON_ASINS</code>.
               </p>

@@ -312,17 +312,32 @@ export type ParsedOfferMetadata = {
   signals?: OfferQualitySignals;
 };
 
-export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOfferMetadata | null> {
+export type ParsedOfferMetadataAttempt = {
+  meta: ParsedOfferMetadata | null;
+  diagnostic:
+    | 'invalid_url'
+    | 'blocked_url'
+    | 'timeout'
+    | 'network_error'
+    | 'http_error'
+    | 'missing_title'
+    | 'missing_discount_price'
+    | 'missing_original_price'
+    | 'ok';
+  httpStatus?: number | null;
+};
+
+export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<ParsedOfferMetadataAttempt> {
   let url: URL;
   try {
     url = new URL(rawUrl.trim());
   } catch {
-    return null;
+    return { meta: null, diagnostic: 'invalid_url' };
   }
-  if (!['http:', 'https:'].includes(url.protocol)) return null;
+  if (!['http:', 'https:'].includes(url.protocol)) return { meta: null, diagnostic: 'invalid_url' };
 
   const block = isBlockedOfferParseUrl(url);
-  if (block.blocked) return null;
+  if (block.blocked) return { meta: null, diagnostic: 'blocked_url' };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -337,13 +352,17 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
       },
       redirect: 'follow',
     });
-  } catch {
+  } catch (error) {
     clearTimeout(timeoutId);
-    return null;
+    const message = error instanceof Error ? error.name : String(error);
+    return {
+      meta: null,
+      diagnostic: /abort/i.test(message) ? 'timeout' : 'network_error',
+    };
   }
   clearTimeout(timeoutId);
 
-  if (!res.ok) return null;
+  if (!res.ok) return { meta: null, diagnostic: 'http_error', httpStatus: res.status };
 
   const html = await res.text();
   const finalUrl = res.url ? new URL(res.url) : url;
@@ -375,7 +394,7 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
   }
 
   const titleRaw = sanitizeOfferTitle(data.title) ?? data.title?.trim();
-  if (!titleRaw) return null;
+  if (!titleRaw) return { meta: null, diagnostic: 'missing_title' };
 
   const store =
     (data.store && data.store.trim()) ||
@@ -396,7 +415,7 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
     discountPrice = discount;
     originalPrice = original != null && original > discount ? original : null;
   } else {
-    return null;
+    return { meta: null, diagnostic: 'missing_discount_price' };
   }
 
   const discountPercent =
@@ -412,13 +431,22 @@ export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOf
     ldSignals.condition != null;
 
   return {
-    canonicalUrl: finalUrl.href,
-    title: titleRaw,
-    store,
-    imageUrl,
-    discountPrice,
-    originalPrice,
-    discountPercent,
-    ...(hasSignal ? { signals: ldSignals } : {}),
+    meta: {
+      canonicalUrl: finalUrl.href,
+      title: titleRaw,
+      store,
+      imageUrl,
+      discountPrice,
+      originalPrice,
+      discountPercent,
+      ...(hasSignal ? { signals: ldSignals } : {}),
+    },
+    diagnostic:
+      originalPrice == null || originalPrice <= discountPrice ? 'missing_original_price' : 'ok',
   };
+}
+
+export async function fetchParsedOfferMetadata(rawUrl: string): Promise<ParsedOfferMetadata | null> {
+  const attempt = await fetchParsedOfferMetadataDetailed(rawUrl);
+  return attempt.meta;
 }

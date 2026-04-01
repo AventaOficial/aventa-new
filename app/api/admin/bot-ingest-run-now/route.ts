@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
-import { runIngestCycle } from '@/lib/bots/ingest';
+import { runIngestCycleForProfile } from '@/lib/bots/ingest/runIngestCycle';
 
 /** Ejecuta el bot en caliente (owner/admin), sin esperar al cron. */
 export async function POST(request: Request) {
@@ -8,7 +8,9 @@ export async function POST(request: Request) {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const report = await runIngestCycle();
+    const body = await request.json().catch(() => ({}));
+    const profile = body?.profile === 'mega' ? 'mega' : 'standard';
+    const report = await runIngestCycleForProfile(profile);
     return NextResponse.json(report, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ComponentType, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -24,6 +24,7 @@ import {
   Scale,
   Briefcase,
   NotebookPen,
+  Wrench,
 } from 'lucide-react';
 import {
   ROLES,
@@ -64,10 +65,24 @@ const METRICS_ITEMS = [
   { href: '/admin/health', label: 'Health', icon: Heart },
 ] as const;
 
+type NavItem = {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  exact?: boolean;
+  subtle?: boolean;
+};
+
+type NavSection = {
+  title: string;
+  items: NavItem[];
+  visible: boolean;
+};
+
 export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -114,9 +129,11 @@ export default function AdminLayout({
   const canOwnerOpsPanel = canAccessOwnerOperationsPanel(userRole);
   const canMet = canAccessMetrics(userRole);
   const canHea = canAccessHealth(userRole);
+  const canTechnical = canOwnerOpsPanel;
 
   useEffect(() => {
     if (!authGateReady || !hasAllowedRole) return;
+    const isDashboardPath = pathname === '/admin/dashboard';
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
@@ -128,8 +145,11 @@ export default function AdminLayout({
     const isVoteWeightsPath = pathname === '/admin/vote-weights';
     const isOperacionesPath = pathname.startsWith('/admin/operaciones');
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
+    const isTechnicalPath = pathname === '/admin/technical';
     if (pathname === '/admin/owner') {
       router.replace('/admin/operaciones');
+    } else if (isDashboardPath && !hasAllowedRole) {
+      router.replace('/');
     } else if (isOperacionesPath && (!canTeam || !canOwnerOpsPanel)) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isMantenimientoPath && !canTeam) {
@@ -152,6 +172,8 @@ export default function AdminLayout({
       router.replace(canMod ? '/admin/moderation' : '/admin/health');
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
+    } else if (isTechnicalPath && !canTechnical) {
+      router.replace(canOwnerOpsPanel ? '/admin/operaciones' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     }
   }, [
     pathname,
@@ -164,8 +186,93 @@ export default function AdminLayout({
     canAnnouncements,
     canMet,
     canHea,
+    canTechnical,
     router,
   ]);
+
+  const moderationItems: NavItem[] = MODERATION_ONLY_ITEMS.map((item) => ({
+    ...item,
+    exact: item.href === '/admin/moderation',
+  }));
+  const administrationItems: NavItem[] = [
+    ...USERS_LOGS_ITEMS,
+    TEAM_ITEM,
+    ANNOUNCEMENTS_ITEM,
+  ].filter((item) => {
+    if (item.href === TEAM_ITEM.href) return canTeam;
+    if (item.href === ANNOUNCEMENTS_ITEM.href) return canAnnouncements;
+    return canUsersLogs;
+  });
+  const operationsItems: NavItem[] = [
+    { href: '/admin/operaciones', label: 'Centro de operaciones', icon: LayoutDashboard },
+    { href: '/admin/operaciones/trabajo', label: 'Trabajo', icon: Briefcase },
+    { href: '/admin/vote-weights', label: 'Peso de voto', icon: Scale },
+    { href: '/admin/mantenimiento', label: 'Mantenimiento', icon: NotebookPen },
+  ];
+  const analysisItems: NavItem[] = [
+    { href: '/admin/analista', label: 'Panel', icon: LayoutDashboard },
+    ...METRICS_ITEMS,
+  ].filter((item) => {
+    if (item.href === '/admin/metrics') return canMet;
+    if (item.href === '/admin/health') return canHea;
+    return canMet || canHea;
+  });
+  const technicalItems: NavItem[] = [{ href: '/admin/technical', label: 'Datos técnicos', icon: Wrench }];
+
+  const navSections: NavSection[] = [
+    {
+      title: 'General',
+      visible: hasAllowedRole,
+      items: [{ href: '/admin/dashboard', label: 'Panel', icon: LayoutDashboard, exact: true }],
+    },
+    {
+      title: 'Moderación',
+      visible: canMod,
+      items: moderationItems,
+    },
+    {
+      title: 'Administración',
+      visible: administrationItems.length > 0,
+      items: administrationItems,
+    },
+    {
+      title: 'Operaciones',
+      visible: canOwnerOpsPanel,
+      items: operationsItems,
+    },
+    {
+      title: 'Análisis',
+      visible: analysisItems.length > 0,
+      items: analysisItems,
+    },
+    {
+      title: 'Técnico',
+      visible: canTechnical,
+      items: technicalItems,
+    },
+    {
+      title: 'Recursos',
+      visible: canTeam,
+      items: [{ href: '/contexto', label: 'Contexto', icon: Map, exact: true, subtle: true }],
+    },
+  ];
+
+  const getActive = (item: NavItem) => {
+    if (item.exact) return pathname === item.href;
+    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+  };
+
+  const mobileTitle = pathname === '/admin/dashboard'
+    ? 'Panel'
+    : pathname === '/admin/technical'
+      ? 'Técnico'
+      : pathname.startsWith('/admin/operaciones') || pathname === '/admin/mantenimiento' || pathname === '/admin/vote-weights'
+        ? 'Operaciones'
+        : pathname.startsWith('/admin/metrics') || pathname === '/admin/health' || pathname === '/admin/analista'
+          ? 'Análisis'
+          : pathname === '/admin/users' || pathname === '/admin/logs' || pathname === '/admin/team' || pathname === '/admin/announcements'
+            ? 'Administración'
+            : 'Moderación';
 
   if (!authGateReady) {
     return (
@@ -197,19 +304,19 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-[#141414] flex">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-black flex">
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-[#1a1a1a] border-r border-gray-200 dark:border-gray-700
+          fixed inset-y-0 left-0 z-40 w-72 bg-white/95 dark:bg-[#111113]/95 backdrop-blur-xl border-r border-gray-200/80 dark:border-gray-800
           transform transition-transform duration-200 ease-in-out
           lg:translate-x-0 lg:static
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 lg:justify-start">
+        <div className="flex h-16 items-center justify-between px-5 border-b border-gray-200/80 dark:border-gray-800 lg:justify-start">
           <Link
-            href="/admin/moderation"
-            className="font-semibold text-gray-900 dark:text-gray-100"
+            href="/admin/dashboard"
+            className="font-semibold tracking-tight text-gray-900 dark:text-gray-100"
           >
             Panel Admin
           </Link>
@@ -222,247 +329,40 @@ export default function AdminLayout({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="p-3 space-y-0.5">
-          {canMod && (
-            <>
-              <p className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Moderación
+        <nav className="p-3 space-y-5">
+          {navSections.filter((section) => section.visible).map((section) => (
+            <div key={section.title}>
+              <p className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.18em]">
+                {section.title}
               </p>
-              {MODERATION_ONLY_ITEMS.map(({ href, label, icon: Icon }) => {
-                const isActive =
-                  pathname === href ||
-                  (href.startsWith('/admin/moderation/') && pathname.startsWith(href));
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                      ${
-                        isActive
-                          ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }
-                    `}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {label}
-                  </Link>
-                );
-              })}
-            </>
-          )}
-          {(canTeam || canAnnouncements) && (
-            <>
-              {canOwnerOpsPanel && (
-                <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Solo owner
-                </p>
-              )}
-              {canOwnerOpsPanel && (
-                <Link
-                  href="/admin/operaciones"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/operaciones'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <LayoutDashboard className="h-4 w-4 shrink-0" />
-                  Centro de operaciones
-                </Link>
-              )}
-              {canOwnerOpsPanel && (
-                <Link
-                  href="/admin/operaciones/trabajo"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/operaciones/trabajo'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <Briefcase className="h-4 w-4 shrink-0" />
-                  Trabajo
-                </Link>
-              )}
-              {canOwnerOpsPanel && (
-                <Link
-                  href="/admin/vote-weights"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/vote-weights'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <Scale className="h-4 w-4 shrink-0" />
-                  Peso de voto
-                </Link>
-              )}
-              {canTeam && (
-                <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Owner y admins
-                </p>
-              )}
-              {canTeam && (
-                <Link
-                  href="/admin/mantenimiento"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/mantenimiento'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <NotebookPen className="h-4 w-4 shrink-0" />
-                  Mantenimiento
-                </Link>
-              )}
-              {canTeam && (
-                <Link
-                  href="/contexto"
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <Map className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                  Contexto
-                </Link>
-              )}
-              {canTeam && (
-                <Link
-                  href={TEAM_ITEM.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === TEAM_ITEM.href
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <TEAM_ITEM.icon className="h-4 w-4 shrink-0" />
-                  {TEAM_ITEM.label}
-                </Link>
-              )}
-              {canAnnouncements && (
-                <Link
-                  href={ANNOUNCEMENTS_ITEM.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === ANNOUNCEMENTS_ITEM.href
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <ANNOUNCEMENTS_ITEM.icon className="h-4 w-4 shrink-0" />
-                  {ANNOUNCEMENTS_ITEM.label}
-                </Link>
-              )}
-            </>
-          )}
-          {canUsersLogs && (
-            <>
-              <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Administración
-              </p>
-              {USERS_LOGS_ITEMS.map(({ href, label, icon: Icon }) => {
-                const isActive = pathname === href;
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                      ${
-                        isActive
-                          ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }
-                    `}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {label}
-                  </Link>
-                );
-              })}
-            </>
-          )}
-          {(canMet || canHea) && (
-            <>
-              <p className="px-3 py-1.5 mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Análisis
-              </p>
-              <Link
-                href="/admin/analista"
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                  ${
-                    pathname === '/admin/analista'
-                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                <LayoutDashboard className="h-4 w-4 shrink-0" />
-                Panel
-              </Link>
-              {canMet && (
-                <Link
-                  href="/admin/metrics"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/metrics'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <BarChart3 className="h-4 w-4 shrink-0" />
-                  Métricas
-                </Link>
-              )}
-              {canHea && (
-                <Link
-                  href="/admin/health"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${
-                      pathname === '/admin/health'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  <Heart className="h-4 w-4 shrink-0" />
-                  Health
-                </Link>
-              )}
-            </>
-          )}
+              <div className="mt-1 space-y-1">
+                {section.items.map((item) => {
+                  const isActive = getActive(item);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`
+                        flex items-center gap-3 px-3.5 py-3 rounded-2xl text-sm font-medium tracking-tight transition-all
+                        ${
+                          isActive
+                            ? 'bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shadow-[0_4px_20px_rgba(0,0,0,0.03)]'
+                            : item.subtle
+                              ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-gray-900'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-900'
+                        }
+                      `}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -475,7 +375,7 @@ export default function AdminLayout({
       )}
 
       <main className="flex-1 min-w-0">
-        <div className="sticky top-0 z-20 flex h-14 items-center gap-2 px-4 bg-gray-100 dark:bg-[#141414] border-b border-gray-200 dark:border-gray-700 lg:hidden">
+        <div className="sticky top-0 z-20 flex h-14 items-center gap-2 px-4 bg-[#F5F5F7]/90 dark:bg-black/90 backdrop-blur-xl border-b border-gray-200/80 dark:border-gray-800 lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -485,14 +385,10 @@ export default function AdminLayout({
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-medium text-gray-800 dark:text-gray-200">
-            {pathname.startsWith('/admin/operaciones') || pathname === '/admin/mantenimiento'
-              ? 'Operaciones'
-              : pathname.startsWith('/admin/metrics') || pathname === '/admin/health' || pathname === '/admin/analista'
-                ? 'Análisis'
-                : 'Moderación'}
+            {mobileTitle}
           </span>
         </div>
-        <div className="p-4 lg:p-6">{children}</div>
+        <div className="p-4 lg:p-6 max-w-7xl mx-auto w-full">{children}</div>
       </main>
     </div>
   );

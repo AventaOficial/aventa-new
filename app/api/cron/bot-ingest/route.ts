@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
-import { runIngestCycle } from '@/lib/bots/ingest';
+import { runIngestCycleForProfile } from '@/lib/bots/ingest/runIngestCycle';
 
 /**
  * La ingesta puede tardar minutos (ML, sleeps). Cron externo (p. ej. cron-job.org) suele cortar a ~30s.
@@ -20,13 +20,15 @@ export const maxDuration = 300;
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
   if (denied) return denied;
+  const profile = request.nextUrl.searchParams.get('profile') === 'mega' ? 'mega' : 'standard';
 
   after(async () => {
     try {
-      const report = await runIngestCycle();
+      const report = await runIngestCycleForProfile(profile);
       console.log(
         '[bot-ingest:after]',
         JSON.stringify({
+          profile: report.profile,
           ok: report.ok,
           runMode: report.runMode,
           inserted: report.summary.inserted,
@@ -34,6 +36,7 @@ export async function GET(request: NextRequest) {
           duplicate: report.summary.duplicate,
           errors: report.summary.errors,
           skipReasonCounts: report.summary.skipReasonCounts ?? null,
+          sourceStats: report.summary.sourceStats ?? null,
         })
       );
     } catch (e) {

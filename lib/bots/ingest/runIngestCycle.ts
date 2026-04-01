@@ -7,7 +7,7 @@ import {
   setBotIngestLastBoostYmd,
 } from './botIngestDailyState';
 import { collectIngestItems } from './collectIngestItems';
-import { fetchParsedOfferMetadata } from './fetchParsedOfferMetadata';
+import { fetchParsedOfferMetadataDetailed } from './fetchParsedOfferMetadata';
 import { insertIngestedOffer } from './insertIngestedOffer';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
@@ -15,9 +15,10 @@ import { scoreIngestCandidate, type ScoreBreakdown } from './scoreIngestCandidat
 import { computeSourceRotationWave, formatYmdInTz, getZonedHourMinute } from './ingestZonedTime';
 import { sleep } from './ingestHttp';
 import { recalculateUserReputation } from '@/lib/server/reputation';
-import type { IngestCycleReport, IngestSingleResult } from './types';
+import type { IngestCycleReport, IngestSingleResult, IngestProfileId, IngestSourceId, IngestSourceStats } from './types';
 import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
+import { enrichWithPriceIntel } from './priceIntel';
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -49,8 +50,42 @@ function passesAmazonHardFilters(
 
 export async function runIngestCycle(): Promise<IngestCycleReport> {
   const startedAt = new Date().toISOString();
-  const config = loadBotIngestConfig();
+  return runIngestCycleForProfile('standard', startedAt);
+}
+
+function emptySourceStats(): Record<IngestSourceId, IngestSourceStats> {
+  return {
+    env_urls: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
+    rss: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
+    ml_api: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
+    amazon_asin: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
+  };
+}
+
+function markSourceSkip(
+  stats: Record<IngestSourceId, IngestSourceStats>,
+  source: IngestSourceId,
+  reason: string
+) {
+  stats[source].skipped += 1;
+  const map = stats[source].skipReasonCounts ?? {};
+  map[reason] = (map[reason] ?? 0) + 1;
+  stats[source].skipReasonCounts = map;
+}
+
+export async function runIngestCycleForProfile(
+  profile: IngestProfileId = 'standard',
+  startedAt = new Date().toISOString()
+): Promise<IngestCycleReport> {
+  const config = loadBotIngestConfig(profile);
   const results: IngestSingleResult[] = [];
+  const sourceStats = emptySourceStats();
+  const stageCounts = {
+    collected: 0,
+    evaluated: 0,
+    resolved: 0,
+    insertedAttempted: 0,
+  };
 
   const pausedByOwner = await getBotIngestPausedFromDb();
   if (pausedByOwner) {
@@ -59,6 +94,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
       enabled: false,
       pausedByOwner: true,
       envIngestEnabled: config.enabled,
+      profile,
       startedAt,
       finishedAt: new Date().toISOString(),
       maxPerRun: 0,
@@ -75,6 +111,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     return {
       ok: true,
       enabled: false,
+      profile,
       startedAt,
       finishedAt: new Date().toISOString(),
       maxPerRun: 0,
@@ -91,6 +128,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     return {
       ok: false,
       enabled: true,
+      profile,
       startedAt,
       finishedAt: new Date().toISOString(),
       maxPerRun: 0,
@@ -145,6 +183,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     return {
       ok: true,
       enabled: true,
+      profile,
       startedAt,
       finishedAt: new Date().toISOString(),
       maxPerRun: 0,
@@ -170,7 +209,9 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
 
   const rotationWave = computeSourceRotationWave(now, tz);
   const pool = await collectIngestItems(config, rotationWave);
+  for (const item of pool) sourceStats[item.source].collected += 1;
   const slice = pool.slice(0, config.candidatePoolMax);
+  stageCounts.collected = slice.length;
 
   type Resolved = {
     item: IngestItem;
@@ -184,45 +225,74 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
   let scoreRejected = 0;
 
   for (const item of slice) {
+    sourceStats[item.source].evaluated += 1;
+    stageCounts.evaluated += 1;
     try {
-      const meta = item.precomputedMeta
-        ? { ...item.precomputedMeta }
-        : await fetchParsedOfferMetadata(item.url);
+      const parseAttempt = item.precomputedMeta
+        ? { meta: { ...item.precomputedMeta }, diagnostic: 'ok' as const }
+        : await fetchParsedOfferMetadataDetailed(item.url);
+      const meta = parseAttempt.meta ? await enrichWithPriceIntel({ ...parseAttempt.meta }, config) : null;
       if (!meta) {
-        results.push({ url: item.url, status: 'skipped', reason: 'sin metadatos' });
+        const reason =
+          parseAttempt.diagnostic === 'timeout'
+            ? 'timeout al obtener metadatos'
+            : parseAttempt.diagnostic === 'http_error'
+              ? `HTTP ${parseAttempt.httpStatus ?? '?'} al obtener metadatos`
+              : parseAttempt.diagnostic === 'missing_title'
+                ? 'sin título parseable'
+                : parseAttempt.diagnostic === 'missing_discount_price'
+                  ? 'sin precio actual parseable'
+                  : 'sin metadatos';
+        results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+        markSourceSkip(sourceStats, item.source, reason);
         await sleep(randomIntInclusive(delayLo, delayHi));
         continue;
       }
 
       if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) {
-        results.push({ url: item.url, status: 'skipped', reason: 'sin precio original verificable' });
+        const reason =
+          parseAttempt.diagnostic === 'missing_original_price'
+            ? 'sin precio original verificable'
+            : 'sin precio original verificable';
+        results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+        markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
       if (meta.discountPercent < config.minDiscountPercent) {
+        const reason = `descuento ${meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`;
         results.push({
           url: item.url,
+          source: item.source,
           status: 'skipped',
-          reason: `descuento ${meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`,
+          reason,
         });
+        markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
       if (isLowQualityTitle(meta.title, config)) {
-        results.push({ url: item.url, status: 'skipped', reason: 'título marcado como baja calidad' });
+        const reason = 'título marcado como baja calidad';
+        results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+        markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
       if (isAmazonMeta(meta, item) && !passesAmazonHardFilters(meta, config)) {
-        results.push({ url: item.url, status: 'skipped', reason: 'rating Amazon bajo umbral' });
+        const reason = 'rating Amazon bajo umbral';
+        results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+        markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
 
       const scored = scoreIngestCandidate(meta, meta.signals, config);
       if (scored.decision === 'reject') {
         scoreRejected += 1;
+        const reason = `score ${scored.breakdown.total} < mínimo publicación`;
         results.push({
           url: item.url,
+          source: item.source,
           status: 'skipped',
-          reason: `score ${scored.breakdown.total} < mínimo publicación`,
+          reason,
         });
+        markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
 
@@ -233,9 +303,11 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
         total: scored.breakdown.total,
         breakdown: scored.breakdown,
       });
+      stageCounts.resolved += 1;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      results.push({ url: item.url, status: 'error', message });
+      results.push({ url: item.url, source: item.source, status: 'error', message });
+      sourceStats[item.source].errors += 1;
     }
 
     await sleep(randomIntInclusive(delayLo, delayHi));
@@ -248,6 +320,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
 
   for (const r of resolved) {
     if (insertedThisRun >= targetMax) break;
+    stageCounts.insertedAttempted += 1;
 
     const allowAuto =
       config.autoApproveEnabled && r.decision === 'auto_approve';
@@ -263,16 +336,20 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
       });
       if (ins.ok) {
         insertedThisRun += 1;
-        results.push({ url: r.item.url, status: 'inserted', offerId: ins.offerId });
+        results.push({ url: r.item.url, source: r.item.source, status: 'inserted', offerId: ins.offerId });
+        sourceStats[r.item.source].inserted += 1;
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
-        results.push({ url: r.item.url, status: 'duplicate' });
+        results.push({ url: r.item.url, source: r.item.source, status: 'duplicate' });
+        sourceStats[r.item.source].duplicate += 1;
       } else if ('error' in ins) {
-        results.push({ url: r.item.url, status: 'error', message: ins.error });
+        results.push({ url: r.item.url, source: r.item.source, status: 'error', message: ins.error });
+        sourceStats[r.item.source].errors += 1;
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      results.push({ url: r.item.url, status: 'error', message });
+      results.push({ url: r.item.url, source: r.item.source, status: 'error', message });
+      sourceStats[r.item.source].errors += 1;
     }
 
     await sleep(randomIntInclusive(Math.max(120, delayLo), delayHi + 120));
@@ -302,11 +379,14 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     rejected: scoreRejected,
     autoApproved,
     ...(Object.keys(skipReasonCounts).length > 0 ? { skipReasonCounts } : {}),
+    sourceStats,
+    stageCounts,
   };
 
   return {
     ok: summary.errors === 0,
     enabled: true,
+    profile,
     startedAt,
     finishedAt: new Date().toISOString(),
     maxPerRun: targetMax,

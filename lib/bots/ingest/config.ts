@@ -31,7 +31,11 @@ export type BotIngestScoreWeights = {
   priceAppeal: number;
 };
 
+export type BotIngestProfile = 'standard' | 'mega';
+export type BotIngestAmazonSource = 'scrape' | 'paapi';
+
 export type BotIngestConfig = {
+  profile: BotIngestProfile;
   enabled: boolean;
   botUserId: string | null;
   /** Zona horaria para boost 7:00 y tope diario. */
@@ -76,12 +80,22 @@ export type BotIngestConfig = {
 
   amazonAsins: string[];
   amazonDpBase: string;
+  amazonSource: BotIngestAmazonSource;
+  amazonPaapiEnabled: boolean;
+  amazonPaapiAccessKey: string | null;
+  amazonPaapiSecretKey: string | null;
+  amazonPaapiPartnerTag: string | null;
+  amazonPaapiHost: string;
+  amazonPaapiRegion: string;
 
   minSoldQuantityMl: number;
   minRatingAverage: number;
   minRatingReviewsCount: number;
   mlFetchReviews: boolean;
   mlReviewFetchMax: number;
+  keepaEnabled: boolean;
+  keepaApiKey: string | null;
+  keepaDomainId: number;
 
   /** Si false, nunca status approved por score; todo pasa a moderación (pending). */
   autoApproveEnabled: boolean;
@@ -173,9 +187,10 @@ function safeRegExp(pattern: string | undefined, fallback: RegExp | null): RegEx
   }
 }
 
-export function loadBotIngestConfig(): BotIngestConfig {
+export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): BotIngestConfig {
   const enabled = process.env.BOT_INGEST_ENABLED === 'true' || process.env.BOT_INGEST_ENABLED === '1';
   const botUserId = process.env.BOT_INGEST_USER_ID?.trim() || null;
+  const activeProfile: BotIngestProfile = profile === 'mega' ? 'mega' : 'standard';
 
   const timezone = process.env.BOT_INGEST_TIMEZONE?.trim() || 'America/Mexico_City';
 
@@ -235,7 +250,12 @@ export function loadBotIngestConfig(): BotIngestConfig {
     Math.max(1, Number.parseInt(process.env.BOT_INGEST_MAX_PER_RUN ?? '5', 10) || 5)
   );
 
-  const minRaw = Number.parseInt(process.env.BOT_INGEST_MIN_DISCOUNT_PERCENT ?? '20', 10);
+  const minRaw = Number.parseInt(
+    activeProfile === 'mega'
+      ? process.env.BOT_INGEST_MEGA_MIN_DISCOUNT_PERCENT ?? process.env.BOT_INGEST_MIN_DISCOUNT_PERCENT ?? '50'
+      : process.env.BOT_INGEST_MIN_DISCOUNT_PERCENT ?? '20',
+    10
+  );
   const minDiscountPercent = Number.isFinite(minRaw) ? Math.min(100, Math.max(0, minRaw)) : 20;
 
   const catRaw = process.env.BOT_INGEST_CATEGORY?.trim();
@@ -270,6 +290,19 @@ export function loadBotIngestConfig(): BotIngestConfig {
   let amazonDpBase =
     process.env.BOT_INGEST_AMAZON_DP_BASE?.trim() || 'https://www.amazon.com.mx/dp/';
   if (!amazonDpBase.endsWith('/')) amazonDpBase += '/';
+  const amazonSourceRaw = process.env.BOT_INGEST_AMAZON_SOURCE?.trim().toLowerCase();
+  const amazonSource: BotIngestAmazonSource = amazonSourceRaw === 'paapi' ? 'paapi' : 'scrape';
+  const amazonPaapiEnabled =
+    process.env.BOT_INGEST_AMAZON_PAAPI_ENABLED === '1' ||
+    process.env.BOT_INGEST_AMAZON_PAAPI_ENABLED === 'true';
+  const amazonPaapiAccessKey = process.env.AMAZON_PAAPI_ACCESS_KEY?.trim() || null;
+  const amazonPaapiSecretKey = process.env.AMAZON_PAAPI_SECRET_KEY?.trim() || null;
+  const amazonPaapiPartnerTag =
+    process.env.AMAZON_PAAPI_PARTNER_TAG?.trim() ||
+    process.env.AMAZON_ASSOCIATE_TAG?.trim() ||
+    null;
+  const amazonPaapiHost = process.env.AMAZON_PAAPI_HOST?.trim() || 'webservices.amazon.com.mx';
+  const amazonPaapiRegion = process.env.AMAZON_PAAPI_REGION?.trim() || 'us-east-1';
 
   const minSold = Number.parseInt(process.env.BOT_INGEST_ML_MIN_SOLD ?? '50', 10);
   const minSoldQuantityMl = Number.isFinite(minSold) ? Math.max(0, minSold) : 50;
@@ -286,6 +319,12 @@ export function loadBotIngestConfig(): BotIngestConfig {
 
   const revMaxRaw = Number.parseInt(process.env.BOT_INGEST_ML_REVIEW_FETCH_MAX ?? '18', 10);
   const mlReviewFetchMax = Number.isFinite(revMaxRaw) ? Math.min(40, Math.max(0, revMaxRaw)) : 18;
+  const keepaEnabled =
+    process.env.BOT_INGEST_KEEPA_ENABLED === '1' ||
+    process.env.BOT_INGEST_KEEPA_ENABLED === 'true';
+  const keepaApiKey = process.env.KEEPA_API_KEY?.trim() || null;
+  const keepaDomainRaw = Number.parseInt(process.env.BOT_INGEST_KEEPA_DOMAIN_ID ?? '11', 10);
+  const keepaDomainId = Number.isFinite(keepaDomainRaw) ? Math.max(1, keepaDomainRaw) : 11;
 
   const autoApproveEnabled =
     process.env.BOT_INGEST_AUTO_APPROVE !== '0' &&
@@ -310,6 +349,7 @@ export function loadBotIngestConfig(): BotIngestConfig {
   const titleBlocklistSpamRe = safeRegExp(process.env.BOT_INGEST_TITLE_RE_SPAM?.trim(), null);
 
   return {
+    profile: activeProfile,
     enabled,
     botUserId,
     timezone,
@@ -340,11 +380,21 @@ export function loadBotIngestConfig(): BotIngestConfig {
     techCategoryIdSet: new Set(techCategoryIds),
     amazonAsins,
     amazonDpBase,
+    amazonSource,
+    amazonPaapiEnabled,
+    amazonPaapiAccessKey,
+    amazonPaapiSecretKey,
+    amazonPaapiPartnerTag,
+    amazonPaapiHost,
+    amazonPaapiRegion,
     minSoldQuantityMl,
     minRatingAverage,
     minRatingReviewsCount,
     mlFetchReviews,
     mlReviewFetchMax,
+    keepaEnabled,
+    keepaApiKey,
+    keepaDomainId,
     autoApproveEnabled,
     autoApproveMinScore,
     rejectBelowScore,

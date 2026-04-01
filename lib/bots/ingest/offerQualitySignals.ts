@@ -8,4 +8,10 @@ export type OfferQualitySignals = {
   condition?: string | null;
   categoryId?: string | null;
   listingTypeId?: string | null;
+  /** Intel histórica opcional (Keepa u otros proveedores). */
+  priceLowest30d?: number | null;
+  priceLowest90d?: number | null;
+  priceVsLowest90dPct?: number | null;
+  suspectedArtificialListPrice?: boolean | null;
+  priceIntelSource?: 'keepa' | 'other' | null;
 };
