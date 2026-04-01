@@ -55,13 +55,51 @@ function canonicalizeUrl(url) {
   }
 }
 
+function isMercadoLibreHost(hostname) {
+  const host = hostname.replace(/^www\./, '').toLowerCase();
+  return host === 'mercadolibre.com.mx' || host.endsWith('.mercadolibre.com.mx');
+}
+
+function isProductLikeUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    if (!isMercadoLibreHost(url.hostname)) return false;
+    if (inferItemId(url.href)) return true;
+    return /\/p\//i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function extractJsonLikeNumberFromHtml(html, field) {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match =
+    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*["']([^"']+)["']`, 'i'))?.[1] ??
+    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*([0-9][0-9.,]*)`, 'i'))?.[1] ??
+    null;
+  return parseLocalizedNumber(match);
+}
+
+function looksGenericMercadoLibreTitle(title) {
+  const text = normalizeText(title).toLowerCase();
+  if (!text) return true;
+  return (
+    text.includes('mercadolibre.com.mx') ||
+    /^videojuegos\b/.test(text) ||
+    /^computación\b/.test(text) ||
+    /^conectividad y redes\b/.test(text) ||
+    /^animales y mascotas\b/.test(text) ||
+    /\ben mercado libre\b/.test(text)
+  );
+}
+
 async function extractCards(page) {
   return page.evaluate(() => {
-    const cards = Array.from(
-      document.querySelectorAll('a[href*="mercadolibre.com.mx"], a[href*="meli.la"]')
-    );
+    const cards = Array.from(document.querySelectorAll('a[href]'));
     return cards.map((anchor) => {
       const card = anchor.closest('article, div') ?? anchor.parentElement ?? anchor;
+      const rawHref = anchor.getAttribute('href') || '';
+      const href = rawHref.startsWith('http') ? rawHref : new URL(rawHref, location.origin).href;
       const image =
         card.querySelector('img')?.getAttribute('src') ||
         card.querySelector('img')?.getAttribute('data-src') ||
@@ -126,13 +164,22 @@ async function enrichCandidate(page, candidate) {
       url: location.href,
     };
   });
+  const html = await page.content();
+  const currentFromHtml =
+    extractJsonLikeNumberFromHtml(html, 'price') ||
+    extractJsonLikeNumberFromHtml(html, 'price_amount');
+  const originalFromHtml =
+    extractJsonLikeNumberFromHtml(html, 'original_price') ||
+    extractJsonLikeNumberFromHtml(html, 'priceBefore');
   return {
     url: extracted.url || candidate.href,
     canonicalUrl: canonicalizeUrl(extracted.url || candidate.href),
     title: normalizeText(extracted.title || candidate.title),
     imageUrl: extracted.image || candidate.image,
-    discountPrice: parseLocalizedNumber(extracted.currentText || candidate.priceText),
-    originalPrice: parseLocalizedNumber(extracted.originalText || candidate.originalText),
+    discountPrice:
+      parseLocalizedNumber(extracted.currentText || candidate.priceText) || currentFromHtml,
+    originalPrice:
+      parseLocalizedNumber(extracted.originalText || candidate.originalText) || originalFromHtml,
     soldText: extracted.soldText || '',
   };
 }
@@ -146,13 +193,18 @@ export async function discoverMercadoLibreCandidates(page, options) {
     if (out.length >= maxItems) break;
     await page.goto(seed, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle').catch(() => {});
-    const cards = await extractCards(page);
+    await page.mouse.wheel(0, 2500).catch(() => {});
+    await page.waitForTimeout(1200).catch(() => {});
+    const cards = (await extractCards(page)).filter((card) => isProductLikeUrl(card.href));
+    console.log(`[worker] seed=${seed} raw_links=${cards.length}`);
     for (const card of cards) {
       if (out.length >= maxItems) break;
       if (!card.href || seen.has(card.href)) continue;
       seen.add(card.href);
       try {
         const enriched = await enrichCandidate(page, card);
+        if (!isProductLikeUrl(enriched.url)) continue;
+        if (looksGenericMercadoLibreTitle(enriched.title)) continue;
         if (!enriched.title || !enriched.discountPrice || !enriched.originalPrice) continue;
         if (enriched.originalPrice <= enriched.discountPrice) continue;
         const discountPercent = Math.round((1 - enriched.discountPrice / enriched.originalPrice) * 100);
@@ -177,6 +229,7 @@ export async function discoverMercadoLibreCandidates(page, options) {
             categoryId: null
           }
         });
+        console.log(`[worker] accepted=${enriched.canonicalUrl} discount=${discountPercent}%`);
       } catch {
         // Ignorar fallos individuales y seguir con el lote.
       }
