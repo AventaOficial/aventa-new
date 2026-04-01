@@ -50,6 +50,10 @@ async function main() {
   if (!secret) throw new Error('Falta AVENTA_CRON_SECRET');
   if (seeds.length === 0) throw new Error('Falta WORKER_ML_SEEDS');
 
+  console.log(
+    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} seeds=${seeds.length}`
+  );
+
   const browser = await chromium.launch({ headless });
   try {
     const page = await browser.newPage({
@@ -64,6 +68,8 @@ async function main() {
       maxItems,
       minDiscountPercent,
     });
+
+    console.log(`[worker] discovered_candidates=${candidates.length}`);
 
     if (candidates.length === 0) {
       console.log('[worker] sin candidatos utilizables');

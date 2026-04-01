@@ -130,8 +130,8 @@ async function extractCards(page) {
 }
 
 async function enrichCandidate(page, candidate) {
-  await page.goto(candidate.href, { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.goto(candidate.href, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.waitForTimeout(1500).catch(() => {});
   const extracted = await page.evaluate(() => {
     const title =
       document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
@@ -190,8 +190,8 @@ export async function discoverMercadoLibreCandidates(page, options) {
 
   for (const seed of seeds) {
     if (out.length >= maxItems) break;
-    await page.goto(seed, { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.goto(seed, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForTimeout(1500).catch(() => {});
     await page.mouse.wheel(0, 2500).catch(() => {});
     await page.waitForTimeout(1200).catch(() => {});
     const cards = (await extractCards(page)).filter((card) => isProductLikeUrl(card.href));
@@ -201,6 +201,7 @@ export async function discoverMercadoLibreCandidates(page, options) {
       if (!card.href || seen.has(card.href)) continue;
       seen.add(card.href);
       try {
+        console.log(`[worker] visiting=${card.href}`);
         const enriched = await enrichCandidate(page, card);
         if (!isProductLikeUrl(enriched.url)) continue;
         if (looksGenericMercadoLibreTitle(enriched.title)) continue;
@@ -229,11 +230,13 @@ export async function discoverMercadoLibreCandidates(page, options) {
           }
         });
         console.log(`[worker] accepted=${enriched.canonicalUrl} discount=${discountPercent}%`);
-      } catch {
-        // Ignorar fallos individuales y seguir con el lote.
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(`[worker] skipped=${card.href} reason=${message}`);
       }
     }
   }
 
+  console.log(`[worker] usable_candidates=${out.length}`);
   return out;
 }
