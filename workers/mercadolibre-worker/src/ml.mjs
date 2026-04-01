@@ -25,6 +25,14 @@ function parseLocalizedNumber(value) {
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
+function parseMoneyParts(fraction, cents) {
+  const f = normalizeText(fraction || '');
+  const c = normalizeText(cents || '');
+  if (!f) return null;
+  if (!c) return parseLocalizedNumber(f);
+  return parseLocalizedNumber(`${f}.${c}`);
+}
+
 function inferItemId(url) {
   try {
     const parsed = new URL(url);
@@ -78,6 +86,19 @@ function extractJsonLikeNumberFromHtml(html, field) {
     html.match(new RegExp(`["']${escaped}["']\\s*:\\s*([0-9][0-9.,]*)`, 'i'))?.[1] ??
     null;
   return parseLocalizedNumber(match);
+}
+
+function collectJsonLikeNumbersFromHtml(html, field) {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`["']${escaped}["']\\s*:\\s*(?:(["'])([^"']+)\\1|([0-9][0-9.,]*))`, 'gi');
+  const out = [];
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    const raw = match[2] ?? match[3] ?? '';
+    const parsed = parseLocalizedNumber(raw);
+    if (parsed != null) out.push(parsed);
+  }
+  return out;
 }
 
 function looksGenericMercadoLibreTitle(title) {
@@ -149,6 +170,23 @@ async function enrichCandidate(page, candidate) {
     const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
       .map((node) => node.textContent || '')
       .filter(Boolean);
+    const currentFractionNode =
+      document.querySelector('.ui-pdp-price__second-line .andes-money-amount__fraction') ||
+      document.querySelector('.ui-pdp-price__main-container .andes-money-amount__fraction') ||
+      document.querySelector('[data-testid="price-part"]') ||
+      document.querySelector('.andes-money-amount__fraction');
+    const currentCentsNode =
+      document.querySelector('.ui-pdp-price__second-line .andes-money-amount__cents') ||
+      document.querySelector('.ui-pdp-price__main-container .andes-money-amount__cents') ||
+      document.querySelector('.andes-money-amount__cents');
+    const originalFractionNode =
+      document.querySelector('.ui-pdp-price__original-value .andes-money-amount__fraction') ||
+      document.querySelector('.ui-pdp-price__subtitles .andes-money-amount__fraction') ||
+      document.querySelector('s .andes-money-amount__fraction');
+    const originalCentsNode =
+      document.querySelector('.ui-pdp-price__original-value .andes-money-amount__cents') ||
+      document.querySelector('.ui-pdp-price__subtitles .andes-money-amount__cents') ||
+      document.querySelector('s .andes-money-amount__cents');
     const title =
       document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
       document.querySelector('h1')?.textContent ||
@@ -157,15 +195,10 @@ async function enrichCandidate(page, candidate) {
       document.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
       document.querySelector('img')?.getAttribute('src') ||
       '';
-    const current =
-      document.querySelector('[data-testid="price-part"]')?.textContent ||
-      document.querySelector('.andes-money-amount__fraction')?.textContent ||
-      '';
-    const currentCents = document.querySelector('.andes-money-amount__cents')?.textContent || '';
-    const original =
-      document.querySelector('.ui-pdp-price__original-value .andes-money-amount__fraction')?.textContent ||
-      document.querySelector('s .andes-money-amount__fraction')?.textContent ||
-      '';
+    const current = currentFractionNode?.textContent || '';
+    const currentCents = currentCentsNode?.textContent || '';
+    const original = originalFractionNode?.textContent || '';
+    const originalCents = originalCentsNode?.textContent || '';
     const soldText =
       document.querySelector('.ui-pdp-subtitle')?.textContent ||
       document.body.textContent ||
@@ -175,6 +208,10 @@ async function enrichCandidate(page, candidate) {
       image,
       currentText: `${current}${currentCents ? `.${currentCents}` : ''}`,
       originalText: original,
+      currentFraction: current,
+      currentCents,
+      originalFraction: original,
+      originalCents,
       soldText,
       url: location.href,
       scripts,
@@ -182,14 +219,29 @@ async function enrichCandidate(page, candidate) {
     };
   });
   const html = await page.content();
-  const currentFromHtml =
-    extractJsonLikeNumberFromHtml(html, 'price') ||
-    extractJsonLikeNumberFromHtml(html, 'price_amount') ||
-    extractJsonLikeNumberFromHtml(html, 'amount');
-  const originalFromHtml =
-    extractJsonLikeNumberFromHtml(html, 'original_price') ||
-    extractJsonLikeNumberFromHtml(html, 'priceBefore') ||
-    extractJsonLikeNumberFromHtml(html, 'regular_amount');
+  const currentFromSelectors =
+    parseMoneyParts(extracted.currentFraction, extracted.currentCents) ||
+    parseLocalizedNumber(extracted.currentText || candidate.priceText);
+  const originalFromSelectors =
+    parseMoneyParts(extracted.originalFraction, extracted.originalCents) ||
+    parseLocalizedNumber(extracted.originalText || candidate.originalText);
+
+  const currentCandidates = [
+    currentFromSelectors,
+    extractJsonLikeNumberFromHtml(html, 'price'),
+    extractJsonLikeNumberFromHtml(html, 'price_amount'),
+    extractJsonLikeNumberFromHtml(html, 'amount'),
+    ...collectJsonLikeNumbersFromHtml(html, 'price'),
+  ].filter((value) => value != null);
+
+  const originalCandidates = [
+    originalFromSelectors,
+    extractJsonLikeNumberFromHtml(html, 'original_price'),
+    extractJsonLikeNumberFromHtml(html, 'priceBefore'),
+    extractJsonLikeNumberFromHtml(html, 'regular_amount'),
+    ...collectJsonLikeNumbersFromHtml(html, 'original_price'),
+    ...collectJsonLikeNumbersFromHtml(html, 'regular_amount'),
+  ].filter((value) => value != null);
 
   let currentFromLdJson = null;
   let originalFromLdJson = null;
@@ -224,19 +276,23 @@ async function enrichCandidate(page, candidate) {
       // Ignorar JSON-LD inválido.
     }
   }
+
+  if (currentFromLdJson != null) currentCandidates.push(currentFromLdJson);
+  if (originalFromLdJson != null) originalCandidates.push(originalFromLdJson);
+
+  const discountPrice = currentCandidates.find((value) => Number.isFinite(value) && value > 0) ?? null;
+  const originalPrice =
+    originalCandidates
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .find((value) => discountPrice != null && value > discountPrice) ?? null;
+
   return {
     url: extracted.url || candidate.href,
     canonicalUrl: canonicalizeUrl(extracted.url || candidate.href),
     title: normalizeText(extracted.title || candidate.title),
     imageUrl: extracted.image || candidate.image,
-    discountPrice:
-      parseLocalizedNumber(extracted.currentText || candidate.priceText) ||
-      currentFromHtml ||
-      currentFromLdJson,
-    originalPrice:
-      parseLocalizedNumber(extracted.originalText || candidate.originalText) ||
-      originalFromHtml ||
-      originalFromLdJson,
+    discountPrice,
+    originalPrice,
     soldText: extracted.soldText || '',
     pathname: extracted.pathname || '',
   };
