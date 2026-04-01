@@ -93,6 +93,19 @@ function looksGenericMercadoLibreTitle(title) {
   );
 }
 
+function isBlockedNonProductPath(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    return (
+      /\/glossary\//i.test(url.pathname) ||
+      /\/ofertas(?:\/|$)/i.test(url.pathname) ||
+      /\/categorias?/i.test(url.pathname)
+    );
+  } catch {
+    return true;
+  }
+}
+
 async function extractCards(page) {
   return page.evaluate(() => {
     const cards = Array.from(document.querySelectorAll('a[href]'));
@@ -133,6 +146,9 @@ async function enrichCandidate(page, candidate) {
   await page.goto(candidate.href, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(1500).catch(() => {});
   const extracted = await page.evaluate(() => {
+    const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map((node) => node.textContent || '')
+      .filter(Boolean);
     const title =
       document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
       document.querySelector('h1')?.textContent ||
@@ -161,24 +177,65 @@ async function enrichCandidate(page, candidate) {
       originalText: original,
       soldText,
       url: location.href,
+      scripts,
     };
   });
   const html = await page.content();
   const currentFromHtml =
     extractJsonLikeNumberFromHtml(html, 'price') ||
-    extractJsonLikeNumberFromHtml(html, 'price_amount');
+    extractJsonLikeNumberFromHtml(html, 'price_amount') ||
+    extractJsonLikeNumberFromHtml(html, 'amount');
   const originalFromHtml =
     extractJsonLikeNumberFromHtml(html, 'original_price') ||
-    extractJsonLikeNumberFromHtml(html, 'priceBefore');
+    extractJsonLikeNumberFromHtml(html, 'priceBefore') ||
+    extractJsonLikeNumberFromHtml(html, 'regular_amount');
+
+  let currentFromLdJson = null;
+  let originalFromLdJson = null;
+  for (const raw of extracted.scripts || []) {
+    if (raw.length > 500000) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      const stack = Array.isArray(parsed) ? [...parsed] : [parsed];
+      while (stack.length > 0) {
+        const node = stack.pop();
+        if (!node || typeof node !== 'object') continue;
+        if (Array.isArray(node)) {
+          stack.push(...node);
+          continue;
+        }
+        if (node['@graph']) stack.push(node['@graph']);
+        if (node.offers) stack.push(node.offers);
+        if (currentFromLdJson == null) {
+          currentFromLdJson =
+            parseLocalizedNumber(String(node.price ?? '')) ||
+            parseLocalizedNumber(String(node.lowPrice ?? '')) ||
+            currentFromLdJson;
+        }
+        if (originalFromLdJson == null) {
+          originalFromLdJson =
+            parseLocalizedNumber(String(node.highPrice ?? '')) ||
+            parseLocalizedNumber(String(node.priceBefore ?? '')) ||
+            originalFromLdJson;
+        }
+      }
+    } catch {
+      // Ignorar JSON-LD inválido.
+    }
+  }
   return {
     url: extracted.url || candidate.href,
     canonicalUrl: canonicalizeUrl(extracted.url || candidate.href),
     title: normalizeText(extracted.title || candidate.title),
     imageUrl: extracted.image || candidate.image,
     discountPrice:
-      parseLocalizedNumber(extracted.currentText || candidate.priceText) || currentFromHtml,
+      parseLocalizedNumber(extracted.currentText || candidate.priceText) ||
+      currentFromHtml ||
+      currentFromLdJson,
     originalPrice:
-      parseLocalizedNumber(extracted.originalText || candidate.originalText) || originalFromHtml,
+      parseLocalizedNumber(extracted.originalText || candidate.originalText) ||
+      originalFromHtml ||
+      originalFromLdJson,
     soldText: extracted.soldText || '',
   };
 }
@@ -202,13 +259,44 @@ export async function discoverMercadoLibreCandidates(page, options) {
       seen.add(card.href);
       try {
         console.log(`[worker] visiting=${card.href}`);
+        if (isBlockedNonProductPath(card.href)) {
+          console.log(`[worker] skipped=${card.href} reason=url_no_producto`);
+          continue;
+        }
         const enriched = await enrichCandidate(page, card);
-        if (!isProductLikeUrl(enriched.url)) continue;
-        if (looksGenericMercadoLibreTitle(enriched.title)) continue;
-        if (!enriched.title || !enriched.discountPrice || !enriched.originalPrice) continue;
-        if (enriched.originalPrice <= enriched.discountPrice) continue;
+        if (!isProductLikeUrl(enriched.url) || isBlockedNonProductPath(enriched.url)) {
+          console.log(`[worker] skipped=${card.href} reason=url_final_no_producto`);
+          continue;
+        }
+        if (looksGenericMercadoLibreTitle(enriched.title)) {
+          console.log(`[worker] skipped=${card.href} reason=title_generico title="${enriched.title}"`);
+          continue;
+        }
+        if (!enriched.title) {
+          console.log(`[worker] skipped=${card.href} reason=sin_title`);
+          continue;
+        }
+        if (!enriched.discountPrice) {
+          console.log(`[worker] skipped=${card.href} reason=sin_discount_price`);
+          continue;
+        }
+        if (!enriched.originalPrice) {
+          console.log(`[worker] skipped=${card.href} reason=sin_original_price`);
+          continue;
+        }
+        if (enriched.originalPrice <= enriched.discountPrice) {
+          console.log(
+            `[worker] skipped=${card.href} reason=original_menor_igual discount=${enriched.discountPrice} original=${enriched.originalPrice}`
+          );
+          continue;
+        }
         const discountPercent = Math.round((1 - enriched.discountPrice / enriched.originalPrice) * 100);
-        if (discountPercent < minDiscountPercent) continue;
+        if (discountPercent < minDiscountPercent) {
+          console.log(
+            `[worker] skipped=${card.href} reason=discount_bajo discount=${discountPercent}%`
+          );
+          continue;
+        }
         out.push({
           url: enriched.url,
           canonicalUrl: enriched.canonicalUrl,
