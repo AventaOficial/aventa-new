@@ -18,6 +18,7 @@ export type IngestSingleResult =
 export type IngestRunMode =
   | 'normal'
   | 'boost'
+  | 'morning_sustained'
   | 'daily_cap'
   | 'skipped'
   | 'off'
@@ -45,5 +46,7 @@ export type IngestCycleReport = {
     errors: number;
     rejected: number;
     autoApproved: number;
+    /** Conteos por `reason` cuando status === skipped (diagnóstico en panel / logs). */
+    skipReasonCounts?: Record<string, number>;
   };
 };

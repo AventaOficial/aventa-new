@@ -115,14 +115,27 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
   const { hour, minute } = getZonedHourMinute(now, tz);
   const lastBoost = await getBotIngestLastBoostYmd();
 
-  const inBoostWindow =
+  const inMorningSustained =
+    config.morningSustainedEnabled &&
+    hour >= config.morningHourStart &&
+    hour < config.morningHourEndExclusive;
+
+  const inLegacyBoost =
+    !inMorningSustained &&
     lastBoost !== ymd &&
     hour === config.boostLocalHourStart &&
     minute <= config.boostLocalMinuteEnd;
 
-  let targetMax = inBoostWindow
-    ? config.boostMaxOffers
-    : randomIntInclusive(config.normalMaxPerRunMin, config.normalMaxPerRunMax);
+  let targetMax: number;
+  if (inMorningSustained) {
+    targetMax = randomIntInclusive(config.morningMaxPerRunMin, config.morningMaxPerRunMax);
+  } else if (inLegacyBoost) {
+    targetMax = config.boostMaxOffers;
+  } else {
+    targetMax = randomIntInclusive(config.normalMaxPerRunMin, config.normalMaxPerRunMax);
+  }
+
+  const fastPace = inMorningSustained || inLegacyBoost;
 
   const dayStart = getBotOfferCountStartUtc(tz, now);
   const countToday = await countBotOffersCreatedSince(config.botUserId, dayStart);
@@ -152,8 +165,8 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
 
   targetMax = Math.min(targetMax, remaining);
 
-  const delayLo = inBoostWindow ? 90 : 200;
-  const delayHi = inBoostWindow ? 240 : 560;
+  const delayLo = fastPace ? 90 : 200;
+  const delayHi = fastPace ? 240 : 560;
 
   const rotationWave = computeSourceRotationWave(now, tz);
   const pool = await collectIngestItems(config, rotationWave);
@@ -265,13 +278,20 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     await sleep(randomIntInclusive(Math.max(120, delayLo), delayHi + 120));
   }
 
-  if (inBoostWindow) {
+  if (inLegacyBoost) {
     await setBotIngestLastBoostYmd(ymd);
   }
 
   const insertedCount = results.filter((x) => x.status === 'inserted').length;
   if (insertedCount > 0 && config.botUserId) {
     recalculateUserReputation(config.botUserId).catch(() => {});
+  }
+
+  const skipReasonCounts: Record<string, number> = {};
+  for (const r of results) {
+    if (r.status === 'skipped') {
+      skipReasonCounts[r.reason] = (skipReasonCounts[r.reason] ?? 0) + 1;
+    }
   }
 
   const summary = {
@@ -281,6 +301,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     errors: results.filter((r) => r.status === 'error').length,
     rejected: scoreRejected,
     autoApproved,
+    ...(Object.keys(skipReasonCounts).length > 0 ? { skipReasonCounts } : {}),
   };
 
   return {
@@ -289,7 +310,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
     startedAt,
     finishedAt: new Date().toISOString(),
     maxPerRun: targetMax,
-    runMode: inBoostWindow ? 'boost' : 'normal',
+    runMode: inMorningSustained ? 'morning_sustained' : inLegacyBoost ? 'boost' : 'normal',
     dailyInsertedApprox: countToday + summary.inserted,
     dailyCap: config.dailyMaxOffers,
     rotationWave,

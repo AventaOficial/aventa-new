@@ -56,8 +56,9 @@ Listo: cada 15 minutos (o lo que hayas puesto) ese servicio llamará a tu sitio 
 
 ## Cómo saber si falló
 
-- En cron-job.org suele verse el **historial** de ejecuciones y si la respuesta fue **200** (bien) o **401** (mal: secreto no coincide o falta).
-- **401** casi siempre = el `secret` en la URL no es igual al `CRON_SECRET` de Vercel, o falta el `?secret=...`.
+- La ruta del cron responde **202 Accepted** enseguida y la ingesta sigue en **segundo plano** en Vercel (así cron-job.org no marca *timeout* a los ~30s). Eso cuenta como éxito (código 2xx).
+- En cron-job.org el **historial** muestra el código HTTP; **401** = secreto mal o falta.
+- Para ver cuántas ofertas metió cada corrida: **Vercel → proyecto → Logs** y busca `[bot-ingest:after]` (línea JSON con `inserted`, `runMode`, etc.).
 
 ---
 

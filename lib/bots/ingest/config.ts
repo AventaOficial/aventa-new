@@ -39,10 +39,19 @@ export type BotIngestConfig = {
   /** Corrida normal: aleatorio entre min y max (inclusive). */
   normalMaxPerRunMin: number;
   normalMaxPerRunMax: number;
-  /** Máximo en ventana boost matutina. */
+  /** Máximo en ventana boost matutina (una corrida fuerte al día, hora local). */
   boostMaxOffers: number;
   boostLocalHourStart: number;
   boostLocalMinuteEnd: number;
+  /**
+   * Si true: en [morningHourStart, morningHourEndExclusive) cada cron usa morningMaxPerRun* (sin gastar el “boost” de un solo disparo).
+   * Objetivo típico: muchas inserciones entre ~5:00 y ~10:59 hora local.
+   */
+  morningSustainedEnabled: boolean;
+  morningHourStart: number;
+  morningHourEndExclusive: number;
+  morningMaxPerRunMin: number;
+  morningMaxPerRunMax: number;
   /** Tope de ofertas insertadas por día (usuario bot), según inicio de día local. */
   dailyMaxOffers: number;
   /** Máximo de candidatos a evaluar (fetch HTML / score) por corrida. */
@@ -189,6 +198,29 @@ export function loadBotIngestConfig(): BotIngestConfig {
     Math.max(0, Number.parseInt(process.env.BOT_INGEST_BOOST_LOCAL_MINUTE_END ?? '30', 10) || 30)
   );
 
+  const morningSustainedEnabled =
+    process.env.BOT_INGEST_MORNING_SUSTAINED === '1' ||
+    process.env.BOT_INGEST_MORNING_SUSTAINED === 'true';
+  const morningStart = Math.min(
+    23,
+    Math.max(0, Number.parseInt(process.env.BOT_INGEST_MORNING_HOUR_START ?? '5', 10) || 5)
+  );
+  const morningEndExcl = Math.min(
+    24,
+    Math.max(
+      morningStart + 1,
+      Number.parseInt(process.env.BOT_INGEST_MORNING_HOUR_END_EXCLUSIVE ?? '11', 10) || 11
+    )
+  );
+  const morningMin = Math.min(
+    10,
+    Math.max(1, Number.parseInt(process.env.BOT_INGEST_MORNING_MAX_MIN ?? '2', 10) || 2)
+  );
+  const morningMax = Math.min(
+    15,
+    Math.max(morningMin, Number.parseInt(process.env.BOT_INGEST_MORNING_MAX_MAX ?? '5', 10) || 5)
+  );
+
   const dailyMax = Math.min(
     500,
     Math.max(10, Number.parseInt(process.env.BOT_INGEST_DAILY_MAX ?? '120', 10) || 120)
@@ -286,6 +318,11 @@ export function loadBotIngestConfig(): BotIngestConfig {
     boostMaxOffers: boostMax,
     boostLocalHourStart: boostHour,
     boostLocalMinuteEnd: boostEndMin,
+    morningSustainedEnabled,
+    morningHourStart: morningStart,
+    morningHourEndExclusive: morningEndExcl,
+    morningMaxPerRunMin: morningMin,
+    morningMaxPerRunMax: morningMax,
     dailyMaxOffers: dailyMax,
     candidatePoolMax,
     maxPerRun,

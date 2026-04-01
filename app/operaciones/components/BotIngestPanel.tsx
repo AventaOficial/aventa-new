@@ -14,6 +14,10 @@ type BotStatusPayload = {
     timezone?: string;
     normal_max_range?: [number, number];
     boost_max_offers?: number;
+    morning_sustained?: boolean;
+    morning_hour_start?: number;
+    morning_hour_end_exclusive?: number;
+    morning_max_per_run?: [number, number];
     daily_max?: number;
     candidate_pool_max?: number;
     auto_approve_enabled?: boolean;
@@ -61,6 +65,9 @@ export default function BotIngestPanel() {
   const [error, setError] = useState<string | null>(null);
   const [runNowLoading, setRunNowLoading] = useState(false);
   const [runNowMsg, setRunNowMsg] = useState<string | null>(null);
+  const [runNowSkipBreakdown, setRunNowSkipBreakdown] = useState<Array<{ reason: string; count: number }> | null>(
+    null
+  );
   const [pauseToggleSaving, setPauseToggleSaving] = useState(false);
   const [pauseToggleError, setPauseToggleError] = useState<string | null>(null);
 
@@ -188,6 +195,7 @@ export default function BotIngestPanel() {
               onClick={async () => {
                 setRunNowLoading(true);
                 setRunNowMsg(null);
+                setRunNowSkipBreakdown(null);
                 try {
                   const supabase = createClient();
                   const {
@@ -213,6 +221,26 @@ export default function BotIngestPanel() {
                   setRunNowMsg(
                     `Corrida (${body?.runMode ?? '?'}): inserted=${body?.summary?.inserted ?? 0}, auto=${body?.summary?.autoApproved ?? 0}, dup=${body?.summary?.duplicate ?? 0}, skip=${body?.summary?.skipped ?? 0}, err=${body?.summary?.errors ?? 0}`
                   );
+                  const fromSummary = body?.summary?.skipReasonCounts as Record<string, number> | undefined;
+                  if (fromSummary && typeof fromSummary === 'object') {
+                    const rows = Object.entries(fromSummary)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 14)
+                      .map(([reason, count]) => ({ reason, count }));
+                    if (rows.length > 0) setRunNowSkipBreakdown(rows);
+                  } else if (Array.isArray(body?.results)) {
+                    const map = new Map<string, number>();
+                    for (const r of body.results as { status?: string; reason?: string }[]) {
+                      if (r?.status === 'skipped' && typeof r?.reason === 'string') {
+                        map.set(r.reason, (map.get(r.reason) ?? 0) + 1);
+                      }
+                    }
+                    const rows = [...map.entries()]
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 14)
+                      .map(([reason, count]) => ({ reason, count }));
+                    if (rows.length > 0) setRunNowSkipBreakdown(rows);
+                  }
                 } catch {
                   setRunNowMsg('Error de red al ejecutar bot');
                 } finally {
@@ -223,7 +251,23 @@ export default function BotIngestPanel() {
             >
               {runNowLoading ? 'Ejecutando…' : 'Ejecutar ahora'}
             </button>
-            {runNowMsg ? <span className="text-xs text-gray-600 dark:text-gray-300">{runNowMsg}</span> : null}
+            <div className="flex flex-col gap-1 min-w-0 max-w-full">
+              {runNowMsg ? <span className="text-xs text-gray-600 dark:text-gray-300">{runNowMsg}</span> : null}
+              {runNowSkipBreakdown && runNowSkipBreakdown.length > 0 ? (
+                <div className="rounded-lg border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
+                  <p className="text-[11px] font-medium text-amber-900 dark:text-amber-100">
+                    Motivos de “skipped” (ajusta variables en Vercel según lo que más salga):
+                  </p>
+                  <ul className="mt-1.5 text-[11px] text-amber-950/85 dark:text-amber-100/90 list-disc pl-4 space-y-0.5">
+                    {runNowSkipBreakdown.map(({ reason, count }) => (
+                      <li key={reason}>
+                        <strong>{count}×</strong> {reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -283,7 +327,16 @@ export default function BotIngestPanel() {
                   : '—'}
               </strong>
               {typeof data.config.boost_max_offers === 'number' ? (
-                <span className="text-gray-500 dark:text-gray-400"> · boost AM: {data.config.boost_max_offers}</span>
+                <span className="text-gray-500 dark:text-gray-400"> · boost legacy (1×/día): {data.config.boost_max_offers}</span>
+              ) : null}
+              {data.config.morning_sustained ? (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}
+                  · mañana sostenida {data.config.morning_hour_start ?? '?'}-{Number(data.config.morning_hour_end_exclusive ?? 11) - 1}:59h ·{' '}
+                  {data.config.morning_max_per_run
+                    ? `${data.config.morning_max_per_run[0]}–${data.config.morning_max_per_run[1]}/corrida`
+                    : '2–5/corrida'}
+                </span>
               ) : null}
             </p>
             <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
