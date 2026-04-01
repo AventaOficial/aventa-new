@@ -30,3 +30,8 @@ npm run run:dry
 ## Producción
 
 Puedes correrlo en Railway, Render o un VPS pequeño. La app principal no necesita importar nada de esta carpeta.
+
+### Railway
+
+Si el entorno normal de Railway falla por librerías del sistema de Chromium, usa Docker en esta misma carpeta.
+El `Dockerfile` ya utiliza la imagen oficial de Playwright con dependencias del navegador incluidas.
