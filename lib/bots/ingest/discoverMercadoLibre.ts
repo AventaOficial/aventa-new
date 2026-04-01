@@ -2,12 +2,12 @@ import { DEFAULT_ML_DISCOVERY_QUERIES } from './config';
 import type { BotIngestConfig } from './config';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
-import type { IngestItem } from './types';
 import { fetchMercadoLibreItemsMulti, mlItemBodyToSignals, type MlItemApiBody } from './mlItemDetails';
 import { attachMlRatingsToMap, type MlRatingSummary } from './mlReviews';
 import { BOT_INGEST_USER_AGENT, sleep } from './ingestHttp';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import type { OfferQualitySignals } from './offerQualitySignals';
+import type { IngestItem } from './types';
 
 const ML_SITE = 'MLM';
 const SEARCH_BASE = `https://api.mercadolibre.com/sites/${ML_SITE}/search`;
@@ -76,13 +76,15 @@ function buildMlSearchPlan(config: BotIngestConfig, rotationWave: number): Searc
   return calls;
 }
 
-function itemToMeta(body: MlItemApiBody): ParsedOfferMetadata | null {
+function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | null; reason?: string } {
   const permalink = body.permalink?.trim();
-  if (!permalink) return null;
+  if (!permalink) return { meta: null, reason: 'ml discovery: sin permalink' };
   const titleRaw = sanitizeOfferTitle(body.title) ?? body.title?.trim();
-  if (!titleRaw) return null;
+  if (!titleRaw) return { meta: null, reason: 'ml discovery: sin título parseable' };
   const price = typeof body.price === 'number' ? body.price : null;
-  if (price == null || !Number.isFinite(price) || price <= 0) return null;
+  if (price == null || !Number.isFinite(price) || price <= 0) {
+    return { meta: null, reason: 'ml discovery: sin precio actual parseable' };
+  }
 
   let originalPrice: number | null = null;
   const orig = body.original_price;
@@ -90,7 +92,7 @@ function itemToMeta(body: MlItemApiBody): ParsedOfferMetadata | null {
     originalPrice = orig;
   }
 
-  if (originalPrice == null) return null;
+  if (originalPrice == null) return { meta: null, reason: 'ml discovery: sin precio original verificable' };
 
   const pic = body.pictures?.[0];
   const thumb = pic?.secure_url || pic?.url || '';
@@ -99,13 +101,15 @@ function itemToMeta(body: MlItemApiBody): ParsedOfferMetadata | null {
   const discountPercent = Math.round((1 - price / originalPrice) * 100);
 
   return {
-    canonicalUrl: permalink,
-    title: titleRaw,
-    store: 'Mercado Libre',
-    imageUrl,
-    discountPrice: price,
-    originalPrice,
-    discountPercent,
+    meta: {
+      canonicalUrl: permalink,
+      title: titleRaw,
+      store: 'Mercado Libre',
+      imageUrl,
+      discountPrice: price,
+      originalPrice,
+      discountPercent,
+    },
   };
 }
 
@@ -147,20 +151,31 @@ function passesMlHardFilters(
  * Descubre publicaciones vía API ML, enriquece con /items?ids= y valoraciones opcionales.
  * Rotación por `rotationWave` (trending / categorías / mixto).
  */
+export type MercadoLibreDiscoveryResult = {
+  items: IngestItem[];
+  collectedCount: number;
+  skipReasonCounts: Record<string, number>;
+};
+
+function bumpReason(map: Record<string, number>, reason: string) {
+  map[reason] = (map[reason] ?? 0) + 1;
+}
+
 export async function discoverMercadoLibreIngestItems(
   config: BotIngestConfig,
   seenKeys: Set<string>,
   rotationWave: number
-): Promise<IngestItem[]> {
-  if (!config.discoverMlEnabled) return [];
+): Promise<MercadoLibreDiscoveryResult> {
+  if (!config.discoverMlEnabled) return { items: [], collectedCount: 0, skipReasonCounts: {} };
 
   const plan = buildMlSearchPlan(config, rotationWave);
-  if (plan.length === 0) return [];
+  if (plan.length === 0) return { items: [], collectedCount: 0, skipReasonCounts: {} };
 
   const idOrder: string[] = [];
   const seenId = new Set<string>();
   const limit = config.mlSearchLimitPerRequest;
   const maxIds = Math.min(config.mlMaxCollect * 3, 240);
+  const skipReasonCounts: Record<string, number> = {};
 
   for (const src of plan) {
     if (idOrder.length >= maxIds) break;
@@ -197,7 +212,10 @@ export async function discoverMercadoLibreIngestItems(
     }
   }
 
-  if (idOrder.length === 0) return [];
+  if (idOrder.length === 0) {
+    bumpReason(skipReasonCounts, 'ml discovery: sin resultados de búsqueda');
+    return { items: [], collectedCount: 0, skipReasonCounts };
+  }
 
   const details = await fetchMercadoLibreItemsMulti(idOrder);
   type Row = { id: string; meta: ParsedOfferMetadata; signals: OfferQualitySignals };
@@ -205,10 +223,20 @@ export async function discoverMercadoLibreIngestItems(
 
   for (const id of idOrder) {
     const body = details.get(id);
-    if (!body) continue;
-    const meta = itemToMeta(body);
-    if (!meta) continue;
-    if (isLowQualityTitle(meta.title, config)) continue;
+    if (!body) {
+      bumpReason(skipReasonCounts, 'ml discovery: detalle de item no disponible');
+      continue;
+    }
+    const parse = itemToMetaDetailed(body);
+    const meta = parse.meta;
+    if (!meta) {
+      bumpReason(skipReasonCounts, parse.reason ?? 'ml discovery: sin metadatos');
+      continue;
+    }
+    if (isLowQualityTitle(meta.title, config)) {
+      bumpReason(skipReasonCounts, 'ml discovery: título de baja calidad');
+      continue;
+    }
 
     const signals = mlItemBodyToSignals(body);
     candidates.push({ id, meta, signals });
@@ -229,10 +257,38 @@ export async function discoverMercadoLibreIngestItems(
     if (out.length >= config.mlMaxCollect) break;
     const rating = ratingMap.get(row.id);
     const signals = mergeSignals(row.signals, rating);
-    if (!passesMlHardFilters(row.meta, signals, rating, config)) continue;
+    const cond = (signals.condition ?? '').toLowerCase();
+    const sold = signals.soldQuantity ?? 0;
+    if (row.meta.discountPercent < config.minDiscountPercent) {
+      bumpReason(skipReasonCounts, `ml discovery: descuento ${row.meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`);
+      continue;
+    }
+    if (row.meta.originalPrice == null || row.meta.originalPrice <= row.meta.discountPrice) {
+      bumpReason(skipReasonCounts, 'ml discovery: sin precio original verificable');
+      continue;
+    }
+    if (cond && cond !== 'new') {
+      bumpReason(skipReasonCounts, 'ml discovery: condición no es nueva');
+      continue;
+    }
+    if (sold < config.minSoldQuantityMl) {
+      bumpReason(skipReasonCounts, `ml discovery: vendidos ${sold} < mínimo ${config.minSoldQuantityMl}`);
+      continue;
+    }
+    if (rating && rating.total >= config.minRatingReviewsCount && rating.average < config.minRatingAverage) {
+      bumpReason(skipReasonCounts, `ml discovery: rating ${rating.average} < mínimo ${config.minRatingAverage}`);
+      continue;
+    }
+    if (!passesMlHardFilters(row.meta, signals, rating, config)) {
+      bumpReason(skipReasonCounts, 'ml discovery: descartado por filtros duros');
+      continue;
+    }
 
     const key = canonicalKey(row.meta.canonicalUrl);
-    if (seenKeys.has(key)) continue;
+    if (seenKeys.has(key)) {
+      bumpReason(skipReasonCounts, 'ml discovery: duplicado por URL canónica');
+      continue;
+    }
     seenKeys.add(key);
 
     out.push({
@@ -245,5 +301,5 @@ export async function discoverMercadoLibreIngestItems(
     });
   }
 
-  return out;
+  return { items: out, collectedCount: idOrder.length, skipReasonCounts };
 }

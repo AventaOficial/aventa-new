@@ -208,8 +208,25 @@ export async function runIngestCycleForProfile(
   const delayHi = fastPace ? 240 : 560;
 
   const rotationWave = computeSourceRotationWave(now, tz);
-  const pool = await collectIngestItems(config, rotationWave);
-  for (const item of pool) sourceStats[item.source].collected += 1;
+  const collection = await collectIngestItems(config, rotationWave);
+  const pool = collection.items;
+  for (const [source, diagnostics] of Object.entries(collection.discoveryDiagnostics ?? {})) {
+    const typedSource = source as IngestSourceId;
+    if (typeof diagnostics?.collectedCount === 'number') {
+      sourceStats[typedSource].collected += diagnostics.collectedCount;
+    }
+    if (diagnostics?.skipReasonCounts) {
+      for (const [reason, count] of Object.entries(diagnostics.skipReasonCounts)) {
+        sourceStats[typedSource].skipped += count;
+        const map = sourceStats[typedSource].skipReasonCounts ?? {};
+        map[reason] = (map[reason] ?? 0) + count;
+        sourceStats[typedSource].skipReasonCounts = map;
+      }
+    }
+  }
+  for (const item of pool) {
+    if (sourceStats[item.source].collected === 0) sourceStats[item.source].collected += 1;
+  }
   const slice = pool.slice(0, config.candidatePoolMax);
   stageCounts.collected = slice.length;
 
@@ -365,6 +382,11 @@ export async function runIngestCycleForProfile(
   }
 
   const skipReasonCounts: Record<string, number> = {};
+  for (const stats of Object.values(sourceStats)) {
+    for (const [reason, count] of Object.entries(stats.skipReasonCounts ?? {})) {
+      skipReasonCounts[reason] = (skipReasonCounts[reason] ?? 0) + count;
+    }
+  }
   for (const r of results) {
     if (r.status === 'skipped') {
       skipReasonCounts[r.reason] = (skipReasonCounts[r.reason] ?? 0) + 1;

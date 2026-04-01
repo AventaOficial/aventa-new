@@ -1,8 +1,21 @@
 import type { IngestItem } from './types';
 import type { BotIngestConfig } from './config';
-import { discoverMercadoLibreIngestItems } from './discoverMercadoLibre';
+import { discoverMercadoLibreIngestItems, type MercadoLibreDiscoveryResult } from './discoverMercadoLibre';
 import { expandAmazonAsinUrls } from './expandAmazonAsinUrls';
 import { discoverAmazonPaapiIngestItems } from './amazonPaapi';
+
+export type IngestCollectionResult = {
+  items: IngestItem[];
+  discoveryDiagnostics: Partial<
+    Record<
+      IngestItem['source'],
+      {
+        collectedCount?: number;
+        skipReasonCounts?: Record<string, number>;
+      }
+    >
+  >;
+};
 
 function canonicalKey(url: string): string {
   try {
@@ -20,9 +33,10 @@ function canonicalKey(url: string): string {
 export async function collectIngestItems(
   config: BotIngestConfig,
   rotationWave: number
-): Promise<IngestItem[]> {
+): Promise<IngestCollectionResult> {
   const seen = new Set<string>();
-  const mlItems = await discoverMercadoLibreIngestItems(config, seen, rotationWave);
+  const mlDiscovery: MercadoLibreDiscoveryResult = await discoverMercadoLibreIngestItems(config, seen, rotationWave);
+  const mlItems = mlDiscovery.items;
 
   const amazonItems: IngestItem[] = [];
   const amazonPaapiItems = await discoverAmazonPaapiIngestItems(config);
@@ -69,5 +83,13 @@ export async function collectIngestItems(
     /* RSS: reservado — fetch + parse sin bloquear el cron */
   }
 
-  return items;
+  return {
+    items,
+    discoveryDiagnostics: {
+      ml_api: {
+        collectedCount: mlDiscovery.collectedCount,
+        skipReasonCounts: mlDiscovery.skipReasonCounts,
+      },
+    },
+  };
 }
