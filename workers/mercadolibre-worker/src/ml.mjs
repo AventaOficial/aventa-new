@@ -118,7 +118,6 @@ async function extractCards(page) {
         card.querySelector('h2, h3')?.textContent ||
         anchor.textContent ||
         '';
-      const href = anchor.href || '';
       return {
         href,
         title,
