@@ -178,6 +178,7 @@ async function enrichCandidate(page, candidate) {
       soldText,
       url: location.href,
       scripts,
+      pathname: location.pathname,
     };
   });
   const html = await page.content();
@@ -237,6 +238,7 @@ async function enrichCandidate(page, candidate) {
       originalFromHtml ||
       originalFromLdJson,
     soldText: extracted.soldText || '',
+    pathname: extracted.pathname || '',
   };
 }
 
@@ -264,8 +266,18 @@ export async function discoverMercadoLibreCandidates(page, options) {
           continue;
         }
         const enriched = await enrichCandidate(page, card);
-        if (!isProductLikeUrl(enriched.url) || isBlockedNonProductPath(enriched.url)) {
-          console.log(`[worker] skipped=${card.href} reason=url_final_no_producto`);
+        const initialLooksProduct = isProductLikeUrl(card.href) && !isBlockedNonProductPath(card.href);
+        const finalLooksProduct = isProductLikeUrl(enriched.url) && !isBlockedNonProductPath(enriched.url);
+        const hasPdpSignals =
+          !!inferItemId(enriched.url || card.href) ||
+          /\/p\//i.test(enriched.pathname || '') ||
+          (!!enriched.title && !looksGenericMercadoLibreTitle(enriched.title)) ||
+          (!!enriched.discountPrice && !!enriched.imageUrl);
+
+        if (!finalLooksProduct && !initialLooksProduct && !hasPdpSignals) {
+          console.log(
+            `[worker] skipped=${card.href} reason=url_final_no_producto final=${enriched.url}`
+          );
           continue;
         }
         if (looksGenericMercadoLibreTitle(enriched.title)) {
