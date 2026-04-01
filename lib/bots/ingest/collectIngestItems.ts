@@ -51,7 +51,13 @@ export async function collectIngestItems(
 
   const w = ((rotationWave % 3) + 3) % 3;
   const segments: IngestItem[][] =
-    w === 0 ? [mlItems, amazonItems, envItems] : w === 1 ? [amazonItems, mlItems, envItems] : [mlItems, envItems, amazonItems];
+    config.amazonSource === 'scrape'
+      ? [mlItems, envItems, amazonItems]
+      : w === 0
+        ? [mlItems, amazonItems, envItems]
+        : w === 1
+          ? [amazonItems, mlItems, envItems]
+          : [mlItems, envItems, amazonItems];
 
   const items: IngestItem[] = [];
   for (const seg of segments) {

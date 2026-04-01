@@ -107,15 +107,11 @@ export async function GET(request: Request) {
     (cfg.discoverMlEnabled &&
       (cfg.mlQueries.length > 0 || cfg.mlCategoryIds.length > 0 || cfg.mlUseDefaultQueries));
 
-  const missingEnv: string[] = [];
-  if (!hasEnvValue('BOT_INGEST_ENABLED')) missingEnv.push('BOT_INGEST_ENABLED');
-  if (cfg.enabled) {
-    if (!hasEnvValue('BOT_INGEST_USER_ID')) missingEnv.push('BOT_INGEST_USER_ID');
-    if (!hasIngestSources) {
-      missingEnv.push(
-        'BOT_INGEST_fuentes: URLS o BOT_INGEST_DISCOVER_ML (queries/categorías o defaults) o BOT_INGEST_AMAZON_ASINS'
-      );
-    }
+  const missingEnv = TRACKED_ENV_KEYS.filter((key) => !envStatus[key]);
+  if (cfg.enabled && !hasIngestSources) {
+    missingEnv.push(
+      'BOT_INGEST_fuentes: URLS o BOT_INGEST_DISCOVER_ML (queries/categorías o defaults) o BOT_INGEST_AMAZON_ASINS'
+    );
   }
 
   const avgNormal = (cfg.normalMaxPerRunMin + cfg.normalMaxPerRunMax) / 2;

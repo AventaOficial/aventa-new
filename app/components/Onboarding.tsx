@@ -76,17 +76,6 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
         </div>
       ),
     },
-    {
-      id: 'step-luna',
-      title: 'Conoce a Luna',
-      description: 'Luna te ayuda a explorar lo que la comunidad encuentra.',
-      icon: <SparklesIcon className="h-6 w-6 text-white" />,
-      example: (
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-500 shadow-lg">
-          <SparklesIcon className="h-6 w-6 text-white" />
-        </div>
-      ),
-    },
   ];
 
   if (!isOpen) return null;

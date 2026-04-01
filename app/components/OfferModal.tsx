@@ -120,7 +120,7 @@ export default function OfferModal({
   const showCtaCouponChip = Boolean(outboundUrlTrim && (bankCouponLabel || personalCouponTrim));
 
   const router = useRouter();
-  const { setOfferOpen, openLuna, showToast } = useUI();
+  const { setOfferOpen, showToast } = useUI();
   const { session } = useAuth();
   const { up: wUp, down: wDown } = useVoterVoteWeights();
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
@@ -982,19 +982,6 @@ export default function OfferModal({
                   </div>
                 )}
 
-                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    type="button"
-                    onClick={() => { openLuna(); onClose(); }}
-                    className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                  >
-                    <MessageCircle className="h-4 w-4 shrink-0" />
-                    <span>Preguntar a Luna sobre esta oferta</span>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
-                      Próximamente
-                    </span>
-                  </button>
-                </div>
               </div>
             </div>
           </div>

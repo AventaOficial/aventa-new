@@ -7,7 +7,6 @@ import ClientLayout from './ClientLayout';
 import Hero from './components/Hero';
 import OfferCard from './components/OfferCard';
 import OfferCardSkeleton from './components/OfferCardSkeleton';
-import ChatBubble from './components/ChatBubble';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -850,7 +849,6 @@ function HomeContent() {
         <div className="h-20 md:h-0" />
 
       <div className="luna-chat">
-        <ChatBubble />
       </div>
 
       </div>
