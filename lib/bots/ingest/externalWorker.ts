@@ -133,6 +133,14 @@ function passesAmazonHardFilters(meta: ParsedOfferMetadata, config: BotIngestCon
   return true;
 }
 
+function isPromoUnverifiedItem(item: IngestItem, meta: ParsedOfferMetadata): boolean {
+  return (
+    item.source === 'ml_worker' &&
+    (item.sourceDetail ?? '').includes('promo-unverified') &&
+    meta.discountPercent > 0
+  );
+}
+
 function buildSkipSummary(results: IngestSingleResult[], sourceStats: Record<IngestSourceId, IngestSourceStats>) {
   const skipReasonCounts: Record<string, number> = {};
   for (const stats of Object.values(sourceStats)) {
@@ -212,7 +220,8 @@ export async function processExternalWorkerBatch(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
-      if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) {
+      const promoUnverified = isPromoUnverifiedItem(item, meta);
+      if (!promoUnverified && (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice)) {
         const reason = 'sin precio original verificable';
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
@@ -269,6 +278,9 @@ export async function processExternalWorkerBatch(
     const allowAuto = config.autoApproveEnabled && row.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
+      const moderatorNote = isPromoUnverifiedItem(row.item, row.meta)
+        ? 'promo ML sin precio original verificable; revisar descuento manualmente'
+        : undefined;
 
     if (payload.dryRun) {
       insertedThisRun += 1;
@@ -290,6 +302,7 @@ export async function processExternalWorkerBatch(
         titleOverride: title,
         ingestScore: row.total,
         scoreBreakdown: row.breakdown,
+          moderatorNote,
       });
       if (ins.ok) {
         insertedThisRun += 1;

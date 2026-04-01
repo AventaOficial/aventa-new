@@ -147,6 +147,12 @@ async function extractCards(page) {
         card.querySelector('.andes-money-amount__discount .andes-money-amount__fraction')?.textContent ||
         card.querySelector('s .andes-money-amount__fraction')?.textContent ||
         '';
+      const discountBadge =
+        card.querySelector('.andes-money-amount__discount')?.textContent ||
+        Array.from(card.querySelectorAll('span, div'))
+          .map((node) => node.textContent || '')
+          .find((text) => /%/.test(text) && /(off|dto|descuento)/i.test(text)) ||
+        '';
       const title =
         anchor.getAttribute('title') ||
         card.querySelector('h2, h3')?.textContent ||
@@ -158,6 +164,7 @@ async function extractCards(page) {
         image,
         priceText: `${fraction}${cents ? `.${cents}` : ''}`,
         originalText: original,
+        discountBadge,
       };
     });
   });
@@ -349,6 +356,34 @@ export async function discoverMercadoLibreCandidates(page, options) {
           continue;
         }
         if (!enriched.originalPrice) {
+          const badgePercent = Number.parseInt(String(card.discountBadge || '').replace(/[^\d]/g, ''), 10) || 0;
+          const isDealCandidate = /[?&]pdp_filters=deal%3A/i.test(card.href) || /[?&]pdp_filters=deal:/i.test(card.href);
+          if (isDealCandidate && badgePercent >= minDiscountPercent) {
+            out.push({
+              url: enriched.url,
+              canonicalUrl: enriched.canonicalUrl,
+              title: enriched.title,
+              store: 'Mercado Libre',
+              imageUrl: enriched.imageUrl,
+              discountPrice: enriched.discountPrice,
+              originalPrice: null,
+              discountPercent: badgePercent,
+              sourceDetail: 'worker:playwright:promo-unverified',
+              signals: {
+                soldQuantity: (() => {
+                  const match = enriched.soldText.match(/(\d+)\s+vendid/i);
+                  return match ? Number(match[1]) : null;
+                })(),
+                condition: 'new',
+                listingTypeId: 'worker_seed_promo_unverified',
+                categoryId: null
+              }
+            });
+            console.log(
+              `[worker] accepted=${enriched.canonicalUrl} discount=${badgePercent}% mode=promo_unverified`
+            );
+            continue;
+          }
           console.log(`[worker] skipped=${card.href} reason=sin_original_price`);
           continue;
         }

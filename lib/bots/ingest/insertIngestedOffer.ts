@@ -14,6 +14,7 @@ export type InsertIngestOptions = {
   titleOverride?: string;
   ingestScore?: number;
   scoreBreakdown?: ScoreBreakdown;
+  moderatorNote?: string;
 };
 
 export type InsertIngestResult =
@@ -23,14 +24,14 @@ export type InsertIngestResult =
 
 function buildModeratorComment(opts: InsertIngestOptions | undefined): string {
   if (opts?.ingestScore == null) {
-    return '[bot-ingest] Creado por cron de ingesta; revisar precio y enlace.';
+    return `[bot-ingest] Creado por cron de ingesta; revisar precio y enlace.${opts?.moderatorNote ? ` ${opts.moderatorNote}` : ''}`;
   }
   const mode = opts.status === 'approved' ? 'auto-aprobada' : 'moderación';
   const b = opts.scoreBreakdown;
   const parts = b
     ? `d${b.discount} p${b.popularity} r${b.rating} c${b.category} $${b.priceAppeal}`
     : '';
-  return `[bot-ingest v3] score=${opts.ingestScore} (${mode})${parts ? ` | ${parts}` : ''}`;
+  return `[bot-ingest v3] score=${opts.ingestScore} (${mode})${parts ? ` | ${parts}` : ''}${opts.moderatorNote ? ` | ${opts.moderatorNote}` : ''}`;
 }
 
 export async function insertIngestedOffer(
