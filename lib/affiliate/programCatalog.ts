@@ -20,11 +20,18 @@ export const AFFILIATE_PROGRAMS_CATALOG: AffiliateProgramCatalogItem[] = [
     id: 'mercadolibre',
     name: 'Mercado Libre',
     description:
-      'La app normaliza enlaces ML/meli.la y aplica ?tag= de plataforma cuando hay configuración.',
+      'Normaliza ML/meli.la. Opción A: ?tag= (ML_AFFILIATE_TAG). Opción B: colaborador/perfil con matt_word + matt_tool (ML_MATT_WORD / ML_MATT_TOOL). Pueden usarse ambas si ML lo admite en tu cuenta.',
     dashboardUrl: 'https://www.mercadolibre.com.mx/afiliados',
     onboardingHint:
-      'Configura ML_AFFILIATE_TAG y/o NEXT_PUBLIC_ML_AFFILIATE_TAG con el tag vigente de colaboradores.',
-    envKeys: ['ML_AFFILIATE_TAG', 'NEXT_PUBLIC_ML_AFFILIATE_TAG'],
+      'Afiliados clásicos: ML_AFFILIATE_TAG. Cuenta colaborador (compartir sin ?tag=): ML_MATT_WORD + ML_MATT_TOOL (mismos valores que al compartir desde ML). NEXT_PUBLIC_* si el cliente debe armar el enlace.',
+    envKeys: [
+      'ML_AFFILIATE_TAG',
+      'NEXT_PUBLIC_ML_AFFILIATE_TAG',
+      'ML_MATT_WORD',
+      'NEXT_PUBLIC_ML_MATT_WORD',
+      'ML_MATT_TOOL',
+      'NEXT_PUBLIC_ML_MATT_TOOL',
+    ],
   },
   {
     id: 'amazon',
@@ -94,17 +101,31 @@ function hasEnvValue(key: string): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function mercadoLibreAffiliateActive(): boolean {
+  const hasTag =
+    hasEnvValue('ML_AFFILIATE_TAG') || hasEnvValue('NEXT_PUBLIC_ML_AFFILIATE_TAG');
+  const hasMattW =
+    hasEnvValue('ML_MATT_WORD') || hasEnvValue('NEXT_PUBLIC_ML_MATT_WORD');
+  const hasMattT =
+    hasEnvValue('ML_MATT_TOOL') || hasEnvValue('NEXT_PUBLIC_ML_MATT_TOOL');
+  return hasTag || (hasMattW && hasMattT) || hasMattT;
+}
+
 export function getAffiliateProgramsRuntimeStatus(): AffiliateProgramRuntimeStatus[] {
   return AFFILIATE_PROGRAMS_CATALOG.map((item) => {
     const configuredKeys = item.envKeys.filter((k) => hasEnvValue(k));
     const missingKeys = item.envKeys.filter((k) => !configuredKeys.includes(k));
+    const active =
+      item.id === 'mercadolibre'
+        ? mercadoLibreAffiliateActive()
+        : configuredKeys.length > 0;
     return {
       id: item.id,
       name: item.name,
       description: item.description,
       dashboardUrl: item.dashboardUrl,
       onboardingHint: item.onboardingHint,
-      active: configuredKeys.length > 0,
+      active,
       configuredKeys,
       missingKeys,
     };

@@ -411,9 +411,18 @@ export default function AdminMantenimientoPage() {
             <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">a.co</code> el servidor intenta expandirlos antes del tag.
           </p>
           <p>
-            <strong className="text-gray-900 dark:text-gray-100">Mercado Libre:</strong> la app añade{' '}
-            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">?tag=</code> en dominios ML (no es{' '}
-            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">matt_word</code>). El valor debe coincidir con el que indique el programa de afiliados de ML para fichas de producto.
+            <strong className="text-gray-900 dark:text-gray-100">Mercado Libre:</strong> si tienes{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">ML_AFFILIATE_TAG</code>, la app añade{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">?tag=</code> en fichas. Si eres{' '}
+            <strong className="text-gray-900 dark:text-gray-100">colaborador</strong> y al compartir ML te da{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">matt_word</code> +{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">matt_tool</code> (sin{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">tag</code>), configura{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">ML_MATT_WORD</code> y{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">ML_MATT_TOOL</code> (o{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">NEXT_PUBLIC_*</code>): la app los inyecta en URLs ML al aprobar. No copies{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">ref</code>,{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">matt_tracing_id</code> ni timestamps; son por sesión.
           </p>
           <p>
             <strong className="text-gray-900 dark:text-gray-100">Bot:</strong>{' '}

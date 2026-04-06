@@ -4,8 +4,18 @@ import type { BotIngestConfig } from '@/lib/bots/ingest/config';
 
 function baseConfig(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
   return {
+    profile: 'standard',
     enabled: true,
     botUserId: 'x',
+    botUserIdTech: null,
+    botUserIdStaples: null,
+    botAuthorDualMode: false,
+    botUserIdsForQuota: ['x'],
+    morningSustainedEnabled: false,
+    morningHourStart: 5,
+    morningHourEndExclusive: 11,
+    morningMaxPerRunMin: 2,
+    morningMaxPerRunMax: 5,
     timezone: 'America/Mexico_City',
     normalMaxPerRunMin: 1,
     normalMaxPerRunMax: 3,
@@ -29,14 +39,25 @@ function baseConfig(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
     techCategoryIdSet: new Set(['MLM1648']),
     amazonAsins: [],
     amazonDpBase: 'https://www.amazon.com.mx/dp/',
+    amazonSource: 'scrape',
+    amazonPaapiEnabled: false,
+    amazonPaapiAccessKey: null,
+    amazonPaapiSecretKey: null,
+    amazonPaapiPartnerTag: null,
+    amazonPaapiHost: 'webservices.amazon.com.mx',
+    amazonPaapiRegion: 'us-east-1',
     minSoldQuantityMl: 50,
     minRatingAverage: 4,
     minRatingReviewsCount: 5,
     mlFetchReviews: false,
     mlReviewFetchMax: 0,
+    keepaEnabled: false,
+    keepaApiKey: null,
+    keepaDomainId: 11,
     autoApproveEnabled: true,
     autoApproveMinScore: 78,
     rejectBelowScore: 40,
+    forcePendingMinScore: null,
     scoreWeights: {
       discount: 0.28,
       popularity: 0.22,
@@ -92,5 +113,28 @@ describe('scoreIngestCandidate', () => {
       cfg
     );
     expect(r.decision).toBe('reject');
+  });
+
+  it('FORCE_PENDING_MIN_SCORE: iba a reject pero sube a pending', () => {
+    const cfg = baseConfig({
+      rejectBelowScore: 50,
+      forcePendingMinScore: 45,
+      autoApproveMinScore: 78,
+    });
+    const r = scoreIngestCandidate(
+      {
+        canonicalUrl: 'https://a',
+        title: 'Producto con señal media',
+        store: 'ML',
+        imageUrl: 'x',
+        discountPrice: 500,
+        originalPrice: 800,
+        discountPercent: 22,
+      },
+      { soldQuantity: 5, ratingAverage: 3.9, ratingCount: 4, categoryId: 'MLM9999' },
+      cfg
+    );
+    expect(r.breakdown.total).toBeLessThan(cfg.rejectBelowScore);
+    expect(r.decision).toBe('pending');
   });
 });

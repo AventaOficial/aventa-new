@@ -11,6 +11,7 @@ type BotStatusPayload = {
   cron: { path: string; schedule: string; runs_per_day_estimate?: number; deployment_note?: string };
   config: {
     bot_user_id_configured: boolean;
+    bot_author_dual_mode?: boolean;
     profile?: 'standard' | 'mega';
     timezone?: string;
     normal_max_range?: [number, number];
@@ -41,6 +42,8 @@ type BotStatusPayload = {
     amazon_paapi_enabled?: boolean;
     keepa_enabled?: boolean;
     has_ingest_sources?: boolean;
+    /** true si BOT_INGEST_EXTERNAL_WORKER=1 (Railway → POST bot-ingest-candidates). */
+    external_worker_ingest?: boolean;
   };
   capacity: {
     estimated_inserted_ceiling_per_day?: number;
@@ -131,8 +134,13 @@ export default function BotIngestPanel() {
           Bot de ingesta (motor v3)
         </h2>
         <p className="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-          Score, filtros de calidad, auto-aprobación de ofertas top y tope diario. Automatización: Pro/cron externo
-          cada ~15 min o «Ejecutar ahora» (Vercel Hobby no permite ese intervalo en vercel.json).
+          Score, filtros de calidad, auto-aprobación y tope diario. Hay <strong className="font-medium text-gray-700 dark:text-gray-300">dos entradas</strong>: (1){' '}
+          <strong className="font-medium text-gray-700 dark:text-gray-300">Cron Vercel</strong>{' '}
+          <code className="text-[11px]">/api/cron/bot-ingest</code> con URLs, API ML o ASINs; (2){' '}
+          <strong className="font-medium text-gray-700 dark:text-gray-300">Worker Railway</strong> que hace POST a{' '}
+          <code className="text-[11px]">/api/cron/bot-ingest-candidates</code>. «Ejecutar ahora» solo dispara (1); si solo usas (2),{' '}
+          <code className="text-[11px]">inserted=0</code> aquí puede ser normal. Pon{' '}
+          <code className="text-[11px]">BOT_INGEST_EXTERNAL_WORKER=1</code> en Vercel para que el panel marque fuentes alineadas.
         </p>
       </div>
 
@@ -351,10 +359,16 @@ export default function BotIngestPanel() {
 
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
-              <span className="text-gray-500 dark:text-gray-400">`BOT_INGEST_USER_ID`:</span>{' '}
+              <span className="text-gray-500 dark:text-gray-400">Usuarios bot (`created_by`):</span>{' '}
               <strong className={data.config.bot_user_id_configured ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}>
                 {data.config.bot_user_id_configured ? 'configurado' : 'faltante'}
               </strong>
+              {data.config.bot_author_dual_mode ? (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}
+                  · modo dual TECH + STAPLES (categoría ML en tech → TECH; resto → STAPLES)
+                </span>
+              ) : null}
             </p>
             <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 bg-white dark:bg-[#151517]">
               <span className="text-gray-500 dark:text-gray-400">Tope diario (env):</span>{' '}
@@ -393,9 +407,33 @@ export default function BotIngestPanel() {
             <p className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
               <span className="text-gray-500 dark:text-gray-400">URLs fuente:</span> {data.config.urls_count}
             </p>
+            <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 sm:col-span-2 bg-white dark:bg-[#151517]">
+              <span className="text-gray-500 dark:text-gray-400">Worker externo (Railway):</span>{' '}
+              <strong
+                className={
+                  data.config.external_worker_ingest
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-gray-600 dark:text-gray-400'
+                }
+              >
+                {data.config.external_worker_ingest ? 'activo (BOT_INGEST_EXTERNAL_WORKER)' : 'no declarado'}
+              </strong>
+              {!data.config.external_worker_ingest ? (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}
+                  — si Playwright en Railway envía candidatos a <code className="text-[11px]">bot-ingest-candidates</code>, define{' '}
+                  <code className="text-[11px]">BOT_INGEST_EXTERNAL_WORKER=1</code> en Vercel.
+                </span>
+              ) : (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}
+                  — las inserciones cuentan para tope diario y moderación igual que el cron.
+                </span>
+              )}
+            </p>
             {typeof data.config.discover_ml === 'boolean' ? (
               <p className="rounded-2xl border border-gray-200/70 dark:border-gray-800 px-4 py-3 sm:col-span-2 bg-white dark:bg-[#151517]">
-                <span className="text-gray-500 dark:text-gray-400">Descubrimiento ML (API):</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">Descubrimiento ML (API, solo cron Vercel):</span>{' '}
                 <strong>{data.config.discover_ml ? 'activo' : 'off'}</strong>
                 {data.config.discover_ml ? (
                   <span className="text-gray-500 dark:text-gray-400">
@@ -439,9 +477,11 @@ export default function BotIngestPanel() {
               </p>
             ) : null}
             {data.config.has_ingest_sources === false ? (
-              <p className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 sm:col-span-2 text-amber-900 dark:text-amber-100 text-xs">
-                No hay fuentes de ingesta: define URLs, <code className="text-[11px]">BOT_INGEST_DISCOVER_ML=1</code> o{' '}
-                <code className="text-[11px]">BOT_INGEST_AMAZON_ASINS</code>.
+              <p className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 sm:col-span-2 text-amber-900 dark:text-amber-100 text-xs leading-relaxed">
+                <strong className="font-semibold">Cron Vercel sin fuentes:</strong> no hay{' '}
+                <code className="text-[11px]">BOT_INGEST_URLS</code>, ni API ML activa con queries/categorías, ni ASINs. Si las ofertas entran por{' '}
+                <strong>worker Railway</strong>, añade <code className="text-[11px]">BOT_INGEST_EXTERNAL_WORKER=1</code> para alinear el panel; si no, configura una fuente del cron o verás{' '}
+                <code className="text-[11px]">inserted=0</code> en «Ejecutar ahora».
               </p>
             ) : null}
           </div>
@@ -493,8 +533,10 @@ export default function BotIngestPanel() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-              `BOT_INGEST_URLS` es opcional si usas descubrimiento ML o ASINs. Varias URLs en una sola variable (líneas o comas).
+            <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+              <code className="text-[11px]">BOT_INGEST_URLS</code> es opcional si usas API ML, ASINs o{' '}
+              <code className="text-[11px]">BOT_INGEST_EXTERNAL_WORKER=1</code> (Railway). Varias URLs en una variable (líneas o comas). Los filtros{' '}
+              <code className="text-[11px]">BOT_INGEST_ML_MIN_SOLD</code>, <code className="text-[11px]">BOT_INGEST_MIN_RATING</code>, etc. aplican al procesar candidatos en Vercel (cron y POST del worker).
             </p>
             {data.env_missing.length > 0 ? (
               <p className="mt-2 text-[11px] text-red-600 dark:text-red-300">

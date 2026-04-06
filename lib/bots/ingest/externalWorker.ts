@@ -1,4 +1,6 @@
+import { countBotOffersCreatedSinceMulti, getBotOfferCountStartUtc } from './botIngestDailyState';
 import { loadBotIngestConfig, type BotIngestConfig } from './config';
+import { getZonedHourMinute } from './ingestZonedTime';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type {
   IngestCycleReport,
@@ -34,6 +36,10 @@ export type ExternalWorkerBatchPayload = {
   dryRun?: boolean;
   candidates: ExternalWorkerCandidate[];
 };
+
+function randomIntInclusive(lo: number, hi: number): number {
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
 
 function emptySourceStats(): Record<IngestSourceId, IngestSourceStats> {
   return {
@@ -271,10 +277,28 @@ export async function processExternalWorkerBatch(
   }
 
   resolved.sort((a, b) => b.total - a.total);
+
+  const nowWorker = new Date();
+  const dayStart = getBotOfferCountStartUtc(config.timezone, nowWorker);
+  const countToday = await countBotOffersCreatedSinceMulti(config.botUserIdsForQuota, dayStart);
+  const slotsDaily = Math.max(0, config.dailyMaxOffers - countToday);
+
+  const { hour } = getZonedHourMinute(nowWorker, config.timezone);
+  const inMorningSustained =
+    config.morningSustainedEnabled &&
+    hour >= config.morningHourStart &&
+    hour < config.morningHourEndExclusive;
+  const maxPerRunCap = inMorningSustained
+    ? randomIntInclusive(config.morningMaxPerRunMin, config.morningMaxPerRunMax)
+    : randomIntInclusive(config.normalMaxPerRunMin, config.normalMaxPerRunMax);
+  const maxInsertsThisBatch = Math.min(slotsDaily, maxPerRunCap);
+
   let autoApproved = 0;
   let insertedThisRun = 0;
 
   for (const row of resolved) {
+    if (insertedThisRun >= maxInsertsThisBatch) break;
+
     const allowAuto = config.autoApproveEnabled && row.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
@@ -343,9 +367,9 @@ export async function processExternalWorkerBatch(
     profile,
     startedAt,
     finishedAt: new Date().toISOString(),
-    maxPerRun: slice.length,
-    runMode: 'normal',
-    dailyInsertedApprox: null,
+    maxPerRun: maxInsertsThisBatch,
+    runMode: inMorningSustained ? 'morning_sustained' : 'normal',
+    dailyInsertedApprox: countToday + summary.inserted,
     dailyCap: config.dailyMaxOffers,
     rotationWave: null,
     results,

@@ -3,7 +3,7 @@ import { requireUsersLogs } from '@/lib/server/requireAdmin';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import { getBotIngestPausedFromDb } from '@/lib/bots/ingest/botIngestPaused';
 import {
-  countBotOffersCreatedSince,
+  countBotOffersCreatedSinceMulti,
   getBotOfferCountStartUtc,
 } from '@/lib/bots/ingest/botIngestDailyState';
 import { createServerClient } from '@/lib/supabase/server';
@@ -17,6 +17,8 @@ const CRON_DEPLOYMENT_NOTE =
 const TRACKED_ENV_KEYS = [
   'BOT_INGEST_ENABLED',
   'BOT_INGEST_USER_ID',
+  'BOT_INGEST_USER_ID_TECH',
+  'BOT_INGEST_USER_ID_STAPLES',
   'BOT_INGEST_TIMEZONE',
   'BOT_INGEST_NORMAL_MAX_MIN',
   'BOT_INGEST_NORMAL_MAX_MAX',
@@ -49,12 +51,19 @@ const TRACKED_ENV_KEYS = [
   'BOT_INGEST_AUTO_APPROVE',
   'BOT_INGEST_AUTO_APPROVE_MIN_SCORE',
   'BOT_INGEST_REJECT_BELOW_SCORE',
+  'BOT_INGEST_FORCE_PENDING_MIN_SCORE',
   'BOT_INGEST_CATEGORY',
+  'BOT_INGEST_EXTERNAL_WORKER',
 ] as const;
 
 function hasEnvValue(key: string): boolean {
   const value = process.env[key];
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function externalWorkerIngestEnabled(): boolean {
+  const v = process.env.BOT_INGEST_EXTERNAL_WORKER?.trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
 }
 
 /** Estado operativo del bot de ingesta para owner/admin. */
@@ -76,12 +85,13 @@ export async function GET(request: Request) {
   let pendingCount: number | null = null;
   let insertedTodayApprox: number | null = null;
 
-  if (cfg.botUserId) {
+  if (cfg.botUserIdsForQuota.length > 0) {
     const supabase = createServerClient();
+    const ids = cfg.botUserIdsForQuota;
     const { data: offers } = await supabase
       .from('offers')
       .select('id, title, status, created_at, store, price')
-      .eq('created_by', cfg.botUserId)
+      .in('created_by', ids)
       .order('created_at', { ascending: false })
       .limit(12);
     recentOffers = (offers ?? []) as typeof recentOffers;
@@ -89,28 +99,33 @@ export async function GET(request: Request) {
     const { count } = await supabase
       .from('offers')
       .select('id', { count: 'exact', head: true })
-      .eq('created_by', cfg.botUserId)
+      .in('created_by', ids)
       .eq('status', 'pending');
     pendingCount = count ?? null;
 
     const start = getBotOfferCountStartUtc(cfg.timezone);
-    insertedTodayApprox = await countBotOffersCreatedSince(cfg.botUserId, start);
+    insertedTodayApprox = await countBotOffersCreatedSinceMulti(ids, start);
   }
 
   const envStatus = Object.fromEntries(
-    TRACKED_ENV_KEYS.map((k) => [k, hasEnvValue(k)])
+    TRACKED_ENV_KEYS.map((k) => [
+      k,
+      k === 'BOT_INGEST_EXTERNAL_WORKER' ? externalWorkerIngestEnabled() : hasEnvValue(k),
+    ])
   ) as Record<(typeof TRACKED_ENV_KEYS)[number], boolean>;
 
+  const workerPostsCandidates = externalWorkerIngestEnabled();
   const hasIngestSources =
     cfg.urlsFromEnv.length > 0 ||
     cfg.amazonAsins.length > 0 ||
     (cfg.discoverMlEnabled &&
-      (cfg.mlQueries.length > 0 || cfg.mlCategoryIds.length > 0 || cfg.mlUseDefaultQueries));
+      (cfg.mlQueries.length > 0 || cfg.mlCategoryIds.length > 0 || cfg.mlUseDefaultQueries)) ||
+    workerPostsCandidates;
 
   const missingEnv: string[] = TRACKED_ENV_KEYS.filter((key) => !envStatus[key]);
   if (cfg.enabled && !hasIngestSources) {
     missingEnv.push(
-      'BOT_INGEST_fuentes: URLS o BOT_INGEST_DISCOVER_ML (queries/categorías o defaults) o BOT_INGEST_AMAZON_ASINS'
+      'BOT_INGEST_fuentes: URLS, BOT_INGEST_DISCOVER_ML, BOT_INGEST_AMAZON_ASINS o BOT_INGEST_EXTERNAL_WORKER=1 (worker Railway → bot-ingest-candidates)'
     );
   }
 
@@ -131,7 +146,8 @@ export async function GET(request: Request) {
       deployment_note: CRON_DEPLOYMENT_NOTE,
     },
     config: {
-      bot_user_id_configured: Boolean(cfg.botUserId),
+      bot_user_id_configured: cfg.botUserIdsForQuota.length > 0,
+      bot_author_dual_mode: cfg.botAuthorDualMode,
       profile: cfg.profile,
       timezone: cfg.timezone,
       normal_max_range: [cfg.normalMaxPerRunMin, cfg.normalMaxPerRunMax],
@@ -165,6 +181,7 @@ export async function GET(request: Request) {
       amazon_paapi_enabled: cfg.amazonPaapiEnabled,
       keepa_enabled: cfg.keepaEnabled,
       has_ingest_sources: hasIngestSources,
+      external_worker_ingest: workerPostsCandidates,
     },
     capacity: {
       estimated_inserted_ceiling_per_day: estimatedProcessedPerDay,

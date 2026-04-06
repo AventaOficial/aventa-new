@@ -1,7 +1,7 @@
 import { loadBotIngestConfig } from './config';
 import { getBotIngestPausedFromDb } from './botIngestPaused';
 import {
-  countBotOffersCreatedSince,
+  countBotOffersCreatedSinceMulti,
   getBotOfferCountStartUtc,
   getBotIngestLastBoostYmd,
   setBotIngestLastBoostYmd,
@@ -125,7 +125,7 @@ export async function runIngestCycleForProfile(
     };
   }
 
-  if (!config.botUserId) {
+  if (config.botUserIdsForQuota.length === 0) {
     return {
       ok: false,
       enabled: true,
@@ -141,7 +141,8 @@ export async function runIngestCycleForProfile(
         {
           url: '',
           status: 'error',
-          message: 'BOT_INGEST_USER_ID es obligatorio cuando BOT_INGEST_ENABLED=true',
+          message:
+            'BOT_INGEST_USER_ID (o TECH+STAPLES) es obligatorio cuando BOT_INGEST_ENABLED=true',
         },
       ],
       summary: { ...emptySummary(), errors: 1 },
@@ -177,7 +178,7 @@ export async function runIngestCycleForProfile(
   const fastPace = inMorningSustained || inLegacyBoost;
 
   const dayStart = getBotOfferCountStartUtc(tz, now);
-  const countToday = await countBotOffersCreatedSince(config.botUserId, dayStart);
+  const countToday = await countBotOffersCreatedSinceMulti(config.botUserIdsForQuota, dayStart);
   const remaining = Math.max(0, config.dailyMaxOffers - countToday);
 
   if (remaining <= 0) {
@@ -378,8 +379,10 @@ export async function runIngestCycleForProfile(
   }
 
   const insertedCount = results.filter((x) => x.status === 'inserted').length;
-  if (insertedCount > 0 && config.botUserId) {
-    recalculateUserReputation(config.botUserId).catch(() => {});
+  if (insertedCount > 0) {
+    for (const uid of config.botUserIdsForQuota) {
+      recalculateUserReputation(uid).catch(() => {});
+    }
   }
 
   const skipReasonCounts: Record<string, number> = {};

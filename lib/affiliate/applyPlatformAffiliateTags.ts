@@ -25,10 +25,34 @@ function getPlatformMercadoLibreAffiliateTagLocal(): string | null {
   return t || null;
 }
 
+/** Programa colaborador / perfil afiliado (compartir): no usa ?tag= sino matt_word + matt_tool. */
+function getMercadoLibreMattWordLocal(): string | null {
+  const w =
+    process.env.ML_MATT_WORD?.trim() || process.env.NEXT_PUBLIC_ML_MATT_WORD?.trim();
+  return w || null;
+}
+
+function getMercadoLibreMattToolLocal(): string | null {
+  const t =
+    process.env.ML_MATT_TOOL?.trim() || process.env.NEXT_PUBLIC_ML_MATT_TOOL?.trim();
+  return t || null;
+}
+
 function applyMercadoLibreAffiliateTagLocal(url: string, tag: string): string {
   try {
     const parsed = new URL(url);
     parsed.searchParams.set('tag', tag);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+function applyMercadoLibreMattCollaboratorLocal(url: string, word: string, tool: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('matt_word', word);
+    parsed.searchParams.set('matt_tool', tool);
     return parsed.toString();
   } catch {
     return url;
@@ -120,6 +144,22 @@ export function applyPlatformAffiliateTags(url: string): string {
   const mlTag = getPlatformMercadoLibreAffiliateTagLocal();
   if (mlTag && isMercadoLibreOfferUrlLocal(out)) {
     out = applyMercadoLibreAffiliateTagLocal(out, mlTag);
+  }
+
+  const mattWord = getMercadoLibreMattWordLocal();
+  const mattTool = getMercadoLibreMattToolLocal();
+  if (isMercadoLibreOfferUrlLocal(out) && mattTool) {
+    if (mattWord) {
+      out = applyMercadoLibreMattCollaboratorLocal(out, mattWord, mattTool);
+    } else {
+      try {
+        const u = new URL(out);
+        u.searchParams.set('matt_tool', mattTool);
+        out = u.toString();
+      } catch {
+        /* keep out */
+      }
+    }
   }
 
   const amzTag = getEnv('AMAZON_ASSOCIATE_TAG', 'NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG');

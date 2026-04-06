@@ -37,7 +37,19 @@ export type BotIngestAmazonSource = 'scrape' | 'paapi';
 export type BotIngestConfig = {
   profile: BotIngestProfile;
   enabled: boolean;
+  /** Usuario único del bot (modo clásico). */
   botUserId: string | null;
+  /** Usuario bot “tech” (modo dual; ver `botAuthorDualMode`). */
+  botUserIdTech: string | null;
+  /** Usuario bot despensa / día a día (modo dual). */
+  botUserIdStaples: string | null;
+  /**
+   * Si TECH y STAPLES están definidos y son distintos: asignar `created_by` según
+   * si `category_id` ML está en `techCategoryIdSet`; si no hay categoría → STAPLES.
+   */
+  botAuthorDualMode: boolean;
+  /** IDs únicos para tope diario (`BOT_INGEST_DAILY_MAX`) y panel Operaciones. */
+  botUserIdsForQuota: string[];
   /** Zona horaria para boost 7:00 y tope diario. */
   timezone: string;
   /** Corrida normal: aleatorio entre min y max (inclusive). */
@@ -101,6 +113,11 @@ export type BotIngestConfig = {
   autoApproveEnabled: boolean;
   autoApproveMinScore: number;
   rejectBelowScore: number;
+  /**
+   * Si el score total ≥ este valor, no se descarta (reject): pasa a moderación (pending).
+   * null = desactivado. Útil para no perder “joyas” por debajo del umbral de reject.
+   */
+  forcePendingMinScore: number | null;
   scoreWeights: BotIngestScoreWeights;
 
   titleBlocklistGenericRe: RegExp | null;
@@ -190,6 +207,21 @@ function safeRegExp(pattern: string | undefined, fallback: RegExp | null): RegEx
 export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): BotIngestConfig {
   const enabled = process.env.BOT_INGEST_ENABLED === 'true' || process.env.BOT_INGEST_ENABLED === '1';
   const botUserId = process.env.BOT_INGEST_USER_ID?.trim() || null;
+  const botUserIdTech = process.env.BOT_INGEST_USER_ID_TECH?.trim() || null;
+  const botUserIdStaples = process.env.BOT_INGEST_USER_ID_STAPLES?.trim() || null;
+  const botAuthorDualMode = Boolean(
+    botUserIdTech &&
+      botUserIdStaples &&
+      botUserIdTech !== botUserIdStaples
+  );
+  const botUserIdsForQuota: string[] = [];
+  if (botAuthorDualMode) {
+    botUserIdsForQuota.push(botUserIdTech!, botUserIdStaples!);
+  } else if (botUserId) {
+    botUserIdsForQuota.push(botUserId);
+  }
+  const botUserIdsForQuotaUnique = [...new Set(botUserIdsForQuota)];
+
   const activeProfile: BotIngestProfile = profile === 'mega' ? 'mega' : 'standard';
 
   const timezone = process.env.BOT_INGEST_TIMEZONE?.trim() || 'America/Mexico_City';
@@ -340,6 +372,12 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     ? Math.min(autoApproveMinScore - 1, Math.max(0, rejectRaw))
     : 42;
 
+  const forcePendingRaw = Number.parseInt(process.env.BOT_INGEST_FORCE_PENDING_MIN_SCORE ?? '', 10);
+  const forcePendingMinScore =
+    Number.isFinite(forcePendingRaw) && forcePendingRaw >= 1 && forcePendingRaw <= 99
+      ? forcePendingRaw
+      : null;
+
   const scoreWeights = parseScoreWeights(process.env.BOT_INGEST_SCORE_WEIGHTS);
 
   const titleBlocklistGenericRe = safeRegExp(
@@ -352,6 +390,10 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     profile: activeProfile,
     enabled,
     botUserId,
+    botUserIdTech,
+    botUserIdStaples,
+    botAuthorDualMode,
+    botUserIdsForQuota: botUserIdsForQuotaUnique,
     timezone,
     normalMaxPerRunMin: normalMin,
     normalMaxPerRunMax: normalMax,
@@ -398,6 +440,7 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     autoApproveEnabled,
     autoApproveMinScore,
     rejectBelowScore,
+    forcePendingMinScore,
     scoreWeights,
     titleBlocklistGenericRe,
     titleBlocklistSpamRe,

@@ -3,6 +3,7 @@ import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { BotIngestConfig } from './config';
 import type { ScoreBreakdown } from './scoreIngestCandidate';
+import { resolveBotAuthorUserId } from './resolveBotAuthorUserId';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -39,9 +40,13 @@ export async function insertIngestedOffer(
   config: BotIngestConfig,
   opts?: InsertIngestOptions
 ): Promise<InsertIngestResult> {
-  const botUserId = config.botUserId;
-  if (!botUserId) {
-    return { ok: false, error: 'BOT_INGEST_USER_ID no configurado' };
+  const authorId = resolveBotAuthorUserId(config, meta);
+  if (!authorId) {
+    return {
+      ok: false,
+      error:
+        'Configura BOT_INGEST_USER_ID o el par BOT_INGEST_USER_ID_TECH + BOT_INGEST_USER_ID_STAPLES',
+    };
   }
 
   const offerUrl = await resolveAndNormalizeAffiliateOfferUrl(meta.canonicalUrl);
@@ -67,7 +72,7 @@ export async function insertIngestedOffer(
     store: meta.store.slice(0, 200),
     ...(category ? { category } : {}),
     status,
-    created_by: botUserId,
+    created_by: authorId,
     image_url: meta.imageUrl.slice(0, 2048),
     offer_url: offerUrl,
     description: `Ingesta automática (bot). Origen: ${new URL(meta.canonicalUrl).hostname}`,

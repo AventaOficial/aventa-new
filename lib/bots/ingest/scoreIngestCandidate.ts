@@ -106,5 +106,13 @@ export function scoreIngestCandidate(
   else if (total >= config.autoApproveMinScore) decision = 'auto_approve';
   else decision = 'pending';
 
+  if (
+    decision === 'reject' &&
+    config.forcePendingMinScore != null &&
+    total >= config.forcePendingMinScore
+  ) {
+    decision = 'pending';
+  }
+
   return { breakdown, decision };
 }

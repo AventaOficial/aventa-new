@@ -22,11 +22,20 @@ export async function setBotIngestLastBoostYmd(ymd: string): Promise<void> {
 }
 
 export async function countBotOffersCreatedSince(botUserId: string, sinceUtc: Date): Promise<number> {
+  return countBotOffersCreatedSinceMulti([botUserId], sinceUtc);
+}
+
+/** Suma inserciones del día para todos los usuarios bot (modo dual: tech + staples). */
+export async function countBotOffersCreatedSinceMulti(
+  botUserIds: string[],
+  sinceUtc: Date
+): Promise<number> {
+  if (botUserIds.length === 0) return 0;
   const supabase = createServerClient();
   const { count, error } = await supabase
     .from('offers')
     .select('id', { count: 'exact', head: true })
-    .eq('created_by', botUserId)
+    .in('created_by', botUserIds)
     .gte('created_at', sinceUtc.toISOString());
   if (error) return 0;
   return count ?? 0;

@@ -429,7 +429,7 @@ export default function ModerationOfferCard({
                       className="mt-0.5 rounded border-gray-400 text-emerald-600 focus:ring-emerald-500 shrink-0"
                     />
                     <span>
-                      Confirmo que este enlace lleva al producto o promoción descrita. Al aprobar, AVENTA aplicará el tracking de afiliado (ML, Amazon, etc.) según la configuración del sitio.
+                      Confirmo que este enlace lleva al producto o promoción descrita. Al aprobar, AVENTA aplicará el tracking de plataforma (ML: <code className="text-[10px]">tag</code> o colaborador <code className="text-[10px]">matt_word</code>/<code className="text-[10px]">matt_tool</code>; Amazon, etc.) según variables de entorno.
                     </span>
                   </label>
                 ) : null}
