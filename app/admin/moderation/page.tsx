@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { Search, CheckSquare, Square, Clock, Check, X } from 'lucide-react';
+import { Search, CheckSquare, Square, Clock, Check, X, Trash2 } from 'lucide-react';
+import { MODERATION_DELETE_BOT_CONFIRM_PHRASE } from '@/lib/moderation/deleteBotQueue';
 import ModerationOfferCard from '../components/ModerationOfferCard';
 import ModerationObjectivesSidebar from '../components/ModerationObjectivesSidebar';
 
@@ -36,6 +37,8 @@ type ModerationOffer = {
   risk_score?: number | null;
   moderator_comment?: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
+  /** Resuelto en servidor (IDs de usuario bot + marcadores en comentario/descripción). */
+  is_bot?: boolean;
 };
 
 function getOfferDiscountPercent(offer: ModerationOffer): number {
@@ -98,6 +101,7 @@ export default function ModerationPage() {
           setPending(
             rows.map((r) => ({
               ...r,
+              is_bot: Boolean((r as { is_bot?: boolean }).is_bot),
               profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
             })) as ModerationOffer[]
           );
@@ -123,6 +127,10 @@ export default function ModerationPage() {
   const [onlyBot, setOnlyBot] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showDeleteBotModal, setShowDeleteBotModal] = useState(false);
+  const [deleteBotPhrase, setDeleteBotPhrase] = useState('');
+  const [deleteBotAck, setDeleteBotAck] = useState(false);
+  const [deleteBotLoading, setDeleteBotLoading] = useState(false);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -195,6 +203,35 @@ export default function ModerationPage() {
     setBatchRejectReason('');
     setSelectedIds(new Set());
     await refreshList(true);
+  };
+
+  const runDeleteAllBotPending = async () => {
+    if (deleteBotPhrase.trim() !== MODERATION_DELETE_BOT_CONFIRM_PHRASE || !deleteBotAck) return;
+    setDeleteBotLoading(true);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    try {
+      const res = await fetch('/api/admin/moderation-delete-bot-pending', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ confirmPhrase: deleteBotPhrase.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof data?.error === 'string' ? data.error : 'No se pudo eliminar la cola del bot');
+        return;
+      }
+      setShowDeleteBotModal(false);
+      setDeleteBotPhrase('');
+      setDeleteBotAck(false);
+      setSelectedIds(new Set());
+      await refreshList(true);
+      if (typeof data?.deleted === 'number' && data.deleted > 0) {
+        alert(`Se eliminaron ${data.deleted} oferta(s) pendientes del bot.`);
+      }
+    } finally {
+      setDeleteBotLoading(false);
+    }
   };
 
   const runBatchExpire = async () => {
@@ -284,6 +321,7 @@ export default function ModerationPage() {
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
 
   const isBotOffer = (o: ModerationOffer) =>
+    o.is_bot === true ||
     (o.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
     (o.description ?? '').toLowerCase().includes('ingesta automática (bot)');
 
@@ -515,6 +553,72 @@ export default function ModerationPage() {
           </div>
         )}
 
+        {showDeleteBotModal && (
+          <div
+            className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60"
+            onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
+          >
+            <div
+              className="bg-white dark:bg-[#1a1a1a] rounded-[28px] shadow-xl p-5 max-w-lg w-full border border-red-200 dark:border-red-900/50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-1">Vaciar cola del bot (irreversible)</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Se eliminarán de la base de datos todas las ofertas <strong>pendientes</strong> creadas por los usuarios del bot
+                (según <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">BOT_INGEST_USER_ID*</code>).
+                No afecta ofertas de usuarios reales. Solo owner/admin.
+              </p>
+              <label className="flex items-start gap-2 text-sm text-gray-800 dark:text-gray-200 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deleteBotAck}
+                  onChange={(e) => setDeleteBotAck(e.target.checked)}
+                  className="mt-1 rounded border-gray-400 text-red-600 focus:ring-red-500"
+                />
+                <span>Entiendo que esta acción no se puede deshacer y solo quiero borrar la cola del bot.</span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                Escribe exactamente (mayúsculas):{' '}
+                <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">{MODERATION_DELETE_BOT_CONFIRM_PHRASE}</code>
+              </p>
+              <input
+                type="text"
+                value={deleteBotPhrase}
+                onChange={(e) => setDeleteBotPhrase(e.target.value)}
+                autoComplete="off"
+                placeholder="Frase de confirmación…"
+                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 mb-4 font-mono"
+              />
+              <div className="flex gap-2 justify-end flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
+                  className="rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runDeleteAllBotPending()}
+                  disabled={
+                    deleteBotLoading ||
+                    !deleteBotAck ||
+                    deleteBotPhrase.trim() !== MODERATION_DELETE_BOT_CONFIRM_PHRASE
+                  }
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {deleteBotLoading ? (
+                    <span className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  Eliminar todas (bot)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showBatchReject && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !batchActing && setShowBatchReject(false)}>
             <div className="bg-white dark:bg-[#1a1a1a] rounded-[28px] shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
@@ -562,45 +666,19 @@ export default function ModerationPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {botFiltered.length > 0 ? (
-            <section className="rounded-[28px] border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm md:text-base font-semibold text-sky-800 dark:text-sky-200">
-                  Ofertas del bot (priorizadas por gratis y mayor descuento)
-                </h2>
-                <span className="text-xs text-sky-700 dark:text-sky-300 font-medium">{botFiltered.length} en cola</span>
-              </div>
-              <ul className="space-y-4">
-                {botFiltered.map((offer) => (
-                  <ModerationOfferCardWithSimilar
-                    key={offer.id}
-                    offer={offer}
-                    status="pending"
-                    onApprove={(id, createdBy, modMessage, offerHasUrl) => {
-                      void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
-                    }}
-                    onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
-                    actingId={actingId}
-                    qualityCandidate={isQualityCandidate(offer)}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
-                    batchMode={canAdvancedModeration}
-                    onOfferUpdated={() => refreshList(true)}
-                  />
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {userFiltered.length > 0 ? (
-            <section className="rounded-[28px] border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200">
-                  Ofertas de usuarios
-                </h2>
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{userFiltered.length} en cola</span>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+          <section className="rounded-[28px] border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200">
+                Ofertas de usuarios
+              </h2>
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{userFiltered.length} en cola</span>
+            </div>
+            {userFiltered.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
+                Sin ofertas de usuarios en esta vista.
+              </p>
+            ) : (
               <ul className="space-y-4">
                 {userFiltered.map((offer) => (
                   <ModerationOfferCardWithSimilar
@@ -620,8 +698,61 @@ export default function ModerationPage() {
                   />
                 ))}
               </ul>
-            </section>
-          ) : null}
+            )}
+          </section>
+
+          <section className="rounded-[28px] border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm md:text-base font-semibold text-sky-800 dark:text-sky-200">
+                Ofertas del bot
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-sky-700 dark:text-sky-300 font-medium">{botFiltered.length} en cola</span>
+                {canAdvancedModeration && botFiltered.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteBotPhrase('');
+                      setDeleteBotAck(false);
+                      setShowDeleteBotModal(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-red-300 dark:border-red-800 bg-white/90 dark:bg-red-950/30 px-3 py-1.5 text-[11px] font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    Vaciar cola del bot
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <p className="text-[11px] text-sky-800/80 dark:text-sky-300/90 mb-3">
+              Prioridad: gratis primero, luego mayor % de descuento.
+            </p>
+            {botFiltered.length === 0 ? (
+              <p className="text-sm text-sky-700/80 dark:text-sky-400/90 py-6 text-center border border-dashed border-sky-200 dark:border-sky-800 rounded-2xl">
+                Sin ofertas del bot en esta vista.
+              </p>
+            ) : (
+              <ul className="space-y-4">
+                {botFiltered.map((offer) => (
+                  <ModerationOfferCardWithSimilar
+                    key={offer.id}
+                    offer={offer}
+                    status="pending"
+                    onApprove={(id, createdBy, modMessage, offerHasUrl) => {
+                      void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
+                    }}
+                    onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
+                    actingId={actingId}
+                    qualityCandidate={isQualityCandidate(offer)}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    batchMode={canAdvancedModeration}
+                    onOfferUpdated={() => refreshList(true)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       )}
       </div>

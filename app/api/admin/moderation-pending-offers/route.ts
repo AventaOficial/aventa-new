@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
+import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+
+function computeIsBot(
+  row: {
+    created_by?: string | null;
+    moderator_comment?: string | null;
+    description?: string | null;
+  },
+  botIds: Set<string>
+): boolean {
+  if (row.created_by && botIds.has(row.created_by)) return true;
+  if ((row.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]')) return true;
+  if ((row.description ?? '').toLowerCase().includes('ingesta automática (bot)')) return true;
+  return false;
+}
 
 /**
  * Lista ofertas `pending` para la cola de moderación usando service_role.
@@ -26,5 +41,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ offers: data ?? [] });
+  const config = loadBotIngestConfig('standard');
+  const botIds = new Set(config.botUserIdsForQuota);
+  const offers = (data ?? []).map((row) => ({
+    ...row,
+    is_bot: computeIsBot(
+      row as { created_by?: string | null; moderator_comment?: string | null; description?: string | null },
+      botIds
+    ),
+  }));
+
+  return NextResponse.json({ offers });
 }
