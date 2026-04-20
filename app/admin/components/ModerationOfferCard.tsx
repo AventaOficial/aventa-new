@@ -159,8 +159,8 @@ export default function ModerationOfferCard({
       className={`bg-white dark:bg-[#141414] rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg hover:border-violet-200/80 dark:hover:border-violet-800/50 transition-all duration-200 ${selected ? 'border-violet-500 ring-2 ring-violet-500/30 shadow-md' : 'border-gray-200/90 dark:border-gray-700/90'}`}
       data-testid="moderation-offer-card"
     >
-      <div className="flex flex-col sm:flex-row">
-        <div className="relative w-full sm:w-36 md:w-44 h-44 sm:h-auto sm:min-h-[140px] shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900">
+      <div className="flex flex-col">
+        <div className="relative w-full h-52 md:h-56 shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900">
           {allPreviewImages.length > 0 ? (
             <>
               <img
@@ -216,7 +216,7 @@ export default function ModerationOfferCard({
           )}
         </div>
 
-        <div className="flex-1 p-4 md:p-5 flex flex-col gap-3 min-w-0">
+        <div className="flex-1 p-3 md:p-4 flex flex-col gap-3 min-w-0">
           <div className="flex items-start gap-2">
             {batchMode && onToggleSelect && (
               <button
@@ -275,7 +275,7 @@ export default function ModerationOfferCard({
                 </span>
               ) : null}
             </div>
-            <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-3">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2">
               {offer.title}
             </h3>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -288,7 +288,7 @@ export default function ModerationOfferCard({
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-600 dark:text-gray-400">
               <span className="inline-flex items-center gap-1">
                 <Store className="h-3.5 w-3.5 shrink-0" />
                 <span className="font-medium text-gray-700 dark:text-gray-300">{offer.store ?? '—'}</span>
@@ -317,7 +317,7 @@ export default function ModerationOfferCard({
               )}
             </div>
             {offer.moderator_comment && offer.moderator_comment.trim() && (
-              <div className="mt-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/80 dark:bg-violet-900/20 px-3 py-2 text-sm text-violet-800 dark:text-violet-200">
+              <div className="mt-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/80 dark:bg-violet-900/20 px-3 py-2 text-sm text-violet-800 dark:text-violet-200 line-clamp-3">
                 <span className="font-medium">Comentario del creador:</span>{' '}
                 {offer.moderator_comment.trim()}
               </div>
@@ -409,7 +409,7 @@ export default function ModerationOfferCard({
               </button>
             )}
             {status === 'pending' && onApprove && onReject && (
-              <>
+              <div className="w-full mt-1 rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/70 dark:bg-[#101010]">
                 <div className="w-full flex flex-col gap-2">
                   <label className="text-xs text-gray-500 dark:text-gray-400">Mensaje opcional para el usuario (se verá en la notificación)</label>
                   <textarea
@@ -433,36 +433,37 @@ export default function ModerationOfferCard({
                     </span>
                   </label>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() =>
-                    onApprove(
-                      offer.id,
-                      offer.created_by,
-                      modMessage.trim() || undefined,
-                      Boolean(offer.offer_url?.trim())
-                    )
-                  }
-                  disabled={
-                    actingId === offer.id ||
-                    (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
-                  }
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="La oferta se publicará y verán los usuarios"
-                >
-                  ✓ Aprobar (publicar)
-                </button>
-                {!showRejectInput ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                   <button
                     type="button"
-                    onClick={() => setShowRejectInput(true)}
+                    onClick={() =>
+                      onApprove(
+                        offer.id,
+                        offer.created_by,
+                        modMessage.trim() || undefined,
+                        Boolean(offer.offer_url?.trim())
+                      )
+                    }
+                    disabled={
+                      actingId === offer.id ||
+                      (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
+                    }
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="La oferta se publicará y verán los usuarios"
+                  >
+                    ✓ Aprobar (publicar)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectInput((prev) => !prev)}
                     disabled={actingId === offer.id}
-                    className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     title="La oferta no se publicará"
                   >
                     ✗ Rechazar
                   </button>
-                ) : (
+                </div>
+                {showRejectInput ? (
                   <div className="flex flex-col gap-2 w-full">
                     <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Motivo rápido (clic para usar; puedes editar después)</p>
                     <div className="flex flex-wrap gap-1.5">
@@ -513,8 +514,8 @@ export default function ModerationOfferCard({
                     </button>
                     </div>
                   </div>
-                )}
-              </>
+                ) : null}
+              </div>
             )}
           </div>
         </div>
