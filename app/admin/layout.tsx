@@ -1,31 +1,10 @@
 'use client';
 
-import { useState, useEffect, type ComponentType, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import {
-  ClipboardList,
-  CheckCircle,
-  XCircle,
-  Flag,
-  Users,
-  FileText,
-  MessageCircle,
-  BarChart3,
-  Heart,
-  Menu,
-  X,
-  ShieldOff,
-  UserCog,
-  Megaphone,
-  LayoutDashboard,
-  Map,
-  Scale,
-  Briefcase,
-  NotebookPen,
-  Wrench,
-} from 'lucide-react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 import {
   ROLES,
   canAccessModeration,
@@ -37,47 +16,44 @@ import {
   canAccessOwnerOperationsPanel,
   type Role,
 } from '@/lib/admin/roles';
+import {
+  buildAdminNavigation,
+  buildTierAccordions,
+  getDefaultAdminHome,
+  getPinnedItems,
+  type AdminNavItem,
+} from '@/lib/admin/navigation';
 
-/** Solo moderación: Pendientes, Aprobadas, Rechazadas, Comentarios, Reportes (visible para moderator + owner/admin) */
-const MODERATION_ONLY_ITEMS = [
-  { href: '/admin/moderation', label: 'Pendientes', icon: ClipboardList },
-  { href: '/admin/moderation/approved', label: 'Aprobadas', icon: CheckCircle },
-  { href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
-  { href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
-  { href: '/admin/reports', label: 'Reportes', icon: Flag },
-  { href: '/admin/moderation/bans', label: 'Baneos', icon: ShieldOff },
-] as const;
-
-/** Usuarios y Logs: solo owner y admin (moderadores no ven estos enlaces) */
-const USERS_LOGS_ITEMS = [
-  { href: '/admin/users', label: 'Usuarios', icon: Users },
-  { href: '/admin/logs', label: 'Logs', icon: FileText },
-] as const;
-
-/** Equipo (gestionar roles): owner y admin */
-const TEAM_ITEM = { href: '/admin/team', label: 'Equipo', icon: UserCog } as const;
-
-/** Avisos del sitio: solo owner */
-const ANNOUNCEMENTS_ITEM = { href: '/admin/announcements', label: 'Avisos', icon: Megaphone } as const;
-
-const METRICS_ITEMS = [
-  { href: '/admin/metrics', label: 'Métricas', icon: BarChart3 },
-  { href: '/admin/health', label: 'Health', icon: Heart },
-] as const;
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  exact?: boolean;
-  subtle?: boolean;
-};
-
-type NavSection = {
-  title: string;
-  items: NavItem[];
-  visible: boolean;
-};
+function NavLink({
+  item,
+  isActive,
+  onNavigate,
+}: {
+  item: AdminNavItem;
+  isActive: boolean;
+  onNavigate: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={`
+        flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-medium tracking-tight transition-all
+        ${
+          isActive
+            ? 'bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shadow-[0_4px_20px_rgba(0,0,0,0.03)]'
+            : item.subtle
+              ? 'text-gray-500 dark:text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-900'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-900'
+        }
+      `}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="truncate">{item.label}</span>
+    </Link>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -90,6 +66,7 @@ export default function AdminLayout({
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [authGateReady, setAuthGateReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openTiers, setOpenTiers] = useState<Record<number, boolean>>({ 2: false, 3: false, 4: false });
 
   useEffect(() => {
     const supabase = createClient();
@@ -144,20 +121,25 @@ export default function AdminLayout({
     const isHeaPath = pathname === '/admin/health';
     const isVoteWeightsPath = pathname === '/admin/vote-weights';
     const isOperacionesPath = pathname.startsWith('/admin/operaciones');
+    const isCommissionsPath = pathname === '/admin/commissions';
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
     const isTechnicalPath = pathname === '/admin/technical';
     if (isOwnerPanelPath && !canOwnerOpsPanel) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isDashboardPath && userRole === 'owner') {
+      router.replace('/admin/owner');
+    } else if (isAnalistaPath) {
+      router.replace(canMet ? '/admin/metrics' : '/admin/health');
     } else if (isDashboardPath && !hasAllowedRole) {
       router.replace('/');
     } else if (isOperacionesPath && (!canTeam || !canOwnerOpsPanel)) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isCommissionsPath && !canOwnerOpsPanel) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isMantenimientoPath && !canTeam) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isVoteWeightsPath && (!canTeam || !canOwnerOpsPanel)) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : '/admin/metrics');
-    } else if (isAnalistaPath && !canMet && !canHea) {
-      router.replace(canMod ? '/admin/moderation' : '/admin/users');
     } else if (isAnnouncementsPath && !canAnnouncements) {
       router.replace(canTeam ? '/admin/team' : canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isTeamPath && !canTeam) {
@@ -171,12 +153,13 @@ export default function AdminLayout({
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
     } else if (isTechnicalPath && !canTechnical) {
-      router.replace(canOwnerOpsPanel ? '/admin/operaciones' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+      router.replace(canOwnerOpsPanel ? '/admin/owner' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     }
   }, [
     pathname,
     authGateReady,
     hasAllowedRole,
+    userRole,
     canMod,
     canUsersLogs,
     canTeam,
@@ -188,92 +171,28 @@ export default function AdminLayout({
     router,
   ]);
 
-  const moderationItems: NavItem[] = MODERATION_ONLY_ITEMS.map((item) => ({
-    ...item,
-    exact: item.href === '/admin/moderation',
-  }));
-  const administrationItems: NavItem[] = [
-    ...USERS_LOGS_ITEMS,
-    TEAM_ITEM,
-    ANNOUNCEMENTS_ITEM,
-  ].filter((item) => {
-    if (item.href === TEAM_ITEM.href) return canTeam;
-    if (item.href === ANNOUNCEMENTS_ITEM.href) return canAnnouncements;
-    return canUsersLogs;
-  });
-  const operationsItems: NavItem[] = [
-    { href: '/admin/owner', label: 'Owner Dashboard', icon: LayoutDashboard, exact: true },
-    { href: '/admin/operaciones', label: 'Centro de operaciones', icon: LayoutDashboard },
-    { href: '/admin/operaciones/trabajo', label: 'Trabajo', icon: Briefcase },
-    { href: '/admin/vote-weights', label: 'Peso de voto', icon: Scale },
-    { href: '/admin/mantenimiento', label: 'Mantenimiento', icon: NotebookPen },
-  ];
-  const analysisItems: NavItem[] = [
-    { href: '/admin/analista', label: 'Panel', icon: LayoutDashboard },
-    ...METRICS_ITEMS,
-  ].filter((item) => {
-    if (item.href === '/admin/metrics') return canMet;
-    if (item.href === '/admin/health') return canHea;
-    return canMet || canHea;
-  });
-  const technicalItems: NavItem[] = [{ href: '/admin/technical', label: 'Datos técnicos', icon: Wrench }];
+  const navGroups = buildAdminNavigation(userRole);
+  const pinned = getPinnedItems(navGroups);
+  const pinnedHrefs = new Set(pinned.map((p) => p.href));
+  const commandGroup = navGroups.find((g) => g.id === 'command');
+  const accordions = buildTierAccordions(navGroups, pinnedHrefs);
+  const homeHref = getDefaultAdminHome(userRole);
 
-  const navSections: NavSection[] = [
-    {
-      title: 'General',
-      visible: hasAllowedRole,
-      items: [{ href: '/admin/dashboard', label: 'Panel', icon: LayoutDashboard, exact: true }],
-    },
-    {
-      title: 'Moderación',
-      visible: canMod,
-      items: moderationItems,
-    },
-    {
-      title: 'Administración',
-      visible: administrationItems.length > 0,
-      items: administrationItems,
-    },
-    {
-      title: 'Operaciones',
-      visible: canOwnerOpsPanel,
-      items: operationsItems,
-    },
-    {
-      title: 'Análisis',
-      visible: analysisItems.length > 0,
-      items: analysisItems,
-    },
-    {
-      title: 'Técnico',
-      visible: canTechnical,
-      items: technicalItems,
-    },
-    {
-      title: 'Recursos',
-      visible: canTeam,
-      items: [{ href: '/contexto', label: 'Contexto', icon: Map, exact: true, subtle: true }],
-    },
-  ];
-
-  const getActive = (item: NavItem) => {
+  const getActive = (item: AdminNavItem) => {
     if (item.exact) return pathname === item.href;
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   };
 
-  const mobileTitle = pathname === '/admin/owner'
-    ? 'Owner'
-    : pathname === '/admin/dashboard'
-    ? 'Panel'
-    : pathname === '/admin/technical'
-      ? 'Técnico'
-      : pathname.startsWith('/admin/operaciones') || pathname === '/admin/mantenimiento' || pathname === '/admin/vote-weights'
-        ? 'Operaciones'
-        : pathname.startsWith('/admin/metrics') || pathname === '/admin/health' || pathname === '/admin/analista'
-          ? 'Análisis'
-          : pathname === '/admin/users' || pathname === '/admin/logs' || pathname === '/admin/team' || pathname === '/admin/announcements'
-            ? 'Administración'
-            : 'Moderación';
+  const mobileTitle =
+    pathname === '/admin/owner'
+      ? 'Centro de mando'
+      : pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports')
+        ? 'Moderación'
+        : pathname.startsWith('/admin/operaciones') || pathname === '/admin/commissions'
+          ? 'Operaciones'
+          : pathname === '/admin/metrics' || pathname === '/admin/health'
+            ? 'Análisis'
+            : 'Admin';
 
   if (!authGateReady) {
     return (
@@ -287,16 +206,11 @@ export default function AdminLayout({
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-[#141414] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-700 dark:text-gray-300 font-medium">
-            Acceso restringido
-          </p>
+          <p className="text-gray-700 dark:text-gray-300 font-medium">Acceso restringido</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Solo usuarios con rol (owner, admin, moderator, analyst) pueden acceder.
           </p>
-          <Link
-            href="/"
-            className="mt-4 inline-block text-purple-600 dark:text-purple-400 hover:underline"
-          >
+          <Link href="/" className="mt-4 inline-block text-purple-600 dark:text-purple-400 hover:underline">
             Volver al inicio
           </Link>
         </div>
@@ -315,11 +229,8 @@ export default function AdminLayout({
         `}
       >
         <div className="flex h-16 items-center justify-between px-5 border-b border-gray-200/80 dark:border-gray-800 lg:justify-start">
-          <Link
-            href="/admin/dashboard"
-            className="font-semibold tracking-tight text-gray-900 dark:text-gray-100"
-          >
-            Panel Admin
+          <Link href={homeHref} className="font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+            {userRole === 'owner' ? 'AVENTA · Mando' : 'Panel Admin'}
           </Link>
           <button
             type="button"
@@ -330,40 +241,73 @@ export default function AdminLayout({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="p-3 space-y-5">
-          {navSections.filter((section) => section.visible).map((section) => (
-            <div key={section.title}>
-              <p className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.18em]">
-                {section.title}
+
+        <nav className="p-3 space-y-4 overflow-y-auto max-h-[calc(100vh-4rem)]">
+          {commandGroup?.items.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              isActive={getActive(item)}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          ))}
+
+          {pinned.length > 0 ? (
+            <div>
+              <p className="px-3 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                Hoy
               </p>
-              <div className="mt-1 space-y-1">
-                {section.items.map((item) => {
-                  const isActive = getActive(item);
-                  const Icon = item.icon;
-                  return (
-                    <Link
+              <div className="mt-1 space-y-0.5">
+                {pinned
+                  .filter((p) => !commandGroup?.items.some((c) => c.href === p.href))
+                  .map((item) => (
+                    <NavLink
                       key={item.href}
-                      href={item.href}
-                      onClick={() => setSidebarOpen(false)}
-                      className={`
-                        flex items-center gap-3 px-3.5 py-3 rounded-2xl text-sm font-medium tracking-tight transition-all
-                        ${
-                          isActive
-                            ? 'bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shadow-[0_4px_20px_rgba(0,0,0,0.03)]'
-                            : item.subtle
-                              ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-gray-900'
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-900'
-                        }
-                      `}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                      item={item}
+                      isActive={getActive(item)}
+                      onNavigate={() => setSidebarOpen(false)}
+                    />
+                  ))}
               </div>
             </div>
-          ))}
+          ) : null}
+
+          {accordions.map((acc) => {
+            const isOpen = openTiers[acc.tier] ?? false;
+            const hasActiveChild = acc.items.some((i) => getActive(i));
+            return (
+              <div key={acc.tier}>
+                <button
+                  type="button"
+                  onClick={() => setOpenTiers((s) => ({ ...s, [acc.tier]: !s[acc.tier] }))}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 rounded-xl text-left text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors ${
+                    hasActiveChild
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/80 dark:bg-violet-950/30'
+                      : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  <span>{acc.title}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isOpen ? (
+                  <div className="mt-1 space-y-0.5 pl-1">
+                    {acc.items.map((item) => (
+                      <NavLink
+                        key={item.href}
+                        item={item}
+                        isActive={getActive(item)}
+                        onNavigate={() => setSidebarOpen(false)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+
+          <p className="px-3 pt-2 text-[10px] text-gray-400 dark:text-gray-600 leading-relaxed">
+            Más pantallas agrupadas arriba. Nada se eliminó.
+          </p>
         </nav>
       </aside>
 
@@ -385,9 +329,7 @@ export default function AdminLayout({
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-medium text-gray-800 dark:text-gray-200">
-            {mobileTitle}
-          </span>
+          <span className="font-medium text-gray-800 dark:text-gray-200">{mobileTitle}</span>
         </div>
         <div className="p-4 lg:p-6 max-w-7xl mx-auto w-full">{children}</div>
       </main>
