@@ -25,7 +25,7 @@ export default function ChatBubble() {
     {
       id: 1,
       sender: 'luna',
-      text: '¡Hola! Soy Luna, tu asistente de la comunidad 🎯\n\nTe ayudo a explorar lo que la comunidad encuentra. Luna está en desarrollo.',
+      text: 'Hola, soy Luna 🎯\n\nTe ayudo a buscar ofertas en AVENTA. Sigo en desarrollo.',
       time: 'Ahora',
     },
   ]);
@@ -43,10 +43,10 @@ export default function ChatBubble() {
     };
 
     const lunaResponses = [
-      'La comunidad ha encontrado varias opciones. Déjame mostrarte...',
-      'Hay ofertas interesantes que otros cazadores compartieron.',
-      'Esa categoría tiene buenas opciones de la comunidad.',
-      'Revisando lo que la comunidad encontró recientemente.',
+      'Hay varias opciones. Te las muestro...',
+      'Otras personas subieron ofertas parecidas.',
+      'En esa categoría hay varias publicaciones.',
+      'Revisando lo más reciente...',
     ];
 
     const lunaMessage = {
@@ -151,7 +151,7 @@ export default function ChatBubble() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Luna</h3>
-                  <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3]">Asistente de la comunidad</p>
+                  <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3]">Asistente AVENTA</p>
                 </div>
               </div>
               <button
@@ -161,7 +161,7 @@ export default function ChatBubble() {
                     {
                       id: 1,
                       sender: 'luna',
-                      text: '¡Hola! Soy Luna, tu asistente de la comunidad 🎯\n\nTe ayudo a explorar lo que la comunidad encuentra. Luna está en desarrollo.',
+                      text: 'Hola, soy Luna 🎯\n\nTe ayudo a buscar ofertas en AVENTA. Sigo en desarrollo.',
                       time: 'Ahora',
                     },
                   ]);
@@ -176,7 +176,7 @@ export default function ChatBubble() {
             <div className="bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200 dark:border-purple-800/30 px-4 py-2 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-purple-700 dark:text-purple-300">
-                Luna está en desarrollo. Cualquier información debe verificarse.
+                Luna está en desarrollo. Verifica precios en la tienda antes de comprar.
               </p>
             </div>
 

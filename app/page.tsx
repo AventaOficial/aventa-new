@@ -265,7 +265,7 @@ function HomeContent() {
         })
         .catch((err) => {
           recordFeedLoadFailure({ branch: 'for-you' });
-          notifyUserError(showToast, 'No pudimos cargar tu feed personalizado. Revisa tu conexión.', 'feed:for-you', err);
+          notifyUserError(showToast, 'No cargó tu lista Para ti. Reintenta.', 'feed:for-you', err);
           setFeedError('load');
           setOffers([]);
         })
@@ -571,7 +571,7 @@ function HomeContent() {
     if (isFavorite) {
       setFavoriteCount((c) => c + 1);
       if (typeof window !== 'undefined' && !localStorage.getItem('favorite_onboarding_seen')) {
-        showToast("Cada favorito ayuda a personalizar lo que ves. La comunidad encuentra las mejores ofertas.");
+        showToast('Listo — no la pierdas de vista.');
         localStorage.setItem('favorite_onboarding_seen', 'true');
       }
     } else {
@@ -612,7 +612,7 @@ function HomeContent() {
                     ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
                     : 'text-[#6e6e73] dark:text-[#a3a3a3]'
                 }`}
-                title="Lo esencial, nosotros lo cazamos por ti"
+                title="Lo que más está moviendo hoy"
               >
                 Día a día
               </button>
@@ -652,11 +652,10 @@ function HomeContent() {
               </button>
             </div>
             <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] hidden sm:block">
-              {viewMode === 'vitales' && 'Lo esencial, nosotros lo cazamos por ti.'}
-              {viewMode === 'top' && 'Mejor puntuadas en el período elegido.'}
-              {viewMode === 'personalized' &&
-                'Prioriza tus categorías en Configuración y lo que guardas o votas (misma categoría o tienda; ofertas recientes).'}
-              {viewMode === 'latest' && 'Solo lo más nuevo, por fecha de publicación.'}
+              {viewMode === 'vitales' && 'Lo que más está moviendo hoy.'}
+              {viewMode === 'top' && 'Si dudas, mira lo que ya votaron.'}
+              {viewMode === 'personalized' && 'Menos scroll: más de lo que ya miraste.'}
+              {viewMode === 'latest' && 'Recién publicadas: pueden agotarse pronto.'}
             </p>
 
             {viewMode === 'vitales' && (
@@ -741,7 +740,7 @@ function HomeContent() {
           ) : feedError ? (
             <div className="py-12 px-4 text-center">
               <p className="text-[#1d1d1f] dark:text-[#fafafa] font-medium mb-2">
-                No pudimos cargar las ofertas. Revisa tu conexión e intenta de nuevo.
+                No cargó el listado. Reintenta: puede haber algo nuevo.
               </p>
               <button
                 type="button"
@@ -757,10 +756,10 @@ function HomeContent() {
           ) : !debouncedQuery.trim() && offers.length === 0 ? (
             <div className="py-12 px-4 text-center max-w-md mx-auto">
               <h2 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
-                Aún no hay ofertas
+                Todavía no hay nada aquí
               </h2>
               <p className="text-[#6e6e73] dark:text-[#a3a3a3] text-sm mb-6">
-                Sé el primero en subir una buena oferta a la comunidad.
+                ¿Viste un precio que valga la pena? Publícalo.
               </p>
               <button
                 type="button"
@@ -773,12 +772,12 @@ function HomeContent() {
                 }}
                 className="rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 text-sm font-semibold transition-all duration-200 hover:bg-violet-700 dark:hover:bg-violet-600"
               >
-                Subir oferta
+                Publicar oferta
               </button>
             </div>
           ) : debouncedQuery.trim() && offers.length === 0 ? (
             <div className="py-12 text-center text-[#6e6e73] dark:text-[#a3a3a3]">
-              No se encontraron resultados
+              Ningún resultado. Prueba otra marca o palabra.
             </div>
           ) : (
             <>

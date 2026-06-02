@@ -35,7 +35,7 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
     {
       id: 'step-upload',
       title: 'Sube ofertas',
-      description: 'Comparte lo que encuentres. La comunidad decide las mejores ofertas.',
+      description: '¿Viste un precio raro? Súbelo en segundos.',
       icon: <Plus className="h-6 w-6 text-white" />,
       example: (
         <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg">

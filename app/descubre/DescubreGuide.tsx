@@ -92,12 +92,11 @@ const BLOCKS: DescubreBlock[] = [
   {
     id: 'categorias',
     icon: LayoutGrid,
-    title: 'Categorías, tiendas y comunidades',
+    title: 'Categorías y tiendas',
     body: (
       <>
         <p className="mb-2">
-          Explora por categoría (macro: Tecnología, Gaming, Hogar, etc.), por tienda concreta, o entra en comunidades
-          por tema.
+          Explora por categoría (Tecnología, Gaming, Hogar, etc.) o por tienda concreta.
         </p>
         <ul className="space-y-2 text-[15px]">
           <li>
@@ -139,7 +138,7 @@ const BLOCKS: DescubreBlock[] = [
     body: (
       <p>
         Puedes comentar en ofertas (con moderación de comentarios) y reportar contenido que no cumpla las normas. Ayudas
-        a mantener la calidad de la comunidad.
+        si algo no cuadra con el precio o el enlace.
       </p>
     ),
   },
@@ -169,7 +168,7 @@ const BLOCKS: DescubreBlock[] = [
     body: (
       <p>
         La campana en la barra agrupa avisos de ofertas y del equipo. Esta guía también está en el{' '}
-        <strong>menú de tu foto de perfil</strong> → «Descubre AVENTA».
+        <strong>menú de tu foto de perfil</strong> → «Guía rápida».
       </p>
     ),
   },
@@ -212,7 +211,7 @@ const BLOCKS: DescubreBlock[] = [
     body: (
       <p>
         Las ofertas pasan por moderación antes de publicarse (salvo auto-aprobación por reputación). El ranking combina
-        votos y reputación; entre todos mantenemos la calidad.
+        votos y reputación; el listado se ordena con votos.
       </p>
     ),
   },
@@ -341,10 +340,10 @@ export default function DescubreGuide() {
           className="mb-5 text-center sm:text-left"
         >
           <h1 className="text-2xl md:text-[1.75rem] font-bold tracking-tight text-[#1d1d1f] dark:text-gray-50">
-            Descubre AVENTA
+            Guía rápida
           </h1>
           <p className="mt-2 max-w-xl mx-auto sm:mx-0 text-[14px] md:text-[15px] leading-snug text-gray-600 dark:text-gray-400">
-            Guía corta: gestos o flechas. Cada paso es una parte de la experiencia.
+            Desliza o usa las flechas. Tres minutos y listo.
           </p>
         </motion.header>
 

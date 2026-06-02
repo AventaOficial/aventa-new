@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const title = `Ofertas de ${cat.label} | AVENTA`;
   const description = cat.subtitle
-    ? `Las mejores ofertas en ${cat.label}. ${cat.subtitle}.`
+    ? `Ofertas en ${cat.label}. ${cat.subtitle}.`
     : `Ofertas y descuentos en ${cat.label}.`;
 
   return {

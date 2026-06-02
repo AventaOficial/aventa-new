@@ -254,7 +254,7 @@ export default function OfferCard({
     if (isTesterOffer) return;
     if (!offerId) return;
     if (!session) {
-      showToast('Crea una cuenta para votar y ayudar a la comunidad');
+      showToast('Inicia sesión para votar (y que cuente tu opinión).');
       return;
     }
     const prevVote = userVote as UserVote;
@@ -276,7 +276,7 @@ export default function OfferCard({
     if (isTesterOffer) return;
     if (!offerId) return;
     if (!session) {
-      showToast('Crea una cuenta para votar y ayudar a la comunidad');
+      showToast('Inicia sesión para votar (y que cuente tu opinión).');
       return;
     }
     const prevVote = userVote as UserVote;
@@ -483,7 +483,7 @@ export default function OfferCard({
               </span>
             )}
             {isDestacada && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300" title="Alta calidad: la comunidad y el tiempo la destacan">
+              <span className="inline-flex items-center gap-0.5 text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300" title="La están validando">
                 <Award className="h-3 w-3 md:h-3.5 md:w-3.5" />
                 Destacada
               </span>
@@ -545,7 +545,7 @@ export default function OfferCard({
                   ) : (
                     <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
                   )}
-                  <span className="truncate">Cazado por {author.username}</span>
+                  <span className="truncate">{author.username} lo encontró</span>
                 </Link>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
@@ -564,19 +564,19 @@ export default function OfferCard({
                   ) : (
                     <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
                   )}
-                  <span className="truncate">Cazado por {author.username}</span>
+                  <span className="truncate">{author.username} lo encontró</span>
                 </span>
               )}
               {author.leaderBadge === 'cazador_estrella' && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
                   <BadgeCheck className="h-3 w-3" />
-                  Cazador estrella
+                  Top
                 </span>
               )}
               {author.leaderBadge === 'cazador_aventa' && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400" title="Cazador destacado">
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
                   <BadgeCheck className="h-3 w-3" />
-                  Cazador Aventa
+                  Destacado
                 </span>
               )}
             </span>
@@ -599,7 +599,7 @@ export default function OfferCard({
               <div className="text-center min-w-0">
                 <MousePointerClick className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
                 <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.cazarClicks}</p>
-                <p className="text-gray-500 dark:text-gray-400 leading-tight">Clics en cazar</p>
+                <p className="text-gray-500 dark:text-gray-400 leading-tight">Clics a tienda</p>
               </div>
               <div className="text-center min-w-0">
                 <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
@@ -644,7 +644,7 @@ export default function OfferCard({
               className="w-full min-w-0 flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-3 max-[400px]:px-2 py-2.5 max-[400px]:py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-95"
             >
               <Search className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-4.5 md:w-4.5 shrink-0" />
-              Cazar oferta
+              Ver precio en tienda
             </button>
           </div>
         </div>

@@ -66,7 +66,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           role="status"
           aria-live="polite"
         >
-          {toastMessage === 'report_success' ? 'Reporte enviado, gracias por ayudar' : toastMessage}
+          {toastMessage === 'report_success' ? 'Listo — en revisión.' : toastMessage}
         </div>
       )}
     </>

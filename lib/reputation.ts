@@ -2,8 +2,8 @@
 export const REPUTATION_LEVELS = [
   { level: 1, minScore: 0, maxScore: 99, label: 'Nuevo' },
   { level: 2, minScore: 100, maxScore: 399, label: 'Contribuidor' },
-  { level: 3, minScore: 400, maxScore: 999, label: 'Cazador Pro' },
-  { level: 4, minScore: 1000, maxScore: Infinity, label: 'Elite' },
+  { level: 3, minScore: 400, maxScore: 999, label: 'Publicación rápida' },
+  { level: 4, minScore: 1000, maxScore: Infinity, label: 'Voto con más peso' },
 ] as const;
 
 export function getReputationLabel(level: number): string {

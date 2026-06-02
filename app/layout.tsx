@@ -29,8 +29,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: "AVENTA - Comunidad de cazadores de ofertas",
-  description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día. No vendemos nada — somos cazadores de ofertas.",
+  title: "AVENTA - Ofertas antes de comprar",
+  description: "Revisa el precio antes de comprar en otra tienda. Ofertas nuevas cada día, ordenadas por votos.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
   icons: {
@@ -42,15 +42,15 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-touch-icon.png', sizes: '512x512', type: 'image/png' }],
   },
   openGraph: {
-    title: "AVENTA - Comunidad de cazadores de ofertas",
-    description: "Las mejores ofertas que la comunidad encuentra. Ofertas nuevas cada día.",
+    title: "AVENTA - Ofertas antes de comprar",
+    description: "Revisa el precio antes de comprar en otra tienda. Ofertas nuevas cada día.",
     siteName: "AVENTA",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AVENTA - Comunidad de cazadores de ofertas",
-    description: "Las mejores ofertas que la comunidad encuentra.",
+    title: "AVENTA - Ofertas antes de comprar",
+    description: "Revisa el precio antes de comprar en otra tienda.",
   },
 };
 
@@ -89,13 +89,13 @@ export default function RootLayout({
             <div className="grid gap-8 md:grid-cols-4">
               <div className="md:col-span-2">
                 <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                  Bienvenido a AVENTA
+                  AVENTA
                 </h3>
                 <p className="mt-2 max-w-xl leading-relaxed">
-                  Comunidad de cazadores de ofertas reales. Compartimos oportunidades, opiniones y contexto para decidir mejor.
+                  Revisa el precio antes de comprar en otra tienda.
                 </p>
                 <p className="mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-500">
-                  Transparencia: la visibilidad de las ofertas depende del apoyo de la comunidad y señales de calidad. Los acuerdos comerciales no compran posición en el feed.
+                  Nadie paga por aparecer primero. Los votos mueven el listado.
                 </p>
               </div>
 
@@ -103,7 +103,7 @@ export default function RootLayout({
                 <h4 className="font-semibold text-gray-900 dark:text-gray-100">Producto</h4>
                 <ul className="mt-2 space-y-1.5">
                   <li><Link href="/" className="hover:text-violet-600 dark:hover:text-violet-400">Inicio</Link></li>
-                  <li><Link href="/descubre" className="hover:text-violet-600 dark:hover:text-violet-400">Descubre</Link></li>
+                  <li><Link href="/descubre" className="hover:text-violet-600 dark:hover:text-violet-400">Guía rápida</Link></li>
                   <li><Link href="/subir" className="hover:text-violet-600 dark:hover:text-violet-400">Subir oferta</Link></li>
                   <li><Link href="/extension" className="hover:text-violet-600 dark:hover:text-violet-400">Extensión</Link></li>
                 </ul>
@@ -121,7 +121,7 @@ export default function RootLayout({
 
             <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-4">
               <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-500">
-                Podemos recibir compensación por algunos enlaces comerciales. Esto ayuda a mantener AVENTA gratuita; no altera el criterio de ranking comunitario.
+                Podemos recibir compensación por algunos enlaces comerciales. Esto ayuda a mantener AVENTA gratuita; el ranking sigue siendo por votos.
               </p>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
                 Copyright © {new Date().getFullYear()} AVENTA. Todos los derechos reservados.

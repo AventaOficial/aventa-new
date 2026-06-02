@@ -455,7 +455,7 @@ export default function ActionBar() {
             className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/descubre') ? activeClasses : inactiveClasses}`}
           >
             <Compass className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
-            <span className="text-[10px] max-[400px]:text-[9px] font-semibold">Descubre</span>
+            <span className="text-[10px] max-[400px]:text-[9px] font-semibold">Guía</span>
           </Link>
           <button
             type="button"
@@ -532,10 +532,10 @@ export default function ActionBar() {
           className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${
             pathname.startsWith('/descubre') ? sidebarLinkActive : sidebarLinkInactive
           }`}
-          aria-label="Descubre AVENTA"
+          aria-label="Guía rápida AVENTA"
         >
           <Compass className="h-6 w-6" />
-          <span className="text-[10px] font-medium">Descubre</span>
+          <span className="text-[10px] font-medium">Guía</span>
         </Link>
         <button
           type="button"
@@ -1277,7 +1277,7 @@ export default function ActionBar() {
                                 </div>
                                 <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">
                                   <span className="flex-1 rounded-xl border-2 border-violet-600 dark:border-violet-500 px-3 py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 text-center">
-                                    Cazar oferta
+                                    Ver precio en tienda
                                   </span>
                                   <span className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white text-center">
                                     Ir directo
@@ -1401,12 +1401,10 @@ export default function ActionBar() {
                 id="submit-thanks-title"
                 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight"
               >
-                ¡Gracias por compartir!
+                Recibida
               </h2>
               <p className="mt-3 text-sm md:text-[15px] text-gray-600 dark:text-gray-400 leading-relaxed">
-                Tu oferta entrará a la cola de moderación. El equipo la revisa para mantener precios claros,
-                enlaces válidos y un buen nivel para toda la comunidad. En cuanto sea aprobada, aparecerá en el
-                feed.
+                En moderación. Si el precio cuadra, sale al feed.
               </p>
               <button
                 type="button"

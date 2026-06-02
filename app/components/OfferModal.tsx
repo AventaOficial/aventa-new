@@ -635,7 +635,7 @@ export default function OfferModal({
                         ) : (
                           <User className="h-4 w-4 shrink-0" />
                         )}
-                        <span>Cazado por {author.username}</span>
+                        <span>{author.username} lo encontró</span>
                       </Link>
                     ) : (
                       <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -644,19 +644,19 @@ export default function OfferModal({
                         ) : (
                           <User className="h-4 w-4 shrink-0" />
                         )}
-                        <span>Cazado por {author.username}</span>
+                        <span>{author.username} lo encontró</span>
                       </span>
                     )}
                     {author.leaderBadge === 'cazador_estrella' && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
                         <BadgeCheck className="h-3.5 w-3.5" />
-                        Cazador estrella
+                        Top
                       </span>
                     )}
                     {author.leaderBadge === 'cazador_aventa' && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador destacado">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
                         <BadgeCheck className="h-3.5 w-3.5" />
-                        Cazador Aventa
+                        Destacado
                       </span>
                     )}
                   </div>
@@ -976,7 +976,7 @@ export default function OfferModal({
                     <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/80 dark:bg-amber-900/20 p-6 text-center">
                       <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Reseñas próximamente</p>
                       <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                        La comunidad podrá dejar reseñas verificadas con foto o video. Estamos construyendo esta función.
+                        Pronto podrás ver reseñas con foto o video. Aún no está disponible.
                       </p>
                     </div>
                   </div>
@@ -994,7 +994,7 @@ export default function OfferModal({
                 disabled={!offerUrl?.trim()}
                 className="flex-1 min-w-[min(100%,10rem)] rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
               >
-                <span>CAZAR OFERTA</span>
+                <span>Ver si sigue disponible</span>
                 <ExternalLink className="h-4 w-4 md:h-4 md:w-4 shrink-0" />
               </button>
               {showCtaCouponChip ? (

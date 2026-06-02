@@ -325,7 +325,7 @@ export default function Navbar() {
                     onClick={() => setShowUserMenu(false)}
                   >
                     <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Descubre AVENTA
+                    Guía rápida
                   </Link>
                   <button
                     onClick={async () => {
@@ -565,7 +565,7 @@ export default function Navbar() {
                   <div className="flex gap-3 items-start">
                     <Compass className="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-400 mt-0.5" aria-hidden />
                     <div className="min-w-0">
-                      <p className="text-base font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Descubre AVENTA</p>
+                      <p className="text-base font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Guía rápida</p>
                       <p className="mt-1 text-sm text-[#6e6e73] dark:text-[#a3a3a3] leading-relaxed">
                         Novedades, guías y cómo sacarle más provecho a la plataforma.
                       </p>
@@ -574,7 +574,7 @@ export default function Navbar() {
                         onClick={() => setShowNotifications(false)}
                         className="mt-3 inline-flex text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
                       >
-                        Ir a Descubre →
+                        Ir a la guía →
                       </Link>
                     </div>
                   </div>
@@ -586,7 +586,7 @@ export default function Navbar() {
                     <li className="rounded-xl border border-dashed border-[#e5e5e7] dark:border-[#333] p-4 text-center">
                       <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
                         No hay avisos del equipo por ahora. Puedes ver todas las funciones en el menú de tu foto:{' '}
-                        <span className="font-medium text-violet-600 dark:text-violet-400">Descubre AVENTA</span>.
+                        <span className="font-medium text-violet-600 dark:text-violet-400">Guía rápida</span>.
                       </p>
                     </li>
                   )}

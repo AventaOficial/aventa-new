@@ -57,7 +57,7 @@ async function notifyOfferOwnerLikeMilestone(
     user_id: ownerId,
     type: 'offer_likes_milestone',
     title: `¡${count} apoyos en tu oferta!`,
-    body: 'La comunidad sigue valorando tu cacería. Abre la oferta para ver los votos.',
+    body: 'Tu oferta sigue sumando votos. Abre la publicación para ver el detalle.',
     link,
   })
 }

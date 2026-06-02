@@ -54,11 +54,11 @@ export async function postOfferVote(
         isNetworkError: false,
       };
     }
-    return { ok: false, message: 'No se pudo registrar el voto.', isNetworkError: false };
+    return { ok: false, message: 'No registramos tu voto. Reintenta.', isNetworkError: false };
   } catch {
     return {
       ok: false,
-      message: 'No se pudo registrar el voto. Revisa tu conexión.',
+      message: 'No registramos tu voto. Reintenta.',
       isNetworkError: true,
     };
   }

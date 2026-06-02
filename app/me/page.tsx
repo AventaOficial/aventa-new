@@ -301,7 +301,7 @@ function MePageInner() {
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                   {displayName}
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Tu panel</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Tu actividad</p>
               </div>
             </div>
             <div className="mt-4">
@@ -345,13 +345,13 @@ function MePageInner() {
             </div>
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Cazadores ayudados
+                Personas que reaccionaron
               </p>
               <p className="mt-1 text-2xl font-bold text-violet-600 dark:text-violet-400">
                 {metrics.cazadoresAyudados}
               </p>
               <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500 leading-snug">
-                Personas distintas que votaron positivo o abrieron &quot;cazar&quot; en tus ofertas (sin contarte a ti).
+                Votos positivos o clics a tienda en tus ofertas (sin contarte a ti).
               </p>
             </div>
           </div>
@@ -362,7 +362,7 @@ function MePageInner() {
           <div className="space-y-4 md:space-y-6">
             {offers.length === 0 ? (
               <p className="py-6 text-center text-gray-500 dark:text-gray-400">
-                Aún no tienes ofertas publicadas.
+                Nada publicado. ¿Viste un precio raro?
               </p>
             ) : (
               offers.map((offer) => (

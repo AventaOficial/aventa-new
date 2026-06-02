@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const canonicalSlug = slugifyStore(storeName);
 
   const title = `Ofertas en ${storeName} | AVENTA`;
-  const description = `Las mejores ofertas y descuentos en ${storeName}. Encontradas por la comunidad.`;
+  const description = `Ofertas y descuentos en ${storeName}. Publicadas por usuarios.`;
 
   return {
     title,
@@ -81,7 +81,7 @@ export default async function TiendaPage({ params }: { params: Promise<{ slug: s
             Ofertas en {storeName}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Ofertas y descuentos encontrados por la comunidad en {storeName}.
+            Ofertas y descuentos en {storeName}, publicadas por usuarios.
           </p>
 
           {offers.length === 0 ? (

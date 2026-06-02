@@ -246,8 +246,8 @@ export default function ProfilePage() {
                   @{profile.username}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{offersCount} ofertas cazadas</span>
-                  <span>Contribución a la comunidad: {totalScore}</span>
+                  <span>{offersCount} ofertas publicadas</span>
+                  <span>Puntos: {totalScore}</span>
                 </div>
               </div>
             </div>
@@ -261,7 +261,7 @@ export default function ProfilePage() {
 
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Ofertas aprobadas
+              Lo que ha subido
             </h2>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -271,7 +271,7 @@ export default function ProfilePage() {
             >
               {offers.length === 0 ? (
                 <p className="py-6 text-center text-gray-500 dark:text-gray-400">
-                  Aún no hay ofertas cazadas.
+                  Sin ofertas publicadas aún.
                 </p>
               ) : (
                 offers.map((offer, index) => (

@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       user_id: reporterId,
       type: 'report_received',
       title: 'Reporte recibido',
-      body: 'Gracias por ayudar a la comunidad. Revisaremos tu reporte.',
+      body: 'Recibimos tu reporte. Lo revisamos pronto.',
       link: null,
     })
     if (notifErr) console.error('[reports] notification insert failed:', notifErr.message)

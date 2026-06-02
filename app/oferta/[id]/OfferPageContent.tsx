@@ -311,7 +311,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
       if (res.ok) {
         setCommentText('');
         setReplyingToId(null);
-        showToast?.('Comentario enviado. Será visible cuando pase la moderación.');
+        showToast?.('Listo — en revisión breve.');
         fetchComments();
       }
     } finally {
@@ -507,7 +507,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       ) : (
                         <User className="h-4 w-4" />
                       )}
-                      <span>Cazado por {offer.author.username}</span>
+                      <span>{offer.author.username} lo encontró</span>
                     </Link>
                   ) : (
                     <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -516,17 +516,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       ) : (
                         <User className="h-4 w-4" />
                       )}
-                      <span>Cazado por {offer.author.username}</span>
+                      <span>{offer.author.username} lo encontró</span>
                     </span>
                   )}
                   {offer.author.leaderBadge === 'cazador_estrella' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador reconocido por la comunidad">
-                      <BadgeCheck className="h-3.5 w-3.5" /> Cazador estrella
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Top
                     </span>
                   )}
                   {offer.author.leaderBadge === 'cazador_aventa' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Cazador destacado">
-                      <BadgeCheck className="h-3.5 w-3.5" /> Cazador Aventa
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Destacado
                     </span>
                   )}
                 </div>
@@ -635,7 +635,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
                   >
-                    Ver oferta en tienda
+                    Ver si sigue disponible
                     <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                   {showCtaCouponChip ? (
@@ -798,7 +798,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <p className="text-sm text-gray-500 dark:text-gray-400">Cargando comentarios…</p>
             ) : comments.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400 py-4">
-                Aún no hay comentarios. Sé el primero en comentar.
+                Nadie ha dicho nada. ¿El precio sigue bien?
               </p>
             ) : (
               <div className="space-y-4 mb-6">
@@ -955,7 +955,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               Reportar oferta
             </h3>
             <p id="report-desc" className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Ayuda a la comunidad indicando qué problema tiene esta oferta. Tu descripción es obligatoria (mín. 100 caracteres).
+              ¿Precio falso, link roto u otra cosa? Cuéntalo (mín. 100 caracteres).
             </p>
             <div className="space-y-2 mb-4" role="radiogroup" aria-labelledby="report-title">
               {REPORT_OPTIONS.map((opt) => (

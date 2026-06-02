@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       ? await supabase.from('profiles').select('id, display_name, slug').in('id', top3CreatorIds)
       : { data: [] };
   const topHunters = (topHunterProfiles ?? []).map((p: { display_name?: string | null; slug?: string | null }) => ({
-    display_name: (p.display_name ?? 'Cazador').trim() || 'Cazador',
+    display_name: (p.display_name ?? 'Usuario').trim() || 'Usuario',
     slug: p.slug?.trim() || null,
   }));
 

@@ -146,8 +146,8 @@ export default function AdminLayout({
     const isOperacionesPath = pathname.startsWith('/admin/operaciones');
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
     const isTechnicalPath = pathname === '/admin/technical';
-    if (pathname === '/admin/owner') {
-      router.replace('/admin/operaciones');
+    if (isOwnerPanelPath && !canOwnerOpsPanel) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isDashboardPath && !hasAllowedRole) {
       router.replace('/');
     } else if (isOperacionesPath && (!canTeam || !canOwnerOpsPanel)) {
@@ -156,8 +156,6 @@ export default function AdminLayout({
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isVoteWeightsPath && (!canTeam || !canOwnerOpsPanel)) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : '/admin/metrics');
-    } else if (isOwnerPanelPath && !canTeam) {
-      router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isAnalistaPath && !canMet && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/users');
     } else if (isAnnouncementsPath && !canAnnouncements) {
@@ -204,6 +202,7 @@ export default function AdminLayout({
     return canUsersLogs;
   });
   const operationsItems: NavItem[] = [
+    { href: '/admin/owner', label: 'Owner Dashboard', icon: LayoutDashboard, exact: true },
     { href: '/admin/operaciones', label: 'Centro de operaciones', icon: LayoutDashboard },
     { href: '/admin/operaciones/trabajo', label: 'Trabajo', icon: Briefcase },
     { href: '/admin/vote-weights', label: 'Peso de voto', icon: Scale },
@@ -262,7 +261,9 @@ export default function AdminLayout({
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   };
 
-  const mobileTitle = pathname === '/admin/dashboard'
+  const mobileTitle = pathname === '/admin/owner'
+    ? 'Owner'
+    : pathname === '/admin/dashboard'
     ? 'Panel'
     : pathname === '/admin/technical'
       ? 'Técnico'

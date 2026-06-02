@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import AventaIcon from './AventaIcon';
 
-const TAGLINE = 'Ofertas que la comunidad encontró. Sin ruido.';
+const TAGLINE = 'Lo bueno suele durar poco.';
 
 interface HeroProps {
   searchQuery?: string;
@@ -39,7 +39,7 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Busca productos, marcas, categorías..."
+              placeholder="iPhone, Nike, Costco…"
               className="flex-1 bg-transparent text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] outline-none text-[15px] w-full min-w-0"
               aria-label="Buscar ofertas"
             />
@@ -63,7 +63,7 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Busca productos, marcas, categorías..."
+              placeholder="iPhone, Nike, Costco…"
               className="flex-1 bg-transparent text-gray-100 placeholder:text-gray-500 outline-none text-base w-full min-w-0"
               aria-label="Buscar ofertas"
             />

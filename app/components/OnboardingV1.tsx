@@ -14,17 +14,17 @@ const GUIDE_STEPS = [
   {
     icon: Plus,
     title: 'Subir oferta',
-    description: 'Pega el enlace y revisa los datos. Solo completa lo básico: categoría y tienda.',
+    description: '¿Viste un precio raro? Súbelo en segundos.',
   },
   {
     icon: ThumbsUp,
     title: 'Votar',
-    description: 'Pulgar arriba si sí conviene, abajo si no. Tus votos ordenan el ranking.',
+    description: '¿Buen precio? Vota arriba antes de que se acabe.',
   },
   {
     icon: Heart,
     title: 'Guardar',
-    description: 'Toca el corazón y la oferta se guarda en Favoritos.',
+    description: 'Guárdala si aún no compras pero no quieres perderla.',
   },
 ];
 
@@ -138,7 +138,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         transition={{ delay: 0.35, ...t }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
-        <WaveText text="Bienvenido a tu comunidad cazadora de ofertas" />
+        <WaveText text="¿Vas a pagar full? Mira primero." />
       </motion.p>
 
       <motion.button
@@ -224,7 +224,7 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.2, ...t }}
         className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-4"
       >
-        Elige hasta 3 temas para tu feed. Puedes cambiar o añadir más en Configuración.
+        3 temas. Luego afinas en Configuración.
       </motion.p>
 
       <div className="mb-3 relative shrink-0">
@@ -373,7 +373,7 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.1, ...t }}
         className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-6 md:mb-8 text-center shrink-0"
       >
-        <WaveText text="Cómo funciona" />
+        <WaveText text="Tres gestos y listo" />
       </motion.h2>
 
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center">

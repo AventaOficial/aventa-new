@@ -22,7 +22,7 @@ function ExtensionPageInner() {
             Extensión AVENTA
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Caza ofertas desde Amazon y Mercado Libre y envíalas a AVENTA en un clic.
+            Desde Amazon o Mercado Libre, manda el producto a AVENTA en un clic.
           </p>
 
           <div className="space-y-6">
@@ -56,7 +56,7 @@ function ExtensionPageInner() {
                 <li>Pulsa &quot;Cargar descomprimida&quot; y elige la carpeta del proyecto llamada exactamente{' '}
                   <code className="text-xs bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded">browser-extension</code>.
                 </li>
-                <li>Entra a un producto en Amazon o Mercado Libre, haz clic en el icono de la extensión y luego en &quot;Cazar oferta en Aventa&quot;.</li>
+                <li>Entra a un producto en Amazon o Mercado Libre, abre la extensión y pulsa &quot;Enviar a AVENTA&quot;.</li>
               </ol>
               <p className="mt-4 text-xs text-gray-500 dark:text-gray-500">
                 Cuando publiquemos en Chrome Web Store, añadiremos aquí el enlace de instalación en un clic.

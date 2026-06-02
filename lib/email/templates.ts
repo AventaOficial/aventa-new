@@ -62,7 +62,7 @@ export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string
             <td style="padding:28px 24px 20px; text-align:center; border-bottom:1px solid ${BORDER};">
               ${logoImg}
               <a href="${baseUrl}" style="text-decoration:none; font-size:22px; font-weight:700; color:${TEXT_DARK}; letter-spacing:-0.03em;">AVENTA</a>
-              <p style="margin:8px 0 0; font-size:13px; color:${TEXT_MUTED}; line-height:1.4;">Elegidas por la comunidad.</p>
+              <p style="margin:8px 0 0; font-size:13px; color:${TEXT_MUTED}; line-height:1.4;">Lo más votado del día.</p>
             </td>
           </tr>
           <!-- Contenido -->
@@ -206,7 +206,7 @@ export function buildWeeklyHtml(
   const huntersBlock =
     topHunters && topHunters.length > 0
       ? `
-    <h2 style="margin:0 0 6px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Cazadores de la semana</h2>
+    <h2 style="margin:0 0 6px; font-size:15px; font-weight:600; color:${TEXT_DARK};">Quién más publicó esta semana</h2>
     <p style="margin:0 0 14px; font-size:14px; color:${TEXT_MUTED}; line-height:1.45;">Quienes publicaron ofertas que más gustaron.</p>
     <ul style="list-style:none; padding:0; margin:0 0 24px;">
       ${topHunters
@@ -264,7 +264,7 @@ export function buildOfferPublishedNotificationHtml(opts: {
   const inner = `
     <p style="margin:0 0 10px; font-size:11px; font-weight:600; color:${TEXT_MUTED}; letter-spacing:0.08em; text-transform:uppercase;">Notificación</p>
     <h1 style="margin:0 0 12px; font-size:24px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.03em; line-height:1.2;">Tu oferta ya está publicada</h1>
-    <p style="margin:0 0 20px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">La comunidad ya puede verla en el feed. Gracias por cazar y compartir.</p>
+    <p style="margin:0 0 20px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">Ya está visible en el inicio si fue aprobada. Gracias por publicarla.</p>
     <div style="padding:16px 18px; background:${BG_LIGHT}; border-radius:12px; border:1px solid ${BORDER}; border-left:4px solid ${BRAND_COLOR}; margin-bottom:20px;">
       <p style="margin:0; font-size:11px; font-weight:600; color:${TEXT_MUTED}; text-transform:uppercase; letter-spacing:0.06em;">Producto</p>
       <p style="margin:8px 0 0; font-size:16px; font-weight:600; color:${TEXT_DARK}; line-height:1.35;">${escapeHtml(titleShort)}</p>

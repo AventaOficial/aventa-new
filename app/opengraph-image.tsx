@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'AVENTA - Comunidad de cazadores de ofertas';
+export const alt = 'AVENTA - Ofertas antes de comprar';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -37,7 +37,7 @@ export default async function Image() {
             fontWeight: 500,
           }}
         >
-          Comunidad de cazadores de ofertas
+          Antes de comprar, revisa aquí.
         </div>
         <div
           style={{
@@ -46,7 +46,7 @@ export default async function Image() {
             marginTop: 16,
           }}
         >
-          Cada peso ahorrado es un peso ganado.
+          Lo bueno suele durar poco.
         </div>
       </div>
     ),

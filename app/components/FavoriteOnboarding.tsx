@@ -43,9 +43,9 @@ export default function FavoriteOnboarding({ isOpen, onClose }: FavoriteOnboardi
               <Heart className="h-5 w-5 text-white fill-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-1">¡Primer favorito!</h3>
+              <h3 className="font-semibold text-gray-900 mb-1">La tienes apartada</h3>
               <p className="text-sm text-gray-600">
-                Cada favorito ayuda a crear tu feed personalizado "Para ti".
+                Si sube el precio, al menos ya la tenías marcada.
               </p>
             </div>
             <button

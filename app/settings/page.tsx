@@ -288,7 +288,7 @@ function SettingsPageInner() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-900 dark:text-gray-100">Perfil</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Nombre visible en la comunidad</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Nombre visible en la app</p>
                 </div>
               </div>
             </div>
@@ -359,7 +359,7 @@ function SettingsPageInner() {
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recibir resumen diario (Top 10 ofertas del día)</span>
               </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Un correo al día con las mejores ofertas. Hora de envío aproximada: salida del trabajo.</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">Un correo al día con lo más votado. Hora aproximada: salida del trabajo.</p>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -388,7 +388,7 @@ function SettingsPageInner() {
             </div>
             <div className="p-5 md:p-6 space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                En el inicio elegiste hasta 3 categorías para conocerte mejor. Aquí puedes añadir o quitar las que quieras: así afinamos tu feed sin saturarlo con todo.
+                En el inicio elegiste hasta 3 temas. Aquí puedes añadir o quitar: el inicio mostrará más de lo que te interesa.
               </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />

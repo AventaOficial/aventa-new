@@ -105,7 +105,7 @@ function FavoritesPageInner() {
 
   const handleFavoriteChange = (isFavorite: boolean) => {
     if (isFavorite && typeof window !== 'undefined' && !localStorage.getItem('favorite_onboarding_seen')) {
-      showToast("Cada favorito ayuda a personalizar lo que ves. La comunidad encuentra las mejores ofertas.")
+      showToast('Listo — no la pierdas de vista.');
       localStorage.setItem('favorite_onboarding_seen', 'true')
     }
   }
