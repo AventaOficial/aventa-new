@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import AventaIcon from './AventaIcon';
 
-const TAGLINE = 'Lo bueno suele durar poco.';
+const TAGLINE = 'Cada peso ahorrado, es un peso ganado';
 
 interface HeroProps {
   searchQuery?: string;

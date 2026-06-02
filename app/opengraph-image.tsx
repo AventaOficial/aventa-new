@@ -46,7 +46,7 @@ export default async function Image() {
             marginTop: 16,
           }}
         >
-          Lo bueno suele durar poco.
+          Cada peso ahorrado, es un peso ganado
         </div>
       </div>
     ),

@@ -217,7 +217,8 @@ const BLOCKS: DescubreBlock[] = [
   },
 ];
 
-const CONTENT_MIN_H = 'min-h-[min(52vh,380px)]';
+/** Altura mínima del bloque de contenido (carrusel); evita colapsar en pantallas estrechas (ej. Fold cerrado). */
+const CONTENT_MIN_H = 'min-h-[min(42vh,320px)] sm:min-h-[min(48vh,360px)]';
 
 function DescubreProgress({
   count,
@@ -332,7 +333,7 @@ export default function DescubreGuide() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-transparent relative">
-      <div className="mx-auto max-w-2xl px-4 py-6 md:py-10 sm:pr-14 md:pr-16">
+      <div className="mx-auto max-w-2xl px-4 py-6 md:py-10 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-10">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -350,7 +351,7 @@ export default function DescubreGuide() {
         <DescubreProgress count={n} activeIndex={activeIndex} onDotClick={goToIndex} />
 
         <div className={`relative mt-5 ${CONTENT_MIN_H}`}>
-          <AnimatePresence mode="popLayout" custom={dir} initial={false}>
+          <AnimatePresence mode="wait" custom={dir} initial={false}>
             <motion.div
               key={block.id}
               custom={dir}
@@ -363,7 +364,7 @@ export default function DescubreGuide() {
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.14}
               onDragEnd={handleDragEnd}
-              className="absolute inset-x-0 top-0 cursor-grab active:cursor-grabbing touch-pan-y"
+              className="relative w-full cursor-grab active:cursor-grabbing touch-pan-y"
               style={{ willChange: 'transform, opacity' }}
               role="region"
               aria-roledescription="carrusel"
@@ -373,8 +374,8 @@ export default function DescubreGuide() {
                 id={`descubre-${block.id}`}
                 className="rounded-2xl border border-gray-200/70 dark:border-gray-700/60 bg-gradient-to-br from-white via-white to-violet-50/40 dark:from-gray-900 dark:via-gray-900 dark:to-violet-950/25 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.12)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-sm md:rounded-[1.35rem]"
               >
-                <div className="flex flex-col p-6 md:p-6 md:min-h-[min(52vh,360px)]">
-                  <div className="mb-5 flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:text-left sm:gap-4">
+                <div className="flex flex-col p-5 sm:p-6 md:min-h-[min(48vh,360px)]">
+                  <div className="mb-4 flex flex-col items-center gap-3 text-center sm:mb-5 sm:flex-row sm:items-center sm:text-left sm:gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-transparent dark:from-violet-400/25 dark:via-fuchsia-500/10 ring-1 ring-inset ring-violet-500/20 dark:ring-violet-400/25">
                       <Icon className="h-6 w-6 text-violet-600 dark:text-violet-400" strokeWidth={1.75} />
                     </div>
@@ -392,35 +393,7 @@ export default function DescubreGuide() {
                     {block.body}
                   </div>
 
-                  <div className="mt-5 flex flex-col gap-2.5 border-t border-gray-200/60 pt-4 dark:border-gray-700/50 sm:mt-auto sm:flex-row sm:items-center sm:justify-between">
-                    <motion.button
-                      type="button"
-                      onClick={onPrev}
-                      disabled={activeIndex <= 0}
-                      className="order-2 inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-gray-200/90 bg-white/60 px-5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50/90 dark:border-gray-600/70 dark:bg-[#1a1a1a]/50 dark:text-gray-200 dark:hover:bg-gray-800/80 sm:order-1 disabled:pointer-events-none disabled:opacity-35"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      transition={{ duration: 0.2, ease: EASE }}
-                    >
-                      <ChevronLeft className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-                      Anterior
-                    </motion.button>
-
-                    <motion.button
-                      type="button"
-                      onClick={onNext}
-                      disabled={activeIndex >= n - 1}
-                      className="order-1 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-600 to-fuchsia-600 px-6 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition-shadow hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-500 hover:to-fuchsia-500 sm:order-2 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none"
-                      whileHover={{ scale: 1.02, y: -1 }}
-                      whileTap={{ scale: 0.97 }}
-                      transition={{ duration: 0.2, ease: EASE }}
-                    >
-                      Siguiente
-                      <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-                    </motion.button>
-                  </div>
-
-                  <p className="mt-3 text-center text-[11px] text-gray-400 dark:text-gray-500 sm:hidden">
+                  <p className="mt-4 text-center text-[11px] text-gray-400 dark:text-gray-500 sm:hidden">
                     Desliza el bloque horizontalmente para cambiar de paso
                   </p>
                 </div>
@@ -429,19 +402,45 @@ export default function DescubreGuide() {
           </AnimatePresence>
         </div>
 
-        <motion.p
-          className="mt-6 text-center text-sm text-gray-500 dark:text-gray-500"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+        <nav
+          className="relative z-10 mt-4 space-y-3"
+          aria-label="Navegación de la guía"
         >
-          <Link
-            href="/"
-            className="font-medium text-violet-600 transition-colors hover:text-violet-500 dark:text-violet-400 dark:hover:text-violet-300"
-          >
-            Volver al inicio
-          </Link>
-        </motion.p>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <motion.button
+              type="button"
+              onClick={onPrev}
+              disabled={activeIndex <= 0}
+              className="inline-flex h-11 min-h-[44px] items-center justify-center gap-1.5 rounded-2xl border border-gray-200/90 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-600/70 dark:bg-[#1a1a1a]/80 dark:text-gray-200 dark:hover:bg-gray-800/80 disabled:pointer-events-none disabled:opacity-35 max-[360px]:px-2 max-[360px]:text-[13px]"
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2, ease: EASE }}
+            >
+              <ChevronLeft className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+              <span className="truncate">Anterior</span>
+            </motion.button>
+
+            <motion.button
+              type="button"
+              onClick={onNext}
+              disabled={activeIndex >= n - 1}
+              className="inline-flex h-11 min-h-[44px] items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-600 to-fuchsia-600 px-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition-shadow hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-500 hover:to-fuchsia-500 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none max-[360px]:px-2 max-[360px]:text-[13px]"
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2, ease: EASE }}
+            >
+              <span className="truncate">Siguiente</span>
+              <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            </motion.button>
+          </div>
+
+          <p className="text-center text-sm">
+            <Link
+              href="/"
+              className="inline-flex min-h-[44px] items-center justify-center font-medium text-violet-600 transition-colors hover:text-violet-500 dark:text-violet-400 dark:hover:text-violet-300"
+            >
+              Volver al inicio
+            </Link>
+          </p>
+        </nav>
       </div>
     </div>
   );
