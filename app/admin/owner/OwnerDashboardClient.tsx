@@ -14,6 +14,7 @@ import {
 import type { OwnerDashboardPayload, PeriodKpis, TrafficLight } from '@/lib/owner/buildOwnerDashboard';
 import { formatDiff } from '@/lib/owner/buildOwnerDashboard';
 import AventaMapSection from './AventaMapSection';
+import FounderModeGrid from './FounderModeGrid';
 import InfrastructureSection from './InfrastructureSection';
 
 function statusDot(status: TrafficLight): string {
@@ -130,6 +131,7 @@ export default function OwnerDashboardClient() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -198,7 +200,7 @@ export default function OwnerDashboardClient() {
             Owner Dashboard
           </h1>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Vista unificada del negocio · {data.timezone}
+            Founder Mode · {data.timezone}
           </p>
         </div>
         <button
@@ -212,7 +214,66 @@ export default function OwnerDashboardClient() {
         </button>
       </header>
 
-      <AventaMapSection />
+      <FounderModeGrid data={data} />
+
+      {/* ACCIÓN RECOMENDADA — siempre visible tras Founder Mode */}
+      <section className="rounded-3xl border-2 border-violet-300/80 dark:border-violet-700/80 bg-violet-50/50 dark:bg-violet-950/25 p-5 md:p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
+          Acción recomendada
+        </p>
+        <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{data.recommendedAction.title}</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{data.recommendedAction.detail}</p>
+          </div>
+          <Link
+            href={data.recommendedAction.href}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold px-5 py-2.5 text-sm shrink-0"
+          >
+            Ir
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      {data.alerts.length > 0 ? (
+        <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6">
+          <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100">Alertas</h2>
+          <ul className="mt-4 space-y-2">
+            {data.alerts.map((a) => (
+              <li
+                key={a.id}
+                className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm border ${
+                  a.severity === 'red'
+                    ? 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20'
+                    : 'border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20'
+                }`}
+              >
+                <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${statusDot(a.severity)}`} />
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{a.title}</p>
+                  <p className="text-gray-600 dark:text-gray-400">{a.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <div className="rounded-2xl border border-gray-200/70 dark:border-gray-800 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowDetail((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left bg-[#F5F5F7] dark:bg-[#111113] hover:bg-gray-100/80 dark:hover:bg-gray-900 transition-colors"
+        >
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            {showDetail ? 'Ocultar detalle completo' : 'Ver detalle completo del panel'}
+          </span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Mapa · KPIs · Infra</span>
+        </button>
+        {showDetail ? (
+          <div className="p-4 md:p-5 space-y-6 border-t border-gray-200/70 dark:border-gray-800 bg-white dark:bg-[#0a0a0a]">
+            <AventaMapSection />
 
       {/* RESUMEN */}
       <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
@@ -241,26 +302,6 @@ export default function OwnerDashboardClient() {
               ) : null}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ACCIÓN RECOMENDADA */}
-      <section className="rounded-3xl border-2 border-violet-300/80 dark:border-violet-700/80 bg-violet-50/50 dark:bg-violet-950/25 p-5 md:p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
-          Acción recomendada
-        </p>
-        <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{data.recommendedAction.title}</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{data.recommendedAction.detail}</p>
-          </div>
-          <Link
-            href={data.recommendedAction.href}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold px-5 py-2.5 text-sm shrink-0"
-          >
-            Ir
-            <ArrowRight className="h-4 w-4" />
-          </Link>
         </div>
       </section>
 
@@ -413,31 +454,6 @@ export default function OwnerDashboardClient() {
         </p>
       </section>
 
-      {/* ALERTAS */}
-      {data.alerts.length > 0 ? (
-        <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6">
-          <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100">Alertas</h2>
-          <ul className="mt-4 space-y-2">
-            {data.alerts.map((a) => (
-              <li
-                key={a.id}
-                className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm border ${
-                  a.severity === 'red'
-                    ? 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20'
-                    : 'border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20'
-                }`}
-              >
-                <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${statusDot(a.severity)}`} />
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100">{a.title}</p>
-                  <p className="text-gray-600 dark:text-gray-400">{a.detail}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       {/* Operaciones + gaps */}
       <section className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-4 text-xs text-gray-500 dark:text-gray-400 space-y-2">
         <p>
@@ -470,6 +486,9 @@ export default function OwnerDashboardClient() {
           </div>
         ) : null}
       </section>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -19,9 +19,11 @@ import {
 import {
   buildAdminNavigation,
   getDefaultAdminHome,
-  type AdminNavDomainSection,
+  getInitialOpenSections,
   type AdminNavItem,
+  type AdminNavSection,
   type NavDomain,
+  type SidebarAccordionKey,
 } from '@/lib/admin/navigation';
 
 function NavLink({
@@ -55,6 +57,54 @@ function NavLink({
   );
 }
 
+function NavSection({
+  section,
+  isOpen,
+  onToggle,
+  getActive,
+  onNavigate,
+}: {
+  section: AdminNavSection;
+  isOpen: boolean;
+  onToggle: () => void;
+  getActive: (item: AdminNavItem) => boolean;
+  onNavigate: () => void;
+}) {
+  const hasActiveChild = section.items.some((i) => getActive(i));
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex w-full flex-col items-stretch gap-0.5 px-3 py-2 rounded-xl text-left transition-colors ${
+          hasActiveChild
+            ? 'bg-violet-50/80 dark:bg-violet-950/30'
+            : 'hover:bg-gray-100/80 dark:hover:bg-gray-900'
+        }`}
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span
+            className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+              hasActiveChild ? 'text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            {section.title}
+          </span>
+          <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </span>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 pr-6">{section.subtitle}</span>
+      </button>
+      {isOpen ? (
+        <div className="mt-1 space-y-0.5 pl-1">
+          {section.items.map((item) => (
+            <NavLink key={item.href} item={item} isActive={getActive(item)} onNavigate={onNavigate} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -66,7 +116,7 @@ export default function AdminLayout({
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [authGateReady, setAuthGateReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openDomains, setOpenDomains] = useState<Partial<Record<NavDomain, boolean>>>({});
+  const [openSections, setOpenSections] = useState<Partial<Record<SidebarAccordionKey, boolean>>>({});
 
   useEffect(() => {
     const supabase = createClient();
@@ -176,12 +226,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (!userRole) return;
-    const { domains } = buildAdminNavigation(userRole);
-    const initial: Partial<Record<NavDomain, boolean>> = {};
-    for (const d of domains) {
-      initial[d.id] = d.defaultOpen;
-    }
-    setOpenDomains(initial);
+    setOpenSections(getInitialOpenSections(userRole, nav));
   }, [userRole]);
 
   const getActive = (item: AdminNavItem) => {
@@ -194,13 +239,20 @@ export default function AdminLayout({
       ? 'Negocio'
       : pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports') || pathname === '/admin/announcements'
         ? 'Comunidad'
-        : pathname === '/admin/users' || pathname === '/admin/team' || pathname === '/admin/vote-weights'
+        : pathname === '/admin/users' || pathname === '/admin/team'
           ? 'Usuarios'
-          : pathname.startsWith('/admin/operaciones') || pathname === '/admin/commissions'
-            ? 'Operaciones'
-            : pathname === '/admin/metrics' || pathname === '/admin/health' || pathname === '/admin/technical' || pathname === '/admin/logs' || pathname === '/admin/mantenimiento'
-              ? 'Sistema'
-              : 'Admin';
+          : pathname === '/admin/commissions'
+            ? 'Monetización'
+            : pathname.startsWith('/admin/operaciones')
+              ? 'Operaciones'
+              : pathname === '/admin/metrics'
+                ? 'Crecimiento'
+                : pathname === '/admin/health' ||
+                    pathname === '/admin/technical' ||
+                    pathname === '/admin/logs' ||
+                    pathname === '/admin/mantenimiento'
+                  ? 'Sistema'
+                  : 'Admin';
 
   if (!authGateReady) {
     return (
@@ -238,7 +290,7 @@ export default function AdminLayout({
       >
         <div className="flex h-16 items-center justify-between px-5 border-b border-gray-200/80 dark:border-gray-800 lg:justify-start">
           <Link href={homeHref} className="font-semibold tracking-tight text-gray-900 dark:text-gray-100">
-            {userRole === 'owner' ? 'AVENTA · Mando' : 'Panel Admin'}
+            {userRole === 'owner' ? 'AVENTA · Fundador' : 'Panel Admin'}
           </Link>
           <button
             type="button"
@@ -252,20 +304,16 @@ export default function AdminLayout({
 
         <nav className="p-3 space-y-3 overflow-y-auto max-h-[calc(100vh-4rem)]">
           {nav.home ? (
-            <NavLink
-              item={nav.home}
-              isActive={getActive(nav.home)}
-              onNavigate={() => setSidebarOpen(false)}
-            />
+            <NavLink item={nav.home} isActive={getActive(nav.home)} onNavigate={() => setSidebarOpen(false)} />
           ) : null}
 
-          {nav.pinned.length > 0 ? (
+          {nav.moderationMain.length > 0 ? (
             <div>
               <p className="px-3 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-                Acceso rápido
+                Moderación
               </p>
               <div className="mt-1 space-y-0.5">
-                {nav.pinned.map((item) => (
+                {nav.moderationMain.map((item) => (
                   <NavLink
                     key={item.href}
                     item={item}
@@ -277,51 +325,34 @@ export default function AdminLayout({
             </div>
           ) : null}
 
-          {nav.domains.map((section: AdminNavDomainSection) => {
-            const isOpen = openDomains[section.id] ?? section.defaultOpen;
-            const hasActiveChild = section.items.some((i) => getActive(i));
-            return (
-              <div key={section.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpenDomains((s) => ({ ...s, [section.id]: !isOpen }))}
-                  className={`flex w-full flex-col items-stretch gap-0.5 px-3 py-2 rounded-xl text-left transition-colors ${
-                    hasActiveChild
-                      ? 'bg-violet-50/80 dark:bg-violet-950/30'
-                      : 'hover:bg-gray-100/80 dark:hover:bg-gray-900'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span
-                      className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
-                        hasActiveChild
-                          ? 'text-violet-600 dark:text-violet-400'
-                          : 'text-gray-500 dark:text-gray-400'
-                      }`}
-                    >
-                      {section.title}
-                    </span>
-                    <ChevronDown
-                      className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                    />
-                  </span>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 pr-6">{section.subtitle}</span>
-                </button>
-                {isOpen ? (
-                  <div className="mt-1 space-y-0.5 pl-1">
-                    {section.items.map((item) => (
-                      <NavLink
-                        key={item.href}
-                        item={item}
-                        isActive={getActive(item)}
-                        onNavigate={() => setSidebarOpen(false)}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+          {nav.dailyLinks.length > 0 ? (
+            <div className="space-y-0.5">
+              {nav.dailyLinks.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  isActive={getActive(item)}
+                  onNavigate={() => setSidebarOpen(false)}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {nav.sections.map((section) => (
+            <NavSection
+              key={section.id}
+              section={section}
+              isOpen={openSections[section.id] ?? section.defaultOpen}
+              onToggle={() =>
+                setOpenSections((s) => ({
+                  ...s,
+                  [section.id]: !(s[section.id] ?? section.defaultOpen),
+                }))
+              }
+              getActive={getActive}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          ))}
         </nav>
       </aside>
 

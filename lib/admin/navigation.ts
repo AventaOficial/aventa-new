@@ -31,14 +31,22 @@ import {
   canManageTeam,
 } from '@/lib/admin/roles';
 
-/** Las 5 áreas del centro de mando. */
-export type NavDomain = 'negocio' | 'comunidad' | 'usuarios' | 'operaciones' | 'sistema';
+/** Áreas del sidebar Founder First */
+export type NavDomain =
+  | 'negocio'
+  | 'comunidad'
+  | 'crecimiento'
+  | 'monetizacion'
+  | 'operaciones'
+  | 'sistema'
+  | 'usuarios';
 
 export type NavFrequency = 'diario' | 'semanal' | 'mensual' | 'excepcional';
 
 export type NavAudience = 'founder' | 'moderador' | 'admin' | 'analista' | 'tecnico';
 
-export type NavVisibility = 'primary' | 'pinned' | 'submenu';
+/** primary = home · moderation = sección visible · daily = enlace diario owner · submenu = acordeón */
+export type NavVisibility = 'primary' | 'moderation' | 'daily' | 'submenu';
 
 export type AdminNavItem = {
   href: string;
@@ -52,7 +60,7 @@ export type AdminNavItem = {
   visibility: NavVisibility;
 };
 
-export type AdminNavDomainSection = {
+export type AdminNavSection = {
   id: NavDomain;
   title: string;
   subtitle: string;
@@ -60,21 +68,18 @@ export type AdminNavDomainSection = {
   items: AdminNavItem[];
 };
 
-export const DOMAIN_META: Record<
-  NavDomain,
+export const SECTION_META: Record<
+  Exclude<NavDomain, 'negocio'>,
   { title: string; subtitle: string }
 > = {
-  negocio: { title: 'Negocio', subtitle: 'Ingresos, crecimiento y decisiones' },
-  comunidad: { title: 'Comunidad', subtitle: 'Ofertas, calidad y convivencia' },
-  usuarios: { title: 'Usuarios', subtitle: 'Cuentas, equipo y reputación' },
-  operaciones: { title: 'Operaciones', subtitle: 'Abastecimiento y ejecución' },
-  sistema: { title: 'Sistema', subtitle: 'Salud, técnico y mantenimiento' },
+  comunidad: { title: 'Comunidad', subtitle: 'Más herramientas de contenido' },
+  crecimiento: { title: 'Crecimiento', subtitle: 'Métricas y producto' },
+  monetizacion: { title: 'Monetización', subtitle: 'Ingresos y afiliación' },
+  operaciones: { title: 'Operaciones', subtitle: 'Centro de control y bot' },
+  sistema: { title: 'Sistema', subtitle: 'Técnico y mantenimiento' },
+  usuarios: { title: 'Usuarios', subtitle: 'Equipo y permisos' },
 };
 
-/**
- * Inventario de pantallas admin (documentación + filtrado por rol).
- * Ninguna ruta se elimina; solo define categoría y visibilidad ideal.
- */
 export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/owner',
@@ -87,23 +92,24 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/dashboard',
     label: 'Panel clásico',
-    domain: 'negocio',
+    domain: 'sistema',
     frequency: 'excepcional',
     audiences: ['founder', 'admin', 'moderador'],
     visibility: 'submenu',
+    subtle: true,
   },
   {
     href: '/admin/metrics',
     label: 'Métricas',
-    domain: 'negocio',
+    domain: 'crecimiento',
     frequency: 'semanal',
     audiences: ['founder', 'admin', 'analista'],
-    visibility: 'pinned',
+    visibility: 'submenu',
   },
   {
     href: '/admin/operaciones',
     label: 'Centro de operaciones',
-    domain: 'negocio',
+    domain: 'operaciones',
     frequency: 'mensual',
     audiences: ['founder'],
     visibility: 'submenu',
@@ -111,10 +117,10 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/commissions',
     label: 'Comisiones y ledger',
-    domain: 'negocio',
+    domain: 'monetizacion',
     frequency: 'mensual',
     audiences: ['founder'],
-    visibility: 'submenu',
+    visibility: 'daily',
   },
   {
     href: '/admin/moderation',
@@ -122,7 +128,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'comunidad',
     frequency: 'diario',
     audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'pinned',
+    visibility: 'moderation',
   },
   {
     href: '/admin/reports',
@@ -130,7 +136,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'comunidad',
     frequency: 'diario',
     audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'pinned',
+    visibility: 'moderation',
   },
   {
     href: '/admin/moderation/comments',
@@ -178,7 +184,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'usuarios',
     frequency: 'mensual',
     audiences: ['founder', 'admin'],
-    visibility: 'submenu',
+    visibility: 'daily',
   },
   {
     href: '/admin/team',
@@ -191,7 +197,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/vote-weights',
     label: 'Peso de voto',
-    domain: 'usuarios',
+    domain: 'sistema',
     frequency: 'excepcional',
     audiences: ['founder', 'tecnico'],
     visibility: 'submenu',
@@ -202,7 +208,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'operaciones',
     frequency: 'semanal',
     audiences: ['founder'],
-    visibility: 'pinned',
+    visibility: 'submenu',
   },
   {
     href: '/admin/health',
@@ -271,6 +277,14 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/contexto': MapIcon,
 };
 
+const OWNER_SECTION_ORDER: Exclude<NavDomain, 'negocio'>[] = [
+  'comunidad',
+  'crecimiento',
+  'operaciones',
+  'sistema',
+  'usuarios',
+];
+
 function roleToAudiences(role: Role): NavAudience[] {
   switch (role) {
     case 'owner':
@@ -332,64 +346,98 @@ function toNavItem(screen: (typeof ADMIN_SCREEN_REGISTRY)[number]): AdminNavItem
   };
 }
 
-const DOMAIN_ORDER: NavDomain[] = ['negocio', 'comunidad', 'usuarios', 'operaciones', 'sistema'];
-
 export type AdminNavigationModel = {
   home: AdminNavItem | null;
-  pinned: AdminNavItem[];
-  domains: AdminNavDomainSection[];
+  /** Cola + reportes siempre visibles cuando hay permiso de moderación */
+  moderationMain: AdminNavItem[];
+  /** Enlaces diarios del fundador (usuarios, monetización) */
+  dailyLinks: AdminNavItem[];
+  sections: AdminNavSection[];
 };
 
-export function buildAdminNavigation(role: Role | null): AdminNavigationModel {
-  if (!role) return { home: null, pinned: [], domains: [] };
+function buildOwnerNavigation(accessible: AdminNavItem[]): AdminNavigationModel {
+  const home = accessible.find((s) => s.href === '/admin/owner') ?? null;
+  const homeHref = home?.href;
 
-  const accessible = ADMIN_SCREEN_REGISTRY.filter((s) => canRoleAccessScreen(role, s)).map(toNavItem);
+  const moderationMain = accessible.filter((s) => s.visibility === 'moderation');
+  const dailyLinks = accessible.filter((s) => s.visibility === 'daily');
 
-  const homeScreen =
-    role === 'owner'
-      ? accessible.find((s) => s.href === '/admin/owner') ?? null
-      : role === 'moderator'
-        ? accessible.find((s) => s.href === '/admin/moderation') ?? accessible.find((s) => s.href === '/admin/dashboard') ?? null
-        : role === 'analyst'
-          ? accessible.find((s) => s.href === '/admin/metrics') ?? null
-          : accessible.find((s) => s.href === '/admin/dashboard') ?? null;
-
-  const homeHref = homeScreen?.href;
-  const pinned = accessible.filter(
-    (s) => s.visibility === 'pinned' && s.href !== homeHref
-  );
-
-  const domains: AdminNavDomainSection[] = DOMAIN_ORDER.map((domainId) => {
-    const meta = DOMAIN_META[domainId];
+  const sections: AdminNavSection[] = OWNER_SECTION_ORDER.map((domainId) => {
+    const meta = SECTION_META[domainId];
     const items = accessible.filter(
-      (s) =>
-        s.domain === domainId &&
-        s.href !== homeHref &&
-        s.visibility !== 'pinned'
+      (s) => s.domain === domainId && s.visibility === 'submenu' && s.href !== homeHref
     );
-    const defaultOpen =
-      role === 'moderator'
-        ? domainId === 'comunidad'
-        : role === 'analyst'
-          ? domainId === 'negocio' || domainId === 'sistema'
-          : role === 'admin'
-            ? domainId === 'comunidad'
-            : false;
-
     return {
       id: domainId,
       title: meta.title,
       subtitle: meta.subtitle,
-      defaultOpen,
+      defaultOpen: false,
       items,
     };
-  }).filter((d) => d.items.length > 0);
+  }).filter((s) => s.items.length > 0);
 
-  return {
-    home: homeScreen,
-    pinned,
-    domains,
-  };
+  return { home, moderationMain, dailyLinks, sections };
+}
+
+function buildStaffNavigation(role: Role, accessible: AdminNavItem[]): AdminNavigationModel {
+  const home =
+    role === 'moderator'
+      ? accessible.find((s) => s.href === '/admin/moderation') ??
+        accessible.find((s) => s.href === '/admin/dashboard') ??
+        null
+      : role === 'analyst'
+        ? accessible.find((s) => s.href === '/admin/metrics') ?? null
+        : accessible.find((s) => s.href === '/admin/dashboard') ?? null;
+
+  const homeHref = home?.href;
+  const moderationMain = accessible.filter(
+    (s) => s.visibility === 'moderation' && s.href !== homeHref
+  );
+  const dailyLinks: AdminNavItem[] = [];
+
+  const byDomain = new Map<NavDomain, AdminNavItem[]>();
+  for (const item of accessible) {
+    if (item.href === homeHref || item.visibility === 'moderation' || item.visibility === 'daily') continue;
+    const list = byDomain.get(item.domain) ?? [];
+    list.push(item);
+    byDomain.set(item.domain, list);
+  }
+
+  const order: NavDomain[] =
+    role === 'moderator'
+      ? ['comunidad', 'sistema']
+      : role === 'analyst'
+        ? ['crecimiento', 'sistema']
+        : ['comunidad', 'usuarios', 'crecimiento', 'sistema'];
+
+  const sections: AdminNavSection[] = order
+    .map((domainId) => {
+      const items = byDomain.get(domainId) ?? [];
+      if (items.length === 0) return null;
+      const meta =
+        domainId === 'negocio'
+          ? { title: 'Negocio', subtitle: '' }
+          : SECTION_META[domainId as Exclude<NavDomain, 'negocio'>];
+      return {
+        id: domainId,
+        title: meta.title,
+        subtitle: meta.subtitle,
+        defaultOpen: role === 'moderator' && domainId === 'comunidad',
+        items,
+      };
+    })
+    .filter((s): s is AdminNavSection => s != null);
+
+  return { home, moderationMain, dailyLinks, sections };
+}
+
+export function buildAdminNavigation(role: Role | null): AdminNavigationModel {
+  if (!role) return { home: null, moderationMain: [], dailyLinks: [], sections: [] };
+
+  const accessible = ADMIN_SCREEN_REGISTRY.filter((s) => canRoleAccessScreen(role, s)).map(toNavItem);
+
+  if (role === 'owner') return buildOwnerNavigation(accessible);
+  return buildStaffNavigation(role, accessible);
 }
 
 export function getDefaultAdminHome(role: Role | null): string {
@@ -397,4 +445,18 @@ export function getDefaultAdminHome(role: Role | null): string {
   if (role === 'moderator') return '/admin/moderation';
   if (role === 'analyst') return '/admin/metrics';
   return '/admin/dashboard';
+}
+
+/** Clave de acordeón en layout (home + secciones) */
+export type SidebarAccordionKey = NavDomain | 'moderation';
+
+export function getInitialOpenSections(
+  role: Role | null,
+  nav: AdminNavigationModel
+): Partial<Record<SidebarAccordionKey, boolean>> {
+  const open: Partial<Record<SidebarAccordionKey, boolean>> = {};
+  for (const s of nav.sections) {
+    open[s.id] = s.defaultOpen;
+  }
+  return open;
 }
