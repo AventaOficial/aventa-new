@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { OwnerDashboardPayload, PeriodKpis, TrafficLight } from '@/lib/owner/buildOwnerDashboard';
 import { formatDiff } from '@/lib/owner/buildOwnerDashboard';
+import AventaMapSection from './AventaMapSection';
 import InfrastructureSection from './InfrastructureSection';
 
 function statusDot(status: TrafficLight): string {
@@ -210,6 +211,8 @@ export default function OwnerDashboardClient() {
           Actualizar
         </button>
       </header>
+
+      <AventaMapSection />
 
       {/* RESUMEN */}
       <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
