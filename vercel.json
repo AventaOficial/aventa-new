@@ -9,6 +9,10 @@
       "schedule": "30 2 * * *"
     },
     {
+      "path": "/api/cron/offer-health-scan",
+      "schedule": "0 */4 * * *"
+    },
+    {
       "path": "/api/cron/weekly-digest",
       "schedule": "0 0 * * 1"
     }

@@ -33,6 +33,18 @@ function formatMoneyCents(cents: number | null): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);
 }
 
+function confidenceLabel(level: 'alta' | 'media' | 'baja'): string {
+  if (level === 'alta') return 'Alta';
+  if (level === 'media') return 'Media';
+  return 'Baja';
+}
+
+function confidenceBadgeClass(level: 'alta' | 'media' | 'baja'): string {
+  if (level === 'alta') return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200';
+  if (level === 'media') return 'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100';
+  return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+}
+
 function KpiCard({
   label,
   value,
@@ -259,6 +271,99 @@ export default function OwnerDashboardClient() {
           </ul>
         </section>
       ) : null}
+
+      <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100">Economía</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Ingreso real (ledger) vs estimado (clics × EPC histórico). No sustituye facturación de redes.
+            </p>
+          </div>
+          <span
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${confidenceBadgeClass(data.economy.confidence)}`}
+          >
+            Confianza {confidenceLabel(data.economy.confidence)}
+          </span>
+        </div>
+        <p className="mt-3 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{data.economy.confidenceReason}</p>
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard
+            label="EPC"
+            value={data.economy.epcCents != null ? formatMoneyCents(data.economy.epcCents) : 'Sin base'}
+            highlight
+          />
+          <KpiCard
+            label="Ventana EPC"
+            value={data.economy.epcWindowLabel}
+          />
+          <KpiCard
+            label="Real (mes)"
+            value={data.economy.ledgerAvailable ? formatMoneyCents(data.economy.month.realCents) : 'Sin ledger'}
+          />
+          <KpiCard
+            label="Estimado (mes)"
+            value={
+              data.economy.month.estimatedCents != null
+                ? formatMoneyCents(data.economy.month.estimatedCents)
+                : 'Sin estimar'
+            }
+          />
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-200/70 dark:border-gray-800">
+                <th className="py-2 pr-4 font-semibold">Periodo</th>
+                <th className="py-2 pr-4 font-semibold text-right">Clics</th>
+                <th className="py-2 pr-4 font-semibold text-right">Real</th>
+                <th className="py-2 font-semibold text-right">Estimado</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-800 dark:text-gray-200">
+              {(
+                [
+                  ['Hoy', data.economy.day],
+                  ['7 días', data.economy.week],
+                  ['Mes', data.economy.month],
+                ] as const
+              ).map(([label, row]) => (
+                <tr key={label} className="border-b border-gray-100 dark:border-gray-800/80">
+                  <td className="py-2.5 pr-4 font-medium">{label}</td>
+                  <td className="py-2.5 pr-4 text-right tabular-nums">{formatNum(row.outbound)}</td>
+                  <td className="py-2.5 pr-4 text-right tabular-nums">{formatMoneyCents(row.realCents)}</td>
+                  <td className="py-2.5 text-right tabular-nums">{formatMoneyCents(row.estimatedCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Link
+          href="/admin/commissions"
+          className="mt-4 inline-block text-sm font-medium text-violet-600 dark:text-violet-400"
+        >
+          Registrar ingresos en Comisiones →
+        </Link>
+      </section>
+
+      <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6">
+        <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100">Calidad de ofertas</h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{data.offerHealth.lastScanNote}</p>
+        {!data.offerHealth.tableAvailable ? (
+          <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+            Migración pendiente: ejecuta <code className="text-xs">offer_health_state.sql</code> en Supabase.
+          </p>
+        ) : null}
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="🟢 Disponibles" value={formatNum(data.offerHealth.verifiedAvailable)} highlight />
+          <KpiCard label="🟡 Precio cambió" value={formatNum(data.offerHealth.priceChanged)} />
+          <KpiCard label="🔴 Agotadas" value={formatNum(data.offerHealth.outOfStock)} />
+          <KpiCard
+            label="Sin revisión aún"
+            value={formatNum(data.offerHealth.activeWithoutCheck)}
+          />
+        </div>
+      </section>
 
       <div className="rounded-2xl border border-gray-200/70 dark:border-gray-800 overflow-hidden">
         <button

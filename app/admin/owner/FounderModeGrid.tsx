@@ -8,6 +8,7 @@ import {
   Link2,
   MousePointerClick,
   Package,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import type { OwnerDashboardPayload, TrafficLight } from '@/lib/owner/buildOwnerDashboard';
@@ -92,9 +93,18 @@ export default function FounderModeGrid({ data }: { data: OwnerDashboardPayload 
         : 'yellow';
 
   const revTone: TrafficLight =
-    data.month.ledgerAvailable && (data.month.ledgerGrossCents ?? 0) > 0
+    data.economy.confidence === 'alta'
       ? 'green'
-      : (data.month.outbound ?? 0) > 5
+      : data.economy.confidence === 'media'
+        ? 'yellow'
+        : data.economy.epcCents != null
+          ? 'yellow'
+          : 'green';
+
+  const healthTone: TrafficLight =
+    data.offerHealth.outOfStock >= 3 || data.offerHealth.priceChanged >= 5
+      ? 'yellow'
+      : data.offerHealth.outOfStock > 0 || data.offerHealth.priceChanged > 0
         ? 'yellow'
         : 'green';
 
@@ -188,11 +198,25 @@ export default function FounderModeGrid({ data }: { data: OwnerDashboardPayload 
           </p>
         </FounderCard>
 
-        <FounderCard title="Ingresos" icon={CircleDollarSign} tone={revTone as TrafficLight} href="/admin/commissions" footer="Ledger →">
+        <FounderCard title="Ingresos" icon={CircleDollarSign} tone={revTone as TrafficLight} href="/admin/commissions" footer="Economía ↓">
           <p className="font-semibold text-white">
-            {data.month.ledgerAvailable ? formatMoneyCents(data.month.ledgerGrossCents) : 'Sin ledger'}
+            {data.economy.month.estimatedCents != null
+              ? formatMoneyCents(data.economy.month.estimatedCents)
+              : 'Sin estimar'}
           </p>
-          <p className="text-xs text-gray-400">Mes actual · clics {formatNum(data.month.outbound)}</p>
+          <p className="text-xs text-gray-400">
+            Real {data.economy.ledgerAvailable ? formatMoneyCents(data.economy.month.realCents) : '—'} · conf.{' '}
+            {data.economy.confidence}
+          </p>
+        </FounderCard>
+
+        <FounderCard title="Calidad" icon={ShieldCheck} tone={healthTone} footer="Calidad ↓">
+          <p className="text-xs text-gray-300 space-y-0.5">
+            <span className="block">
+              🟢 {formatNum(data.offerHealth.verifiedAvailable)} · 🟡 {formatNum(data.offerHealth.priceChanged)} · 🔴{' '}
+              {formatNum(data.offerHealth.outOfStock)}
+            </span>
+          </p>
         </FounderCard>
 
         <FounderCard

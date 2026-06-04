@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { getAffiliateProgramsRuntimeStatus } from '@/lib/affiliate/programCatalog';
 import { getWriteQueueBacklog } from '@/lib/server/writeQueue';
+import { buildEstimatedEconomy, type EstimatedEconomy } from '@/lib/owner/estimatedEconomy';
 import {
   daysAgoUtc,
   monthYmdRange,
@@ -9,6 +10,7 @@ import {
   windowToday,
   windowYesterday,
 } from '@/lib/owner/mxTime';
+import { fetchOfferHealthSummary, type OfferHealthSummary } from '@/lib/offers/offerHealthSummary';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -109,6 +111,8 @@ export type OwnerDashboardPayload = {
     href: string;
   };
   dataGaps: string[];
+  economy: EstimatedEconomy;
+  offerHealth: OfferHealthSummary;
 };
 
 async function countProfilesCreatedBetween(start: string, end: string): Promise<number> {
@@ -506,6 +510,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     integrityRes,
     queueBacklog,
     programs,
+    economyResult,
+    offerHealthResult,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -520,6 +526,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     createServerClient().from('app_config').select('value').eq('key', 'system_integrity_last').maybeSingle(),
     getWriteQueueBacklog(),
     Promise.resolve(getAffiliateProgramsRuntimeStatus()),
+    buildEstimatedEconomy(now),
+    fetchOfferHealthSummary(),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -532,18 +540,14 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
   const monthTopOffers = await aggregateTopOffers(monthW.startIso, monthW.endIso, 1);
   const monthTopOffer = monthTopOffers[0] ?? null;
 
-  let estimatedRevenueCents: number | null = null;
-  let estimatedNote: string | null = null;
-  if (ledger.cents != null && ledger.cents > 0) {
-    estimatedRevenueCents = ledger.cents;
-    estimatedNote = 'Ingreso bruto registrado en ledger (mes calendario MX).';
-  } else if (monthOutbound != null && monthOutbound > 0 && ledger.available) {
-    estimatedRevenueCents = null;
-    estimatedNote =
-      'Sin ledger este mes. El ingreso real se registra manualmente en Admin → Comisiones. Los clics no equivalen a ingreso.';
-  } else if (!ledger.available) {
-    estimatedNote = ledger.note;
-  }
+  const economy = economyResult;
+  const offerHealth = offerHealthResult;
+
+  const estimatedRevenueCents = economy.month.estimatedCents;
+  const estimatedNote =
+    economy.epcCents != null
+      ? `Estimado mes: clics × EPC (${economy.epcWindowLabel}). ${economy.confidenceReason}`
+      : economy.confidenceReason;
 
   const integrity = (integrityRes.data as { value?: { ok?: boolean; summary?: { failed?: number } } } | null)?.value;
   const integrityOk = integrity?.ok ?? null;
@@ -613,7 +617,6 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       detail: `${queueBacklog.failed} jobs fallidos.`,
     });
   }
-
   let status: TrafficLight = 'green';
   if (alerts.some((a) => a.severity === 'red')) status = 'red';
   else if (alerts.length > 0) status = 'yellow';
@@ -684,6 +687,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     alerts,
     recommendedAction: pickRecommendedAction(alerts, pending),
     dataGaps,
+    economy,
+    offerHealth,
   };
 }
 
