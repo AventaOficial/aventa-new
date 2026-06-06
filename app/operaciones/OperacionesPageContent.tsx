@@ -552,7 +552,7 @@ export default function OperacionesPageContent() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mt-4 pl-0 md:pl-14">
               Documentación viva:{' '}
-              <Link href="/contexto" className="font-medium text-violet-600 dark:text-violet-400 hover:underline">
+              <Link href="/admin/contexto" className="font-medium text-violet-600 dark:text-violet-400 hover:underline">
                 Contexto
               </Link>
               , checklist técnico en el repo (<code className="text-xs text-gray-500">docs/CHECKLIST_SISTEMA_VIVO.md</code>
@@ -1207,7 +1207,7 @@ export default function OperacionesPageContent() {
                   <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
                 </Link>
                 <Link
-                  href="/contexto"
+                  href="/admin/contexto"
                   className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-violet-50/60 dark:hover:bg-violet-900/15 transition-colors"
                 >
                   <span className="flex items-center gap-2">

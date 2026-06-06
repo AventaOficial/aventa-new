@@ -170,7 +170,7 @@ export default function InfrastructureSection() {
                 Centro de control
               </p>
               <h2 id="infra-heading" className="text-xl md:text-2xl font-semibold tracking-tight mt-0.5">
-                Infraestructura y dependencias
+                Infraestructura AVENTA
               </h2>
               <p className="mt-1 text-sm text-gray-400 max-w-xl">
                 Solo servicios documentados en el repositorio. Estado en runtime según variables de entorno (sin

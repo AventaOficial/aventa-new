@@ -5,6 +5,7 @@ import {
   CheckCircle,
   CircleDollarSign,
   ClipboardList,
+  Database,
   FileText,
   Flag,
   Heart,
@@ -31,21 +32,21 @@ import {
   canManageTeam,
 } from '@/lib/admin/roles';
 
-/** Áreas del sidebar Founder First */
+/** CEO OS — dominios del sidebar */
 export type NavDomain =
   | 'negocio'
-  | 'comunidad'
   | 'crecimiento'
+  | 'contenido'
   | 'monetizacion'
-  | 'operaciones'
-  | 'sistema'
-  | 'usuarios';
+  | 'operacion'
+  | 'personas'
+  | 'hangar';
 
 export type NavFrequency = 'diario' | 'semanal' | 'mensual' | 'excepcional';
 
 export type NavAudience = 'founder' | 'moderador' | 'admin' | 'analista' | 'tecnico';
 
-/** primary = home · moderation = sección visible · daily = enlace diario owner · submenu = acordeón */
+/** primary = home · moderation = acceso rápido · daily = legacy (owner usa submenús) · submenu = acordeón */
 export type NavVisibility = 'primary' | 'moderation' | 'daily' | 'submenu';
 
 export type AdminNavItem = {
@@ -72,12 +73,12 @@ export const SECTION_META: Record<
   Exclude<NavDomain, 'negocio'>,
   { title: string; subtitle: string }
 > = {
-  comunidad: { title: 'Comunidad', subtitle: 'Más herramientas de contenido' },
-  crecimiento: { title: 'Crecimiento', subtitle: 'Métricas y producto' },
-  monetizacion: { title: 'Monetización', subtitle: 'Ingresos y afiliación' },
-  operaciones: { title: 'Operaciones', subtitle: 'Centro de control y bot' },
-  sistema: { title: 'Sistema', subtitle: 'Técnico y mantenimiento' },
-  usuarios: { title: 'Usuarios', subtitle: 'Equipo y permisos' },
+  crecimiento: { title: 'Crecimiento', subtitle: '¿Aventa está creciendo?' },
+  contenido: { title: 'Contenido', subtitle: '¿La comunidad está viva?' },
+  monetizacion: { title: 'Monetización', subtitle: '¿Estamos ganando dinero?' },
+  operacion: { title: 'Operación', subtitle: '¿Hay algo roto?' },
+  personas: { title: 'Personas', subtitle: '¿Quién usa y administra Aventa?' },
+  hangar: { title: 'Hangar técnico', subtitle: 'Herramientas avanzadas' },
 };
 
 export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
@@ -90,15 +91,6 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'primary',
   },
   {
-    href: '/admin/dashboard',
-    label: 'Panel clásico',
-    domain: 'sistema',
-    frequency: 'excepcional',
-    audiences: ['founder', 'admin', 'moderador'],
-    visibility: 'submenu',
-    subtle: true,
-  },
-  {
     href: '/admin/metrics',
     label: 'Métricas',
     domain: 'crecimiento',
@@ -107,9 +99,49 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'submenu',
   },
   {
-    href: '/admin/operaciones',
-    label: 'Centro de operaciones',
-    domain: 'operaciones',
+    href: '/admin/moderation',
+    label: 'Cola pendientes',
+    domain: 'contenido',
+    frequency: 'diario',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'moderation',
+  },
+  {
+    href: '/admin/reports',
+    label: 'Reportes',
+    domain: 'contenido',
+    frequency: 'diario',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'moderation',
+  },
+  {
+    href: '/admin/moderation/approved',
+    label: 'Aprobadas',
+    domain: 'contenido',
+    frequency: 'excepcional',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/moderation/rejected',
+    label: 'Rechazadas',
+    domain: 'contenido',
+    frequency: 'excepcional',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/moderation/comments',
+    label: 'Comentarios',
+    domain: 'contenido',
+    frequency: 'semanal',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/announcements',
+    label: 'Avisos al sitio',
+    domain: 'contenido',
     frequency: 'mensual',
     audiences: ['founder'],
     visibility: 'submenu',
@@ -120,100 +152,28 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'monetizacion',
     frequency: 'mensual',
     audiences: ['founder'],
-    visibility: 'daily',
-  },
-  {
-    href: '/admin/moderation',
-    label: 'Cola pendientes',
-    domain: 'comunidad',
-    frequency: 'diario',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'moderation',
-  },
-  {
-    href: '/admin/reports',
-    label: 'Reportes',
-    domain: 'comunidad',
-    frequency: 'diario',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'moderation',
-  },
-  {
-    href: '/admin/moderation/comments',
-    label: 'Comentarios',
-    domain: 'comunidad',
-    frequency: 'semanal',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'submenu',
-  },
-  {
-    href: '/admin/moderation/approved',
-    label: 'Aprobadas',
-    domain: 'comunidad',
-    frequency: 'excepcional',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'submenu',
-  },
-  {
-    href: '/admin/moderation/rejected',
-    label: 'Rechazadas',
-    domain: 'comunidad',
-    frequency: 'excepcional',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'submenu',
-  },
-  {
-    href: '/admin/moderation/bans',
-    label: 'Baneos',
-    domain: 'comunidad',
-    frequency: 'excepcional',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'submenu',
-  },
-  {
-    href: '/admin/announcements',
-    label: 'Avisos al sitio',
-    domain: 'comunidad',
-    frequency: 'mensual',
-    audiences: ['founder'],
-    visibility: 'submenu',
-  },
-  {
-    href: '/admin/users',
-    label: 'Usuarios',
-    domain: 'usuarios',
-    frequency: 'mensual',
-    audiences: ['founder', 'admin'],
-    visibility: 'daily',
-  },
-  {
-    href: '/admin/team',
-    label: 'Equipo y roles',
-    domain: 'usuarios',
-    frequency: 'mensual',
-    audiences: ['founder', 'admin'],
-    visibility: 'submenu',
-  },
-  {
-    href: '/admin/vote-weights',
-    label: 'Peso de voto',
-    domain: 'sistema',
-    frequency: 'excepcional',
-    audiences: ['founder', 'tecnico'],
     visibility: 'submenu',
   },
   {
     href: '/admin/operaciones/trabajo',
     label: 'Bot y trabajo',
-    domain: 'operaciones',
+    domain: 'monetizacion',
     frequency: 'semanal',
+    audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/operaciones',
+    label: 'Centro de operaciones',
+    domain: 'operacion',
+    frequency: 'mensual',
     audiences: ['founder'],
     visibility: 'submenu',
   },
   {
     href: '/admin/health',
     label: 'Salud del sistema',
-    domain: 'sistema',
+    domain: 'operacion',
     frequency: 'mensual',
     audiences: ['founder', 'admin', 'analista', 'tecnico'],
     visibility: 'submenu',
@@ -221,7 +181,64 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/technical',
     label: 'Datos técnicos',
-    domain: 'sistema',
+    domain: 'operacion',
+    frequency: 'excepcional',
+    audiences: ['founder', 'tecnico'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/users',
+    label: 'Usuarios',
+    domain: 'personas',
+    frequency: 'mensual',
+    audiences: ['founder', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/team',
+    label: 'Equipo y roles',
+    domain: 'personas',
+    frequency: 'mensual',
+    audiences: ['founder', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/moderation/bans',
+    label: 'Baneos',
+    domain: 'personas',
+    frequency: 'excepcional',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/sistemas/mapa',
+    label: 'Mapa de sistemas AVENTA',
+    domain: 'hangar',
+    frequency: 'mensual',
+    audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/infraestructura',
+    label: 'Infraestructura AVENTA',
+    domain: 'hangar',
+    frequency: 'mensual',
+    audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/contexto',
+    label: 'Contexto del sistema',
+    domain: 'hangar',
+    frequency: 'excepcional',
+    audiences: ['founder'],
+    visibility: 'submenu',
+    subtle: true,
+  },
+  {
+    href: '/admin/mantenimiento',
+    label: 'Mantenimiento',
+    domain: 'hangar',
     frequency: 'excepcional',
     audiences: ['founder', 'tecnico'],
     visibility: 'submenu',
@@ -229,25 +246,25 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/logs',
     label: 'Logs de moderación',
-    domain: 'sistema',
+    domain: 'hangar',
     frequency: 'excepcional',
     audiences: ['founder', 'admin', 'tecnico'],
     visibility: 'submenu',
   },
   {
-    href: '/admin/mantenimiento',
-    label: 'Mantenimiento',
-    domain: 'sistema',
+    href: '/admin/vote-weights',
+    label: 'Peso de voto',
+    domain: 'hangar',
     frequency: 'excepcional',
     audiences: ['founder', 'tecnico'],
     visibility: 'submenu',
   },
   {
-    href: '/contexto',
-    label: 'Contexto del sistema',
-    domain: 'sistema',
+    href: '/admin/dashboard',
+    label: 'Panel clásico',
+    domain: 'hangar',
     frequency: 'excepcional',
-    audiences: ['founder', 'admin'],
+    audiences: ['founder', 'admin', 'moderador'],
     visibility: 'submenu',
     subtle: true,
   },
@@ -270,20 +287,29 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/team': UserCog,
   '/admin/vote-weights': Scale,
   '/admin/operaciones/trabajo': Briefcase,
+  '/admin/sistemas/mapa': MapIcon,
+  '/admin/infraestructura': Database,
   '/admin/health': Heart,
   '/admin/technical': Wrench,
   '/admin/logs': FileText,
   '/admin/mantenimiento': NotebookPen,
-  '/contexto': MapIcon,
+  '/admin/contexto': MapIcon,
 };
 
 const OWNER_SECTION_ORDER: Exclude<NavDomain, 'negocio'>[] = [
-  'comunidad',
   'crecimiento',
-  'operaciones',
-  'sistema',
-  'usuarios',
+  'contenido',
+  'monetizacion',
+  'operacion',
+  'personas',
+  'hangar',
 ];
+
+const STAFF_SECTION_ORDER: Record<Exclude<Role, 'owner'>, Exclude<NavDomain, 'negocio'>[]> = {
+  moderator: ['contenido', 'personas'],
+  analyst: ['crecimiento', 'operacion'],
+  admin: ['contenido', 'personas', 'crecimiento', 'operacion', 'hangar'],
+};
 
 function roleToAudiences(role: Role): NavAudience[] {
   switch (role) {
@@ -314,6 +340,9 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
     case '/admin/operaciones/trabajo':
     case '/admin/vote-weights':
     case '/admin/mantenimiento':
+    case '/admin/sistemas/mapa':
+    case '/admin/infraestructura':
+    case '/admin/contexto':
       return canAccessOwnerOperationsPanel(role);
     case '/admin/technical':
       return role === 'owner';
@@ -323,8 +352,6 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
     case '/admin/logs':
       return canAccessUsersLogs(role);
     case '/admin/team':
-      return canManageTeam(role);
-    case '/contexto':
       return canManageTeam(role);
     case '/admin/metrics':
       return canAccessMetrics(role);
@@ -350,7 +377,7 @@ export type AdminNavigationModel = {
   home: AdminNavItem | null;
   /** Cola + reportes siempre visibles cuando hay permiso de moderación */
   moderationMain: AdminNavItem[];
-  /** Enlaces diarios del fundador (usuarios, monetización) */
+  /** Reservado (owner usa submenús por sistema) */
   dailyLinks: AdminNavItem[];
   sections: AdminNavSection[];
 };
@@ -360,7 +387,7 @@ function buildOwnerNavigation(accessible: AdminNavItem[]): AdminNavigationModel 
   const homeHref = home?.href;
 
   const moderationMain = accessible.filter((s) => s.visibility === 'moderation');
-  const dailyLinks = accessible.filter((s) => s.visibility === 'daily');
+  const dailyLinks: AdminNavItem[] = [];
 
   const sections: AdminNavSection[] = OWNER_SECTION_ORDER.map((domainId) => {
     const meta = SECTION_META[domainId];
@@ -379,7 +406,7 @@ function buildOwnerNavigation(accessible: AdminNavItem[]): AdminNavigationModel 
   return { home, moderationMain, dailyLinks, sections };
 }
 
-function buildStaffNavigation(role: Role, accessible: AdminNavItem[]): AdminNavigationModel {
+function buildStaffNavigation(role: Exclude<Role, 'owner'>, accessible: AdminNavItem[]): AdminNavigationModel {
   const home =
     role === 'moderator'
       ? accessible.find((s) => s.href === '/admin/moderation') ??
@@ -403,30 +430,22 @@ function buildStaffNavigation(role: Role, accessible: AdminNavItem[]): AdminNavi
     byDomain.set(item.domain, list);
   }
 
-  const order: NavDomain[] =
-    role === 'moderator'
-      ? ['comunidad', 'sistema']
-      : role === 'analyst'
-        ? ['crecimiento', 'sistema']
-        : ['comunidad', 'usuarios', 'crecimiento', 'sistema'];
+  const order = STAFF_SECTION_ORDER[role];
 
-  const sections: AdminNavSection[] = order
-    .map((domainId) => {
+  const sections = order
+    .map((domainId): AdminNavSection | null => {
       const items = byDomain.get(domainId) ?? [];
       if (items.length === 0) return null;
-      const meta =
-        domainId === 'negocio'
-          ? { title: 'Negocio', subtitle: '' }
-          : SECTION_META[domainId as Exclude<NavDomain, 'negocio'>];
+      const meta = SECTION_META[domainId];
       return {
         id: domainId,
         title: meta.title,
         subtitle: meta.subtitle,
-        defaultOpen: role === 'moderator' && domainId === 'comunidad',
+        defaultOpen: role === 'moderator' && domainId === 'contenido',
         items,
       };
     })
-    .filter((s): s is AdminNavSection => s != null);
+    .filter((s): s is AdminNavSection => s !== null);
 
   return { home, moderationMain, dailyLinks, sections };
 }
@@ -459,4 +478,43 @@ export function getInitialOpenSections(
     open[s.id] = s.defaultOpen;
   }
   return open;
+}
+
+/** Título móvil del sistema CEO OS según ruta */
+export function getAdminMobileSectionTitle(pathname: string): string {
+  if (pathname === '/admin/owner') return 'Owner Dashboard';
+  if (pathname === '/admin/metrics') return 'Crecimiento';
+  if (pathname === '/admin/moderation/bans') return 'Personas';
+  if (
+    pathname.startsWith('/admin/moderation') ||
+    pathname.startsWith('/admin/reports') ||
+    pathname === '/admin/announcements'
+  ) {
+    return 'Contenido';
+  }
+  if (pathname === '/admin/commissions' || pathname.startsWith('/admin/operaciones/trabajo')) {
+    return 'Monetización';
+  }
+  if (
+    pathname.startsWith('/admin/operaciones') ||
+    pathname === '/admin/health' ||
+    pathname === '/admin/technical'
+  ) {
+    return 'Operación';
+  }
+  if (pathname === '/admin/users' || pathname === '/admin/team') {
+    return 'Personas';
+  }
+  if (
+    pathname === '/admin/sistemas/mapa' ||
+    pathname === '/admin/infraestructura' ||
+    pathname === '/admin/contexto' ||
+    pathname === '/admin/mantenimiento' ||
+    pathname === '/admin/logs' ||
+    pathname === '/admin/vote-weights' ||
+    pathname === '/admin/dashboard'
+  ) {
+    return 'Hangar técnico';
+  }
+  return 'Admin';
 }

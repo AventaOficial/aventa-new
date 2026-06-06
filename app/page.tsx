@@ -612,7 +612,7 @@ function HomeContent() {
                     ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
                     : 'text-[#6e6e73] dark:text-[#a3a3a3]'
                 }`}
-                title="Lo que más está moviendo hoy"
+                title="Ofertas en lo que usas cada día para el mejor ahorro"
               >
                 Día a día
               </button>
@@ -652,10 +652,10 @@ function HomeContent() {
               </button>
             </div>
             <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] hidden sm:block">
-              {viewMode === 'vitales' && 'Lo que más está moviendo hoy.'}
-              {viewMode === 'top' && 'Si dudas, mira lo que ya votaron.'}
-              {viewMode === 'personalized' && 'Menos scroll: más de lo que ya miraste.'}
-              {viewMode === 'latest' && 'Recién publicadas: pueden agotarse pronto.'}
+              {viewMode === 'vitales' && 'Encontrarás ofertas especializadas en lo que usas en tu día a día para tener siempre el mejor ahorro.'}
+              {viewMode === 'top' && 'Las ofertas mejor votadas por la comunidad.'}
+              {viewMode === 'personalized' && 'Elegidos únicamente para ti :)'}
+              {viewMode === 'latest' && 'Ofertas recién salidas del horno.'}
             </p>
 
             {viewMode === 'vitales' && (

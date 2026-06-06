@@ -13,9 +13,7 @@ import {
 } from 'lucide-react';
 import type { OwnerDashboardPayload, PeriodKpis, TrafficLight } from '@/lib/owner/buildOwnerDashboard';
 import { formatDiff } from '@/lib/owner/buildOwnerDashboard';
-import AventaMapSection from './AventaMapSection';
 import FounderModeGrid from './FounderModeGrid';
-import InfrastructureSection from './InfrastructureSection';
 
 function statusDot(status: TrafficLight): string {
   if (status === 'green') return 'bg-emerald-500';
@@ -374,12 +372,10 @@ export default function OwnerDashboardClient() {
           <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
             {showDetail ? 'Ocultar detalle completo' : 'Ver detalle completo del panel'}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Mapa · KPIs · Infra</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">KPIs detallados</span>
         </button>
         {showDetail ? (
           <div className="p-4 md:p-5 space-y-6 border-t border-gray-200/70 dark:border-gray-800 bg-white dark:bg-[#0a0a0a]">
-            <AventaMapSection />
-
       {/* RESUMEN */}
       <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-start gap-4">
@@ -527,8 +523,6 @@ export default function OwnerDashboardClient() {
           Abrir cola →
         </Link>
       </section>
-
-      <InfrastructureSection />
 
       {/* AFILIACIÓN */}
       <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6">

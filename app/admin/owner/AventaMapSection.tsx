@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -294,7 +295,7 @@ export default function AventaMapSection() {
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-violet-300/90">Centro de mando</p>
             <h2 id="mapa-aventa-heading" className="mt-1 text-2xl md:text-3xl font-semibold tracking-tight">
-              Mapa de AVENTA
+              Mapa de sistemas AVENTA
             </h2>
             <p className="mt-2 text-sm text-gray-300 max-w-lg leading-relaxed">
               Entiende el negocio en menos de 5 minutos: qué existe, qué depende de qué, cómo está hoy y qué pasa si
@@ -329,12 +330,12 @@ export default function AventaMapSection() {
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             Actualizar mapa
           </button>
-          <a
-            href="#infra-heading"
+          <Link
+            href="/admin/infraestructura"
             className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 px-4 py-2 text-sm font-medium"
           >
             Ver infraestructura detallada
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -345,8 +346,7 @@ export default function AventaMapSection() {
       </div>
 
       <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
-        Lectura sugerida: 5 minutos de arriba a abajo. Para KPIs y acciones del día, usa las secciones siguientes del
-        panel.
+        Lectura sugerida: 5 minutos de arriba a abajo. Para KPIs y acciones del día, usa el Owner Dashboard.
       </div>
     </section>
   );

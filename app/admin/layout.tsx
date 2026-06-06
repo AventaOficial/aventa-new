@@ -18,11 +18,11 @@ import {
 } from '@/lib/admin/roles';
 import {
   buildAdminNavigation,
+  getAdminMobileSectionTitle,
   getDefaultAdminHome,
   getInitialOpenSections,
   type AdminNavItem,
   type AdminNavSection,
-  type NavDomain,
   type SidebarAccordionKey,
 } from '@/lib/admin/navigation';
 
@@ -174,6 +174,9 @@ export default function AdminLayout({
     const isCommissionsPath = pathname === '/admin/commissions';
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
     const isTechnicalPath = pathname === '/admin/technical';
+    const isSistemasMapaPath = pathname === '/admin/sistemas/mapa';
+    const isInfraestructuraPath = pathname === '/admin/infraestructura';
+    const isContextoPath = pathname === '/admin/contexto';
     if (isOwnerPanelPath && !canOwnerOpsPanel) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isDashboardPath && userRole === 'owner') {
@@ -204,6 +207,8 @@ export default function AdminLayout({
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
     } else if (isTechnicalPath && !canTechnical) {
       router.replace(canOwnerOpsPanel ? '/admin/owner' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if ((isSistemasMapaPath || isInfraestructuraPath || isContextoPath) && !canOwnerOpsPanel) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     }
   }, [
     pathname,
@@ -234,25 +239,7 @@ export default function AdminLayout({
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   };
 
-  const mobileTitle =
-    pathname === '/admin/owner'
-      ? 'Negocio'
-      : pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports') || pathname === '/admin/announcements'
-        ? 'Comunidad'
-        : pathname === '/admin/users' || pathname === '/admin/team'
-          ? 'Usuarios'
-          : pathname === '/admin/commissions'
-            ? 'Monetización'
-            : pathname.startsWith('/admin/operaciones')
-              ? 'Operaciones'
-              : pathname === '/admin/metrics'
-                ? 'Crecimiento'
-                : pathname === '/admin/health' ||
-                    pathname === '/admin/technical' ||
-                    pathname === '/admin/logs' ||
-                    pathname === '/admin/mantenimiento'
-                  ? 'Sistema'
-                  : 'Admin';
+  const mobileTitle = getAdminMobileSectionTitle(pathname);
 
   if (!authGateReady) {
     return (

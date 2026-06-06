@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** El mapa por áreas del admin vive en /contexto. */
+/** El mapa por áreas del admin vive en /admin/contexto. */
 export default function MiPanelRedirectPage() {
-  redirect('/contexto');
+  redirect('/admin/contexto');
 }
