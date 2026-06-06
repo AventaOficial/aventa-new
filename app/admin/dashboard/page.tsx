@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
             ) : null}
             {canMod ? (
               <StatCard
-                href="/admin/reports?status=pending"
+                href="/admin/moderation/reports?status=pending"
                 label="Reportes pendientes"
                 value={stats?.pendingReports ?? 0}
                 icon={Flag}

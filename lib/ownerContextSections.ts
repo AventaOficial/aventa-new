@@ -34,7 +34,7 @@ export const OWNER_CONTEXT_SECTIONS: {
       { href: '/admin/moderation/approved', label: 'Aprobadas', icon: CheckCircle },
       { href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
       { href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
-      { href: '/admin/reports', label: 'Reportes', icon: Flag },
+      { href: '/admin/moderation/reports', label: 'Reportes', icon: Flag },
       { href: '/admin/moderation/bans', label: 'Baneos', icon: ShieldOff },
     ],
   },
