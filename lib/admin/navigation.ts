@@ -14,6 +14,7 @@ import {
   Megaphone,
   MessageCircle,
   NotebookPen,
+  Rocket,
   Scale,
   ShieldOff,
   UserCog,
@@ -89,6 +90,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     frequency: 'diario',
     audiences: ['founder'],
     visibility: 'primary',
+  },
+  {
+    href: '/admin/owner/crecimiento',
+    label: 'Crecimiento AVENTA',
+    domain: 'crecimiento',
+    frequency: 'semanal',
+    audiences: ['founder'],
+    visibility: 'submenu',
   },
   {
     href: '/admin/metrics',
@@ -272,6 +281,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
 
 const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/owner': LayoutDashboard,
+  '/admin/owner/crecimiento': Rocket,
   '/admin/dashboard': LayoutDashboard,
   '/admin/metrics': BarChart3,
   '/admin/operaciones': LayoutDashboard,
@@ -333,6 +343,7 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
 
   switch (screen.href) {
     case '/admin/owner':
+    case '/admin/owner/crecimiento':
       return role === 'owner';
     case '/admin/dashboard':
       return role !== 'owner';
@@ -484,6 +495,7 @@ export function getInitialOpenSections(
 /** Título móvil del sistema CEO OS según ruta */
 export function getAdminMobileSectionTitle(pathname: string): string {
   if (pathname === '/admin/owner') return 'Owner Dashboard';
+  if (pathname === '/admin/owner/crecimiento') return 'Crecimiento AVENTA';
   if (pathname === '/admin/metrics') return 'Crecimiento';
   if (pathname === '/admin/moderation/bans') return 'Personas';
   if (

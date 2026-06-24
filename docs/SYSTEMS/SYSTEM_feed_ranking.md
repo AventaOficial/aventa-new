@@ -3,7 +3,7 @@
 ## Architecture
 
 - **Fuente de datos:** Vista `ofertas_ranked_general` en Supabase (derivada de tabla offers). Incluye columnas calculadas: score, score_final, ranking_momentum, reputation_weighted_score, ranking_blend (ranking_momentum + reputation_weighted_score).
-- **Frontend:** app/page.tsx (home) con vistas: Día a día (vitales), Top, Para ti, Recientes. Filtros por categoría, tienda y período (día/semana/mes). Búsqueda con ilike sobre título, store, descripción.
+- **Frontend:** app/page.tsx (home) con vistas: Día a día (vitales), Top, Para ti, Recientes. Lectura del feed vía **`/api/feed/home`** (sin query directa a Supabase en browser para tabs). Búsqueda sigue en cliente por ahora.
 - **Para ti:** API dedicada /api/feed/for-you que usa preferencias y votos del usuario (personalizado).
 - **Orden:** vitales (Día a día) por ranking_blend con score cap; top por score_final; Recientes por created_at desc.
 - **Día a día:** Solo moda, supermercado, hogar, belleza, viajes, servicios (+ legacy). Tecnología y Gaming no entran.

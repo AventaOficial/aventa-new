@@ -30,9 +30,17 @@ export const PRODUCT_CONTROL_AREAS: ProductControlEntry[] = [
   {
     id: 'feed-home',
     area: 'Feed home / API feed/home',
-    descripcion: 'Contratos Zod, vista=personalized sin sesión corregido en cliente.',
-    ultimoCambio: '2026-03-27',
-    ultimaRevision: '2026-03-27',
+    descripcion: 'Contratos Zod; home solo vía /api/feed/home (cache edge 20s).',
+    ultimoCambio: '2026-06-24',
+    ultimaRevision: '2026-06-24',
+    estado: 'ok',
+  },
+  {
+    id: 'growth-panel',
+    area: 'Panel Crecimiento AVENTA',
+    descripcion: '/admin/owner/crecimiento — usuarios, etapas, infra y hoja de ruta a 1M MAU.',
+    ultimoCambio: '2026-06-24',
+    ultimaRevision: '2026-06-24',
     estado: 'ok',
   },
   {

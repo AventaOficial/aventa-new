@@ -47,6 +47,7 @@ Las **propuestas concretas** (configuración por secciones, cambio seguro de cor
 
 | Fecha | Área | Qué cambió | Dónde documentar |
 |-------|------|------------|------------------|
+| 2026-06-24 | Feed home | Feed unificado vía `/api/feed/home` (sin Supabase en browser para tabs). Panel **Crecimiento AVENTA** en `/admin/owner/crecimiento`. | `SYSTEM_feed_ranking.md`, `lib/owner/growthModel.ts` |
 | 2026-06-24 | Feed home | **Día a día** alineado a chips (sin Tecnología/Gaming). **Recientes** con refresco al publicar + polling 45 s. | `SYSTEM_feed_ranking.md`, `lib/categories.ts` |
 | 2026-06-24 | Moderación / Owner | **Cazadores sin moderación:** whitelist owner para publicar ofertas sin cola (`profiles.owner_auto_approve_offers`). UI en `/admin/owner`, API `/api/admin/trusted-hunters`, lógica unificada en `lib/server/offerAutoApprove.ts`. Migración SQL pendiente en Supabase. | `SYSTEM_moderation.md`, `SYSTEM_upload_offer.md`, `SYSTEM_profiles.md` |
 | 2026-03-27 | Feed / Onboarding | Preferencias onboarding → feed Para ti; hub Descubre con 3 guías; votos con flechas. | `productControlRegistry`, guías en `/descubre` |

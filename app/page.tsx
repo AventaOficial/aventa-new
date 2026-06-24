@@ -25,20 +25,19 @@ import {
   type RankedOfferSource,
   type FeedApiItemShape,
 } from '@/lib/offers/transform';
-import { logClientError, notifyUserError } from '@/lib/utils/handleError';
+import { notifyUserError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
-import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin, homeSearchCategoryInList } from '@/lib/offers/homeFeedFilters';
+import { homeSearchCategoryInList } from '@/lib/offers/homeFeedFilters';
+import {
+  applyVitalesFeedTransform,
+  fetchHomeFeedFromAPI,
+  type HomeFeedViewMode,
+} from '@/lib/offers/homeFeedClient';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 
-/** When true, home feed uses /api/feed/home first; on failure falls back to existing Supabase fetch. */
-const USE_NEW_FEED = true;
-
 type TimeFilter = 'day' | 'week' | 'month';
-type ViewMode = 'vitales' | 'top' | 'personalized' | 'latest';
-
-/** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
-const DIA_A_DIA_SCORE_CAP = 90;
+type ViewMode = HomeFeedViewMode | 'personalized';
 
 type Offer = CardOffer;
 
@@ -123,34 +122,19 @@ const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'servicios', label: 'Servicios' },
 ];
 
-async function fetchFeedFromAPI(opts: {
-  limit: number;
-  viewMode: ViewMode;
-  timeFilter: TimeFilter;
-  categoryFilter: string | null;
-  storeFilter: string | null;
-}): Promise<FeedApiItemShape[] | null> {
-  try {
-    const type = opts.viewMode === 'latest' ? 'recent' : 'trending';
-    const params = new URLSearchParams({
-      limit: String(opts.limit),
-      type,
-      period: opts.timeFilter,
-    });
-    if (opts.viewMode === 'vitales' || opts.viewMode === 'top' || opts.viewMode === 'latest') {
-      params.set('view', opts.viewMode);
-    }
-    if (opts.categoryFilter?.trim()) params.set('category', opts.categoryFilter.trim());
-    if (opts.storeFilter?.trim()) params.set('store', opts.storeFilter.trim());
-    const res = await fetch(`/api/feed/home?${params.toString()}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error('API response failed');
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error ?? 'API error');
-    return data.data ?? null;
-  } catch (error) {
-    console.error('[FEED API FALLBACK]', error);
-    return null;
+function processHomeFeedList(
+  raw: ReturnType<typeof mapOfferToCard>[],
+  viewMode: ViewMode,
+  effectiveLimit: number,
+): ReturnType<typeof mapOfferToCard>[] {
+  let list = raw;
+  if (viewMode === 'top') {
+    list = list.filter((o) => (o.upvotes ?? 0) >= 1);
   }
+  if (viewMode === 'vitales') {
+    list = applyVitalesFeedTransform(list, effectiveLimit);
+  }
+  return list;
 }
 
 function HomeContent() {
@@ -273,130 +257,40 @@ function HomeContent() {
       return;
     }
 
-    const runSupabaseFetch = () => {
-      const supabase = createClient();
-      const now = new Date();
-      const nowISO = now.toISOString();
-      const fechaLimiteISO = homeFeedCreatedAtIsoMin(timeFilter);
+    const homeView = viewMode === 'personalized' ? 'latest' : viewMode;
+    const apiLimit = homeView === 'vitales' ? Math.max(effectiveLimit, 60) : effectiveLimit;
 
-      let query = supabase
-        .from('ofertas_ranked_general')
-        .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)')
-        .order('ranking_blend', { ascending: false })
-        .or('status.eq.approved,status.eq.published')
-        .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-        .gte('created_at', fechaLimiteISO);
-
-      if (storeFilter?.trim()) {
-        query = query.eq('store', storeFilter.trim());
-      }
-      if (viewMode === 'vitales' || viewMode === 'top' || viewMode === 'latest') {
-        const catIn = homeFeedCategoryInList(viewMode, categoryFilter);
-        if (catIn != null && catIn.length > 0) {
-          query = catIn.length === 1 ? query.eq('category', catIn[0]) : query.in('category', catIn);
-        }
-      }
-      if (viewMode === 'top') {
-        query = query.gte('up_votes', 1);
-      }
-      if (viewMode === 'top') {
-        query = query.order('score_final', { ascending: false });
-      } else if (viewMode === 'latest') {
-        query = query.order('created_at', { ascending: false });
-      }
-
-      const fetchLimit = viewMode === 'vitales' ? 60 : effectiveLimit;
-      Promise.resolve(query.limit(fetchLimit))
-        .then(({ data, error }) => {
-          setLoading(false);
-          if (error) {
-            recordFeedLoadFailure({ branch: 'ofertas_ranked' });
-            notifyUserError(
-              showToast,
-              'No pudimos cargar las ofertas. Revisa tu conexión.',
-              'feed:ofertas_ranked',
-              error
-            );
-            setFeedError('load');
-            setOffers([]);
-            return;
-          }
-          setFeedError(null);
-          const rows = data ?? [];
-          let list = rows.map((r) => mapOfferToCard(r as RankedOfferSource));
-          if (viewMode === 'vitales') {
-            list = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
-            list.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
-            const half = Math.ceil(list.length / 2);
-            const high = list.slice(0, half);
-            const low = list.slice(half);
-            const interleaved: typeof list = [];
-            for (let i = 0; i < Math.max(high.length, low.length); i++) {
-              if (high[i]) interleaved.push(high[i]);
-              if (low[i]) interleaved.push(low[i]);
-            }
-            list = interleaved.slice(0, effectiveLimit);
-          }
-          setOffers(list);
-          setHasMoreCursor(viewMode === 'vitales' ? false : rows.length >= effectiveLimit);
-          recordFeedLoadSuccess();
-          logEvent({
-            type: 'view',
-            source: 'feed:loaded',
-            metadata: { count: list.length, viewMode, source: 'supabase' },
-          });
-        })
-        .catch((err) => {
-          recordFeedLoadFailure({ branch: 'ofertas_ranked' });
-          notifyUserError(showToast, 'No pudimos cargar las ofertas. Revisa tu conexión.', 'feed:ofertas_ranked', err);
-          setLoading(false);
-          setFeedError('load');
-          setOffers([]);
+    void fetchHomeFeedFromAPI({
+      limit: apiLimit,
+      viewMode: homeView,
+      timeFilter,
+      categoryFilter,
+      storeFilter,
+    })
+      .then(({ items, nextCursor }) => {
+        const list = processHomeFeedList(
+          items.map((item) => mapOfferToCard(item as FeedApiItemShape)),
+          homeView,
+          effectiveLimit,
+        );
+        setOffers(list);
+        setLoading(false);
+        setFeedError(null);
+        setHasMoreCursor(homeView === 'latest' ? nextCursor != null : homeView !== 'vitales' && items.length >= effectiveLimit);
+        recordFeedLoadSuccess();
+        logEvent({
+          type: 'view',
+          source: 'feed:loaded',
+          metadata: { count: list.length, viewMode: homeView, source: 'api/feed/home' },
         });
-    };
-
-    if (viewMode === 'personalized' && !session?.access_token) {
-      runSupabaseFetch();
-      return;
-    }
-
-    if (USE_NEW_FEED) {
-      const apiLimit = viewMode === 'vitales' ? Math.max(effectiveLimit, 60) : effectiveLimit;
-      fetchFeedFromAPI({
-        limit: apiLimit,
-        viewMode,
-        timeFilter,
-        categoryFilter,
-        storeFilter,
       })
-        .then((data) => {
-          if (data != null && Array.isArray(data)) {
-            let list = data.map((item) => mapOfferToCard(item as FeedApiItemShape));
-            if (viewMode === 'top') {
-              list = list.filter((o) => (o.upvotes ?? 0) >= 1);
-            }
-            setOffers(list);
-            setLoading(false);
-            setFeedError(null);
-            setHasMoreCursor(false);
-            recordFeedLoadSuccess();
-            logEvent({
-              type: 'view',
-              source: 'feed:loaded',
-              metadata: { count: list.length, viewMode, source: 'api/feed/home' },
-            });
-            return;
-          }
-          runSupabaseFetch();
-        })
-        .catch((err) => {
-          logClientError('feed:home-api', err);
-          runSupabaseFetch();
-        });
-      return;
-    }
-
-    runSupabaseFetch();
+      .catch((err) => {
+        recordFeedLoadFailure({ branch: 'feed/home-api' });
+        notifyUserError(showToast, 'No pudimos cargar las ofertas. Revisa tu conexión.', 'feed:home-api', err);
+        setLoading(false);
+        setFeedError('load');
+        setOffers([]);
+      });
   }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token, showToast]);
 
   useEffect(() => {
@@ -436,36 +330,18 @@ function HomeContent() {
     const lastCreatedAt = offers[offers.length - 1]?.createdAt;
     if (!lastCreatedAt) return;
     setLoading(true);
-    const supabase = createClient();
-    const nowISO = new Date().toISOString();
-    const fechaLimiteISO = homeFeedCreatedAtIsoMin(timeFilter);
-    let nextQuery = supabase
-      .from('ofertas_ranked_general')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)')
-      .or('status.eq.approved,status.eq.published')
-      .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-      .gte('created_at', fechaLimiteISO)
-      .lt('created_at', lastCreatedAt)
-      .order('created_at', { ascending: false })
-      .limit(13);
-    if (storeFilter?.trim()) {
-      nextQuery = nextQuery.eq('store', storeFilter.trim());
-    }
-    const nextCatIn = homeFeedCategoryInList('latest', categoryFilter);
-    if (nextCatIn != null && nextCatIn.length > 0) {
-      nextQuery =
-        nextCatIn.length === 1 ? nextQuery.eq('category', nextCatIn[0]) : nextQuery.in('category', nextCatIn);
-    }
-    Promise.resolve(nextQuery)
-      .then(({ data, error }) => {
+    void fetchHomeFeedFromAPI({
+      limit: 13,
+      viewMode: 'latest',
+      timeFilter,
+      categoryFilter,
+      storeFilter,
+      cursor: lastCreatedAt,
+    })
+      .then(({ items, nextCursor }) => {
         setLoading(false);
-        if (error) {
-          recordFeedLoadFailure({ branch: 'next-page' });
-          notifyUserError(showToast, 'No pudimos cargar más ofertas.', 'feed:next-page', error);
-          return;
-        }
-        const rows = (data ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
-        setHasMoreCursor(rows.length >= 12);
+        const rows = items.map((item) => mapOfferToCard(item as FeedApiItemShape));
+        setHasMoreCursor(nextCursor != null);
         setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
         recordFeedLoadSuccess();
       })

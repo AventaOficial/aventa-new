@@ -8,6 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   RefreshCw,
+  Rocket,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -213,6 +214,13 @@ export default function OwnerDashboardClient() {
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Founder Mode · {data.timezone}
           </p>
+          <Link
+            href="/admin/owner/crecimiento"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
+          >
+            <Rocket className="h-4 w-4" />
+            Crecimiento AVENTA →
+          </Link>
         </div>
         <button
           type="button"
