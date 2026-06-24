@@ -242,6 +242,8 @@ export function buildPrelaunchChecklist(flags: {
 }
 
 
+export type GrowthStageId = 'seed' | 'beta' | 'growth' | 'scale' | 'expansion' | 'million';
+
 export type GrowthStage = {
   id: GrowthStageId;
   label: string;

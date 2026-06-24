@@ -55,6 +55,8 @@ type GetHomeFeedError = {
   error: string;
 };
 
+export type { GetHomeFeedSuccess, GetHomeFeedError };
+
 export async function getHomeFeed({
   limit = 20,
   cursor = null,
