@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Sparkles, Search, User, Share2, Award, BadgeCheck, Eye, MousePointerClick, Globe, Store } from 'lucide-react';
+import { Heart, Sparkles, User, Share2, Award, BadgeCheck, Eye, MousePointerClick, Globe, Store } from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -33,13 +33,29 @@ function formatRelativeTime(iso: string): string {
   const diffM = Math.floor(diffMs / 60000);
   const diffH = Math.floor(diffMs / 3600000);
   const diffD = Math.floor(diffMs / 86400000);
-  if (diffM < 1) return 'un momento';
-  if (diffM < 60) return `${diffM} min`;
-  if (diffH < 24) return `${diffH}h`;
-  if (diffD === 1) return '1 día';
-  if (diffD < 7) return `${diffD} días`;
-  if (diffD < 30) return `${Math.floor(diffD / 7)} sem`;
+  if (diffM < 1) return 'Hace un momento';
+  if (diffM < 60) return `Hace ${diffM} min`;
+  if (diffH < 24) return `Hace ${diffH}h`;
+  if (diffD === 1) return 'Hace 1 día';
+  if (diffD < 7) return `Hace ${diffD} días`;
+  if (diffD < 30) return `Hace ${Math.floor(diffD / 7)} sem`;
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+}
+
+function formatRemainingTime(expiresAt?: string | null, createdAt?: string | null): string | null {
+  let expiry: Date | null = null;
+  if (expiresAt) {
+    expiry = new Date(expiresAt);
+  } else if (createdAt) {
+    expiry = new Date(createdAt);
+    expiry.setDate(expiry.getDate() + 7);
+  }
+  if (!expiry || Number.isNaN(expiry.getTime())) return null;
+  const diffMs = expiry.getTime() - Date.now();
+  if (diffMs <= 0) return null;
+  const diffD = Math.ceil(diffMs / 86400000);
+  if (diffD === 1) return '1 día restante';
+  return `${diffD} días restantes`;
 }
 
 type UserVote = 1 | -1 | 0;
@@ -73,6 +89,7 @@ interface OfferCardProps {
   userVote?: 1 | -1 | 0 | null;
   isLiked?: boolean;
   createdAt?: string | null;
+  expiresAt?: string | null;
   msiMonths?: number | null;
   bankCoupon?: string | null;
   /** Código o texto de cupón que el cazador escribió a mano. */
@@ -114,6 +131,7 @@ export default function OfferCard({
   bankCoupon,
   coupons,
   createdAt,
+  expiresAt,
   isDestacada = false,
   isTesterOffer = false,
   dealStatus,
@@ -301,6 +319,9 @@ export default function OfferCard({
   const showImage = image && !imgError;
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
+  const remainingLabel = formatRemainingTime(expiresAt, createdAt);
+  const savingsAmount =
+    originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const personalCouponTrim = coupons?.trim() ?? '';
 
@@ -337,21 +358,21 @@ export default function OfferCard({
       : descTrim;
 
   const VotesBlock = () => (
-    <div className="flex items-center justify-center gap-1 max-[400px]:gap-0.5 md:gap-1.5 text-gray-900 dark:text-gray-100">
+    <div className="flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 text-gray-900 dark:text-gray-100">
       <VoteArrowButton
         direction="up"
         active={userVote === 1}
         disabled={votePending}
         onClick={handleVoteUp}
-        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
-        iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
+        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-full"
+        iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] transition-colors duration-200 ${
           userVote === 1
-            ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
-            : 'text-gray-500 dark:text-gray-400'
+            ? 'text-gray-900 dark:text-gray-100'
+            : 'text-gray-400 dark:text-gray-500'
         }`}
         aria-label="Votar arriba"
       />
-      <span className="min-w-6 max-[400px]:min-w-[1.35rem] md:min-w-7 text-center text-sm max-[400px]:text-[13px] md:text-base font-semibold tabular-nums">
+      <span className="min-w-6 max-[400px]:min-w-[1.35rem] md:min-w-7 text-center text-sm max-[400px]:text-[13px] md:text-base font-semibold tabular-nums tracking-tight text-gray-900 dark:text-gray-100">
         {localScore}
       </span>
       <VoteArrowButton
@@ -359,11 +380,11 @@ export default function OfferCard({
         active={userVote === -1}
         disabled={votePending}
         onClick={handleVoteDown}
-        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
-        iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
+        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-full"
+        iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] transition-colors duration-200 ${
           userVote === -1
-            ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
-            : 'text-gray-500 dark:text-gray-400'
+            ? 'text-gray-900 dark:text-gray-100'
+            : 'text-gray-400 dark:text-gray-500'
         }`}
         aria-label="Votar abajo"
       />
@@ -376,7 +397,7 @@ export default function OfferCard({
       onClick={() => {
         void runOpenOfferAction();
       }}
-      className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] active:scale-[0.99] md:hover:shadow-xl md:hover:shadow-violet-500/5 md:hover:border-violet-200 dark:md:hover:border-violet-800/50"
+      className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
     >
       <button
         onClick={handleFavoriteClick}
@@ -471,30 +492,36 @@ export default function OfferCard({
             {title}
           </h3>
 
-          <div className="flex items-baseline gap-1.5 max-[400px]:gap-1 md:gap-2 flex-wrap mt-1 max-[400px]:mt-0.5 min-w-0">
-            <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
-              {formatPrice(discountPrice)}
-            </span>
-            {originalPrice > 0 && (
-              <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400 line-through">
-                {formatPrice(originalPrice)}
+          <div className="mt-1 max-[400px]:mt-0.5 min-w-0">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-lg max-[400px]:text-base md:text-2xl font-semibold text-[#1d1d1f] dark:text-gray-50 tracking-tight tabular-nums">
+                ${formatPrice(discountPrice)}
               </span>
+              {originalPrice > discountPrice && originalPrice > 0 && (
+                <span className="text-xs md:text-sm text-gray-400 dark:text-gray-500 line-through tabular-nums">
+                  ${formatPrice(originalPrice)}
+                </span>
+              )}
+            </div>
+            {savingsAmount > 0 && (
+              <p className="mt-0.5 text-xs md:text-[13px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight">
+                Ahorra ${formatPrice(savingsAmount)}
+              </p>
             )}
-            {discount > 0 && (
-              <span className="text-[10px] md:text-[11px] font-medium px-1 md:px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
-                -{discount}%
-              </span>
-            )}
-            {isDestacada && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300" title="La están validando">
-                <Award className="h-3 w-3 md:h-3.5 md:w-3.5" />
-                Destacada
-              </span>
-            )}
-            {isTesterOffer && (
-              <span className="inline-flex text-[10px] md:text-[11px] font-medium px-1.5 md:px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" title="Oferta de ejemplo (relleno)">
-                Prueba
-              </span>
+            {(isDestacada || isTesterOffer) && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {isDestacada && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400" title="La están validando">
+                    <Award className="h-3 w-3" />
+                    Destacada
+                  </span>
+                )}
+                {isTesterOffer && (
+                  <span className="inline-flex text-[10px] font-medium text-amber-600/90 dark:text-amber-400/90" title="Oferta de ejemplo (relleno)">
+                    Prueba
+                  </span>
+                )}
+              </div>
             )}
           </div>
           {bankCouponLabel ? (
@@ -505,19 +532,16 @@ export default function OfferCard({
             </div>
           ) : null}
 
-          <p className="text-[11px] md:text-xs mt-0.5 min-w-0 leading-snug break-words">
-            <span className="font-semibold text-gray-900 dark:text-white">{storeLabel}</span>
-            {timeLabel ? (
-              <span className="text-gray-500 dark:text-gray-400 font-normal"> · hace {timeLabel}</span>
-            ) : null}
+          <p className="text-[11px] md:text-xs mt-1.5 min-w-0 leading-snug text-gray-400 dark:text-gray-500 font-normal tracking-wide">
+            {[storeLabel, timeLabel, remainingLabel].filter(Boolean).join(' • ')}
             {offerScope ? (
               <>
-                <span className="text-gray-400 dark:text-gray-500"> · </span>
-                <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 font-normal">
+                {' • '}
+                <span className="inline-flex items-center gap-0.5">
                   {offerScope === 'online' ? (
-                    <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <Globe className="h-3 w-3 shrink-0 inline" aria-hidden />
                   ) : (
-                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <Store className="h-3 w-3 shrink-0 inline" aria-hidden />
                   )}
                   {offerScope === 'online' ? 'En línea' : 'En tienda'}
                 </span>
@@ -619,8 +643,8 @@ export default function OfferCard({
         )}
         </div>
 
-        <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-1 border-t border-gray-100/90 dark:border-gray-800/80">
-          <div className="flex items-center gap-2 max-[400px]:gap-1.5">
+        <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-2 border-t border-gray-100/80 dark:border-gray-800/60">
+          <div className="flex items-center">
             <button
               type="button"
               onClick={(e) => {
@@ -644,10 +668,9 @@ export default function OfferCard({
                   onCardClick?.();
                 })();
               }}
-              className="w-full min-w-0 flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-3 max-[400px]:px-2 py-2.5 max-[400px]:py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-95"
+              className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
             >
-              <Search className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-4.5 md:w-4.5 shrink-0" />
-              Ver precio en tienda
+              Ver oferta →
             </button>
           </div>
         </div>
