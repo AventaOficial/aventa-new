@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import type { IllustrationId } from '../guides/content';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -16,7 +17,7 @@ function Scene({ children }: { children: ReactNode }) {
 }
 
 function FeedTabsDemo() {
-  const tabs = ['Día a día', 'Top', 'Para ti', 'Últimas'];
+  const tabs = ['Día a día', 'Top', 'Para ti', 'Recientes'];
   return (
     <Scene>
       <div className="flex flex-wrap justify-center gap-1.5">
@@ -60,15 +61,14 @@ function VoteDemo() {
   return (
     <Scene>
       <div className="flex items-center justify-center gap-6">
-        <motion.button
-          type="button"
+        <motion.div
           animate={{ y: [0, -4, 0] }}
           transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
           className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 ring-2 ring-emerald-500/30 dark:text-emerald-400"
           aria-hidden
         >
-          <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10v12l5-3 5 3V10H7zm8-8H9v8h6V2z" /></svg>
-        </motion.button>
+          <ArrowUp className="h-7 w-7" strokeWidth={2.5} />
+        </motion.div>
         <motion.div
           initial={{ scale: 0.9 }}
           animate={{ scale: [0.95, 1.02, 0.95] }}
@@ -78,15 +78,14 @@ function VoteDemo() {
           <p className="text-xs font-bold text-gray-800 dark:text-gray-100">$899</p>
           <p className="text-[10px] text-gray-500 line-through">$1,199</p>
         </motion.div>
-        <motion.button
-          type="button"
+        <motion.div
           animate={{ y: [0, 4, 0] }}
           transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut', delay: 0.3 }}
           className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 ring-2 ring-red-500/20"
           aria-hidden
         >
-          <svg className="h-7 w-7 rotate-180" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10v12l5-3 5 3V10H7zm8-8H9v8h6V2z" /></svg>
-        </motion.button>
+          <ArrowDown className="h-7 w-7" strokeWidth={2.5} />
+        </motion.div>
       </div>
     </Scene>
   );

@@ -143,27 +143,47 @@ export default function InteractiveGuide({
         ))}
       </div>
 
-      <nav className="mt-4 grid grid-cols-2 gap-2 sm:gap-3" aria-label="Navegación de la guía">
-        <motion.button
-          type="button"
-          onClick={onPrev}
-          disabled={isFirst}
-          whileTap={{ scale: 0.98 }}
-          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl border border-gray-200/90 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-35 dark:border-gray-600/70 dark:bg-[#1a1a1a]/80 dark:text-gray-200"
-        >
-          <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
-          Anterior
-        </motion.button>
-        <motion.button
-          type="button"
-          onClick={onNext}
-          disabled={isLast}
-          whileTap={{ scale: 0.98 }}
-          className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${guide.accent} px-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none`}
-        >
-          Siguiente
-          <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
-        </motion.button>
+      <nav className="mt-4 space-y-3" aria-label="Navegación de la guía">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <motion.button
+            type="button"
+            onClick={onPrev}
+            disabled={isFirst}
+            whileTap={{ scale: 0.98 }}
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl border border-gray-200/90 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-35 dark:border-gray-600/70 dark:bg-[#1a1a1a]/80 dark:text-gray-200"
+          >
+            <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+            Anterior
+          </motion.button>
+          {isLast ? (
+            <motion.button
+              type="button"
+              onClick={onBackToHub}
+              whileTap={{ scale: 0.98 }}
+              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${guide.accent} px-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20`}
+            >
+              Ver otras guías
+            </motion.button>
+          ) : (
+            <motion.button
+              type="button"
+              onClick={onNext}
+              whileTap={{ scale: 0.98 }}
+              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${guide.accent} px-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20`}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+            </motion.button>
+          )}
+        </div>
+        {isLast && (
+          <Link
+            href="/"
+            className="flex h-11 items-center justify-center rounded-2xl border border-gray-200/90 bg-white/90 text-sm font-semibold text-violet-600 transition-colors hover:bg-violet-50 dark:border-gray-600/70 dark:bg-[#1a1a1a]/80 dark:text-violet-400 dark:hover:bg-violet-950/30"
+          >
+            Ir al inicio
+          </Link>
+        )}
       </nav>
     </div>
   );

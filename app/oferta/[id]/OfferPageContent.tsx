@@ -6,8 +6,6 @@ import {
   User,
   BadgeCheck,
   Heart,
-  ThumbsUp,
-  ThumbsDown,
   ExternalLink,
   MessageCircle,
   Flag,
@@ -27,6 +25,7 @@ import { publicProfilePath } from '@/lib/profileSlug';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
+import VoteArrowButton from '@/app/components/VoteArrowButton';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
@@ -568,31 +567,31 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               ) : null}
 
               <div className="flex items-center gap-3 mt-6 text-gray-900 dark:text-gray-100">
-                <button
-                  type="button"
+                <VoteArrowButton
+                  direction="up"
+                  active={userVote === 1}
                   onClick={() => handleVote('up')}
-                  aria-label="Votar positivo"
                   className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
                     userVote === 1
                       ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                       : 'text-gray-500 dark:text-gray-400'
                   }`}
-                >
-                  <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`} />
-                </button>
+                  iconClassName={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`}
+                  aria-label="Votar arriba"
+                />
                 <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localScore}</span>
-                <button
-                  type="button"
+                <VoteArrowButton
+                  direction="down"
+                  active={userVote === -1}
                   onClick={() => handleVote('down')}
-                  aria-label="Votar negativo"
                   className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
                     userVote === -1
                       ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
                       : 'text-gray-500 dark:text-gray-400'
                   }`}
-                >
-                  <ThumbsDown className={`h-5 w-5 ${userVote === -1 ? 'fill-current' : ''}`} />
-                </button>
+                  iconClassName={`h-5 w-5 ${userVote === -1 ? 'fill-current' : ''}`}
+                  aria-label="Votar abajo"
+                />
               </div>
 
               <div className="flex flex-wrap gap-2 mt-4">

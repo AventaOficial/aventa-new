@@ -80,14 +80,16 @@ export default function DescubreGuide() {
           )}
         </AnimatePresence>
 
-        <p className="mt-8 text-center text-sm">
-          <Link
-            href="/"
-            className="inline-flex min-h-[44px] items-center justify-center font-medium text-violet-600 transition-colors hover:text-violet-500 dark:text-violet-400"
-          >
-            Volver al inicio
-          </Link>
-        </p>
+        {!activeGuide && (
+          <p className="mt-8 text-center text-sm">
+            <Link
+              href="/"
+              className="inline-flex min-h-[44px] items-center justify-center font-medium text-violet-600 transition-colors hover:text-violet-500 dark:text-violet-400"
+            >
+              Volver al inicio
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

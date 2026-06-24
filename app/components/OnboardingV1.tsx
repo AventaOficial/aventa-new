@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Plus, ThumbsUp, Heart, Search, BowArrow, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
+import { X, Plus, ArrowUp, Heart, Search, BowArrow, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
@@ -29,9 +29,9 @@ const GUIDE_STEPS: {
     description: 'Sube ofertas en segundos',
   },
   {
-    icon: ThumbsUp,
+    icon: ArrowUp,
     title: 'Votar',
-    description: 'Califica ofertas con un pulgar arriba si te gusta o pulgar abajo si no tanto.',
+    description: 'Califica ofertas con la flecha arriba si te gusta o flecha abajo si no tanto.',
   },
   {
     icon: Heart,

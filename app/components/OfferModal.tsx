@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { X, Heart, ThumbsUp, ThumbsDown, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
+import { X, Heart, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
+import VoteArrowButton from './VoteArrowButton';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -758,31 +759,31 @@ export default function OfferModal({
                   ¿Esta oferta te parece útil?
                 </p>
                 <div className="flex items-center justify-center gap-2 text-gray-900 dark:text-gray-100">
-                  <button
-                    type="button"
+                  <VoteArrowButton
+                    direction="up"
+                    active={userVote === 1}
                     onClick={() => handleVote('up')}
-                    aria-label="Votar positivo"
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === 1
                         ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                         : 'bg-white/70 dark:bg-[#1a1a1a]/70 text-gray-500 dark:text-gray-400'
                     }`}
-                  >
-                    <ThumbsUp className={`h-5 w-5 ${userVote === 1 ? 'fill-purple-600 text-purple-600 dark:fill-purple-400 dark:text-purple-400' : ''}`} />
-                  </button>
+                    iconClassName={`h-5 w-5 ${userVote === 1 ? 'fill-purple-600 text-purple-600 dark:fill-purple-400 dark:text-purple-400' : ''}`}
+                    aria-label="Votar arriba"
+                  />
                   <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localWeightedScore}</span>
-                  <button
-                    type="button"
+                  <VoteArrowButton
+                    direction="down"
+                    active={userVote === -1}
                     onClick={() => handleVote('down')}
-                    aria-label="Votar negativo"
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === -1
                         ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
                         : 'bg-white/70 dark:bg-[#1a1a1a]/70 text-gray-500 dark:text-gray-400'
                     }`}
-                  >
-                    <ThumbsDown className={`h-5 w-5 ${userVote === -1 ? 'fill-pink-600 text-pink-600 dark:fill-pink-400 dark:text-pink-400' : ''}`} />
-                  </button>
+                    iconClassName={`h-5 w-5 ${userVote === -1 ? 'fill-pink-600 text-pink-600 dark:fill-pink-400 dark:text-pink-400' : ''}`}
+                    aria-label="Votar abajo"
+                  />
                 </div>
               </div>
 

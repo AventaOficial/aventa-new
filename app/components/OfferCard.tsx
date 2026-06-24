@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Sparkles, ThumbsUp, ThumbsDown, Search, User, Share2, Award, BadgeCheck, Eye, MousePointerClick, Globe, Store } from 'lucide-react';
+import { Heart, Sparkles, Search, User, Share2, Award, BadgeCheck, Eye, MousePointerClick, Globe, Store } from 'lucide-react';
+import VoteArrowButton from './VoteArrowButton';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
@@ -333,37 +334,33 @@ export default function OfferCard({
 
   const VotesBlock = () => (
     <div className="flex items-center justify-center gap-1 max-[400px]:gap-0.5 md:gap-1.5 text-gray-900 dark:text-gray-100">
-      <button
-        type="button"
+      <VoteArrowButton
+        direction="up"
+        active={userVote === 1}
         onClick={handleVoteUp}
         className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
-        aria-label="Votar positivo"
-      >
-        <ThumbsUp
-          className={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
-            userVote === 1
-              ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
-              : 'text-gray-500 dark:text-gray-400'
-          }`}
-        />
-      </button>
+        iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
+          userVote === 1
+            ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
+            : 'text-gray-500 dark:text-gray-400'
+        }`}
+        aria-label="Votar arriba"
+      />
       <span className="min-w-6 max-[400px]:min-w-[1.35rem] md:min-w-7 text-center text-sm max-[400px]:text-[13px] md:text-base font-semibold tabular-nums">
         {localScore}
       </span>
-      <button
-        type="button"
+      <VoteArrowButton
+        direction="down"
+        active={userVote === -1}
         onClick={handleVoteDown}
         className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
-        aria-label="Votar negativo"
-      >
-        <ThumbsDown
-          className={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
-            userVote === -1
-              ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
-              : 'text-gray-500 dark:text-gray-400'
-          }`}
-        />
-      </button>
+        iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
+          userVote === -1
+            ? 'fill-violet-600 text-violet-600 dark:fill-violet-400 dark:text-violet-400'
+            : 'text-gray-500 dark:text-gray-400'
+        }`}
+        aria-label="Votar abajo"
+      />
     </div>
   );
 
