@@ -20,12 +20,28 @@ function formatNum(n: number | null | undefined): string {
   return n.toLocaleString('es-MX');
 }
 
-function formatMoneyRange(min: number, max: number): string {
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
-  if (min === max) return fmt(min);
-  if (min === 0) return `Gratis – ${fmt(max)}/mes aprox.`;
-  return `${fmt(min)} – ${fmt(max)}/mes aprox.`;
+function formatUsd(n: number): string {
+  if (n === 0) return '$0 USD';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: n < 1 ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
+function formatMxn(n: number): string {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+function formatCostToday(usd: number, mxn: number): string {
+  if (usd === 0) return 'Gratis hoy';
+  if (mxn > 0) return `${formatUsd(usd)}/mes ≈ ${formatMxn(mxn)}/mes`;
+  return `${formatUsd(usd)}/mes`;
 }
 
 function statusDot(status: TrafficLight): string {
@@ -106,7 +122,7 @@ export default function CrecimientoClient() {
 
   if (!data) return null;
 
-  const { aspiration, users, infrastructure, roadmap, nextActions } = data;
+  const { aspiration, users, infrastructure, billing, roadmap, nextActions } = data;
 
   return (
     <div className="space-y-6 pb-12 max-w-5xl">
@@ -229,11 +245,11 @@ export default function CrecimientoClient() {
       <section className="rounded-3xl border border-gray-200/70 dark:border-gray-800 bg-white dark:bg-[#1C1C1E] p-5 md:p-6">
         <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100 flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-violet-600" />
-          Infraestructura y cuándo pagar más
+          Infraestructura y costos
         </h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Costos orientativos en MXN. Confirma siempre en el panel de cada proveedor (Upstash → Usage, Supabase →
-          Billing).
+          Precios públicos verificados ({billing.pricingAsOf}). Tipo de cambio orientativo: 1 USD ={' '}
+          {billing.fxUsdMxn} MXN.
         </p>
         <div className="mt-4 space-y-4">
           {infrastructure.map((row) => (
@@ -241,17 +257,41 @@ export default function CrecimientoClient() {
               key={row.id}
               className="rounded-2xl border border-gray-200/80 dark:border-gray-700 p-4 md:p-5"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${statusDot(row.status)}`} />
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{row.name}</h3>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDot(row.status)}`} />
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{row.name}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Plan AVENTA: <strong className="text-gray-700 dark:text-gray-300">{row.aventaPlan}</strong>
+                      {' · '}
+                      {row.statusLabel}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
-                  {formatMoneyRange(row.costReferenceMxn.min, row.costReferenceMxn.max)}
-                </p>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold text-violet-700 dark:text-violet-300">
+                    {formatCostToday(row.currentMonthlyUsd, row.currentMonthlyMxn)}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400 mt-0.5">costo hoy</p>
+                </div>
               </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{row.currentPlanHint}</p>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{row.freeLimitNote}</p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Uso: {row.usageSnapshot}
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{row.listPriceLabel}</p>
+              {row.billingNote ? (
+                <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">{row.billingNote}</p>
+              ) : null}
+              <div className="mt-3 rounded-xl bg-[#F5F5F7]/80 dark:bg-[#111113] px-3 py-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Siguiente plan</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200 mt-0.5">{row.nextTierLabel}</p>
+                {row.id !== 'domain' && row.nextTierMonthlyUsd > 0 ? (
+                  <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">
+                    ≈ {formatUsd(row.nextTierMonthlyUsd)}/mes
+                  </p>
+                ) : null}
+              </div>
               <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Cuándo subir de plan</p>
               <ul className="mt-1.5 space-y-1">
                 {row.upgradeWhen.map((w) => (
@@ -261,20 +301,64 @@ export default function CrecimientoClient() {
                   </li>
                 ))}
               </ul>
-              {row.panelUrl ? (
-                <a
-                  href={row.panelUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
-                >
-                  Abrir panel
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : null}
+              <div className="mt-3 flex flex-wrap gap-3">
+                {row.panelUrl ? (
+                  <a
+                    href={row.panelUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                  >
+                    Abrir panel
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : null}
+                {row.pricingUrl ? (
+                  <a
+                    href={row.pricingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:underline"
+                  >
+                    Ver precios oficiales
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
+
+        {/* Total */}
+        <div className="mt-6 rounded-2xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50/80 dark:bg-violet-950/30 p-5">
+          <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Total infraestructura AVENTA</h3>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Lo que pagas hoy (mensual)</p>
+              <p className="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-300">
+                {formatUsd(billing.currentMonthlyUsd)}/mes
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                ≈ {formatMxn(billing.currentMonthlyMxn)}/mes
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Dominio anual: {formatUsd(billing.domainAnnualUsd)} ({formatMxn(billing.domainAnnualMxn)}/año)
+                prorrateado en el total mensual.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Stack producción (referencia)</p>
+              <p className="mt-1 text-2xl font-bold text-gray-800 dark:text-gray-200">
+                {formatUsd(billing.prodStackMonthlyUsd)}/mes
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                ≈ {formatMxn(billing.prodStackMonthlyMxn)}/mes
+              </p>
+              <p className="mt-2 text-xs text-gray-500">{billing.prodStackNote}</p>
+            </div>
+          </div>
+        </div>
+
         <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
           Operación: cola write_queue {data.operations.writeQueuePending} pendientes ·{' '}
           {data.operations.writeQueueFailed} fallidos · eventos en modo{' '}

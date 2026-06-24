@@ -3,7 +3,9 @@ import { getWriteQueueBacklog } from '@/lib/server/writeQueue';
 import {
   GROWTH_ROADMAP,
   INFRA_COST_TIERS,
+  computeBillingTotals,
   resolveGrowthStage,
+  type BillingTotals,
   type GrowthStageId,
 } from '@/lib/owner/growthModel';
 import { OWNER_DASHBOARD_TZ } from '@/lib/owner/mxTime';
@@ -15,12 +17,19 @@ export type GrowthInfraRow = {
   name: string;
   status: TrafficLight;
   statusLabel: string;
-  currentPlanHint: string;
+  aventaPlan: string;
+  usageSnapshot: string;
+  listPriceLabel: string;
+  currentMonthlyUsd: number;
+  currentMonthlyMxn: number;
+  nextTierLabel: string;
+  nextTierMonthlyUsd: number;
   freeLimitNote: string;
   upgradeWhen: string[];
-  costReferenceMxn: { min: number; max: number; note: string };
   panelUrl: string;
+  pricingUrl: string;
   configured: boolean;
+  billingNote?: string;
 };
 
 export type GrowthDashboardPayload = {
@@ -58,6 +67,7 @@ export type GrowthDashboardPayload = {
     eventWriteMode: string;
   };
   infrastructure: GrowthInfraRow[];
+  billing: BillingTotals;
   roadmap: typeof GROWTH_ROADMAP;
   nextActions: Array<{ id: string; priority: TrafficLight; title: string; detail: string; href?: string }>;
   docsRefs: string[];
@@ -164,6 +174,8 @@ export async function buildGrowthDashboard(): Promise<GrowthDashboardPayload> {
   const upstashOk = hasEnv('UPSTASH_REDIS_REST_URL') && hasEnv('UPSTASH_REDIS_REST_TOKEN');
   const eventWriteMode = (process.env.EVENT_WRITE_MODE ?? 'adaptive').trim().toLowerCase();
 
+  const billing = computeBillingTotals();
+
   const infrastructure: GrowthInfraRow[] = INFRA_COST_TIERS.map((tier) => {
     const configured =
       tier.envKeys.length === 0 ? true : tier.envKeys.every((k) => hasEnv(k));
@@ -173,12 +185,19 @@ export async function buildGrowthDashboard(): Promise<GrowthDashboardPayload> {
       name: tier.name,
       status,
       statusLabel: label,
-      currentPlanHint: tier.currentPlanHint,
+      aventaPlan: tier.aventaPlan,
+      usageSnapshot: tier.usageSnapshot,
+      listPriceLabel: tier.listPriceLabel,
+      currentMonthlyUsd: tier.currentMonthlyUsd,
+      currentMonthlyMxn: Math.round(tier.currentMonthlyUsd * billing.fxUsdMxn),
+      nextTierLabel: tier.nextTierLabel,
+      nextTierMonthlyUsd: tier.nextTierMonthlyUsd,
       freeLimitNote: tier.freeLimitNote,
       upgradeWhen: tier.upgradeWhen,
-      costReferenceMxn: tier.costReferenceMxn,
       panelUrl: tier.panelUrl,
+      pricingUrl: tier.pricingUrl,
       configured,
+      billingNote: tier.billingNote,
     };
   });
 
@@ -267,6 +286,7 @@ export async function buildGrowthDashboard(): Promise<GrowthDashboardPayload> {
       eventWriteMode,
     },
     infrastructure,
+    billing,
     roadmap: GROWTH_ROADMAP,
     nextActions,
     docsRefs: [

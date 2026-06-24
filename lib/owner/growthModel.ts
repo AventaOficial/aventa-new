@@ -1,7 +1,178 @@
 /**
- * Modelo de etapas de crecimiento AVENTA — referencia para panel owner.
- * Costos: orientativos (USD/MXN aprox.); validar en paneles de cada proveedor.
+ * Catálogo de costos AVENTA — precios públicos (USD) verificados jun 2026.
+ * Fuentes: vercel.com/pricing, supabase.com/pricing, upstash.com/pricing/redis, resend.com/pricing
  */
+
+/** Tipo de cambio orientativo para mostrar MXN (actualizar si lo necesitas). */
+export const BILLING_USD_MXN = 17.2;
+
+export const BILLING_PRICING_AS_OF = '2026-06-24';
+
+/** Pago real registrado por el owner. */
+export const AVENTA_DOMAIN_PAYMENT = {
+  paidAt: '2026-02-27',
+  amountUsd: 11.25,
+  renewsApprox: '2027-02-27',
+  registrarNote: 'Registro anual del dominio',
+} as const;
+
+export type InfraCostTier = {
+  id: string;
+  name: string;
+  /** Plan que usa AVENTA hoy */
+  aventaPlan: string;
+  /** Uso actual conocido (panel del proveedor) */
+  usageSnapshot: string;
+  /** Precio público del plan actual (texto) */
+  listPriceLabel: string;
+  /** Costo mensual equivalente en USD para AVENTA hoy */
+  currentMonthlyUsd: number;
+  /** Próximo plan recomendado y su precio */
+  nextTierLabel: string;
+  nextTierMonthlyUsd: number;
+  freeLimitNote: string;
+  upgradeWhen: string[];
+  panelUrl: string;
+  pricingUrl: string;
+  envKeys: string[];
+  /** Nota de pago real (dominio, etc.) */
+  billingNote?: string;
+};
+
+export const INFRA_COST_TIERS: InfraCostTier[] = [
+  {
+    id: 'vercel',
+    name: 'Vercel (hosting)',
+    aventaPlan: 'Hobby',
+    usageSnapshot: 'Proyecto aventa-new en producción',
+    listPriceLabel: '$0 USD/mes (Hobby, uso personal/comercial limitado)',
+    currentMonthlyUsd: 0,
+    nextTierLabel: 'Pro — $20 USD/mes por asiento + $20 crédito de uso',
+    nextTierMonthlyUsd: 20,
+    freeLimitNote:
+      'Hobby: crons máx. 1×/día por job en vercel.json, límites de ancho de banda y funciones serverless.',
+    upgradeWhen: [
+      'Crons del bot cada ~15 min sin cron externo',
+      'Picos >400 usuarios concurrentes',
+      'Equipo con más de 1 desarrollador desplegando',
+    ],
+    panelUrl: 'https://vercel.com/dashboard',
+    pricingUrl: 'https://vercel.com/pricing',
+    envKeys: [],
+  },
+  {
+    id: 'supabase',
+    name: 'Supabase (BD + Auth + Storage)',
+    aventaPlan: 'Free',
+    usageSnapshot: '1 proyecto · revisar Storage → offer-images',
+    listPriceLabel: '$0 USD/mes (Free: 500 MB BD, 1 GB archivos, 50k MAU)',
+    currentMonthlyUsd: 0,
+    nextTierLabel: 'Pro — $25 USD/mes por organización (+ $10 crédito compute)',
+    nextTierMonthlyUsd: 25,
+    freeLimitNote:
+      'Free: pausa por inactividad, 5 GB egress/mes, límites de conexiones. Pro incluye 100k MAU, 8 GB BD, 100 GB storage.',
+    upgradeWhen: [
+      'Más de ~10k MAU o picos de lectura',
+      'Storage de imágenes >1 GB',
+      'Erroces 503 / timeouts por conexiones agotadas',
+    ],
+    panelUrl: 'https://supabase.com/dashboard',
+    pricingUrl: 'https://supabase.com/pricing',
+    envKeys: ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+  },
+  {
+    id: 'upstash',
+    name: 'Upstash Redis (rate limit)',
+    aventaPlan: 'Free',
+    usageSnapshot: 'Revisar Usage en consola (ej. ~6k comandos acumulados)',
+    listPriceLabel: '$0 USD/mes (Free: 500k comandos/mes, 256 MB)',
+    currentMonthlyUsd: 0,
+    nextTierLabel: 'Pay-as-you-go — $0.20 USD por 100k comandos · Fixed 250MB — $10 USD/mes',
+    nextTierMonthlyUsd: 10,
+    freeLimitNote:
+      'Sin UPSTASH_* en Vercel el rate limit cae a memoria por instancia (no escala). Pay-as-you-go: primer 1 GB storage gratis.',
+    upgradeWhen: [
+      'Usage >400k comandos/mes',
+      'Tráfico multi-región estable',
+      'Muchos 429 legítimos en feed/votos',
+    ],
+    panelUrl: 'https://console.upstash.com',
+    pricingUrl: 'https://upstash.com/pricing/redis',
+    envKeys: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+  },
+  {
+    id: 'resend',
+    name: 'Resend (correos transaccionales)',
+    aventaPlan: 'Free',
+    usageSnapshot: '52 / 3,000 emails mes · 3 / 100 emails día (jun 2026)',
+    listPriceLabel: '$0 USD/mes (Free: 3,000 emails/mes, máx. 100/día)',
+    currentMonthlyUsd: 0,
+    nextTierLabel: 'Pro — $20 USD/mes (50,000 emails, sin límite diario)',
+    nextTierMonthlyUsd: 20,
+    freeLimitNote:
+      'Digest diario/semanal y notificaciones consumen cuota. Overage Pro: $0.90 USD por 1,000 emails extra.',
+    upgradeWhen: [
+      'Superas 100 emails/día de forma habitual',
+      'Digest a miles de usuarios (>3,000/mes)',
+      'Necesitas más dominios verificados (Free: 1)',
+    ],
+    panelUrl: 'https://resend.com/settings/usage',
+    pricingUrl: 'https://resend.com/pricing',
+    envKeys: ['RESEND_API_KEY'],
+  },
+  {
+    id: 'domain',
+    name: 'Dominio aventaofertas.com',
+    aventaPlan: 'Registro anual',
+    usageSnapshot: 'Activo · enlazado en NEXT_PUBLIC_APP_URL',
+    listPriceLabel: '$11.25 USD/año (pagado 27 feb 2026)',
+    currentMonthlyUsd: Math.round((AVENTA_DOMAIN_PAYMENT.amountUsd / 12) * 100) / 100,
+    nextTierLabel: 'Renovación ~feb 2027 (precio similar según registrador)',
+    nextTierMonthlyUsd: Math.round((AVENTA_DOMAIN_PAYMENT.amountUsd / 12) * 100) / 100,
+    freeLimitNote: 'Renovación anual aparte de Vercel. Precio .com típico: $11–15 USD/año.',
+    upgradeWhen: ['Renovación próxima — calendarizar antes de feb 2027'],
+    panelUrl: '',
+    pricingUrl: '',
+    envKeys: ['NEXT_PUBLIC_APP_URL'],
+    billingNote: `Pagado ${AVENTA_DOMAIN_PAYMENT.paidAt}: $${AVENTA_DOMAIN_PAYMENT.amountUsd} USD. Próxima renovación ~${AVENTA_DOMAIN_PAYMENT.renewsApprox}.`,
+  },
+];
+
+export type BillingTotals = {
+  fxUsdMxn: number;
+  pricingAsOf: string;
+  /** Suma mensual equivalente de lo que AVENTA paga hoy */
+  currentMonthlyUsd: number;
+  currentMonthlyMxn: number;
+  /** Solo dominio anual (USD) */
+  domainAnnualUsd: number;
+  domainAnnualMxn: number;
+  /** Si activaras planes de pago mínimos de producción */
+  prodStackMonthlyUsd: number;
+  prodStackMonthlyMxn: number;
+  prodStackNote: string;
+};
+
+export function computeBillingTotals(tiers: InfraCostTier[] = INFRA_COST_TIERS): BillingTotals {
+  const currentMonthlyUsd =
+    Math.round(tiers.reduce((sum, t) => sum + t.currentMonthlyUsd, 0) * 100) / 100;
+  const prodStackMonthlyUsd = tiers.reduce((sum, t) => {
+    if (t.id === 'domain') return sum + t.currentMonthlyUsd;
+    return sum + t.nextTierMonthlyUsd;
+  }, 0);
+  return {
+    fxUsdMxn: BILLING_USD_MXN,
+    pricingAsOf: BILLING_PRICING_AS_OF,
+    currentMonthlyUsd,
+    currentMonthlyMxn: Math.round(currentMonthlyUsd * BILLING_USD_MXN),
+    domainAnnualUsd: AVENTA_DOMAIN_PAYMENT.amountUsd,
+    domainAnnualMxn: Math.round(AVENTA_DOMAIN_PAYMENT.amountUsd * BILLING_USD_MXN),
+    prodStackMonthlyUsd,
+    prodStackMonthlyMxn: Math.round(prodStackMonthlyUsd * BILLING_USD_MXN),
+    prodStackNote:
+      'Estimado si subes a Vercel Pro + Supabase Pro + Upstash Fixed $10 + Resend Pro $20 (dominio igual).',
+  };
+}
 
 export type GrowthStageId = 'seed' | 'beta' | 'growth' | 'scale' | 'expansion' | 'million';
 
@@ -37,7 +208,7 @@ export const GROWTH_STAGES: GrowthStage[] = [
     mauMin: 10_000,
     mauMax: 49_999,
     headline: 'Escalar lectura del feed',
-    focus: 'Cache Redis, stress test, unificar APIs, cola de eventos en prod.',
+    focus: 'Cache Redis, stress test, cola de eventos en prod.',
   },
   {
     id: 'scale',
@@ -62,82 +233,6 @@ export const GROWTH_STAGES: GrowthStage[] = [
     mauMax: null,
     headline: 'Plataforma madura',
     focus: 'Microservicios selectivos, data pipeline, SLA comercial.',
-  },
-];
-
-export type InfraCostTier = {
-  id: string;
-  name: string;
-  currentPlanHint: string;
-  freeLimitNote: string;
-  upgradeWhen: string[];
-  costReferenceMxn: { min: number; max: number; note: string };
-  panelUrl: string;
-  envKeys: string[];
-};
-
-export const INFRA_COST_TIERS: InfraCostTier[] = [
-  {
-    id: 'vercel',
-    name: 'Vercel (hosting)',
-    currentPlanHint: 'Hobby / Pro según tu cuenta',
-    freeLimitNote: 'Hobby: crons limitados, funciones serverless con techo de concurrencia.',
-    upgradeWhen: [
-      'Crons cada 15 min (bot) sin depender de cron externo',
-      'Picos >400 usuarios concurrentes',
-      'Necesitas más maxDuration o equipo',
-    ],
-    costReferenceMxn: { min: 0, max: 400, note: 'Hobby $0 · Pro ~$20 USD/mes (~$340 MXN)' },
-    panelUrl: 'https://vercel.com/dashboard',
-    envKeys: [],
-  },
-  {
-    id: 'supabase',
-    name: 'Supabase (BD + Auth + Storage)',
-    currentPlanHint: 'Free / Pro según panel Supabase',
-    freeLimitNote: 'Free: límites de conexiones, storage ~500MB, pausa por inactividad.',
-    upgradeWhen: [
-      'Más de ~10k MAU con picos de lectura',
-      'Storage de imágenes >1 GB',
-      'Conexiones agotadas (errores 503/timeout en APIs)',
-    ],
-    costReferenceMxn: { min: 0, max: 500, note: 'Pro ~$25 USD/mes (~$430 MXN) + uso' },
-    panelUrl: 'https://supabase.com/dashboard',
-    envKeys: ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
-  },
-  {
-    id: 'upstash',
-    name: 'Upstash Redis (rate limit)',
-    currentPlanHint: 'Free — plan AVENTA',
-    freeLimitNote: 'Free: ~500k comandos/mes. Sin Redis en prod → límites incoherentes por instancia.',
-    upgradeWhen: [
-      'Comandos Redis >400k/mes (revisar panel Upstash → Usage)',
-      'Tráfico multi-región',
-      'Muchos 429 legítimos en feed/votos',
-    ],
-    costReferenceMxn: { min: 0, max: 200, note: 'Pay-as-you-go desde ~$10 USD/mes según uso' },
-    panelUrl: 'https://console.upstash.com',
-    envKeys: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
-  },
-  {
-    id: 'resend',
-    name: 'Resend (correos)',
-    currentPlanHint: 'Free tier / plan según envíos',
-    freeLimitNote: 'Límite diario de envíos en free; digest y notificaciones consumen cuota.',
-    upgradeWhen: ['Digest diario a miles de usuarios', 'Bounces altos o cola de correo'],
-    costReferenceMxn: { min: 0, max: 350, note: 'Según volumen de emails/mes' },
-    panelUrl: 'https://resend.com/overview',
-    envKeys: ['RESEND_API_KEY'],
-  },
-  {
-    id: 'domain',
-    name: 'Dominio aventaofertas.com',
-    currentPlanHint: 'Registro anual',
-    freeLimitNote: 'Renovación anual aparte de Vercel.',
-    upgradeWhen: ['Renovación próxima — calendarizar'],
-    costReferenceMxn: { min: 300, max: 600, note: 'Registro .com ~$15–30 USD/año' },
-    panelUrl: '',
-    envKeys: ['NEXT_PUBLIC_APP_URL'],
   },
 ];
 

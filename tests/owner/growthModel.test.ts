@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyVitalesFeedTransform, DIA_A_DIA_SCORE_CAP } from '../../lib/offers/homeFeedClient';
-import { resolveGrowthStage } from '../../lib/owner/growthModel';
+import { resolveGrowthStage, computeBillingTotals, AVENTA_DOMAIN_PAYMENT } from '../../lib/owner/growthModel';
 
 describe('homeFeedClient', () => {
   it('applyVitalesFeedTransform excluye score >= cap', () => {
@@ -26,5 +26,12 @@ describe('growthModel', () => {
   it('resolveGrowthStage escala en growth', () => {
     const r = resolveGrowthStage(25_000);
     expect(r.current.id).toBe('growth');
+  });
+
+  it('computeBillingTotals suma dominio prorrateado y stack prod', () => {
+    const t = computeBillingTotals();
+    expect(t.currentMonthlyUsd).toBe(Math.round((AVENTA_DOMAIN_PAYMENT.amountUsd / 12) * 100) / 100);
+    expect(t.domainAnnualUsd).toBe(11.25);
+    expect(t.prodStackMonthlyUsd).toBe(20 + 25 + 10 + 20 + t.currentMonthlyUsd);
   });
 });
