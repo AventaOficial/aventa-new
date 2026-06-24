@@ -14,6 +14,7 @@ import {
 import type { OwnerDashboardPayload, PeriodKpis, TrafficLight } from '@/lib/owner/buildOwnerDashboard';
 import { formatDiff } from '@/lib/owner/buildOwnerDashboard';
 import FounderModeGrid from './FounderModeGrid';
+import TrustedHuntersSection from './TrustedHuntersSection';
 
 function statusDot(status: TrafficLight): string {
   if (status === 'green') return 'bg-emerald-500';
@@ -523,6 +524,8 @@ export default function OwnerDashboardClient() {
           Abrir cola →
         </Link>
       </section>
+
+      <TrustedHuntersSection />
 
       {/* AFILIACIÓN */}
       <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6">

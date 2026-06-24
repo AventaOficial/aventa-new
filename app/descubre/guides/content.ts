@@ -230,7 +230,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'moderation',
         body: [
           'Las ofertas nuevas pasan por moderación para evitar spam y precios falsos.',
-          'Con reputación alta (nivel ≥ 3) tus ofertas pueden publicarse al instante con vigencia de 7 días. Mientras subes nivel, el equipo revisa más rápido.',
+          'Con reputación alta (nivel ≥ 3) tus ofertas pueden publicarse al instante con vigencia de 7 días. El owner también puede autorizar cazadores de confianza (equipo de subida) con la misma exención.',
         ],
       },
       {

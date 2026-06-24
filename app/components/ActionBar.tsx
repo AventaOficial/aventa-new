@@ -427,6 +427,9 @@ export default function ActionBar() {
       return;
     }
     setShowSubmitThanksModal(true);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aventa:offer-published'));
+    }
     const cooldownSec = cooldownExempt ? 0 : reputationLevel >= 4 ? COOLDOWN_SECONDS_LEVEL_4 : COOLDOWN_SECONDS_DEFAULT;
     setCooldownRemaining(cooldownSec);
     handleCancel();

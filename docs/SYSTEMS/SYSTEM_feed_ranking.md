@@ -5,7 +5,8 @@
 - **Fuente de datos:** Vista `ofertas_ranked_general` en Supabase (derivada de tabla offers). Incluye columnas calculadas: score, score_final, ranking_momentum, reputation_weighted_score, ranking_blend (ranking_momentum + reputation_weighted_score).
 - **Frontend:** app/page.tsx (home) con vistas: Día a día (vitales), Top, Para ti, Recientes. Filtros por categoría, tienda y período (día/semana/mes). Búsqueda con ilike sobre título, store, descripción.
 - **Para ti:** API dedicada /api/feed/for-you que usa preferencias y votos del usuario (personalizado).
-- **Orden:** vitales/top por ranking_blend o score_final; Recientes por created_at desc.
+- **Orden:** vitales (Día a día) por ranking_blend con score cap; top por score_final; Recientes por created_at desc.
+- **Día a día:** Solo moda, supermercado, hogar, belleza, viajes, servicios (+ legacy). Tecnología y Gaming no entran.
 
 ## Data flow
 
@@ -26,4 +27,5 @@
 - **Vista sin category:** Si la vista no tiene columna category, las queries con .in('category', ...) devuelven 400. Aplicar migración fix_ofertas_ranked_general_category.sql.
 - **Feed vacío:** Empty state en español; Reintentar en caso de error.
 - **Recientes paginación:** cursor por last created_at; límite por página.
+- **Recientes refresco:** polling cada 45 s en tab Recientes; evento `aventa:offer-published` tras subir oferta; refetch al volver a la pestaña. Realtime global (`ENABLE_OFFERS_REALTIME`) desactivado por rendimiento.
 - **Búsqueda:** Términos escapados; ilike sobre título, store, descripción; mismo filtro status/expires_at.

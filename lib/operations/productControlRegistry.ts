@@ -54,10 +54,11 @@ export const PRODUCT_CONTROL_AREAS: ProductControlEntry[] = [
   {
     id: 'moderacion',
     area: 'Moderación de ofertas',
-    descripcion: 'Cola pendientes, reglas y equipo.',
-    ultimoCambio: '—',
-    estado: 'pendiente',
-    notas: 'Actualiza cuando cierres un ciclo de revisión.',
+    descripcion: 'Cola pendientes, reglas, whitelist owner (cazadores sin moderación) y equipo.',
+    ultimoCambio: '2026-06-24',
+    ultimaRevision: '2026-06-24',
+    estado: 'ok',
+    notas: 'Whitelist: /admin/owner → Cazadores sin moderación; API /api/admin/trusted-hunters.',
   },
   {
     id: 'legal',

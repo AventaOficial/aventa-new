@@ -105,7 +105,7 @@ export const MAP_FLOW_DEFINITIONS: MapFlowDefinition[] = [
       {
         id: 'm1',
         title: 'Entrada',
-        description: 'Oferta nueva entra a cola (salvo auto-aprobación por reputación o bot).',
+        description: 'Oferta nueva entra a cola (salvo auto-aprobación por reputación, lista owner o bot).',
       },
       {
         id: 'm2',

@@ -125,6 +125,7 @@ El sistema se diseña con contratos explicitos:
 
 - Entidad base de contenido.
 - Ciclo de estado principal: `pending` -> `approved` o `rejected`.
+- Auto-aprobación al crear: reputación nivel ≥ 3 **o** whitelist owner (`owner_auto_approve_offers`); vigencia 7 días (`expires_at`).
 - Campos clave: titulo, tienda, precio, categoria, imagen, cupn, MSI, tags.
 
 ## 5.2 Votos y score
@@ -483,10 +484,33 @@ Mapa owner de areas administrativas.
 
 ---
 
-### 6.15 `/mi-panel` y `/admin/owner`
+### 6.15 `/admin/owner` (`app/admin/owner/page.tsx`)
 
 **Proposito**  
-Rutas de redireccion para mantener navegacion coherente.
+Dashboard owner: KPIs de negocio, moderación, afiliación y controles operativos.
+
+**Partes UI**
+
+- resumen mensual (ofertas, clics, ledger),
+- KPIs de moderación con enlace a cola,
+- **Cazadores sin moderación** (whitelist para auto-aprobación de ofertas),
+- afiliación y modo fundador.
+
+**Botones/acciones**
+
+- buscar usuario y agregar/quitar de whitelist,
+- enlaces a moderación y otras áreas admin.
+
+**Datos/APIs**
+
+- `/api/admin/owner-dashboard` (KPIs),
+- **`GET/POST/DELETE /api/admin/trusted-hunters`** (solo owner),
+- búsqueda de usuarios vía `/api/admin/users?q=`.
+
+**Notas**
+
+- Requiere migración `profiles_owner_auto_approve_offers.sql` en Supabase.
+- `/mi-panel` redirige aquí para owners.
 
 ---
 

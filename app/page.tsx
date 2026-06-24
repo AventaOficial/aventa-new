@@ -405,6 +405,31 @@ function HomeContent() {
 
   useOffersRealtime(setOffers, { onFeedMaybeStale: scheduleFeedRefetch });
 
+  useEffect(() => {
+    const onOfferPublished = () => scheduleFeedRefetch();
+    window.addEventListener('aventa:offer-published', onOfferPublished);
+    return () => window.removeEventListener('aventa:offer-published', onOfferPublished);
+  }, [scheduleFeedRefetch]);
+
+  /** Recientes: refresco periódico (realtime global desactivado por carga). */
+  useEffect(() => {
+    if (viewMode !== 'latest' || debouncedQuery.trim()) return;
+    const intervalId = setInterval(() => {
+      fetchOffersRef.current?.(undefined);
+    }, 45_000);
+    return () => clearInterval(intervalId);
+  }, [viewMode, debouncedQuery]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && viewMode === 'latest' && !debouncedQuery.trim()) {
+        scheduleFeedRefetch();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [viewMode, debouncedQuery, scheduleFeedRefetch]);
+
   const fetchNextPage = useCallback(() => {
     if (viewMode !== 'latest') return;
     if (offers.length === 0) return;

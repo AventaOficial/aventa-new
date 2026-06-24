@@ -1,4 +1,4 @@
-import { getValidCategoryValuesForFeed, VITAL_FILTER_VALUES } from '@/lib/categories';
+import { getValidCategoryValuesForFeed, DIA_A_DIA_FILTER_VALUES } from '@/lib/categories';
 
 export type HomeFeedRankedView = 'vitales' | 'top' | 'latest';
 
@@ -22,7 +22,7 @@ export function homeFeedCategoryInList(
   categoryMacro: string | null | undefined
 ): string[] | null {
   if (view === 'vitales') {
-    const vital = VITAL_FILTER_VALUES;
+    const vital = DIA_A_DIA_FILTER_VALUES;
     if (categoryMacro?.trim()) {
       const catValues = getValidCategoryValuesForFeed(categoryMacro.trim());
       const inter = catValues.filter((c) => vital.includes(c));

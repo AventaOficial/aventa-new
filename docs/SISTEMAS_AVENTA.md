@@ -22,7 +22,7 @@
 | **Guía / onboarding** | Guía rápida (Subir, Votar, Guardar), onboarding post-registro. | OnboardingV1, UIProvider, Navbar “Guía” | ✅ Operativo |
 | **PWA** | Añadir a pantalla de inicio. | settings (Instalar app), manifest | ✅ Disponible |
 | **Configuración global** | Key/value (ej. show_tester_offers). Ofertas de testers en home cuando el owner activa el toggle. | `app_config`, `/api/app-config`, `/api/admin/app-config`, admin/moderation (toggle), home (MOCK_TESTER_OFFERS con imágenes placeholder) | ✅ Operativo |
-| **Admin** | Equipo, moderación, reportes, métricas, salud, **Logs** (moderation_logs), **Usuarios** (listado con roles, baneos). | /admin/*, requireAdmin/requireModeration/requireUsersLogs, **`/api/admin/logs`**, **`/api/admin/users`** | ✅ Operativo |
+| **Admin** | Equipo, moderación, reportes, métricas, salud, **Logs** (moderation_logs), **Usuarios** (listado con roles, baneos), **Owner** (dashboard + cazadores sin moderación). | /admin/*, requireAdmin/requireModeration/requireUsersLogs, **`/api/admin/logs`**, **`/api/admin/users`**, **`/api/admin/trusted-hunters`** | ✅ Operativo |
 
 ---
 
@@ -40,3 +40,13 @@ Para comprobar que “hay pendientes”: tener al menos una fila en `notificatio
 ## 3. Propuestas y detalle
 
 Las **propuestas concretas** (configuración por secciones, cambio seguro de correo, estado en /me, avatar, comentarios con link a perfil, guía más visual, columna “Cazadas” en métricas, PWA) están en **archived/docs/SISTEMAS_Y_PROPUESTAS_POST_AUDITORIA.md**. Este doc es el mapa actual; el archivado es la referencia de mejoras sin romper lo actual.
+
+---
+
+## 4. Registro cronológico (cambios de sistema)
+
+| Fecha | Área | Qué cambió | Dónde documentar |
+|-------|------|------------|------------------|
+| 2026-06-24 | Feed home | **Día a día** alineado a chips (sin Tecnología/Gaming). **Recientes** con refresco al publicar + polling 45 s. | `SYSTEM_feed_ranking.md`, `lib/categories.ts` |
+| 2026-06-24 | Moderación / Owner | **Cazadores sin moderación:** whitelist owner para publicar ofertas sin cola (`profiles.owner_auto_approve_offers`). UI en `/admin/owner`, API `/api/admin/trusted-hunters`, lógica unificada en `lib/server/offerAutoApprove.ts`. Migración SQL pendiente en Supabase. | `SYSTEM_moderation.md`, `SYSTEM_upload_offer.md`, `SYSTEM_profiles.md` |
+| 2026-03-27 | Feed / Onboarding | Preferencias onboarding → feed Para ti; hub Descubre con 3 guías; votos con flechas. | `productControlRegistry`, guías en `/descubre` |

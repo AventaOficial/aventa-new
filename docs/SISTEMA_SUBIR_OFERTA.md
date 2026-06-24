@@ -11,7 +11,7 @@ Documento de referencia: flujo completo, componentes, API, base de datos y consi
 3. Opcionalmente sube imágenes vía **POST /api/upload-offer-image** (bucket Supabase `offer-images`).
 4. Al enviar, el front hace **POST /api/offers** con el payload en JSON.
 5. La API valida sesión, rate limit, bans, datos y escribe en la tabla **`offers`**.
-6. Si el usuario tiene **reputación nivel ≥ 3**, la oferta se crea con `status: 'approved'` y `expires_at` 7 días; si no, `status: 'pending'` (moderación).
+6. Si el usuario tiene **reputación nivel ≥ 3** o está en la **whitelist owner** (`owner_auto_approve_offers`), la oferta se crea con `status: 'approved'` y `expires_at` 7 días; si no, `status: 'pending'` (moderación).
 7. Se llama al RPC **`increment_offers_submitted_count`** para el perfil del usuario.
 8. El modal se cierra, se muestra mensaje de éxito y un **cooldown** antes de poder subir otra: 15 s por defecto; 5 s si el usuario tiene reputación nivel ≥ 4.
 
@@ -87,8 +87,8 @@ Documento de referencia: flujo completo, componentes, API, base de datos y consi
 
 ### Lógica de estado al crear
 
-- Se lee `reputation_level` del perfil del usuario (`profiles.reputation_level`).
-- Si **`reputation_level >= REPUTATION_LEVEL_AUTO_APPROVE_OFFERS`** (3):  
+- Se consulta el perfil en `lib/server/offerAutoApprove.ts` (`reputation_level` + `owner_auto_approve_offers`).
+- Si **`owner_auto_approve_offers === true`** (lista del owner en `/admin/owner`) **o** **`reputation_level >= REPUTATION_LEVEL_AUTO_APPROVE_OFFERS`** (3):  
   `status = 'approved'`, `expires_at = now + 7 días`.
 - Si no:  
   `status = 'pending'` (queda en cola de moderación).
@@ -190,6 +190,8 @@ Recomendación: mapear en **POST /api/offers** de macro a un valor de BD antes d
 | `app/api/upload-offer-image/route.ts` | POST: auth, validación de tipo/tamaño, upload a bucket `offer-images`, devuelve URL. |
 | `lib/categories.ts` | `ALL_CATEGORIES`, `MACRO_TO_DB_CATEGORIES`, `DB_CATEGORY_WHITELIST`, `VITAL_FILTER_VALUES`. |
 | `lib/server/reputation.ts` | `REPUTATION_LEVEL_AUTO_APPROVE_OFFERS` (3). |
+| `lib/server/offerAutoApprove.ts` | Reglas unificadas: whitelist owner OR reputación ≥ 3. |
+| `app/api/admin/trusted-hunters/route.ts` | CRUD whitelist (solo owner). |
 
 ---
 

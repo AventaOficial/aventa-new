@@ -7,7 +7,7 @@
 
 ## Data flow
 
-1. Oferta nueva → status = pending (o approved si reputación ≥ 3). Aparece en cola de moderación.
+1. Oferta nueva → status = pending (o approved si reputación ≥ 3 o whitelist owner). Aparece en cola de moderación.
 2. Moderador abre Admin → Moderación → ve ofertas pendientes y reportes.
 3. Aprobar → POST moderate-offer { offerId, action: 'approve', ... } → update offers.status = approved, expires_at.
 4. Rechazar → action: 'reject' → status = rejected; opcionalmente notificación al creador.
@@ -22,6 +22,7 @@
 ## Edge cases
 
 - **Solo admin:** Rutas /api/admin/* verifican rol; 403 si no es admin.
+- **Cazadores sin moderación (owner):** En `/admin/owner`, sección «Cazadores sin moderación». API `GET/POST/DELETE /api/admin/trusted-hunters` (solo owner). Marca `profiles.owner_auto_approve_offers = true` con auditoría (`owner_auto_approve_offers_at`, `owner_auto_approve_offers_by`). Migración: `docs/supabase-migrations/profiles_owner_auto_approve_offers.sql`.
 - **Comunidades:** El enlace "Comunidades" en el sidebar del panel admin y la ruta /admin/communities son solo para owner (canManageTeam). El resto de roles son redirigidos; la página pública /communities es visible para todos.
 - **Oferta ya aprobada:** Idempotente; no falla si se re-aprueba.
 - **Expiración:** approved con expires_at; el feed filtra expires_at.is.null,expires_at.gte.now().

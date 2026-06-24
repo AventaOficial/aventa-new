@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
-import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '@/lib/server/reputation';
+import { resolveOfferAutoApproveForUser } from '@/lib/server/offerAutoApprove';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { createOfferInputSchema } from '@/lib/contracts/offers';
@@ -132,18 +132,13 @@ export async function POST(request: Request) {
     let offerStatus: 'pending' | 'approved' = 'pending';
     let expiresAt: string | undefined;
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('reputation_level')
-        .eq('id', createdBy)
-        .maybeSingle();
-      const level = (profile as { reputation_level?: number } | null)?.reputation_level ?? 1;
-      if (level >= REPUTATION_LEVEL_AUTO_APPROVE_OFFERS) {
+      const auto = await resolveOfferAutoApproveForUser(supabase, createdBy);
+      if (auto.approved) {
         offerStatus = 'approved';
-        expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        expiresAt = auto.expiresAt;
       }
     } catch {
-      // si no existe la columna, mantener pending
+      // mantener pending si falla lectura de perfil
     }
 
     const categoryRaw = typeof input.category === 'string' ? input.category : null;

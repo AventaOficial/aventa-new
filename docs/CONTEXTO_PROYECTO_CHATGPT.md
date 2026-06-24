@@ -5,7 +5,7 @@ Copia este bloque cuando cambies de herramienta o quieras alinear memoria con ot
 ## Qué es AVENTA
 
 - **Web** (Next.js App Router, React, Tailwind) en **aventaofertas.com**: comunidad que **encuentra y comparte ofertas** (no vendemos productos).
-- **Backend:** Supabase (Postgres, Auth, RLS, Realtime). Ofertas pasan por **moderación** salvo reglas de reputación.
+- **Backend:** Supabase (Postgres, Auth, RLS, Realtime). Ofertas pasan por **moderación** salvo reputación ≥ 3 o whitelist owner (`owner_auto_approve_offers`).
 - **Extensión Chrome** (carpeta `browser-extension/`): envía datos de Amazon/Mercado Libre a la ruta `/subir` con query params; la app abre el modal de subir oferta.
 
 ## Rutas y roles importantes

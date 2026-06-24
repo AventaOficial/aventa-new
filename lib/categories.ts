@@ -1,7 +1,8 @@
 /**
  * Categorías de ofertas: 8 macro categorías tipo Promodescuentos.
  * Pocas categorías fuertes = más claridad. Las etiquetas/marcas pueden crecer después.
- * Vitales = las que aparecen en el tab "Día a día" del feed (Tecnología, Gaming, Hogar, Supermercado, Moda, Belleza, Viajes, Servicios).
+ * Vitales = categorías del tab «Día a día» (moda, supermercado, hogar, belleza, viajes, servicios).
+ * Tecnología y Gaming van en Top / Recientes / Para ti, no en Día a día.
  */
 
 export type CategoryId =
@@ -28,8 +29,8 @@ export interface CategoryOption {
 
 /** 8 macro categorías + Otros. Orden: las que dominamos primero (Tecnología, Gaming, Hogar, Supermercado). */
 export const ALL_CATEGORIES: CategoryOption[] = [
-  { value: 'tecnologia', label: 'Tecnología', subtitle: 'Celulares, laptops, audífonos, gadgets', vital: true, icon: 'Smartphone' },
-  { value: 'gaming', label: 'Gaming', subtitle: 'Consolas, videojuegos, accesorios', vital: true, icon: 'Gamepad2' },
+  { value: 'tecnologia', label: 'Tecnología', subtitle: 'Celulares, laptops, audífonos, gadgets', vital: false, icon: 'Smartphone' },
+  { value: 'gaming', label: 'Gaming', subtitle: 'Consolas, videojuegos, accesorios', vital: false, icon: 'Gamepad2' },
   { value: 'hogar', label: 'Hogar', subtitle: 'Electrodomésticos, cocina, herramientas', vital: true, icon: 'Home' },
   { value: 'supermercado', label: 'Supermercado', subtitle: 'Comida, bebidas, limpieza', vital: true, icon: 'ShoppingCart' },
   { value: 'moda', label: 'Moda', subtitle: 'Ropa, tenis, accesorios', vital: true, icon: 'Shirt' },
@@ -39,8 +40,10 @@ export const ALL_CATEGORIES: CategoryOption[] = [
   { value: 'other', label: 'Otros', vital: false, icon: 'Package' },
 ];
 
-/** Valores de categoría que se muestran en el tab "Día a día" del feed. */
-export const VITAL_CATEGORY_IDS: string[] = ALL_CATEGORIES.filter((c) => c.vital).map((c) => c.value);
+/** Valores de categoría que se muestran en el tab "Día a día" del feed (sin Tecnología ni Gaming). */
+export const DIA_A_DIA_CATEGORY_IDS: string[] = ALL_CATEGORIES.filter((c) => c.vital).map((c) => c.value);
+/** @deprecated Alias histórico; mismo conjunto que DIA_A_DIA_CATEGORY_IDS. */
+export const VITAL_CATEGORY_IDS: string[] = DIA_A_DIA_CATEGORY_IDS;
 const CATEGORY_IDS_SET = new Set<string>(ALL_CATEGORIES.map((c) => c.value));
 
 /**
@@ -113,10 +116,13 @@ export function getValidCategoryValuesForFeed(macro: string): string[] {
   return raw ? [raw] : [];
 }
 
-/** Valores que cuentan como "vital" (macro vitales + alias). Para .in('category', ...) en el feed. */
-export const VITAL_FILTER_VALUES: string[] = [
-  ...new Set(VITAL_CATEGORY_IDS.flatMap((macro) => getDbCategoryValuesForMacro(macro))),
+/** Valores DB para filtro del tab Día a día. */
+export const DIA_A_DIA_FILTER_VALUES: string[] = [
+  ...new Set(DIA_A_DIA_CATEGORY_IDS.flatMap((macro) => getDbCategoryValuesForMacro(macro))),
 ];
+
+/** @deprecated Usar DIA_A_DIA_FILTER_VALUES. */
+export const VITAL_FILTER_VALUES: string[] = DIA_A_DIA_FILTER_VALUES;
 
 /** Categorías para onboarding (todas menos Otros). */
 export const GENERAL_CATEGORIES_FOR_ONBOARDING: CategoryOption[] = ALL_CATEGORIES.filter((c) => c.value !== 'other');

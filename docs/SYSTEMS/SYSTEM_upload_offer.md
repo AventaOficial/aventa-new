@@ -24,6 +24,6 @@
 - **Sin sesión:** Botón Subir puede abrir modal de registro o redirigir; el POST /api/offers devuelve 401 si no hay token.
 - **Rate limit:** 429 si se envían demasiadas ofertas en poco tiempo.
 - **Usuario baneado:** 403 y mensaje claro.
-- **Reputación ≥ 3:** status = approved y expires_at = now + 7 días; si no, status = pending.
+- **Reputación ≥ 3** o **whitelist owner** (`profiles.owner_auto_approve_offers`): status = approved y expires_at = now + 7 días; si no, status = pending.
 - **Categoría:** El form envía valores macro (tecnologia, moda…); el feed filtra por valores BD (electronics, fashion…). Ofertas con category macro pueden no coincidir en filtros hasta mapeo en backend.
 - **/subir sin params:** Redirige a /?upload=1; el modal se abre vacío.
