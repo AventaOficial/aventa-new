@@ -1,7 +1,7 @@
 'use client';
 
-import { X, Plus, ThumbsUp, Heart, Search, Crosshair, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { X, Plus, ThumbsUp, Heart, Search, BowArrow, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -9,12 +9,20 @@ import { createClient } from '@/lib/supabase/client';
 import DarkModeToggle from './DarkModeToggle';
 import AventaIcon from './AventaIcon';
 import { GENERAL_CATEGORIES_FOR_ONBOARDING, ONBOARDING_SEARCHABLE_EXTRA } from '@/lib/categories';
+import Link from 'next/link';
+import { GUIDES } from '@/app/descubre/guides/content';
 import {
   syncOnboardingPreferencesToProfile,
   writeOnboardingSelectionsToStorage,
 } from '@/lib/preferences/onboardingStorage';
 
-const GUIDE_STEPS = [
+const HIGHLIGHT_CLASS = 'font-semibold text-violet-600 dark:text-violet-400';
+
+const GUIDE_STEPS: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: ReactNode;
+}[] = [
   {
     icon: Plus,
     title: 'Subir oferta',
@@ -23,7 +31,7 @@ const GUIDE_STEPS = [
   {
     icon: ThumbsUp,
     title: 'Votar',
-    description: 'Califica ofertas con un pulgar arriba si te gusta o pulgar abajo si puede ser mejor',
+    description: 'Califica ofertas con un pulgar arriba si te gusta o pulgar abajo si no tanto.',
   },
   {
     icon: Heart,
@@ -31,9 +39,15 @@ const GUIDE_STEPS = [
     description: 'Guarda tus ofertas para no perderlas',
   },
   {
-    icon: Crosshair,
+    icon: BowArrow,
     title: 'Cazar',
-    description: 'Disfruta de cazar las mejores ofertas y llevarte una comisión por las mejores. En AVENTA, cada peso ahorrado es un peso ganado.',
+    description: (
+      <>
+        Descubre y comparte las mejores ofertas y{' '}
+        <span className={HIGHLIGHT_CLASS}>gana comisiones</span>
+        {' '}por tus descubrimientos.
+      </>
+    ),
   },
 ];
 
@@ -147,7 +161,10 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         transition={{ delay: 0.35, ...t }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
-        <WaveText text="CADA PESO AHORRADO ES UN PESO GANADO" />
+        Encuentra las mejores ofertas,{' '}
+        <span className={HIGHLIGHT_CLASS}>ahorra</span>
+        {' '}y{' '}
+        <span className={HIGHLIGHT_CLASS}>gana</span>.
       </motion.p>
 
       <motion.button
@@ -157,7 +174,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         onClick={onNext}
         className="rounded-2xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-10 py-4 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
       >
-        Continuar
+        Comenzar
       </motion.button>
     </motion.div>
   );
@@ -377,7 +394,7 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.1, ...t }}
         className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-6 md:mb-8 text-center shrink-0"
       >
-        <WaveText text="Cuatro gestos y listo" />
+        <WaveText text="Así funciona Aventa" />
       </motion.h2>
 
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
@@ -429,14 +446,14 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
           onClick={handleBack}
           className="flex-1 rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-transparent px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors"
         >
-          {stepIndex === 0 ? '← Atrás' : '← Anterior'}
+          Anterior
         </button>
         <motion.button
           onClick={handleContinue}
           whileTap={{ scale: 0.98 }}
           className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all"
         >
-          {isLast ? 'Continuar' : 'Continuar'}
+          {isLast ? 'Continuar' : 'Siguiente'}
         </motion.button>
       </div>
     </motion.div>
@@ -815,10 +832,6 @@ const RegisterModal = ({
 
 export function GuideModalStandalone() {
   const { showGuideModal, closeGuideModal } = useUI();
-  const [stepIndex, setStepIndex] = useState(0);
-  const step = GUIDE_STEPS[stepIndex];
-  const Icon = step.icon;
-  const isLast = stepIndex === GUIDE_STEPS.length - 1;
 
   useEffect(() => {
     if (!showGuideModal) return;
@@ -837,10 +850,10 @@ export function GuideModalStandalone() {
       onClick={closeGuideModal}
       role="dialog"
       aria-modal="true"
-      aria-label="Guía rápida"
+      aria-label="Guías AVENTA"
     >
       <div
-        className="relative w-full max-w-sm rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-2xl"
+        className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-2xl max-h-[min(90dvh,640px)] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -851,53 +864,40 @@ export function GuideModalStandalone() {
         >
           <X className="h-5 w-5" />
         </button>
-        <h2 className="text-xl font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-4 text-center">
-          Cómo funciona
+        <h2 className="text-xl font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-1 text-center pr-8">
+          Guías AVENTA
         </h2>
-        <div className="flex flex-col items-center text-center mb-6">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 mb-4">
-            <Icon className="h-7 w-7 text-white" />
-          </div>
-          <h3 className="text-lg font-bold text-[#1d1d1f] dark:text-[#fafafa] mb-2">{step.title}</h3>
-          <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] leading-relaxed">{step.description}</p>
+        <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-5">
+          Elige la guía que necesitas
+        </p>
+        <div className="space-y-3">
+          {GUIDES.map((guide) => {
+            const Icon = guide.icon;
+            return (
+              <Link
+                key={guide.id}
+                href={`/descubre?guia=${guide.id}`}
+                onClick={closeGuideModal}
+                className="flex items-center gap-3 rounded-2xl border-2 border-[#e8e8ed] dark:border-[#2c2c2e] p-4 transition-colors hover:border-violet-400 dark:hover:border-violet-600 hover:bg-violet-50/50 dark:hover:bg-violet-950/20"
+              >
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${guide.accent}`}>
+                  <Icon className="h-5 w-5 text-white" />
+                </span>
+                <span className="min-w-0 text-left">
+                  <span className="block font-bold text-[#1d1d1f] dark:text-[#fafafa]">{guide.title}</span>
+                  <span className="block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">{guide.tagline}</span>
+                </span>
+              </Link>
+            );
+          })}
         </div>
-        <div className="flex gap-2 mb-4">
-          {GUIDE_STEPS.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === stepIndex ? 'w-6 bg-violet-500' : i < stepIndex ? 'w-1.5 bg-violet-400/60' : 'w-1.5 bg-[#d2d2d7] dark:bg-[#404040]'
-              }`}
-            />
-          ))}
-        </div>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-            disabled={stepIndex === 0}
-            className="flex-1 rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-transparent px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#fafafa] disabled:opacity-50"
-          >
-            Anterior
-          </button>
-          {isLast ? (
-            <button
-              type="button"
-              onClick={closeGuideModal}
-              className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 font-semibold text-white"
-            >
-              Entendido
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setStepIndex((i) => i + 1)}
-              className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 font-semibold text-white"
-            >
-              Siguiente
-            </button>
-          )}
-        </div>
+        <Link
+          href="/descubre"
+          onClick={closeGuideModal}
+          className="mt-4 block w-full rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 py-3 text-center text-sm font-semibold text-white"
+        >
+          Ver todas las guías
+        </Link>
       </div>
     </div>
   );
