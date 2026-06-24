@@ -174,7 +174,73 @@ export function computeBillingTotals(tiers: InfraCostTier[] = INFRA_COST_TIERS):
   };
 }
 
-export type GrowthStageId = 'seed' | 'beta' | 'growth' | 'scale' | 'expansion' | 'million';
+export type PrelaunchItem = {
+  id: string;
+  title: string;
+  detail: string;
+  status: 'done' | 'partial' | 'pending';
+  href?: string;
+};
+
+export const PRELAUNCH_CHECKLIST_TEMPLATE: Omit<PrelaunchItem, 'status'>[] = [
+  {
+    id: 'feed-api',
+    title: 'Feed home solo vía API',
+    detail: 'El browser no consulta Supabase directo; todo pasa por /api/feed/home.',
+    href: '/',
+  },
+  {
+    id: 'feed-cache',
+    title: 'Cache Redis del feed (45 s)',
+    detail: 'Upstash guarda la primera página por tab; se invalida al publicar oferta.',
+  },
+  {
+    id: 'upstash',
+    title: 'Upstash Redis en producción',
+    detail: 'Rate limit global + cache. Variables UPSTASH_* en Vercel.',
+    href: '/admin/infraestructura',
+  },
+  {
+    id: 'trusted-hunters',
+    title: 'Cazadores de confianza configurados',
+    detail: 'Whitelist del equipo de subida para publicar sin cola.',
+    href: '/admin/owner/cazadores',
+  },
+  {
+    id: 'moderation',
+    title: 'Cola de moderación operativa',
+    detail: 'Revisar pendientes y SLA antes de abrir tráfico.',
+    href: '/admin/moderation',
+  },
+  {
+    id: 'stress',
+    title: 'Stress test documentado',
+    detail: 'Ejecutar escenario D antes de campañas grandes (400–700 concurrentes).',
+    href: '/admin/owner/crecimiento',
+  },
+  {
+    id: 'write-queue',
+    title: 'Cola de escritura en prod',
+    detail: 'EVENT_WRITE_MODE=queue + cron process-write-queue si hay picos de votos/eventos.',
+    href: '/admin/operaciones',
+  },
+];
+
+export function buildPrelaunchChecklist(flags: {
+  feedCacheRedis: boolean;
+  upstashConfigured: boolean;
+}): PrelaunchItem[] {
+  return PRELAUNCH_CHECKLIST_TEMPLATE.map((item) => {
+    let status: PrelaunchItem['status'] = 'pending';
+    if (item.id === 'feed-api') status = 'done';
+    else if (item.id === 'feed-cache') status = flags.feedCacheRedis ? 'done' : 'partial';
+    else if (item.id === 'upstash') status = flags.upstashConfigured ? 'done' : 'pending';
+    else if (item.id === 'trusted-hunters') status = 'partial';
+    else if (item.id === 'moderation') status = 'partial';
+    return { ...item, status };
+  });
+}
+
 
 export type GrowthStage = {
   id: GrowthStageId;
@@ -264,7 +330,7 @@ export const GROWTH_ROADMAP: RoadmapPhase[] = [
     codeStatus: 'partial',
     items: [
       'Feed solo vía /api/feed/home (sin Supabase en browser) ✓',
-      'Cache Redis del feed 30–60 s',
+      'Cache Redis del feed 30–60 s ✓',
       'Stress test escenario D (400–700 concurrentes)',
       'EVENT_WRITE_MODE=queue + cron process-write-queue',
     ],

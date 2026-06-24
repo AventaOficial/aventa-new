@@ -145,7 +145,7 @@ export default function TrustedHuntersSection() {
         </div>
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
-            Cazadores sin moderación
+            Cazadores de confianza
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 max-w-2xl">
             Personas de confianza que pueden subir ofertas y publicarlas al instante (sin cola de moderación).

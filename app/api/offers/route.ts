@@ -6,6 +6,7 @@ import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { createOfferInputSchema } from '@/lib/contracts/offers';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
+import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
 
 type OfferInsertPayload = {
   title: string;
@@ -209,6 +210,10 @@ export async function POST(request: Request) {
     try {
       await supabase.rpc('increment_offers_submitted_count', { uuid: createdBy });
     } catch {}
+
+    if (offerStatus === 'approved') {
+      void invalidateHomeFeedCache();
+    }
 
     return NextResponse.json({ id: data?.id, ok: true, status: offerStatus });
   } catch (e) {

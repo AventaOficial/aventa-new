@@ -122,7 +122,7 @@ export default function CrecimientoClient() {
 
   if (!data) return null;
 
-  const { aspiration, users, infrastructure, billing, roadmap, nextActions } = data;
+  const { aspiration, users, infrastructure, billing, roadmap, nextActions, prelaunch } = data;
 
   return (
     <div className="space-y-6 pb-12 max-w-5xl">
@@ -239,6 +239,42 @@ export default function CrecimientoClient() {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* Pre-lanzamiento */}
+      <section className="rounded-3xl border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/15 p-5 md:p-6">
+        <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100">Checklist pre-lanzamiento</h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          Antes de captar usuarios: infra y operación listas para ir sobrado en rendimiento.
+        </p>
+        <ul className="mt-4 space-y-2">
+          {prelaunch.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-start gap-3 rounded-xl border border-gray-200/80 dark:border-gray-700 bg-white/80 dark:bg-[#1C1C1E]/80 px-3 py-2.5"
+            >
+              <span
+                className={`mt-0.5 shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${roadmapBadge(item.status)}`}
+              >
+                {roadmapLabel(item.status)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{item.title}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{item.detail}</p>
+              </div>
+              {item.href ? (
+                <Link href={item.href} className="shrink-0 text-violet-600 dark:text-violet-400">
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          Cache feed: {data.operations.feedCacheEnabled ? `activo (${data.operations.feedCacheTtlSeconds}s Redis)` : 'sin Redis — solo edge CDN'}
+          {' · '}
+          Upstash: {data.operations.upstashConfigured ? 'OK' : 'falta configurar'}
+        </p>
       </section>
 
       {/* Infra y costos */}

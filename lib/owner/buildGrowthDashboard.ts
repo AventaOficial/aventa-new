@@ -4,10 +4,13 @@ import {
   GROWTH_ROADMAP,
   INFRA_COST_TIERS,
   computeBillingTotals,
+  buildPrelaunchChecklist,
   resolveGrowthStage,
   type BillingTotals,
+  type PrelaunchItem,
   type GrowthStageId,
 } from '@/lib/owner/growthModel';
+import { feedCacheMeta } from '@/lib/server/feedCache';
 import { OWNER_DASHBOARD_TZ } from '@/lib/owner/mxTime';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
@@ -64,8 +67,11 @@ export type GrowthDashboardPayload = {
     writeQueuePending: number;
     writeQueueFailed: number;
     upstashConfigured: boolean;
+    feedCacheEnabled: boolean;
+    feedCacheTtlSeconds: number;
     eventWriteMode: string;
   };
+  prelaunch: PrelaunchItem[];
   infrastructure: GrowthInfraRow[];
   billing: BillingTotals;
   roadmap: typeof GROWTH_ROADMAP;
@@ -173,8 +179,14 @@ export async function buildGrowthDashboard(): Promise<GrowthDashboardPayload> {
 
   const upstashOk = hasEnv('UPSTASH_REDIS_REST_URL') && hasEnv('UPSTASH_REDIS_REST_TOKEN');
   const eventWriteMode = (process.env.EVENT_WRITE_MODE ?? 'adaptive').trim().toLowerCase();
+  const feedCache = feedCacheMeta();
 
   const billing = computeBillingTotals();
+
+  const prelaunch = buildPrelaunchChecklist({
+    feedCacheRedis: feedCache.enabled && feedCache.redis,
+    upstashConfigured: upstashOk,
+  });
 
   const infrastructure: GrowthInfraRow[] = INFRA_COST_TIERS.map((tier) => {
     const configured =
@@ -283,8 +295,11 @@ export async function buildGrowthDashboard(): Promise<GrowthDashboardPayload> {
       writeQueuePending: queueBacklog.pending,
       writeQueueFailed: queueBacklog.failed,
       upstashConfigured: upstashOk,
+      feedCacheEnabled: feedCache.enabled && feedCache.redis,
+      feedCacheTtlSeconds: feedCache.ttlSeconds,
       eventWriteMode,
     },
+    prelaunch,
     infrastructure,
     billing,
     roadmap: GROWTH_ROADMAP,

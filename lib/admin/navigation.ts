@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import {
   BarChart3,
+  BowArrow,
   Briefcase,
   CheckCircle,
   CircleDollarSign,
@@ -105,6 +106,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'crecimiento',
     frequency: 'semanal',
     audiences: ['founder', 'admin', 'analista'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/owner/cazadores',
+    label: 'Cazadores de confianza',
+    domain: 'contenido',
+    frequency: 'semanal',
+    audiences: ['founder'],
     visibility: 'submenu',
   },
   {
@@ -282,6 +291,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
 const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/owner': LayoutDashboard,
   '/admin/owner/crecimiento': Rocket,
+  '/admin/owner/cazadores': BowArrow,
   '/admin/dashboard': LayoutDashboard,
   '/admin/metrics': BarChart3,
   '/admin/operaciones': LayoutDashboard,
@@ -344,6 +354,7 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
   switch (screen.href) {
     case '/admin/owner':
     case '/admin/owner/crecimiento':
+    case '/admin/owner/cazadores':
       return role === 'owner';
     case '/admin/dashboard':
       return role !== 'owner';
@@ -496,6 +507,7 @@ export function getInitialOpenSections(
 export function getAdminMobileSectionTitle(pathname: string): string {
   if (pathname === '/admin/owner') return 'Owner Dashboard';
   if (pathname === '/admin/owner/crecimiento') return 'Crecimiento AVENTA';
+  if (pathname === '/admin/owner/cazadores') return 'Cazadores de confianza';
   if (pathname === '/admin/metrics') return 'Crecimiento';
   if (pathname === '/admin/moderation/bans') return 'Personas';
   if (

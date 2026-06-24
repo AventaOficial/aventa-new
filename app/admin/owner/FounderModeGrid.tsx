@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import {
   AlertTriangle,
+  BowArrow,
   CircleDollarSign,
   ClipboardList,
   Link2,
@@ -174,6 +175,18 @@ export default function FounderModeGrid({ data }: { data: OwnerDashboardPayload 
           </p>
           <p className="text-xs text-gray-400">
             Hoy: {formatNum(data.moderation.approvedToday)} apr. · {formatNum(data.moderation.rejectedToday)} rech.
+          </p>
+        </FounderCard>
+
+        <FounderCard
+          title="Cazadores"
+          icon={BowArrow}
+          tone="green"
+          href="/admin/owner/cazadores"
+          footer="Gestionar whitelist →"
+        >
+          <p className="text-gray-300 text-xs leading-relaxed">
+            Equipo que publica sin moderación. Admin → Contenido → Cazadores de confianza.
           </p>
         </FounderCard>
 
