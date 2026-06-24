@@ -156,6 +156,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [votePending, setVotePending] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const reportModalRef = useRef<HTMLDivElement>(null);
@@ -258,7 +259,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   };
 
   const handleVote = async (dir: VoteDirection) => {
-    if (!session) return;
+    if (!session || votePending) return;
     const displayVote = dir === 'up' ? 1 : -1;
     const prevVote = userVote as 0 | 1 | -1;
     const newVote: 0 | 1 | -1 = prevVote === displayVote ? 0 : displayVote;
@@ -276,7 +277,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     setLocalDown((d) => d + (newVote === -1 ? 1 : prevVote === -1 ? -1 : 0));
     setLocalScore((s) => s + wDelta);
 
+    setVotePending(true);
     const result = await postOfferVote(offer.id, dir, session.access_token);
+    setVotePending(false);
     if (!result.ok) {
       setLocalVote(prevLocalVote);
       setLocalUp(prevUp);
@@ -570,6 +573,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 <VoteArrowButton
                   direction="up"
                   active={userVote === 1}
+                  disabled={votePending}
                   onClick={() => handleVote('up')}
                   className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
                     userVote === 1
@@ -583,6 +587,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 <VoteArrowButton
                   direction="down"
                   active={userVote === -1}
+                  disabled={votePending}
                   onClick={() => handleVote('down')}
                   className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
                     userVote === -1

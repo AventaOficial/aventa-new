@@ -133,6 +133,7 @@ export default function OfferCard({
   const [localScore, setLocalScore] = useState(() => scoreFromFeed);
   const [imgError, setImgError] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [votePending, setVotePending] = useState(false);
 
   const baseScore = scoreFromFeed;
   const authorProfileHref =
@@ -222,26 +223,29 @@ export default function OfferCard({
   };
 
   const sendVote = (direction: VoteDirection, onRevert: () => void, onSuccess?: () => void): void => {
-    if (!offerId) return;
+    if (!offerId || votePending) return;
     const token = session?.access_token ?? null;
-    void postOfferVote(offerId, direction, token).then((result) => {
-      if (result.ok) {
+    setVotePending(true);
+    void postOfferVote(offerId, direction, token)
+      .then((result) => {
+        if (result.ok) {
+          logEvent({
+            type: 'vote',
+            source: 'votes:post',
+            metadata: { offerId, direction },
+          });
+          onSuccess?.();
+          return;
+        }
         logEvent({
-          type: 'vote',
+          type: 'api_error',
           source: 'votes:post',
-          metadata: { offerId, direction },
+          metadata: { offerId, direction, network: result.isNetworkError },
         });
-        onSuccess?.();
-        return;
-      }
-      logEvent({
-        type: 'api_error',
-        source: 'votes:post',
-        metadata: { offerId, direction, network: result.isNetworkError },
-      });
-      showToast?.(result.message);
-      onRevert();
-    });
+        showToast?.(result.message);
+        onRevert();
+      })
+      .finally(() => setVotePending(false));
   };
 
   const contributionForDisplay = (display: UserVote, stored: number | null | undefined): number => {
@@ -252,7 +256,7 @@ export default function OfferCard({
 
   const handleVoteUp = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isTesterOffer) return;
+    if (isTesterOffer || votePending) return;
     if (!offerId) return;
     if (!session) {
       showToast('Inicia sesión para votar (y que cuente tu opinión).');
@@ -274,7 +278,7 @@ export default function OfferCard({
 
   const handleVoteDown = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isTesterOffer) return;
+    if (isTesterOffer || votePending) return;
     if (!offerId) return;
     if (!session) {
       showToast('Inicia sesión para votar (y que cuente tu opinión).');
@@ -337,6 +341,7 @@ export default function OfferCard({
       <VoteArrowButton
         direction="up"
         active={userVote === 1}
+        disabled={votePending}
         onClick={handleVoteUp}
         className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
         iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${
@@ -352,6 +357,7 @@ export default function OfferCard({
       <VoteArrowButton
         direction="down"
         active={userVote === -1}
+        disabled={votePending}
         onClick={handleVoteDown}
         className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-md md:rounded-lg transition-colors hover:bg-[#f5f5f7] dark:hover:bg-[#262626] active:scale-95"
         iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] ${

@@ -142,6 +142,7 @@ export default function OfferModal({
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [likingId, setLikingId] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [votePending, setVotePending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportType, setReportType] = useState<string>('');
   const [reportComment, setReportComment] = useState('');
@@ -263,7 +264,7 @@ export default function OfferModal({
   };
 
   const handleVote = (vote: VoteDirection) => {
-    if (!offerId || !session?.access_token) return;
+    if (!offerId || !session?.access_token || votePending) return;
     const displayVote = vote === 'up' ? 1 : -1;
     const prevVote = userVote as 0 | 1 | -1;
     const prevUp = localUpvotes;
@@ -293,21 +294,24 @@ export default function OfferModal({
     }
     setLocalWeightedScore((s) => s + wDelta);
 
-    void postOfferVote(offerId, vote, session.access_token).then((result) => {
-      if (result.ok) {
-        onVoteChange?.(
-          offerId,
-          newVote,
-          newVote === 0 ? undefined : newVote === 1 ? wUp : wDown
-        );
-        return;
-      }
-      setLocalVote(prevVote);
-      setLocalUpvotes(prevUp);
-      setLocalDownvotes(prevDown);
-      setLocalWeightedScore(prevWeighted);
-      showToast?.(result.message);
-    });
+    setVotePending(true);
+    void postOfferVote(offerId, vote, session.access_token)
+      .then((result) => {
+        if (result.ok) {
+          onVoteChange?.(
+            offerId,
+            newVote,
+            newVote === 0 ? undefined : newVote === 1 ? wUp : wDown
+          );
+          return;
+        }
+        setLocalVote(prevVote);
+        setLocalUpvotes(prevUp);
+        setLocalDownvotes(prevDown);
+        setLocalWeightedScore(prevWeighted);
+        showToast?.(result.message);
+      })
+      .finally(() => setVotePending(false));
   };
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
@@ -762,6 +766,7 @@ export default function OfferModal({
                   <VoteArrowButton
                     direction="up"
                     active={userVote === 1}
+                    disabled={votePending}
                     onClick={() => handleVote('up')}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === 1
@@ -775,6 +780,7 @@ export default function OfferModal({
                   <VoteArrowButton
                     direction="down"
                     active={userVote === -1}
+                    disabled={votePending}
                     onClick={() => handleVote('down')}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === -1

@@ -84,6 +84,7 @@ export default function ActionBar() {
   const [msiMonths, setMsiMonths] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitThanksModal, setShowSubmitThanksModal] = useState(false);
+  const [submitThanksApproved, setSubmitThanksApproved] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
   const prevUrlParseLoadingRef = useRef(false);
@@ -426,6 +427,7 @@ export default function ActionBar() {
       showToast(firstIssue || data?.error || 'Error al crear la oferta');
       return;
     }
+    setSubmitThanksApproved(data?.status === 'approved');
     setShowSubmitThanksModal(true);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('aventa:offer-published'));
@@ -1407,7 +1409,9 @@ export default function ActionBar() {
                 Recibida
               </h2>
               <p className="mt-3 text-sm md:text-[15px] text-gray-600 dark:text-gray-400 leading-relaxed">
-                En moderación. Si el precio cuadra, sale al feed.
+                {submitThanksApproved
+                  ? '¡Gracias por cazar una oferta para la comunidad! Ya está publicada: la verás en Recientes en unos segundos.'
+                  : '¡Gracias por cazar una oferta para la comunidad! Pasará por moderación y, si todo está en orden, se publicará enseguida.'}
               </p>
               <button
                 type="button"

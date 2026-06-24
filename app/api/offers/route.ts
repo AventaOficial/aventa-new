@@ -210,7 +210,7 @@ export async function POST(request: Request) {
       await supabase.rpc('increment_offers_submitted_count', { uuid: createdBy });
     } catch {}
 
-    return NextResponse.json({ id: data?.id, ok: true });
+    return NextResponse.json({ id: data?.id, ok: true, status: offerStatus });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
     console.error('[offers] error:', err.message, e);
