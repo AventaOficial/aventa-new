@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
-import { getValidCategoryValuesForFeed, normalizeCategoryForStorage } from '@/lib/categories';
+import { getValidCategoryValuesForFeed } from '@/lib/categories';
+import {
+  buildAffinityFromPreferredSelections,
+  enrichAffinityFromBehavior,
+  hasAffinitySignals,
+  sortOffersByAffinity,
+} from '@/lib/preferences/affinity';
 import { feedForYouQuerySchema } from '@/lib/contracts/feed';
 import { computeOfferScore } from '@/lib/offers/scoring';
 
@@ -39,8 +45,8 @@ type OfferRow = {
 
 /**
  * GET: feed "Para ti" — ofertas priorizadas por afinidad.
- * Señales: (1) categorías/tiendas inferidas de favoritos y votos; (2) preferred_categories del perfil
- * (onboarding / Configuración), expandidas a valores de BD vía getValidCategoryValuesForFeed.
+ * Señales: (1) preferred_categories del perfil (categorías macro + tiendas/marcas);
+ * (2) categorías/tiendas inferidas de favoritos y votos.
  * Orden: primero filas que matchean categoría o tienda; luego ranking_blend.
  * Candidatos: últimos FOR_YOU_LOOKBACK_DAYS días.
  */
@@ -89,33 +95,18 @@ export async function GET(request: Request) {
   const votedIds = new Set((voteRes.data ?? []).map((r: { offer_id: string }) => r.offer_id));
   const affinityOfferIds = [...new Set([...favoriteIds, ...votedIds])];
 
-  const userCategories = new Set<string>();
-  const userStores = new Set<string>();
-
   const rawPrefs = (profileRes.data as { preferred_categories?: unknown } | null)?.preferred_categories;
-  if (Array.isArray(rawPrefs)) {
-    for (const pref of rawPrefs) {
-      if (typeof pref !== 'string' || !pref.trim()) continue;
-      const trimmed = pref.trim();
-      const selfNorm = normalizeCategoryForStorage(trimmed);
-      if (selfNorm) userCategories.add(selfNorm);
-      for (const v of getValidCategoryValuesForFeed(trimmed)) {
-        const n = normalizeCategoryForStorage(v);
-        if (n) userCategories.add(n);
-      }
-    }
-  }
+  let affinity = buildAffinityFromPreferredSelections(Array.isArray(rawPrefs) ? rawPrefs : []);
 
   if (affinityOfferIds.length > 0) {
     const { data: affinityOffers } = await supabase
       .from('offers')
       .select('category, store')
       .in('id', affinityOfferIds.slice(0, 50));
-    for (const o of (affinityOffers ?? []) as { category: string | null; store: string | null }[]) {
-      const normalized = normalizeCategoryForStorage(o.category);
-      if (normalized) userCategories.add(normalized);
-      if (o.store) userStores.add(o.store);
-    }
+    affinity = enrichAffinityFromBehavior(
+      affinity,
+      (affinityOffers ?? []) as { category: string | null; store: string | null }[],
+    );
   }
 
   // 2) Traer ofertas del feed. Intentar vista; si falla (ej. vista sin columnas en prod), usar tabla offers.
@@ -171,20 +162,8 @@ export async function GET(request: Request) {
   }
 
 
-  // 3) Priorizar por tienda (y categoría si viene en la fila); luego ranking_blend
-  const hasAffinity = userCategories.size > 0 || userStores.size > 0;
-  const sorted = hasAffinity
-    ? [...list].sort((a, b) => {
-        const aCategory = normalizeCategoryForStorage((a as { category?: string | null }).category ?? null);
-        const bCategory = normalizeCategoryForStorage((b as { category?: string | null }).category ?? null);
-        const aMatch = (aCategory ? userCategories.has(aCategory) : false) || (a.store && userStores.has(a.store));
-        const bMatch = (bCategory ? userCategories.has(bCategory) : false) || (b.store && userStores.has(b.store));
-        if (aMatch && !bMatch) return -1;
-        if (!aMatch && bMatch) return 1;
-        const blendA = a.ranking_blend ?? 0;
-        const blendB = b.ranking_blend ?? 0;
-        return blendB - blendA;
-      })
+  const sorted = hasAffinitySignals(affinity)
+    ? sortOffersByAffinity(list, affinity)
     : list;
 
   const result = sorted.slice(0, limit);

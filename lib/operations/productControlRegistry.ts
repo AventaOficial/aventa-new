@@ -21,7 +21,7 @@ export const PRODUCT_CONTROL_AREAS: ProductControlEntry[] = [
   {
     id: 'feed-para-ti',
     area: 'Feed “Para ti”',
-    descripcion: 'API /api/feed/for-you: preferred_categories + afinidad favoritos/votos, ventana 30 días.',
+    descripcion: 'API /api/feed/for-you: preferred_categories (categorías + tiendas) + afinidad favoritos/votos, ventana 30 días.',
     ultimoCambio: '2026-03-27',
     ultimaRevision: '2026-03-27',
     ultimoOk: '2026-03-27',

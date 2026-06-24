@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Plus, ThumbsUp, Heart, Search, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
+import { X, Plus, ThumbsUp, Heart, Search, Crosshair, Smartphone, Gamepad2, Home, ShoppingCart, Shirt, Sparkles, Plane, CreditCard, Package } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/app/providers/UIProvider';
@@ -9,22 +9,31 @@ import { createClient } from '@/lib/supabase/client';
 import DarkModeToggle from './DarkModeToggle';
 import AventaIcon from './AventaIcon';
 import { GENERAL_CATEGORIES_FOR_ONBOARDING, ONBOARDING_SEARCHABLE_EXTRA } from '@/lib/categories';
+import {
+  syncOnboardingPreferencesToProfile,
+  writeOnboardingSelectionsToStorage,
+} from '@/lib/preferences/onboardingStorage';
 
 const GUIDE_STEPS = [
   {
     icon: Plus,
     title: 'Subir oferta',
-    description: '¿Viste un precio raro? Súbelo en segundos.',
+    description: 'Sube ofertas en segundos',
   },
   {
     icon: ThumbsUp,
     title: 'Votar',
-    description: '¿Buen precio? Vota arriba antes de que se acabe.',
+    description: 'Califica ofertas con un pulgar arriba si te gusta o pulgar abajo si puede ser mejor',
   },
   {
     icon: Heart,
     title: 'Guardar',
-    description: 'Guárdala si aún no compras pero no quieres perderla.',
+    description: 'Guarda tus ofertas para no perderlas',
+  },
+  {
+    icon: Crosshair,
+    title: 'Cazar',
+    description: 'Disfruta de cazar las mejores ofertas y llevarte una comisión por las mejores. En AVENTA, cada peso ahorrado es un peso ganado.',
   },
 ];
 
@@ -138,7 +147,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         transition={{ delay: 0.35, ...t }}
         className="text-base sm:text-lg md:text-xl text-[#6e6e73] dark:text-[#a3a3a3] mb-8 md:mb-12 max-w-sm leading-relaxed"
       >
-        <WaveText text="¿Vas a pagar full? Mira primero." />
+        <WaveText text="CADA PESO AHORRADO ES UN PESO GANADO" />
       </motion.p>
 
       <motion.button
@@ -155,7 +164,6 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
 }
 
 const ONBOARDING_MAX_CATEGORIES = 3;
-const STORAGE_KEY_ONBOARDING_CATEGORIES = 'onboarding_selected_categories';
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Smartphone,
@@ -193,11 +201,7 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
 
   const handleContinue = () => {
     if (selected.length === 0) return;
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY_ONBOARDING_CATEGORIES, JSON.stringify(selected));
-      } catch (_) {}
-    }
+    writeOnboardingSelectionsToStorage(selected);
     onNext();
   };
 
@@ -373,7 +377,7 @@ function PageHowItWorks({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.1, ...t }}
         className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#fafafa] mb-6 md:mb-8 text-center shrink-0"
       >
-        <WaveText text="Tres gestos y listo" />
+        <WaveText text="Cuatro gestos y listo" />
       </motion.h2>
 
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
@@ -957,21 +961,9 @@ export default function OnboardingV1() {
   const handleAuthSuccess = (accessToken?: string) => {
     setClosing(true);
     setTimeout(async () => {
-      let cats: string[] = [];
-      try {
-        const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_ONBOARDING_CATEGORIES) : null;
-        if (raw) cats = JSON.parse(raw);
-      } catch (_) {}
-      if (cats.length > 0 && accessToken) {
+      if (accessToken) {
         try {
-          await fetch('/api/me/preferred-categories', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({ preferred_categories: cats }),
-          });
-        } catch (_) {}
-        try {
-          localStorage.removeItem(STORAGE_KEY_ONBOARDING_CATEGORIES);
+          await syncOnboardingPreferencesToProfile(accessToken);
         } catch (_) {}
       }
       await finalizeOnboarding();

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
+import {
+  mergePreferredCategories,
+  sanitizePreferredCategoriesInput,
+} from '@/lib/preferences/userPreferences';
 
 /** GET: categorías preferidas del usuario (profiles.preferred_categories) */
 export async function GET(request: NextRequest) {
@@ -23,10 +27,11 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: 'Error al cargar' }, { status: 500 });
   const cats = (data as { preferred_categories?: string[] | null } | null)?.preferred_categories;
-  return NextResponse.json({ preferred_categories: Array.isArray(cats) ? cats : [] });
+  const normalized = mergePreferredCategories([], Array.isArray(cats) ? cats : []);
+  return NextResponse.json({ preferred_categories: normalized });
 }
 
-/** PATCH: actualizar categorías preferidas. Body: { preferred_categories: string[] } */
+/** PATCH: reemplaza categorías preferidas (normalizadas, sin duplicados). */
 export async function PATCH(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
@@ -40,12 +45,12 @@ export async function PATCH(request: NextRequest) {
   if (!rl2.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
 
   const body = await request.json().catch(() => ({}));
-  const raw = body?.preferred_categories;
-  const preferred_categories = Array.isArray(raw)
-    ? raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim())
-    : undefined;
+  const raw = sanitizePreferredCategoriesInput(body?.preferred_categories);
+  if (raw === undefined) {
+    return NextResponse.json({ error: 'preferred_categories requerido' }, { status: 400 });
+  }
 
-  if (preferred_categories === undefined) return NextResponse.json({ error: 'preferred_categories requerido' }, { status: 400 });
+  const preferred_categories = mergePreferredCategories([], raw);
 
   const { error: updateErr } = await supabase
     .from('profiles')

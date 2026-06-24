@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { User, Session } from '@supabase/supabase-js'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded'
+import { syncOnboardingPreferencesToProfile } from '@/lib/preferences/onboardingStorage'
 
 type AuthContextType = {
   user: User | null
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const syncProfileDoneRef = useRef<string | null>(null)
+  const syncPreferencesDoneRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -39,7 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const next = s ? await refreshSessionIfNeeded(supabase, s) : null
       setSession(next)
       setUser(next?.user ?? null)
-      if (!next?.user?.id) syncProfileDoneRef.current = null
+      if (!next?.user?.id) {
+        syncProfileDoneRef.current = null
+        syncPreferencesDoneRef.current = null
+      }
       setIsLoading(false)
     })
 
@@ -52,7 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const next = await refreshSessionIfNeeded(supabase, s)
       setSession(next)
       setUser(next?.user ?? null)
-      if (!next?.user?.id) syncProfileDoneRef.current = null
+      if (!next?.user?.id) {
+        syncProfileDoneRef.current = null
+        syncPreferencesDoneRef.current = null
+      }
       if (!hasAuthHash) setIsLoading(false)
     })
 
@@ -88,6 +96,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(() => router.refresh())
       .catch(() => {})
   }, [session?.access_token, user?.id, router])
+
+  useEffect(() => {
+    if (!session?.access_token || !user?.id) return
+    if (syncPreferencesDoneRef.current === user.id) return
+
+    void syncOnboardingPreferencesToProfile(session.access_token)
+      .then((result) => {
+        if (result.synced || result.reason === 'no_pending') {
+          syncPreferencesDoneRef.current = user.id
+        }
+      })
+      .catch(() => {})
+  }, [session?.access_token, user?.id])
 
   const signIn = async (email: string, password: string) => {
     if (!isSupabaseConfigured()) return { error: new Error('Supabase no configurado') }
