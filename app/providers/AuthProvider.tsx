@@ -149,8 +149,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: { redirectTo: `${origin}/auth/callback` },
     })
     if (error) return { error: error as Error | null }
-    if (data?.url) window.location.href = data.url
-    return { error: null }
+    if (data?.url) {
+      window.location.assign(data.url)
+      return { error: null }
+    }
+    return { error: new Error('No se pudo iniciar el inicio de sesión con Google') }
   }
 
   const isPending = !!session && !(user?.email_confirmed_at)

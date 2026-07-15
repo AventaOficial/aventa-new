@@ -194,10 +194,17 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Package,
 };
 
+function labelForSelection(value: string): string {
+  const cat = GENERAL_CATEGORIES_FOR_ONBOARDING.find((c) => c.value === value);
+  if (cat) return cat.label;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 /** Paso: seleccionar hasta 3 categorías. Grid con iconos minimalistas y subtítulos (no genérico). */
 function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
   const q = search.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
   const filteredCategories = !q
     ? GENERAL_CATEGORIES_FOR_ONBOARDING
@@ -206,14 +213,33 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
           c.label.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q) ||
           (c.subtitle?.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q))
       );
-  const filteredBrands = !q ? [] : ONBOARDING_SEARCHABLE_EXTRA.filter((v) => v.toLowerCase().includes(q)).map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) }));
+  const filteredBrands = !q
+    ? []
+    : ONBOARDING_SEARCHABLE_EXTRA.filter((v) =>
+        v.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q)
+      ).map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) }));
 
   const toggle = (value: string) => {
     setSelected((prev) => {
       if (prev.includes(value)) return prev.filter((x) => x !== value);
-      if (prev.length >= ONBOARDING_MAX_CATEGORIES) return prev;
+      if (prev.length >= ONBOARDING_MAX_CATEGORIES) return [...prev.slice(1), value];
       return [...prev, value];
     });
+  };
+
+  // Feedback cuando se está al máximo y se intenta agregar (swap)
+  const trySelect = (value: string) => {
+    const already = selected.includes(value);
+    const atMax = !already && selected.length >= ONBOARDING_MAX_CATEGORIES;
+    toggle(value);
+    if (already) setHint(null);
+    else if (atMax) setHint('Máximo 3. Se reemplazó la primera selección.');
+    else setHint(null);
+  };
+
+  const removeOne = (value: string) => {
+    setSelected((prev) => prev.filter((x) => x !== value));
+    setHint(null);
   };
 
   const handleContinue = () => {
@@ -243,35 +269,58 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, ...t }}
-        className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-4"
+        className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-3"
       >
-        3 temas. Luego afinas en Configuración.
+        Hasta 3 temas. Luego afinas en Configuración.
       </motion.p>
 
+      {selected.length > 0 ? (
+        <div className="mb-3 shrink-0 flex flex-wrap items-center justify-center gap-1.5">
+          {selected.map((value) => (
+            <button
+              key={`chip-${value}`}
+              type="button"
+              onClick={() => removeOne(value)}
+              className="inline-flex items-center gap-1 rounded-full border border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/40 px-2.5 py-1 text-xs font-semibold text-violet-800 dark:text-violet-200"
+              aria-label={`Quitar ${labelForSelection(value)}`}
+            >
+              {labelForSelection(value)}
+              <X className="h-3 w-3" />
+            </button>
+          ))}
+          <span className="text-[11px] text-[#6e6e73] dark:text-[#a3a3a3] ml-1">
+            {selected.length}/{ONBOARDING_MAX_CATEGORIES}
+          </span>
+        </div>
+      ) : null}
+
+      {hint ? (
+        <p className="mb-2 text-center text-[11px] text-violet-700 dark:text-violet-300 shrink-0">{hint}</p>
+      ) : null}
+
       <div className="mb-3 relative shrink-0">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6e6e73] dark:text-[#a3a3a3]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6e6e73] dark:text-[#a3a3a3] pointer-events-none" />
         <input
-          type="text"
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar categoría o tienda (ej. Amazon, Zara)"
+          autoComplete="off"
+          enterKeyHint="search"
           className="w-full rounded-xl border border-[#d2d2d7] dark:border-[#404040] bg-[#f5f5f7] dark:bg-[#1a1a1a] pl-10 pr-4 py-2.5 text-sm text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pb-2">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-2 overscroll-contain">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
           {filteredCategories.map((c) => {
             const IconComponent = CATEGORY_ICONS[c.icon] ?? Package;
             const isSelected = selected.includes(c.value);
             return (
-              <motion.button
+              <button
                 key={c.value}
                 type="button"
-                onClick={() => toggle(c.value)}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
+                onClick={() => trySelect(c.value)}
                 className={`
                   rounded-2xl border-2 p-3 sm:p-4 text-left transition-all duration-200 flex flex-col gap-1
                   ${isSelected
@@ -291,18 +340,19 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
                     {c.subtitle}
                   </span>
                 )}
-              </motion.button>
+              </button>
             );
           })}
           {filteredBrands.map((b) => {
             const isSelected = selected.includes(b.value);
             return (
-              <motion.button
+              <button
                 key={`brand-${b.value}`}
                 type="button"
-                onClick={() => toggle(b.value)}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
+                onClick={() => {
+                  trySelect(b.value);
+                  setSearch('');
+                }}
                 className={`
                   rounded-2xl border-2 p-3 sm:p-4 text-left transition-all duration-200 flex items-center gap-2
                   ${isSelected
@@ -311,32 +361,29 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
                   }
                 `}
               >
-                <span className="flex h-9 w-9 rounded-xl bg-[#e8e8ed] dark:bg-[#2c2c2e] items-center justify-center text-xs font-bold text-[#1d1d1f] dark:text-[#fafafa]">
+                <span className={`flex h-9 w-9 rounded-xl items-center justify-center text-xs font-bold ${isSelected ? 'bg-violet-500 text-white' : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#fafafa]'}`}>
                   {b.label.charAt(0)}
                 </span>
                 <span className="font-semibold text-sm text-[#1d1d1f] dark:text-[#fafafa]">{b.label}</span>
-              </motion.button>
+              </button>
             );
           })}
         </div>
         {filteredCategories.length === 0 && filteredBrands.length === 0 && q && (
           <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center py-4">Ningún resultado. Prueba otra búsqueda.</p>
         )}
-        {selected.length > 0 && (
-          <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3] text-center mt-3">
-            {selected.length}/{ONBOARDING_MAX_CATEGORIES} seleccionadas
-          </p>
-        )}
       </div>
 
       <div className="flex gap-3 w-full max-w-xs mx-auto shrink-0 pt-2">
         <button
+          type="button"
           onClick={onBack}
           className="flex-1 rounded-xl border-2 border-[#d2d2d7] dark:border-[#404040] bg-transparent px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#fafafa] hover:bg-[#f5f5f7] dark:hover:bg-[#1a1a1a] transition-colors"
         >
           ← Atrás
         </button>
         <motion.button
+          type="button"
           onClick={handleContinue}
           disabled={selected.length === 0}
           whileTap={selected.length > 0 ? { scale: 0.98 } : undefined}
@@ -486,6 +533,32 @@ function PageAuth({
   const [resetSent, setResetSent] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
 
+  // Si el usuario cancela Google y vuelve (atrás / bfcache), no dejar "Redirigiendo..."
+  useEffect(() => {
+    const resetOauthUi = () => setOauthLoading(false);
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) resetOauthUi();
+    };
+    let wasHidden = false;
+    const onVisible = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden = true;
+        return;
+      }
+      if (wasHidden) {
+        wasHidden = false;
+        // Volvió de la pestaña/pantalla de Google sin completar sesión.
+        resetOauthUi();
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -539,9 +612,15 @@ function PageAuth({
           onClick={async () => {
             setError(null);
             setOauthLoading(true);
-            const { error: err } = await signInWithOAuth('google');
-            if (err) {
-              setError(err.message);
+            try {
+              const { error: err } = await signInWithOAuth('google');
+              if (err) {
+                setError(err.message);
+                setOauthLoading(false);
+              }
+              // Si no hay redirección (cancelado o sin URL), el useEffect de focus/pageshow limpia el loading.
+            } catch {
+              setError('No se pudo abrir Google. Intenta de nuevo.');
               setOauthLoading(false);
             }
           }}
@@ -555,6 +634,15 @@ function PageAuth({
           </svg>
           {oauthLoading ? 'Redirigiendo...' : 'Continuar con Google'}
         </button>
+        {oauthLoading ? (
+          <button
+            type="button"
+            onClick={() => setOauthLoading(false)}
+            className="text-xs text-[#6e6e73] dark:text-[#a3a3a3] hover:underline self-center"
+          >
+            ¿Se quedó pensando? Cancelar
+          </button>
+        ) : null}
       </div>
 
       <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
@@ -669,6 +757,32 @@ const RegisterModal = ({
   const [resetSent, setResetSent] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
 
+  // Si el usuario cancela Google y vuelve (atrás / bfcache), no dejar "Redirigiendo..."
+  useEffect(() => {
+    const resetOauthUi = () => setOauthLoading(false);
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) resetOauthUi();
+    };
+    let wasHidden = false;
+    const onVisible = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden = true;
+        return;
+      }
+      if (wasHidden) {
+        wasHidden = false;
+        // Volvió de la pestaña/pantalla de Google sin completar sesión.
+        resetOauthUi();
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -736,9 +850,14 @@ const RegisterModal = ({
             onClick={async () => {
               setError(null);
               setOauthLoading(true);
-              const { error: err } = await signInWithOAuth('google');
-              if (err) {
-                setError(err.message);
+              try {
+                const { error: err } = await signInWithOAuth('google');
+                if (err) {
+                  setError(err.message);
+                  setOauthLoading(false);
+                }
+              } catch {
+                setError('No se pudo abrir Google. Intenta de nuevo.');
                 setOauthLoading(false);
               }
             }}
@@ -752,6 +871,15 @@ const RegisterModal = ({
             </svg>
             {oauthLoading ? 'Redirigiendo...' : 'Continuar con Google'}
           </button>
+          {oauthLoading ? (
+            <button
+              type="button"
+              onClick={() => setOauthLoading(false)}
+              className="text-xs text-[#6e6e73] dark:text-[#a3a3a3] hover:underline self-center"
+            >
+              ¿Se quedó pensando? Cancelar
+            </button>
+          ) : null}
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {mode === 'signup' && (
