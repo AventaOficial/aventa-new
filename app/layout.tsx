@@ -4,6 +4,10 @@ import Link from "next/link";
 import "./globals.css";
 import Providers from "./providers";
 import CookieNotice from "./components/CookieNotice";
+import {
+  AFFILIATE_DISCLOSURE_ES,
+  AMAZON_ASSOCIATES_DISCLOSURE,
+} from "@/lib/commissions/programStatus";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +33,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: "AVENTA - Ofertas antes de comprar",
+  title: "AVENTA · Ofertas de la comunidad",
   description: "Revisa el precio antes de comprar en otra tienda. Ofertas nuevas cada día, ordenadas por votos.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
@@ -37,14 +41,14 @@ export const metadata: Metadata = {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
   openGraph: {
-    title: "AVENTA - Ofertas antes de comprar",
+    title: "AVENTA · Ofertas de la comunidad",
     description: "Revisa el precio antes de comprar en otra tienda. Ofertas nuevas cada día.",
     siteName: "AVENTA",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AVENTA - Ofertas antes de comprar",
+    title: "AVENTA · Ofertas de la comunidad",
     description: "Revisa el precio antes de comprar en otra tienda.",
   },
 };
@@ -109,6 +113,7 @@ export default function RootLayout({
                 <ul className="mt-2 space-y-1.5">
                   <li><Link href="/privacy" className="hover:text-violet-600 dark:hover:text-violet-400">Política de privacidad</Link></li>
                   <li><Link href="/terms" className="hover:text-violet-600 dark:hover:text-violet-400">Términos y condiciones</Link></li>
+                  <li><Link href="/comisiones" className="hover:text-violet-600 dark:hover:text-violet-400">Programa de comisiones</Link></li>
                   <li><Link href="/settings" className="hover:text-violet-600 dark:hover:text-violet-400">Configuración de cuenta</Link></li>
                 </ul>
               </div>
@@ -116,7 +121,10 @@ export default function RootLayout({
 
             <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-4">
               <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-500">
-                Podemos recibir compensación por algunos enlaces comerciales. Esto ayuda a mantener AVENTA gratuita; el ranking sigue siendo por votos.
+                {AFFILIATE_DISCLOSURE_ES}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-500 italic">
+                {AMAZON_ASSOCIATES_DISCLOSURE}
               </p>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
                 Copyright © {new Date().getFullYear()} AVENTA. Todos los derechos reservados.

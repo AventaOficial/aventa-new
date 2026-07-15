@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { ArrowLeft, CheckCircle2, Coins, Play, RefreshCw } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle2, Coins, Play, RefreshCw, ShieldAlert } from 'lucide-react';
 
 type PoolRow = {
   id: string;
@@ -26,6 +26,25 @@ type AllocationRow = {
   status: 'pending' | 'paid' | 'void';
   paid_at: string | null;
   notes?: string | null;
+  display_name?: string | null;
+  fiscal?: {
+    legal_name?: string | null;
+    rfc_masked?: string;
+    clabe_masked?: string;
+    fiscal_complete?: boolean;
+  };
+  payout?: {
+    ready: boolean;
+    flags: string[];
+    labels: string[];
+  };
+};
+
+type AllocationSummary = {
+  total: number;
+  ready_to_pay: number;
+  blocked: number;
+  program_publicly_active: boolean;
 };
 
 type TaxEstimatePayload = {
@@ -74,6 +93,7 @@ export default function AdminCommissionsPage() {
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
 
   const [allocations, setAllocations] = useState<AllocationRow[]>([]);
+  const [allocSummary, setAllocSummary] = useState<AllocationSummary | null>(null);
   const [allocLoading, setAllocLoading] = useState(false);
   const [selectedAllocationIds, setSelectedAllocationIds] = useState<Set<string>>(new Set());
   const [taxEstimate, setTaxEstimate] = useState<TaxEstimatePayload | null>(null);
@@ -139,6 +159,7 @@ export default function AdminCommissionsPage() {
       return;
     }
     setAllocations((Array.isArray(body?.allocations) ? body.allocations : []) as AllocationRow[]);
+    setAllocSummary((body?.summary as AllocationSummary | undefined) ?? null);
     setSelectedAllocationIds(new Set());
   };
 
@@ -187,20 +208,34 @@ export default function AdminCommissionsPage() {
     await loadPools(token);
   };
 
-  const patchAllocations = async (status: 'pending' | 'paid' | 'void') => {
+  const patchAllocations = async (status: 'pending' | 'paid' | 'void', force = false) => {
     if (!token || selectedAllocationIds.size === 0) return;
     const ids = Array.from(selectedAllocationIds);
+    if (status === 'paid' && force) {
+      const ok = window.confirm(
+        'Forzar pago ignorará el checklist anti-fraude. Solo confirma si revisaste manualmente cada caso.',
+      );
+      if (!ok) return;
+    }
     const res = await fetch('/api/admin/commissions/allocations', {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids, status }),
+      body: JSON.stringify({ ids, status, force: force && status === 'paid' }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setRunMsg(typeof body?.error === 'string' ? body.error : 'No se pudieron actualizar asignaciones');
+      if (res.status === 409 && Array.isArray(body?.blocked)) {
+        const lines = (body.blocked as Array<{ id: string; reasons: string[] }>)
+          .slice(0, 5)
+          .map((b) => `${b.id.slice(0, 8)}…: ${b.reasons.join('; ')}`)
+          .join('\n');
+        setRunMsg(`${body.error}\n${lines}`);
+      } else {
+        setRunMsg(typeof body?.error === 'string' ? body.error : 'No se pudieron actualizar asignaciones');
+      }
       return;
     }
-    setRunMsg(`Actualizadas ${body?.updated ?? ids.length} asignaciones a ${status}.`);
+    setRunMsg(`Actualizadas ${body?.updated ?? ids.length} asignaciones a ${status}${body?.forced ? ' (forzado)' : ''}.`);
     if (selectedPoolId) await loadAllocations(selectedPoolId);
   };
 
@@ -375,7 +410,19 @@ export default function AdminCommissionsPage() {
           </section>
 
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4">
-            <h2 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">Asignaciones del pool</h2>
+            <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-violet-500" />
+              Asignaciones del pool
+            </h2>
+            {allocSummary ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Listas para pagar: <strong className="text-emerald-600">{allocSummary.ready_to_pay}</strong> · Bloqueadas:{' '}
+                <strong className="text-amber-600">{allocSummary.blocked}</strong>
+                {!allocSummary.program_publicly_active ? (
+                  <span className="ml-2 text-amber-700 dark:text-amber-400">· COMMISSION_PROGRAM_ACTIVE=false</span>
+                ) : null}
+              </p>
+            ) : null}
             {!selectedPoolId ? <p className="text-sm text-gray-500">Selecciona un pool.</p> : null}
             {selectedPoolId && allocLoading ? <p className="text-sm text-gray-500">Cargando asignaciones…</p> : null}
             {selectedPoolId && !allocLoading ? (
@@ -388,6 +435,14 @@ export default function AdminCommissionsPage() {
                     className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
                     Marcar seleccionadas paid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => patchAllocations('paid', true)}
+                    disabled={selectedAllocationIds.size === 0}
+                    className="rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 px-3 py-1.5 text-xs disabled:opacity-50"
+                  >
+                    Forzar paid (override)
                   </button>
                   <button
                     type="button"
@@ -409,31 +464,65 @@ export default function AdminCommissionsPage() {
                 <div className="max-h-[460px] overflow-auto space-y-1.5 pr-1">
                   {allocations.map((a) => {
                     const checked = selectedAllocationIds.has(a.id);
+                    const ready = a.payout?.ready ?? false;
+                    const isPending = a.status === 'pending';
                     return (
                       <label
                         key={a.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-2 py-2 text-sm"
+                        className={`flex flex-col gap-1.5 rounded-lg border px-2 py-2 text-sm ${
+                          isPending && !ready
+                            ? 'border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20'
+                            : 'border-gray-200 dark:border-gray-700'
+                        }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => {
-                              setSelectedAllocationIds((prev) => {
-                                const n = new Set(prev);
-                                if (e.target.checked) n.add(a.id);
-                                else n.delete(a.id);
-                                return n;
-                              });
-                            }}
-                          />
-                          <span className="truncate text-xs text-gray-500">{a.user_id.slice(0, 8)}…</span>
-                          <span className="text-xs rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700">{a.status}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                setSelectedAllocationIds((prev) => {
+                                  const n = new Set(prev);
+                                  if (e.target.checked) n.add(a.id);
+                                  else n.delete(a.id);
+                                  return n;
+                                });
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-medium text-gray-800 dark:text-gray-200">
+                                {a.display_name || a.fiscal?.legal_name || `${a.user_id.slice(0, 8)}…`}
+                              </p>
+                              <p className="text-[10px] text-gray-500">
+                                RFC {a.fiscal?.rfc_masked ?? '—'} · CLABE {a.fiscal?.clabe_masked ?? '—'}
+                              </p>
+                            </div>
+                            <span className="text-xs rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700 shrink-0">{a.status}</span>
+                            {isPending ? (
+                              ready ? (
+                                <span className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-800 shrink-0">
+                                  ✓ checklist
+                                </span>
+                              ) : (
+                                <span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 shrink-0 inline-flex items-center gap-0.5">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  bloqueada
+                                </span>
+                              )
+                            ) : null}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-medium">{centsToMx(a.amount_cents)}</p>
+                            <p className="text-[11px] text-gray-500">{a.points} pts</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">{centsToMx(a.amount_cents)}</p>
-                          <p className="text-[11px] text-gray-500">{a.points} pts</p>
-                        </div>
+                        {a.payout?.labels?.length ? (
+                          <ul className="pl-6 text-[10px] text-gray-500 dark:text-gray-400 list-disc">
+                            {a.payout.labels.map((lbl) => (
+                              <li key={lbl}>{lbl}</li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </label>
                     );
                   })}

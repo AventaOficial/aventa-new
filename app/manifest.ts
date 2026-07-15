@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'AVENTA - Ofertas antes de comprar',
+    name: 'AVENTA · Ofertas de la comunidad',
     short_name: 'AVENTA',
     description: 'Revisa el precio antes de comprar en otra tienda. Ofertas ordenadas por votos.',
     start_url: '/',

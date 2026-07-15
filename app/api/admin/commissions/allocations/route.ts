@@ -1,13 +1,33 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
+import {
+  findAllDuplicateRfcs,
+  loadFiscalProfilesByUserIds,
+} from '@/lib/server/commissionFiscal';
+import { evaluatePayoutReadiness, maskClabe, maskRfc } from '@/lib/commissions/fraudSignals';
+import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
 
 function hasMissingTable(error: { message?: string } | null, tableLike: string): boolean {
   const m = (error?.message ?? '').toLowerCase();
   return m.includes(tableLike.toLowerCase()) || m.includes('does not exist') || m.includes('schema cache');
 }
 
-/** Listado de asignaciones por pool. */
+type AllocationRow = {
+  id: string;
+  pool_id: string;
+  user_id: string;
+  points: number;
+  amount_cents: number;
+  status: string;
+  paid_at: string | null;
+  notes?: string | null;
+  meta?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** Listado de asignaciones por pool con datos fiscales y señales anti-fraude. */
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -32,18 +52,62 @@ export async function GET(request: Request) {
           error:
             'Falta migración SQL. Ejecuta docs/supabase-migrations/commissions_pools_allocations.sql',
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
     return NextResponse.json({ error: 'No se pudo listar asignaciones' }, { status: 500 });
   }
 
-  return NextResponse.json({ allocations: data ?? [] });
+  const rows = (data ?? []) as AllocationRow[];
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const profiles = await loadFiscalProfilesByUserIds(supabase, userIds);
+  const rfcs = [...profiles.values()].map((p) => p.rfc).filter(Boolean) as string[];
+  const duplicateRfcs = await findAllDuplicateRfcs(supabase, rfcs);
+  const programActive = isCommissionProgramPubliclyActive();
+
+  const allocations = rows.map((row) => {
+    const prof = profiles.get(row.user_id);
+    const fiscal = prof ?? {
+      legalName: null,
+      rfc: null,
+      clabe: null,
+      updatedAt: null,
+      acceptedAt: null,
+    };
+    const duplicateRfc = fiscal.rfc ? duplicateRfcs.has(fiscal.rfc.toUpperCase()) : false;
+    const readiness = evaluatePayoutReadiness({
+      fiscal,
+      duplicateRfc,
+      termsAccepted: !!fiscal.acceptedAt,
+      programPubliclyActive: programActive,
+    });
+
+    return {
+      ...row,
+      display_name: fiscal.legalName,
+      fiscal: {
+        legal_name: fiscal.legalName,
+        rfc_masked: maskRfc(fiscal.rfc),
+        clabe_masked: maskClabe(fiscal.clabe),
+        fiscal_complete: readiness.ready || !readiness.flags.includes('missing_fiscal'),
+      },
+      payout: readiness,
+    };
+  });
+
+  const summary = {
+    total: allocations.length,
+    ready_to_pay: allocations.filter((a) => a.payout.ready && a.status === 'pending').length,
+    blocked: allocations.filter((a) => !a.payout.ready && a.status === 'pending').length,
+    program_publicly_active: programActive,
+  };
+
+  return NextResponse.json({ allocations, summary });
 }
 
 /**
- * Actualización masiva de estatus (pending|paid|void) en asignaciones.
- * paid establece paid_at; pending/void lo limpia.
+ * Actualización masiva de estatus (pending|paid|void).
+ * Marcar paid exige checklist fiscal anti-fraude por cada asignación.
  */
 export async function PATCH(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -55,11 +119,68 @@ export async function PATCH(request: Request) {
     : [];
   const status = body?.status;
   const notes = typeof body?.notes === 'string' ? body.notes.trim().slice(0, 2000) || null : null;
+  const force = body?.force === true;
+
   if (ids.length === 0) {
     return NextResponse.json({ error: 'ids es obligatorio' }, { status: 400 });
   }
   if (status !== 'pending' && status !== 'paid' && status !== 'void') {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
+  }
+
+  const supabase = createServerClient();
+
+  if (status === 'paid' && !force) {
+    const { data: rows, error: readError } = await supabase
+      .from('commission_allocations')
+      .select('id, user_id, amount_cents, status')
+      .in('id', ids);
+
+    if (readError) {
+      return NextResponse.json({ error: 'No se pudieron leer asignaciones' }, { status: 500 });
+    }
+
+    const userIds = [...new Set((rows ?? []).map((r: { user_id: string }) => r.user_id))];
+    const profiles = await loadFiscalProfilesByUserIds(supabase, userIds);
+    const rfcs = [...profiles.values()].map((p) => p.rfc).filter(Boolean) as string[];
+    const duplicateRfcs = await findAllDuplicateRfcs(supabase, rfcs);
+    const programActive = isCommissionProgramPubliclyActive();
+
+    const blocked: Array<{ id: string; user_id: string; reasons: string[] }> = [];
+    for (const row of rows ?? []) {
+      const r = row as { id: string; user_id: string; status: string };
+      if (r.status === 'paid') continue;
+      const prof = profiles.get(r.user_id);
+      const fiscal = prof ?? {
+        legalName: null,
+        rfc: null,
+        clabe: null,
+        updatedAt: null,
+        acceptedAt: null,
+      };
+      const readiness = evaluatePayoutReadiness({
+        fiscal,
+        duplicateRfc: fiscal.rfc ? duplicateRfcs.has(fiscal.rfc.toUpperCase()) : false,
+        termsAccepted: !!fiscal.acceptedAt,
+        programPubliclyActive: programActive,
+      });
+      const hardBlock = readiness.flags.filter(
+        (f) => f !== 'missing_clabe' && f !== 'not_program_active',
+      );
+      if (hardBlock.length > 0) {
+        blocked.push({ id: r.id, user_id: r.user_id, reasons: readiness.labels });
+      }
+    }
+
+    if (blocked.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Hay asignaciones bloqueadas por checklist fiscal/anti-fraude. Corrige o usa force solo si confirmas el riesgo.',
+          blocked,
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const payload: { status: 'pending' | 'paid' | 'void'; paid_at: string | null; notes?: string | null } = {
@@ -68,7 +189,6 @@ export async function PATCH(request: Request) {
   };
   if (notes !== null) payload.notes = notes;
 
-  const supabase = createServerClient();
   const { error } = await supabase.from('commission_allocations').update(payload).in('id', ids);
   if (error) {
     if (hasMissingTable(error, 'commission_allocations')) {
@@ -77,11 +197,11 @@ export async function PATCH(request: Request) {
           error:
             'Falta migración SQL. Ejecuta docs/supabase-migrations/commissions_pools_allocations.sql',
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
     return NextResponse.json({ error: 'No se pudo actualizar asignaciones' }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, updated: ids.length, status });
+  return NextResponse.json({ ok: true, updated: ids.length, status, forced: force && status === 'paid' });
 }

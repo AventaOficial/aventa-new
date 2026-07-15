@@ -4,6 +4,9 @@ import {
   COMMISSION_REQUIRED_OFFERS,
   COMMISSION_TERMS_VERSION,
 } from '@/lib/commissions/constants';
+import { isFiscalProfileComplete, type CommissionFiscalProfile } from '@/lib/commissions/fiscal';
+import { getCommissionFiscalProfile } from '@/lib/server/commissionFiscal';
+import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
 
 export type CommissionEligibility = {
   qualifyingCount: number;
@@ -13,6 +16,10 @@ export type CommissionEligibility = {
   termsVersion: string;
   acceptedAt: string | null;
   termsAcceptedVersion: string | null;
+  programPubliclyActive: boolean;
+  fiscal: CommissionFiscalProfile;
+  fiscalComplete: boolean;
+  canActivate: boolean;
 };
 
 /** Cuenta ofertas aprobadas/publicadas del usuario con votos positivos >= umbral. */
@@ -71,6 +78,9 @@ export async function getCommissionEligibility(
 ): Promise<CommissionEligibility> {
   const { qualifyingCount, eligible } = await countQualifyingCommissionOffers(supabase, userId);
   const { acceptedAt, termsAcceptedVersion } = await getCommissionAcceptanceFields(supabase, userId);
+  const fiscal = await getCommissionFiscalProfile(supabase, userId);
+  const fiscalComplete = isFiscalProfileComplete(fiscal);
+  const programPubliclyActive = isCommissionProgramPubliclyActive();
 
   return {
     qualifyingCount,
@@ -80,5 +90,9 @@ export async function getCommissionEligibility(
     termsVersion: COMMISSION_TERMS_VERSION,
     acceptedAt,
     termsAcceptedVersion,
+    programPubliclyActive,
+    fiscal,
+    fiscalComplete,
+    canActivate: eligible && fiscalComplete && programPubliclyActive && !acceptedAt,
   };
 }
