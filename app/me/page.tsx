@@ -262,6 +262,20 @@ function MePageInner() {
     });
   };
 
+  const handleOfferManagementAction = (
+    offerId: string,
+    action: 'edit_and_resubmit' | 'republish',
+  ) => {
+    // TODO(mis-ofertas): conectar estos handlers al formulario existente cuando soporte
+    // precarga y actualización segura de una oferta, sin duplicar formularios ni crear rutas.
+    const message =
+      action === 'edit_and_resubmit'
+        ? 'La edición y reenvío estará disponible desde este botón.'
+        : 'La republicación estará disponible desde este botón.';
+    showToast(message);
+    void offerId;
+  };
+
   return (
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
@@ -381,7 +395,12 @@ function MePageInner() {
                   votes={offer.votes}
                   offerUrl={offer.offerUrl}
                   author={offer.author}
-                  onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
+                  onCardClick={
+                    offer.dealStatus === 'approved'
+                      ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
+                      : undefined
+                  }
+                  onManagementAction={(action) => handleOfferManagementAction(offer.id, action)}
                   onVoteChange={handleVoteChange}
                   userVote={voteMap[offer.id] ?? null}
                   userVoteStoredValue={voteValueMap[offer.id] ?? null}

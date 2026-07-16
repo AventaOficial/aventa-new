@@ -59,6 +59,52 @@ function formatRemainingTime(expiresAt?: string | null, createdAt?: string | nul
 }
 
 type UserVote = 1 | -1 | 0;
+type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+type ManagementAction = 'edit_and_resubmit' | 'republish';
+
+type DealStatusConfig = {
+  badge: string;
+  badgeClassName: string;
+  behavior: 'public' | 'informational' | 'management';
+  ctaLabel: string;
+  message?: string;
+  reasonLabel?: string;
+  reasonFallback?: string;
+  action?: ManagementAction;
+};
+
+const DEAL_STATUS_CONFIG: Record<DealStatus, DealStatusConfig> = {
+  approved: {
+    badge: 'Activa',
+    badgeClassName: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200',
+    behavior: 'public',
+    ctaLabel: 'Ver oferta →',
+  },
+  pending: {
+    badge: 'En revisión',
+    badgeClassName: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200',
+    behavior: 'informational',
+    ctaLabel: 'En revisión',
+    message: 'Tu oferta está siendo revisada por nuestro equipo.',
+  },
+  rejected: {
+    badge: 'Rechazada',
+    badgeClassName: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200',
+    behavior: 'management',
+    ctaLabel: 'Editar y reenviar',
+    reasonLabel: 'Motivo',
+    reasonFallback: 'Esta oferta fue rechazada por incumplir las normas de publicación.',
+    action: 'edit_and_resubmit',
+  },
+  expired: {
+    badge: 'Expirada',
+    badgeClassName: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+    behavior: 'management',
+    ctaLabel: 'Republicar',
+    message: 'Esta oferta ya no está disponible.',
+    action: 'republish',
+  },
+};
 
 interface OfferCardProps {
   offerId?: string;
@@ -99,9 +145,11 @@ interface OfferCardProps {
   /** Oferta de prueba (relleno): badge "Prueba", click solo toast, no voto/favorito. */
   isTesterOffer?: boolean;
   /** Status for "My Deals" page: show badge (Pending / Approved / Rejected / Expired). */
-  dealStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
+  dealStatus?: DealStatus;
   /** Rejection reason from moderation (shown when dealStatus === 'rejected'). */
   rejectionReason?: string | null;
+  /** Acción privada de gestión; solo se usa en "Mis ofertas". */
+  onManagementAction?: (action: ManagementAction) => void;
   /** Panel de métricas solo en el perfil del creador (vistas, compartidos, clics en Cazar). */
   ownerMetrics?: { cazarClicks: number; views: number; shares: number } | null;
   /** Alcance en línea vs tienda (desde `conditions`). */
@@ -136,6 +184,7 @@ export default function OfferCard({
   isTesterOffer = false,
   dealStatus,
   rejectionReason,
+  onManagementAction,
   ownerMetrics,
   offerScope = null,
 }: OfferCardProps) {
@@ -324,6 +373,8 @@ export default function OfferCard({
     originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const personalCouponTrim = coupons?.trim() ?? '';
+  const statusConfig = dealStatus ? DEAL_STATUS_CONFIG[dealStatus] : null;
+  const canNavigateToPublicOffer = !statusConfig || statusConfig.behavior === 'public';
 
   const copyCouponsToClipboard = async (): Promise<void> => {
     if (isTesterOffer) return;
@@ -395,9 +446,11 @@ export default function OfferCard({
     <div
       ref={cardRef}
       onClick={() => {
-        void runOpenOfferAction();
+        if (canNavigateToPublicOffer) void runOpenOfferAction();
       }}
-      className="relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-2.5 max-[400px]:p-2 md:p-3 cursor-pointer transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
+      className={`relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-2.5 max-[400px]:p-2 md:p-3 transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
+        canNavigateToPublicOffer ? 'cursor-pointer' : 'cursor-default'
+      }`}
     >
       <button
         onClick={handleFavoriteClick}
@@ -411,7 +464,7 @@ export default function OfferCard({
         />
       </button>
 
-      {offerId && (
+      {offerId && canNavigateToPublicOffer && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -462,31 +515,22 @@ export default function OfferCard({
       <div className="flex flex-col flex-1 min-w-0 min-h-0 pl-3 max-[400px]:pl-2 md:pl-4 pt-6 max-[400px]:pt-5 md:pt-0">
         <div className="min-w-0 flex-1 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
         <div className="min-w-0">
-          {dealStatus && (
+          {statusConfig && (
             <span
-              className={`inline-block text-[10px] max-[400px]:text-[9px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md mb-1.5 ${
-                dealStatus === 'pending'
-                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
-                  : dealStatus === 'approved'
-                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
-                    : dealStatus === 'rejected'
-                      ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              }`}
+              className={`inline-block text-[10px] max-[400px]:text-[9px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md mb-1.5 ${statusConfig.badgeClassName}`}
             >
-              {dealStatus === 'pending'
-                ? 'Pendiente'
-                : dealStatus === 'approved'
-                  ? 'Aprobada'
-                  : dealStatus === 'rejected'
-                    ? 'Rechazada'
-                    : 'Expirada'}
+              {statusConfig.badge}
             </span>
           )}
-          {dealStatus === 'rejected' && rejectionReason && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2 mb-1">
-              {rejectionReason}
-            </p>
+          {statusConfig?.reasonLabel && (
+            <div className="mb-1.5 rounded-lg border border-red-200/80 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/20 px-2.5 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">
+                {statusConfig.reasonLabel}
+              </p>
+              <p className="mt-0.5 text-xs leading-snug text-gray-700 dark:text-gray-300 line-clamp-3">
+                {rejectionReason?.trim() || statusConfig.reasonFallback}
+              </p>
+            </div>
           )}
           <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
             {title}
@@ -644,7 +688,7 @@ export default function OfferCard({
         </div>
 
         <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-2 border-t border-gray-100/80 dark:border-gray-800/60">
-          <div className="flex items-center">
+          {(!statusConfig || statusConfig.behavior === 'public') && (
             <button
               type="button"
               onClick={(e) => {
@@ -670,9 +714,40 @@ export default function OfferCard({
               }}
               className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
             >
-              Ver oferta →
+              {statusConfig?.ctaLabel ?? 'Ver oferta →'}
             </button>
-          </div>
+          )}
+
+          {statusConfig?.behavior === 'informational' && (
+            <div className="rounded-xl bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2.5 text-center">
+              <p className="text-xs md:text-sm font-semibold text-amber-800 dark:text-amber-200">
+                {statusConfig.ctaLabel}
+              </p>
+              <p className="mt-0.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
+                {statusConfig.message}
+              </p>
+            </div>
+          )}
+
+          {statusConfig?.behavior === 'management' && (
+            <div>
+              {statusConfig.message && (
+                <p className="mb-2 text-center text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
+                  {statusConfig.message}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (statusConfig.action) onManagementAction?.(statusConfig.action);
+                }}
+                className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl border border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#1a1a1a] px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-[#1d1d1f] dark:text-[#fafafa] transition-colors hover:border-violet-400 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-300"
+              >
+                {statusConfig.ctaLabel}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
