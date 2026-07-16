@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, HelpCircle, Moon, Sun, Settings, Sparkles, Trash2, Droplet, Compass, Puzzle, ShieldCheck, Heart } from 'lucide-react';
+import { User, Bell, LogOut, Moon, Sun, Settings, Trash2, Droplet, Compass, Puzzle, ShieldCheck, Heart, X, ArrowRight } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { playNotificationDropSound } from '@/lib/playNotificationSound';
@@ -23,10 +23,22 @@ type NotificationItem = {
   created_at: string;
 };
 
+type AnnouncementItem = {
+  id: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  created_at: string;
+};
+
+type NotificationDetail =
+  | { kind: 'notification'; ids: string[]; item: NotificationItem }
+  | { kind: 'announcement'; item: AnnouncementItem };
+
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const { user, session, signOut, isLoading: authLoading } = useAuth();
-  const { openRegisterModal, openGuideModal } = useUI();
+  const { openRegisterModal } = useUI();
   const pathname = usePathname();
   const isHomePage = pathname === '/';
   const [showNotifications, setShowNotifications] = useState(false);
@@ -36,7 +48,8 @@ export default function Navbar() {
   const [notifTab, setNotifTab] = useState<NotifTab>('ofertas');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string | null; link: string | null; created_at: string }[]>([]);
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [notificationDetail, setNotificationDetail] = useState<NotificationDetail | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const loadNotifSoundPrimedRef = useRef(false);
 
@@ -125,6 +138,42 @@ export default function Navbar() {
     [session?.access_token]
   );
 
+  const markNotificationsRead = useCallback(
+    async (ids: string[]) => {
+      if (!session?.access_token || ids.length === 0) return;
+      const toMark = ids.filter((id) => !notifications.find((x) => x.id === id)?.read_at);
+      if (toMark.length === 0) return;
+      try {
+        await Promise.all(
+          toMark.map((id) =>
+            fetch('/api/notifications', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ id }),
+            })
+          )
+        );
+        const readAt = new Date().toISOString();
+        setNotifications((prev) =>
+          prev.map((item) => (ids.includes(item.id) ? { ...item, read_at: item.read_at ?? readAt } : item))
+        );
+        setUnreadCount((count) => Math.max(0, count - toMark.length));
+      } catch {
+        // Mantener la navegación usable aunque falle el marcado como leído.
+      }
+    },
+    [notifications, session?.access_token]
+  );
+
+  useEffect(() => {
+    if (!notificationDetail) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNotificationDetail(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [notificationDetail]);
+
   useEffect(() => {
     if (authLoading || !user?.id || !session?.access_token) {
       setNotifications([]);
@@ -173,31 +222,22 @@ export default function Navbar() {
   }, []);
 
   const UserMenuContent = () => (
-    <>
-      <button
-        onClick={() => { openGuideModal(); setShowUserMenu(false); }}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-      >
-        <HelpCircle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-        Guía
-      </button>
-      <button
-        onClick={() => { toggleTheme(); setShowUserMenu(false); }}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-      >
-        {isDark ? (
-          <>
-            <Sun className="h-4 w-4 text-amber-500" />
-            Modo claro
-          </>
-        ) : (
-          <>
-            <Moon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-            Modo oscuro
-          </>
-        )}
-      </button>
-    </>
+    <button
+      onClick={() => { toggleTheme(); setShowUserMenu(false); }}
+      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
+    >
+      {isDark ? (
+        <>
+          <Sun className="h-4 w-4 text-amber-500" />
+          Modo claro
+        </>
+      ) : (
+        <>
+          <Moon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+          Modo oscuro
+        </>
+      )}
+    </button>
   );
 
   return (
@@ -318,14 +358,6 @@ export default function Navbar() {
                   >
                     <Settings className="h-4 w-4" />
                     Configuración
-                  </Link>
-                  <Link
-                    href="/descubre"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Guía rápida
                   </Link>
                   <button
                     onClick={async () => {
@@ -486,32 +518,13 @@ export default function Navbar() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
-                              <a
-                                href={n.link || '#'}
-                                onClick={async () => {
-                                  const toMark = ids.filter((id) => !notifications.find((x) => x.id === id)?.read_at);
-                                  if (toMark.length > 0 && session?.access_token) {
-                                    try {
-                                      await Promise.all(
-                                        toMark.map((id) =>
-                                          fetch('/api/notifications', {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                                            body: JSON.stringify({ id }),
-                                          })
-                                        )
-                                      );
-                                      setNotifications((prev) =>
-                                        prev.map((x) => (ids.includes(x.id) ? { ...x, read_at: new Date().toISOString() } : x))
-                                      );
-                                      setUnreadCount((c) => Math.max(0, c - toMark.length));
-                                    } catch {
-                                      // ignore
-                                    }
-                                  }
-                                  setShowNotifications(false);
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNotificationDetail({ kind: 'notification', ids, item: n });
+                                  void markNotificationsRead(ids);
                                 }}
-                                className={`block rounded-2xl pl-3.5 pr-12 py-3.5 text-base border transition-all shadow-sm ${
+                                className={`block w-full text-left rounded-2xl pl-3.5 pr-12 py-3.5 text-base border transition-all shadow-sm ${
                                   isUnread
                                     ? 'border-sky-300/70 dark:border-sky-600/50 bg-gradient-to-br from-sky-50/95 via-white to-violet-50/40 dark:from-sky-950/40 dark:via-[#141414] dark:to-violet-950/20 text-[#1d1d1f] dark:text-[#fafafa]'
                                     : 'border-gray-200/90 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-gray-50/60 dark:bg-[#1a1a1a]/40'
@@ -551,7 +564,7 @@ export default function Navbar() {
                                     </p>
                                   </div>
                                 </div>
-                              </a>
+                              </button>
                             </li>
                           );
                         });
@@ -592,15 +605,15 @@ export default function Navbar() {
                   )}
                   {announcements.map((a) => (
                     <li key={a.id}>
-                      <Link
-                        href={a.link || '#'}
-                        onClick={() => setShowNotifications(false)}
-                        className="block rounded-xl p-3 text-base transition-colors text-[#1d1d1f] dark:text-[#fafafa] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      <button
+                        type="button"
+                        onClick={() => setNotificationDetail({ kind: 'announcement', item: a })}
+                        className="block w-full text-left rounded-xl p-3 text-base transition-colors text-[#1d1d1f] dark:text-[#fafafa] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       >
                         <span className="font-semibold">{a.title}</span>
                         {a.body && <p className="mt-1 text-sm opacity-90">{a.body}</p>}
                         <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{new Date(a.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p>
-                      </Link>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -609,6 +622,84 @@ export default function Navbar() {
           </div>
         </>
       )}
+
+      <AnimatePresence>
+        {notificationDetail && (
+          <motion.div
+            className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/45 p-0 sm:p-4 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setNotificationDetail(null)}
+            role="presentation"
+          >
+            <motion.article
+              initial={{ opacity: 0, y: 28, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              onClick={(event) => event.stopPropagation()}
+              className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl border border-[#e5e5e7] dark:border-[#333] bg-white dark:bg-[#141414] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6 sm:p-7 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="notification-detail-title"
+            >
+              <button
+                type="button"
+                onClick={() => setNotificationDetail(null)}
+                className="absolute right-4 top-4 rounded-full bg-[#f5f5f7] dark:bg-[#262626] p-2 text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#e5e5e7] dark:hover:bg-[#333]"
+                aria-label="Cerrar detalle"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="pr-10">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400">
+                  {notificationDetail.kind === 'announcement' ? 'Aviso de AVENTA' : 'Notificación'}
+                </p>
+                <h2 id="notification-detail-title" className="mt-2 text-xl font-bold leading-tight text-[#1d1d1f] dark:text-[#fafafa]">
+                  {notificationDetail.item.title}
+                </h2>
+              </div>
+              {notificationDetail.item.body && (
+                <p className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-[#515154] dark:text-[#d1d1d6]">
+                  {notificationDetail.item.body}
+                </p>
+              )}
+              <p className="mt-5 text-xs text-[#86868b] dark:text-[#8e8e93]">
+                {new Date(notificationDetail.item.created_at).toLocaleDateString('es-MX', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setNotificationDetail(null)}
+                  className="rounded-xl border border-[#d2d2d7] dark:border-[#404040] px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] dark:text-[#fafafa]"
+                >
+                  Cerrar
+                </button>
+                {notificationDetail.item.link && (
+                  <Link
+                    href={notificationDetail.item.link}
+                    onClick={() => {
+                      setNotificationDetail(null);
+                      setShowNotifications(false);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+                  >
+                    Ver contenido
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
+              </div>
+            </motion.article>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

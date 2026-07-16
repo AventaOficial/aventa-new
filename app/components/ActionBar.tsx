@@ -36,6 +36,15 @@ function formatPreviewPrice(s: string): string {
   return `$${formatted}`;
 }
 
+function isOnlineOfferUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw.trim());
+    return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 const COOLDOWN_SECONDS_DEFAULT = 15;
 const COOLDOWN_SECONDS_LEVEL_4 = 5;
 
@@ -93,6 +102,13 @@ export default function ActionBar() {
   const [cooldownExempt, setCooldownExempt] = useState(false);
   /** Alcance en línea vs tienda; se guarda en `conditions` al publicar. */
   const [offerScope, setOfferScope] = useState<'online' | 'in_store' | null>(null);
+  /** Evita que la inferencia por URL sobrescriba una elección explícita. */
+  const offerScopeManuallySelectedRef = useRef(false);
+
+  useEffect(() => {
+    if (offerScopeManuallySelectedRef.current) return;
+    setOfferScope(isOnlineOfferUrl(formData.offer_url) ? 'online' : null);
+  }, [formData.offer_url]);
 
   useEffect(() => {
     if (showUploadModal) {
@@ -358,6 +374,7 @@ export default function ActionBar() {
     setImageUrls([]);
     setMsiMonths(null);
     setOfferScope(null);
+    offerScopeManuallySelectedRef.current = false;
     setHasDiscount(true);
     setMobileTab('form');
     setUploadLinkGatePassed(false);
@@ -861,7 +878,7 @@ export default function ActionBar() {
                         ¿Dónde aplica la oferta?
                       </label>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Opcional: indica si la compra es en web o en tienda física para que otros lo vean claro.
+                        Si agregas un enlace web, elegimos “Compra en línea” automáticamente. Puedes cambiarlo.
                       </p>
                       <div className="flex flex-col gap-2.5">
                         <label className="flex items-center gap-2.5 cursor-pointer">
@@ -869,7 +886,10 @@ export default function ActionBar() {
                             type="radio"
                             name="offerScope"
                             checked={offerScope === null}
-                            onChange={() => setOfferScope(null)}
+                            onChange={() => {
+                              offerScopeManuallySelectedRef.current = true;
+                              setOfferScope(null);
+                            }}
                             className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">No indicar (opcional)</span>
@@ -879,17 +899,30 @@ export default function ActionBar() {
                             type="radio"
                             name="offerScope"
                             checked={offerScope === 'online'}
-                            onChange={() => setOfferScope('online')}
+                            onChange={() => {
+                              offerScopeManuallySelectedRef.current = true;
+                              setOfferScope('online');
+                            }}
                             className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
                           />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Compra en línea</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Compra en línea
+                            {offerScope === 'online' && !offerScopeManuallySelectedRef.current && (
+                              <span className="ml-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
+                                Detectado por el enlace
+                              </span>
+                            )}
+                          </span>
                         </label>
                         <label className="flex items-center gap-2.5 cursor-pointer">
                           <input
                             type="radio"
                             name="offerScope"
                             checked={offerScope === 'in_store'}
-                            onChange={() => setOfferScope('in_store')}
+                            onChange={() => {
+                              offerScopeManuallySelectedRef.current = true;
+                              setOfferScope('in_store');
+                            }}
                             className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">En tienda / sucursal</span>
