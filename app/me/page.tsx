@@ -1,6 +1,6 @@
  'use client';
 
-import { Suspense, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
@@ -23,6 +23,15 @@ import { useUI } from '@/app/providers/UIProvider';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+type DealStatusFilter = 'all' | DealStatus;
+
+const OFFER_STATUS_FILTERS: Array<{ value: DealStatusFilter; label: string }> = [
+  { value: 'all', label: 'Todas' },
+  { value: 'approved', label: 'Activas' },
+  { value: 'pending', label: 'En revisión' },
+  { value: 'rejected', label: 'Rechazadas' },
+  { value: 'expired', label: 'Expiradas' },
+];
 
 type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
 
@@ -43,6 +52,7 @@ function MePageInner() {
     reputation_score?: number;
   } | null>(null);
   const [offers, setOffers] = useState<MappedOffer[]>([]);
+  const [statusFilter, setStatusFilter] = useState<DealStatusFilter>('all');
   const [metrics, setMetrics] = useState({
     totalOffers: 0,
     positiveVotesTotal: 0,
@@ -222,6 +232,22 @@ function MePageInner() {
     load();
   }, [router, showToast]);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<DealStatusFilter, number> = {
+      all: offers.length,
+      approved: 0,
+      pending: 0,
+      rejected: 0,
+      expired: 0,
+    };
+    for (const offer of offers) counts[offer.dealStatus] += 1;
+    return counts;
+  }, [offers]);
+  const filteredOffers = useMemo(
+    () => (statusFilter === 'all' ? offers : offers.filter((offer) => offer.dealStatus === statusFilter)),
+    [offers, statusFilter],
+  );
+
   if (loading) {
     return (
       <ClientLayout>
@@ -370,16 +396,51 @@ function MePageInner() {
             </div>
           </div>
 
-          <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-            Tus ofertas
-          </h2>
+          <div className="mb-4 flex flex-col gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Mis ofertas</h2>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                Consulta el estado, la actividad y la siguiente acción de cada publicación.
+              </p>
+            </div>
+            <div
+              className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-1.5"
+              role="tablist"
+              aria-label="Filtrar ofertas por estado"
+            >
+              {OFFER_STATUS_FILTERS.map((filter) => {
+                const selected = statusFilter === filter.value;
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setStatusFilter(filter.value)}
+                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                      selected
+                        ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                    }`}
+                  >
+                    {filter.label}
+                    <span className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-gray-400 dark:text-gray-500'}`}>
+                      {statusCounts[filter.value]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="space-y-4 md:space-y-6">
-            {offers.length === 0 ? (
+            {filteredOffers.length === 0 ? (
               <p className="py-6 text-center text-gray-500 dark:text-gray-400">
-                Nada publicado. ¿Viste un precio raro?
+                {offers.length === 0
+                  ? 'Nada publicado. ¿Viste un precio raro?'
+                  : 'No tienes ofertas en este estado.'}
               </p>
             ) : (
-              offers.map((offer) => (
+              filteredOffers.map((offer) => (
                 <OfferCard
                   key={offer.id}
                   offerId={offer.id}

@@ -2,7 +2,24 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Sparkles, User, Share2, Award, BadgeCheck, Eye, MousePointerClick, Globe, Store } from 'lucide-react';
+import {
+  Heart,
+  Sparkles,
+  User,
+  Share2,
+  Award,
+  BadgeCheck,
+  Eye,
+  MousePointerClick,
+  Globe,
+  Store,
+  CircleCheck,
+  Clock3,
+  CircleX,
+  Archive,
+  AlertTriangle,
+  ArrowRight,
+} from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -65,6 +82,9 @@ type ManagementAction = 'edit_and_resubmit' | 'republish';
 type DealStatusConfig = {
   badge: string;
   badgeClassName: string;
+  headerClassName: string;
+  icon: typeof CircleCheck;
+  summary: string;
   behavior: 'public' | 'informational' | 'management';
   ctaLabel: string;
   message?: string;
@@ -77,31 +97,44 @@ const DEAL_STATUS_CONFIG: Record<DealStatus, DealStatusConfig> = {
   approved: {
     badge: 'Activa',
     badgeClassName: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200',
+    headerClassName: 'bg-emerald-50/60 dark:bg-emerald-950/15',
+    icon: CircleCheck,
+    summary: 'Visible para toda la comunidad.',
     behavior: 'public',
-    ctaLabel: 'Ver oferta →',
+    ctaLabel: 'Ver oferta',
   },
   pending: {
     badge: 'En revisión',
     badgeClassName: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200',
+    headerClassName: 'bg-amber-50/60 dark:bg-amber-950/15',
+    icon: Clock3,
+    summary: 'Estamos validando tu oferta.',
     behavior: 'informational',
     ctaLabel: 'En revisión',
-    message: 'Tu oferta está siendo revisada por nuestro equipo.',
+    message: 'Nuestro equipo está revisando la publicación. Normalmente tarda menos de 24 horas.',
   },
   rejected: {
     badge: 'Rechazada',
     badgeClassName: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200',
+    headerClassName: 'bg-red-50/55 dark:bg-red-950/15',
+    icon: CircleX,
+    summary: 'No pudimos aprobar esta publicación.',
     behavior: 'management',
     ctaLabel: 'Editar y reenviar',
-    reasonLabel: 'Motivo',
+    message: 'Corrige los puntos indicados y vuelve a enviarla. No perderás la información de esta oferta.',
+    reasonLabel: 'Motivo del rechazo',
     reasonFallback: 'Esta oferta fue rechazada por incumplir las normas de publicación.',
     action: 'edit_and_resubmit',
   },
   expired: {
     badge: 'Expirada',
     badgeClassName: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+    headerClassName: 'bg-gray-50/80 dark:bg-[#1a1a1a]/55',
+    icon: Archive,
+    summary: 'Esta oferta ya no está disponible.',
     behavior: 'management',
     ctaLabel: 'Republicar',
-    message: 'Esta oferta ya no está disponible.',
+    message: 'Ya no está visible para la comunidad. Puedes volver a publicarla si sigue vigente.',
     action: 'republish',
   },
 };
@@ -374,6 +407,7 @@ export default function OfferCard({
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const personalCouponTrim = coupons?.trim() ?? '';
   const statusConfig = dealStatus ? DEAL_STATUS_CONFIG[dealStatus] : null;
+  const StatusIcon = statusConfig?.icon;
   const canNavigateToPublicOffer = !statusConfig || statusConfig.behavior === 'public';
 
   const copyCouponsToClipboard = async (): Promise<void> => {
@@ -448,10 +482,37 @@ export default function OfferCard({
       onClick={() => {
         if (canNavigateToPublicOffer) void runOpenOfferAction();
       }}
-      className={`relative flex flex-row items-stretch overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-2.5 max-[400px]:p-2 md:p-3 transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
+      className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
+        statusConfig ? '' : 'flex flex-row items-stretch p-2.5 max-[400px]:p-2 md:p-3'
+      } ${
         canNavigateToPublicOffer ? 'cursor-pointer' : 'cursor-default'
       }`}
     >
+      {statusConfig && StatusIcon && (
+        <div className={`flex items-center gap-3 border-b border-black/4 dark:border-white/5 px-4 py-3.5 md:px-5 ${statusConfig.headerClassName}`}>
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${statusConfig.badgeClassName}`}>
+            <StatusIcon className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{statusConfig.badge}</p>
+            <p className="mt-0.5 text-xs leading-snug text-gray-600 dark:text-gray-400">{statusConfig.summary}</p>
+          </div>
+        </div>
+      )}
+
+      {statusConfig?.reasonLabel && (
+        <div className="mx-3 mt-3 flex gap-2.5 rounded-xl bg-red-50/70 dark:bg-red-950/20 px-3.5 py-3 md:mx-4 md:mt-4">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500/80 dark:text-red-400/80" aria-hidden />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-red-800 dark:text-red-200">{statusConfig.reasonLabel}</p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+              {rejectionReason?.trim() || statusConfig.reasonFallback}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className={statusConfig ? 'relative flex flex-row items-stretch p-2.5 max-[400px]:p-2 md:p-3' : 'contents'}>
       <button
         onClick={handleFavoriteClick}
         className="absolute top-2 left-2 max-[400px]:top-1.5 max-[400px]:left-1.5 z-10 flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-sm border border-white/40 dark:border-[#262626]/60 shadow-sm hover:bg-white/80 dark:hover:bg-[#262626]/80 transition-colors active:scale-95"
@@ -515,23 +576,6 @@ export default function OfferCard({
       <div className="flex flex-col flex-1 min-w-0 min-h-0 pl-3 max-[400px]:pl-2 md:pl-4 pt-6 max-[400px]:pt-5 md:pt-0">
         <div className="min-w-0 flex-1 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
         <div className="min-w-0">
-          {statusConfig && (
-            <span
-              className={`inline-block text-[10px] max-[400px]:text-[9px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md mb-1.5 ${statusConfig.badgeClassName}`}
-            >
-              {statusConfig.badge}
-            </span>
-          )}
-          {statusConfig?.reasonLabel && (
-            <div className="mb-1.5 rounded-lg border border-red-200/80 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/20 px-2.5 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">
-                {statusConfig.reasonLabel}
-              </p>
-              <p className="mt-0.5 text-xs leading-snug text-gray-700 dark:text-gray-300 line-clamp-3">
-                {rejectionReason?.trim() || statusConfig.reasonFallback}
-              </p>
-            </div>
-          )}
           <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
             {title}
           </h3>
@@ -662,26 +706,27 @@ export default function OfferCard({
         </div>
 
         {ownerMetrics != null && (
-          <div className="rounded-xl border border-dashed border-violet-300/70 dark:border-violet-800/60 bg-violet-50/50 dark:bg-violet-950/25 px-3 py-2.5 mt-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300 mb-2 text-center sm:text-left">
-              Solo tú ves estas métricas
-            </p>
-            <div className="grid grid-cols-3 gap-2 text-[10px] sm:text-[11px]">
-              <div className="text-center min-w-0">
-                <MousePointerClick className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
-                <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.cazarClicks}</p>
-                <p className="text-gray-500 dark:text-gray-400 leading-tight">Clics a tienda</p>
-              </div>
-              <div className="text-center min-w-0">
-                <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
-                <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.views}</p>
-                <p className="text-gray-500 dark:text-gray-400 leading-tight">Vistas</p>
-              </div>
-              <div className="text-center min-w-0">
-                <Share2 className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
-                <p className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{ownerMetrics.shares}</p>
-                <p className="text-gray-500 dark:text-gray-400 leading-tight">Compartido</p>
-              </div>
+          <div className="mt-1 rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Actividad</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">Solo tú ves estas métricas</p>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+              <span className="inline-flex items-center gap-1.5">
+                <Eye className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
+                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.views}</strong>
+                vistas
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <MousePointerClick className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
+                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.cazarClicks}</strong>
+                clics
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Share2 className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
+                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.shares}</strong>
+                compartidos
+              </span>
             </div>
           </div>
         )}
@@ -714,16 +759,14 @@ export default function OfferCard({
               }}
               className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
             >
-              {statusConfig?.ctaLabel ?? 'Ver oferta →'}
+              {statusConfig?.ctaLabel ?? 'Ver oferta'}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
             </button>
           )}
 
           {statusConfig?.behavior === 'informational' && (
-            <div className="rounded-xl bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2.5 text-center">
-              <p className="text-xs md:text-sm font-semibold text-amber-800 dark:text-amber-200">
-                {statusConfig.ctaLabel}
-              </p>
-              <p className="mt-0.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
+            <div className="rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
+              <p className="text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                 {statusConfig.message}
               </p>
             </div>
@@ -732,7 +775,7 @@ export default function OfferCard({
           {statusConfig?.behavior === 'management' && (
             <div>
               {statusConfig.message && (
-                <p className="mb-2 text-center text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
+                <p className="mb-2.5 text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                   {statusConfig.message}
                 </p>
               )}
@@ -742,13 +785,15 @@ export default function OfferCard({
                   e.stopPropagation();
                   if (statusConfig.action) onManagementAction?.(statusConfig.action);
                 }}
-                className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl border border-[#d2d2d7] dark:border-[#404040] bg-white dark:bg-[#1a1a1a] px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-[#1d1d1f] dark:text-[#fafafa] transition-colors hover:border-violet-400 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-300"
+                className="w-full min-w-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity hover:opacity-90"
               >
                 {statusConfig.ctaLabel}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </button>
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
