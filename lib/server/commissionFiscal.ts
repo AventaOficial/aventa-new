@@ -114,14 +114,22 @@ export async function saveCommissionFiscalProfile(
 export async function loadFiscalProfilesByUserIds(
   supabase: SupabaseClient,
   userIds: string[],
-): Promise<Map<string, CommissionFiscalProfile & { acceptedAt: string | null }>> {
-  const map = new Map<string, CommissionFiscalProfile & { acceptedAt: string | null }>();
+): Promise<
+  Map<
+    string,
+    CommissionFiscalProfile & { acceptedAt: string | null; termsVersion: string | null }
+  >
+> {
+  const map = new Map<
+    string,
+    CommissionFiscalProfile & { acceptedAt: string | null; termsVersion: string | null }
+  >();
   if (userIds.length === 0) return map;
 
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      'id, commission_legal_name, commission_rfc, commission_clabe, commission_fiscal_updated_at, commissions_accepted_at',
+      'id, commission_legal_name, commission_rfc, commission_clabe, commission_fiscal_updated_at, commissions_accepted_at, commissions_terms_version',
     )
     .in('id', userIds);
 
@@ -138,10 +146,12 @@ export async function loadFiscalProfilesByUserIds(
       commission_clabe?: string | null;
       commission_fiscal_updated_at?: string | null;
       commissions_accepted_at?: string | null;
+      commissions_terms_version?: string | null;
     };
     map.set(r.id, {
       ...fiscalProfileFromRow(r),
       acceptedAt: r.commissions_accepted_at ?? null,
+      termsVersion: r.commissions_terms_version ?? null,
     });
   }
   return map;

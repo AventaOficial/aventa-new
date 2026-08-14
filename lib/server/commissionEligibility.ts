@@ -16,6 +16,8 @@ export type CommissionEligibility = {
   termsVersion: string;
   acceptedAt: string | null;
   termsAcceptedVersion: string | null;
+  /** true si aceptó y la versión coincide con COMMISSION_TERMS_VERSION */
+  termsCurrent: boolean;
   programPubliclyActive: boolean;
   fiscal: CommissionFiscalProfile;
   fiscalComplete: boolean;
@@ -81,6 +83,9 @@ export async function getCommissionEligibility(
   const fiscal = await getCommissionFiscalProfile(supabase, userId);
   const fiscalComplete = isFiscalProfileComplete(fiscal);
   const programPubliclyActive = isCommissionProgramPubliclyActive();
+  const termsCurrent =
+    Boolean(acceptedAt) && termsAcceptedVersion === COMMISSION_TERMS_VERSION;
+  const needsTermsAccept = !termsCurrent;
 
   return {
     qualifyingCount,
@@ -90,9 +95,10 @@ export async function getCommissionEligibility(
     termsVersion: COMMISSION_TERMS_VERSION,
     acceptedAt,
     termsAcceptedVersion,
+    termsCurrent,
     programPubliclyActive,
     fiscal,
     fiscalComplete,
-    canActivate: eligible && fiscalComplete && programPubliclyActive && !acceptedAt,
+    canActivate: eligible && fiscalComplete && programPubliclyActive && needsTermsAccept,
   };
 }

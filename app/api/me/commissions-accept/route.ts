@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (eligibility.acceptedAt) {
+  if (eligibility.termsCurrent) {
     const updated = await getCommissionEligibility(supabase, user.id);
     return NextResponse.json({ ok: true, alreadyAccepted: true, ...updated });
   }

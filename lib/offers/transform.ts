@@ -7,6 +7,7 @@ export type CardOfferAuthor = {
   avatar_url?: string | null;
   leaderBadge?: string | null;
   creatorMlTag?: string | null;
+  creatorAmazonTag?: string | null;
   /** UUID del creador; necesario para el slug público. */
   userId?: string | null;
   /** `profiles.slug` cuando la vista lo expone; debe coincidir con get_profile_by_slug. */
@@ -46,6 +47,7 @@ type ProfilesJoin =
       avatar_url: string | null;
       leader_badge?: string | null;
       ml_tracking_tag?: string | null;
+      amazon_tracking_tag?: string | null;
       slug?: string | null;
     }
   | {
@@ -53,6 +55,7 @@ type ProfilesJoin =
       avatar_url: string | null;
       leader_badge?: string | null;
       ml_tracking_tag?: string | null;
+      amazon_tracking_tag?: string | null;
       slug?: string | null;
     }[]
   | null
@@ -109,6 +112,7 @@ export type FeedApiItemShape = {
     avatar_url?: string | null;
     leader_badge?: string | null;
     ml_tracking_tag?: string | null;
+    amazon_tracking_tag?: string | null;
     slug?: string | null;
   };
   created_by?: string | null;
@@ -121,6 +125,8 @@ function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undef
     avatar_url: prof?.avatar_url ?? null,
     leaderBadge: (prof as { leader_badge?: string | null } | undefined)?.leader_badge ?? null,
     creatorMlTag: (prof as { ml_tracking_tag?: string | null } | undefined)?.ml_tracking_tag ?? null,
+    creatorAmazonTag:
+      (prof as { amazon_tracking_tag?: string | null } | undefined)?.amazon_tracking_tag ?? null,
     userId: createdBy ?? null,
     slug: (prof as { slug?: string | null } | undefined)?.slug?.trim() || null,
   };
@@ -202,6 +208,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     avatar_url: a?.avatar_url ?? null,
     leaderBadge: a?.leader_badge ?? null,
     creatorMlTag: a?.ml_tracking_tag ?? null,
+    creatorAmazonTag: a?.amazon_tracking_tag ?? null,
     userId: item.created_by ?? null,
     slug: a?.slug?.trim() || null,
   };

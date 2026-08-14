@@ -6,6 +6,7 @@ export type CommissionFraudFlag =
   | 'missing_clabe'
   | 'duplicate_rfc'
   | 'terms_not_accepted'
+  | 'terms_outdated'
   | 'not_program_active';
 
 export type CommissionPayoutReadiness = {
@@ -19,6 +20,7 @@ const FLAG_LABELS: Record<CommissionFraudFlag, string> = {
   missing_clabe: 'Sin CLABE (transferencia manual más lenta)',
   duplicate_rfc: 'RFC duplicado en otra cuenta',
   terms_not_accepted: 'No aceptó términos del programa',
+  terms_outdated: 'Debe reaceptar la versión vigente de términos',
   not_program_active: 'Programa no activo públicamente',
 };
 
@@ -26,12 +28,15 @@ export function evaluatePayoutReadiness(input: {
   fiscal: CommissionFiscalProfile;
   duplicateRfc: boolean;
   termsAccepted: boolean;
+  /** Si se pasa, exige que coincida con la versión vigente */
+  termsVersionCurrent?: boolean;
   programPubliclyActive: boolean;
   requireClabe?: boolean;
 }): CommissionPayoutReadiness {
   const flags: CommissionFraudFlag[] = [];
 
   if (!input.termsAccepted) flags.push('terms_not_accepted');
+  else if (input.termsVersionCurrent === false) flags.push('terms_outdated');
   if (!input.programPubliclyActive) flags.push('not_program_active');
   if (!isFiscalProfileComplete(input.fiscal)) flags.push('missing_fiscal');
   if (input.duplicateRfc) flags.push('duplicate_rfc');

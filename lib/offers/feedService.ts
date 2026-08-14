@@ -6,6 +6,7 @@ export type FeedOfferAuthor = {
   avatar_url: string | null;
   leader_badge: string | null;
   ml_tracking_tag: string | null;
+  amazon_tracking_tag: string | null;
   slug: string | null;
 };
 
@@ -73,7 +74,7 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, coupons, conditions, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)'
+        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, coupons, conditions, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
       )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
@@ -184,6 +185,7 @@ export async function getHomeFeed({
           avatar_url: prof?.avatar_url ?? null,
           leader_badge: prof?.leader_badge ?? null,
           ml_tracking_tag: prof?.ml_tracking_tag ?? null,
+          amazon_tracking_tag: (prof as { amazon_tracking_tag?: string | null } | undefined)?.amazon_tracking_tag ?? null,
           slug: prof?.slug != null && String(prof.slug).trim() !== '' ? String(prof.slug).trim() : null,
         },
       };

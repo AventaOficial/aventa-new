@@ -158,6 +158,7 @@ interface OfferCardProps {
     avatar_url?: string | null;
     leaderBadge?: string | null;
     creatorMlTag?: string | null;
+    creatorAmazonTag?: string | null;
     userId?: string | null;
     slug?: string | null;
   };

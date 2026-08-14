@@ -15,6 +15,9 @@ type PoolRow = {
   total_points: number;
   status: 'draft' | 'locked' | 'paid' | 'cancelled';
   created_at: string;
+  allocation_rule?: string | null;
+  attributable_cents?: number | null;
+  unattributable_cents?: number | null;
 };
 
 type AllocationRow = {
@@ -26,6 +29,12 @@ type AllocationRow = {
   status: 'pending' | 'paid' | 'void';
   paid_at: string | null;
   notes?: string | null;
+  meta?: {
+    attributed_cents?: number;
+    below_minimum?: boolean;
+    hold_release_at?: string;
+    rule?: string;
+  } | null;
   display_name?: string | null;
   fiscal?: {
     legal_name?: string | null;
@@ -51,12 +60,15 @@ type TaxEstimatePayload = {
   period: string;
   income: {
     gross_affiliate_cents: number;
+    attributable_cents?: number | null;
+    unattributable_cents?: number | null;
     by_network_cents: Record<string, number>;
   };
   creator_program: {
     pool_id: string | null;
     pool_status: string | null;
     creator_share_bps: number | null;
+    allocation_rule?: string | null;
     distributable_cents: number;
     allocations_paid_cents: number;
     allocations_pending_cents: number;
@@ -66,6 +78,18 @@ type TaxEstimatePayload = {
     net_before_tax_cents: number;
   };
   note: string;
+};
+
+type LedgerEntry = {
+  id: string;
+  network: string;
+  amount_cents: number;
+  status: string;
+  tracking_tag?: string | null;
+  creator_id?: string | null;
+  attributable?: boolean;
+  external_ref?: string | null;
+  created_at: string;
 };
 
 function centsToMx(cents: number): string {
@@ -84,7 +108,10 @@ export default function AdminCommissionsPage() {
   const [token, setToken] = useState<string | null>(null);
 
   const [period, setPeriod] = useState(defaultPeriodKey());
-  const [shareBps, setShareBps] = useState(3000);
+  const [shareBps, setShareBps] = useState(4000);
+  const [allocationRule, setAllocationRule] = useState<'attributed_revenue' | 'points_per_qualifying_offer'>(
+    'attributed_revenue',
+  );
   const [running, setRunning] = useState(false);
   const [runMsg, setRunMsg] = useState<string | null>(null);
 
@@ -98,6 +125,19 @@ export default function AdminCommissionsPage() {
   const [selectedAllocationIds, setSelectedAllocationIds] = useState<Set<string>>(new Set());
   const [taxEstimate, setTaxEstimate] = useState<TaxEstimatePayload | null>(null);
   const [taxLoading, setTaxLoading] = useState(false);
+
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerSaving, setLedgerSaving] = useState(false);
+  const [ledgerNetwork, setLedgerNetwork] = useState('mercadolibre');
+  const [ledgerAmountMx, setLedgerAmountMx] = useState('');
+  const [ledgerTag, setLedgerTag] = useState('');
+  const [ledgerCreatorId, setLedgerCreatorId] = useState('');
+  const [ledgerRef, setLedgerRef] = useState('');
+  const [ledgerStatus, setLedgerStatus] = useState<'accrued' | 'paid'>('accrued');
+  const [csvText, setCsvText] = useState('');
+  const [csvNetwork, setCsvNetwork] = useState('mercadolibre');
+  const [csvImporting, setCsvImporting] = useState(false);
 
   const selectedPool = useMemo(() => pools.find((p) => p.id === selectedPoolId) ?? null, [pools, selectedPoolId]);
 
@@ -144,7 +184,90 @@ export default function AdminCommissionsPage() {
   useEffect(() => {
     if (!token || !isAllowed) return;
     void loadPools(token);
+    void loadLedger(token);
   }, [token, isAllowed]);
+
+  const loadLedger = async (currentToken: string) => {
+    setLedgerLoading(true);
+    const res = await fetch('/api/admin/affiliate-ledger?limit=30&offset=0', {
+      headers: { Authorization: `Bearer ${currentToken}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    setLedgerLoading(false);
+    if (!res.ok) {
+      setRunMsg(typeof body?.error === 'string' ? body.error : 'No se pudo cargar ledger');
+      return;
+    }
+    setLedgerEntries((Array.isArray(body?.entries) ? body.entries : []) as LedgerEntry[]);
+  };
+
+  const importCsv = async () => {
+    if (!token || !csvText.trim()) {
+      setRunMsg('Pegá el CSV antes de importar.');
+      return;
+    }
+    setCsvImporting(true);
+    setRunMsg(null);
+    const res = await fetch('/api/admin/affiliate-ledger/import-csv', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        csv: csvText,
+        network: csvNetwork,
+        status: ledgerStatus,
+        currency: 'MXN',
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setCsvImporting(false);
+    if (!res.ok) {
+      setRunMsg(typeof body?.error === 'string' ? body.error : 'Import CSV falló');
+      return;
+    }
+    setRunMsg(
+      `CSV: insertados ${body.inserted ?? 0}, duplicados ${body.duplicates ?? 0}, fallidos ${body.failed ?? 0}, omitidos parse ${body.skipped_parse ?? 0}. Tags resueltos en perfiles: ${body.resolved_tags ?? 0}.`,
+    );
+    setCsvText('');
+    await loadLedger(token);
+    await loadTaxEstimate(period);
+  };
+
+  const saveLedgerEntry = async () => {
+    if (!token) return;
+    const mx = Number(ledgerAmountMx.replace(',', '.'));
+    if (!Number.isFinite(mx) || mx === 0) {
+      setRunMsg('Monto inválido (MXN).');
+      return;
+    }
+    setLedgerSaving(true);
+    setRunMsg(null);
+    const res = await fetch('/api/admin/affiliate-ledger', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        network: ledgerNetwork,
+        amount_cents: Math.round(mx * 100),
+        status: ledgerStatus,
+        source: 'manual',
+        tracking_tag: ledgerTag.trim() || null,
+        creator_id: ledgerCreatorId.trim() || null,
+        external_ref: ledgerRef.trim() || null,
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setLedgerSaving(false);
+    if (!res.ok) {
+      setRunMsg(typeof body?.error === 'string' ? body.error : 'No se pudo guardar en ledger');
+      return;
+    }
+    setRunMsg(`Ledger: movimiento ${body?.id ?? 'ok'} guardado.`);
+    setLedgerAmountMx('');
+    setLedgerTag('');
+    setLedgerCreatorId('');
+    setLedgerRef('');
+    await loadLedger(token);
+    await loadTaxEstimate(period);
+  };
 
   const loadAllocations = async (poolId: string) => {
     if (!token) return;
@@ -196,7 +319,7 @@ export default function AdminCommissionsPage() {
     const res = await fetch('/api/admin/commissions/run-monthly', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ period, creator_share_bps: shareBps }),
+      body: JSON.stringify({ period, creator_share_bps: shareBps, allocation_rule: allocationRule }),
     });
     const body = await res.json().catch(() => ({}));
     setRunning(false);
@@ -278,7 +401,8 @@ export default function AdminCommissionsPage() {
                 Comisiones (admin)
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Genera pool mensual desde `affiliate_ledger_entries` y distribuye por puntos de ofertas calificadas.
+                Registra ingresos de Amazon/ML → genera pool. Default: <strong>40% de comisión atribuida</strong> por
+                creador (política). Legacy por puntos sigue disponible.
               </p>
             </div>
             <button
@@ -291,7 +415,7 @@ export default function AdminCommissionsPage() {
             </button>
           </div>
 
-          <div className="mt-4 grid md:grid-cols-4 gap-2">
+          <div className="mt-4 grid md:grid-cols-5 gap-2">
             <input
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
@@ -303,7 +427,18 @@ export default function AdminCommissionsPage() {
               value={shareBps}
               onChange={(e) => setShareBps(Math.max(0, Math.min(10000, Number(e.target.value) || 0)))}
               className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+              title="Basis points: 4000 = 40%"
             />
+            <select
+              value={allocationRule}
+              onChange={(e) =>
+                setAllocationRule(e.target.value as 'attributed_revenue' | 'points_per_qualifying_offer')
+              }
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+            >
+              <option value="attributed_revenue">Por comisión atribuida (recomendado)</option>
+              <option value="points_per_qualifying_offer">Legacy: por puntos/votos</option>
+            </select>
             <button
               type="button"
               onClick={runMonthly}
@@ -313,7 +448,9 @@ export default function AdminCommissionsPage() {
               <Play className="h-4 w-4" />
               {running ? 'Generando…' : 'Generar reparto'}
             </button>
-            <div className="text-xs text-gray-500 dark:text-gray-400 self-center">`3000` = 30.00% del ingreso afiliado</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 self-center">
+              `4000` = 40% · elegibilidad 15×120 se mantiene
+            </div>
           </div>
           <div className="mt-2">
             <button
@@ -325,7 +462,134 @@ export default function AdminCommissionsPage() {
               Actualizar estimado fiscal ({period})
             </button>
           </div>
-          {runMsg ? <p className="mt-3 text-sm text-gray-700 dark:text-gray-300">{runMsg}</p> : null}
+          {runMsg ? <p className="mt-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{runMsg}</p> : null}
+        </section>
+
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 space-y-3">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">1) Registrar ingreso (ledger)</h2>
+          <p className="text-xs text-gray-500">
+            Cuando Amazon/ML te paguen o confirmen comisión, cargá el monto aquí. Si ponés{' '}
+            <code className="text-[11px]">tracking_tag</code> (mismo que <code className="text-[11px]">ml_tracking_tag</code>{' '}
+            del perfil) o <code className="text-[11px]">creator_id</code>, ese monto cuenta para el pago de ese
+            cazador.
+          </p>
+          <div className="grid md:grid-cols-6 gap-2">
+            <select
+              value={ledgerNetwork}
+              onChange={(e) => setLedgerNetwork(e.target.value)}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+            >
+              <option value="mercadolibre">Mercado Libre</option>
+              <option value="amazon">Amazon</option>
+              <option value="aliexpress">AliExpress</option>
+              <option value="other">Otra</option>
+            </select>
+            <input
+              value={ledgerAmountMx}
+              onChange={(e) => setLedgerAmountMx(e.target.value)}
+              placeholder="Monto MXN"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+            />
+            <input
+              value={ledgerTag}
+              onChange={(e) => setLedgerTag(e.target.value)}
+              placeholder="tracking_tag"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+            />
+            <input
+              value={ledgerCreatorId}
+              onChange={(e) => setLedgerCreatorId(e.target.value)}
+              placeholder="creator_id (uuid)"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+            />
+            <input
+              value={ledgerRef}
+              onChange={(e) => setLedgerRef(e.target.value)}
+              placeholder="ref externa"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+            />
+            <button
+              type="button"
+              onClick={() => void saveLedgerEntry()}
+              disabled={ledgerSaving}
+              className="rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-3 py-2 text-sm font-medium disabled:opacity-60"
+            >
+              {ledgerSaving ? 'Guardando…' : 'Guardar en ledger'}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
+            <label className="inline-flex items-center gap-1">
+              Status
+              <select
+                value={ledgerStatus}
+                onChange={(e) => setLedgerStatus(e.target.value as 'accrued' | 'paid')}
+                className="rounded border border-gray-300 dark:border-gray-600 px-2 py-1 bg-white dark:bg-[#1a1a1a]"
+              >
+                <option value="accrued">accrued</option>
+                <option value="paid">paid</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => token && loadLedger(token)}
+              className="underline"
+            >
+              Recargar ledger
+            </button>
+          </div>
+          {ledgerLoading ? <p className="text-sm text-gray-500">Cargando ledger…</p> : null}
+          <ul className="max-h-40 overflow-auto text-xs space-y-1">
+            {ledgerEntries.map((e) => (
+              <li key={e.id} className="flex justify-between gap-2 border-b border-gray-100 dark:border-gray-800 py-1">
+                <span>
+                  {e.network} · {e.status}
+                  {e.tracking_tag ? ` · tag ${e.tracking_tag}` : ''}
+                  {e.creator_id ? ` · ${e.creator_id.slice(0, 8)}…` : ''}
+                  {e.attributable ? ' · atribuible' : ' · plataforma'}
+                </span>
+                <strong>{centsToMx(e.amount_cents)}</strong>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Importar CSV (reporte red)</p>
+              <Link href="/admin/creator-tags" className="text-xs text-violet-600 hover:underline">
+                Gestionar tags creadores →
+              </Link>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Header con columnas tipo <code className="text-[10px]">amount,tag,external_ref</code> o{' '}
+              <code className="text-[10px]">commission,tracking_tag,id</code>. Resuelve creator por ML/Amazon tag.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={csvNetwork}
+                onChange={(e) => setCsvNetwork(e.target.value)}
+                className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+              >
+                <option value="mercadolibre">Mercado Libre</option>
+                <option value="amazon">Amazon</option>
+                <option value="other">Otra</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => void importCsv()}
+                disabled={csvImporting}
+                className="rounded-lg bg-violet-600 text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
+              >
+                {csvImporting ? 'Importando…' : 'Importar CSV'}
+              </button>
+            </div>
+            <textarea
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              rows={4}
+              placeholder={'amount,tag,external_ref\n12.50,ana_tag,ORD-1\n8.00,beto_tag,ORD-2'}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-[#1a1a1a]"
+            />
+          </div>
         </section>
 
         <section className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/15 p-4">
@@ -337,7 +601,25 @@ export default function AdminCommissionsPage() {
                 Ingreso afiliado bruto: <strong>{centsToMx(taxEstimate.income.gross_affiliate_cents)}</strong>
               </p>
               <p className="text-gray-700 dark:text-gray-300">
-                Repartible creadores (pool): <strong>{centsToMx(taxEstimate.creator_program.distributable_cents)}</strong>
+                Atribuible a creadores:{' '}
+                <strong>
+                  {taxEstimate.income.attributable_cents != null
+                    ? centsToMx(taxEstimate.income.attributable_cents)
+                    : '—'}
+                </strong>
+                {' · '}
+                Sin atribución:{' '}
+                <strong>
+                  {taxEstimate.income.unattributable_cents != null
+                    ? centsToMx(taxEstimate.income.unattributable_cents)
+                    : '—'}
+                </strong>
+              </p>
+              <p className="text-gray-700 dark:text-gray-300">
+                A pagar creadores (pool): <strong>{centsToMx(taxEstimate.creator_program.distributable_cents)}</strong>
+                {taxEstimate.creator_program.allocation_rule ? (
+                  <span className="text-xs text-gray-500"> · regla {taxEstimate.creator_program.allocation_rule}</span>
+                ) : null}
               </p>
               <p className="text-gray-700 dark:text-gray-300">
                 Pagado a creadores: <strong>{centsToMx(taxEstimate.creator_program.allocations_paid_cents)}</strong> · Pendiente:{' '}
@@ -383,9 +665,16 @@ export default function AdminCommissionsPage() {
                     <span className="text-xs rounded-full px-2 py-0.5 bg-gray-200 dark:bg-gray-700">{p.status}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Ingreso: {centsToMx(p.gross_affiliate_cents)} · Repartible: {centsToMx(p.distributable_cents)} · Usuarios:{' '}
-                    {p.eligible_users}
+                    Ingreso: {centsToMx(p.gross_affiliate_cents)} · A pagar: {centsToMx(p.distributable_cents)} ·
+                    Usuarios: {p.eligible_users}
+                    {p.allocation_rule ? ` · ${p.allocation_rule}` : ''}
                   </p>
+                  {p.attributable_cents != null ? (
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      Atribuible {centsToMx(p.attributable_cents)} · Sin atrib.{' '}
+                      {centsToMx(p.unattributable_cents ?? 0)}
+                    </p>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -513,7 +802,12 @@ export default function AdminCommissionsPage() {
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-medium">{centsToMx(a.amount_cents)}</p>
-                            <p className="text-[11px] text-gray-500">{a.points} pts</p>
+                            <p className="text-[11px] text-gray-500">
+                              {typeof a.meta?.attributed_cents === 'number'
+                                ? `gen. ${centsToMx(a.meta.attributed_cents)}`
+                                : `${a.points} pts`}
+                              {a.meta?.below_minimum ? ' · bajo mínimo' : ''}
+                            </p>
                           </div>
                         </div>
                         {a.payout?.labels?.length ? (
@@ -534,7 +828,8 @@ export default function AdminCommissionsPage() {
 
         <p className="text-xs text-gray-500 dark:text-gray-400 inline-flex items-center gap-1">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          Operación sugerida: generar pool mensual - revisar asignaciones - marcar pagadas al liquidar.
+          Operación: ledger con tag/creator → generar reparto (atribuido) → hold 14d → SPEI → marcar paid.
+          Política: <code className="text-[10px]">docs/POLITICA_COMISIONES_CREADORES.md</code>
         </p>
       </div>
     </div>

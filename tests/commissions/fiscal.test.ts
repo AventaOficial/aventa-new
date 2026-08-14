@@ -75,6 +75,23 @@ describe('commission fraud signals', () => {
     expect(dup.flags).toContain('duplicate_rfc');
   });
 
+  it('bloquea si los términos están desactualizados', () => {
+    const outdated = evaluatePayoutReadiness({
+      fiscal: {
+        legalName: 'María García López',
+        rfc: 'XAXX010101000',
+        clabe: '002010077777777771',
+        updatedAt: null,
+      },
+      duplicateRfc: false,
+      termsAccepted: true,
+      termsVersionCurrent: false,
+      programPubliclyActive: true,
+    });
+    expect(outdated.ready).toBe(false);
+    expect(outdated.flags).toContain('terms_outdated');
+  });
+
   it('enmascara RFC y CLABE', () => {
     expect(maskRfc('XAXX010101000')).toBe('XAXX***000');
     expect(maskClabe('002010077777777771')).toBe('****7771');

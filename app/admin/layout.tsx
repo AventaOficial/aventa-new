@@ -171,7 +171,8 @@ export default function AdminLayout({
     const isHeaPath = pathname === '/admin/health';
     const isVoteWeightsPath = pathname === '/admin/vote-weights';
     const isOperacionesPath = pathname.startsWith('/admin/operaciones');
-    const isCommissionsPath = pathname === '/admin/commissions';
+    const isCommissionsPath =
+      pathname === '/admin/commissions' || pathname === '/admin/creator-tags';
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
     const isTechnicalPath = pathname === '/admin/technical';
     const isSistemasMapaPath = pathname === '/admin/sistemas/mapa';

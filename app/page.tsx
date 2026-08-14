@@ -389,7 +389,7 @@ function HomeContent() {
       let searchQueryBuilder = supabase
         .from('ofertas_ranked_general')
         .select(
-          'id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, slug)'
+          'id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
         )
         .or('status.eq.approved,status.eq.published')
         .or(`expires_at.is.null,expires_at.gte.${nowISO}`)

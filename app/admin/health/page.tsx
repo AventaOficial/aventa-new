@@ -115,12 +115,23 @@ export default function HealthPage() {
       }
       setRoleOk(true);
       try {
-        const { data } = await supabase
-          .from('daily_system_metrics')
-          .select('date, total_offers_created, total_votes, total_views, total_outbound, ctr')
-          .order('date', { ascending: false })
-          .limit(30);
-        setMetrics((data ?? []) as MetricRow[]);
+        const {
+          data: { session: activeSession },
+        } = await supabase.auth.getSession();
+        const token = activeSession?.access_token;
+        if (!token) {
+          setMetrics([]);
+        } else {
+          const res = await fetch('/api/admin/daily-system-metrics', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const body = await res.json().catch(() => ({}));
+          if (res.ok && Array.isArray(body?.metrics)) {
+            setMetrics(body.metrics as MetricRow[]);
+          } else {
+            setMetrics([]);
+          }
+        }
       } finally {
         setLoading(false);
       }

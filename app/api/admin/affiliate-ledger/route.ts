@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   let q = supabase
     .from('affiliate_ledger_entries')
     .select(
-      'id, network, amount_cents, currency, period_start, period_end, status, external_ref, notes, source, meta, created_at, updated_at',
+      'id, network, amount_cents, currency, period_start, period_end, status, external_ref, notes, source, meta, creator_id, tracking_tag, offer_id, attributable, created_at, updated_at',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -48,6 +48,35 @@ export async function GET(request: Request) {
         },
         { status: 503 }
       );
+    }
+    if (
+      (error.message ?? '').includes('creator_id') ||
+      (error.message ?? '').includes('attributable') ||
+      error.code === 'PGRST204'
+    ) {
+      const fallback = await supabase
+        .from('affiliate_ledger_entries')
+        .select(
+          'id, network, amount_cents, currency, period_start, period_end, status, external_ref, notes, source, meta, created_at, updated_at',
+          { count: 'exact' },
+        )
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (fallback.error) {
+        return NextResponse.json(
+          {
+            error:
+              'Ejecuta docs/supabase-migrations/commissions_attributed_revenue.sql para columnas de atribución',
+          },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({
+        entries: fallback.data ?? [],
+        total: fallback.count ?? null,
+        limit,
+        offset,
+      });
     }
     console.error('[affiliate-ledger GET]', error.message);
     return NextResponse.json({ error: 'Error al listar' }, { status: 500 });
@@ -83,6 +112,10 @@ export async function POST(request: Request) {
     notes: row.notes ?? null,
     source: row.source,
     meta: row.meta ?? {},
+    creator_id: row.creator_id ?? null,
+    tracking_tag: row.tracking_tag ?? null,
+    offer_id: row.offer_id ?? null,
+    attributable: row.attributable,
   };
 
   const { data, error } = await supabase.from('affiliate_ledger_entries').insert(payload).select('id').single();
@@ -98,6 +131,19 @@ export async function POST(request: Request) {
     }
     if (error.code === '23505' || (error.message ?? '').includes('affiliate_ledger_unique_external')) {
       return NextResponse.json({ error: 'Ya existe un movimiento con esa red y referencia externa.' }, { status: 409 });
+    }
+    if (
+      (error.message ?? '').includes('creator_id') ||
+      (error.message ?? '').includes('attributable') ||
+      error.code === 'PGRST204'
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Falta migración de atribución. Ejecuta docs/supabase-migrations/commissions_attributed_revenue.sql',
+        },
+        { status: 503 },
+      );
     }
     console.error('[affiliate-ledger POST]', error.message);
     return NextResponse.json({ error: 'No se pudo guardar' }, { status: 500 });

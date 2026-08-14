@@ -111,7 +111,13 @@ Los índices en `public` están pensados para: búsqueda por status/created_at e
 
 **Comprobar que estás en producción:** El proyecto que ves en el Dashboard de Supabase es tu base de datos; si tu app en Vercel (producción) usa las variables de ese proyecto, ese es tu entorno de producción. Database → Data API / Logs muestran las peticiones reales.
 
-**Security y Performance (Database Linter):** En Report → Security / Performance aparecen recomendaciones opcionales: vistas con SECURITY DEFINER, funciones con search_path mutable, políticas RLS con auth.uid() (mejor (select auth.uid()) para rendimiento), políticas duplicadas o permisivas, índices duplicados. No bloquean; se pueden ir corrigiendo cuando priorices.
+**Security y Performance (Database Linter):** En Report → Security / Performance aparecen recomendaciones: vistas con SECURITY DEFINER, RLS desactivado, funciones con search_path mutable, etc. **No todas son bugs:** las vistas del feed (`ofertas_ranked_general`, `public_profiles_view`) se crearon a propósito con GRANT a `anon`/`authenticated` para que el home no dé 400. Otras sí son deuda (p. ej. `write_jobs_queue` sin RLS, vistas `*_backup` muertas).
+
+Guía objeto-por-objeto + porqués: **`docs/SUPABASE_SECURITY_ADVISOR.md`**.  
+SQL seguro fase 1 (cola + drop backups): **`docs/supabase-migrations/security_advisor_phase1_lockdown.sql`**.  
+SQL fase 2 (`security_invoker` + policies + health vía API): **`docs/supabase-migrations/security_advisor_phase2_security_invoker.sql`**.  
+Pilares multi-país: **`docs/PILARES_EXPANSION_50_PAISES.md`**.  
+Contraste legal vs auditoría externa: **`docs/LEGAL_GAP_VS_AUDITORIA_CLAUDE.md`**.
 
 ---
 

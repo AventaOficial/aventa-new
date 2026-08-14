@@ -20,6 +20,31 @@ type FiscalPayload = {
   updatedAt: string | null;
 };
 
+type EarningsPayload = {
+  tags: { ml_tracking_tag: string | null; amazon_tracking_tag: string | null };
+  summary: {
+    pending_cents: number;
+    paid_cents: number;
+    void_cents: number;
+    below_minimum_count: number;
+  };
+  policy: { creator_share_bps: number; min_payout_cents: number; hold_days: number };
+  allocations: Array<{
+    id: string;
+    amount_cents: number;
+    status: string;
+    attributed_cents: number | null;
+    below_minimum: boolean;
+    hold_release_at: string | null;
+    period_key: string | null;
+    paid_at: string | null;
+  }>;
+};
+
+function centsToMx(cents: number): string {
+  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+}
+
 type StatusPayload = {
   qualifyingCount: number;
   requiredOffers: number;
@@ -28,6 +53,7 @@ type StatusPayload = {
   termsVersion: string;
   acceptedAt: string | null;
   termsAcceptedVersion: string | null;
+  termsCurrent?: boolean;
   programPubliclyActive: boolean;
   fiscal: FiscalPayload;
   fiscalComplete: boolean;
@@ -36,6 +62,7 @@ type StatusPayload = {
 
 export default function CommissionProgramPanel() {
   const [data, setData] = useState<StatusPayload | null>(null);
+  const [earnings, setEarnings] = useState<EarningsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [savingFiscal, setSavingFiscal] = useState(false);
@@ -75,6 +102,13 @@ export default function CommissionProgramPanel() {
       setLegalName(payload.fiscal?.legalName ?? '');
       setRfc(payload.fiscal?.rfc ?? '');
       setClabe(payload.fiscal?.clabe ?? '');
+
+      const earnRes = await fetch('/api/me/commission-earnings', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const earnBody = await earnRes.json().catch(() => ({}));
+      if (earnRes.ok) setEarnings(earnBody as EarningsPayload);
+      else setEarnings(null);
     } catch {
       setError('Error de red');
       setData(null);
@@ -168,6 +202,11 @@ export default function CommissionProgramPanel() {
     data.requiredOffers > 0 ? Math.round((data.qualifyingCount / data.requiredOffers) * 100) : 0,
   );
   const hasAccepted = Boolean(data.acceptedAt);
+  const termsCurrent =
+    typeof data.termsCurrent === 'boolean'
+      ? data.termsCurrent
+      : hasAccepted && data.termsAcceptedVersion === data.termsVersion;
+  const needsReaccept = hasAccepted && !termsCurrent;
   const missing = Math.max(0, data.requiredOffers - data.qualifyingCount);
   const showFiscalForm = data.eligible || hasAccepted;
 
@@ -183,7 +222,8 @@ export default function CommissionProgramPanel() {
               Comisiones (nivel creador)
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              {data.qualifyingCount}/{data.requiredOffers} ofertas calificadas ({data.voteThreshold}+ votos c/u)
+              {data.qualifyingCount}/{data.requiredOffers} ofertas calificadas ({data.voteThreshold}+ votos c/u).
+              Desbloqueás con calidad; cobrás el 40% de comisiones afiliadas atribuibles a tu tag.
             </p>
           </div>
         </div>
@@ -213,10 +253,15 @@ export default function CommissionProgramPanel() {
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-        {hasAccepted ? (
+        {termsCurrent ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 font-medium text-emerald-800 dark:text-emerald-200">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Activo
+          </span>
+        ) : needsReaccept ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 font-medium text-amber-800 dark:text-amber-200">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Reaceptar términos
           </span>
         ) : data.eligible && data.fiscalComplete && data.programPubliclyActive ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 font-medium text-amber-800 dark:text-amber-200">
@@ -338,8 +383,13 @@ export default function CommissionProgramPanel() {
           {data.canActivate ? (
             <div className="rounded-xl border border-violet-200 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-950/30 p-3 space-y-2">
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                Cumples todos los requisitos. Para activar participación, acepta términos del programa (sección 8 de{' '}
-                <Link href="/terms" className="font-semibold text-violet-600 dark:text-violet-400 hover:underline">
+                {needsReaccept
+                  ? 'Hay una nueva versión de los términos del programa. Para seguir participando, acepta la sección 8 actualizada de '
+                  : 'Cumples todos los requisitos. Para activar participación, acepta términos del programa (sección 8 de '}
+                <Link
+                  href="/terms#comisiones"
+                  className="font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                >
                   Términos y Condiciones
                 </Link>
                 ).
@@ -350,7 +400,11 @@ export default function CommissionProgramPanel() {
                 disabled={accepting}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
               >
-                {accepting ? 'Guardando…' : 'Activar participación'}
+                {accepting
+                  ? 'Guardando…'
+                  : needsReaccept
+                    ? 'Aceptar nueva versión'
+                    : 'Activar participación'}
               </button>
             </div>
           ) : null}
@@ -370,15 +424,71 @@ export default function CommissionProgramPanel() {
             </p>
           ) : null}
 
-          {hasAccepted ? (
+          {termsCurrent ? (
             <div className="flex items-start gap-2 rounded-xl bg-emerald-50/90 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2 text-sm text-emerald-900 dark:text-emerald-100">
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium">Participación registrada</p>
                 <p className="text-xs text-emerald-800/90 dark:text-emerald-200/90 mt-0.5">
-                  Términos versión {data.termsAcceptedVersion ?? data.termsVersion}. Los pagos se procesan manualmente cada mes tras revisión anti-fraude.
+                  Términos versión {data.termsAcceptedVersion ?? data.termsVersion}. Cobras el 40% de
+                  comisiones afiliadas confirmadas atribuibles a tu tag. Pagos manuales tras hold y
+                  revisión anti-fraude.
                 </p>
               </div>
+            </div>
+          ) : null}
+
+          {earnings ? (
+            <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-[#1a1a1a]/80 p-3 space-y-2">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Tu liquidación</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                Tags: ML{' '}
+                <span className="font-mono">{earnings.tags.ml_tracking_tag || '—'}</span>
+                {' · '}Amazon{' '}
+                <span className="font-mono">{earnings.tags.amazon_tracking_tag || '—'}</span>
+                {!earnings.tags.ml_tracking_tag && !earnings.tags.amazon_tracking_tag ? (
+                  <span className="text-amber-600"> (pedí a admin asignarte tag para atribución)</span>
+                ) : null}
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2">
+                  <p className="text-gray-500">Pendiente</p>
+                  <p className="font-semibold">{centsToMx(earnings.summary.pending_cents)}</p>
+                </div>
+                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-2">
+                  <p className="text-gray-500">Pagado</p>
+                  <p className="font-semibold">{centsToMx(earnings.summary.paid_cents)}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 dark:bg-[#141414] p-2">
+                  <p className="text-gray-500">Anulado</p>
+                  <p className="font-semibold">{centsToMx(earnings.summary.void_cents)}</p>
+                </div>
+              </div>
+              {earnings.allocations.length > 0 ? (
+                <ul className="max-h-36 overflow-auto text-[11px] space-y-1">
+                  {earnings.allocations.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex justify-between gap-2 border-b border-gray-100 dark:border-gray-800 py-1"
+                    >
+                      <span>
+                        {a.period_key ?? '—'} · {a.status}
+                        {a.below_minimum ? ' · bajo mínimo' : ''}
+                        {typeof a.attributed_cents === 'number'
+                          ? ` · gen. ${centsToMx(a.attributed_cents)}`
+                          : ''}
+                      </span>
+                      <strong>{centsToMx(a.amount_cents)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[11px] text-gray-500">Aún no hay asignaciones mensuales.</p>
+              )}
+              <p className="text-[10px] text-gray-400">
+                Share {(earnings.policy.creator_share_bps / 100).toFixed(0)}% · mínimo{' '}
+                {centsToMx(earnings.policy.min_payout_cents)} · hold ~{earnings.policy.hold_days}d
+              </p>
             </div>
           ) : null}
 

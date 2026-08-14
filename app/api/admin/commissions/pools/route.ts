@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const { data, error, count } = await supabase
     .from('commission_pools')
     .select(
-      'id, period_key, period_start, period_end, gross_affiliate_cents, creator_share_bps, distributable_cents, eligible_users, total_points, status, notes, created_at, updated_at',
+      'id, period_key, period_start, period_end, gross_affiliate_cents, creator_share_bps, distributable_cents, eligible_users, total_points, status, notes, created_at, updated_at, allocation_rule, attributable_cents, unattributable_cents',
       { count: 'exact' }
     )
     .order('period_key', { ascending: false })
@@ -41,6 +41,26 @@ export async function GET(request: Request) {
         },
         { status: 503 }
       );
+    }
+    // Sin columnas nuevas aún
+    if ((error.message ?? '').includes('allocation_rule') || error.code === 'PGRST204') {
+      const fallback = await supabase
+        .from('commission_pools')
+        .select(
+          'id, period_key, period_start, period_end, gross_affiliate_cents, creator_share_bps, distributable_cents, eligible_users, total_points, status, notes, created_at, updated_at',
+          { count: 'exact' }
+        )
+        .order('period_key', { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (fallback.error) {
+        return NextResponse.json({ error: 'No se pudo listar pools' }, { status: 500 });
+      }
+      return NextResponse.json({
+        pools: fallback.data ?? [],
+        total: fallback.count ?? null,
+        limit,
+        offset,
+      });
     }
     return NextResponse.json({ error: 'No se pudo listar pools' }, { status: 500 });
   }

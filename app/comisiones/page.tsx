@@ -29,8 +29,9 @@ export default function ComisionesPage() {
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
             AVENTA puede recibir ingresos por enlaces de afiliados (Amazon, Mercado Libre y otras tiendas).
-            Una parte se reparte entre cazadores que demuestran impacto real en la comunidad. El ranking de
-            ofertas <strong>nunca</strong> se vende: sigue siendo por votos.
+            Una parte se reparte entre cazadores que demuestran calidad (umbral de ofertas) y generan
+            comisiones afiliadas reales. El ranking de ofertas <strong>nunca</strong> se vende: sigue
+            siendo por votos.
           </p>
         </header>
 
@@ -73,10 +74,12 @@ export default function ComisionesPage() {
             <h2 className="text-lg font-semibold">Cómo se reparte</h2>
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-            Cada mes, AVENTA calcula un pool a partir de comisiones de afiliados registradas en el ledger interno.
-            El reparto entre cazadores elegibles es proporcional a los puntos de sus ofertas calificadas (votos en
-            ofertas que cumplen el umbral). Los pagos son <strong>manuales</strong> tras revisión administrativa — no hay
-            retiro automático instantáneo.
+            Desbloqueás el programa con calidad ({COMMISSION_REQUIRED_OFFERS} ofertas ×{' '}
+            {COMMISSION_MIN_UPVOTES_PER_OFFER}+ votos). El pago es el{' '}
+            <strong>40% de las comisiones afiliadas confirmadas</strong> atribuibles a tu tag / tus
+            ofertas (Amazon, Mercado Libre, etc.). Quien genera más comisión confirmada cobra más; no
+            se reparte un bote “entre todos” por votos. Los pagos son <strong>manuales</strong> tras
+            revisión administrativa (mínimo y retención por devoluciones de red).
           </p>
         </section>
 

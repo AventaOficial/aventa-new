@@ -241,7 +241,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'commissions',
         body: [
           `AVENTA monetiza clics afiliados legítimos. Parte se reparte entre cazadores activos que cumplen requisitos: ${COMMISSION_REQUIRED_OFFERS} ofertas aprobadas con al menos ${COMMISSION_MIN_UPVOTES_PER_OFFER} votos positivos cada una.`,
-          'Debes aceptar los términos del programa en tu perfil. El reparto es mensual según puntos de calidad acumulados en el periodo.',
+          'Debes aceptar los términos del programa en tu perfil. Desbloqueás con calidad (ofertas × votos); cobrás el 40% de las comisiones afiliadas confirmadas atribuibles a tu tag. El pago es mensual y manual tras revisión.',
         ],
         cta: { label: 'Ver mi perfil y comisiones', href: '/me' },
       },

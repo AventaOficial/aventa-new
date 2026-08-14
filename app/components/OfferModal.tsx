@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { X, Heart, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
+import AffiliateDisclosure from './AffiliateDisclosure';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -44,6 +45,7 @@ interface OfferModalProps {
     avatar_url?: string | null;
     leaderBadge?: string | null;
     creatorMlTag?: string | null;
+    creatorAmazonTag?: string | null;
     userId?: string | null;
     slug?: string | null;
   };
@@ -364,7 +366,11 @@ export default function OfferModal({
         }).catch((err) => logClientError('offer-modal:track-outbound', err));
       }
       if (offerUrl?.trim()) {
-        const url = buildOfferUrl(offerUrl, author?.creatorMlTag) || offerUrl.trim();
+        const url =
+          buildOfferUrl(offerUrl, {
+            mlTag: author?.creatorMlTag,
+            amazonTag: author?.creatorAmazonTag,
+          }) || offerUrl.trim();
         window.open(url, '_blank', 'noopener,noreferrer');
       }
     } catch {
@@ -1042,6 +1048,9 @@ export default function OfferModal({
                   <Share2 className="h-4 w-4 md:h-4 md:w-4" />
                 </button>
               )}
+            </div>
+            <div className="mt-2">
+              <AffiliateDisclosure variant="compact" includeAmazonEn />
             </div>
           </div>
 

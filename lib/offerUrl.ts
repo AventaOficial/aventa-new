@@ -1,13 +1,18 @@
 /**
- * URLs de oferta: Mercado Libre (mercadolibre.*, meli.la) y acortadores Amazon (amzn.to, a.co).
- * Prioridad: tag de plataforma (ML_AFFILIATE_TAG / NEXT_PUBLIC_ML_AFFILIATE_TAG);
- * si no hay, tag del creador (ml_tracking_tag en perfil).
+ * URLs de oferta: Mercado Libre y Amazon con atribución.
+ * Prioridad: tag del **creador** (si existe) → tag de plataforma (env).
+ * Así el 40% atribuible se puede conciliar por tag en el ledger.
  */
 import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffiliateTags';
 
 const RESOLVE_TIMEOUT_MS = 12_000;
 const RESOLVE_USER_AGENT =
   'Mozilla/5.0 (compatible; AVENTA-OfferUrl/1.0; +https://aventaofertas.com)';
+
+export type OfferCreatorAffiliateTags = {
+  mlTag?: string | null;
+  amazonTag?: string | null;
+};
 
 /** Enlaces cortos del programa de colaboradores (redirigen a articulo.mercadolibre…). */
 export function isMeliLaShortUrl(url: string): boolean {
@@ -25,6 +30,15 @@ function isMercadoLibreOfferUrl(url: string): boolean {
   return isMeliLaShortUrl(url);
 }
 
+export function isAmazonOfferUrl(url: string): boolean {
+  try {
+    const h = new URL(url.trim()).hostname.toLowerCase();
+    return h.includes('amazon.') || h === 'amzn.to' || h === 'a.co';
+  } catch {
+    return false;
+  }
+}
+
 export function applyMercadoLibreAffiliateTag(url: string, tag: string): string {
   try {
     const parsed = new URL(url);
@@ -35,11 +49,30 @@ export function applyMercadoLibreAffiliateTag(url: string, tag: string): string 
   }
 }
 
+export function applyAmazonAssociateTag(url: string, tag: string): string {
+  try {
+    const u = new URL(url);
+    const h = u.hostname.toLowerCase();
+    if (!h.includes('amazon.') && h !== 'amzn.to' && h !== 'a.co') return url;
+    u.searchParams.set('tag', tag);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 /** Tag de afiliado de AVENTA en ML (mismo valor en servidor y cliente si usas NEXT_PUBLIC). */
 export function getPlatformMercadoLibreAffiliateTag(): string | null {
   const t =
     process.env.ML_AFFILIATE_TAG?.trim() ||
     process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG?.trim();
+  return t || null;
+}
+
+export function getPlatformAmazonAssociateTag(): string | null {
+  const t =
+    process.env.AMAZON_ASSOCIATE_TAG?.trim() ||
+    process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG?.trim();
   return t || null;
 }
 
@@ -156,22 +189,36 @@ export function normalizeMercadoLibreOfferUrlForStorage(url: string): string {
 
 export { isMercadoLibreOfferUrl };
 
+function normalizeCreatorTags(
+  creatorTags?: string | OfferCreatorAffiliateTags | null,
+): OfferCreatorAffiliateTags {
+  if (creatorTags == null) return {};
+  if (typeof creatorTags === 'string') return { mlTag: creatorTags };
+  return creatorTags;
+}
+
 /**
- * URL final al abrir “Cazar” / modal: ML o meli.la con tag de plataforma si existe; si no, tag del creador.
+ * URL final al abrir CTA: aplica tags de plataforma y **sobrescribe** ML/Amazon
+ * con el tag del creador cuando existe (atribución de comisiones).
  */
 export function buildOfferUrl(
   offerUrl: string | null | undefined,
-  creatorMlTag?: string | null
+  creatorTags?: string | OfferCreatorAffiliateTags | null,
 ): string {
   const url = offerUrl?.trim();
   if (!url) return '';
+  const tags = normalizeCreatorTags(creatorTags);
   let out = applyPlatformAffiliateTags(url);
-  if (
-    isMercadoLibreOfferUrl(out) &&
-    !getPlatformMercadoLibreAffiliateTag() &&
-    creatorMlTag?.trim()
-  ) {
-    out = applyMercadoLibreAffiliateTag(out, creatorMlTag.trim());
+
+  const ml = tags.mlTag?.trim();
+  if (ml && isMercadoLibreOfferUrl(out)) {
+    out = applyMercadoLibreAffiliateTag(out, ml);
   }
+
+  const amz = tags.amazonTag?.trim();
+  if (amz && isAmazonOfferUrl(out)) {
+    out = applyAmazonAssociateTag(out, amz);
+  }
+
   return out;
 }

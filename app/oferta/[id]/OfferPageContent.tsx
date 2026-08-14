@@ -26,6 +26,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
 import VoteArrowButton from '@/app/components/VoteArrowButton';
+import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
@@ -119,6 +120,7 @@ type OfferPayload = {
     avatar_url?: string | null;
     leaderBadge?: string | null;
     creatorMlTag?: string | null;
+    creatorAmazonTag?: string | null;
     userId?: string | null;
     slug?: string | null;
   };
@@ -381,7 +383,10 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     }
   };
 
-  const ctaUrl = buildOfferUrl(offer.offerUrl, offer.author.creatorMlTag);
+  const ctaUrl = buildOfferUrl(offer.offerUrl, {
+    mlTag: offer.author.creatorMlTag,
+    amazonTag: offer.author.creatorAmazonTag,
+  });
   const bankCouponLabel = getBankCouponLabel(offer.bankCoupon ?? null);
   const personalCouponTrim = offer.coupons?.trim() ?? '';
   const showCtaCouponChip = Boolean(ctaUrl && (bankCouponLabel || personalCouponTrim));
@@ -660,6 +665,12 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   ) : null}
                 </div>
               )}
+
+              {ctaUrl ? (
+                <div className="mt-2">
+                  <AffiliateDisclosure variant="compact" includeAmazonEn />
+                </div>
+              ) : null}
 
               <div className="mt-4 relative" ref={shareMenuRef}>
                 <button

@@ -7,6 +7,7 @@ import {
 } from '@/lib/server/commissionFiscal';
 import { evaluatePayoutReadiness, maskClabe, maskRfc } from '@/lib/commissions/fraudSignals';
 import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
+import { COMMISSION_TERMS_VERSION } from '@/lib/commissions/constants';
 
 function hasMissingTable(error: { message?: string } | null, tableLike: string): boolean {
   const m = (error?.message ?? '').toLowerCase();
@@ -73,12 +74,14 @@ export async function GET(request: Request) {
       clabe: null,
       updatedAt: null,
       acceptedAt: null,
+      termsVersion: null,
     };
     const duplicateRfc = fiscal.rfc ? duplicateRfcs.has(fiscal.rfc.toUpperCase()) : false;
     const readiness = evaluatePayoutReadiness({
       fiscal,
       duplicateRfc,
       termsAccepted: !!fiscal.acceptedAt,
+      termsVersionCurrent: fiscal.termsVersion === COMMISSION_TERMS_VERSION,
       programPubliclyActive: programActive,
     });
 
@@ -157,11 +160,13 @@ export async function PATCH(request: Request) {
         clabe: null,
         updatedAt: null,
         acceptedAt: null,
+        termsVersion: null,
       };
       const readiness = evaluatePayoutReadiness({
         fiscal,
         duplicateRfc: fiscal.rfc ? duplicateRfcs.has(fiscal.rfc.toUpperCase()) : false,
         termsAccepted: !!fiscal.acceptedAt,
+        termsVersionCurrent: fiscal.termsVersion === COMMISSION_TERMS_VERSION,
         programPubliclyActive: programActive,
       });
       const hardBlock = readiness.flags.filter(

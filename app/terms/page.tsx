@@ -1,10 +1,28 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import {
+  COMMISSION_DEFAULT_CREATOR_SHARE_BPS,
+  COMMISSION_MIN_PAYOUT_CENTS,
+  COMMISSION_MIN_UPVOTES_PER_OFFER,
+  COMMISSION_PAYOUT_HOLD_DAYS,
+  COMMISSION_REQUIRED_OFFERS,
+  COMMISSION_TERMS_VERSION,
+} from '@/lib/commissions/constants';
 
 export const metadata: Metadata = {
   title: 'Términos y Condiciones | AVENTA',
+  description:
+    'Términos de uso de AVENTA: comunidad de ofertas, afiliados, programa de comisiones a creadores y reglas de la plataforma.',
 };
 
+function mxnFromCents(cents: number): string {
+  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+}
+
 export default function TermsPage() {
+  const creatorSharePct = (COMMISSION_DEFAULT_CREATOR_SHARE_BPS / 100).toFixed(0);
+  const minPayout = mxnFromCents(COMMISSION_MIN_PAYOUT_CENTS);
+
   return (
     <main className="min-h-screen pb-24 md:pb-0 md:pl-28 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
       <div className="mx-auto max-w-3xl px-4 pt-24 md:pt-28 pb-16 space-y-10">
@@ -16,7 +34,8 @@ export default function TermsPage() {
             Términos y Condiciones de Uso
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Última actualización: 27 de marzo de 2026
+            Última actualización: 14 de agosto de 2026 · Versión del programa de comisiones:{' '}
+            <span className="font-mono text-xs">{COMMISSION_TERMS_VERSION}</span>
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Estos Términos y Condiciones regulan el acceso y uso de la plataforma AVENTA,
@@ -48,15 +67,19 @@ export default function TermsPage() {
               los comercios externos correspondientes. Pueden cambiar sin previo aviso.
             </li>
             <li>
-              La función principal de AVENTA es facilitar que la comunidad comparta y valore
-              ofertas. No existe obligación de publicar ni de mantener disponible ninguna
-              oferta concreta.
+              AVENTA actúa como <span className="font-semibold">intermediario informativo</span>
+              : no es parte del contrato de compraventa entre el usuario y la tienda externa.
+            </li>
+            <li>
+              El ranking de ofertas se basa en votos y señales de la comunidad. El ranking{' '}
+              <span className="font-semibold">no se vende ni se compra</span>. El contenido
+              patrocinado, si existiera, se identificará de forma distinta al ranking orgánico.
             </li>
           </ul>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">2. Registro y cuenta de usuario</h2>
+          <h2 className="text-xl font-semibold">2. Registro, cuenta y edad</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Algunas funcionalidades (por ejemplo, publicar ofertas, votar, comentar o
             guardar favoritos) requieren crear una cuenta de usuario mediante correo
@@ -73,6 +96,14 @@ export default function TermsPage() {
               presumirá realizada por él.
             </li>
             <li>
+              <span className="font-medium">Edad:</span> el uso general de la plataforma está
+              pensado para personas con capacidad legal suficiente. Para participar en el{' '}
+              <span className="font-semibold">programa de comisiones</span> (sección 8) el
+              usuario debe ser mayor de <span className="font-semibold">18 años</span> y estar
+              en condiciones de aportar datos fiscales y bancarios válidos en México (o los
+              que en el futuro se requieran en otros países).
+            </li>
+            <li>
               AVENTA se reserva el derecho de suspender o cancelar cuentas que incumplan
               estos Términos o que muestren actividad sospechosa o abusiva.
             </li>
@@ -80,7 +111,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">3. Contenido generado por usuarios</h2>
+          <h2 className="text-xl font-semibold">3. Contenido generado por usuarios (UGC)</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Las ofertas, comentarios, reportes y demás contenido publicados en AVENTA son
             responsabilidad exclusiva de los usuarios que los generan.
@@ -98,20 +129,37 @@ export default function TermsPage() {
             </li>
             <li>
               Al publicar contenido en AVENTA, el usuario otorga a la plataforma una licencia
-              no exclusiva, mundial, gratuita y revocable para mostrar dicho contenido dentro
-              de la comunidad y en materiales relacionados con la promoción de la propia
-              plataforma.
+              no exclusiva, mundial, gratuita y revocable para mostrar, almacenar, indexar y
+              reproducir dicho contenido dentro de la comunidad y en materiales relacionados
+              con la promoción de la propia plataforma.
+            </li>
+            <li>
+              <span className="font-medium">Propiedad intelectual de terceros:</span> si un
+              titular de derechos considera que un contenido infringe su marca, obra u otros
+              derechos, puede notificarlo a{' '}
+              <a
+                href="mailto:aventasoportelegal@gmail.com"
+                className="text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                aventasoportelegal@gmail.com
+              </a>{' '}
+              con identificación del contenido y fundamento. AVENTA podrá retirar u ocultar
+              el material de buena fe tras revisión razonable.
+            </li>
+            <li>
+              El usuario indemnizará y mantendrá indemne a AVENTA frente a reclamaciones de
+              terceros derivadas del contenido que él publique o de su uso indebido de la
+              plataforma, en la medida permitida por la ley.
             </li>
           </ul>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">
-            4. Reemplazo de enlaces y afiliación
-          </h2>
+          <h2 className="text-xl font-semibold">4. Reemplazo de enlaces y afiliación</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Para sostener la plataforma, AVENTA puede utilizar sistemas de afiliación y
-            tracking de rendimiento de enlaces.
+            tracking de rendimiento de enlaces (por ejemplo, Amazon Associates, Mercado Libre
+            Afiliados u otros programas equivalentes).
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
@@ -122,13 +170,24 @@ export default function TermsPage() {
             </li>
             <li>
               El uso de enlaces afiliados no modifica el precio final que el usuario paga en
-              la tienda externa. En algunos casos, incluso puede implicar precios o
-              beneficios promocionales especiales.
+              la tienda externa.
             </li>
             <li>
               AVENTA puede recibir comisiones o compensaciones económicas por compras
               realizadas a través de dichos enlaces. El usuario acepta esta práctica como
               parte del modelo de negocio de la plataforma.
+            </li>
+            <li>
+              En la interfaz se informa de esta práctica mediante avisos de transparencia
+              (por ejemplo en el pie de página y en{' '}
+              <Link href="/comisiones" className="text-violet-600 dark:text-violet-400 hover:underline">
+                /comisiones
+              </Link>
+              ). El detalle del tratamiento de datos está en la{' '}
+              <Link href="/privacy" className="text-violet-600 dark:text-violet-400 hover:underline">
+                Política de Privacidad
+              </Link>
+              .
             </li>
           </ul>
         </section>
@@ -139,21 +198,24 @@ export default function TermsPage() {
           </h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Para proteger la calidad de la comunidad y evitar abuso, el usuario se obliga a
-            no utilizar AVENTA como plataforma de promoción afiliada propia o spam.
+            no utilizar AVENTA como plataforma de promoción afiliada propia no autorizada o
+            spam.
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
               No se permite publicar enlaces afiliados propios ni enlaces cuyo principal
               objetivo sea obtener beneficios económicos para el propio usuario sin
-              autorización expresa de AVENTA.
+              autorización expresa de AVENTA (salvo el programa de comisiones de la sección 8,
+              operado bajo las reglas de la plataforma).
             </li>
             <li>
               No se permite el envío masivo de contenido repetitivo, enlaces de baja calidad
               o publicidad encubierta.
             </li>
             <li>
-              El incumplimiento de estas reglas puede derivar en eliminación de contenido,
-              pérdida de reputación interna, suspensión temporal o definitiva de la cuenta.
+              El incumplimiento puede derivar en eliminación de contenido, pérdida de
+              reputación interna, exclusión del programa de comisiones, suspensión temporal o
+              definitiva de la cuenta.
             </li>
           </ul>
         </section>
@@ -184,14 +246,15 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">7. Sistema de reputación</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            La plataforma puede asignar métricas internas de reputación a los usuarios, por
-            ejemplo, conteos de ofertas aprobadas, rechazadas u otros indicadores de
-            participación.
+            La plataforma puede asignar métricas internas de reputación a los usuarios (por
+            ejemplo, ofertas aprobadas, comentarios u otros indicadores).
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
-              Esta reputación es una herramienta interna para moderación y ranking, y no
-              constituye una certificación profesional, comercial ni financiera del usuario.
+              Esta reputación es una herramienta interna para moderación, privilegios de
+              publicación y peso de voto. <span className="font-semibold">No constituye</span>{' '}
+              certificación profesional, comercial ni financiera, ni determina por sí sola el
+              monto de un pago.
             </li>
             <li>
               AVENTA puede ajustar los criterios y algoritmos de reputación en cualquier
@@ -200,49 +263,117 @@ export default function TermsPage() {
           </ul>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3" id="comisiones">
           <h2 className="text-xl font-semibold">
-            8. Programa de comisiones para creadores (elegibilidad y activación)
+            8. Programa de comisiones para creadores
           </h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            AVENTA puede ofrecer un programa opcional de participación económica para usuarios
-            que publican ofertas de calidad. El programa no está activo hasta que el equipo lo
-            comunique por canales oficiales; mientras tanto, la plataforma sigue siendo gratuita
-            para la comunidad.
+            AVENTA puede ofrecer un programa opcional de participación económica para
+            usuarios que publican ofertas de calidad. El programa solo genera obligaciones de
+            pago cuando está{' '}
+            <span className="font-semibold">anunciado como activo</span> por canales oficiales
+            y el usuario ha aceptado expresamente esta sección en su cuenta. Mientras el
+            programa no esté activo, la plataforma puede seguir siendo gratuita para la
+            comunidad y no existe derecho a liquidación.
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Resumen orientativo (detalle operativo también en{' '}
+            <Link href="/comisiones" className="text-violet-600 dark:text-violet-400 hover:underline">
+              /comisiones
+            </Link>
+            ):
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
-              <span className="font-medium">Requisitos numéricos mínimos (referencia):</span>{' '}
-              podrán considerarse elegibles quienes acrediten al menos{' '}
-              <span className="font-semibold">15 ofertas aprobadas</span>, cada una de ellas con
-              al menos <span className="font-semibold">120 votos positivos</span> registrados en
-              la plataforma (según las métricas internas visibles en el perfil). Publicar un
-              número mayor de ofertas sin cumplir el umbral de votos en cada una no sustituye
-              este requisito.
+              <span className="font-medium">Elegibilidad (candado de calidad):</span> al menos{' '}
+              <span className="font-semibold">
+                {COMMISSION_REQUIRED_OFFERS} ofertas
+              </span>{' '}
+              en estado aprobado o publicado, cada una con al menos{' '}
+              <span className="font-semibold">
+                {COMMISSION_MIN_UPVOTES_PER_OFFER} votos positivos
+              </span>
+              ; mayoría de edad (18+); aceptación expresa de esta versión de términos; y
+              datos fiscales/bancarios válidos cuando se solicite el pago (nombre legal, RFC y
+              CLABE en México, u otros datos equivalentes). Cumplir el umbral de votos{' '}
+              <span className="font-semibold">no genera</span> por sí solo un pago fijo ni un
+              ingreso garantizado.
             </li>
             <li>
-              <span className="font-medium">Activación:</span> quien cumpla los requisitos podrá
-              aceptar en su cuenta los términos específicos del programa. Sin esa aceptación
-              expresa no hay participación ni obligación de pago.
+              <span className="font-medium">Base del pago:</span> cuando el programa esté
+              activo, el creador elegible podrá recibir aproximadamente el{' '}
+              <span className="font-semibold">{creatorSharePct}%</span> de las{' '}
+              <span className="font-semibold">
+                comisiones de afiliado confirmadas por la red
+              </span>{' '}
+              (por ejemplo Amazon o Mercado Libre) que resulten{' '}
+              <span className="font-semibold">atribuibles</span> a su cuenta mediante
+              tracking tag / identificador de creador u oferta, según los reportes e
+              importaciones internas de AVENTA. No se pagan clics, votos ni estimaciones
+              aisladas.
             </li>
             <li>
-              <span className="font-medium">Enlaces y afiliación durante elegibilidad:</span>{' '}
-              mientras un usuario no cumpla requisitos y no active participación, los enlaces
-              comerciales se gestionan bajo la operación estándar de la plataforma (incluido el
-              reemplazo de links cuando corresponda). El hecho de publicar ofertas no concede por
-              sí mismo derechos económicos sobre cada enlace.
+              <span className="font-medium">No atribuible:</span> las comisiones de afiliado
+              que no puedan vincularse de forma razonable a un creador (sin tag, tráfico
+              genérico de plataforma u otros casos){' '}
+              <span className="font-semibold">no generan pago individual</span> y permanecen
+              en la economía de la plataforma.
             </li>
             <li>
-              <span className="font-medium">Pagos y fiscalidad:</span> cualquier liquidación
-              estará sujeta a verificación antifraude, disponibilidad del programa, y a la
-              normativa fiscal aplicable (incluida la posible retención de impuestos o solicitud
-              de datos fiscales). Los montos, métodos y calendarios se comunicarán aparte cuando
-              el programa aplique.
+              <span className="font-medium">Confirmado, pendiente y void:</span> “confirmado”
+              significa registrado internamente como comisión de red en estado usable para
+              reparto (p. ej. accrued/paid en el ledger). “Pendiente” es una asignación aún
+              no liquidada. “Void” es anulación total o parcial por devoluciones,
+              inconsistencias de red, fraude, error o incumplimiento. AVENTA puede auditar y
+              ajustar montos antes o después del cálculo del periodo.
             </li>
             <li>
-              <span className="font-medium">Sin promesa de ingreso:</span> la mera publicación
-              de ofertas o el cumplimiento de umbrales numéricos no garantiza remuneración
-              alguna. AVENTA puede modificar o suspender el programa previo aviso razonable.
+              <span className="font-medium">Retención (hold):</span> de forma orientativa,
+              AVENTA puede retener liquidaciones alrededor de{' '}
+              <span className="font-semibold">{COMMISSION_PAYOUT_HOLD_DAYS} días</span> tras
+              el cierre del periodo relevante, para absorber cancelaciones o devoluciones de
+              las redes de afiliados. Los plazos exactos pueden ajustarse según cada red.
+            </li>
+            <li>
+              <span className="font-medium">Mínimo de pago:</span> salvo que se comunique otro
+              umbral, el mínimo orientativo de transferencia es{' '}
+              <span className="font-semibold">{minPayout}</span>. Si el saldo a pagar no
+              alcanza el mínimo, puede acumularse para un periodo posterior o quedar pendiente
+              hasta reunir el umbral, según la operación del programa.
+            </li>
+            <li>
+              <span className="font-medium">Método de pago:</span> en la etapa actual los pagos
+              se procesan de forma <span className="font-semibold">manual</span> (p. ej. SPEI
+              a CLABE) tras revisión administrativa. No hay retiro instantáneo automático.
+            </li>
+            <li>
+              <span className="font-medium">Fiscalidad:</span> cualquier liquidación está
+              sujeta a la normativa fiscal aplicable, a la posible retención de impuestos y a
+              la solicitud de datos o comprobantes (incluida información para CFDI u otras
+              obligaciones). El tratamiento concreto puede requerir validación contable; el
+              usuario es responsable de sus propias obligaciones fiscales.
+            </li>
+            <li>
+              <span className="font-medium">Naturaleza de la relación:</span> la participación
+              en el programa <span className="font-semibold">no crea</span> relación laboral,
+              de sociedad ni de mandato irrevocable. Es un programa discrecional de
+              participación en comisiones de afiliado sujetas a fondos reales, elegibilidad y
+              reglas vigentes.
+            </li>
+            <li>
+              <span className="font-medium">Modificación y suspensión:</span> AVENTA puede
+              modificar porcentajes, umbrales, calendarios o suspender el programa con aviso
+              razonable. Los cambios materiales de esta sección pueden exigir una nueva
+              aceptación (nueva versión). La mera publicación de ofertas o el cumplimiento de
+              umbrales numéricos <span className="font-semibold">no garantiza</span>{' '}
+              remuneración.
+            </li>
+            <li>
+              <span className="font-medium">Cumplimiento de programas de terceros:</span> el
+              creador no debe realizar prácticas prohibidas por los términos de Amazon
+              Associates, Mercado Libre Afiliados u otras redes (incluyendo, sin limitar,
+              cookie stuffing, incentivos ilícitos al clic, o auto-compra destinada a
+              generarse comisión). El incumplimiento puede anular pagos y cerrar la cuenta.
             </li>
           </ul>
         </section>
@@ -250,33 +381,42 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">9. Conductas prohibidas</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Sin limitar otras conductas que puedan considerarse abusivas, se consideran
-            prohibidas las siguientes:
+            Sin limitar otras conductas abusivas, se prohíbe expresamente:
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-            <li>Manipular votos de forma artificial (por ejemplo, mediante cuentas falsas).</li>
+            <li>Manipular votos de forma artificial (cuentas falsas, granjas de votos, colusión).</li>
             <li>Crear múltiples cuentas para eludir suspensiones o distorsionar métricas.</li>
             <li>
               Automatizar el envío de ofertas, votos, comentarios o clics outbound sin
               autorización expresa.
             </li>
             <li>
-              Realizar click fraud o cualquier otra práctica destinada a inflar
-              artificialmente métricas de impacto.
+              Click fraud o cualquier práctica destinada a inflar artificialmente métricas de
+              impacto o comisiones.
+            </li>
+            <li>
+              <span className="font-medium">Self-dealing:</span> comprar a través del propio
+              enlace afiliado / tag con el fin principal de generarse comisión a sí mismo, o
+              coordinar compras fingidas con terceros para el mismo fin.
+            </li>
+            <li>
+              Usar un mismo RFC en múltiples cuentas de creador para eludir controles, o
+              aportar datos fiscales/bancarios de terceros sin autorización.
             </li>
             <li>
               Intentar acceder de forma no autorizada a sistemas, bases de datos o cuentas de
               otros usuarios.
             </li>
             <li>
-              Realizar ingeniería inversa, descompilar o intentar obtener el código fuente de
-              sistemas de la plataforma, salvo en los casos permitidos por la ley aplicable.
-            </li>
-            <li>
               Publicar contenido ilegal, difamatorio, discriminatorio, violento, sexualmente
               explícito o que infrinja derechos de propiedad intelectual o de terceros.
             </li>
           </ul>
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Ante indicios de fraude, AVENTA puede congelar saldos, marcar asignaciones como
+            void, exigir verificación adicional y/o banear la cuenta, sin perjuicio de otras
+            acciones legales.
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -287,18 +427,22 @@ export default function TermsPage() {
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
-              Las decisiones de compra que los usuarios tomen basadas en ofertas vistas en
-              la plataforma son responsabilidad exclusiva de cada usuario.
+              Las decisiones de compra basadas en ofertas vistas en la plataforma son
+              responsabilidad exclusiva de cada usuario.
             </li>
             <li>
               AVENTA no responde por pérdidas económicas, daños indirectos, lucro cesante ni
-              ningún otro perjuicio derivado de ofertas que resulten expiradas, erróneas,
-              incompletas o no disponibles en la tienda externa.
+              perjuicios derivados de ofertas expiradas, erróneas, incompletas o no
+              disponibles en la tienda externa, en la medida permitida por la ley.
             </li>
             <li>
               AVENTA no es parte de la relación contractual entre el usuario y la tienda
-              externa. Cualquier reclamación relacionada con la compra (entrega, garantía,
-              devoluciones, facturación, etc.) debe dirigirse al comercio correspondiente.
+              externa. Reclamaciones de compra (entrega, garantía, devoluciones, facturación)
+              deben dirigirse al comercio correspondiente.
+            </li>
+            <li>
+              Los montos de comisiones dependen de reportes de redes de afiliados externas;
+              retrasos, ajustes o cancelaciones de esas redes pueden afectar liquidaciones.
             </li>
           </ul>
         </section>
@@ -312,14 +456,17 @@ export default function TermsPage() {
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
               AVENTA puede suspender, limitar o cancelar cuentas que incumplan estos
-              Términos, que generen riesgo para la seguridad de la plataforma o que muestren
-              patrones de abuso.
+              Términos, que generen riesgo para la seguridad o que muestren patrones de abuso.
             </li>
             <li>
-              Incluso tras la terminación de una cuenta, AVENTA puede conservar ciertos datos
-              por un tiempo razonable para fines de seguridad, prevención de fraude,
-              resolución de disputas o cumplimiento de obligaciones legales, en los términos
-              descritos en la Política de Privacidad.
+              Incluso tras la terminación, AVENTA puede conservar ciertos datos el tiempo
+              razonable para seguridad, prevención de fraude, resolución de disputas,
+              obligaciones fiscales o legales, conforme a la Política de Privacidad.
+            </li>
+            <li>
+              Saldos del programa de comisiones pendientes pueden revisarse, retenerse o
+              anularse según elegibilidad, fraude y estado del programa al momento de la
+              terminación.
             </li>
           </ul>
         </section>
@@ -332,10 +479,10 @@ export default function TermsPage() {
             aplicables en los Estados Unidos Mexicanos.
           </p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Sin perjuicio de otros mecanismos amistosos de resolución de conflictos, las
-            partes se someten a los tribunales competentes del lugar que resulte aplicable
-            conforme a la ley mexicana, renunciando, en lo posible, a cualquier otro fuero
-            que pudiera corresponderles por razón de su domicilio presente o futuro.
+            Sin perjuicio de mecanismos amistosos de resolución de conflictos, las partes se
+            someten a los tribunales competentes conforme a la ley mexicana, renunciando, en
+            lo posible, a cualquier otro fuero que pudiera corresponderles por razón de su
+            domicilio presente o futuro.
           </p>
         </section>
 
@@ -347,14 +494,24 @@ export default function TermsPage() {
             <span className="font-medium">https://aventaofertas.com/terms</span>.
           </p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Cuando los cambios sean relevantes, se procurará comunicarlo a los usuarios
-            mediante avisos en la plataforma o por los medios de contacto disponibles. El
-            uso continuado de la plataforma tras la publicación de cambios implica la
-            aceptación de los nuevos términos.
+            Cuando los cambios sean relevantes —en especial los del programa de comisiones—
+            se procurará comunicarlo mediante avisos en la plataforma o por los medios de
+            contacto disponibles. El uso continuado tras la publicación de cambios implica la
+            aceptación de los nuevos términos generales; la participación en el programa de
+            comisiones puede exigir aceptación expresa de la nueva versión en el perfil.
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Contacto legal:{' '}
+            <a
+              href="mailto:aventasoportelegal@gmail.com"
+              className="text-violet-600 dark:text-violet-400 hover:underline"
+            >
+              aventasoportelegal@gmail.com
+            </a>
+            .
           </p>
         </section>
       </div>
     </main>
   );
 }
-

@@ -18,6 +18,7 @@ import {
   Rocket,
   Scale,
   ShieldOff,
+  Tags,
   UserCog,
   Users,
   Wrench,
@@ -173,6 +174,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'submenu',
   },
   {
+    href: '/admin/creator-tags',
+    label: 'Tags creadores',
+    domain: 'monetizacion',
+    frequency: 'mensual',
+    audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
     href: '/admin/operaciones/trabajo',
     label: 'Bot y trabajo',
     domain: 'monetizacion',
@@ -296,6 +305,7 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/metrics': BarChart3,
   '/admin/operaciones': LayoutDashboard,
   '/admin/commissions': CircleDollarSign,
+  '/admin/creator-tags': Tags,
   '/admin/moderation': ClipboardList,
   '/admin/moderation/reports': Flag,
   '/admin/reports': Flag,
@@ -360,6 +370,7 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
       return role !== 'owner';
     case '/admin/operaciones':
     case '/admin/commissions':
+    case '/admin/creator-tags':
     case '/admin/operaciones/trabajo':
     case '/admin/vote-weights':
     case '/admin/mantenimiento':
@@ -517,7 +528,11 @@ export function getAdminMobileSectionTitle(pathname: string): string {
   ) {
     return 'Contenido';
   }
-  if (pathname === '/admin/commissions' || pathname.startsWith('/admin/operaciones/trabajo')) {
+  if (
+    pathname === '/admin/commissions' ||
+    pathname === '/admin/creator-tags' ||
+    pathname.startsWith('/admin/operaciones/trabajo')
+  ) {
     return 'Monetización';
   }
   if (
