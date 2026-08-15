@@ -569,7 +569,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   sizes="(max-width: 768px) 100vw, 45vw"
                   className="object-contain p-2"
                   priority
-                  unoptimized={currentImage.startsWith('/')}
+                  unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
                 />
               </div>
               <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />

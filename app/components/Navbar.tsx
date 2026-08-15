@@ -9,7 +9,6 @@ import { playNotificationDropSound } from '@/lib/playNotificationSound';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
-import { usePathname } from 'next/navigation';
 
 type NotifTab = 'ofertas' | 'explorar' | 'avisos';
 
@@ -39,8 +38,6 @@ export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const { user, session, signOut, isLoading: authLoading } = useAuth();
   const { openRegisterModal } = useUI();
-  const pathname = usePathname();
-  const isHomePage = pathname === '/';
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [signOutStatus, setSignOutStatus] = useState<'idle' | 'closing' | 'closed'>('idle');
@@ -245,22 +242,10 @@ export default function Navbar() {
       <div className="flex items-center gap-2 md:gap-3">
         {user && isMd && (
           <div className="flex flex-col items-end">
-            <p
-              className={
-                isHomePage
-                  ? 'text-sm md:text-base font-medium text-white'
-                  : 'text-sm md:text-base font-medium text-gray-600 dark:text-white/90'
-              }
-            >
+            <p className="text-sm md:text-base font-medium text-gray-600 dark:text-white/90">
               Hola de nuevo
             </p>
-            <p
-              className={
-                isHomePage
-                  ? 'text-base md:text-lg font-semibold text-white border-b-2 border-white/70 pb-0.5'
-                  : 'text-base md:text-lg font-semibold text-gray-900 dark:text-white/95 border-b-2 border-gray-300 dark:border-white/30 pb-0.5'
-              }
-            >
+            <p className="text-base md:text-lg font-semibold text-gray-900 dark:text-white/95 border-b-2 border-gray-300 dark:border-white/30 pb-0.5">
               {userName}
             </p>
           </div>

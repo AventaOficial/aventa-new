@@ -1,15 +1,76 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado, es un peso ganado';
 
+export const SEARCH_CHIPS = ['iPhone', 'PS5', 'Nike', 'Costco', 'Amazon', 'Samsung'] as const;
+
 interface HeroProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
+}
+
+function SearchChips({
+  searchQuery,
+  onPick,
+}: {
+  searchQuery: string;
+  onPick: (value: string) => void;
+}) {
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:overflow-visible md:flex-wrap">
+      {SEARCH_CHIPS.map((chip) => {
+        const active = searchQuery.trim().toLowerCase() === chip.toLowerCase();
+        return (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => onPick(active ? '' : chip)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all shrink-0 ${
+              active
+                ? 'bg-[#1d1d1f] dark:bg-[#fafafa] text-white dark:text-[#1d1d1f]'
+                : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
+            }`}
+          >
+            {chip}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SearchField({
+  compact,
+  searchQuery,
+  onChange,
+}: {
+  compact?: boolean;
+  searchQuery: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div
+      className={`flex items-center w-full rounded-2xl bg-white dark:bg-[#1a1a1a] border border-[#e5e5e7] dark:border-[#262626] px-4 transition-all duration-200 focus-within:border-violet-500/60 focus-within:ring-2 focus-within:ring-violet-500/20 ${
+        compact ? 'min-h-[48px] max-[400px]:min-h-[44px] max-[400px]:px-3' : 'min-h-[52px] px-5'
+      }`}
+    >
+      <Search className="h-5 w-5 text-[#6e6e73] dark:text-[#a3a3a3] mr-3 flex-shrink-0" />
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="iPhone, Nike, Costco…"
+        className="flex-1 bg-transparent text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] outline-none text-[15px] w-full min-w-0"
+        aria-label="Buscar ofertas"
+      />
+    </div>
+  );
 }
 
 export default function Hero({ searchQuery: controlledQuery = '', onSearchChange }: HeroProps) {
@@ -21,53 +82,57 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
       <div className="md:hidden flex flex-col">
-        <div className="flex items-start pl-5 pr-40 max-[420px]:pr-36 max-[400px]:pr-32 max-[380px]:pr-28 max-[360px]:pr-24 pt-5 max-[400px]:pt-3 min-w-0">
+        <div className="flex items-start pl-5 pr-4 max-[400px]:pr-3 pt-5 max-[400px]:pt-3 min-w-0 gap-2">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl max-[400px]:text-xl font-semibold tracking-[-0.03em] flex items-center gap-2">
               <AventaIcon size={28} className="text-[#1d1d1f] dark:text-white shrink-0" />
               <span className="text-[#1d1d1f] dark:text-white">AVENTA</span>
             </h1>
-            <p className="text-[15px] max-[400px]:text-[13px] text-[#6e6e73] dark:text-[#a3a3a3] mt-1.5 leading-snug break-words font-normal">
+            <p className="text-[15px] max-[400px]:text-[13px] text-[#6e6e73] dark:text-[#a3a3a3] mt-1.5 leading-snug break-words font-normal pr-16">
               {TAGLINE}
             </p>
           </div>
+          <Image
+            src="/brand/aventa-bag.png"
+            alt=""
+            width={80}
+            height={80}
+            className="mt-9 w-[72px] h-[72px] max-[400px]:w-16 max-[400px]:h-16 object-contain shrink-0 pointer-events-none"
+            priority
+            unoptimized
+          />
         </div>
-        <div className="px-4 max-[400px]:px-3 pt-3 max-[400px]:pt-2 pb-4 max-[400px]:pb-3">
-          <div className="flex items-center w-full min-h-[48px] max-[400px]:min-h-[44px] rounded-2xl bg-[#f5f5f7] dark:bg-[#1a1a1a] border border-[#e5e5e7] dark:border-[#262626] px-4 max-[400px]:px-3 transition-all duration-200 focus-within:border-violet-500/60 focus-within:ring-2 focus-within:ring-violet-500/20">
-            <Search className="h-5 w-5 text-[#6e6e73] dark:text-[#a3a3a3] mr-3 flex-shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="iPhone, Nike, Costco…"
-              className="flex-1 bg-transparent text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] outline-none text-[15px] w-full min-w-0"
-              aria-label="Buscar ofertas"
-            />
-          </div>
+        <div className="px-4 max-[400px]:px-3 pt-3 max-[400px]:pt-2 pb-3 max-[400px]:pb-2 space-y-2.5">
+          <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} />
+          <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
         </div>
       </div>
 
-      <div className="hidden md:block relative w-full overflow-hidden bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1d1d1f] dark:from-[#0d0d0f] dark:via-[#151518] dark:to-[#0d0d0f] px-8 lg:px-12 pt-[calc(2rem+env(safe-area-inset-top))] pb-10 rounded-b-2xl mb-4 border-b border-gray-800/50">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-purple-500/10" aria-hidden />
-        <div className="relative container mx-auto max-w-4xl">
-          <h1 className="text-center text-5xl lg:text-6xl font-semibold text-white tracking-[-0.03em] flex items-center justify-center gap-3">
-            <AventaIcon size={48} className="lg:w-14 lg:h-14 text-white shrink-0" />
-            AVENTA
-          </h1>
-          <p className="text-center text-[17px] lg:text-lg text-gray-400 mt-3 mb-6 max-w-xl mx-auto leading-snug font-normal">
-            {TAGLINE}
-          </p>
-          <div className="flex items-center w-full max-w-3xl lg:max-w-4xl mx-auto rounded-xl border border-gray-600/60 bg-white/5 backdrop-blur-sm px-5 py-3 focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
-            <Search className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="iPhone, Nike, Costco…"
-              className="flex-1 bg-transparent text-gray-100 placeholder:text-gray-500 outline-none text-base w-full min-w-0"
-              aria-label="Buscar ofertas"
-            />
+      <div className="hidden md:block relative w-full px-8 lg:px-12 pt-20 pb-2">
+        <div className="relative mx-auto max-w-5xl xl:max-w-6xl flex items-center gap-8 lg:gap-12">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl lg:text-4xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] tracking-[-0.03em] leading-tight">
+              Ofertas que <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
+            </h1>
+            <p className="mt-2 text-[15px] lg:text-base text-[#6e6e73] dark:text-[#a3a3a3] leading-snug">
+              {TAGLINE}
+            </p>
+            <div className="mt-5 max-w-xl">
+              <SearchField searchQuery={searchQuery} onChange={setSearchQuery} />
+            </div>
+            <div className="mt-3">
+              <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
+            </div>
           </div>
+          <Image
+            src="/brand/aventa-bag.png"
+            alt=""
+            width={240}
+            height={240}
+            className="hidden lg:block w-[200px] h-[200px] xl:w-[240px] xl:h-[240px] object-contain shrink-0 pointer-events-none"
+            priority
+            unoptimized
+          />
         </div>
       </div>
     </header>

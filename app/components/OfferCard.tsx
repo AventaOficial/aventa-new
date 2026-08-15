@@ -233,7 +233,8 @@ export default function OfferCard({
   const viewTrackedRef = useRef(false);
 
   useEffect(() => {
-    if (!offerId || !cardRef.current) return;
+    if (isTesterOffer || !offerId || offerId.startsWith('tester-')) return;
+    if (!cardRef.current) return;
     if (typeof sessionStorage === 'undefined') return;
     const key = `view:${offerId}`;
     if (sessionStorage.getItem(key)) return;
@@ -276,7 +277,7 @@ export default function OfferCard({
       if (timeoutId) clearTimeout(timeoutId);
       observer.disconnect();
     };
-  }, [offerId, session?.access_token]);
+  }, [isTesterOffer, offerId, session?.access_token]);
 
   useEffect(() => {
     setLocalScore(baseScore);
@@ -542,7 +543,7 @@ export default function OfferCard({
                 sizes="(max-width: 400px) 90px, (max-width: 768px) 38vw, 220px"
                 className="object-contain md:object-cover object-center"
                 onError={() => setImgError(true)}
-                unoptimized={image.startsWith('/')}
+                unoptimized={image.startsWith('/') || image.includes('placehold.co')}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

@@ -7,7 +7,9 @@ import {
   UserRound,
   Settings,
   Bell,
-  BowArrow,
+  Compass,
+  Target,
+  ShoppingBag,
   PlusCircle,
   Shield,
   Coins,
@@ -22,6 +24,10 @@ import {
 } from '@/lib/commissions/constants';
 
 export type GuideId = 'aventa' | 'cazador' | 'ahorrador';
+
+export type GuideFilter = 'interactive' | 'steps' | 'rewards';
+
+export type GuideTheme = 'violet' | 'orange' | 'teal';
 
 export type IllustrationId =
   | 'community'
@@ -64,6 +70,8 @@ export type GuideMeta = {
   description: string;
   icon: LucideIcon;
   accent: string;
+  theme: GuideTheme;
+  filters: GuideFilter[];
   steps: GuideStep[];
 };
 
@@ -73,8 +81,10 @@ export const GUIDES: GuideMeta[] = [
     title: 'Guía Aventa',
     tagline: 'Todo lo que puedes hacer',
     description: 'Feed, votos, favoritos, perfil, configuración y más — la guía completa de la plataforma.',
-    icon: Sparkles,
+    icon: Compass,
     accent: 'from-violet-600 to-fuchsia-600',
+    theme: 'violet',
+    filters: ['interactive', 'steps'],
     steps: [
       {
         id: 'bienvenida',
@@ -190,12 +200,14 @@ export const GUIDES: GuideMeta[] = [
     title: 'Guía del Cazador',
     tagline: 'Sube, impacta y gana',
     description: 'Cómo subir ofertas, pasar moderación, sumar reputación y participar en comisiones.',
-    icon: BowArrow,
-    accent: 'from-violet-600 to-amber-500',
+    icon: Target,
+    accent: 'from-orange-500 to-amber-500',
+    theme: 'orange',
+    filters: ['interactive', 'steps', 'rewards'],
     steps: [
       {
         id: 'quien-es',
-        icon: BowArrow,
+        icon: Target,
         title: '¿Qué es un cazador?',
         subtitle: 'El rol',
         illustration: 'hunter-intro',
@@ -276,8 +288,10 @@ export const GUIDES: GuideMeta[] = [
     title: 'Guía del Ahorrador',
     tagline: 'Encuentra sin complicarte',
     description: 'Para quien solo quiere buenas ofertas: feed, filtros, favoritos y alertas.',
-    icon: Heart,
-    accent: 'from-emerald-600 to-violet-600',
+    icon: ShoppingBag,
+    accent: 'from-teal-600 to-emerald-500',
+    theme: 'teal',
+    filters: ['interactive', 'steps'],
     steps: [
       {
         id: 'intro',

@@ -4,23 +4,28 @@ export type HomeTab = 'vitales' | 'top' | 'personalized' | 'latest';
 
 export type TesterOffer = CardOffer & { tabs: HomeTab[] };
 
+/** PNG: placehold.co sin extensión entrega SVG y next/image responde 400. */
+function ph(text: string): string {
+  return `https://placehold.co/400x300/e8e8ed/1d1d1f/png?text=${text}`;
+}
+
 const IMG: Record<string, string> = {
-  'tester-1': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=iPhone+16+Pro',
-  'tester-2': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=PC+Gamer',
-  'tester-3': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Nike+Air+Max',
-  'tester-4': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Lavasecadora',
-  'tester-5': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Sartenes',
-  'tester-6': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=MacBook+Air',
-  'tester-7': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Audifonos+Sony',
-  'tester-8': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Silla+Gamer',
-  'tester-9': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=TV+Samsung',
-  'tester-10': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Cafetera',
-  'tester-11': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Mochila',
-  'tester-12': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Tablet+Galaxy',
-  'tester-13': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Aspiradora',
-  'tester-14': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Reloj+Smart',
-  'tester-15': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Bici+Electrica',
-  'tester-16': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Air+Fryer',
+  'tester-1': ph('iPhone+16+Pro'),
+  'tester-2': ph('PC+Gamer'),
+  'tester-3': ph('Nike+Air+Max'),
+  'tester-4': ph('Lavasecadora'),
+  'tester-5': ph('Sartenes'),
+  'tester-6': ph('MacBook+Air'),
+  'tester-7': ph('Audifonos+Sony'),
+  'tester-8': ph('Silla+Gamer'),
+  'tester-9': ph('TV+Samsung'),
+  'tester-10': ph('Cafetera'),
+  'tester-11': ph('Mochila'),
+  'tester-12': ph('Tablet+Galaxy'),
+  'tester-13': ph('Aspiradora'),
+  'tester-14': ph('Reloj+Smart'),
+  'tester-15': ph('Bici+Electrica'),
+  'tester-16': ph('Air+Fryer'),
 };
 
 function hoursAgo(hours: number): string {

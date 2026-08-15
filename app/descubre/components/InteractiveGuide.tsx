@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Lightbulb } from 'lucide-react';
 import type { GuideMeta } from '../guides/content';
 import GuideIllustration from './GuideIllustrations';
 
@@ -28,13 +28,12 @@ export default function InteractiveGuide({
   onDotClick,
 }: Props) {
   const step = guide.steps[stepIndex];
-  const Icon = step.icon;
   const n = guide.steps.length;
   const isFirst = stepIndex <= 0;
   const isLast = stepIndex >= n - 1;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-lg md:max-w-2xl">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -43,7 +42,7 @@ export default function InteractiveGuide({
         <button
           type="button"
           onClick={onBackToHub}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200/90 bg-white/90 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-300 dark:hover:bg-gray-800"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e5e5e7] bg-white text-[#6e6e73] transition-colors hover:bg-[#f5f5f7] dark:border-[#262626] dark:bg-[#141414] dark:text-[#a3a3a3]"
           aria-label="Volver al hub de guías"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -52,115 +51,88 @@ export default function InteractiveGuide({
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
             {guide.title}
           </p>
-          <h1 className="truncate text-lg font-bold text-gray-900 dark:text-gray-50 md:text-xl">
-            {step.title}
-          </h1>
+          <p className="text-sm font-medium text-[#6e6e73] dark:text-[#a3a3a3]">
+            Paso {stepIndex + 1} de {n}
+          </p>
         </div>
       </motion.div>
 
-      <div className="mb-4 h-1 overflow-hidden rounded-full bg-gray-200/80 dark:bg-gray-700/80">
-        <motion.div
-          className={`h-full rounded-full bg-gradient-to-r ${guide.accent}`}
-          initial={false}
-          animate={{ width: `${((stepIndex + 1) / n) * 100}%` }}
-          transition={{ duration: 0.35, ease: EASE }}
-        />
-      </div>
-
-      <motion.article
-        key={`${guide.id}-${step.id}`}
-        initial={{ opacity: 0, x: direction >= 0 ? 40 : -40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.38, ease: EASE }}
-        className="overflow-hidden rounded-2xl border border-gray-200/70 bg-gradient-to-br from-white via-white to-violet-50/30 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.12)] dark:border-gray-700/60 dark:from-gray-900 dark:via-gray-900 dark:to-violet-950/20 md:rounded-[1.35rem]"
-      >
-        <GuideIllustration id={step.illustration} />
-
-        <div className="border-t border-gray-100/80 p-5 dark:border-gray-800 sm:p-6">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 ring-1 ring-violet-500/20">
-              <Icon className="h-5 w-5 text-violet-600 dark:text-violet-400" strokeWidth={1.75} />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-violet-600 dark:text-violet-400">{step.subtitle}</p>
-              <h2 className="text-base font-bold text-gray-900 dark:text-gray-50 md:text-lg">{step.title}</h2>
-            </div>
-          </div>
-
-          <div className="space-y-2.5 text-[14px] leading-relaxed text-gray-600 dark:text-gray-400 md:text-[15px]">
-            {step.body.map((paragraph) => (
-              <p key={paragraph.slice(0, 24)}>{paragraph}</p>
-            ))}
-          </div>
-
-          {step.tips && step.tips.length > 0 && (
-            <motion.ul
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
-              className="mt-4 space-y-2 rounded-xl bg-violet-50/80 p-3 dark:bg-violet-950/30"
-            >
-              {step.tips.map((tip) => (
-                <li key={tip} className="flex gap-2 text-sm text-violet-900 dark:text-violet-200">
-                  <span className="text-violet-500">•</span>
-                  <span>{tip}</span>
-                </li>
-              ))}
-            </motion.ul>
-          )}
-
-          {step.cta && (
-            <Link
-              href={step.cta.href}
-              className="mt-5 inline-flex text-sm font-semibold text-violet-600 transition-colors hover:text-violet-500 dark:text-violet-400 dark:hover:text-violet-300"
-            >
-              {step.cta.label} →
-            </Link>
-          )}
-        </div>
-      </motion.article>
-
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+      <div className="mb-5 flex gap-1" role="tablist" aria-label="Progreso de la guía">
         {guide.steps.map((s, i) => (
           <button
             key={s.id}
             type="button"
             onClick={() => onDotClick(i)}
-            className="rounded-full p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60"
+            className="h-1.5 flex-1 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60"
             aria-label={`Ir al paso ${i + 1}: ${s.title}`}
             aria-current={i === stepIndex ? 'step' : undefined}
           >
-            <motion.span
-              className="block rounded-full bg-gray-300 dark:bg-gray-600"
-              animate={{
-                width: i === stepIndex ? 24 : 8,
-                height: 8,
-                opacity: i === stepIndex ? 1 : 0.45,
-              }}
-              transition={{ duration: 0.25, ease: EASE }}
+            <span
+              className={`block h-full rounded-full ${
+                i <= stepIndex ? 'bg-violet-600' : 'bg-[#e8e8ed] dark:bg-[#2c2c2e]'
+              }`}
             />
           </button>
         ))}
       </div>
 
-      <nav className="mt-4 space-y-3" aria-label="Navegación de la guía">
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          <motion.button
-            type="button"
-            onClick={onPrev}
-            disabled={isFirst}
-            whileTap={{ scale: 0.98 }}
-            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl border border-gray-200/90 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-35 dark:border-gray-600/70 dark:bg-[#1a1a1a]/80 dark:text-gray-200"
-          >
-            <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
-            Anterior
-          </motion.button>
+      <motion.article
+        key={`${guide.id}-${step.id}`}
+        initial={{ opacity: 0, x: direction >= 0 ? 28 : -28 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.35, ease: EASE }}
+        className="overflow-hidden rounded-3xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414]"
+      >
+        <div className="px-5 pt-5 sm:px-6 sm:pt-6">
+          <p className="text-xs font-medium text-violet-600 dark:text-violet-400">{step.subtitle}</p>
+          <h1 className="mt-1 text-xl font-bold leading-tight tracking-tight text-[#1d1d1f] dark:text-[#fafafa] md:text-2xl">
+            {step.title}
+          </h1>
+          <div className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3] md:text-[15px]">
+            {step.body.map((paragraph) => (
+              <p key={paragraph.slice(0, 24)}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-4 py-4 sm:px-5">
+          <GuideIllustration id={step.illustration} />
+        </div>
+
+        {step.tips && step.tips.length > 0 ? (
+          <div className="mx-5 mb-5 rounded-2xl bg-violet-50 px-4 py-3 dark:bg-violet-950/30 sm:mx-6">
+            <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300">
+              <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+              ¿Sabías que?
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {step.tips.map((tip) => (
+                <li key={tip} className="text-sm leading-snug text-violet-900 dark:text-violet-200">
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {step.cta ? (
+          <div className="px-5 pb-2 sm:px-6">
+            <Link
+              href={step.cta.href}
+              className="inline-flex text-sm font-semibold text-violet-600 hover:text-violet-500 dark:text-violet-400"
+            >
+              {step.cta.label} →
+            </Link>
+          </div>
+        ) : null}
+
+        <nav className="space-y-2 px-5 pb-5 pt-3 sm:px-6" aria-label="Navegación de la guía">
           {isLast ? (
             <motion.button
               type="button"
               onClick={onBackToHub}
               whileTap={{ scale: 0.98 }}
-              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${guide.accent} px-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20`}
+              className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-2xl bg-violet-600 text-sm font-semibold text-white"
             >
               Ver otras guías
             </motion.button>
@@ -169,22 +141,41 @@ export default function InteractiveGuide({
               type="button"
               onClick={onNext}
               whileTap={{ scale: 0.98 }}
-              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${guide.accent} px-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20`}
+              className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-2xl bg-violet-600 text-sm font-semibold text-white"
             >
-              Siguiente
-              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+              Siguiente paso
+              <ChevronRight className="h-4 w-4" aria-hidden />
             </motion.button>
           )}
-        </div>
-        {isLast && (
-          <Link
-            href="/"
-            className="flex h-11 items-center justify-center rounded-2xl border border-gray-200/90 bg-white/90 text-sm font-semibold text-violet-600 transition-colors hover:bg-violet-50 dark:border-gray-600/70 dark:bg-[#1a1a1a]/80 dark:text-violet-400 dark:hover:bg-violet-950/30"
-          >
-            Ir al inicio
-          </Link>
-        )}
-      </nav>
+          {!isLast ? (
+            <div className="flex items-center justify-center gap-4">
+              {!isFirst ? (
+                <button
+                  type="button"
+                  onClick={onPrev}
+                  className="h-10 text-sm font-medium text-[#6e6e73] dark:text-[#a3a3a3]"
+                >
+                  Anterior
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onNext}
+                className="h-10 text-sm font-medium text-[#6e6e73] dark:text-[#a3a3a3]"
+              >
+                Saltar paso
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/"
+              className="flex h-10 w-full items-center justify-center text-sm font-medium text-violet-600 dark:text-violet-400"
+            >
+              Ir al inicio
+            </Link>
+          )}
+        </nav>
+      </motion.article>
     </div>
   );
 }

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense, Fragment } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import ClientLayout from './ClientLayout';
 import Hero from './components/Hero';
 import OfferCard from './components/OfferCard';
 import OfferCardSkeleton from './components/OfferCardSkeleton';
+import { HomeDesktopRail, SponsoredSlot } from './components/HomeSponsored';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -478,7 +479,7 @@ function HomeContent() {
           <Hero searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
 
-        <section className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto px-4 max-[400px]:px-3 md:px-8 pt-2 md:pt-4 pb-32 md:pb-12">
+        <section className="max-w-4xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 max-[400px]:px-3 md:px-8 pt-2 md:pt-4 pb-32 md:pb-12">
         <div className="mb-4 max-[400px]:mb-3 md:mb-8">
           <div className="mb-3 max-[400px]:mb-2 md:mb-5">
             <div className="flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 md:p-2 border border-[#e5e5e7] dark:border-[#262626] transition-all duration-200">
@@ -594,6 +595,8 @@ function HomeContent() {
           )}
         </div>
 
+        <div className="xl:flex xl:gap-8 xl:items-start">
+        <div className="min-w-0 flex-1">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -659,8 +662,8 @@ function HomeContent() {
           ) : (
             <>
               {displayOffers.map((offer, index) => (
+                <Fragment key={offer.id}>
                 <motion.div
-                  key={offer.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.15), ease: [0.25, 0.1, 0.25, 1] }}
@@ -697,6 +700,10 @@ function HomeContent() {
                     offerScope={offer.offerScope ?? null}
                   />
                 </motion.div>
+                {index === 1 && !debouncedQuery.trim() ? (
+                  <SponsoredSlot kind="feed" stores={storeList} onSearch={setSearchQuery} />
+                ) : null}
+                </Fragment>
               ))}
               {((viewMode === 'latest' || viewMode === 'personalized') && !debouncedQuery.trim()
                 ? hasMoreCursor
@@ -720,6 +727,14 @@ function HomeContent() {
             </>
           )}
         </motion.div>
+        </div>
+        <HomeDesktopRail
+          stores={storeList}
+          storeFilter={storeFilter}
+          onStoreFilter={setStoreFilter}
+          onSearch={setSearchQuery}
+        />
+        </div>
       </section>
 
         <div className="h-20 md:h-0" />

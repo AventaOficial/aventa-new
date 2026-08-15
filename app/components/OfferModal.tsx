@@ -565,7 +565,7 @@ export default function OfferModal({
           {/* Desktop: imagen izquierda */}
           <div className="hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] flex-col p-4">
             <div className="relative flex-1 min-h-[240px]">
-              <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
+              <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
             </div>
             <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
           </div>
@@ -575,7 +575,7 @@ export default function OfferModal({
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
             <div className="md:hidden shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] p-3">
               <div className="relative w-full aspect-[4/5] overflow-hidden rounded-xl">
-                <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
+                <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
               </div>
               <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
             </div>
