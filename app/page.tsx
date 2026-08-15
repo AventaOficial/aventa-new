@@ -430,7 +430,7 @@ function HomeContent() {
   ];
   const displayOffers = testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers;
   const featuredOffers =
-    !debouncedQuery.trim() && displayOffers.length >= 3
+    viewMode === 'top' && !debouncedQuery.trim() && displayOffers.length >= 3
       ? [...displayOffers]
           .sort((a, b) => (b.ranking_blend ?? 0) - (a.ranking_blend ?? 0))
           .slice(0, 3)
@@ -484,7 +484,7 @@ function HomeContent() {
     <ClientLayout>
       <div id="ayuda" className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
         <div className="hidden md:block sticky top-0 z-40 border-b border-[#e5e5e7] bg-[#F5F5F7]/90 backdrop-blur-md dark:border-[#262626] dark:bg-[#0a0a0a]/90">
-          <div className="mx-auto max-w-[1400px] px-8 py-3 pr-44 lg:px-10">
+          <div className="mx-auto max-w-[1400px] px-8 py-2.5 pr-44 lg:px-10">
             <SearchField searchQuery={searchQuery} onChange={setSearchQuery} />
             <div className="mt-2.5">
               <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
@@ -496,8 +496,8 @@ function HomeContent() {
           <Hero searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
 
-        <section className="mx-auto max-w-[1400px] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pt-1 md:pt-2 pb-32 md:pb-12">
-        <div className="mb-4 max-[400px]:mb-3 md:mb-6">
+        <section className="mx-auto max-w-[1400px] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pt-1 pb-32 md:pb-12">
+        <div className="mb-3 max-[400px]:mb-2 md:mb-4">
           <div className="mb-3 max-[400px]:mb-2">
             <div className="md:hidden flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 border border-[#e5e5e7] dark:border-[#262626]">
               <button
@@ -639,11 +639,11 @@ function HomeContent() {
           )}
         </div>
 
-        <div className="xl:flex xl:gap-8 xl:items-start">
+        <div className="xl:flex xl:gap-6 xl:items-start">
         <div className="min-w-0 flex-1">
-        {!loading && !feedError && featuredOffers.length >= 3 ? (
-          <div className="mb-8 hidden md:block">
-            <h2 className="mb-4 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
+        {viewMode === 'top' && !loading && !feedError && featuredOffers.length >= 3 ? (
+          <div className="mb-5 hidden md:block">
+            <h2 className="mb-3 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
               Ofertas destacadas
             </h2>
             <div className="grid grid-cols-3 gap-4">
@@ -731,7 +731,11 @@ function HomeContent() {
           ) : (
             <>
               <h2 className="hidden md:block text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
-                {viewMode === 'latest' ? 'Últimas ofertas' : viewMode === 'top' ? 'Mejor votadas' : viewMode === 'vitales' ? 'Día a día' : 'Para ti'}
+                {viewMode === 'top'
+                  ? 'Top'
+                  : viewMode === 'personalized'
+                    ? 'Para ti'
+                    : 'Últimas ofertas'}
               </h2>
               {displayOffers.map((offer, index) => (
                 <Fragment key={offer.id}>
@@ -799,6 +803,14 @@ function HomeContent() {
             </>
           )}
         </motion.div>
+        {!debouncedQuery.trim() ? (
+          <section className="mt-8 md:mt-10" aria-label="Solicitudes de ofertas">
+            <h2 className="text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
+              Solicitudes de ofertas
+            </h2>
+            <div className="mt-3 min-h-[7.5rem] rounded-2xl border border-dashed border-[#d2d2d7] bg-white/60 dark:border-[#333] dark:bg-[#141414]/40" />
+          </section>
+        ) : null}
         </div>
         <HomeDesktopRail
           stores={storeList}

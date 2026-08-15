@@ -99,7 +99,7 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             alt=""
             width={80}
             height={80}
-            className="mt-9 w-[72px] h-[72px] max-[400px]:w-16 max-[400px]:h-16 object-contain shrink-0 pointer-events-none"
+            className="mt-8 w-[64px] h-[64px] max-[400px]:w-14 max-[400px]:h-14 object-contain shrink-0 pointer-events-none"
             priority
             unoptimized
           />
@@ -111,22 +111,22 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
       </div>
 
       <div className="hidden md:block">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-8 px-8 py-6 lg:px-10">
-          <div className="min-w-0 max-w-xl">
-            <h1 className="text-[2rem] lg:text-[2.35rem] font-semibold tracking-[-0.04em] leading-[1.15] text-[#1d1d1f] dark:text-[#fafafa]">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-6 px-8 py-3 lg:px-10 lg:gap-10">
+          <div className="min-w-0 flex-1 max-w-xl">
+            <h1 className="text-[1.65rem] lg:text-[1.85rem] font-semibold tracking-[-0.04em] leading-tight text-[#1d1d1f] dark:text-[#fafafa]">
               Descubre ofertas que{' '}
               <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
             </h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
+            <p className="mt-1.5 text-[14px] lg:text-[15px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
               La comunidad publica, vota y encuentra las mejores ofertas de México.
             </p>
           </div>
           <Image
             src="/brand/aventa-bag.png"
             alt=""
-            width={280}
-            height={280}
-            className="hidden lg:block h-[200px] w-[200px] xl:h-[240px] xl:w-[240px] object-contain shrink-0 pointer-events-none"
+            width={200}
+            height={200}
+            className="hidden lg:block h-[132px] w-[132px] xl:h-[148px] xl:w-[148px] object-contain shrink-0 pointer-events-none"
             priority
             unoptimized
           />

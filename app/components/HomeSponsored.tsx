@@ -21,21 +21,18 @@ function SponsoredInner({ kind, store }: { kind: SponsoredKind; store: string })
   const ad = COPY[kind];
   if (kind === 'rail') {
     return (
-      <div className="overflow-hidden rounded-2xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414]">
-        <div className="h-28 bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-950/40 dark:to-[#141414]" />
-        <div className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-            Patrocinado
-          </p>
-          <div className="mt-2">
-            <StoreBrandMark store={store} />
-          </div>
-          <p className="mt-2 text-sm font-semibold leading-snug text-[#1d1d1f] dark:text-[#fafafa]">{ad.title}</p>
-          <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-violet-600 dark:text-violet-400">
-            {ad.cta}
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </span>
+      <div className="overflow-hidden rounded-2xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414] p-3.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
+          Patrocinado
+        </p>
+        <div className="mt-2">
+          <StoreBrandMark store={store} />
         </div>
+        <p className="mt-2 text-sm font-medium leading-snug text-[#1d1d1f] dark:text-[#fafafa]">{ad.title}</p>
+        <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400">
+          {ad.cta}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </span>
       </div>
     );
   }
@@ -100,7 +97,7 @@ export function HomeDesktopRail({
 }) {
   const shown = stores.slice(0, 8);
   return (
-    <aside className="hidden xl:block w-[280px] shrink-0 sticky top-24 space-y-4">
+    <aside className="hidden xl:block w-[220px] shrink-0 sticky top-24 space-y-3 opacity-90">
       <SponsoredSlot kind="rail" stores={stores} onSearch={onSearch} />
       {shown.length > 0 ? (
         <div className="rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-4">
