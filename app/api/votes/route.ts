@@ -127,6 +127,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Servicio no disponible' }, { status: 503 })
     }
 
+    const { data: offerRow, error: offerLookupError } = await supabase
+      .from('offers')
+      .select('created_by')
+      .eq('id', offerId)
+      .maybeSingle()
+    if (offerLookupError) {
+      console.error('[votes] offer lookup failed:', offerLookupError.message)
+      return NextResponse.json({ ok: false, error: 'Error al consultar oferta' }, { status: 500 })
+    }
+    if (!offerRow) {
+      return NextResponse.json({ ok: false, error: 'Oferta no encontrada' }, { status: 404 })
+    }
+    const offerOwnerId = (offerRow as { created_by?: string | null }).created_by
+    if (offerOwnerId && offerOwnerId === userId) {
+      return NextResponse.json(
+        { ok: false, error: 'No puedes votar tu propia oferta' },
+        { status: 403 }
+      )
+    }
+
     const { data: voterProfile } = await supabase
       .from('profiles')
       .select('reputation_level')

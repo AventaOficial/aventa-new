@@ -185,7 +185,12 @@ interface OfferCardProps {
   /** Acción privada de gestión; solo se usa en "Mis ofertas". */
   onManagementAction?: (action: ManagementAction) => void;
   /** Panel de métricas solo en el perfil del creador (vistas, compartidos, clics en Cazar). */
-  ownerMetrics?: { cazarClicks: number; views: number; shares: number } | null;
+  ownerMetrics?: {
+    storeClicks?: number;
+    cazarClicks: number;
+    views: number;
+    shares: number;
+  } | null;
   /** Alcance en línea vs tienda (desde `conditions`). */
   offerScope?: OfferScopeUi | null;
 }
@@ -306,7 +311,11 @@ export default function OfferCard({
     if (onFavoriteChange) onFavoriteChange(!prev);
     const supabase = createClient();
     if (prev) {
-      const { error } = await supabase.from('offer_favorites').delete().eq('offer_id', offerId);
+      const { error } = await supabase
+        .from('offer_favorites')
+        .delete()
+        .eq('offer_id', offerId)
+        .eq('user_id', session.user.id);
       if (error) {
         setLocalLiked(false);
         if (onFavoriteChange) onFavoriteChange(false);
@@ -720,8 +729,10 @@ export default function OfferCard({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <MousePointerClick className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
-                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.cazarClicks}</strong>
-                clics
+                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                  {ownerMetrics.storeClicks ?? ownerMetrics.cazarClicks}
+                </strong>
+                clics a tienda
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Share2 className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />

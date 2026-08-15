@@ -156,6 +156,21 @@ export async function POST(request: Request) {
     const rawOfferUrl = typeof input.offer_url === 'string' ? input.offer_url.trim() : '';
     const offerUrlNormalized = rawOfferUrl ? await resolveAndNormalizeAffiliateOfferUrl(rawOfferUrl) : '';
 
+    if (offerUrlNormalized) {
+      const { findDuplicateOfferByUrl } = await import('@/lib/offers/findDuplicateOffer');
+      const duplicate = await findDuplicateOfferByUrl(supabase, offerUrlNormalized);
+      if (duplicate) {
+        return NextResponse.json(
+          {
+            error: 'Esta oferta (o la misma URL de producto) ya está en Aventa.',
+            duplicate_offer_id: duplicate.id,
+            duplicate_status: duplicate.status,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     const payload: OfferInsertPayload = {
       title,
       price,
@@ -183,9 +198,7 @@ export async function POST(request: Request) {
       }),
       ...(bankCoupon && { bank_coupon: bankCoupon }),
       ...(tags.length > 0 && { tags }),
-      ...(typeof input.moderator_comment === 'string' && input.moderator_comment.trim() && {
-        moderator_comment: input.moderator_comment.trim().slice(0, 500),
-      }),
+      // moderator_comment solo lo escribe staff/bots vía APIs admin — no confiar en el body de usuario
     };
 
     let insertPayload: OfferInsertPayload = payload;

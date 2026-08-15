@@ -136,7 +136,7 @@ export async function PATCH(request: Request) {
   if (status === 'paid' && !force) {
     const { data: rows, error: readError } = await supabase
       .from('commission_allocations')
-      .select('id, user_id, amount_cents, status')
+      .select('id, user_id, amount_cents, status, meta')
       .in('id', ids);
 
     if (readError) {
@@ -148,11 +148,31 @@ export async function PATCH(request: Request) {
     const rfcs = [...profiles.values()].map((p) => p.rfc).filter(Boolean) as string[];
     const duplicateRfcs = await findAllDuplicateRfcs(supabase, rfcs);
     const programActive = isCommissionProgramPubliclyActive();
+    const nowMs = Date.now();
 
     const blocked: Array<{ id: string; user_id: string; reasons: string[] }> = [];
     for (const row of rows ?? []) {
-      const r = row as { id: string; user_id: string; status: string };
+      const r = row as {
+        id: string;
+        user_id: string;
+        status: string;
+        amount_cents?: number;
+        meta?: { hold_release_at?: string; below_minimum?: boolean } | null;
+      };
       if (r.status === 'paid') continue;
+      const reasons: string[] = [];
+
+      const holdAt = r.meta?.hold_release_at;
+      if (holdAt) {
+        const holdMs = Date.parse(holdAt);
+        if (Number.isFinite(holdMs) && nowMs < holdMs) {
+          reasons.push(`Hold activo hasta ${holdAt.slice(0, 10)}`);
+        }
+      }
+      if (r.meta?.below_minimum) {
+        reasons.push('Monto bajo el mínimo de payout ($200 MXN); espera carry del siguiente periodo');
+      }
+
       const prof = profiles.get(r.user_id);
       const fiscal = prof ?? {
         legalName: null,
@@ -173,14 +193,17 @@ export async function PATCH(request: Request) {
         (f) => f !== 'missing_clabe' && f !== 'not_program_active',
       );
       if (hardBlock.length > 0) {
-        blocked.push({ id: r.id, user_id: r.user_id, reasons: readiness.labels });
+        reasons.push(...readiness.labels);
+      }
+      if (reasons.length > 0) {
+        blocked.push({ id: r.id, user_id: r.user_id, reasons });
       }
     }
 
     if (blocked.length > 0) {
       return NextResponse.json(
         {
-          error: 'Hay asignaciones bloqueadas por checklist fiscal/anti-fraude. Corrige o usa force solo si confirmas el riesgo.',
+          error: 'Hay asignaciones bloqueadas por hold, mínimo o checklist fiscal. Corrige o usa force solo si confirmas el riesgo.',
           blocked,
         },
         { status: 409 },

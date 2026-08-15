@@ -328,7 +328,11 @@ export default function OfferModal({
     if (onFavoriteChange) onFavoriteChange(!prev);
     const supabase = createClient();
     if (prev) {
-      const { error } = await supabase.from('offer_favorites').delete().eq('offer_id', offerId);
+      const { error } = await supabase
+        .from('offer_favorites')
+        .delete()
+        .eq('offer_id', offerId)
+        .eq('user_id', session.user.id);
       if (error) {
         setLocalLiked(false);
         if (onFavoriteChange) onFavoriteChange(false);

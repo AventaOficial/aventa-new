@@ -167,7 +167,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   },
   {
     href: '/admin/commissions',
-    label: 'Comisiones y ledger',
+    label: 'Pagos a creadores',
     domain: 'monetizacion',
     frequency: 'mensual',
     audiences: ['founder'],

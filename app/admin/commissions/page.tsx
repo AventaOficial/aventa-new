@@ -138,8 +138,11 @@ export default function AdminCommissionsPage() {
   const [csvText, setCsvText] = useState('');
   const [csvNetwork, setCsvNetwork] = useState('mercadolibre');
   const [csvImporting, setCsvImporting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showCsv, setShowCsv] = useState(false);
 
   const selectedPool = useMemo(() => pools.find((p) => p.id === selectedPoolId) ?? null, [pools, selectedPoolId]);
+  const sharePercent = Math.round((shareBps / 100) * 10) / 10;
 
   useEffect(() => {
     const supabase = createClient();
@@ -385,269 +388,362 @@ export default function AdminCommissionsPage() {
     return <div className="min-h-[40vh] flex items-center justify-center text-gray-500">Sin permisos.</div>;
   }
 
+  const poolStatusLabel = (status: PoolRow['status']) => {
+    if (status === 'draft') return 'Borrador';
+    if (status === 'locked') return 'Cerrado';
+    if (status === 'paid') return 'Pagado';
+    if (status === 'cancelled') return 'Cancelado';
+    return status;
+  };
+
+  const allocationStatusLabel = (status: AllocationRow['status']) => {
+    if (status === 'pending') return 'Por pagar';
+    if (status === 'paid') return 'Ya pagado';
+    if (status === 'void') return 'Anulado';
+    return status;
+  };
+
   return (
     <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] -m-4 lg:-m-6 p-4 lg:p-6">
-      <div className="max-w-6xl mx-auto px-2 md:px-4 py-6 space-y-5">
+      <div className="max-w-5xl mx-auto px-2 md:px-4 py-6 space-y-5">
         <Link href="/admin/operaciones" className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline">
           <ArrowLeft className="h-4 w-4" />
           Volver a Operaciones
         </Link>
 
-        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5">
+        {/* Encabezado + explicación en español claro */}
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Coins className="h-5 w-5 text-violet-500" />
-                Comisiones (admin)
+                Pagos a creadores
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Registra ingresos de Amazon/ML → genera pool. Default: <strong>40% de comisión atribuida</strong> por
-                creador (política). Legacy por puntos sigue disponible.
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 max-w-2xl">
+                Cuando Amazon o Mercado Libre te pagan comisión, registrás el monto. Si ese dinero salió del tag de un
+                cazador, le corresponde el <strong>{sharePercent}%</strong>. El resto se queda en AVENTA.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => token && loadPools(token)}
-              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs"
+              onClick={() => {
+                if (!token) return;
+                void loadPools(token);
+                void loadLedger(token);
+                void loadTaxEstimate(period);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs shrink-0"
             >
               <RefreshCw className="h-4 w-4" />
-              Recargar
+              Actualizar
             </button>
           </div>
 
-          <div className="mt-4 grid md:grid-cols-5 gap-2">
-            <input
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              placeholder="YYYY-MM"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            />
-            <input
-              type="number"
-              value={shareBps}
-              onChange={(e) => setShareBps(Math.max(0, Math.min(10000, Number(e.target.value) || 0)))}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-              title="Basis points: 4000 = 40%"
-            />
-            <select
-              value={allocationRule}
-              onChange={(e) =>
-                setAllocationRule(e.target.value as 'attributed_revenue' | 'points_per_qualifying_offer')
-              }
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            >
-              <option value="attributed_revenue">Por comisión atribuida (recomendado)</option>
-              <option value="points_per_qualifying_offer">Legacy: por puntos/votos</option>
-            </select>
-            <button
-              type="button"
-              onClick={runMonthly}
-              disabled={running}
-              className="inline-flex items-center justify-center gap-1 rounded-lg bg-violet-600 text-white px-3 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60"
-            >
-              <Play className="h-4 w-4" />
-              {running ? 'Generando…' : 'Generar reparto'}
-            </button>
-            <div className="text-xs text-gray-500 dark:text-gray-400 self-center">
-              `4000` = 40% · elegibilidad 15×120 se mantiene
-            </div>
-          </div>
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={() => void loadTaxEstimate(period)}
-              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs"
-            >
-              <RefreshCw className={`h-4 w-4 ${taxLoading ? 'animate-spin' : ''}`} />
-              Actualizar estimado fiscal ({period})
-            </button>
-          </div>
-          {runMsg ? <p className="mt-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{runMsg}</p> : null}
+          <ol className="grid sm:grid-cols-3 gap-2 text-sm">
+            <li className="rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Paso 1</p>
+              <p className="font-medium text-gray-900 dark:text-gray-100">Anotar lo que cobraste</p>
+              <p className="text-xs text-gray-500 mt-0.5">ML / Amazon → monto (+ tag del cazador si aplica)</p>
+            </li>
+            <li className="rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Paso 2</p>
+              <p className="font-medium text-gray-900 dark:text-gray-100">Cerrar el mes</p>
+              <p className="text-xs text-gray-500 mt-0.5">Calcula cuánto le toca a cada uno ({sharePercent}%)</p>
+            </li>
+            <li className="rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Paso 3</p>
+              <p className="font-medium text-gray-900 dark:text-gray-100">Transferir y marcar pagado</p>
+              <p className="text-xs text-gray-500 mt-0.5">SPEI manual → checklist → marcar “Ya pagado”</p>
+            </li>
+          </ol>
+
+          {runMsg ? (
+            <p className="rounded-lg bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {runMsg}
+            </p>
+          ) : null}
         </section>
 
-        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 space-y-3">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100">1) Registrar ingreso (ledger)</h2>
-          <p className="text-xs text-gray-500">
-            Cuando Amazon/ML te paguen o confirmen comisión, cargá el monto aquí. Si ponés{' '}
-            <code className="text-[11px]">tracking_tag</code> (mismo que <code className="text-[11px]">ml_tracking_tag</code>{' '}
-            del perfil) o <code className="text-[11px]">creator_id</code>, ese monto cuenta para el pago de ese
-            cazador.
-          </p>
-          <div className="grid md:grid-cols-6 gap-2">
-            <select
-              value={ledgerNetwork}
-              onChange={(e) => setLedgerNetwork(e.target.value)}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            >
-              <option value="mercadolibre">Mercado Libre</option>
-              <option value="amazon">Amazon</option>
-              <option value="aliexpress">AliExpress</option>
-              <option value="other">Otra</option>
-            </select>
-            <input
-              value={ledgerAmountMx}
-              onChange={(e) => setLedgerAmountMx(e.target.value)}
-              placeholder="Monto MXN"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            />
-            <input
-              value={ledgerTag}
-              onChange={(e) => setLedgerTag(e.target.value)}
-              placeholder="tracking_tag"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            />
-            <input
-              value={ledgerCreatorId}
-              onChange={(e) => setLedgerCreatorId(e.target.value)}
-              placeholder="creator_id (uuid)"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            />
-            <input
-              value={ledgerRef}
-              onChange={(e) => setLedgerRef(e.target.value)}
-              placeholder="ref externa"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-            />
-            <button
-              type="button"
-              onClick={() => void saveLedgerEntry()}
-              disabled={ledgerSaving}
-              className="rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-3 py-2 text-sm font-medium disabled:opacity-60"
-            >
-              {ledgerSaving ? 'Guardando…' : 'Guardar en ledger'}
-            </button>
+        {/* Resumen del mes */}
+        <section className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+            <div>
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Resumen del mes</h2>
+              <p className="text-xs text-gray-500">Números simples. No es tu declaración del SAT.</p>
+            </div>
+            <label className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              Mes
+              <input
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                placeholder="2026-08"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm bg-white dark:bg-[#1a1a1a] w-28"
+              />
+            </label>
           </div>
-          <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
-            <label className="inline-flex items-center gap-1">
-              Status
+          {taxLoading ? <p className="text-sm text-gray-500">Calculando…</p> : null}
+          {taxEstimate ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="rounded-xl bg-white/80 dark:bg-[#141414]/80 border border-amber-100 dark:border-amber-900 p-3">
+                <p className="text-[11px] text-gray-500">Lo que cobró AVENTA (bruto)</p>
+                <p className="text-lg font-semibold tabular-nums">{centsToMx(taxEstimate.income.gross_affiliate_cents)}</p>
+              </div>
+              <div className="rounded-xl bg-white/80 dark:bg-[#141414]/80 border border-amber-100 dark:border-amber-900 p-3">
+                <p className="text-[11px] text-gray-500">De eso, con tag de cazador</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {taxEstimate.income.attributable_cents != null
+                    ? centsToMx(taxEstimate.income.attributable_cents)
+                    : '—'}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/80 dark:bg-[#141414]/80 border border-amber-100 dark:border-amber-900 p-3">
+                <p className="text-[11px] text-gray-500">A repartirles ({sharePercent}%)</p>
+                <p className="text-lg font-semibold tabular-nums text-violet-700 dark:text-violet-300">
+                  {centsToMx(taxEstimate.creator_program.distributable_cents)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/80 dark:bg-[#141414]/80 border border-amber-100 dark:border-amber-900 p-3">
+                <p className="text-[11px] text-gray-500">Se queda AVENTA (aprox.)</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {centsToMx(taxEstimate.platform.net_before_tax_cents)}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {taxEstimate && Object.keys(taxEstimate.income.by_network_cents).length > 0 ? (
+            <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+              Por red:{' '}
+              {Object.entries(taxEstimate.income.by_network_cents)
+                .map(([n, c]) => `${n} ${centsToMx(c)}`)
+                .join(' · ')}
+              {' · '}
+              Ya pagado a creadores {centsToMx(taxEstimate.creator_program.allocations_paid_cents)} · pendiente{' '}
+              {centsToMx(taxEstimate.creator_program.allocations_pending_cents)}
+            </p>
+          ) : null}
+        </section>
+
+        {/* Paso 1 */}
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 space-y-4">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Paso 1 — Anotar una comisión que cobraste</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Ejemplo: ML te confirmó $100. Si salió del tag de Ana, poné su tag: Ana entra en el {sharePercent}%. Si no
+              ponés tag, el 100% es de AVENTA.
+            </p>
+            <Link href="/admin/creator-tags" className="inline-block mt-1 text-xs text-violet-600 hover:underline">
+              Ver / asignar tags de creadores →
+            </Link>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <label className="text-xs text-gray-500 space-y-1">
+              Tienda
               <select
-                value={ledgerStatus}
-                onChange={(e) => setLedgerStatus(e.target.value as 'accrued' | 'paid')}
-                className="rounded border border-gray-300 dark:border-gray-600 px-2 py-1 bg-white dark:bg-[#1a1a1a]"
+                value={ledgerNetwork}
+                onChange={(e) => setLedgerNetwork(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
               >
-                <option value="accrued">accrued</option>
-                <option value="paid">paid</option>
+                <option value="mercadolibre">Mercado Libre</option>
+                <option value="amazon">Amazon</option>
+                <option value="aliexpress">AliExpress</option>
+                <option value="other">Otra</option>
               </select>
             </label>
-            <button
-              type="button"
-              onClick={() => token && loadLedger(token)}
-              className="underline"
-            >
-              Recargar ledger
-            </button>
+            <label className="text-xs text-gray-500 space-y-1">
+              Monto en pesos (MXN)
+              <input
+                value={ledgerAmountMx}
+                onChange={(e) => setLedgerAmountMx(e.target.value)}
+                placeholder="Ej. 100"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+              />
+            </label>
+            <label className="text-xs text-gray-500 space-y-1">
+              Tag del cazador (opcional)
+              <input
+                value={ledgerTag}
+                onChange={(e) => setLedgerTag(e.target.value)}
+                placeholder="Ej. aventa_ana"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+              />
+            </label>
+            <label className="text-xs text-gray-500 space-y-1">
+              Nota / # de orden (opcional)
+              <input
+                value={ledgerRef}
+                onChange={(e) => setLedgerRef(e.target.value)}
+                placeholder="ORD-123"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+              />
+            </label>
           </div>
-          {ledgerLoading ? <p className="text-sm text-gray-500">Cargando ledger…</p> : null}
-          <ul className="max-h-40 overflow-auto text-xs space-y-1">
+
+          {showAdvanced ? (
+            <div className="grid sm:grid-cols-2 gap-2 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-3">
+              <label className="text-xs text-gray-500 space-y-1">
+                UUID del creador (raro; mejor usá tag)
+                <input
+                  value={ledgerCreatorId}
+                  onChange={(e) => setLedgerCreatorId(e.target.value)}
+                  placeholder="uuid…"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+                />
+              </label>
+              <label className="text-xs text-gray-500 space-y-1">
+                Estado del ingreso
+                <select
+                  value={ledgerStatus}
+                  onChange={(e) => setLedgerStatus(e.target.value as 'accrued' | 'paid')}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+                >
+                  <option value="accrued">Confirmado / por cobrar</option>
+                  <option value="paid">Ya me lo depositaron</option>
+                </select>
+              </label>
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => void saveLedgerEntry()}
+            disabled={ledgerSaving}
+            className="rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-4 py-2.5 text-sm font-medium disabled:opacity-60"
+          >
+            {ledgerSaving ? 'Guardando…' : 'Guardar ingreso'}
+          </button>
+
+          {ledgerLoading ? <p className="text-sm text-gray-500">Cargando ingresos…</p> : null}
+          <ul className="max-h-44 overflow-auto text-sm space-y-1 border-t border-gray-100 dark:border-gray-800 pt-3">
+            {ledgerEntries.length === 0 && !ledgerLoading ? (
+              <li className="text-sm text-gray-500">Todavía no hay ingresos anotados. Empezá con el Paso 1.</li>
+            ) : null}
             {ledgerEntries.map((e) => (
-              <li key={e.id} className="flex justify-between gap-2 border-b border-gray-100 dark:border-gray-800 py-1">
-                <span>
-                  {e.network} · {e.status}
-                  {e.tracking_tag ? ` · tag ${e.tracking_tag}` : ''}
-                  {e.creator_id ? ` · ${e.creator_id.slice(0, 8)}…` : ''}
-                  {e.attributable ? ' · atribuible' : ' · plataforma'}
+              <li
+                key={e.id}
+                className="flex justify-between gap-2 border-b border-gray-50 dark:border-gray-800/80 py-1.5 text-xs"
+              >
+                <span className="text-gray-600 dark:text-gray-400">
+                  {e.network}
+                  {e.tracking_tag ? ` · tag ${e.tracking_tag}` : ' · sin tag (solo AVENTA)'}
+                  {e.attributable ? ' · cuenta para cazador' : ''}
                 </span>
-                <strong>{centsToMx(e.amount_cents)}</strong>
+                <strong className="tabular-nums text-gray-900 dark:text-gray-100">{centsToMx(e.amount_cents)}</strong>
               </li>
             ))}
           </ul>
 
-          <div className="mt-4 border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Importar CSV (reporte red)</p>
-              <Link href="/admin/creator-tags" className="text-xs text-violet-600 hover:underline">
-                Gestionar tags creadores →
-              </Link>
-            </div>
-            <p className="text-[11px] text-gray-500">
-              Header con columnas tipo <code className="text-[10px]">amount,tag,external_ref</code> o{' '}
-              <code className="text-[10px]">commission,tracking_tag,id</code>. Resuelve creator por ML/Amazon tag.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={csvNetwork}
-                onChange={(e) => setCsvNetwork(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
-              >
-                <option value="mercadolibre">Mercado Libre</option>
-                <option value="amazon">Amazon</option>
-                <option value="other">Otra</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => void importCsv()}
-                disabled={csvImporting}
-                className="rounded-lg bg-violet-600 text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
-              >
-                {csvImporting ? 'Importando…' : 'Importar CSV'}
-              </button>
-            </div>
-            <textarea
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-              rows={4}
-              placeholder={'amount,tag,external_ref\n12.50,ana_tag,ORD-1\n8.00,beto_tag,ORD-2'}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-[#1a1a1a]"
-            />
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+            <button
+              type="button"
+              onClick={() => setShowCsv((v) => !v)}
+              className="text-xs text-violet-600 hover:underline"
+            >
+              {showCsv ? 'Ocultar importar CSV' : '¿Tenés el reporte en CSV? Importar de golpe →'}
+            </button>
+            {showCsv ? (
+              <div className="mt-2 space-y-2">
+                <p className="text-[11px] text-gray-500">
+                  Columnas: <code className="text-[10px]">amount,tag,external_ref</code>. El tag debe coincidir con el del
+                  perfil del cazador.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={csvNetwork}
+                    onChange={(e) => setCsvNetwork(e.target.value)}
+                    className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+                  >
+                    <option value="mercadolibre">Mercado Libre</option>
+                    <option value="amazon">Amazon</option>
+                    <option value="other">Otra</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void importCsv()}
+                    disabled={csvImporting}
+                    className="rounded-lg bg-violet-600 text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
+                  >
+                    {csvImporting ? 'Importando…' : 'Importar CSV'}
+                  </button>
+                </div>
+                <textarea
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  rows={4}
+                  placeholder={'amount,tag,external_ref\n12.50,aventa_ana,ORD-1'}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-[#1a1a1a]"
+                />
+              </div>
+            ) : null}
           </div>
         </section>
 
-        <section className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/15 p-4">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Estimado fiscal operativo (SAT base)</h2>
-          {taxLoading ? <p className="text-sm text-gray-500">Calculando…</p> : null}
-          {taxEstimate ? (
-            <div className="space-y-2 text-sm">
-              <p className="text-gray-700 dark:text-gray-300">
-                Ingreso afiliado bruto: <strong>{centsToMx(taxEstimate.income.gross_affiliate_cents)}</strong>
-              </p>
-              <p className="text-gray-700 dark:text-gray-300">
-                Atribuible a creadores:{' '}
-                <strong>
-                  {taxEstimate.income.attributable_cents != null
-                    ? centsToMx(taxEstimate.income.attributable_cents)
-                    : '—'}
-                </strong>
-                {' · '}
-                Sin atribución:{' '}
-                <strong>
-                  {taxEstimate.income.unattributable_cents != null
-                    ? centsToMx(taxEstimate.income.unattributable_cents)
-                    : '—'}
-                </strong>
-              </p>
-              <p className="text-gray-700 dark:text-gray-300">
-                A pagar creadores (pool): <strong>{centsToMx(taxEstimate.creator_program.distributable_cents)}</strong>
-                {taxEstimate.creator_program.allocation_rule ? (
-                  <span className="text-xs text-gray-500"> · regla {taxEstimate.creator_program.allocation_rule}</span>
-                ) : null}
-              </p>
-              <p className="text-gray-700 dark:text-gray-300">
-                Pagado a creadores: <strong>{centsToMx(taxEstimate.creator_program.allocations_paid_cents)}</strong> · Pendiente:{' '}
-                <strong>{centsToMx(taxEstimate.creator_program.allocations_pending_cents)}</strong>
-              </p>
-              <p className="text-gray-700 dark:text-gray-300">
-                Neto plataforma antes de impuestos: <strong>{centsToMx(taxEstimate.platform.net_before_tax_cents)}</strong>
-              </p>
-              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-white/70 dark:bg-[#141414]/70 p-2">
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Detalle por red</p>
-                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
-                  {Object.entries(taxEstimate.income.by_network_cents).map(([network, cents]) => (
-                    <li key={network} className="flex items-center justify-between gap-2">
-                      <span>{network}</span>
-                      <strong>{centsToMx(cents)}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{taxEstimate.note}</p>
+        {/* Paso 2 */}
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 space-y-3">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Paso 2 — Cerrar el mes y calcular pagos</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Toma los ingresos del mes con tag, aplica el {sharePercent}% a cada cazador elegible y arma la lista de
+              pagos. Podés hacerlo cuando quieras (ideal: fin de mes).
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={runMonthly}
+              disabled={running}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-violet-700 disabled:opacity-60"
+            >
+              <Play className="h-4 w-4" />
+              {running ? 'Calculando…' : `Calcular pagos de ${period}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="text-xs text-gray-500 underline"
+            >
+              {showAdvanced ? 'Ocultar opciones avanzadas' : 'Opciones avanzadas'}
+            </button>
+          </div>
+          {showAdvanced ? (
+            <div className="grid sm:grid-cols-2 gap-2 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-3">
+              <label className="text-xs text-gray-500 space-y-1">
+                % para creadores (en basis points: 4000 = 40%)
+                <input
+                  type="number"
+                  value={shareBps}
+                  onChange={(e) => setShareBps(Math.max(0, Math.min(10000, Number(e.target.value) || 0)))}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+                />
+              </label>
+              <label className="text-xs text-gray-500 space-y-1">
+                Cómo repartir
+                <select
+                  value={allocationRule}
+                  onChange={(e) =>
+                    setAllocationRule(e.target.value as 'attributed_revenue' | 'points_per_qualifying_offer')
+                  }
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm bg-white dark:bg-[#1a1a1a]"
+                >
+                  <option value="attributed_revenue">Por comisión con tag (recomendado)</option>
+                  <option value="points_per_qualifying_offer">Viejo: por puntos/votos</option>
+                </select>
+              </label>
             </div>
-          ) : null}
+          ) : (
+            <p className="text-xs text-gray-500">Regla actual: {sharePercent}% de la comisión con tag del cazador.</p>
+          )}
         </section>
 
+        {/* Paso 3 */}
         <div className="grid lg:grid-cols-2 gap-5">
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4">
-            <h2 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">Pools mensuales</h2>
-            {poolsLoading ? <p className="text-sm text-gray-500">Cargando pools…</p> : null}
+            <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Cierres mensuales</h2>
+            <p className="text-xs text-gray-500 mb-3">Elegí un mes para ver a quién pagar.</p>
+            {poolsLoading ? <p className="text-sm text-gray-500">Cargando…</p> : null}
+            {!poolsLoading && pools.length === 0 ? (
+              <p className="text-sm text-gray-500">Todavía no hay cierres. Usá el Paso 2.</p>
+            ) : null}
             <div className="space-y-2">
               {pools.map((p) => (
                 <button
@@ -662,37 +758,32 @@ export default function AdminCommissionsPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium">{p.period_key}</p>
-                    <span className="text-xs rounded-full px-2 py-0.5 bg-gray-200 dark:bg-gray-700">{p.status}</span>
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-gray-200 dark:bg-gray-700">
+                      {poolStatusLabel(p.status)}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Ingreso: {centsToMx(p.gross_affiliate_cents)} · A pagar: {centsToMx(p.distributable_cents)} ·
-                    Usuarios: {p.eligible_users}
-                    {p.allocation_rule ? ` · ${p.allocation_rule}` : ''}
+                    Cobrado: {centsToMx(p.gross_affiliate_cents)} · A pagarles: {centsToMx(p.distributable_cents)} ·
+                    Personas: {p.eligible_users}
                   </p>
-                  {p.attributable_cents != null ? (
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      Atribuible {centsToMx(p.attributable_cents)} · Sin atrib.{' '}
-                      {centsToMx(p.unattributable_cents ?? 0)}
-                    </p>
-                  ) : null}
                 </button>
               ))}
             </div>
-            {selectedPool ? (
+            {selectedPool && showAdvanced ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => markPoolStatus(selectedPool.id, 'paid')}
                   className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700"
                 >
-                  Marcar pool paid
+                  Marcar cierre como pagado
                 </button>
                 <button
                   type="button"
                   onClick={() => markPoolStatus(selectedPool.id, 'locked')}
                   className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs"
                 >
-                  Lock
+                  Cerrar (bloquear)
                 </button>
               </div>
             ) : null}
@@ -701,19 +792,22 @@ export default function AdminCommissionsPage() {
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4">
             <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-violet-500" />
-              Asignaciones del pool
+              Paso 3 — A quién transferir
             </h2>
             {allocSummary ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Listas para pagar: <strong className="text-emerald-600">{allocSummary.ready_to_pay}</strong> · Bloqueadas:{' '}
+                Listos para SPEI: <strong className="text-emerald-600">{allocSummary.ready_to_pay}</strong> · Con
+                freno:{' '}
                 <strong className="text-amber-600">{allocSummary.blocked}</strong>
                 {!allocSummary.program_publicly_active ? (
-                  <span className="ml-2 text-amber-700 dark:text-amber-400">· COMMISSION_PROGRAM_ACTIVE=false</span>
+                  <span className="ml-2 text-amber-700 dark:text-amber-400">
+                    · Programa aún oculto al público (env)
+                  </span>
                 ) : null}
               </p>
             ) : null}
-            {!selectedPoolId ? <p className="text-sm text-gray-500">Selecciona un pool.</p> : null}
-            {selectedPoolId && allocLoading ? <p className="text-sm text-gray-500">Cargando asignaciones…</p> : null}
+            {!selectedPoolId ? <p className="text-sm text-gray-500">Elegí un cierre a la izquierda.</p> : null}
+            {selectedPoolId && allocLoading ? <p className="text-sm text-gray-500">Cargando lista…</p> : null}
             {selectedPoolId && !allocLoading ? (
               <>
                 <div className="mb-2 flex flex-wrap gap-2">
@@ -723,34 +817,41 @@ export default function AdminCommissionsPage() {
                     disabled={selectedAllocationIds.size === 0}
                     className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
-                    Marcar seleccionadas paid
+                    Marcar como ya pagado
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => patchAllocations('paid', true)}
-                    disabled={selectedAllocationIds.size === 0}
-                    className="rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 px-3 py-1.5 text-xs disabled:opacity-50"
-                  >
-                    Forzar paid (override)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => patchAllocations('pending')}
-                    disabled={selectedAllocationIds.size === 0}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs disabled:opacity-50"
-                  >
-                    Regresar a pending
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => patchAllocations('void')}
-                    disabled={selectedAllocationIds.size === 0}
-                    className="rounded-lg border border-red-300 text-red-700 px-3 py-1.5 text-xs disabled:opacity-50"
-                  >
-                    Marcar void
-                  </button>
+                  {showAdvanced ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => patchAllocations('paid', true)}
+                        disabled={selectedAllocationIds.size === 0}
+                        className="rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 px-3 py-1.5 text-xs disabled:opacity-50"
+                      >
+                        Forzar pago
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchAllocations('pending')}
+                        disabled={selectedAllocationIds.size === 0}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs disabled:opacity-50"
+                      >
+                        Volver a por pagar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchAllocations('void')}
+                        disabled={selectedAllocationIds.size === 0}
+                        className="rounded-lg border border-red-300 text-red-700 px-3 py-1.5 text-xs disabled:opacity-50"
+                      >
+                        Anular
+                      </button>
+                    </>
+                  ) : null}
                 </div>
-                <div className="max-h-[460px] overflow-auto space-y-1.5 pr-1">
+                {allocations.length === 0 ? (
+                  <p className="text-sm text-gray-500">Este cierre no tiene filas de pago.</p>
+                ) : null}
+                <div className="max-h-115 overflow-auto space-y-1.5 pr-1">
                   {allocations.map((a) => {
                     const checked = selectedAllocationIds.has(a.id);
                     const ready = a.payout?.ready ?? false;
@@ -786,27 +887,29 @@ export default function AdminCommissionsPage() {
                                 RFC {a.fiscal?.rfc_masked ?? '—'} · CLABE {a.fiscal?.clabe_masked ?? '—'}
                               </p>
                             </div>
-                            <span className="text-xs rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700 shrink-0">{a.status}</span>
+                            <span className="text-xs rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700 shrink-0">
+                              {allocationStatusLabel(a.status)}
+                            </span>
                             {isPending ? (
                               ready ? (
                                 <span className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-800 shrink-0">
-                                  ✓ checklist
+                                  Listo SPEI
                                 </span>
                               ) : (
                                 <span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 shrink-0 inline-flex items-center gap-0.5">
                                   <AlertTriangle className="h-3 w-3" />
-                                  bloqueada
+                                  Falta revisar
                                 </span>
                               )
                             ) : null}
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="font-medium">{centsToMx(a.amount_cents)}</p>
+                            <p className="font-medium tabular-nums">{centsToMx(a.amount_cents)}</p>
                             <p className="text-[11px] text-gray-500">
                               {typeof a.meta?.attributed_cents === 'number'
-                                ? `gen. ${centsToMx(a.meta.attributed_cents)}`
+                                ? `de ${centsToMx(a.meta.attributed_cents)} generados`
                                 : `${a.points} pts`}
-                              {a.meta?.below_minimum ? ' · bajo mínimo' : ''}
+                              {a.meta?.below_minimum ? ' · bajo $200' : ''}
                             </p>
                           </div>
                         </div>
@@ -826,10 +929,12 @@ export default function AdminCommissionsPage() {
           </section>
         </div>
 
-        <p className="text-xs text-gray-500 dark:text-gray-400 inline-flex items-center gap-1">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Operación: ledger con tag/creator → generar reparto (atribuido) → hold 14d → SPEI → marcar paid.
-          Política: <code className="text-[10px]">docs/POLITICA_COMISIONES_CREADORES.md</code>
+        <p className="text-xs text-gray-500 dark:text-gray-400 inline-flex items-start gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Con 0 ofertas/usuarios es normal ver todo en $0. La economía ya está en modo “40% por tag”; esta pantalla
+            solo es más clara. Detalle: <code className="text-[10px]">docs/POLITICA_COMISIONES_CREADORES.md</code>
+          </span>
         </p>
       </div>
     </div>

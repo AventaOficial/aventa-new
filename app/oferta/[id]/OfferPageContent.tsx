@@ -372,7 +372,11 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     setIsLiked(!prev);
     const supabase = createClient();
     if (prev) {
-      const { error } = await supabase.from('offer_favorites').delete().eq('offer_id', offer.id);
+      const { error } = await supabase
+        .from('offer_favorites')
+        .delete()
+        .eq('offer_id', offer.id)
+        .eq('user_id', session.user.id);
       if (error) setIsLiked(true);
     } else {
       const { error } = await supabase.from('offer_favorites').insert({

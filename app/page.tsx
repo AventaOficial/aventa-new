@@ -657,10 +657,11 @@ function HomeContent() {
           ) : !debouncedQuery.trim() && offers.length === 0 ? (
             <div className="py-12 px-4 text-center max-w-md mx-auto">
               <h2 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
-                Todavía no hay nada aquí
+                Aventa es la comunidad de ofertas de México
               </h2>
               <p className="text-[#6e6e73] dark:text-[#a3a3a3] text-sm mb-6">
-                ¿Viste un precio que valga la pena? Publícalo.
+                Aquí la gente publica precios buenos, la comunidad vota y tú cazas el trato. Ahora mismo
+                no hay ofertas activas: publica la primera o vuelve en un rato.
               </p>
               <button
                 type="button"

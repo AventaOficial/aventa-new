@@ -3,6 +3,9 @@ import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 export type OfferOwnerMetrics = {
+  /** Clics reales a tienda (event_type=outbound). */
+  storeClicks: number;
+  /** Aperturas del CTA “Cazar” / modal (no es salida a tienda). */
   cazarClicks: number;
   views: number;
   shares: number;
@@ -16,9 +19,10 @@ async function countsViaHeadQueries(
 ): Promise<Record<string, OfferOwnerMetrics>> {
   const out: Record<string, OfferOwnerMetrics> = {};
   for (const id of offerIds) {
-    out[id] = { cazarClicks: 0, views: 0, shares: 0 };
+    out[id] = { storeClicks: 0, cazarClicks: 0, views: 0, shares: 0 };
   }
   const types: Array<{ key: keyof OfferOwnerMetrics; event: string }> = [
+    { key: 'storeClicks', event: 'outbound' },
     { key: 'cazarClicks', event: 'cazar_cta' },
     { key: 'views', event: 'view' },
     { key: 'shares', event: 'share' },
@@ -72,7 +76,7 @@ export async function GET(request: Request) {
 
   const empty = (): Record<string, OfferOwnerMetrics> => {
     const m: Record<string, OfferOwnerMetrics> = {};
-    for (const id of offerIds) m[id] = { cazarClicks: 0, views: 0, shares: 0 };
+    for (const id of offerIds) m[id] = { storeClicks: 0, cazarClicks: 0, views: 0, shares: 0 };
     return m;
   };
 
@@ -88,8 +92,9 @@ export async function GET(request: Request) {
       if (!offerIds.includes(oid)) continue;
       const et = String(row.event_type ?? '');
       const ct = Number(row.ct) || 0;
-      if (!metrics[oid]) metrics[oid] = { cazarClicks: 0, views: 0, shares: 0 };
-      if (et === 'cazar_cta') metrics[oid].cazarClicks = ct;
+      if (!metrics[oid]) metrics[oid] = { storeClicks: 0, cazarClicks: 0, views: 0, shares: 0 };
+      if (et === 'outbound') metrics[oid].storeClicks = ct;
+      else if (et === 'cazar_cta') metrics[oid].cazarClicks = ct;
       else if (et === 'view') metrics[oid].views = ct;
       else if (et === 'share') metrics[oid].shares = ct;
     }

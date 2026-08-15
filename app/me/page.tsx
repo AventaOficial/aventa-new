@@ -35,7 +35,7 @@ const OFFER_STATUS_FILTERS: Array<{ value: DealStatusFilter; label: string }> = 
 
 type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
 
-type OfferOwnerMetrics = { cazarClicks: number; views: number; shares: number };
+type OfferOwnerMetrics = { storeClicks?: number; cazarClicks: number; views: number; shares: number };
 
 function MePageInner() {
   useTheme();
@@ -476,6 +476,7 @@ function MePageInner() {
                   ownerMetrics={
                     ownerMetricsByOffer
                       ? (ownerMetricsByOffer[offer.id] ?? {
+                          storeClicks: 0,
                           cazarClicks: 0,
                           views: 0,
                           shares: 0,

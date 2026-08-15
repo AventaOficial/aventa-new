@@ -70,9 +70,9 @@ export async function POST(request: Request) {
 
   const { data: ledgerRows, error: ledgerError } = await supabase
     .from('affiliate_ledger_entries')
-    .select('amount_cents, status, created_at, creator_id, tracking_tag, attributable')
-    .gte('created_at', range.startIso)
-    .lt('created_at', range.nextStartIso)
+    .select(
+      'amount_cents, status, created_at, period_start, period_end, creator_id, tracking_tag, attributable',
+    )
     .in('status', ['accrued', 'paid']);
   if (ledgerError) {
     if (hasMissingTable(ledgerError, 'affiliate_ledger')) {
@@ -101,8 +101,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No se pudo leer affiliate_ledger_entries' }, { status: 500 });
   }
 
+  /** Incluye filas del periodo del reporte; si no hay period_start, cae a created_at (legacy). */
+  const ledgerInPeriod = (ledgerRows ?? []).filter((row) => {
+    const periodStart = (row as { period_start?: string | null }).period_start;
+    if (periodStart) {
+      return periodStart >= range.startDate && periodStart <= range.endDate;
+    }
+    const createdAt = String((row as { created_at?: string | null }).created_at ?? '');
+    return createdAt >= range.startIso && createdAt < range.nextStartIso;
+  });
+
   const tagsNeeded = new Set<string>();
-  for (const row of ledgerRows ?? []) {
+  for (const row of ledgerInPeriod) {
     const tag = String((row as { tracking_tag?: string | null }).tracking_tag ?? '')
       .trim()
       .toLowerCase();
@@ -128,7 +138,7 @@ export async function POST(request: Request) {
   }
 
   const attribution = resolveLedgerAttribution(
-    (ledgerRows ?? []) as Array<{
+    ledgerInPeriod as Array<{
       amount_cents: number | null;
       creator_id?: string | null;
       tracking_tag?: string | null;
@@ -193,10 +203,43 @@ export async function POST(request: Request) {
     const attributedRows = Array.from(attribution.byCreatorCents.entries()).map(
       ([userId, attributedCents]) => ({ userId, attributedCents }),
     );
-    const allocations = allocateByAttributedRevenue(attributedRows, creatorShareBps, {
+    let allocations = allocateByAttributedRevenue(attributedRows, creatorShareBps, {
       minPayoutCents: COMMISSION_MIN_PAYOUT_CENTS,
       eligibleUserIds: eligibleIds,
     });
+
+    // Carry: suma montos pending marcados below_minimum de periodos previos
+    const allocUserIds = allocations.map((a) => a.userId);
+    const carryByUser = new Map<string, number>();
+    const carrySourceIds: string[] = [];
+    if (allocUserIds.length > 0) {
+      const { data: prevPending } = await supabase
+        .from('commission_allocations')
+        .select('id, user_id, amount_cents, meta, status')
+        .eq('status', 'pending')
+        .in('user_id', allocUserIds);
+      for (const row of prevPending ?? []) {
+        const meta = (row as { meta?: { below_minimum?: boolean } | null }).meta;
+        if (!meta?.below_minimum) continue;
+        const uid = (row as { user_id: string }).user_id;
+        const cents = Number((row as { amount_cents?: number }).amount_cents ?? 0);
+        if (!Number.isFinite(cents) || cents <= 0) continue;
+        carryByUser.set(uid, (carryByUser.get(uid) ?? 0) + Math.floor(cents));
+        carrySourceIds.push((row as { id: string }).id);
+      }
+      if (carryByUser.size > 0) {
+        allocations = allocations.map((a) => {
+          const carry = carryByUser.get(a.userId) ?? 0;
+          const amountCents = a.amountCents + carry;
+          return {
+            ...a,
+            amountCents,
+            belowMinimum: amountCents < COMMISSION_MIN_PAYOUT_CENTS,
+          };
+        });
+      }
+    }
+
     const distributableCents = allocations.reduce((s, a) => s + a.amountCents, 0);
 
     const poolPayload: Record<string, unknown> = {
@@ -265,6 +308,7 @@ export async function POST(request: Request) {
             below_minimum: Boolean(a.belowMinimum),
             hold_release_at: holdReleaseIso,
             min_payout_cents: COMMISSION_MIN_PAYOUT_CENTS,
+            carry_cents: carryByUser.get(a.userId) ?? 0,
           },
         })),
       );
@@ -276,6 +320,19 @@ export async function POST(request: Request) {
           },
           { status: 500 },
         );
+      }
+      if (carrySourceIds.length > 0) {
+        const { error: voidCarryError } = await supabase
+          .from('commission_allocations')
+          .update({
+            status: 'void',
+            notes: `Carry aplicado al periodo ${range.periodKey}`,
+          })
+          .in('id', carrySourceIds)
+          .eq('status', 'pending');
+        if (voidCarryError) {
+          console.error('[run-monthly] void carry sources failed:', voidCarryError.message);
+        }
       }
     }
 

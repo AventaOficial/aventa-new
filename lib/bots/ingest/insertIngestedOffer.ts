@@ -52,8 +52,9 @@ export async function insertIngestedOffer(
   const offerUrl = await resolveAndNormalizeAffiliateOfferUrl(meta.canonicalUrl);
   const supabase = createServerClient();
 
-  const { data: existing } = await supabase.from('offers').select('id').eq('offer_url', offerUrl).maybeSingle();
-  if (existing?.id) {
+  const { findDuplicateOfferByUrl } = await import('@/lib/offers/findDuplicateOffer');
+  const duplicate = await findDuplicateOfferByUrl(supabase, offerUrl);
+  if (duplicate) {
     return { ok: false, duplicate: true };
   }
 
