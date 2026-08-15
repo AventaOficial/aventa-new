@@ -1113,7 +1113,6 @@ export default function ActionBar() {
                       </div>
                     )}
                   </div>
-                </div>
 
                 <div className="border-t border-gray-200/80 dark:border-gray-700/80 pt-5 mt-2">
                   <button
@@ -1246,6 +1245,7 @@ export default function ActionBar() {
                   <p className="text-sm text-violet-800 dark:text-violet-300">
                     Solo lo esencial es obligatorio. Revisa precios y fotos antes de publicar.
                   </p>
+                </div>
                 </div>
                 </div>
 
