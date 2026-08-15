@@ -158,7 +158,7 @@ function HomeContent() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
   const [hasMoreCursor, setHasMoreCursor] = useState(true);
-  const [showTesterOffers, setShowTesterOffers] = useState(false);
+  const [showTesterOffers, setShowTesterOffers] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
   const fetchOffersRef = useRef<((overrideLimit?: number) => void) | null>(null);
@@ -184,8 +184,7 @@ function HomeContent() {
       .then((r) => r.json())
       .then((data) => setShowTesterOffers(data?.value === true))
       .catch(() => {
-        setShowTesterOffers(false);
-        showToast?.('No se pudo cargar la configuración. Usa la app con normalidad.');
+        setShowTesterOffers(true);
       });
   }, [pathname, showToast]);
 
@@ -449,7 +448,10 @@ function HomeContent() {
     }
   }, [session, viewMode]);
 
-  const displayOffers = showTesterOffers && !debouncedQuery.trim() ? [...offers, ...MOCK_TESTER_OFFERS] : offers;
+  const displayOffers =
+    !debouncedQuery.trim() && (showTesterOffers || offers.length === 0)
+      ? [...offers, ...MOCK_TESTER_OFFERS]
+      : offers;
 
   useEffect(() => {
     if (!session?.user?.id || offers.length === 0) {
@@ -654,14 +656,13 @@ function HomeContent() {
                 Reintentar
               </button>
             </div>
-          ) : !debouncedQuery.trim() && offers.length === 0 ? (
+          ) : !debouncedQuery.trim() && displayOffers.length === 0 ? (
             <div className="py-12 px-4 text-center max-w-md mx-auto">
               <h2 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
-                Aventa es la comunidad de ofertas de México
+                Aún no hay ofertas
               </h2>
               <p className="text-[#6e6e73] dark:text-[#a3a3a3] text-sm mb-6">
-                Aquí la gente publica precios buenos, la comunidad vota y tú cazas el trato. Ahora mismo
-                no hay ofertas activas: publica la primera o vuelve en un rato.
+                Publica la primera o vuelve en un rato.
               </p>
               <button
                 type="button"

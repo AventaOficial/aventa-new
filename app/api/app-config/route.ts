@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     .select('value')
     .eq('key', key)
     .maybeSingle();
-  if (error || !data) return NextResponse.json({ value: false });
+  if (error || !data) return NextResponse.json({ value: true });
   const raw = (data as { value: unknown }).value;
   const value = key === 'show_tester_offers' ? (raw === true || raw === 'true') : false;
   return NextResponse.json({ value });

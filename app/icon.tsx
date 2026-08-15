@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
-export const size = { width: 32, height: 32 };
+export const size = { width: 48, height: 48 };
 export const contentType = 'image/png';
 
 /** Favicon: misma marca que AventaIcon (fondo oscuro para legibilidad en pestaña). */
@@ -20,7 +20,7 @@ export default function Icon() {
           borderRadius: 6,
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M 5.5 21 L 12 2.5"
             stroke="white"

@@ -3,83 +3,43 @@ import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
+import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
+import { fetchMercadoLibrePublicOffer } from '@/lib/offers/mlPublicOffer';
+import {
+  absoluteUrl,
+  extractBreadcrumbs,
+  extractOfferImages,
+  extractSuggestedPrices,
+  getById,
+  getMetaContent,
+} from '@/lib/offers/parseOfferPageHtml';
 
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
-  'Mozilla/5.0 (compatible; AVENTA-Bot/1.0; +https://aventaofertas.com)';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
 }
 
-function getMetaContent(html: string, selector: string): string | null {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const propertyMatch = html.match(
-    new RegExp(
-      `<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']*)["']`,
-      'i'
-    )
-  );
-  if (propertyMatch) return propertyMatch[1].trim() || null;
-  const contentFirstMatch = html.match(
-    new RegExp(
-      `<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${escaped}["']`,
-      'i'
-    )
-  );
-  return contentFirstMatch ? contentFirstMatch[1].trim() || null : null;
-}
-
-function getById(html: string, id: string, attr: 'content' | 'src' | 'text'): string | null {
-  const idEsc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (attr === 'text') {
-    const m = html.match(new RegExp(`<[^>]+id=["']${idEsc}["'][^>]*>([\\s\\S]*?)<\\/`, 'i'));
-    return m ? m[1].replace(/<[^>]+>/g, '').trim() || null : null;
-  }
-  const m = html.match(
-    new RegExp(`<[^>]+id=["']${idEsc}["'][^>]+${attr}=["']([^"']*)["']`, 'i')
-  );
-  if (m) return m[1].trim() || null;
-  const m2 = html.match(
-    new RegExp(`<[^>]+${attr}=["']([^"']*)["'][^>]+id=["']${idEsc}["']`, 'i')
-  );
-  return m2 ? m2[1].trim() || null : null;
-}
-
-function absoluteUrl(base: string, path: string | null): string | null {
-  if (!path || !path.trim()) return null;
-  const trimmed = path.trim();
-  let href: string;
-  if (/^https?:\/\//i.test(trimmed)) href = trimmed;
-  else {
-    try {
-      href = new URL(trimmed, base).href;
-    } catch {
-      return null;
-    }
-  }
-  try {
-    const u = new URL(href);
-    if (isBlockedOfferParseUrl(u).blocked) return null;
-    return u.href;
-  } catch {
-    return null;
-  }
+function emptyPayload() {
+  return {
+    title: null as string | null,
+    image: null as string | null,
+    images: [] as string[],
+    store: null as string | null,
+    suggested_discount_price: null as number | null,
+    suggested_original_price: null as number | null,
+    suggested_category: null as string | null,
+  };
 }
 
 function parseAmazon(html: string, base: string): { title: string | null; image: string | null; store: string } {
-  const title =
-    getMetaContent(html, 'og:title') ||
-    getById(html, 'productTitle', 'text') ||
-    null;
-  const rawImage =
-    getMetaContent(html, 'og:image') ||
-    getById(html, 'landingImage', 'src') ||
-    null;
-  const image = absoluteUrl(base, rawImage);
+  const title = getMetaContent(html, 'og:title') || getById(html, 'productTitle', 'text') || null;
+  const rawImage = getMetaContent(html, 'og:image') || getById(html, 'landingImage', 'src') || null;
   return {
     title: title && title.length > 0 ? title : null,
-    image,
+    image: absoluteUrl(base, rawImage),
     store: 'Amazon',
   };
 }
@@ -87,179 +47,34 @@ function parseAmazon(html: string, base: string): { title: string | null; image:
 function parseMercadoLibre(html: string, base: string): { title: string | null; image: string | null; store: string } {
   const title = getMetaContent(html, 'og:title') || null;
   const rawImage = getMetaContent(html, 'og:image') || null;
-  const image = absoluteUrl(base, rawImage);
   return {
     title: title && title.length > 0 ? title : null,
-    image,
+    image: absoluteUrl(base, rawImage),
     store: 'Mercado Libre',
   };
 }
 
-function parsePositiveNumber(raw: string | null | undefined): number | null {
-  if (!raw || !String(raw).trim()) return null;
-  const n = parseFloat(String(raw).replace(/[^\d.]/g, ''));
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return n;
-}
-
-function parsePositiveLocalizedNumber(raw: string | null | undefined): number | null {
-  if (!raw || !String(raw).trim()) return null;
-  const clean = String(raw).replace(/[^\d,.-]/g, '').trim();
-  if (!clean) return null;
-  const hasComma = clean.includes(',');
-  const hasDot = clean.includes('.');
-  let normalized = clean;
-  if (hasComma && hasDot) {
-    // 12,999.50 -> 12999.50 | 12.999,50 -> 12999.50
-    if (clean.lastIndexOf('.') > clean.lastIndexOf(',')) {
-      normalized = clean.replace(/,/g, '');
-    } else {
-      normalized = clean.replace(/\./g, '').replace(',', '.');
-    }
-  } else if (hasComma && !hasDot) {
-    // 12999,50 -> 12999.50 | 12,999 -> 12999
-    const parts = clean.split(',');
-    if (parts.length === 2 && parts[1].length <= 2) {
-      normalized = `${parts[0].replace(/,/g, '')}.${parts[1]}`;
-    } else {
-      normalized = clean.replace(/,/g, '');
-    }
-  }
-  const n = Number(normalized);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return n;
-}
-
-type ExtractedPrices = { discount: number | null; original: number | null };
-
-function extractJsonLikeNumber(html: string, field: string): number | null {
-  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match =
-    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*["']([^"']+)["']`, 'i'))?.[1] ??
-    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*([0-9][0-9.,]*)`, 'i'))?.[1] ??
-    null;
-  return parsePositiveLocalizedNumber(match);
-}
-
-/** Heurística: meta og:price, JSON-LD Offer / AggregateOffer (ML, muchas tiendas). */
-function extractSuggestedPrices(html: string): ExtractedPrices {
-  let discount: number | null =
-    parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
-    parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount'));
-  let original: number | null = parsePositiveNumber(getMetaContent(html, 'product:original_price:amount'));
-
-  const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = scriptRe.exec(html)) !== null) {
-    const raw = m[1].trim();
-    if (!raw || raw.length > 500_000) continue;
-    try {
-      const parsed = JSON.parse(raw);
-      scanLdJson(parsed);
-    } catch {
-      // JSON inválido o fragmentado
-    }
-  }
-
-  function considerOffer(off: Record<string, unknown>) {
-    const low = off.lowPrice;
-    const high = off.highPrice;
-    if (typeof low === 'number' && low > 0) discount = discount ?? low;
-    else if (typeof low === 'string') {
-      const n = parsePositiveLocalizedNumber(low);
-      if (n) discount = discount ?? n;
-    }
-    const p = off.price;
-    if (typeof p === 'number' && p > 0) discount = discount ?? p;
-    else if (typeof p === 'string') {
-      const n = parsePositiveLocalizedNumber(p);
-      if (n) discount = discount ?? n;
-    }
-    if (typeof high === 'number' && high > 0) original = original ?? high;
-    else if (typeof high === 'string') {
-      const n = parsePositiveLocalizedNumber(high);
-      if (n) original = original ?? n;
-    }
-  }
-
-  function scanLdJson(node: unknown) {
-    if (node == null) return;
-    if (Array.isArray(node)) {
-      node.forEach(scanLdJson);
-      return;
-    }
-    if (typeof node !== 'object') return;
-    const o = node as Record<string, unknown>;
-    if (o['@graph']) scanLdJson(o['@graph']);
-
-    const types = o['@type'];
-    const typeStr = Array.isArray(types) ? types.map(String).join(',') : String(types ?? '');
-
-    if (typeStr.includes('AggregateOffer')) {
-      considerOffer(o);
-    }
-    if (typeStr.includes('Offer')) {
-      considerOffer(o);
-    }
-    if (typeStr.includes('Product') && o.offers) {
-      scanLdJson(o.offers);
-    }
-  }
-
-  if (discount == null) {
-    const itemPropPrice = html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1];
-    discount = parsePositiveLocalizedNumber(itemPropPrice);
-  }
-
-  if (discount == null) {
-    const priceMatch =
-      html.match(/["']price["']\s*:\s*["']([^"']+)["']/i)?.[1] ??
-      html.match(/["']price["']\s*:\s*([0-9][0-9.,]+)/i)?.[1] ??
-      null;
-    discount = parsePositiveLocalizedNumber(priceMatch);
-  }
-
-  if (original == null) {
-    original =
-      extractJsonLikeNumber(html, 'original_price') ||
-      extractJsonLikeNumber(html, 'priceBefore');
-  }
-
-  if (original != null && discount != null && original < discount) {
-    const tmp = original;
-    original = discount;
-    discount = tmp;
-  }
-
-  return { discount, original };
-}
-
-function pricePayload(p: ExtractedPrices) {
-  return {
-    suggested_discount_price: p.discount,
-    suggested_original_price: p.original,
-  };
-}
-
 function parseGeneric(html: string, base: string): { title: string | null; image: string | null; store: string | null } {
-  const title =
-    getMetaContent(html, 'og:title') ||
-    getMetaContent(html, 'twitter:title') ||
-    null;
-  const rawImage =
-    getMetaContent(html, 'og:image') ||
-    getMetaContent(html, 'twitter:image') ||
-    null;
-  const image = absoluteUrl(base, rawImage);
-  const store =
-    getMetaContent(html, 'og:site_name') ||
-    getMetaContent(html, 'application-name') ||
-    null;
+  const title = getMetaContent(html, 'og:title') || getMetaContent(html, 'twitter:title') || null;
+  const rawImage = getMetaContent(html, 'og:image') || getMetaContent(html, 'twitter:image') || null;
+  const store = getMetaContent(html, 'og:site_name') || getMetaContent(html, 'application-name') || null;
   return {
     title: title && title.length > 0 ? title : null,
-    image,
+    image: absoluteUrl(base, rawImage),
     store: store && store.length > 0 ? store : null,
   };
+}
+
+function mergeImages(primary: string | null, extras: string[]): string[] {
+  const out: string[] = [];
+  for (const u of [primary, ...extras]) {
+    if (!u) continue;
+    const key = u.split('?')[0];
+    if (out.some((x) => x.split('?')[0] === key)) continue;
+    out.push(u);
+    if (out.length >= 8) break;
+  }
+  return out;
 }
 
 export async function POST(request: Request) {
@@ -291,38 +106,19 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
-    if (!rawUrl) {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
+    if (!rawUrl) return NextResponse.json(emptyPayload());
 
     let url: URL;
     try {
       url = new URL(rawUrl);
     } catch {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
+      return NextResponse.json(emptyPayload());
     }
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
+    if (!['http:', 'https:'].includes(url.protocol)) return NextResponse.json(emptyPayload());
 
     const block = isBlockedOfferParseUrl(url);
     if (block.blocked) {
-      return NextResponse.json(
-        { error: block.reason ?? 'URL no permitida' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: block.reason ?? 'URL no permitida' }, { status: 400 });
     }
 
     const controller = new AbortController();
@@ -332,70 +128,81 @@ export async function POST(request: Request) {
       signal: controller.signal,
       headers: {
         'User-Agent': USER_AGENT,
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
       },
       redirect: 'follow',
     });
     clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      return NextResponse.json({
-        title: null,
-        image: null,
-        store: null,
-      });
-    }
+    if (!res.ok) return NextResponse.json(emptyPayload());
 
     const html = await res.text();
     const pageUrl = res.url ? new URL(res.url) : url;
     const base = pageUrl.origin + pageUrl.pathname;
     const domain = getDomain(pageUrl.hostname);
     const prices = extractSuggestedPrices(html);
+    const htmlImages = extractOfferImages(html, base);
+    const breadcrumbs = extractBreadcrumbs(html);
 
     const isAmazon =
       domain === 'amazon.com' ||
       domain === 'amazon.com.mx' ||
       domain.endsWith('.amazon.com') ||
       domain.endsWith('.amazon.com.mx');
-    if (isAmazon) {
-      const data = parseAmazon(html, base);
-      return NextResponse.json({
-        ...data,
-        title: sanitizeOfferTitle(data.title),
-        store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
-        ...pricePayload(prices),
-      });
-    }
-
     const isMercadoLibre =
       domain === 'mercadolibre.com' ||
       domain === 'mercadolibre.com.mx' ||
       domain.endsWith('.mercadolibre.com') ||
-      domain.endsWith('.mercadolibre.com.mx');
+      domain.endsWith('.mercadolibre.com.mx') ||
+      domain === 'meli.la' ||
+      domain.endsWith('.meli.la');
+
+    let data: { title: string | null; image: string | null; store: string | null };
+    if (isAmazon) data = parseAmazon(html, base);
+    else if (isMercadoLibre) data = parseMercadoLibre(html, base);
+    else data = parseGeneric(html, base);
+
+    let discount = prices.discount;
+    let original = prices.original;
+    let images = mergeImages(data.image, htmlImages);
+    let mlCategoryId: string | null = null;
+    let mlPathNames: string[] = [];
+
     if (isMercadoLibre) {
-      const data = parseMercadoLibre(html, base);
-      return NextResponse.json({
-        ...data,
-        title: sanitizeOfferTitle(data.title),
-        store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
-        ...pricePayload(prices),
-      });
+      const ml = await fetchMercadoLibrePublicOffer(pageUrl.href).catch(() => null);
+      const mlFromRaw = ml ?? (await fetchMercadoLibrePublicOffer(rawUrl).catch(() => null));
+      if (mlFromRaw) {
+        data = {
+          title: data.title || mlFromRaw.title,
+          image: data.image || mlFromRaw.pictures[0] || null,
+          store: data.store || 'Mercado Libre',
+        };
+        discount = discount ?? mlFromRaw.price;
+        original = original ?? mlFromRaw.originalPrice;
+        images = mergeImages(data.image, [...mlFromRaw.pictures, ...htmlImages]);
+        mlCategoryId = mlFromRaw.categoryId;
+        mlPathNames = mlFromRaw.pathNames;
+      }
     }
 
-    const data = parseGeneric(html, base);
-    const store = data.store ?? inferStoreFromHostname(pageUrl.hostname);
+    const suggestedCategory = inferOfferCategory({
+      title: data.title,
+      breadcrumbs,
+      mlCategoryId,
+      mlPathNames,
+    });
+
     return NextResponse.json({
-      ...data,
       title: sanitizeOfferTitle(data.title),
-      store,
-      ...pricePayload(prices),
+      image: images[0] ?? data.image,
+      images,
+      store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
+      suggested_discount_price: discount,
+      suggested_original_price: original,
+      suggested_category: suggestedCategory,
     });
   } catch {
-    return NextResponse.json({
-      title: null,
-      image: null,
-      store: null,
-    });
+    return NextResponse.json(emptyPayload());
   }
 }

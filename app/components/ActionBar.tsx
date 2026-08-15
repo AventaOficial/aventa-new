@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2 } from 'lucide-react';
+import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2, Link2, Monitor, Store, ArrowRight } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +10,6 @@ import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
-import { OFFER_CARD_DESCRIPTION_MAX_LENGTH } from '@/app/components/OfferCard';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { logClientError } from '@/lib/utils/handleError';
@@ -101,9 +100,10 @@ export default function ActionBar() {
   const [uploadLinkGatePassed, setUploadLinkGatePassed] = useState(false);
   const [cooldownExempt, setCooldownExempt] = useState(false);
   /** Alcance en línea vs tienda; se guarda en `conditions` al publicar. */
-  const [offerScope, setOfferScope] = useState<'online' | 'in_store' | null>(null);
+  const [offerScope, setOfferScope] = useState<'online' | 'in_store' | 'both' | null>(null);
   /** Evita que la inferencia por URL sobrescriba una elección explícita. */
   const offerScopeManuallySelectedRef = useRef(false);
+  const [showCouponSection, setShowCouponSection] = useState(false);
 
   useEffect(() => {
     if (offerScopeManuallySelectedRef.current) return;
@@ -236,18 +236,33 @@ export default function ActionBar() {
             ...prev,
             ...(data.title && !prev.title.trim() && { title: data.title }),
             ...(data.store && !prev.store.trim() && { store: data.store }),
+            ...(typeof data.suggested_category === 'string' &&
+              data.suggested_category &&
+              !prev.category.trim() && { category: data.suggested_category }),
           };
           const discEmpty = !parseDecimalPrice(prev.discountPrice);
           const origEmpty = !parseDecimalPrice(prev.originalPrice);
           if (hasDiscount) {
             if (sd != null && discEmpty) next.discountPrice = String(sd);
             if (so != null && origEmpty) next.originalPrice = String(so);
+            if (sd != null && so == null && origEmpty && discEmpty) {
+              next.discountPrice = String(sd);
+            }
           } else if (sd != null && origEmpty) {
             next.originalPrice = String(sd);
           }
           return next;
         });
-        if (data.image && !cancelled) setImageUrl(data.image);
+        const parsedImages = Array.isArray(data.images)
+          ? (data.images as unknown[]).filter((u): u is string => typeof u === 'string' && u.startsWith('http'))
+          : [];
+        if (data.image && typeof data.image === 'string' && !parsedImages.includes(data.image)) {
+          parsedImages.unshift(data.image);
+        }
+        if (parsedImages.length > 0 && !cancelled) {
+          setImageUrl((cover) => cover || parsedImages[0] || null);
+          setImageUrls((extras) => (extras.length > 0 ? extras : parsedImages.slice(1).slice(0, 7)));
+        }
       } catch {
         // do nothing; form continues as before
       } finally {
@@ -276,48 +291,51 @@ export default function ActionBar() {
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (!file) return;
+    if (files.length === 0) return;
     try {
-      if (file.size > MAX_IMAGE_SIZE) {
-        showToast('La imagen no puede superar 2 MB. Usa una más pequeña o comprímela.');
-        return;
-      }
-      const mime = file.type?.toLowerCase() ?? '';
-      if (!ALLOWED_IMAGE_TYPES.includes(mime)) {
-        showToast('Solo jpg, jpeg, png o webp');
-        return;
-      }
       if (!session?.access_token) {
         showToast('Inicia sesión para subir imágenes');
         return;
       }
       setImageUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/upload-offer-image', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showToast(data?.error ?? 'Error al subir');
-        return;
+      let cover = imageUrl;
+      let extras = [...imageUrls];
+      for (const file of files) {
+        if (file.size > MAX_IMAGE_SIZE) {
+          showToast('La imagen no puede superar 2 MB. Usa una más pequeña o comprímela.');
+          continue;
+        }
+        const mime = file.type?.toLowerCase() ?? '';
+        if (!ALLOWED_IMAGE_TYPES.includes(mime)) {
+          showToast('Solo jpg, jpeg, png o webp');
+          continue;
+        }
+        const body = new FormData();
+        body.append('file', file);
+        const res = await fetch('/api/upload-offer-image', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast(data?.error ?? 'Error al subir');
+          continue;
+        }
+        if (typeof data?.url !== 'string') continue;
+        const nextUrl = data.url;
+        const total = (cover ? 1 : 0) + extras.length;
+        if (total >= 8) {
+          showToast('Máximo 8 fotos por oferta');
+          break;
+        }
+        if (!cover) cover = nextUrl;
+        else if (!extras.includes(nextUrl)) extras = [...extras, nextUrl];
       }
-      if (typeof data?.url !== 'string') return;
-      const nextUrl = data.url;
-      const total = (imageUrl ? 1 : 0) + imageUrls.length;
-      if (total >= 8) {
-        showToast('Máximo 8 fotos por oferta');
-        return;
-      }
-      if (!imageUrl) {
-        setImageUrl(nextUrl);
-      } else {
-        setImageUrls((prev) => (prev.includes(nextUrl) ? prev : [...prev, nextUrl]));
-      }
+      setImageUrl(cover);
+      setImageUrls(extras);
     } catch {
       showToast('Error al subir');
     } finally {
@@ -370,6 +388,7 @@ export default function ActionBar() {
     });
     setStepsList(['']);
     setShowOptionalSection(false);
+    setShowCouponSection(false);
     setImageUrl(null);
     setImageUrls([]);
     setMsiMonths(null);
@@ -403,6 +422,9 @@ export default function ActionBar() {
       conditionsOut = conditionsOut ? `${line}\n\n${conditionsOut}` : line;
     } else if (offerScope === 'online') {
       const line = 'Alcance: compra en línea.';
+      conditionsOut = conditionsOut ? `${line}\n\n${conditionsOut}` : line;
+    } else if (offerScope === 'both') {
+      const line = 'Alcance: en línea y en tienda física.';
       conditionsOut = conditionsOut ? `${line}\n\n${conditionsOut}` : line;
     }
     const payload = {
@@ -643,12 +665,12 @@ export default function ActionBar() {
               <div className="flex-shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5 border-b border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-[#141414]">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
-                    Subir oferta
+                    Comparte una oferta
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                     {uploadLinkGatePassed
-                      ? 'Revisa y corrige lo que falte. Solo lo esencial es obligatorio.'
-                      : 'Pega el enlace: obtenemos título, imagen y precios cuando el sitio lo permite.'}
+                      ? 'Solo lo esencial es obligatorio. El resto se puede completar después.'
+                      : 'Pega el enlace: rellenamos título, fotos, precios y categoría cuando el sitio lo permite.'}
                   </p>
                 </div>
                 <button
@@ -715,6 +737,11 @@ export default function ActionBar() {
                 </div>
               ) : (
                 <>
+              <div className="hidden md:flex flex-shrink-0 items-center gap-3 px-8 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#141414]">
+                <span className="text-sm font-semibold text-violet-600">1. Completar</span>
+                <span className="h-px flex-1 bg-violet-200 dark:bg-violet-900" />
+                <span className="text-sm font-medium text-gray-400">2. Vista previa</span>
+              </div>
               <div className="md:hidden flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setMobileTab('form')}
@@ -746,35 +773,45 @@ export default function ActionBar() {
                     mobileTab !== 'form' ? 'hidden md:block' : ''
                   }`}
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-6">
+                  <section className="space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                      Oferta · esencial
+                    </p>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Enlace de la oferta (URL)
+                      Enlace de la oferta
                       {urlParseLoading && (
                         <span className="ml-2 text-xs font-normal text-violet-600 dark:text-violet-400">
                           Obteniendo datos…
                         </span>
                       )}
                     </label>
-                    <input
-                      type="url"
-                      value={formData.offer_url}
-                      onChange={(e) => handleInputChange('offer_url', e.target.value)}
-                      placeholder="https://…"
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
-                    />
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                      Puedes pegar otro enlace aquí si hace falta; volvemos a intentar obtener datos.
+                    <div className="relative">
+                      <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="url"
+                        value={formData.offer_url}
+                        onChange={(e) => handleInputChange('offer_url', e.target.value)}
+                        placeholder="https://…"
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 pl-10 pr-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
+                      />
+                    </div>
+                    <p className="mt-2 rounded-lg bg-violet-50 dark:bg-violet-950/40 px-3 py-2 text-xs text-violet-800 dark:text-violet-300 leading-snug">
+                      Detectamos título, fotos, precios y categoría cuando el sitio lo permite. Siempre puedes corregirlos.
                     </p>
                   </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Título de la oferta *
-                      </label>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Título de la oferta *
+                        </label>
+                        <span className="text-[11px] text-gray-400">{formData.title.length}/120</span>
+                      </div>
                       <textarea
                         value={formData.title}
-                        onChange={(e) => handleInputChange('title', e.target.value)}
+                        onChange={(e) => handleInputChange('title', e.target.value.slice(0, 120))}
                         placeholder="Ej: iPhone 15 Pro Max 256GB"
                         rows={2}
                         className="w-full min-h-[4.25rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 resize-y break-words whitespace-pre-wrap"
@@ -809,11 +846,26 @@ export default function ActionBar() {
                     </div>
                   </div>
 
-                  <div className={`grid gap-4 ${hasDiscount ? 'grid-cols-1 sm:grid-cols-2' : ''}`}>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Precio</label>
+                      {hasDiscount &&
+                        formData.originalPrice &&
+                        formData.discountPrice &&
+                        (() => {
+                          const orig = parseDecimalPrice(formData.originalPrice);
+                          const disc = parseDecimalPrice(formData.discountPrice);
+                          const pct = orig > 0 ? Math.round((1 - disc / orig) * 100) : 0;
+                          return pct > 0 ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                              {pct}% OFF
+                            </span>
+                          ) : null;
+                        })()}
+                    </div>
+                    <div className={`grid gap-3 items-center ${hasDiscount ? 'grid-cols-1 sm:grid-cols-[1fr_auto_1fr]' : ''}`}>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Precio original *
-                      </label>
+                      <label className="block text-xs text-gray-500 mb-1">Precio original *</label>
                       <input
                         type="number"
                         step="0.01"
@@ -826,10 +878,10 @@ export default function ActionBar() {
                       />
                     </div>
                     {hasDiscount && (
+                      <>
+                      <ArrowRight className="hidden sm:block h-4 w-4 text-gray-400 justify-self-center" />
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Precio con descuento *
-                        </label>
+                        <label className="block text-xs text-gray-500 mb-1">Precio con descuento *</label>
                         <input
                           type="number"
                           step="0.01"
@@ -841,9 +893,45 @@ export default function ActionBar() {
                           className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                         />
                       </div>
+                      </>
                     )}
+                    </div>
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={() => setShowCouponSection((v) => !v)}
+                    className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
+                  >
+                    {showCouponSection ? 'Ocultar cupón' : '+ Agregar cupón de descuento (opcional)'}
+                  </button>
+                  {showCouponSection ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        value={formData.coupons}
+                        onChange={(e) => handleInputChange('coupons', e.target.value)}
+                        placeholder="Código (ej. DESCUENTO20)"
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"
+                      />
+                      <select
+                        value={formData.bank_coupon}
+                        onChange={(e) => handleInputChange('bank_coupon', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="">Sin cupón bancario</option>
+                        {BANK_COUPON_OPTIONS.map((b) => (
+                          <option key={b.value} value={b.value}>{b.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+                  </section>
+
+                  <section className="space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                      Detalles · importante
+                    </p>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Categoría *
@@ -868,7 +956,7 @@ export default function ActionBar() {
                       type="text"
                       value={formData.store}
                       onChange={(e) => handleInputChange('store', e.target.value)}
-                      placeholder="Ej: Tienda X, Tienda Y, etc."
+                      placeholder="Ej: Amazon, Mercado Libre"
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     />
                   </div>
@@ -877,98 +965,74 @@ export default function ActionBar() {
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                         ¿Dónde aplica la oferta?
                       </label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Si agregas un enlace web, elegimos “Compra en línea” automáticamente. Puedes cambiarlo.
-                      </p>
-                      <div className="flex flex-col gap-2.5">
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="offerScope"
-                            checked={offerScope === null}
-                            onChange={() => {
-                              offerScopeManuallySelectedRef.current = true;
-                              setOfferScope(null);
-                            }}
-                            className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">No indicar (opcional)</span>
-                        </label>
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="offerScope"
-                            checked={offerScope === 'online'}
-                            onChange={() => {
-                              offerScopeManuallySelectedRef.current = true;
-                              setOfferScope('online');
-                            }}
-                            className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Compra en línea
-                            {offerScope === 'online' && !offerScopeManuallySelectedRef.current && (
-                              <span className="ml-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
-                                Detectado por el enlace
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="offerScope"
-                            checked={offerScope === 'in_store'}
-                            onChange={() => {
-                              offerScopeManuallySelectedRef.current = true;
-                              setOfferScope('in_store');
-                            }}
-                            className="border-gray-300 dark:border-gray-600 text-violet-600 focus:ring-violet-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">En tienda / sucursal</span>
-                        </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {(
+                          [
+                            { id: 'online' as const, label: 'Compra en línea', Icon: Monitor },
+                            { id: 'in_store' as const, label: 'En tienda física', Icon: Store },
+                            { id: 'both' as const, label: 'Ambas opciones', Icon: Sparkles },
+                          ] as const
+                        ).map(({ id, label, Icon }) => {
+                          const selected = offerScope === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => {
+                                offerScopeManuallySelectedRef.current = true;
+                                setOfferScope(id);
+                              }}
+                              className={`rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
+                                selected
+                                  ? 'border-violet-500 bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200'
+                                  : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <Icon className="mb-1 h-4 w-4" />
+                              {label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Descripción de la oferta
-                    </label>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Descripción
+                      </label>
+                      <span className="text-[11px] text-gray-400">{formData.description.length}/300</span>
+                    </div>
                     <textarea
                       value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      onChange={(e) => handleInputChange('description', e.target.value.slice(0, 300))}
                       placeholder="Describe brevemente la oferta..."
                       rows={4}
                       className="w-full min-h-[6.5rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y break-words whitespace-pre-wrap transition-colors duration-200"
                     />
-                    <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      En la tarjeta del home (escritorio) se muestran los primeros {OFFER_CARD_DESCRIPTION_MAX_LENGTH} caracteres.
-                      {formData.description.trim().length > 0 && (
-                        <span className="ml-1">
-                          <span className={formData.description.trim().length > OFFER_CARD_DESCRIPTION_MAX_LENGTH ? 'text-amber-600 dark:text-amber-400' : ''}>
-                            {formData.description.trim().length}/{OFFER_CARD_DESCRIPTION_MAX_LENGTH}
-                          </span>
-                          {' para la tarjeta'}
-                        </span>
-                      )}
-                    </p>
                   </div>
+                  </section>
 
+                  <section className="space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                      Multimedia · opcional
+                    </p>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Fotos de la oferta
                     </label>
-                    <label className="block w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-[#1a1a1a]/50 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 cursor-pointer">
+                    <label className="block w-full rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 cursor-pointer">
                       <input
                         type="file"
                         accept="image/jpeg,image/jpg,image/png,image/webp"
+                        multiple
                         onChange={handleImageSelect}
                         disabled={imageUploading}
                         className="hidden"
                       />
                       <ImageIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {imageUploading ? 'Subiendo...' : imageUrl || imageUrls.length > 0 ? `${1 + imageUrls.length} foto(s) agregada(s) ✓` : 'Solo fotos de la oferta (jpg, png, webp, máx. 2MB). Puedes añadir más.'}
+                        {imageUploading ? 'Subiendo...' : imageUrl || imageUrls.length > 0 ? `${1 + imageUrls.length} foto(s) · la primera es portada` : 'Arrastra fotos o toca para subir (jpg, png, webp, máx. 2MB). Si pegaste un enlace, ya intentamos traer varias.'}
                       </p>
                     </label>
                     {(imageUrl || imageUrls.length > 0) && (
@@ -1139,35 +1203,6 @@ export default function ActionBar() {
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            Cupones o códigos de descuento
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.coupons}
-                            onChange={(e) => handleInputChange('coupons', e.target.value)}
-                            placeholder="Ej: DESCUENTO20"
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            Cupón bancario
-                          </label>
-                          <select
-                            value={formData.bank_coupon}
-                            onChange={(e) => handleInputChange('bank_coupon', e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
-                          >
-                            <option value="">Sin cupón bancario</option>
-                            {BANK_COUPON_OPTIONS.map((b) => (
-                              <option key={b.value} value={b.value}>{b.label}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Etiquetas (opcional)
                           </label>
                           <input
@@ -1204,11 +1239,12 @@ export default function ActionBar() {
                     )}
                   </AnimatePresence>
                 </div>
+                  </section>
 
                 <div className="flex items-start gap-3 rounded-xl bg-violet-50/80 dark:bg-violet-900/20 border border-violet-100/80 dark:border-violet-800/30 p-4">
                   <Info className="h-5 w-5 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-violet-800 dark:text-violet-300">
-                    Los campos marcados con * son obligatorios. Verifica que los precios sean correctos antes de publicar.
+                    Solo lo esencial es obligatorio. Revisa precios y fotos antes de publicar.
                   </p>
                 </div>
                 </div>
@@ -1219,9 +1255,10 @@ export default function ActionBar() {
                   }`}
                 >
                   <div className="p-5 sm:p-6 md:p-8 flex-1">
-                    <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-5">
-                      Vista previa en vivo
+                    <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                      Así se verá tu oferta
                     </p>
+                    <p className="text-xs text-gray-400 mb-5">Vista previa en tiempo real</p>
                     <AnimatePresence mode="wait">
                       {(formData.title.trim() || formData.store.trim() || formData.originalPrice || formData.discountPrice) ? (
                         <motion.div
@@ -1339,6 +1376,13 @@ export default function ActionBar() {
                                   <Sparkles className="h-12 w-12 text-gray-400" />
                                 )}
                               </div>
+                              {imageUrls.length > 0 ? (
+                                <div className="flex gap-1.5 overflow-x-auto px-3 pt-2">
+                                  {imageUrls.slice(0, 6).map((u) => (
+                                    <img key={u} src={u} alt="" className="h-12 w-12 rounded-md object-cover shrink-0" />
+                                  ))}
+                                </div>
+                              ) : null}
                               <div className="p-4 md:p-5 space-y-3">
                                 <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wide">
                                   {formData.store.trim() || 'Tienda'}
@@ -1383,6 +1427,16 @@ export default function ActionBar() {
                         </motion.div>
                       )}
                     </AnimatePresence>
+                    <div className="mt-6 rounded-2xl border border-violet-100 dark:border-violet-900 bg-violet-50/70 dark:bg-violet-950/30 p-4">
+                      <p className="text-sm font-semibold text-violet-900 dark:text-violet-200 mb-2">
+                        Consejos para una gran oferta
+                      </p>
+                      <ul className="text-xs text-violet-800/90 dark:text-violet-300 space-y-1.5 list-disc pl-4">
+                        <li>Un título claro vende más que uno largo.</li>
+                        <li>Revisa que el precio coincida con la tienda.</li>
+                        <li>Varias fotos ayudan en la vista extendida; la primera es la portada.</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
