@@ -277,13 +277,13 @@ function SettingsPageInner() {
             Configuración
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-            Gestiona tu perfil y preferencias
+            Nombre, cuenta y preferencias. Los cambios se aplican a tu perfil en AVENTA.
           </p>
 
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-pink-500">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600">
                   <User className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -322,7 +322,7 @@ function SettingsPageInner() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:hover:translate-y-0"
+                  className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:hover:translate-y-0"
                 >
                   {saving ? 'Guardando...' : 'Guardar cambios'}
                 </button>

@@ -39,7 +39,7 @@ export default function FavoriteOnboarding({ isOpen, onClose }: FavoriteOnboardi
           className="absolute top-32 left-4 z-[100] w-72 rounded-2xl bg-white p-4 shadow-2xl pointer-events-auto"
         >
           <div className="flex items-start gap-3">
-            <div className="rounded-full bg-gradient-to-br from-purple-600 to-pink-500 dark:from-pink-500 dark:to-purple-500 p-2 transition-all duration-600 ease-[0.16,1,0.3,1]">
+            <div className="rounded-full bg-gradient-to-br from-violet-600 to-purple-600 p-2 transition-all duration-600 ease-[0.16,1,0.3,1]">
               <Heart className="h-5 w-5 text-white fill-white" />
             </div>
             <div className="flex-1">

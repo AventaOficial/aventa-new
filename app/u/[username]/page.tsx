@@ -230,7 +230,7 @@ export default function ProfilePage() {
             className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-10"
           >
             <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 dark:from-purple-400 dark:to-pink-400 overflow-hidden">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 overflow-hidden">
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}

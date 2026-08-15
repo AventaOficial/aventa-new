@@ -133,7 +133,10 @@ function FavoritesPageInner() {
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
         <section className="max-w-5xl mx-auto px-4 md:px-8 py-16">
-          <h1 className="text-2xl font-bold mb-8">Tus favoritos</h1>
+          <h1 className="text-2xl font-bold mb-2">Tus favoritos</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
+            Ofertas que guardaste para no perderlas de vista.
+          </p>
           {loading ? (
             <div className="space-y-4 md:space-y-6">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -148,7 +151,21 @@ function FavoritesPageInner() {
               ))}
             </div>
           ) : offers.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400">Aún no has guardado ofertas.</p>
+            <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-[#141414]/60 px-6 py-12 text-center">
+              <p className="text-gray-700 dark:text-gray-200 font-medium">
+                Aún no has guardado ofertas
+              </p>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                Toca el corazón en cualquier oferta para tenerla aquí a la mano.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="mt-6 inline-flex rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+              >
+                Explorar ofertas
+              </button>
+            </div>
           ) : (
             <div className="space-y-4 md:space-y-6">
               {offers.map((offer, index) => (

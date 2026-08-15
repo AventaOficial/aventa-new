@@ -492,7 +492,7 @@ export default function ActionBar() {
               prevUrlParseLoadingRef.current = false;
               setShowUploadModal(true);
             }}
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-fuchsia-600 dark:to-pink-600 text-white shadow-lg shadow-violet-500/25 dark:shadow-fuchsia-950/50 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-violet-600 dark:to-purple-700 text-white shadow-lg shadow-violet-500/25 dark:shadow-violet-950/50 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Plus className="h-6 w-6 max-[400px]:h-5 max-[400px]:w-5 text-white" />
             <span className="text-[10px] max-[400px]:text-[9px] font-semibold text-white">Subir</span>
@@ -1402,7 +1402,7 @@ export default function ActionBar() {
                       type="button"
                       onClick={handleSubmit}
                       disabled={!isFormValid() || isSubmitting || imageUploading}
-                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
                     >
                       {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
                     </button>
@@ -1410,7 +1410,7 @@ export default function ActionBar() {
                     <button
                       type="button"
                       onClick={() => setUploadLinkGatePassed(true)}
-                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99]"
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99]"
                     >
                       Continuar al formulario
                     </button>

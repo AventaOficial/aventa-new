@@ -21,6 +21,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
+import OfferPriceInsightBlock from './OfferPriceInsightBlock';
 
 interface OfferModalProps {
   isOpen: boolean;
@@ -721,11 +722,14 @@ export default function OfferModal({
                 </div>
               )}
 
-              {(steps?.trim() || conditions?.trim() || (coupons?.trim() && !showCtaCouponChip)) && (
+              {(offerId || steps?.trim() || conditions?.trim() || (coupons?.trim() && !showCtaCouponChip)) && (
                 <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-[#1a1a1a]/50 p-4 md:p-5 space-y-5">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
                     Información adicional
                   </p>
+                  {offerId ? (
+                    <OfferPriceInsightBlock offerId={offerId} />
+                  ) : null}
                   {steps?.trim() && (() => {
                     let stepItems: string[] = [];
                     try {
@@ -980,7 +984,7 @@ export default function OfferModal({
                           <button
                             onClick={handleSubmitComment}
                             disabled={!commentText.trim() || commentSubmitting || !session}
-                            className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-600 dark:to-pink-500 px-4 py-2 font-semibold text-white text-sm transition-all duration-200 ease-out hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-600 dark:to-purple-600 px-4 py-2 font-semibold text-white text-sm transition-all duration-200 ease-out hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {commentSubmitting ? 'Enviando…' : replyingToId ? 'Responder' : 'Comentar'}
                           </button>
@@ -1009,14 +1013,14 @@ export default function OfferModal({
               <button
                 onClick={handleOutboundClick}
                 disabled={!offerUrl?.trim()}
-                className="flex-1 min-w-[min(100%,10rem)] rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
+                className="flex-1 min-w-[min(100%,10rem)] rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
               >
                 <span>Ver si sigue disponible</span>
                 <ExternalLink className="h-4 w-4 md:h-4 md:w-4 shrink-0" />
               </button>
               {showCtaCouponChip ? (
                 <div
-                  className="flex min-w-0 max-w-full flex-1 basis-[min(100%,12rem)] items-center justify-center rounded-xl border-2 border-dashed border-white/90 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 px-3 py-2.5 text-center text-xs md:text-sm font-semibold text-white shadow-sm"
+                  className="flex min-w-0 max-w-full flex-1 basis-[min(100%,12rem)] items-center justify-center rounded-xl border-2 border-dashed border-white/90 bg-gradient-to-r from-violet-600 to-purple-600 px-3 py-2.5 text-center text-xs md:text-sm font-semibold text-white shadow-sm"
                   role="note"
                   aria-label="Cupón de la oferta"
                 >

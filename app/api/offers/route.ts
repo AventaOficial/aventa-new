@@ -220,6 +220,17 @@ export async function POST(request: Request) {
       );
     }
 
+    const newOfferId = (data as { id?: string } | null)?.id;
+    if (newOfferId) {
+      const { recordOfferPriceSnapshot } = await import('@/lib/offers/priceHistory');
+      void recordOfferPriceSnapshot(supabase, {
+        offerId: newOfferId,
+        price,
+        originalPrice: payload.original_price,
+        source: 'create',
+      });
+    }
+
     try {
       await supabase.rpc('increment_offers_submitted_count', { uuid: createdBy });
     } catch {}

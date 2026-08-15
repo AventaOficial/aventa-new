@@ -38,7 +38,7 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
       description: '¿Viste un precio raro? Súbelo en segundos.',
       icon: <Plus className="h-6 w-6 text-white" />,
       example: (
-        <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg">
+        <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg">
           <Plus className="h-4 w-4" />
           <span>Subir oferta</span>
         </div>
@@ -51,7 +51,7 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
       icon: <Filter className="h-6 w-6 text-white" />,
       example: (
         <div className="flex gap-2 rounded-xl bg-white p-1 shadow-md">
-          <button className="rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 px-4 py-2 text-sm font-semibold text-white">
+          <button className="rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white">
             Hoy
           </button>
           <button className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-600">
@@ -69,8 +69,8 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
       description: 'Haz clic en cualquier oferta para ver más detalles y comentarios.',
       icon: <SparklesIcon className="h-6 w-6 text-white" />,
       example: (
-        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 p-4 shadow-lg">
-          <div className="mb-2 h-32 rounded-xl bg-gradient-to-br from-purple-200 to-pink-200" />
+        <div className="rounded-2xl bg-gradient-to-br from-violet-50 to-purple-50 p-4 shadow-lg">
+          <div className="mb-2 h-32 rounded-xl bg-gradient-to-br from-violet-200 to-purple-200" />
           <h3 className="font-bold text-gray-900">iPhone 15 Pro Max</h3>
           <p className="text-sm text-gray-600">$999</p>
         </div>
@@ -110,13 +110,13 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
 
           <div className="flex items-center gap-10">
             <div className="flex-shrink-0">
-              <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100">
+              <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100">
                 {current.example}
               </div>
             </div>
 
             <div className="flex-1">
-              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500">
+              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600">
                 {current.icon}
               </div>
               <h2 className="mb-3 text-3xl font-bold text-gray-900">{current.title}</h2>
@@ -151,14 +151,14 @@ export default function Onboarding({ isOpen, onClose }: OnboardingProps) {
             {!isLastStep ? (
               <button
                 onClick={() => setCurrentStep(currentStep + 1)}
-                className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-xl active:translate-y-0"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-xl active:translate-y-0"
               >
                 Siguiente
               </button>
             ) : (
               <button
                 onClick={onClose}
-                className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-xl active:translate-y-0"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-xl active:translate-y-0"
               >
                 Comenzar
               </button>

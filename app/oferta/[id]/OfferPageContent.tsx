@@ -27,6 +27,7 @@ import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
 import VoteArrowButton from '@/app/components/VoteArrowButton';
 import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
+import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
@@ -776,11 +777,20 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             </div>
           </div>
 
-          {(offer.description?.trim() ||
+          {(offer.id ||
+            offer.description?.trim() ||
             offer.steps?.trim() ||
             offer.conditions?.trim() ||
             (offer.coupons?.trim() && !showCtaCouponChip)) && (
             <div className="border-t border-gray-200 dark:border-gray-700 p-6 md:p-8 space-y-6">
+              {offer.id ? (
+                <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-[#1a1a1a]/50 p-4 md:p-5 space-y-3">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
+                    Información adicional
+                  </p>
+                  <OfferPriceInsightBlock offerId={offer.id} />
+                </div>
+              ) : null}
               {offer.description?.trim() && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Descripción</h2>

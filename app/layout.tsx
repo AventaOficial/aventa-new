@@ -33,23 +33,43 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: "AVENTA · Ofertas de la comunidad",
-  description: "Revisa el precio antes de comprar en otra tienda. Ofertas nuevas cada día, ordenadas por votos.",
+  title: {
+    default: "AVENTA · Ofertas de la comunidad",
+    template: "%s | AVENTA",
+  },
+  description:
+    "Comunidad de ofertas en México. Publica, vota y caza precios reales antes de comprar.",
+  applicationName: "AVENTA",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    icon: [
+      { url: "/icon", type: "image/png", sizes: "32x32" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
   },
   openGraph: {
     title: "AVENTA · Ofertas de la comunidad",
-    description: "Revisa el precio antes de comprar en otra tienda. Ofertas nuevas cada día.",
+    description: "Comunidad de ofertas en México. Publica, vota y caza precios reales.",
     siteName: "AVENTA",
+    locale: "es_MX",
     type: "website",
+    url: baseUrl,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "AVENTA · Ofertas de la comunidad",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "AVENTA · Ofertas de la comunidad",
-    description: "Revisa el precio antes de comprar en otra tienda.",
+    description: "Comunidad de ofertas en México. Publica, vota y caza precios reales.",
+    images: ["/opengraph-image"],
   },
 };
 
@@ -104,7 +124,7 @@ export default function RootLayout({
                   <li><Link href="/" className="hover:text-violet-600 dark:hover:text-violet-400">Inicio</Link></li>
                   <li><Link href="/descubre" className="hover:text-violet-600 dark:hover:text-violet-400">Guía rápida</Link></li>
                   <li><Link href="/subir" className="hover:text-violet-600 dark:hover:text-violet-400">Subir oferta</Link></li>
-                  <li><Link href="/extension" className="hover:text-violet-600 dark:hover:text-violet-400">Extensión</Link></li>
+                  <li><Link href="/extension" className="hover:text-violet-600 dark:hover:text-violet-400">Extensión (próx.)</Link></li>
                 </ul>
               </div>
 

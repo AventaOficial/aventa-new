@@ -349,7 +349,7 @@ export default function Navbar() {
                     onClick={() => setShowUserMenu(false)}
                   >
                     <Puzzle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Extensión AVENTA
+                    Extensión (próx.)
                   </Link>
                   <Link
                     href="/settings"

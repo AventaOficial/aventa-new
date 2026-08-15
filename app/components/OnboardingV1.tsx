@@ -180,7 +180,8 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
   );
 }
 
-const ONBOARDING_MAX_CATEGORIES = 3;
+/** Soft cap: se puede elegir más; el feed prioriza las primeras. */
+const ONBOARDING_MAX_CATEGORIES = 8;
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Smartphone,
@@ -222,19 +223,20 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
   const toggle = (value: string) => {
     setSelected((prev) => {
       if (prev.includes(value)) return prev.filter((x) => x !== value);
-      if (prev.length >= ONBOARDING_MAX_CATEGORIES) return [...prev.slice(1), value];
+      if (prev.length >= ONBOARDING_MAX_CATEGORIES) return prev;
       return [...prev, value];
     });
   };
 
-  // Feedback cuando se está al máximo y se intenta agregar (swap)
   const trySelect = (value: string) => {
     const already = selected.includes(value);
     const atMax = !already && selected.length >= ONBOARDING_MAX_CATEGORIES;
+    if (atMax) {
+      setHint(`Puedes elegir hasta ${ONBOARDING_MAX_CATEGORIES}. Quita uno para agregar otro.`);
+      return;
+    }
     toggle(value);
-    if (already) setHint(null);
-    else if (atMax) setHint('Máximo 3. Se reemplazó la primera selección.');
-    else setHint(null);
+    setHint(null);
   };
 
   const removeOne = (value: string) => {
@@ -271,7 +273,7 @@ function PageCategories({ onNext, onBack }: { onNext: () => void; onBack: () => 
         transition={{ delay: 0.2, ...t }}
         className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mb-3"
       >
-        Hasta 3 temas. Luego afinas en Configuración.
+        Elige lo que más te guste y nosotros nos encargamos de buscarte las mejores ofertas.
       </motion.p>
 
       {selected.length > 0 ? (

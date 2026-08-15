@@ -48,7 +48,7 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
       </div>
 
       <div className="hidden md:block relative w-full overflow-hidden bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1d1d1f] dark:from-[#0d0d0f] dark:via-[#151518] dark:to-[#0d0d0f] px-8 lg:px-12 pt-[calc(2rem+env(safe-area-inset-top))] pb-10 rounded-b-2xl mb-4 border-b border-gray-800/50">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-pink-500/10" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-purple-500/10" aria-hidden />
         <div className="relative container mx-auto max-w-4xl">
           <h1 className="text-center text-5xl lg:text-6xl font-semibold text-white tracking-[-0.03em] flex items-center justify-center gap-3">
             <AventaIcon size={48} className="lg:w-14 lg:h-14 text-white shrink-0" />

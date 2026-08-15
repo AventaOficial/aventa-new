@@ -41,7 +41,7 @@ export default function ReputationBar({ level, score, className = '' }: Reputati
         </div>
         <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-500 dark:to-pink-500 transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-600 dark:from-violet-500 dark:to-purple-600 transition-all duration-500"
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>
