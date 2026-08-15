@@ -19,6 +19,10 @@ describe('offerUrlFingerprint', () => {
       'https://www.mercadolibre.com.mx/p/foo?wid=MLM1234567890&tag=y';
     expect(offerUrlsAreSameProduct(withWid, withWid2)).toBe(true);
     expect(extractMercadoLibreItemId(a)).toBe('MLM1234567890');
+    expect(extractMercadoLibreItemId('https://articulo.mercadolibre.com.mx/MLM-1234567890-espejo-_JM')).toBe(
+      'MLM1234567890',
+    );
+    expect(extractMercadoLibreItemId('https://www.mercadolibre.com.mx/p/MLM67398689')).toBe('MLM67398689');
     expect(offerUrlFingerprint(withWid)).toBe('ml:MLM1234567890');
   });
 

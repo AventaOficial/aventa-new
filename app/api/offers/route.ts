@@ -236,7 +236,7 @@ export async function POST(request: Request) {
     } catch {}
 
     if (offerStatus === 'approved') {
-      void invalidateHomeFeedCache();
+      await invalidateHomeFeedCache();
     }
 
     return NextResponse.json({ id: data?.id, ok: true, status: offerStatus });

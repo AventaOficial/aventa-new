@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { X, Heart, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
 import AffiliateDisclosure from './AffiliateDisclosure';
+import StoreBrandMark from './StoreBrandMark';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
@@ -22,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import OfferPriceInsightBlock from './OfferPriceInsightBlock';
+import OfferImageThumbs from './OfferImageThumbs';
 
 interface OfferModalProps {
   isOpen: boolean;
@@ -359,7 +361,7 @@ export default function OfferModal({
       if (bankCouponLabel) parts.push(formatCupónBancarioDisplay(bankCouponLabel));
       if (parts.length > 0) {
         void navigator.clipboard.writeText(parts.join('\n')).then(
-          () => showToast?.('Cupón copiado al portapapeles'),
+          () => showToast?.('Cupón copiado. Pégalo al pagar en la tienda.'),
           () => {}
         );
       }
@@ -518,124 +520,68 @@ export default function OfferModal({
           onClick={(e) => e.stopPropagation()}
           style={{ overflowX: 'hidden' }}
         >
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <StoreBrandMark store={brand} />
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {offerId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${buildOfferPublicPath(offerId, title)}`;
+                    navigator.clipboard.writeText(url).then(() => {
+                      setShareCopied(true);
+                      setTimeout(() => setShareCopied(false), 2000);
+                      showToast?.('Enlace copiado');
+                    }).catch(() => window.open(url, '_blank'));
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
+                  aria-label="Compartir"
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleFavoriteClick}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
+                aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              >
+                <Heart className={`h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
           {/* Desktop: contenedor grid — imagen izquierda, contenido derecha */}
           <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
           {/* Desktop: imagen izquierda */}
-          <div className="relative hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] items-center justify-center overflow-hidden">
-            <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
-            {allImages.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1)); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Imagen anterior"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1)); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Siguiente imagen"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                  {allImages.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setImageIndex(i); }}
-                      className={`h-1.5 rounded-full transition-all ${i === imageIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
-                      aria-label={`Imagen ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-            <button
-              onClick={handleFavoriteClick}
-              className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-[#141414]/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60 transition-all duration-200 hover:scale-105 active:scale-95"
-              aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-            >
-              <Heart
-                className={`h-5 w-5 ${
-                  isLiked ? 'fill-red-500/90 text-red-500/90' : 'text-gray-500/90 dark:text-gray-400/90'
-                }`}
-              />
-            </button>
-            <button
-              onClick={onClose}
-              className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-[#141414]/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700 transition-all duration-200 hover:scale-105 active:scale-95"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-            </button>
+          <div className="hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] flex-col p-4">
+            <div className="relative flex-1 min-h-[240px]">
+              <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
+            </div>
+            <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
           </div>
 
           {/* Columna derecha: scroll (mobile imagen hero + contenido; desktop solo contenido) */}
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col md:min-w-0">
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
-            <div className="md:hidden relative w-full aspect-[4/5] shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] flex items-center justify-center overflow-hidden">
-              <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
-              {allImages.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1)); }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
-                    aria-label="Imagen anterior"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1)); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2 shadow-md border border-gray-200 dark:border-gray-700"
-                    aria-label="Siguiente imagen"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                  </button>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                    {allImages.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setImageIndex(i); }}
-                        className={`h-1.5 rounded-full transition-all ${i === imageIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
-                        aria-label={`Imagen ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-              <button
-                onClick={handleFavoriteClick}
-                className="absolute right-3 top-3 rounded-full bg-white/60 dark:bg-[#141414]/60 backdrop-blur-sm p-2.5 shadow-lg border border-white/40 dark:border-gray-700/60"
-                aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-              >
-                <Heart
-                  className={`h-5 w-5 ${
-                    isLiked ? 'fill-red-500/90 text-red-500/90' : 'text-gray-500/90 dark:text-gray-400/90'
-                  }`}
-                />
-              </button>
-              <button
-                onClick={onClose}
-                className="absolute left-3 top-3 rounded-full bg-white/95 dark:bg-[#141414]/95 backdrop-blur-sm p-2.5 shadow-lg border border-gray-200/80 dark:border-gray-700"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-              </button>
+            <div className="md:hidden shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] p-3">
+              <div className="relative w-full aspect-[4/5] overflow-hidden rounded-xl">
+                <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/')} />
+              </div>
+              <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
             </div>
 
             <div className="p-4 pt-3 md:p-8 md:pt-7 md:pb-12 pb-10 space-y-5 md:space-y-7 min-h-[min(60vh,600px)]">
-              {/* Orden fijo en columna: marca → título → cazado por → precios (evita título roto y solapamientos en desktop) */}
               <div className="flex flex-col gap-3 md:gap-4">
-                <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">
-                  {brand}
-                </p>
                 <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight break-words">
                   {title}
                 </h2>
@@ -678,7 +624,7 @@ export default function OfferModal({
                   </div>
                 )}
                 <div className="flex flex-wrap items-baseline gap-3 pt-1">
-                  <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#111827] dark:text-gray-100 tracking-tight">
+                  <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
                     {formatPriceMXN(discountPrice)}
                   </span>
                   {originalPrice > 0 && (
@@ -687,7 +633,7 @@ export default function OfferModal({
                         {formatPriceMXN(originalPrice)}
                       </span>
                       {discount > 0 && (
-                        <span className="text-sm font-semibold px-2 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400">
+                        <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                           -{discount}%
                         </span>
                       )}

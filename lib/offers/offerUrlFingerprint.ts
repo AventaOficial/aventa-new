@@ -29,20 +29,21 @@ const AFFILIATE_QUERY_KEYS = new Set([
 export function extractMercadoLibreItemId(rawUrl: string): string | null {
   try {
     const url = new URL(rawUrl);
+    const normalize = (raw: string) => raw.replace(/-/g, '').toUpperCase();
     const directId =
       url.searchParams.get('wid') ||
       url.searchParams.get('item_id') ||
       url.searchParams.get('itemId');
-    if (directId && /^ML[A-Z]{0,3}\d+$/i.test(directId.trim())) {
-      return directId.trim().toUpperCase();
+    if (directId && /^ML[A-Z]{0,3}-?\d+$/i.test(directId.trim())) {
+      return normalize(directId.trim());
     }
 
     const pdpFilters = url.searchParams.get('pdp_filters');
-    const fromFilters = pdpFilters?.match(/item_id:([A-Z]{2,6}\d+)/i)?.[1];
-    if (fromFilters) return fromFilters.toUpperCase();
+    const fromFilters = pdpFilters?.match(/item_id:(ML[A-Z]{0,3}-?\d+)/i)?.[1];
+    if (fromFilters) return normalize(fromFilters);
 
-    const fromPath = url.pathname.match(/\/((?:ML|M[A-Z]{1,5})\d+)(?:[/?#-]|$)/i)?.[1];
-    return fromPath ? fromPath.toUpperCase() : null;
+    const fromPath = url.pathname.match(/\/((?:ML[A-Z]{1,3})-?\d{6,})(?:[/?#-]|$)/i)?.[1];
+    return fromPath ? normalize(fromPath) : null;
   } catch {
     return null;
   }

@@ -19,6 +19,8 @@ import {
   Archive,
   AlertTriangle,
   ArrowRight,
+  Flame,
+  Clock,
 } from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
 import { useState, useEffect, useRef } from 'react';
@@ -27,13 +29,13 @@ import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { publicProfilePath } from '@/lib/profileSlug';
 import type { OfferScopeUi } from '@/lib/offerScope';
+import StoreBrandMark from './StoreBrandMark';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -57,22 +59,6 @@ function formatRelativeTime(iso: string): string {
   if (diffD < 7) return `Hace ${diffD} días`;
   if (diffD < 30) return `Hace ${Math.floor(diffD / 7)} sem`;
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-}
-
-function formatRemainingTime(expiresAt?: string | null, createdAt?: string | null): string | null {
-  let expiry: Date | null = null;
-  if (expiresAt) {
-    expiry = new Date(expiresAt);
-  } else if (createdAt) {
-    expiry = new Date(createdAt);
-    expiry.setDate(expiry.getDate() + 7);
-  }
-  if (!expiry || Number.isNaN(expiry.getTime())) return null;
-  const diffMs = expiry.getTime() - Date.now();
-  if (diffMs <= 0) return null;
-  const diffD = Math.ceil(diffMs / 86400000);
-  if (diffD === 1) return '1 día restante';
-  return `${diffD} días restantes`;
 }
 
 type UserVote = 1 | -1 | 0;
@@ -202,7 +188,6 @@ export default function OfferCard({
   originalPrice,
   discountPrice,
   discount,
-  description,
   image,
   onCardClick,
   upvotes,
@@ -218,7 +203,7 @@ export default function OfferCard({
   bankCoupon,
   coupons,
   createdAt,
-  expiresAt,
+  expiresAt: _expiresAt,
   isDestacada = false,
   isTesterOffer = false,
   dealStatus,
@@ -238,7 +223,6 @@ export default function OfferCard({
   const scoreFromFeed = votes?.score ?? upvotes * 2 - downvotes;
   const [localScore, setLocalScore] = useState(() => scoreFromFeed);
   const [imgError, setImgError] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
   const [votePending, setVotePending] = useState(false);
 
   const baseScore = scoreFromFeed;
@@ -411,9 +395,14 @@ export default function OfferCard({
   const showImage = image && !imgError;
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
-  const remainingLabel = formatRemainingTime(expiresAt, createdAt);
   const savingsAmount =
     originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
+  const discountPct =
+    discount > 0
+      ? discount
+      : originalPrice > 0 && discountPrice < originalPrice
+        ? Math.round((1 - discountPrice / originalPrice) * 100)
+        : 0;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const personalCouponTrim = coupons?.trim() ?? '';
   const statusConfig = dealStatus ? DEAL_STATUS_CONFIG[dealStatus] : null;
@@ -428,7 +417,7 @@ export default function OfferCard({
     if (parts.length === 0) return;
     try {
       await navigator.clipboard.writeText(parts.join('\n'));
-      showToast('Cupón copiado al portapapeles');
+      showToast('Cupón copiado. Pégalo al pagar en la tienda.');
     } catch {
       // seguimos con la navegación aunque falle el portapapeles
     }
@@ -445,12 +434,6 @@ export default function OfferCard({
     await copyCouponsToClipboard();
     onCardClick?.();
   };
-
-  const descTrim = description?.trim() ?? '';
-  const descShown =
-    descTrim.length > OFFER_CARD_DESCRIPTION_MAX_LENGTH
-      ? `${descTrim.slice(0, OFFER_CARD_DESCRIPTION_MAX_LENGTH)}…`
-      : descTrim;
 
   const VotesBlock = () => (
     <div className="flex items-center justify-center gap-1.5 max-[400px]:gap-1 md:gap-2 text-gray-900 dark:text-gray-100">
@@ -492,14 +475,12 @@ export default function OfferCard({
       onClick={() => {
         if (canNavigateToPublicOffer) void runOpenOfferAction();
       }}
-      className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
-        statusConfig ? '' : 'flex flex-row items-stretch p-2.5 max-[400px]:p-2 md:p-3'
-      } ${
+      className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-2.5 max-[400px]:p-2 md:p-3 flex flex-col gap-2 max-[400px]:gap-1.5 transition-shadow duration-300 ease-out md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:md:hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
         canNavigateToPublicOffer ? 'cursor-pointer' : 'cursor-default'
       }`}
     >
-      {statusConfig && StatusIcon && (
-        <div className={`flex items-center gap-3 border-b border-black/4 dark:border-white/5 px-4 py-3.5 md:px-5 ${statusConfig.headerClassName}`}>
+      {statusConfig && StatusIcon ? (
+        <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${statusConfig.headerClassName}`}>
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${statusConfig.badgeClassName}`}>
             <StatusIcon className="h-4 w-4" aria-hidden />
           </span>
@@ -508,10 +489,10 @@ export default function OfferCard({
             <p className="mt-0.5 text-xs leading-snug text-gray-600 dark:text-gray-400">{statusConfig.summary}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {statusConfig?.reasonLabel && (
-        <div className="mx-3 mt-3 flex gap-2.5 rounded-xl bg-red-50/70 dark:bg-red-950/20 px-3.5 py-3 md:mx-4 md:mt-4">
+      {statusConfig?.reasonLabel ? (
+        <div className="flex gap-2.5 rounded-xl bg-red-50/70 dark:bg-red-950/20 px-3.5 py-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500/80 dark:text-red-400/80" aria-hidden />
           <div className="min-w-0">
             <p className="text-xs font-semibold text-red-800 dark:text-red-200">{statusConfig.reasonLabel}</p>
@@ -520,292 +501,275 @@ export default function OfferCard({
             </p>
           </div>
         </div>
-      )}
+      ) : null}
 
-      <div className={statusConfig ? 'relative flex flex-row items-stretch p-2.5 max-[400px]:p-2 md:p-3' : 'contents'}>
-      <button
-        onClick={handleFavoriteClick}
-        className="absolute top-2 left-2 max-[400px]:top-1.5 max-[400px]:left-1.5 z-10 flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-sm border border-white/40 dark:border-[#262626]/60 shadow-sm hover:bg-white/80 dark:hover:bg-[#262626]/80 transition-colors active:scale-95"
-        aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-      >
-        <Heart
-          className={`h-4 w-4 ${
-            isLiked ? 'fill-red-500/90 text-red-500/90' : 'text-gray-500/90 dark:text-gray-400/90'
-          }`}
-        />
-      </button>
-
-      {offerId && canNavigateToPublicOffer && (
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <StoreBrandMark store={storeLabel} />
+          {offerScope ? (
+            <span className="inline-flex items-center gap-1 text-[11px] md:text-xs text-gray-400 dark:text-gray-500 shrink-0">
+              {offerScope === 'online' ? (
+                <Globe className="h-3 w-3 shrink-0" aria-hidden />
+              ) : (
+                <Store className="h-3 w-3 shrink-0" aria-hidden />
+              )}
+              {offerScope === 'online' ? 'En línea' : 'En tienda'}
+            </span>
+          ) : null}
+        </div>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${buildOfferPublicPath(offerId, title)}`;
-            navigator.clipboard.writeText(url).then(() => {
-              setShareCopied(true);
-              setTimeout(() => setShareCopied(false), 2000);
-              showToast('Enlace copiado');
-            }).catch(() => window.open(url, '_blank'));
-            fetch('/api/events', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-              body: JSON.stringify({ offer_id: offerId, event_type: 'share' }),
-            }).catch((err) => logClientError('offer-card:track-view', err));
-          }}
-          className="absolute top-2 right-2 max-[400px]:top-1.5 max-[400px]:right-1.5 z-10 p-1 max-[400px]:p-1 md:p-1.5 rounded-md md:rounded-lg bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm border border-[#e5e5e7]/80 dark:border-[#262626]/80 text-[#8e8e93] dark:text-[#737378] hover:text-violet-600 dark:hover:text-violet-400 hover:bg-white/95 dark:hover:bg-[#1a1a1a]/95 transition-colors"
-          title={shareCopied ? '¡Copiado!' : 'Compartir (enlace a la página de la oferta)'}
-          aria-label="Compartir oferta"
+          type="button"
+          onClick={handleFavoriteClick}
+          className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+          aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
         >
-          <Share2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+          <Heart
+            className={`h-4 w-4 ${
+              isLiked ? 'fill-red-500/90 text-red-500/90' : ''
+            }`}
+          />
         </button>
-      )}
-
-      <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
-        <div className="relative h-[152px] max-[400px]:h-[128px] md:h-[158px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
-          {showImage ? (
-            <Image
-              src={image}
-              alt=""
-              fill
-              sizes="(max-width: 400px) 90px, (max-width: 768px) 38vw, 220px"
-              className="object-contain md:object-cover object-center"
-              onError={() => setImgError(true)}
-              unoptimized={image.startsWith('/')}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-h-[6px] min-w-0" aria-hidden />
-        <div className="flex justify-center w-full shrink-0 pb-0.5">
-          <VotesBlock />
-        </div>
       </div>
 
-      <div className="flex flex-col flex-1 min-w-0 min-h-0 pl-3 max-[400px]:pl-2 md:pl-4 pt-6 max-[400px]:pt-5 md:pt-0">
-        <div className="min-w-0 flex-1 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
-        <div className="min-w-0">
-          <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
-            {title}
-          </h3>
-
-          <div className="mt-1 max-[400px]:mt-0.5 min-w-0">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-lg max-[400px]:text-base md:text-2xl font-semibold text-[#1d1d1f] dark:text-gray-50 tracking-tight tabular-nums">
-                ${formatPrice(discountPrice)}
-              </span>
-              {originalPrice > discountPrice && originalPrice > 0 && (
-                <span className="text-xs md:text-sm text-gray-400 dark:text-gray-500 line-through tabular-nums">
-                  ${formatPrice(originalPrice)}
-                </span>
-              )}
-            </div>
-            {savingsAmount > 0 && (
-              <p className="mt-0.5 text-xs md:text-[13px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight">
-                Ahorra ${formatPrice(savingsAmount)}
-              </p>
-            )}
-            {(isDestacada || isTesterOffer) && (
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {isDestacada && (
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400" title="La están validando">
-                    <Award className="h-3 w-3" />
-                    Destacada
-                  </span>
-                )}
-                {isTesterOffer && (
-                  <span className="inline-flex text-[10px] font-medium text-amber-600/90 dark:text-amber-400/90" title="Oferta de ejemplo (relleno)">
-                    Prueba
-                  </span>
-                )}
+      <div className="flex flex-row items-stretch min-h-0">
+        <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
+          <div className="relative h-[152px] max-[400px]:h-[128px] md:h-[158px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
+            {showImage ? (
+              <Image
+                src={image}
+                alt=""
+                fill
+                sizes="(max-width: 400px) 90px, (max-width: 768px) 38vw, 220px"
+                className="object-contain md:object-cover object-center"
+                onError={() => setImgError(true)}
+                unoptimized={image.startsWith('/')}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               </div>
             )}
+            {discountPct >= 1 ? (
+              <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <Flame className="h-3 w-3" aria-hidden />
+                -{discountPct}%
+              </span>
+            ) : null}
           </div>
-          {bankCouponLabel ? (
-            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+          <div className="flex-1 min-h-[6px] min-w-0" aria-hidden />
+          <div className="flex justify-center w-full shrink-0 pb-0.5">
+            <VotesBlock />
+          </div>
+        </div>
+
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 pl-3 max-[400px]:pl-2 md:pl-4">
+          <div className="min-w-0 flex-1 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
+            <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
+              {title}
+            </h3>
+
+            {author?.username ? (
+              <span className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
+                {authorProfileHref ? (
+                  <Link
+                    href={authorProfileHref}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline"
+                  >
+                    {author.avatar_url ? (
+                      <Image
+                        src={author.avatar_url}
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
+                        unoptimized={
+                          author.avatar_url.startsWith('http') &&
+                          !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                        }
+                      />
+                    ) : (
+                      <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
+                    )}
+                    <span className="truncate">{author.username} lo encontró</span>
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
+                    {author.avatar_url ? (
+                      <Image
+                        src={author.avatar_url}
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
+                        unoptimized={
+                          author.avatar_url.startsWith('http') &&
+                          !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                        }
+                      />
+                    ) : (
+                      <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
+                    )}
+                    <span className="truncate">{author.username} lo encontró</span>
+                  </span>
+                )}
+                {author.leaderBadge === 'cazador_estrella' ? (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                    <BadgeCheck className="h-3 w-3" />
+                    Top
+                  </span>
+                ) : null}
+                {author.leaderBadge === 'cazador_aventa' ? (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
+                    <BadgeCheck className="h-3 w-3" />
+                    Destacado
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-lg max-[400px]:text-base md:text-2xl font-semibold text-violet-600 dark:text-violet-400 tracking-tight tabular-nums">
+                  ${formatPrice(discountPrice)}
+                </span>
+                {originalPrice > discountPrice && originalPrice > 0 ? (
+                  <span className="text-xs md:text-sm text-gray-400 dark:text-gray-500 line-through tabular-nums">
+                    ${formatPrice(originalPrice)}
+                  </span>
+                ) : null}
+                {discountPct >= 1 ? (
+                  <span className="text-[10px] md:text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                    -{discountPct}%
+                  </span>
+                ) : null}
+              </div>
+              {savingsAmount > 0 ? (
+                <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
+                  Ahorras ${formatPrice(savingsAmount)}
+                </p>
+              ) : null}
+              {(isDestacada || isTesterOffer) ? (
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {isDestacada ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400" title="La están validando">
+                      <Award className="h-3 w-3" />
+                      Destacada
+                    </span>
+                  ) : null}
+                  {isTesterOffer ? (
+                    <span className="inline-flex text-[10px] font-medium text-amber-600/90 dark:text-amber-400/90" title="Oferta de ejemplo (relleno)">
+                      Prueba
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            {bankCouponLabel ? (
               <span className="max-w-[11rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-snug">
                 {formatCupónBancarioDisplay(bankCouponLabel)}
               </span>
-            </div>
-          ) : null}
-
-          <p className="text-[11px] md:text-xs mt-1.5 min-w-0 leading-snug text-gray-400 dark:text-gray-500 font-normal tracking-wide">
-            {[storeLabel, timeLabel, remainingLabel].filter(Boolean).join(' • ')}
-            {offerScope ? (
-              <>
-                {' • '}
-                <span className="inline-flex items-center gap-0.5">
-                  {offerScope === 'online' ? (
-                    <Globe className="h-3 w-3 shrink-0 inline" aria-hidden />
-                  ) : (
-                    <Store className="h-3 w-3 shrink-0 inline" aria-hidden />
-                  )}
-                  {offerScope === 'online' ? 'En línea' : 'En tienda'}
-                </span>
-              </>
             ) : null}
-          </p>
 
-          {author?.username && (
-            <span className="inline-flex items-center gap-1.5 flex-wrap mt-0.5 min-w-0">
-              {authorProfileHref ? (
-                <Link
-                  href={authorProfileHref}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-violet-600 dark:text-violet-400 hover:underline"
+            {ownerMetrics != null ? (
+              <div className="rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Actividad</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">Solo tú ves estas métricas</p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
+                    <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.views}</strong>
+                    vistas
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <MousePointerClick className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
+                    <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                      {ownerMetrics.storeClicks ?? ownerMetrics.cazarClicks}
+                    </strong>
+                    clics a tienda
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Share2 className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
+                    <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.shares}</strong>
+                    compartidos
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-2 border-t border-gray-100/80 dark:border-gray-800/60 flex items-center gap-2">
+            {timeLabel ? (
+              <span className="inline-flex items-center gap-1 text-[11px] md:text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                <Clock className="h-3 w-3" aria-hidden />
+                {timeLabel}
+              </span>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              {(!statusConfig || statusConfig.behavior === 'public') ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isTesterOffer) {
+                      showToast('Oferta de prueba');
+                      return;
+                    }
+                    void (async () => {
+                      await copyCouponsToClipboard();
+                      if (offerId) {
+                        fetch('/api/events', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                          },
+                          body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
+                        }).catch((err) => logClientError('offer-card:cazar-cta', err));
+                      }
+                      onCardClick?.();
+                    })();
+                  }}
+                  className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
                 >
-                  {author.avatar_url ? (
-                    <Image
-                      src={author.avatar_url}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
-                      unoptimized={
-                        author.avatar_url.startsWith('http') &&
-                        !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
-                      }
-                    />
-                  ) : (
-                    <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
-                  )}
-                  <span className="truncate">{author.username} lo encontró</span>
-                </Link>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
-                  {author.avatar_url ? (
-                    <Image
-                      src={author.avatar_url}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="h-4 w-4 md:h-5 md:w-5 rounded-full object-cover shrink-0"
-                      unoptimized={
-                        author.avatar_url.startsWith('http') &&
-                        !author.avatar_url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
-                      }
-                    />
-                  ) : (
-                    <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
-                  )}
-                  <span className="truncate">{author.username} lo encontró</span>
-                </span>
-              )}
-              {author.leaderBadge === 'cazador_estrella' && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
-                  <BadgeCheck className="h-3 w-3" />
-                  Top
-                </span>
-              )}
-              {author.leaderBadge === 'cazador_aventa' && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
-                  <BadgeCheck className="h-3 w-3" />
-                  Destacado
-                </span>
-              )}
-            </span>
-          )}
-          <p className="text-[11px] md:text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 min-w-0 leading-snug wrap-anywhere">
-            {descShown ? (
-              descShown
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
-            )}
-          </p>
-        </div>
+                  {statusConfig?.ctaLabel ?? 'Ver oferta'}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              ) : null}
 
-        {ownerMetrics != null && (
-          <div className="mt-1 rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Actividad</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500">Solo tú ves estas métricas</p>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-600 dark:text-gray-400">
-              <span className="inline-flex items-center gap-1.5">
-                <Eye className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
-                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.views}</strong>
-                vistas
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MousePointerClick className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
-                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                  {ownerMetrics.storeClicks ?? ownerMetrics.cazarClicks}
-                </strong>
-                clics a tienda
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Share2 className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />
-                <strong className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{ownerMetrics.shares}</strong>
-                compartidos
-              </span>
+              {statusConfig?.behavior === 'informational' ? (
+                <div className="rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
+                  <p className="text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                    {statusConfig.message}
+                  </p>
+                </div>
+              ) : null}
+
+              {statusConfig?.behavior === 'management' ? (
+                <div>
+                  {statusConfig.message ? (
+                    <p className="mb-2.5 text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                      {statusConfig.message}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (statusConfig.action) onManagementAction?.(statusConfig.action);
+                    }}
+                    className="w-full min-w-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity hover:opacity-90"
+                  >
+                    {statusConfig.ctaLabel}
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
-        )}
         </div>
-
-        <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-2 border-t border-gray-100/80 dark:border-gray-800/60">
-          {(!statusConfig || statusConfig.behavior === 'public') && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isTesterOffer) {
-                  showToast('Oferta de prueba');
-                  return;
-                }
-                void (async () => {
-                  await copyCouponsToClipboard();
-                  if (offerId) {
-                    fetch('/api/events', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-                      },
-                      body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
-                    }).catch((err) => logClientError('offer-card:cazar-cta', err));
-                  }
-                  onCardClick?.();
-                })();
-              }}
-              className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
-            >
-              {statusConfig?.ctaLabel ?? 'Ver oferta'}
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          )}
-
-          {statusConfig?.behavior === 'informational' && (
-            <div className="rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
-              <p className="text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                {statusConfig.message}
-              </p>
-            </div>
-          )}
-
-          {statusConfig?.behavior === 'management' && (
-            <div>
-              {statusConfig.message && (
-                <p className="mb-2.5 text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                  {statusConfig.message}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (statusConfig.action) onManagementAction?.(statusConfig.action);
-                }}
-                className="w-full min-w-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity hover:opacity-90"
-              >
-                {statusConfig.ctaLabel}
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
       </div>
     </div>
   );

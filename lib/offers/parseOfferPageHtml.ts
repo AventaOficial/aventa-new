@@ -181,6 +181,10 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
       parsePositiveLocalizedNumber(html.match(/["']listPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]);
   }
 
+  const mlDom = extractMercadoLibreDomPrices(html);
+  if (mlDom.discount) discount = mlDom.discount;
+  if (mlDom.original) original = mlDom.original;
+
   if (original != null && discount != null && original < discount) {
     const tmp = original;
     original = discount;
@@ -246,6 +250,12 @@ export function extractOfferImages(html: string, base: string): string[] {
     pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
   }
 
+  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_(?:NQ_NP_2X_)?[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
+  while ((hm = mlCdnRe.exec(html)) !== null) {
+    const u = hm[1];
+    if (/D_NQ_NP_2X_|-F\.|-O\./i.test(u)) pushUnique(images, absoluteUrl(base, u));
+  }
+
   return images.slice(0, MAX_IMAGES);
 }
 
@@ -260,20 +270,52 @@ export function extractBreadcrumbs(html: string): string[] {
   return crumbs.slice(0, 8);
 }
 
+function normalizeMlId(raw: string): string {
+  return raw.replace(/-/g, '').toUpperCase();
+}
+
 export function extractMercadoLibreItemId(rawUrl: string): string | null {
   try {
     const url = new URL(rawUrl);
     const directId =
       url.searchParams.get('wid') || url.searchParams.get('item_id') || url.searchParams.get('itemId');
-    if (directId && /^ML[A-Z]{0,3}\d+$/i.test(directId.trim())) return directId.trim().toUpperCase();
+    if (directId && /^ML[A-Z]{0,3}-?\d+$/i.test(directId.trim())) return normalizeMlId(directId.trim());
 
     const pdpFilters = url.searchParams.get('pdp_filters');
-    const fromFilters = pdpFilters?.match(/item_id:([A-Z]{2,6}\d+)/i)?.[1];
-    if (fromFilters) return fromFilters.toUpperCase();
+    const fromFilters = pdpFilters?.match(/item_id:(ML[A-Z]{0,3}-?\d+)/i)?.[1];
+    if (fromFilters) return normalizeMlId(fromFilters);
 
-    const fromPath = url.pathname.match(/\/((?:ML|M[A-Z]{1,5})\d+)(?:[/?#-]|$)/i)?.[1];
-    return fromPath ? fromPath.toUpperCase() : null;
+    const fromPath = url.pathname.match(/\/((?:ML[A-Z]{1,3})-?\d{6,})(?:[/?#-]|$)/i)?.[1];
+    return fromPath ? normalizeMlId(fromPath) : null;
   } catch {
     return null;
   }
+}
+
+export function extractMercadoLibreItemIdFromHtml(html: string): string | null {
+  const canonical =
+    html.match(/rel=["']canonical["'][^>]*href=["']([^"']+)["']/i)?.[1] ??
+    html.match(/href=["']([^"']+)["'][^>]*rel=["']canonical["']/i)?.[1];
+  if (canonical) {
+    const fromCanonical = extractMercadoLibreItemId(canonical);
+    if (fromCanonical) return fromCanonical;
+  }
+  const fromJson =
+    html.match(/["'](?:item_id|itemId|catalog_product_id)["']\s*:\s*["'](ML[A-Z]{0,3}-?\d+)["']/i)?.[1] ??
+    html.match(/\/((?:ML[A-Z]{1,3})-?\d{6,})/i)?.[1];
+  return fromJson ? normalizeMlId(fromJson) : null;
+}
+
+/** Precios visibles en el HTML de Mercado Libre (fracción + precio tachado). */
+export function extractMercadoLibreDomPrices(html: string): ExtractedPrices {
+  const previous = html.match(
+    /andes-money-amount--previous[\s\S]{0,500}?andes-money-amount__fraction[^>]*>([0-9.]+)/i,
+  )?.[1];
+  const current = html.match(/andes-money-amount__fraction[^>]*>([0-9.]+)/i)?.[1];
+  const mxnPrice = html.match(/"price"\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*"currency_id"\s*:\s*"MXN"/i)?.[1];
+  const mxnOriginal = html.match(/"original_price"\s*:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1];
+  return {
+    discount: parsePositiveLocalizedNumber(mxnPrice) ?? parsePositiveLocalizedNumber(current),
+    original: parsePositiveLocalizedNumber(mxnOriginal) ?? parsePositiveLocalizedNumber(previous),
+  };
 }

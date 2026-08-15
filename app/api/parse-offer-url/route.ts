@@ -8,6 +8,7 @@ import { fetchMercadoLibrePublicOffer } from '@/lib/offers/mlPublicOffer';
 import {
   absoluteUrl,
   extractBreadcrumbs,
+  extractMercadoLibreItemId,
   extractOfferImages,
   extractSuggestedPrices,
   getById,
@@ -20,6 +21,21 @@ const USER_AGENT =
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
+}
+
+function isMercadoLibreHost(hostname: string): boolean {
+  const d = getDomain(hostname);
+  return (
+    d.includes('mercadolibre') ||
+    d.includes('mercadolivre') ||
+    d === 'meli.la' ||
+    d.endsWith('.meli.la')
+  );
+}
+
+function isAmazonHost(hostname: string): boolean {
+  const d = getDomain(hostname);
+  return d === 'amazon.com' || d === 'amazon.com.mx' || d.endsWith('.amazon.com') || d.endsWith('.amazon.com.mx');
 }
 
 function emptyPayload() {
@@ -77,6 +93,30 @@ function mergeImages(primary: string | null, extras: string[]): string[] {
   return out;
 }
 
+async function fetchHtml(target: string): Promise<{ html: string; pageUrl: URL } | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(target, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+      },
+      redirect: 'follow',
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const pageUrl = res.url ? new URL(res.url) : new URL(target);
+    return { html, pageUrl };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
@@ -121,47 +161,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: block.reason ?? 'URL no permitida' }, { status: 400 });
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const looksMl = isMercadoLibreHost(url.hostname) || Boolean(extractMercadoLibreItemId(rawUrl));
 
-    const res = await fetch(url.href, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
-      },
-      redirect: 'follow',
-    });
-    clearTimeout(timeoutId);
+    const htmlPromise = fetchHtml(url.href);
+    const mlPromise = looksMl ? fetchMercadoLibrePublicOffer(rawUrl).catch(() => null) : Promise.resolve(null);
 
-    if (!res.ok) return NextResponse.json(emptyPayload());
+    const [htmlResult, mlFirst] = await Promise.all([htmlPromise, mlPromise]);
 
-    const html = await res.text();
-    const pageUrl = res.url ? new URL(res.url) : url;
+    const html = htmlResult?.html ?? '';
+    const pageUrl = htmlResult?.pageUrl ?? url;
     const base = pageUrl.origin + pageUrl.pathname;
-    const domain = getDomain(pageUrl.hostname);
-    const prices = extractSuggestedPrices(html);
-    const htmlImages = extractOfferImages(html, base);
-    const breadcrumbs = extractBreadcrumbs(html);
+    const isAmazon = isAmazonHost(pageUrl.hostname) || isAmazonHost(url.hostname);
+    const isMercadoLibre = looksMl || isMercadoLibreHost(pageUrl.hostname);
 
-    const isAmazon =
-      domain === 'amazon.com' ||
-      domain === 'amazon.com.mx' ||
-      domain.endsWith('.amazon.com') ||
-      domain.endsWith('.amazon.com.mx');
-    const isMercadoLibre =
-      domain === 'mercadolibre.com' ||
-      domain === 'mercadolibre.com.mx' ||
-      domain.endsWith('.mercadolibre.com') ||
-      domain.endsWith('.mercadolibre.com.mx') ||
-      domain === 'meli.la' ||
-      domain.endsWith('.meli.la');
+    let data: { title: string | null; image: string | null; store: string | null } = {
+      title: null,
+      image: null,
+      store: isMercadoLibre ? 'Mercado Libre' : isAmazon ? 'Amazon' : null,
+    };
+    let prices = { discount: null as number | null, original: null as number | null };
+    let htmlImages: string[] = [];
+    let breadcrumbs: string[] = [];
 
-    let data: { title: string | null; image: string | null; store: string | null };
-    if (isAmazon) data = parseAmazon(html, base);
-    else if (isMercadoLibre) data = parseMercadoLibre(html, base);
-    else data = parseGeneric(html, base);
+    if (html) {
+      prices = extractSuggestedPrices(html);
+      htmlImages = extractOfferImages(html, base);
+      breadcrumbs = extractBreadcrumbs(html);
+      if (isAmazon) data = parseAmazon(html, base);
+      else if (isMercadoLibre) data = parseMercadoLibre(html, base);
+      else data = parseGeneric(html, base);
+    }
 
     let discount = prices.discount;
     let original = prices.original;
@@ -169,21 +198,29 @@ export async function POST(request: Request) {
     let mlCategoryId: string | null = null;
     let mlPathNames: string[] = [];
 
-    if (isMercadoLibre) {
-      const ml = await fetchMercadoLibrePublicOffer(pageUrl.href).catch(() => null);
-      const mlFromRaw = ml ?? (await fetchMercadoLibrePublicOffer(rawUrl).catch(() => null));
-      if (mlFromRaw) {
-        data = {
-          title: data.title || mlFromRaw.title,
-          image: data.image || mlFromRaw.pictures[0] || null,
-          store: data.store || 'Mercado Libre',
-        };
-        discount = discount ?? mlFromRaw.price;
-        original = original ?? mlFromRaw.originalPrice;
-        images = mergeImages(data.image, [...mlFromRaw.pictures, ...htmlImages]);
-        mlCategoryId = mlFromRaw.categoryId;
-        mlPathNames = mlFromRaw.pathNames;
-      }
+    let ml = mlFirst;
+    if (isMercadoLibre && (!ml || !ml.price || ml.pictures.length < 2)) {
+      const mlFromPage = await fetchMercadoLibrePublicOffer(pageUrl.href, html || null).catch(() => null);
+      if (mlFromPage) ml = mlFromPage;
+    }
+
+    if (ml) {
+      data = {
+        title: ml.title || data.title,
+        image: ml.pictures[0] || data.image,
+        store: data.store || 'Mercado Libre',
+      };
+      if (ml.price && ml.price > 0) discount = ml.price;
+      if (ml.originalPrice && ml.originalPrice > 0) original = ml.originalPrice;
+      images = mergeImages(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
+      mlCategoryId = ml.categoryId;
+      mlPathNames = ml.pathNames;
+    }
+
+    if (original != null && discount != null && original < discount) {
+      const tmp = original;
+      original = discount;
+      discount = tmp;
     }
 
     const suggestedCategory = inferOfferCategory({

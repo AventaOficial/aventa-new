@@ -13,6 +13,7 @@ import {
   Share2,
   Globe,
   Store,
+  Clock,
 } from 'lucide-react';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
@@ -28,10 +29,23 @@ import ClientLayout from '@/app/ClientLayout';
 import VoteArrowButton from '@/app/components/VoteArrowButton';
 import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
+import StoreBrandMark from '@/app/components/StoreBrandMark';
+import OfferImageThumbs from '@/app/components/OfferImageThumbs';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
+
+function formatRemainingTime(createdAt?: string | null): string | null {
+  if (!createdAt) return null;
+  const expiry = new Date(createdAt);
+  expiry.setDate(expiry.getDate() + 7);
+  if (Number.isNaN(expiry.getTime())) return null;
+  const diffMs = expiry.getTime() - Date.now();
+  if (diffMs <= 0) return null;
+  const diffD = Math.ceil(diffMs / 86400000);
+  return diffD === 1 ? '1 día restante' : `${diffD} días restantes`;
+}
 
 function CommentAvatar({
   avatarUrl,
@@ -193,6 +207,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const userVote = localVote ?? 0;
   const storedVoteVal = voteValueMap[offer.id];
   const savings = offer.originalPrice - offer.discountPrice;
+  const remainingLabel = formatRemainingTime(offer.createdAt);
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
   const currentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
   const publicPath = buildOfferPublicPath(offer.id, offer.title);
@@ -403,7 +418,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     if (parts.length === 0) return;
     try {
       await navigator.clipboard.writeText(parts.join('\n'));
-      showToast?.('Cupón copiado al portapapeles');
+      showToast?.('Cupón copiado. Pégalo al pagar en la tienda.');
     } catch {
       /* noop */
     }
@@ -437,74 +452,130 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
         </nav>
 
         <div className="rounded-2xl bg-white dark:bg-[#141414] border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="flex flex-col md:flex-row">
-            <div className="relative md:w-[45%] aspect-square md:aspect-auto md:min-h-[400px] bg-gray-50 dark:bg-[#1a1a1a] flex items-center justify-center p-4 overflow-hidden">
-              <Image
-                src={currentImage}
-                alt=""
-                fill
-                sizes="(max-width: 768px) 100vw, 45vw"
-                className="object-contain p-4"
-                priority
-                unoptimized={currentImage.startsWith('/')}
-              />
-              {allImages.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1))}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
-                    aria-label="Foto anterior"
-                  >
-                    <span className="sr-only">Anterior</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1))}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-[#141414]/90 p-2.5 shadow-md border border-gray-200 dark:border-gray-700 z-10"
-                    aria-label="Foto siguiente"
-                  >
-                    <span className="sr-only">Siguiente</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 18 6-6-6-6" /></svg>
-                  </button>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                    {allImages.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setImageIndex(i)}
-                        className={`h-1.5 rounded-full transition-all ${i === imageIndex ? 'w-4 bg-violet-600 dark:bg-violet-400' : 'w-1.5 bg-gray-400/70 dark:bg-gray-500/70'}`}
-                        aria-label={`Foto ${i + 1} de ${allImages.length}`}
-                      />
-                    ))}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-6 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              <StoreBrandMark store={offer.brand} />
+              {offer.offerScope ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {offer.offerScope === 'online' ? (
+                    <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  )}
+                  <span>{offer.offerScope === 'online' ? 'Compra en línea' : 'En tienda / sucursal'}</span>
+                </span>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <div className="relative" ref={shareMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowShareMenu((v) => !v)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] hover:text-violet-600 dark:hover:text-violet-400"
+                  aria-label="Compartir"
+                  aria-expanded={showShareMenu}
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+                {showShareMenu ? (
+                  <div className="absolute right-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] shadow-lg py-2">
+                    {(() => {
+                      const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
+                      const shareText = generateDealShareText(
+                        { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice },
+                        dealUrl
+                      );
+                      const trackShare = () => {
+                        if (session?.access_token) {
+                          fetch('/api/events', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
+                          }).catch((err) => logClientError('offer-page:share-event', err));
+                        }
+                      };
+                      return (
+                        <>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onClick={() => { trackShare(); setShowShareMenu(false); }}
+                          >
+                            WhatsApp
+                          </a>
+                          <a
+                            href={`https://t.me/share/url?url=${encodeURIComponent(dealUrl)}&text=${encodeURIComponent(shareText)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onClick={() => { trackShare(); setShowShareMenu(false); }}
+                          >
+                            Telegram
+                          </a>
+                          <a
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onClick={() => { trackShare(); setShowShareMenu(false); }}
+                          >
+                            X
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
+                              navigator.clipboard.writeText(url).then(() => {
+                                setShareCopied(true);
+                                setTimeout(() => setShareCopied(false), 2000);
+                                showToast?.('Enlace copiado.');
+                              }).catch((err) =>
+                                notifyUserError(showToast, 'No se pudo copiar el enlace.', 'offer-page:clipboard', err)
+                              );
+                              trackShare();
+                              setShowShareMenu(false);
+                            }}
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+                          >
+                            <Copy className="h-4 w-4 shrink-0" />
+                            {shareCopied ? '¡Copiado!' : 'Copiar enlace'}
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
-                </>
-              )}
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={handleFavoriteClick}
-                className="absolute right-3 top-3 rounded-full bg-white/80 dark:bg-[#141414]/80 backdrop-blur-sm p-2.5 shadow border border-gray-200 dark:border-gray-700 z-10"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
                 aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
-                <Heart className={`h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400'}`} />
+                <Heart className={`h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row">
+            <div className="md:w-[45%] bg-gray-50 dark:bg-[#1a1a1a] p-4">
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl">
+                <Image
+                  src={currentImage}
+                  alt=""
+                  fill
+                  sizes="(max-width: 768px) 100vw, 45vw"
+                  className="object-contain p-2"
+                  priority
+                  unoptimized={currentImage.startsWith('/')}
+                />
+              </div>
+              <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
+            </div>
             <div className="p-6 md:p-8 flex-1">
-              <p className="text-xs font-medium text-gray-900 dark:text-white uppercase tracking-wider">
-                {offer.brand}
-              </p>
-              {offer.offerScope ? (
-                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {offer.offerScope === 'online' ? (
-                    <Globe className="h-4 w-4 shrink-0" aria-hidden />
-                  ) : (
-                    <Store className="h-4 w-4 shrink-0" aria-hidden />
-                  )}
-                  <span>{offer.offerScope === 'online' ? 'Compra en línea' : 'En tienda / sucursal'}</span>
-                </p>
-              ) : null}
-              <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 mt-1 leading-tight">
+              <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
                 {offer.title}
               </h1>
               {offer.author?.username && (
@@ -554,7 +625,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       {formatPriceMXN(offer.originalPrice)}
                     </span>
                     {offer.discount > 0 && (
-                      <span className="text-sm font-semibold px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                      <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                         -{offer.discount}%
                       </span>
                     )}
@@ -578,54 +649,66 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   ) : null}
                 </div>
               ) : null}
+              {remainingLabel ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  {remainingLabel}
+                </p>
+              ) : null}
 
-              <div className="flex items-center gap-3 mt-6 text-gray-900 dark:text-gray-100">
-                <VoteArrowButton
-                  direction="up"
-                  active={userVote === 1}
-                  disabled={votePending}
-                  onClick={() => handleVote('up')}
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
-                    userVote === 1
-                      ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                      : 'text-gray-500 dark:text-gray-400'
-                  }`}
-                  iconClassName={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`}
-                  aria-label="Votar arriba"
-                />
-                <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localScore}</span>
-                <VoteArrowButton
-                  direction="down"
-                  active={userVote === -1}
-                  disabled={votePending}
-                  onClick={() => handleVote('down')}
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
-                    userVote === -1
-                      ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
-                      : 'text-gray-500 dark:text-gray-400'
-                  }`}
-                  iconClassName={`h-5 w-5 ${userVote === -1 ? 'fill-current' : ''}`}
-                  aria-label="Votar abajo"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                {offer.categorySlug && (
+              <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-900 dark:text-gray-100">
+                <div className="flex items-center gap-2">
+                  <VoteArrowButton
+                    direction="up"
+                    active={userVote === 1}
+                    disabled={votePending}
+                    onClick={() => handleVote('up')}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
+                      userVote === 1
+                        ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}
+                    iconClassName={`h-5 w-5 ${userVote === 1 ? 'fill-current' : ''}`}
+                    aria-label="Votar arriba"
+                  />
+                  <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localScore}</span>
+                  <VoteArrowButton
+                    direction="down"
+                    active={userVote === -1}
+                    disabled={votePending}
+                    onClick={() => handleVote('down')}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 ${
+                      userVote === -1
+                        ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}
+                    iconClassName={`h-5 w-5 ${userVote === -1 ? 'fill-current' : ''}`}
+                    aria-label="Votar abajo"
+                  />
+                </div>
+                <a
+                  href="#comentarios"
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden />
+                  {comments.length}
+                </a>
+                {offer.categorySlug ? (
                   <Link
                     href={`/categoria/${offer.categorySlug}`}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/40"
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                   >
                     {offer.categoryLabel ?? offer.categorySlug}
                   </Link>
-                )}
-                {offer.storeSlug && offer.storeName && (
+                ) : null}
+                {offer.storeSlug && offer.storeName ? (
                   <Link
                     href={`/tienda/${offer.storeSlug}`}
                     className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                   >
                     {offer.storeName}
                   </Link>
-                )}
+                ) : null}
               </div>
 
               {ctaUrl && (
@@ -677,93 +760,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 </div>
               ) : null}
 
-              <div className="mt-4 relative" ref={shareMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowShareMenu((v) => !v)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
-                  aria-label="Compartir"
-                  aria-expanded={showShareMenu}
-                >
-                  <Share2 className="h-4 w-4" />
-                  Compartir
-                </button>
-                {showShareMenu && (
-                  <div className="absolute left-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] shadow-lg py-2">
-                    {(() => {
-                      const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
-                      const shareText = generateDealShareText(
-                        { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice },
-                        dealUrl
-                      );
-                      const trackShare = () => {
-                        if (session?.access_token) {
-                          fetch('/api/events', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                            body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
-                          }).catch((err) => logClientError('offer-page:share-event', err));
-                        }
-                      };
-                      return (
-                        <>
-                          <a
-                            href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                            onClick={() => { trackShare(); setShowShareMenu(false); }}
-                            aria-label="Compartir en WhatsApp"
-                          >
-                            WhatsApp
-                          </a>
-                          <a
-                            href={`https://t.me/share/url?url=${encodeURIComponent(dealUrl)}&text=${encodeURIComponent(shareText)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                            onClick={() => { trackShare(); setShowShareMenu(false); }}
-                            aria-label="Compartir en Telegram"
-                          >
-                            Telegram
-                          </a>
-                          <a
-                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                            onClick={() => { trackShare(); setShowShareMenu(false); }}
-                            aria-label="Compartir en X"
-                          >
-                            X
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const url = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
-                              navigator.clipboard.writeText(url).then(() => {
-                                setShareCopied(true);
-                                setTimeout(() => setShareCopied(false), 2000);
-                                showToast?.('Enlace copiado.');
-                              }).catch((err) =>
-                                notifyUserError(showToast, 'No se pudo copiar el enlace.', 'offer-page:clipboard', err)
-                              );
-                              trackShare();
-                              setShowShareMenu(false);
-                            }}
-                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
-                            aria-label="Copiar enlace"
-                          >
-                            <Copy className="h-4 w-4 shrink-0" />
-                            {shareCopied ? '¡Copiado!' : 'Copiar enlace'}
-                          </button>
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-
               <div className="mt-4 flex items-center gap-3">
                 <button
                   type="button"
@@ -777,49 +773,52 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             </div>
           </div>
 
-          {(offer.id ||
-            offer.description?.trim() ||
-            offer.steps?.trim() ||
-            offer.conditions?.trim() ||
-            (offer.coupons?.trim() && !showCtaCouponChip)) && (
-            <div className="border-t border-gray-200 dark:border-gray-700 p-6 md:p-8 space-y-6">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700 border-t border-gray-200 dark:border-gray-700">
               {offer.id ? (
-                <div className="rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-[#1a1a1a]/50 p-4 md:p-5 space-y-3">
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
+                <details className="px-6 md:px-8 py-4" open>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
                     Información adicional
-                  </p>
-                  <OfferPriceInsightBlock offerId={offer.id} />
-                </div>
+                  </summary>
+                  <div className="mt-3">
+                    <OfferPriceInsightBlock offerId={offer.id} />
+                  </div>
+                </details>
               ) : null}
-              {offer.description?.trim() && (
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Descripción</h2>
-                  <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.description}</p>
-                </div>
-              )}
-              {offer.steps?.trim() && (
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Pasos</h2>
-                  <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.steps}</p>
-                </div>
-              )}
-              {offer.conditions?.trim() && (
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Condiciones</h2>
-                  <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.conditions}</p>
-                </div>
-              )}
-              {offer.coupons?.trim() && !showCtaCouponChip && (
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cupones</h2>
-                  <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.coupons}</p>
-                </div>
-              )}
-            </div>
-          )}
+              {offer.description?.trim() ? (
+                <details className="px-6 md:px-8 py-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Descripción
+                  </summary>
+                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.description}</p>
+                </details>
+              ) : null}
+              {offer.steps?.trim() ? (
+                <details className="px-6 md:px-8 py-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Pasos
+                  </summary>
+                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.steps}</p>
+                </details>
+              ) : null}
+              {offer.conditions?.trim() ? (
+                <details className="px-6 md:px-8 py-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Condiciones
+                  </summary>
+                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.conditions}</p>
+                </details>
+              ) : null}
+              {offer.coupons?.trim() && !showCtaCouponChip ? (
+                <details className="px-6 md:px-8 py-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Cupones
+                  </summary>
+                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.coupons}</p>
+                </details>
+              ) : null}
 
           {/* Inline comments */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-6 md:p-8">
+          <div id="comentarios" className="px-6 md:px-8 py-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Comentarios ({comments.length})
             </h2>
@@ -962,6 +961,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 </button>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </article>

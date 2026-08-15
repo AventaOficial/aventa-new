@@ -35,6 +35,7 @@ import {
   type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
 import { buildOfferPublicPath } from '@/lib/offerPath';
+import { testersForTab } from '@/lib/offers/testerOffers';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = HomeFeedViewMode | 'personalized';
@@ -71,47 +72,6 @@ interface OfferRow {
 
 /** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
 const DESTACADA_RANKING_BLEND_MIN = 15;
-
-/** Imágenes placeholder por oferta tester: texto acorde al producto (placehold.co) para no romper diseño/confianza. */
-const MOCK_TESTER_IMAGES: Record<string, string> = {
-  'tester-1': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=iPhone+16+Pro',
-  'tester-2': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=PC+Gamer',
-  'tester-3': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Nike+Air+Max',
-  'tester-4': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Lavasecadora',
-  'tester-5': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Sartenes',
-  'tester-6': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=MacBook+Air',
-  'tester-7': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Audifonos+Sony',
-  'tester-8': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Silla+Gamer',
-  'tester-9': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=TV+Samsung',
-  'tester-10': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Cafetera',
-  'tester-11': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Mochila',
-  'tester-12': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Tablet+Galaxy',
-  'tester-13': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Aspiradora',
-  'tester-14': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Reloj+Smart',
-  'tester-15': 'https://placehold.co/400x300/e8e8ed/1d1d1f?text=Bici+Electrica',
-};
-
-/** Ofertas de ejemplo: solo en desarrollo; en producción el array queda vacío aunque el flag esté activo. */
-const MOCK_TESTER_OFFERS: CardOffer[] =
-  process.env.NODE_ENV === 'development'
-    ? [
-        { id: 'tester-1', title: 'iPhone 16 Pro Max 256 GB Liberado', brand: 'Apple', originalPrice: 32999, discountPrice: 27999, discount: 15, upvotes: 24, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-1'], votes: { up: 24, down: 2, score: 44 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-2', title: 'PC Gamer AMD Ryzen 5 5600 RTX 4060 16GB', brand: 'Armada', originalPrice: 18999, discountPrice: 15999, discount: 16, upvotes: 18, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-2'], votes: { up: 18, down: 1, score: 34 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-3', title: 'Tenis Nike Air Max 270 Hombre', brand: 'Nike', originalPrice: 2499, discountPrice: 1799, discount: 28, upvotes: 12, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-3'], votes: { up: 12, down: 0, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-4', title: 'Lavasecadora Midea 12kg Titanium', brand: 'Midea', originalPrice: 8999, discountPrice: 6999, discount: 22, upvotes: 8, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-4'], votes: { up: 8, down: 1, score: 14 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-5', title: 'Juego 3 Sartenes Deleite Vasconia Negro', brand: 'Vasconia', originalPrice: 899, discountPrice: 599, discount: 33, upvotes: 6, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-5'], votes: { up: 6, down: 0, score: 12 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-6', title: 'MacBook Air M3 13" 8GB 256GB', brand: 'Apple', originalPrice: 24999, discountPrice: 21999, discount: 12, upvotes: 15, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-6'], votes: { up: 15, down: 2, score: 26 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-7', title: 'Audífonos Sony WH-1000XM5', brand: 'Sony', originalPrice: 6999, discountPrice: 5499, discount: 21, upvotes: 10, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-7'], votes: { up: 10, down: 0, score: 20 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-8', title: 'Silla Gamer Ergonómica Reclinable', brand: 'ProGear', originalPrice: 4499, discountPrice: 3499, discount: 22, upvotes: 7, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-8'], votes: { up: 7, down: 1, score: 12 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-9', title: 'Smart TV Samsung 55" 4K Crystal UHD', brand: 'Samsung', originalPrice: 12999, discountPrice: 9999, discount: 23, upvotes: 14, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-9'], votes: { up: 14, down: 2, score: 24 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-10', title: 'Cafetera Nespresso Vertuo Next', brand: 'Nespresso', originalPrice: 2499, discountPrice: 1999, discount: 20, upvotes: 9, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-10'], votes: { up: 9, down: 0, score: 18 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-11', title: 'Mochila Antirrobo USB Portátil', brand: 'Vagabond', originalPrice: 699, discountPrice: 449, discount: 36, upvotes: 5, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-11'], votes: { up: 5, down: 0, score: 10 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-12', title: 'Tablet Galaxy Tab S9 128GB', brand: 'Samsung', originalPrice: 9999, discountPrice: 7999, discount: 20, upvotes: 11, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-12'], votes: { up: 11, down: 1, score: 20 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-13', title: 'Aspiradora Inalámbrica Dyson V12', brand: 'Dyson', originalPrice: 11999, discountPrice: 9499, discount: 21, upvotes: 13, downvotes: 2, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-13'], votes: { up: 13, down: 2, score: 22 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-14', title: 'Reloj Inteligente Amazfit GTR 4', brand: 'Amazfit', originalPrice: 3999, discountPrice: 2999, discount: 25, upvotes: 8, downvotes: 0, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-14'], votes: { up: 8, down: 0, score: 16 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-        { id: 'tester-15', title: 'Bicicleta Eléctrica Plegable 250W', brand: 'E-Motion', originalPrice: 14999, discountPrice: 11999, discount: 20, upvotes: 16, downvotes: 1, offerUrl: '', image: MOCK_TESTER_IMAGES['tester-15'], votes: { up: 16, down: 1, score: 30 }, author: { username: 'Tester' }, ranking_momentum: 0, createdAt: new Date().toISOString() },
-      ]
-    : [];
 
 const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'moda', label: 'Ropa' },
@@ -158,7 +118,8 @@ function HomeContent() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
   const [hasMoreCursor, setHasMoreCursor] = useState(true);
-  const [showTesterOffers, setShowTesterOffers] = useState(true);
+  const [showTesterOffers, setShowTesterOffers] = useState(false);
+  const [justPublished, setJustPublished] = useState<Offer[]>([]);
   const [feedError, setFeedError] = useState<string | null>(null);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
   const fetchOffersRef = useRef<((overrideLimit?: number) => void) | null>(null);
@@ -184,7 +145,7 @@ function HomeContent() {
       .then((r) => r.json())
       .then((data) => setShowTesterOffers(data?.value === true))
       .catch(() => {
-        setShowTesterOffers(true);
+        setShowTesterOffers(false);
       });
   }, [pathname, showToast]);
 
@@ -273,6 +234,7 @@ function HomeContent() {
           effectiveLimit,
         );
         setOffers(list);
+        setJustPublished((prev) => prev.filter((p) => !list.some((o) => o.id === p.id)));
         setLoading(false);
         setFeedError(null);
         setHasMoreCursor(homeView === 'latest' ? nextCursor != null : homeView !== 'vitales' && items.length >= effectiveLimit);
@@ -299,10 +261,18 @@ function HomeContent() {
   useOffersRealtime(setOffers, { onFeedMaybeStale: scheduleFeedRefetch });
 
   useEffect(() => {
-    const onOfferPublished = () => scheduleFeedRefetch();
+    const onOfferPublished = (event: Event) => {
+      const detail = (event as CustomEvent<{ status?: string; offer?: Offer | null }>).detail;
+      if (detail?.status === 'approved' && detail.offer?.id) {
+        const published = detail.offer;
+        setJustPublished((prev) => [published, ...prev.filter((o) => o.id !== published.id)]);
+        setOffers((prev) => [published, ...prev.filter((o) => o.id !== published.id)]);
+      }
+      fetchOffersRef.current?.(undefined);
+    };
     window.addEventListener('aventa:offer-published', onOfferPublished);
     return () => window.removeEventListener('aventa:offer-published', onOfferPublished);
-  }, [scheduleFeedRefetch]);
+  }, []);
 
   /** Recientes: refresco periódico (realtime global desactivado por carga). */
   useEffect(() => {
@@ -448,10 +418,14 @@ function HomeContent() {
     }
   }, [session, viewMode]);
 
-  const displayOffers =
-    !debouncedQuery.trim() && (showTesterOffers || offers.length === 0)
-      ? [...offers, ...MOCK_TESTER_OFFERS]
-      : offers;
+  const testerOffers =
+    !debouncedQuery.trim() && showTesterOffers ? testersForTab(viewMode) : [];
+  const publishedNow = !debouncedQuery.trim() ? justPublished : [];
+  const mergedOffers = [
+    ...publishedNow,
+    ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id)),
+  ];
+  const displayOffers = testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers;
 
   useEffect(() => {
     if (!session?.user?.id || offers.length === 0) {

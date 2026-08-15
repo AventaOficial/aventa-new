@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         return NextResponse.json(cached, {
           headers: {
-            'Cache-Control': 'public, s-maxage=45, stale-while-revalidate=90',
+            'Cache-Control': 'private, no-store',
             'X-Feed-Cache': 'HIT',
           },
         });
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, s-maxage=45, stale-while-revalidate=90',
+        'Cache-Control': 'private, no-store',
         'X-Feed-Cache': cacheableFirstPage ? 'MISS' : 'SKIP',
       },
     });

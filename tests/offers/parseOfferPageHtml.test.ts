@@ -19,6 +19,19 @@ describe('parseOfferPageHtml', () => {
     expect(p.discount).toBeCloseTo(397.68);
   });
 
+  it('lee precio actual y tachado de Mercado Libre', () => {
+    const html = `
+      <span class="andes-money-amount__fraction">397</span>
+      <span class="andes-money-amount andes-money-amount--previous">
+        <span class="andes-money-amount__fraction">800</span>
+      </span>
+      {"price":397,"currency_id":"MXN","original_price":800}
+    `;
+    const p = extractSuggestedPrices(html);
+    expect(p.discount).toBe(397);
+    expect(p.original).toBe(800);
+  });
+
   it('parsea montos MX con coma', () => {
     expect(parsePositiveLocalizedNumber('$1,299.50')).toBe(1299.5);
     expect(parsePositiveLocalizedNumber('12.999,50')).toBe(12999.5);

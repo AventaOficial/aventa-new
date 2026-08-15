@@ -13,6 +13,8 @@ import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { logClientError } from '@/lib/utils/handleError';
+import OfferCard from './OfferCard';
+import StoreBrandMark from './StoreBrandMark';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -469,7 +471,50 @@ export default function ActionBar() {
     setSubmitThanksApproved(data?.status === 'approved');
     setShowSubmitThanksModal(true);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('aventa:offer-published'));
+      const hunterName =
+        (typeof session?.user?.user_metadata?.display_name === 'string' &&
+          session.user.user_metadata.display_name.trim()) ||
+        session?.user?.email?.split('@')[0] ||
+        'Tú';
+      const publishedOffer =
+        data?.status === 'approved' && typeof data?.id === 'string'
+          ? {
+              id: data.id as string,
+              title: formData.title.trim(),
+              brand: formData.store.trim(),
+              originalPrice: hasDiscount && originalPriceNum > 0 ? originalPriceNum : price,
+              discountPrice: price,
+              discount:
+                hasDiscount && originalPriceNum > 0 && price > 0
+                  ? Math.round((1 - price / originalPriceNum) * 100)
+                  : 0,
+              description: formData.description.trim() || undefined,
+              coupons: formData.coupons.trim() || undefined,
+              upvotes: 0,
+              downvotes: 0,
+              offerUrl: formData.offer_url.trim(),
+              image: firstImage,
+              imageUrls: extraImages,
+              votes: { up: 0, down: 0, score: 0 },
+              author: {
+                username: hunterName,
+                avatar_url:
+                  typeof session?.user?.user_metadata?.avatar_url === 'string'
+                    ? session.user.user_metadata.avatar_url
+                    : null,
+                userId: session?.user?.id ?? null,
+              },
+              ranking_momentum: 0,
+              createdAt: new Date().toISOString(),
+              bankCoupon: formData.bank_coupon.trim() || null,
+              msiMonths: msiMonths,
+            }
+          : null;
+      window.dispatchEvent(
+        new CustomEvent('aventa:offer-published', {
+          detail: { id: data?.id, status: data?.status, offer: publishedOffer },
+        }),
+      );
     }
     const cooldownSec = cooldownExempt ? 0 : reputationLevel >= 4 ? COOLDOWN_SECONDS_LEVEL_4 : COOLDOWN_SECONDS_DEFAULT;
     setCooldownRemaining(cooldownSec);
@@ -669,7 +714,7 @@ export default function ActionBar() {
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                     {uploadLinkGatePassed
-                      ? 'Solo lo esencial es obligatorio. El resto se puede completar después.'
+                      ? 'Sube la oferta que cazaste para la comunidad'
                       : 'Pega el enlace: rellenamos título, fotos, precios y categoría cuando el sitio lo permite.'}
                   </p>
                 </div>
@@ -1275,90 +1320,50 @@ export default function ActionBar() {
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.05 }}
-                              className="rounded-2xl bg-white dark:bg-[#141414] border border-[#e5e5e7] dark:border-[#262626] p-2.5 max-[400px]:p-2 md:p-3 flex flex-row overflow-hidden shadow-sm"
+                              className="pointer-events-none select-none"
                             >
-                              <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-2 max-[400px]:gap-1.5">
-                                <div className="h-[160px] max-[400px]:h-[136px] md:h-[165px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] flex-shrink-0">
-                                  {imageUrl ? (
-                                    <img src={imageUrl} alt="" className="w-full h-full object-contain md:object-cover object-center" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <Sparkles className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex justify-center">
-                                  <span className="text-xs text-gray-400 dark:text-gray-500">↑↓</span>
-                                </div>
-                              </div>
-                              <div className="flex flex-col min-w-0 flex-1 pl-3 max-[400px]:pl-2 md:pl-4 justify-between gap-1.5 max-[400px]:gap-1 md:gap-2 pt-6 max-[400px]:pt-5 md:pt-0">
-                                <div className="min-w-0">
-                                  <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
-                                    {formData.title.trim() || 'Título de la oferta'}
-                                  </h3>
-                                  <div className="flex items-baseline gap-1.5 max-[400px]:gap-1 md:gap-2 flex-wrap mt-1 max-[400px]:mt-0.5 min-w-0">
-                                    <span className="text-base max-[400px]:text-sm md:text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-                                      {formatPreviewPrice(formData.discountPrice || formData.originalPrice || '0')}
-                                    </span>
-                                    {hasDiscount && formData.originalPrice && (
-                                      <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400 line-through">
-                                        {formatPreviewPrice(formData.originalPrice)}
-                                      </span>
-                                    )}
-                                    {hasDiscount &&
-                                      formData.originalPrice &&
-                                      formData.discountPrice &&
-                                      (() => {
-                                        const orig = parseDecimalPrice(formData.originalPrice);
-                                        const disc = parseDecimalPrice(formData.discountPrice);
-                                        const pct = orig > 0 ? Math.round((1 - disc / orig) * 100) : 0;
-                                        return pct > 0 ? (
-                                          <span
-                                            className="text-[10px] md:text-[11px] font-medium px-1 md:px-1.5 py-0.5 rounded"
-                                            style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444' }}
-                                          >
-                                            -{pct}%
-                                          </span>
-                                        ) : null;
-                                      })()}
-                                  </div>
-                                  {(msiMonths != null && msiMonths >= 1) || getBankCouponLabel(formData.bank_coupon) ? (
-                                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                      {msiMonths != null && msiMonths >= 1 && (
-                                        <span className="inline-flex items-baseline gap-1 text-[10px] md:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                          <span className="uppercase tracking-wide">msi</span>
-                                          <span>{msiMonths}</span>
-                                        </span>
-                                      )}
-                                      {getBankCouponLabel(formData.bank_coupon) && (
-                                        <span className="max-w-[10rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-tight">
-                                          {formatCupónBancarioDisplay(getBankCouponLabel(formData.bank_coupon)!)}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : null}
-                                  <p className="text-[11px] md:text-xs mt-0.5 min-w-0 truncate">
-                                    <span className="font-semibold text-pink-600 dark:text-pink-400">
-                                      {formData.store.trim() || 'Tienda'}
-                                    </span>
-                                  </p>
-                                  <p className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-10 leading-snug wrap-anywhere">
-                                    {formData.description.trim() ? (
-                                      formData.description.trim()
-                                    ) : (
-                                      <span className="text-gray-400 dark:text-gray-500 italic">Sin descripción breve</span>
-                                    )}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2 max-[400px]:gap-1.5 mt-2 max-[400px]:mt-1.5 md:mt-auto md:pt-1.5">
-                                  <span className="flex-1 rounded-xl border-2 border-violet-600 dark:border-violet-500 px-3 py-2.5 text-xs md:text-sm font-semibold text-violet-600 dark:text-violet-400 text-center">
-                                    Ver precio en tienda
-                                  </span>
-                                  <span className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white text-center">
-                                    Ir directo
-                                  </span>
-                                </div>
-                              </div>
+                              <OfferCard
+                                title={formData.title.trim() || 'Título de la oferta'}
+                                brand={formData.store.trim() || 'Tienda'}
+                                originalPrice={
+                                  parseDecimalPrice(formData.originalPrice) ||
+                                  parseDecimalPrice(formData.discountPrice)
+                                }
+                                discountPrice={
+                                  hasDiscount
+                                    ? parseDecimalPrice(formData.discountPrice) ||
+                                      parseDecimalPrice(formData.originalPrice)
+                                    : parseDecimalPrice(formData.originalPrice)
+                                }
+                                discount={(() => {
+                                  const orig = parseDecimalPrice(formData.originalPrice);
+                                  const disc = parseDecimalPrice(formData.discountPrice);
+                                  return orig > 0 && disc > 0 ? Math.round((1 - disc / orig) * 100) : 0;
+                                })()}
+                                description={formData.description.trim() || undefined}
+                                image={imageUrl ?? undefined}
+                                upvotes={0}
+                                downvotes={0}
+                                votes={{ up: 0, down: 0, score: 0 }}
+                                author={{
+                                  username:
+                                    (typeof session?.user?.user_metadata?.display_name === 'string' &&
+                                      session.user.user_metadata.display_name.trim()) ||
+                                    session?.user?.email?.split('@')[0] ||
+                                    'Tú',
+                                  avatar_url:
+                                    typeof session?.user?.user_metadata?.avatar_url === 'string'
+                                      ? session.user.user_metadata.avatar_url
+                                      : null,
+                                }}
+                                createdAt={new Date().toISOString()}
+                                coupons={formData.coupons.trim() || undefined}
+                                bankCoupon={formData.bank_coupon.trim() || null}
+                                msiMonths={msiMonths}
+                                offerScope={
+                                  offerScope === 'in_store' ? 'in_store' : offerScope ? 'online' : null
+                                }
+                              />
                             </motion.div>
                           </div>
                           <div>
@@ -1384,14 +1389,12 @@ export default function ActionBar() {
                                 </div>
                               ) : null}
                               <div className="p-4 md:p-5 space-y-3">
-                                <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wide">
-                                  {formData.store.trim() || 'Tienda'}
-                                </p>
+                                <StoreBrandMark store={formData.store.trim() || 'Tienda'} className="text-xs" />
                                 <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 leading-snug">
                                   {formData.title.trim() || 'Título de la oferta'}
                                 </h3>
-                                <div className="flex items-baseline gap-2">
-                                  <span className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+                                <div className="flex items-baseline gap-2 flex-wrap">
+                                  <span className="text-2xl md:text-3xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
                                     {formatPreviewPrice(formData.discountPrice || formData.originalPrice || '0')}
                                   </span>
                                   {hasDiscount && formData.originalPrice && (
@@ -1400,6 +1403,13 @@ export default function ActionBar() {
                                     </span>
                                   )}
                                 </div>
+                                {hasDiscount &&
+                                parseDecimalPrice(formData.originalPrice) > parseDecimalPrice(formData.discountPrice) &&
+                                parseDecimalPrice(formData.discountPrice) > 0 ? (
+                                  <p className="text-sm text-gray-400">
+                                    Ahorras {formatPreviewPrice(String(parseDecimalPrice(formData.originalPrice) - parseDecimalPrice(formData.discountPrice)))}
+                                  </p>
+                                ) : null}
                                 {formData.description.trim() && (
                                   <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                                     {formData.description.trim()}
