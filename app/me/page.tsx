@@ -256,6 +256,10 @@ function MePageInner() {
     () => (statusFilter === 'all' ? offers : offers.filter((offer) => offer.dealStatus === statusFilter)),
     [offers, statusFilter],
   );
+  const publicOffers = useMemo(
+    () => offers.filter((o) => o.dealStatus === 'approved'),
+    [offers],
+  );
 
   if (loading) {
     return (
@@ -284,10 +288,6 @@ function MePageInner() {
   const publicHref = profile
     ? publicProfilePath(profile.display_name, profile.id, profile.slug)
     : null;
-  const publicOffers = useMemo(
-    () => offers.filter((o) => o.dealStatus === 'approved'),
-    [offers],
-  );
 
   const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
     setVoteMap((prev) => {
