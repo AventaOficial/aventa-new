@@ -60,8 +60,9 @@ export default function ComisionesPage() {
               positivos cada una, más datos fiscales y aceptación de términos.
             </li>
             <li>
-              <strong className="text-gray-900 dark:text-gray-100">3. Tus enlaces generan comisión.</strong> Si
-              la red (Amazon/ML) confirma un pago atribuible a tu tag o a tus ofertas, entra al ledger de AVENTA.
+              <strong className="text-gray-900 dark:text-gray-100">3. Tus ofertas generan comisión.</strong>{' '}
+              AVENTA usa sus propios enlaces de afiliado. Si alguien compra desde una oferta tuya y la red
+              confirma el pago, esa comisión se te atribuye por la oferta (no necesitas un código personal).
             </li>
             <li>
               <strong className="text-gray-900 dark:text-gray-100">4. Cobras el 40%.</strong> Del ingreso
@@ -78,7 +79,7 @@ export default function ComisionesPage() {
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
             Imagina que una oferta tuya genera <strong>$83.40 MXN</strong> de comisión afiliada confirmada
-            y atribuible a tu tag:
+            y atribuible a ti:
           </p>
           <div className="grid sm:grid-cols-3 gap-3 text-sm">
             <div className="rounded-xl bg-white dark:bg-[#0f0f0f] border border-emerald-100 dark:border-emerald-900/40 p-3">
@@ -140,10 +141,15 @@ export default function ComisionesPage() {
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
             AVENTA importa o registra las comisiones confirmadas por las redes (ledger). Luego genera un
-            cierre mensual: solo entran montos <strong>atribuibles</strong> a tu tag o a tus ofertas. Se
-            aplica el 40%, un mínimo de transferencia (hoy $200 MXN; si no se alcanza, se acumula) y una
-            retención de días por posibles devoluciones de la red. El pago es <strong>manual</strong> tras
-            revisión administrativa.
+            cierre mensual: solo entran montos <strong>atribuibles a tus ofertas</strong> (quién publicó y
+            desde dónde se hizo el clic). Se aplica el 40%, un mínimo de transferencia (hoy $200 MXN; si no
+            se alcanza, se acumula) y una retención de días por posibles devoluciones de la red. El pago es{' '}
+            <strong>manual</strong> tras revisión administrativa.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+            No hace falta que cada cazador tenga un tag propio de Amazon o Mercado Libre. AVENTA opera con
+            sus enlaces de afiliado y reparte por atribución interna. Un código personal solo se usa en casos
+            especiales.
           </p>
         </section>
 

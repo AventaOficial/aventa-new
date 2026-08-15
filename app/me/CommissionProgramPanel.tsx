@@ -223,7 +223,7 @@ export default function CommissionProgramPanel() {
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-400">
               {data.qualifyingCount}/{data.requiredOffers} ofertas calificadas ({data.voteThreshold}+ votos c/u).
-              Desbloqueás con calidad; cobrás el 40% de comisiones afiliadas atribuibles a tu tag.
+              Desbloqueas con calidad; cobras el 40% de comisiones confirmadas atribuibles a tus ofertas.
             </p>
           </div>
         </div>
@@ -431,7 +431,7 @@ export default function CommissionProgramPanel() {
                 <p className="font-medium">Participación registrada</p>
                 <p className="text-xs text-emerald-800/90 dark:text-emerald-200/90 mt-0.5">
                   Términos versión {data.termsAcceptedVersion ?? data.termsVersion}. Cobras el 40% de
-                  comisiones afiliadas confirmadas atribuibles a tu tag. Pagos manuales tras hold y
+                  comisiones afiliadas confirmadas atribuibles a tus ofertas. Pagos manuales tras hold y
                   revisión anti-fraude.
                 </p>
               </div>
@@ -441,15 +441,27 @@ export default function CommissionProgramPanel() {
           {earnings ? (
             <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-[#1a1a1a]/80 p-3 space-y-2">
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Tu liquidación</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                Tags: ML{' '}
-                <span className="font-mono">{earnings.tags.ml_tracking_tag || '—'}</span>
-                {' · '}Amazon{' '}
-                <span className="font-mono">{earnings.tags.amazon_tracking_tag || '—'}</span>
-                {!earnings.tags.ml_tracking_tag && !earnings.tags.amazon_tracking_tag ? (
-                  <span className="text-amber-600"> (pedí a admin asignarte tag para atribución)</span>
-                ) : null}
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                AVENTA usa sus propios enlaces de afiliado. Cuando alguien compra desde una oferta tuya,
+                la comisión se te atribuye por esa oferta — no necesitas pedir un código personal.
               </p>
+              {(earnings.tags.ml_tracking_tag || earnings.tags.amazon_tracking_tag) && (
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Código especial asignado:{' '}
+                  {earnings.tags.ml_tracking_tag ? (
+                    <span>
+                      ML <span className="font-mono">{earnings.tags.ml_tracking_tag}</span>
+                    </span>
+                  ) : null}
+                  {earnings.tags.ml_tracking_tag && earnings.tags.amazon_tracking_tag ? ' · ' : null}
+                  {earnings.tags.amazon_tracking_tag ? (
+                    <span>
+                      Amazon <span className="font-mono">{earnings.tags.amazon_tracking_tag}</span>
+                    </span>
+                  ) : null}
+                  <span className="text-gray-400"> (opcional; la mayoría no lo usa)</span>
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2">
                   <p className="text-gray-500">Pendiente</p>
