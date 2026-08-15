@@ -8,14 +8,14 @@ import AventaIcon from './AventaIcon';
 
 const TAGLINE = 'Cada peso ahorrado, es un peso ganado';
 
-export const SEARCH_CHIPS = ['iPhone', 'PS5', 'Nike', 'Costco', 'Amazon', 'Samsung'] as const;
+export const SEARCH_CHIPS = ['iPhone', 'PS5', 'Nike', 'Costco', 'Amazon', 'Samsung', 'Liverpool', 'Walmart'] as const;
 
 interface HeroProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
 }
 
-function SearchChips({
+export function SearchChips({
   searchQuery,
   onPick,
 }: {
@@ -23,7 +23,7 @@ function SearchChips({
   onPick: (value: string) => void;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:overflow-visible md:flex-wrap">
+    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:flex-wrap md:overflow-visible">
       {SEARCH_CHIPS.map((chip) => {
         const active = searchQuery.trim().toLowerCase() === chip.toLowerCase();
         return (
@@ -45,19 +45,21 @@ function SearchChips({
   );
 }
 
-function SearchField({
+export function SearchField({
   compact,
   searchQuery,
   onChange,
+  placeholder = 'Buscar ofertas, productos o tiendas…',
 }: {
   compact?: boolean;
   searchQuery: string;
   onChange: (value: string) => void;
+  placeholder?: string;
 }) {
   return (
     <div
-      className={`flex items-center w-full rounded-2xl bg-white dark:bg-[#1a1a1a] border border-[#e5e5e7] dark:border-[#262626] px-4 transition-all duration-200 focus-within:border-violet-500/60 focus-within:ring-2 focus-within:ring-violet-500/20 ${
-        compact ? 'min-h-[48px] max-[400px]:min-h-[44px] max-[400px]:px-3' : 'min-h-[52px] px-5'
+      className={`flex items-center w-full rounded-full bg-white dark:bg-[#1a1a1a] border border-[#e5e5e7] dark:border-[#262626] px-4 transition-all duration-200 focus-within:border-violet-500/60 focus-within:ring-2 focus-within:ring-violet-500/20 ${
+        compact ? 'min-h-[48px] max-[400px]:min-h-[44px] max-[400px]:px-3' : 'min-h-[48px] px-5'
       }`}
     >
       <Search className="h-5 w-5 text-[#6e6e73] dark:text-[#a3a3a3] mr-3 flex-shrink-0" />
@@ -65,7 +67,7 @@ function SearchField({
         type="text"
         value={searchQuery}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="iPhone, Nike, Costco…"
+        placeholder={placeholder}
         className="flex-1 bg-transparent text-[#1d1d1f] dark:text-[#fafafa] placeholder-[#a1a1a6] dark:placeholder-[#737373] outline-none text-[15px] w-full min-w-0"
         aria-label="Buscar ofertas"
       />
@@ -103,33 +105,28 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
           />
         </div>
         <div className="px-4 max-[400px]:px-3 pt-3 max-[400px]:pt-2 pb-3 max-[400px]:pb-2 space-y-2.5">
-          <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} />
+          <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} placeholder="iPhone, Nike, Costco…" />
           <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
         </div>
       </div>
 
-      <div className="hidden md:block relative w-full px-8 lg:px-12 pt-20 pb-2">
-        <div className="relative mx-auto max-w-5xl xl:max-w-6xl flex items-center gap-8 lg:gap-12">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-3xl lg:text-4xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] tracking-[-0.03em] leading-tight">
-              Ofertas que <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
+      <div className="hidden md:block">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-8 px-8 py-6 lg:px-10">
+          <div className="min-w-0 max-w-xl">
+            <h1 className="text-[2rem] lg:text-[2.35rem] font-semibold tracking-[-0.04em] leading-[1.15] text-[#1d1d1f] dark:text-[#fafafa]">
+              Descubre ofertas que{' '}
+              <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
             </h1>
-            <p className="mt-2 text-[15px] lg:text-base text-[#6e6e73] dark:text-[#a3a3a3] leading-snug">
-              {TAGLINE}
+            <p className="mt-3 text-[15px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
+              La comunidad publica, vota y encuentra las mejores ofertas de México.
             </p>
-            <div className="mt-5 max-w-xl">
-              <SearchField searchQuery={searchQuery} onChange={setSearchQuery} />
-            </div>
-            <div className="mt-3">
-              <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
-            </div>
           </div>
           <Image
             src="/brand/aventa-bag.png"
             alt=""
-            width={240}
-            height={240}
-            className="hidden lg:block w-[200px] h-[200px] xl:w-[240px] xl:h-[240px] object-contain shrink-0 pointer-events-none"
+            width={280}
+            height={280}
+            className="hidden lg:block h-[200px] w-[200px] xl:h-[240px] xl:w-[240px] object-contain shrink-0 pointer-events-none"
             priority
             unoptimized
           />

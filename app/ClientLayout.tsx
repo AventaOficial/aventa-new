@@ -51,7 +51,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <OnboardingV1 />
       <GuideModalStandalone />
       {showContent ? (
-        <main className="pb-24 md:pb-0 md:pl-28 min-h-screen">
+        <main className="pb-24 md:pb-0 md:pl-56 min-h-screen">
           {children}
         </main>
       ) : (

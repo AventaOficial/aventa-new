@@ -241,14 +241,9 @@ export default function Navbar() {
     <nav className="absolute top-0 right-0 z-50 p-3 md:p-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2 md:gap-3">
         {user && isMd && (
-          <div className="flex flex-col items-end">
-            <p className="text-sm md:text-base font-medium text-gray-600 dark:text-white/90">
-              Hola de nuevo
-            </p>
-            <p className="text-base md:text-lg font-semibold text-gray-900 dark:text-white/95 border-b-2 border-gray-300 dark:border-white/30 pb-0.5">
-              {userName}
-            </p>
-          </div>
+          <p className="hidden lg:block text-sm font-medium text-[#1d1d1f] dark:text-[#fafafa]">
+            Hola, {userName}
+          </p>
         )}
         <AnimatePresence mode="wait">
           {user && (

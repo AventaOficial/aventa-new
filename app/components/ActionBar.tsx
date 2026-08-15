@@ -15,6 +15,7 @@ import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } 
 import { logClientError } from '@/lib/utils/handleError';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
+import AventaIcon from './AventaIcon';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -605,26 +606,28 @@ export default function ActionBar() {
       </div>
 
       <aside
-        className={`hidden md:flex fixed left-0 top-0 h-screen w-28 z-50 flex-col items-center py-6 gap-1 bg-white/95 dark:bg-[#141414]/95 backdrop-blur-xl border-r border-[#E5E7EB] dark:border-[#262626] shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.45)] ${isOfferOpen ? 'pointer-events-none' : ''}`}
+        className={`hidden md:flex fixed left-0 top-0 h-screen w-56 z-50 flex-col px-3 py-5 bg-white dark:bg-[#141414] border-r border-[#E5E7EB] dark:border-[#262626] ${isOfferOpen ? 'pointer-events-none' : ''}`}
       >
-        <p className="text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-3 px-2">Tus atajos</p>
+        <Link href="/" className="mb-6 flex items-center gap-2 px-2" aria-label="AVENTA inicio">
+          <AventaIcon size={22} className="text-[#1d1d1f] dark:text-white shrink-0" />
+          <span className="text-[15px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">AVENTA</span>
+        </Link>
+        <nav className="flex flex-1 flex-col gap-1">
         <Link
           href="/"
-          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/' ? sidebarLinkActive : sidebarLinkInactive}`}
-          aria-label="Inicio"
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/' ? sidebarLinkActive : sidebarLinkInactive}`}
         >
-          <Home className="h-6 w-6" />
-          <span className="text-[10px] font-medium">Inicio</span>
+          <Home className="h-5 w-5 shrink-0" />
+          Inicio
         </Link>
         <Link
           href="/descubre"
-          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
             pathname.startsWith('/descubre') ? sidebarLinkActive : sidebarLinkInactive
           }`}
-          aria-label="Guía rápida AVENTA"
         >
-          <Compass className="h-6 w-6" />
-          <span className="text-[10px] font-medium">Guía</span>
+          <Compass className="h-5 w-5 shrink-0" />
+          Guía
         </Link>
         <button
           type="button"
@@ -639,29 +642,26 @@ export default function ActionBar() {
             prevUrlParseLoadingRef.current = false;
             setShowUploadModal(true);
           }}
-          className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-all duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#2d2d2f] dark:hover:bg-[#333] active:scale-95'} bg-[#1d1d1f] dark:bg-[#2a2a2a] text-white shadow-lg dark:shadow-black/40 dark:ring-1 dark:ring-fuchsia-500/20`}
-          aria-label="Subir oferta"
+          className={`mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          <Plus className="h-6 w-6" />
-          <span className="text-[10px] font-semibold text-white">Subir</span>
+          <Plus className="h-5 w-5" />
+          Subir oferta
         </button>
         {session ? (
           <>
             <Link
               href="/me/favorites"
-              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname.startsWith('/me/favorites') ? sidebarLinkActive : sidebarLinkInactive}`}
-              aria-label="Favoritos"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${pathname.startsWith('/me/favorites') ? sidebarLinkActive : sidebarLinkInactive}`}
             >
-              <Heart className="h-6 w-6" />
-              <span className="text-[10px] font-medium">Favoritos</span>
+              <Heart className="h-5 w-5 shrink-0" />
+              Favoritos
             </Link>
             <Link
               href="/me"
-              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-300 ease-out ${pathname === '/me' ? sidebarLinkActive : sidebarLinkInactive}`}
-              aria-label="Perfil"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/me' ? sidebarLinkActive : sidebarLinkInactive}`}
             >
-              <User className="h-6 w-6" />
-              <span className="text-[10px] font-medium">Perfil</span>
+              <User className="h-5 w-5 shrink-0" />
+              Perfil
             </Link>
           </>
         ) : (
@@ -669,23 +669,29 @@ export default function ActionBar() {
             <button
               type="button"
               onClick={() => showToast('Para acceder hay que iniciar sesión')}
-              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${sidebarLinkInactive}`}
-              aria-label="Favoritos"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${sidebarLinkInactive}`}
             >
-              <Heart className="h-6 w-6" />
-              <span className="text-[10px] font-medium">Favoritos</span>
+              <Heart className="h-5 w-5 shrink-0" />
+              Favoritos
             </button>
             <button
               type="button"
               onClick={() => showToast('Para acceder hay que iniciar sesión')}
-              className={`flex flex-col items-center gap-1 rounded-xl p-3.5 w-full max-w-[4.5rem] transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${sidebarLinkInactive}`}
-              aria-label="Perfil"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${sidebarLinkInactive}`}
             >
-              <User className="h-6 w-6" />
-              <span className="text-[10px] font-medium">Perfil</span>
+              <User className="h-5 w-5 shrink-0" />
+              Perfil
             </button>
           </>
         )}
+        </nav>
+        <div className="mt-auto rounded-2xl bg-violet-50 dark:bg-violet-950/30 p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/aventa-bag.png" alt="" className="mx-auto h-16 w-16 object-contain" />
+          <p className="mt-1 text-center text-xs font-semibold text-violet-800 dark:text-violet-200">
+            Ahorra más con Aventa
+          </p>
+        </div>
       </aside>
 
       <AnimatePresence>

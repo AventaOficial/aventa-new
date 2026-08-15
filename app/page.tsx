@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback, useRef, Suspense, Fragment } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Clock, Star, User, Zap } from 'lucide-react';
 import ClientLayout from './ClientLayout';
-import Hero from './components/Hero';
+import Hero, { SearchChips, SearchField } from './components/Hero';
 import OfferCard from './components/OfferCard';
 import OfferCardSkeleton from './components/OfferCardSkeleton';
+import FeaturedOfferCard from './components/FeaturedOfferCard';
 import { HomeDesktopRail, SponsoredSlot } from './components/HomeSponsored';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
@@ -427,6 +429,12 @@ function HomeContent() {
     ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id)),
   ];
   const displayOffers = testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers;
+  const featuredOffers =
+    !debouncedQuery.trim() && displayOffers.length >= 3
+      ? [...displayOffers]
+          .sort((a, b) => (b.ranking_blend ?? 0) - (a.ranking_blend ?? 0))
+          .slice(0, 3)
+      : [];
 
   useEffect(() => {
     if (!session?.user?.id || offers.length === 0) {
@@ -475,14 +483,23 @@ function HomeContent() {
   return (
     <ClientLayout>
       <div id="ayuda" className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
+        <div className="hidden md:block sticky top-0 z-40 border-b border-[#e5e5e7] bg-[#F5F5F7]/90 backdrop-blur-md dark:border-[#262626] dark:bg-[#0a0a0a]/90">
+          <div className="mx-auto max-w-[1400px] px-8 py-3 pr-44 lg:px-10">
+            <SearchField searchQuery={searchQuery} onChange={setSearchQuery} />
+            <div className="mt-2.5">
+              <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
+            </div>
+          </div>
+        </div>
+
         <div className="hero-section">
           <Hero searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
 
-        <section className="max-w-4xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 max-[400px]:px-3 md:px-8 pt-2 md:pt-4 pb-32 md:pb-12">
-        <div className="mb-4 max-[400px]:mb-3 md:mb-8">
-          <div className="mb-3 max-[400px]:mb-2 md:mb-5">
-            <div className="flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 md:p-2 border border-[#e5e5e7] dark:border-[#262626] transition-all duration-200">
+        <section className="mx-auto max-w-[1400px] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pt-1 md:pt-2 pb-32 md:pb-12">
+        <div className="mb-4 max-[400px]:mb-3 md:mb-6">
+          <div className="mb-3 max-[400px]:mb-2">
+            <div className="md:hidden flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 border border-[#e5e5e7] dark:border-[#262626]">
               <button
                 onClick={() => setViewMode('vitales')}
                 className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
@@ -529,7 +546,34 @@ function HomeContent() {
                 Recientes
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] hidden sm:block">
+            <div className="hidden md:flex flex-wrap items-center gap-2">
+              {(
+                [
+                  { id: 'vitales' as const, label: 'Día a día', icon: Zap },
+                  { id: 'top' as const, label: 'Top', icon: Star },
+                  ...(session ? [{ id: 'personalized' as const, label: 'Para ti', icon: User }] : []),
+                  { id: 'latest' as const, label: 'Recientes', icon: Clock },
+                ] as const
+              ).map(({ id, label, icon: Icon }) => {
+                const active = viewMode === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setViewMode(id)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                      active
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-white text-[#6e6e73] border border-[#e5e5e7] hover:border-violet-300 dark:bg-[#141414] dark:text-[#a3a3a3] dark:border-[#262626]'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] md:hidden">
               {viewMode === 'vitales' && 'Encontrarás ofertas especializadas en lo que usas en tu día a día para tener siempre el mejor ahorro.'}
               {viewMode === 'top' && 'Las ofertas mejor votadas por la comunidad.'}
               {viewMode === 'personalized' && 'Elegidos únicamente para ti :)'}
@@ -597,11 +641,36 @@ function HomeContent() {
 
         <div className="xl:flex xl:gap-8 xl:items-start">
         <div className="min-w-0 flex-1">
+        {!loading && !feedError && featuredOffers.length >= 3 ? (
+          <div className="mb-8 hidden md:block">
+            <h2 className="mb-4 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
+              Ofertas destacadas
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              {featuredOffers.map((offer) => (
+                <FeaturedOfferCard
+                  key={`featured-${offer.id}`}
+                  offerId={offer.id}
+                  title={offer.title}
+                  brand={offer.brand}
+                  image={offer.image ?? undefined}
+                  originalPrice={offer.originalPrice}
+                  discountPrice={offer.discountPrice}
+                  discount={offer.discount}
+                  isLiked={!!favoriteMap[offer.id]}
+                  isTesterOffer={offer.id.startsWith('tester-')}
+                  onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
+                  onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-          className="mt-3 max-[400px]:mt-2 md:mt-8 space-y-4 max-[400px]:space-y-3 md:space-y-8"
+          className="mt-3 max-[400px]:mt-2 md:mt-0 space-y-4 max-[400px]:space-y-3 md:space-y-5"
         >
           {loading ? (
             <>
@@ -661,6 +730,9 @@ function HomeContent() {
             </div>
           ) : (
             <>
+              <h2 className="hidden md:block text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
+                {viewMode === 'latest' ? 'Últimas ofertas' : viewMode === 'top' ? 'Mejor votadas' : viewMode === 'vitales' ? 'Día a día' : 'Para ti'}
+              </h2>
               {displayOffers.map((offer, index) => (
                 <Fragment key={offer.id}>
                 <motion.div
