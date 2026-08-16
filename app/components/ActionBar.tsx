@@ -606,7 +606,7 @@ export default function ActionBar() {
       </div>
 
       <aside
-        className={`hidden md:flex fixed left-0 top-0 h-screen w-56 z-50 flex-col px-3 py-5 bg-white dark:bg-[#141414] border-r border-[#E5E7EB] dark:border-[#262626] ${isOfferOpen ? 'pointer-events-none' : ''}`}
+        className={`aventa-desktop-sidebar hidden md:flex fixed left-0 top-0 h-screen w-56 z-50 flex-col px-3 py-5 bg-white dark:bg-[#141414] border-r border-[#E5E7EB] dark:border-[#262626] ${isOfferOpen ? 'pointer-events-none' : ''}`}
       >
         <Link href="/" className="mb-6 flex items-center gap-2 px-2" aria-label="AVENTA inicio">
           <AventaIcon size={22} className="text-[#1d1d1f] dark:text-white shrink-0" />

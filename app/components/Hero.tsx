@@ -31,41 +31,9 @@ function HeroScene({ compact }: { compact?: boolean }) {
   );
 }
 
-export const SEARCH_CHIPS = ['iPhone', 'PS5', 'Nike', 'Costco', 'Amazon', 'Samsung', 'Liverpool', 'Walmart'] as const;
-
 interface HeroProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
-}
-
-export function SearchChips({
-  searchQuery,
-  onPick,
-}: {
-  searchQuery: string;
-  onPick: (value: string) => void;
-}) {
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:flex-wrap md:overflow-visible">
-      {SEARCH_CHIPS.map((chip) => {
-        const active = searchQuery.trim().toLowerCase() === chip.toLowerCase();
-        return (
-          <button
-            key={chip}
-            type="button"
-            onClick={() => onPick(active ? '' : chip)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all shrink-0 ${
-              active
-                ? 'bg-[#1d1d1f] dark:bg-[#fafafa] text-white dark:text-[#1d1d1f]'
-                : 'bg-[#e8e8ed] dark:bg-[#2c2c2e] text-[#6e6e73] dark:text-[#a3a3a3] hover:bg-[#d2d2d7] dark:hover:bg-[#3a3a3c]'
-            }`}
-          >
-            {chip}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 export function SearchField({
@@ -105,41 +73,42 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
   const setSearchQuery = onSearchChange ? (v: string) => onSearchChange(v) : setInternalQuery;
 
   return (
-    <header className="relative w-full overflow-hidden pt-[env(safe-area-inset-top)]">
-      <div className="md:hidden">
-        <div className="px-5 max-[400px]:px-4 pt-5 max-[400px]:pt-4">
-          <h1 className="text-[1.7rem] max-[400px]:text-[1.45rem] font-semibold tracking-[-0.04em] leading-[1.15] text-[#1d1d1f] dark:text-[#fafafa]">
-            Descubre ofertas que
-            <br />
-            <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
-          </h1>
-          <p className="mt-2 max-w-[34ch] text-[14px] max-[400px]:text-[13px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
-            La comunidad publica, vota y encuentra las mejores ofertas de México.
-          </p>
-        </div>
-        <div className="relative mx-auto mt-0.5 h-[176px] max-[400px]:h-[156px] w-full max-w-[300px]">
-          <HeroScene compact />
-        </div>
-        <div className="px-4 max-[400px]:px-3 pt-1 pb-3 max-[400px]:pb-2 space-y-2.5">
-          <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} placeholder="iPhone, Nike, Costco…" />
-          <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
-        </div>
-      </div>
-
-      <div className="relative hidden md:block">
-        <div className="relative mx-auto max-w-[1400px] min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] px-8 lg:px-10">
-          <div className="pointer-events-none absolute right-4 bottom-0 h-[216px] w-[270px] lg:right-8 lg:h-[248px] lg:w-[310px] xl:right-10 xl:h-[280px] xl:w-[350px]">
-            <HeroScene />
-          </div>
-          <div className="relative z-10 flex min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] max-w-[34rem] flex-col justify-center py-6 lg:py-7 pr-[250px] lg:pr-[300px] xl:pr-[340px]">
-            <h1 className="text-[1.85rem] lg:text-[2.15rem] xl:text-[2.35rem] font-semibold tracking-[-0.045em] leading-[1.12] text-[#1d1d1f] dark:text-[#fafafa]">
+    <header className="relative w-full pt-[env(safe-area-inset-top)] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pb-3 md:pb-4">
+      <div className="hero-liquid-glass relative mx-auto max-w-[1400px] overflow-hidden rounded-[28px] max-[400px]:rounded-[22px]">
+        <div className="md:hidden">
+          <div className="px-5 max-[400px]:px-4 pt-5 max-[400px]:pt-4">
+            <h1 className="text-[1.7rem] max-[400px]:text-[1.45rem] font-semibold tracking-[-0.04em] leading-[1.15] text-[#1d1d1f] dark:text-[#fafafa]">
               Descubre ofertas que
               <br />
               <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
             </h1>
-            <p className="mt-2.5 max-w-[42ch] text-[14px] lg:text-[15px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
+            <p className="mt-2 max-w-[34ch] text-[14px] max-[400px]:text-[13px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
               La comunidad publica, vota y encuentra las mejores ofertas de México.
             </p>
+          </div>
+          <div className="relative mx-auto mt-0.5 h-[176px] max-[400px]:h-[156px] w-full max-w-[300px]">
+            <HeroScene compact />
+          </div>
+          <div className="px-4 max-[400px]:px-3 pt-1 pb-3 max-[400px]:pb-2">
+            <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} placeholder="iPhone, Nike, Costco…" />
+          </div>
+        </div>
+
+        <div className="relative hidden md:block">
+          <div className="relative min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] px-8 lg:px-10">
+            <div className="pointer-events-none absolute right-4 bottom-0 h-[216px] w-[270px] lg:right-8 lg:h-[248px] lg:w-[310px] xl:right-10 xl:h-[280px] xl:w-[350px]">
+              <HeroScene />
+            </div>
+            <div className="relative z-10 flex min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] max-w-[34rem] flex-col justify-center py-6 lg:py-7 pr-[250px] lg:pr-[300px] xl:pr-[340px]">
+              <h1 className="text-[1.85rem] lg:text-[2.15rem] xl:text-[2.35rem] font-semibold tracking-[-0.045em] leading-[1.12] text-[#1d1d1f] dark:text-[#fafafa]">
+                Descubre ofertas que
+                <br />
+                <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
+              </h1>
+              <p className="mt-2.5 max-w-[42ch] text-[14px] lg:text-[15px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
+                La comunidad publica, vota y encuentra las mejores ofertas de México.
+              </p>
+            </div>
           </div>
         </div>
       </div>

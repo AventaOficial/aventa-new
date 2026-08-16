@@ -5,7 +5,7 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Clock, Star, User, Zap } from 'lucide-react';
 import ClientLayout from './ClientLayout';
-import Hero, { SearchChips, SearchField } from './components/Hero';
+import Hero, { SearchField } from './components/Hero';
 import OfferCard from './components/OfferCard';
 import OfferCardSkeleton from './components/OfferCardSkeleton';
 import FeaturedOfferCard from './components/FeaturedOfferCard';
@@ -118,6 +118,8 @@ function HomeContent() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
   const [storeList, setStoreList] = useState<string[]>([]);
+  const [highlightOffers, setHighlightOffers] = useState<Offer[]>([]);
+  const [highlightPeriod, setHighlightPeriod] = useState<'week' | 'month'>('week');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
   const [hasMoreCursor, setHasMoreCursor] = useState(true);
@@ -256,6 +258,57 @@ function HomeContent() {
         setOffers([]);
       });
   }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token, showToast]);
+
+  useEffect(() => {
+    if (viewMode !== 'top' || debouncedQuery.trim()) {
+      setHighlightOffers([]);
+      return;
+    }
+    let cancelled = false;
+    const loadHighlights = async () => {
+      const toCards = (items: FeedApiItemShape[]) =>
+        processHomeFeedList(
+          items.map((item) => mapOfferToCard(item as FeedApiItemShape)),
+          'top',
+          12,
+        ).sort((a, b) => (b.ranking_blend ?? b.upvotes ?? 0) - (a.ranking_blend ?? a.upvotes ?? 0));
+
+      try {
+        const week = await fetchHomeFeedFromAPI({
+          limit: 12,
+          viewMode: 'top',
+          timeFilter: 'week',
+          categoryFilter: null,
+          storeFilter,
+        });
+        let list = toCards(week.items);
+        let period: 'week' | 'month' = 'week';
+        if (list.length < 3) {
+          const month = await fetchHomeFeedFromAPI({
+            limit: 12,
+            viewMode: 'top',
+            timeFilter: 'month',
+            categoryFilter: null,
+            storeFilter,
+          });
+          const monthList = toCards(month.items);
+          if (monthList.length > list.length) {
+            list = monthList;
+            period = 'month';
+          }
+        }
+        if (cancelled) return;
+        setHighlightPeriod(period);
+        setHighlightOffers(list.slice(0, 10));
+      } catch {
+        if (!cancelled) setHighlightOffers([]);
+      }
+    };
+    void loadHighlights();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, debouncedQuery, storeFilter]);
 
   useEffect(() => {
     fetchOffersRef.current = fetchOffers;
@@ -429,15 +482,20 @@ function HomeContent() {
     ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id)),
   ];
   const displayOffers = testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers;
-  const featuredOffers =
-    viewMode === 'top' && !debouncedQuery.trim() && displayOffers.length >= 3
-      ? [...displayOffers]
-          .sort((a, b) => (b.ranking_blend ?? 0) - (a.ranking_blend ?? 0))
-          .slice(0, 3)
-      : [];
+  const featuredOffers = (() => {
+    if (viewMode !== 'top' || debouncedQuery.trim()) return [];
+    const testers = showTesterOffers ? testersForTab('top') : [];
+    const merged = [
+      ...highlightOffers,
+      ...testers.filter((t) => !highlightOffers.some((o) => o.id === t.id)),
+    ];
+    return merged
+      .sort((a, b) => (b.ranking_blend ?? b.upvotes ?? 0) - (a.ranking_blend ?? a.upvotes ?? 0))
+      .slice(0, 10);
+  })();
 
   useEffect(() => {
-    if (!session?.user?.id || offers.length === 0) {
+    if (!session?.user?.id || (offers.length === 0 && highlightOffers.length === 0)) {
       if (!session) {
         setVoteMap({});
         setVoteValueMap({});
@@ -445,12 +503,17 @@ function HomeContent() {
       }
       return;
     }
-    fetchBatchUserData(session.user.id, offers.filter((o) => !o.id.startsWith('tester-')).map((o) => o.id)).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
+    fetchBatchUserData(
+      session.user.id,
+      [...offers, ...highlightOffers]
+        .filter((o) => !o.id.startsWith('tester-'))
+        .map((o) => o.id),
+    ).then(({ voteMap: vm, voteValueMap: vvm, favoriteMap: fm }) => {
       setVoteMap(vm);
       setVoteValueMap(vvm);
       setFavoriteMap(fm);
     });
-  }, [session, offers]);
+  }, [session, offers, highlightOffers]);
 
   const handleFavoriteChange = (offerId: string, isFavorite: boolean) => {
     setFavoriteMap((prev) => ({ ...prev, [offerId]: isFavorite }));
@@ -484,11 +547,8 @@ function HomeContent() {
     <ClientLayout>
       <div id="ayuda" className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
         <div className="hidden md:block sticky top-0 z-40 border-b border-[#e5e5e7] bg-[#F5F5F7]/90 backdrop-blur-md dark:border-[#262626] dark:bg-[#0a0a0a]/90">
-          <div className="mx-auto max-w-[1400px] px-8 py-2.5 pr-44 lg:px-10">
-            <SearchField searchQuery={searchQuery} onChange={setSearchQuery} />
-            <div className="mt-2.5">
-              <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
-            </div>
+          <div className="mx-auto max-w-[1400px] px-8 py-2.5 pr-56 lg:px-10 lg:pr-72">
+            <SearchField searchQuery={searchQuery} onChange={setSearchQuery} placeholder="Buscar ofertas…" />
           </div>
         </div>
 
@@ -641,28 +701,35 @@ function HomeContent() {
 
         <div className="xl:flex xl:gap-6 xl:items-start">
         <div className="min-w-0 flex-1">
-        {viewMode === 'top' && !loading && !feedError && featuredOffers.length >= 3 ? (
-          <div className="mb-5 hidden md:block">
+        {viewMode === 'top' && !loading && !feedError && featuredOffers.length > 0 ? (
+          <div className="mb-5">
             <h2 className="mb-3 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
-              Ofertas destacadas
+              {highlightPeriod === 'month' ? 'Mejores del mes' : 'Mejores de la semana'}
             </h2>
-            <div className="grid grid-cols-3 gap-4">
-              {featuredOffers.map((offer) => (
-                <FeaturedOfferCard
-                  key={`featured-${offer.id}`}
-                  offerId={offer.id}
-                  title={offer.title}
-                  brand={offer.brand}
-                  image={offer.image ?? undefined}
-                  originalPrice={offer.originalPrice}
-                  discountPrice={offer.discountPrice}
-                  discount={offer.discount}
-                  isLiked={!!favoriteMap[offer.id]}
-                  isTesterOffer={offer.id.startsWith('tester-')}
-                  onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
-                  onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
-                />
-              ))}
+            <div className="relative">
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory md:gap-4">
+                {featuredOffers.map((offer) => (
+                  <div
+                    key={`featured-${offer.id}`}
+                    className="w-[220px] max-[400px]:w-[200px] md:w-[240px] shrink-0 snap-start"
+                  >
+                    <FeaturedOfferCard
+                      offerId={offer.id}
+                      title={offer.title}
+                      brand={offer.brand}
+                      image={offer.image ?? undefined}
+                      originalPrice={offer.originalPrice}
+                      discountPrice={offer.discountPrice}
+                      discount={offer.discount}
+                      isLiked={!!favoriteMap[offer.id]}
+                      isTesterOffer={offer.id.startsWith('tester-')}
+                      onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
+                      onFavoriteChange={(fav) => handleFavoriteChange(offer.id, fav)}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#F5F5F7] to-transparent dark:from-[#0a0a0a]" />
             </div>
           </div>
         ) : null}
@@ -732,7 +799,11 @@ function HomeContent() {
             <>
               <h2 className="hidden md:block text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
                 {viewMode === 'top'
-                  ? 'Top'
+                  ? timeFilter === 'week'
+                    ? 'Top de la semana'
+                    : timeFilter === 'month'
+                      ? 'Top del mes'
+                      : 'Top del día'
                   : viewMode === 'personalized'
                     ? 'Para ti'
                     : 'Últimas ofertas'}
@@ -803,7 +874,7 @@ function HomeContent() {
             </>
           )}
         </motion.div>
-        {!debouncedQuery.trim() ? (
+        {viewMode === 'top' && !debouncedQuery.trim() ? (
           <section className="mt-8 md:mt-10" aria-label="Solicitudes de ofertas">
             <h2 className="text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
               Solicitudes de ofertas

@@ -53,7 +53,7 @@ export default function FeaturedOfferCard({
   return (
     <article
       onClick={onCardClick}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414]"
+      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414]"
     >
       <div className="relative aspect-[4/3] bg-[#f5f5f7] dark:bg-[#1a1a1a]">
         {image ? (
@@ -61,7 +61,7 @@ export default function FeaturedOfferCard({
             src={image}
             alt=""
             fill
-            sizes="(max-width: 1280px) 30vw, 280px"
+            sizes="240px"
             className="object-contain p-3"
             unoptimized={image.startsWith('/') || image.includes('placehold.co')}
           />

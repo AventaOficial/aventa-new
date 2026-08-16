@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GuideHub from './components/GuideHub';
 import InteractiveGuide from './components/InteractiveGuide';
 import { getGuideById, isGuideId, type GuideId } from './guides/content';
-import { markGuideStep, readGuideProgress, type GuideProgressMap } from '@/lib/guides/guideProgress';
+import { markGuideStep, readGuideProgress, stepsSeen, type GuideProgressMap } from '@/lib/guides/guideProgress';
 
 type StepState = { index: number; dir: number };
 
@@ -75,7 +75,7 @@ export default function DescubreGuide() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#F5F5F7] dark:bg-[#0a0a0a] relative">
-      <div className="mx-auto max-w-3xl px-4 py-6 md:py-10 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-10">
+      <div className={`mx-auto px-4 py-6 md:py-8 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-10 ${activeGuide ? 'max-w-3xl' : 'max-w-[1120px]'}`}>
         <AnimatePresence mode="wait">
           {!activeGuide ? (
             <motion.div
@@ -85,7 +85,19 @@ export default function DescubreGuide() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
             >
-              <GuideHub onSelect={(id) => setGuideInUrl(id)} progress={progress} />
+              <GuideHub
+                onSelect={(id) => {
+                  const guide = getGuideById(id);
+                  if (!guide) return;
+                  const seen = stepsSeen(id, guide.steps.length, progress);
+                  if (seen > 0 && seen < guide.steps.length) {
+                    setGuideInUrl(id, seen + 1);
+                    return;
+                  }
+                  setGuideInUrl(id);
+                }}
+                progress={progress}
+              />
             </motion.div>
           ) : (
             <motion.div
