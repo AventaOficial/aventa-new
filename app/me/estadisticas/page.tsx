@@ -70,7 +70,9 @@ function EstadisticasInner() {
         supabase.from('offer_votes').select('id', { count: 'exact', head: true }).eq('user_id', uid),
         supabase.from('offer_favorites').select('id', { count: 'exact', head: true }).eq('user_id', uid),
         fetch('/api/me/impact-stats', { headers: { Authorization: `Bearer ${session.access_token}` } }).then((r) =>
-          r.ok ? r.json() : {},
+          r.ok
+            ? (r.json() as Promise<{ positiveVotesTotal?: number; commentsCount?: number; cazadoresAyudados?: number }>)
+            : { positiveVotesTotal: 0, commentsCount: 0, cazadoresAyudados: 0 },
         ),
       ]);
       const offers = (offersRes.data ?? []) as { status?: string | null }[];
