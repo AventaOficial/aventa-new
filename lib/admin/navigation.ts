@@ -17,6 +17,7 @@ import {
   NotebookPen,
   Rocket,
   Scale,
+  Share2,
   ShieldOff,
   Tags,
   UserCog,
@@ -163,6 +164,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     domain: 'contenido',
     frequency: 'mensual',
     audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/moderation/social',
+    label: 'Redes sociales',
+    domain: 'contenido',
+    frequency: 'semanal',
+    audiences: ['founder', 'admin'],
     visibility: 'submenu',
   },
   {
@@ -314,6 +323,7 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/moderation/rejected': XCircle,
   '/admin/moderation/bans': ShieldOff,
   '/admin/announcements': Megaphone,
+  '/admin/moderation/social': Share2,
   '/admin/users': Users,
   '/admin/team': UserCog,
   '/admin/vote-weights': Scale,
@@ -382,6 +392,8 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
       return role === 'owner';
     case '/admin/announcements':
       return canManageAnnouncements(role);
+    case '/admin/moderation/social':
+      return canManageTeam(role);
     case '/admin/users':
     case '/admin/logs':
       return canAccessUsersLogs(role);

@@ -443,10 +443,12 @@ export default function OfferCard({
         active={userVote === 1}
         disabled={votePending}
         onClick={handleVoteUp}
-        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-full"
+        className={`flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-full ${
+          userVote === 1 ? 'bg-violet-100 dark:bg-violet-900/40' : ''
+        }`}
         iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] transition-colors duration-200 ${
           userVote === 1
-            ? 'text-gray-900 dark:text-gray-100'
+            ? 'fill-current text-violet-600 dark:text-violet-400'
             : 'text-gray-400 dark:text-gray-500'
         }`}
         aria-label="Votar arriba"
@@ -459,10 +461,12 @@ export default function OfferCard({
         active={userVote === -1}
         disabled={votePending}
         onClick={handleVoteDown}
-        className="flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-full"
+        className={`flex h-8 w-8 max-[400px]:h-7 max-[400px]:w-7 md:h-9 md:w-9 items-center justify-center rounded-full ${
+          userVote === -1 ? 'bg-violet-100 dark:bg-violet-900/40' : ''
+        }`}
         iconClassName={`h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5 md:h-[18px] md:w-[18px] transition-colors duration-200 ${
           userVote === -1
-            ? 'text-gray-900 dark:text-gray-100'
+            ? 'fill-current text-violet-600 dark:text-violet-400'
             : 'text-gray-400 dark:text-gray-500'
         }`}
         aria-label="Votar abajo"

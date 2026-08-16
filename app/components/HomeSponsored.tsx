@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import StoreBrandMark from './StoreBrandMark';
+import RailOfferRequests from './RailOfferRequests';
 import { slugifyStore } from '@/lib/slug';
 
 type SponsoredKind = 'feed' | 'rail';
@@ -134,6 +135,7 @@ export function HomeDesktopRail({
           </div>
         </div>
       ) : null}
+      <RailOfferRequests />
     </aside>
   );
 }

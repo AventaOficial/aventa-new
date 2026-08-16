@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2, Link2, Monitor, Store, ArrowRight } from 'lucide-react';
+import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2, Link2, Monitor, Store, ArrowRight, MessagesSquare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ import { logClientError } from '@/lib/utils/handleError';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
 import AventaIcon from './AventaIcon';
+import SidebarProgressCard from './SidebarProgressCard';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -69,6 +70,7 @@ export default function ActionBar() {
     'bg-violet-100 dark:bg-[#262626] text-violet-600 dark:text-fuchsia-300';
   const { session } = useAuth();
   const [reputationLevel, setReputationLevel] = useState(1);
+  const [reputationScore, setReputationScore] = useState(0);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOptionalSection, setShowOptionalSection] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
@@ -135,20 +137,25 @@ export default function ActionBar() {
   useEffect(() => {
     if (!session?.user?.id) {
       setReputationLevel(1);
+      setReputationScore(0);
       setCooldownExempt(false);
       return;
     }
     const supabase = createClient();
     supabase
       .from('profiles')
-      .select('reputation_level')
+      .select('reputation_level, reputation_score')
       .eq('id', session.user.id)
       .maybeSingle()
       .then(
         ({ data }) => {
           setReputationLevel(Math.max(1, (data as { reputation_level?: number } | null)?.reputation_level ?? 1));
+          setReputationScore(Math.max(0, (data as { reputation_score?: number } | null)?.reputation_score ?? 0));
         },
-        () => setReputationLevel(1)
+        () => {
+          setReputationLevel(1);
+          setReputationScore(0);
+        }
       );
   }, [session?.user?.id]);
 
@@ -629,6 +636,13 @@ export default function ActionBar() {
           <Compass className="h-5 w-5 shrink-0" />
           Guía
         </Link>
+        <Link
+          href="/plaza"
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${pathname.startsWith('/plaza') ? sidebarLinkActive : sidebarLinkInactive}`}
+        >
+          <MessagesSquare className="h-5 w-5 shrink-0" />
+          Plaza
+        </Link>
         <button
           type="button"
           disabled={cooldownRemaining > 0}
@@ -685,13 +699,7 @@ export default function ActionBar() {
           </>
         )}
         </nav>
-        <div className="mt-auto rounded-2xl bg-violet-50 dark:bg-violet-950/30 p-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/aventa-bag.png" alt="" className="mx-auto h-16 w-16 object-contain" />
-          <p className="mt-1 text-center text-xs font-semibold text-violet-800 dark:text-violet-200">
-            Ahorra más con Aventa
-          </p>
-        </div>
+        <SidebarProgressCard loggedIn={!!session} level={reputationLevel} score={reputationScore} />
       </aside>
 
       <AnimatePresence>

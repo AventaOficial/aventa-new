@@ -730,10 +730,10 @@ export default function OfferModal({
                     onClick={() => handleVote('up')}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === 1
-                        ? 'bg-purple-200 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                        ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
                         : 'bg-white/70 dark:bg-[#1a1a1a]/70 text-gray-500 dark:text-gray-400'
                     }`}
-                    iconClassName={`h-5 w-5 ${userVote === 1 ? 'fill-purple-600 text-purple-600 dark:fill-purple-400 dark:text-purple-400' : ''}`}
+                    iconClassName={`h-5 w-5 ${userVote === 1 ? 'fill-current text-violet-600 dark:text-violet-400' : ''}`}
                     aria-label="Votar arriba"
                   />
                   <span className="min-w-[2.25rem] text-center text-lg font-semibold tabular-nums">{localWeightedScore}</span>
@@ -744,10 +744,10 @@ export default function OfferModal({
                     onClick={() => handleVote('down')}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-white/80 dark:hover:bg-gray-800/80 active:scale-95 ${
                       userVote === -1
-                        ? 'bg-pink-200 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
+                        ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
                         : 'bg-white/70 dark:bg-[#1a1a1a]/70 text-gray-500 dark:text-gray-400'
                     }`}
-                    iconClassName={`h-5 w-5 ${userVote === -1 ? 'fill-pink-600 text-pink-600 dark:fill-pink-400 dark:text-pink-400' : ''}`}
+                    iconClassName={`h-5 w-5 ${userVote === -1 ? 'fill-current text-violet-600 dark:text-violet-400' : ''}`}
                     aria-label="Votar abajo"
                   />
                 </div>

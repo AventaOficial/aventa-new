@@ -4,6 +4,8 @@ import Link from "next/link";
 import "./globals.css";
 import Providers from "./providers";
 import CookieNotice from "./components/CookieNotice";
+import SocialIcons from "./components/SocialIcons";
+import { getSocialLinks } from "@/lib/social/config";
 import {
   AFFILIATE_DISCLOSURE_ES,
   AMAZON_ASSOCIATES_DISCLOSURE,
@@ -77,11 +79,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const social = await getSocialLinks();
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -115,11 +118,12 @@ export default function RootLayout({
                   AVENTA
                 </h3>
                 <p className="mt-2 max-w-xl leading-relaxed">
-                  Revisa el precio antes de comprar en otra tienda.
+                  Comunidad de ofertas en México. Publicamos, votamos y ordenamos el listado según el valor real de cada hallazgo.
                 </p>
                 <p className="mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-500">
-                  Nadie paga por aparecer primero. Los votos mueven el listado.
+                  El ranking no se compra: lo definen los votos de la comunidad.
                 </p>
+                <SocialIcons social={social} />
               </div>
 
               <div>
@@ -127,6 +131,7 @@ export default function RootLayout({
                 <ul className="mt-2 space-y-1.5">
                   <li><Link href="/" className="hover:text-violet-600 dark:hover:text-violet-400">Inicio</Link></li>
                   <li><Link href="/descubre" className="hover:text-violet-600 dark:hover:text-violet-400">Guía rápida</Link></li>
+                  <li><Link href="/plaza" className="hover:text-violet-600 dark:hover:text-violet-400">Plaza</Link></li>
                   <li><Link href="/subir" className="hover:text-violet-600 dark:hover:text-violet-400">Subir oferta</Link></li>
                   <li><Link href="/extension" className="hover:text-violet-600 dark:hover:text-violet-400">Extensión (próx.)</Link></li>
                 </ul>

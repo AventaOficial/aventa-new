@@ -874,14 +874,6 @@ function HomeContent() {
             </>
           )}
         </motion.div>
-        {viewMode === 'top' && !debouncedQuery.trim() ? (
-          <section className="mt-8 md:mt-10" aria-label="Solicitudes de ofertas">
-            <h2 className="text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
-              Solicitudes de ofertas
-            </h2>
-            <div className="mt-3 min-h-[7.5rem] rounded-2xl border border-dashed border-[#d2d2d7] bg-white/60 dark:border-[#333] dark:bg-[#141414]/40" />
-          </section>
-        ) : null}
         </div>
         <HomeDesktopRail
           stores={storeList}

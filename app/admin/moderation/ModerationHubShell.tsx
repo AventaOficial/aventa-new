@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Flag,
   MessageCircle,
+  Share2,
   Shield,
   XCircle,
 } from 'lucide-react';
@@ -44,10 +45,17 @@ export const MODERATION_HUB_TABS = [
     label: 'Reportes',
     icon: Flag,
   },
+  {
+    id: 'social',
+    href: '/admin/moderation/social',
+    label: 'Redes',
+    icon: Share2,
+  },
 ] as const;
 
 export function resolveModerationHubTab(pathname: string): (typeof MODERATION_HUB_TABS)[number]['id'] {
   if (pathname === '/admin/reports' || pathname.startsWith('/admin/moderation/reports')) return 'reports';
+  if (pathname.startsWith('/admin/moderation/social')) return 'social';
   if (pathname.startsWith('/admin/moderation/approved')) return 'approved';
   if (pathname.startsWith('/admin/moderation/rejected')) return 'rejected';
   if (pathname.startsWith('/admin/moderation/comments')) return 'comments';
