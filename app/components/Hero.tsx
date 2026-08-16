@@ -4,9 +4,32 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
-import AventaIcon from './AventaIcon';
 
-const TAGLINE = 'Cada peso ahorrado, es un peso ganado';
+function Sparkle({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+      <path d="M12 0.6 13.35 9.2 22 10.8 13.35 12.4 12 21.4 10.65 12.4 2 10.8 10.65 9.2Z" />
+    </svg>
+  );
+}
+
+function HeroScene({ compact }: { compact?: boolean }) {
+  return (
+    <div className="relative h-full w-full overflow-visible" aria-hidden>
+      <Image
+        src="/brand/aventa-hero.png"
+        alt=""
+        fill
+        priority
+        unoptimized
+        sizes={compact ? '260px' : '(max-width: 1024px) 320px, 420px'}
+        className="pointer-events-none bg-transparent object-contain object-bottom select-none [filter:drop-shadow(0_18px_22px_rgba(20,16,28,0.12))] dark:[filter:drop-shadow(0_18px_24px_rgba(0,0,0,0.5))]"
+      />
+      <Sparkle className="pointer-events-none absolute left-[6%] top-[8%] z-[2] h-2.5 w-2.5 text-violet-500/75 dark:text-violet-400/80" />
+      <Sparkle className="pointer-events-none absolute right-[10%] top-[14%] z-[2] h-2 w-2 text-violet-400/70" />
+    </div>
+  );
+}
 
 export const SEARCH_CHIPS = ['iPhone', 'PS5', 'Nike', 'Costco', 'Amazon', 'Samsung', 'Liverpool', 'Walmart'] as const;
 
@@ -82,54 +105,42 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
   const setSearchQuery = onSearchChange ? (v: string) => onSearchChange(v) : setInternalQuery;
 
   return (
-    <header className="w-full pt-[env(safe-area-inset-top)]">
-      <div className="md:hidden flex flex-col">
-        <div className="flex items-start pl-5 pr-4 max-[400px]:pr-3 pt-5 max-[400px]:pt-3 min-w-0 gap-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl max-[400px]:text-xl font-semibold tracking-[-0.03em] flex items-center gap-2">
-              <AventaIcon size={28} className="text-[#1d1d1f] dark:text-white shrink-0" />
-              <span className="text-[#1d1d1f] dark:text-white">AVENTA</span>
-            </h1>
-            <p className="text-[15px] max-[400px]:text-[13px] text-[#6e6e73] dark:text-[#a3a3a3] mt-1.5 leading-snug break-words font-normal pr-16">
-              {TAGLINE}
-            </p>
-          </div>
-          <Image
-            src="/brand/aventa-bag.png"
-            alt=""
-            width={80}
-            height={80}
-            className="mt-8 w-[64px] h-[64px] max-[400px]:w-14 max-[400px]:h-14 object-contain shrink-0 pointer-events-none"
-            priority
-            unoptimized
-          />
+    <header className="relative w-full overflow-hidden pt-[env(safe-area-inset-top)]">
+      <div className="md:hidden">
+        <div className="px-5 max-[400px]:px-4 pt-5 max-[400px]:pt-4">
+          <h1 className="text-[1.7rem] max-[400px]:text-[1.45rem] font-semibold tracking-[-0.04em] leading-[1.15] text-[#1d1d1f] dark:text-[#fafafa]">
+            Descubre ofertas que
+            <br />
+            <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
+          </h1>
+          <p className="mt-2 max-w-[34ch] text-[14px] max-[400px]:text-[13px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
+            La comunidad publica, vota y encuentra las mejores ofertas de México.
+          </p>
         </div>
-        <div className="px-4 max-[400px]:px-3 pt-3 max-[400px]:pt-2 pb-3 max-[400px]:pb-2 space-y-2.5">
+        <div className="relative mx-auto mt-0.5 h-[176px] max-[400px]:h-[156px] w-full max-w-[300px]">
+          <HeroScene compact />
+        </div>
+        <div className="px-4 max-[400px]:px-3 pt-1 pb-3 max-[400px]:pb-2 space-y-2.5">
           <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} placeholder="iPhone, Nike, Costco…" />
           <SearchChips searchQuery={searchQuery} onPick={setSearchQuery} />
         </div>
       </div>
 
-      <div className="hidden md:block">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-6 px-8 py-3 lg:px-10 lg:gap-10">
-          <div className="min-w-0 flex-1 max-w-xl">
-            <h1 className="text-[1.65rem] lg:text-[1.85rem] font-semibold tracking-[-0.04em] leading-tight text-[#1d1d1f] dark:text-[#fafafa]">
-              Descubre ofertas que{' '}
+      <div className="relative hidden md:block">
+        <div className="relative mx-auto max-w-[1400px] min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] px-8 lg:px-10">
+          <div className="pointer-events-none absolute right-4 bottom-0 h-[216px] w-[270px] lg:right-8 lg:h-[248px] lg:w-[310px] xl:right-10 xl:h-[280px] xl:w-[350px]">
+            <HeroScene />
+          </div>
+          <div className="relative z-10 flex min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] max-w-[34rem] flex-col justify-center py-6 lg:py-7 pr-[250px] lg:pr-[300px] xl:pr-[340px]">
+            <h1 className="text-[1.85rem] lg:text-[2.15rem] xl:text-[2.35rem] font-semibold tracking-[-0.045em] leading-[1.12] text-[#1d1d1f] dark:text-[#fafafa]">
+              Descubre ofertas que
+              <br />
               <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
             </h1>
-            <p className="mt-1.5 text-[14px] lg:text-[15px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
+            <p className="mt-2.5 max-w-[42ch] text-[14px] lg:text-[15px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
               La comunidad publica, vota y encuentra las mejores ofertas de México.
             </p>
           </div>
-          <Image
-            src="/brand/aventa-bag.png"
-            alt=""
-            width={200}
-            height={200}
-            className="hidden lg:block h-[132px] w-[132px] xl:h-[148px] xl:w-[148px] object-contain shrink-0 pointer-events-none"
-            priority
-            unoptimized
-          />
         </div>
       </div>
     </header>
