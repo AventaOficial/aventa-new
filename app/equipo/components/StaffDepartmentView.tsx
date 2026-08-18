@@ -108,15 +108,20 @@ export default function StaffDepartmentView({
       : (data?.queue ?? []).filter((q) => !q.department || q.department === department);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 lg:pb-0">
       <header className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-          Hub de equipo · México
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600/80 dark:text-emerald-400/80">
+          {department === 'home' ? 'Mi jornada' : 'AVENTA Workspace'}
         </p>
         {data?.greeting && department === 'home' ? (
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
-            {data.greeting}
-          </h1>
+          <>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+              {data.greeting}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Aquí está lo que necesitas hacer hoy.
+            </p>
+          </>
         ) : (
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">{title}</h1>
         )}

@@ -1,0 +1,46 @@
+/**
+ * Catálogo de rutas del AVENTA Workspace — usado en tests de verificación.
+ */
+export const WORKSPACE_HUB_ROUTES = [
+  '/equipo',
+  '/equipo/moderacion',
+  '/equipo/moderacion/bot',
+  '/equipo/moderacion/cazadores',
+  '/equipo/moderacion/reportes',
+  '/equipo/moderacion/precio',
+  '/equipo/moderacion/agotadas',
+  '/equipo/moderacion/comentarios',
+  '/equipo/moderacion/aprobadas',
+  '/equipo/moderacion/rechazadas',
+  '/equipo/marketing',
+  '/equipo/marketing/grabar',
+  '/equipo/marketing/edicion',
+  '/equipo/marketing/publicado',
+  '/equipo/marketing/rendimiento',
+  '/equipo/contabilidad',
+  '/equipo/contabilidad/ledger',
+  '/equipo/contabilidad/pagos',
+  '/equipo/contabilidad/pools',
+  '/equipo/operaciones',
+  '/equipo/operaciones/salud',
+  '/equipo/operaciones/ofertas',
+  '/equipo/operaciones/metricas',
+  '/equipo/operaciones/precio',
+  '/equipo/operaciones/agotadas',
+  '/equipo/gerencia',
+  '/equipo/gerencia/colas',
+  '/equipo/gerencia/areas',
+  '/equipo/gerencia/equipo',
+] as const;
+
+export const WORKSPACE_STAFF_API_ROUTES = [
+  '/api/staff/home',
+  '/api/staff/tasks',
+  '/api/staff/marketing',
+  '/api/staff/finance',
+  '/api/staff/finance/ledger',
+  '/api/staff/finance/allocations',
+  '/api/staff/operations',
+  '/api/staff/gerencia',
+  '/api/staff/offer-health-queue',
+] as const;

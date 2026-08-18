@@ -126,3 +126,129 @@ body {
     inset 0 -1px 0 rgba(255, 255, 255, 0.04),
     0 12px 40px rgba(0, 0, 0, 0.35);
 }
+
+/* ============================================
+   AVENTA PANEL DESIGN SYSTEM
+   Owner OS (dark) + Team Workspace (light)
+   ============================================ */
+
+:root {
+  --aventa-violet: 139 92 246;
+  --aventa-violet-glow: 124 58 237;
+  --aventa-emerald: 16 185 129;
+
+  /* Owner OS — dark glass */
+  --owner-bg: #060608;
+  --owner-bg-elevated: #0c0c10;
+  --owner-surface: rgba(255, 255, 255, 0.04);
+  --owner-surface-hover: rgba(255, 255, 255, 0.07);
+  --owner-border: rgba(255, 255, 255, 0.08);
+  --owner-border-strong: rgba(255, 255, 255, 0.12);
+  --owner-text: rgba(255, 255, 255, 0.92);
+  --owner-text-muted: rgba(255, 255, 255, 0.5);
+  --owner-text-subtle: rgba(255, 255, 255, 0.35);
+  --owner-accent: rgb(var(--aventa-violet));
+  --owner-radius: 16px;
+  --owner-radius-sm: 12px;
+  --owner-blur: 24px;
+  --owner-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --owner-glow: 0 0 80px rgba(var(--aventa-violet-glow), 0.12);
+
+  /* Team Workspace — light glass */
+  --workspace-bg: #f4f6f4;
+  --workspace-bg-dark: #0a0f0c;
+  --workspace-surface: rgba(255, 255, 255, 0.72);
+  --workspace-surface-dark: rgba(255, 255, 255, 0.05);
+  --workspace-border: rgba(0, 0, 0, 0.06);
+  --workspace-border-dark: rgba(255, 255, 255, 0.08);
+  --workspace-accent: rgb(var(--aventa-emerald));
+  --workspace-radius: 16px;
+
+  /* Functional accents */
+  --status-ok: #34d399;
+  --status-attention: #fbbf24;
+  --status-critical: #f87171;
+  --status-info: #60a5fa;
+
+  /* Motion */
+  --motion-fast: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-normal: 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+body {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Owner OS ambient background */
+.owner-os-bg {
+  background-color: var(--owner-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(var(--aventa-violet-glow), 0.18), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(59, 130, 246, 0.08), transparent),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(var(--aventa-violet-glow), 0.06), transparent);
+}
+
+/* Team Workspace ambient background */
+.workspace-bg {
+  background-color: var(--workspace-bg);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 0% 0%, rgba(var(--aventa-emerald), 0.08), transparent),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(var(--aventa-violet), 0.05), transparent);
+}
+.dark .workspace-bg {
+  background-color: var(--workspace-bg-dark);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 0% 0%, rgba(var(--aventa-emerald), 0.06), transparent),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(var(--aventa-violet), 0.04), transparent);
+}
+
+/* Glass surfaces */
+.glass-dark {
+  background: var(--owner-surface);
+  border: 1px solid var(--owner-border);
+  backdrop-filter: blur(var(--owner-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--owner-blur)) saturate(150%);
+  box-shadow: var(--owner-shadow);
+}
+
+.glass-dark:hover {
+  background: var(--owner-surface-hover);
+}
+
+.glass-light {
+  background: var(--workspace-surface);
+  border: 1px solid var(--workspace-border);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+}
+.dark .glass-light {
+  background: var(--workspace-surface-dark);
+  border-color: var(--workspace-border-dark);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Hide global footer inside panel routes */
+body:has(.aventa-panel-route) > footer {
+  display: none;
+}
+body:has(.aventa-panel-route) {
+  padding-bottom: 0 !important;
+}
+
+/* Subtle pulse for status indicators */
+@keyframes aventa-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+.aventa-pulse-soft {
+  animation: aventa-pulse-soft 2.5s ease-in-out infinite;
+}
+
+/* Card lift on hover */
+.aventa-lift {
+  transition: transform var(--motion-normal), box-shadow var(--motion-normal);
+}
+.aventa-lift:hover {
+  transform: translateY(-1px);
+}

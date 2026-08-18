@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const payload = await buildGerenciaPayload();
+    const payload = await buildGerenciaPayload(auth.role, auth.displayName);
     return NextResponse.json(payload);
   } catch (e) {
     console.error('[staff/gerencia]', e);

@@ -9,7 +9,8 @@ import {
   type StaffQueueItem,
 } from '@/lib/staff/workBoard';
 import type { Role } from '@/lib/admin/roles';
-import { canAccessAdminPanel, canAccessGerencia } from '@/lib/staff/permissions';
+import { canAccessGerencia } from '@/lib/staff/permissions';
+import { healthQueueDepartment, healthQueuePath } from '@/lib/staff/equipoAccess';
 
 export type StaffPulse = {
   pendingBot: number;
@@ -101,7 +102,6 @@ export async function fetchStaffPulse(): Promise<StaffPulse> {
 }
 
 export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[] {
-  const canAdmin = canAccessAdminPanel(role);
   const canGerencia = canAccessGerencia(role);
 
   const queue: StaffQueueItem[] = [
@@ -111,7 +111,7 @@ export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[]
       detail: 'Publicar / no publicar. Nada de relleno.',
       count: pulse.pendingBot,
       tone: queueTone(pulse.pendingBot, 'pending-bot'),
-      href: canAdmin ? '/admin/moderation' : '/equipo/moderacion',
+      href: '/equipo/moderacion/bot',
       department: 'moderacion',
     },
     {
@@ -120,7 +120,7 @@ export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[]
       detail: 'Subidas por usuarios. Revisar enlace y precio.',
       count: pulse.pendingHuman,
       tone: queueTone(pulse.pendingHuman, 'pending-human'),
-      href: canAdmin ? '/admin/moderation' : '/equipo/moderacion',
+      href: '/equipo/moderacion/cazadores',
       department: 'moderacion',
     },
     {
@@ -129,7 +129,7 @@ export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[]
       detail: 'La comunidad marcó un problema.',
       count: pulse.pendingReports,
       tone: queueTone(pulse.pendingReports, 'reports'),
-      href: canAdmin ? '/admin/moderation/reports' : '/equipo/moderacion',
+      href: '/equipo/moderacion/reportes',
       department: 'moderacion',
     },
     {
@@ -138,7 +138,7 @@ export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[]
       detail: `Meta del equipo: ${TEAM_DAILY_LIVE_TARGET} (calidad, no volumen).`,
       count: pulse.approvedToday,
       tone: queueTone(pulse.approvedToday, 'live-today'),
-      href: canAdmin ? '/admin/moderation/approved' : '/equipo/moderacion',
+      href: '/equipo/moderacion/aprobadas',
       department: 'moderacion',
     },
     {
@@ -149,8 +149,8 @@ export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[]
         : 'Falta migración de salud en Supabase.',
       count: pulse.priceChanged,
       tone: queueTone(pulse.priceChanged, 'price-changed'),
-      href: canAdmin ? '/admin/health' : '/equipo/operaciones',
-      department: 'operaciones',
+      href: healthQueuePath(role, 'precio'),
+      department: healthQueueDepartment(role),
     },
     {
       id: 'out-of-stock',
@@ -158,8 +158,8 @@ export function buildStaffQueue(role: Role, pulse: StaffPulse): StaffQueueItem[]
       detail: 'No dejarlas vivas en el feed.',
       count: pulse.outOfStock,
       tone: queueTone(pulse.outOfStock, 'out-of-stock'),
-      href: canAdmin ? '/admin/health' : '/equipo/operaciones',
-      department: 'operaciones',
+      href: healthQueuePath(role, 'agotadas'),
+      department: healthQueueDepartment(role),
     },
   ];
 

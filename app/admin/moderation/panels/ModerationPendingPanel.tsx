@@ -11,6 +11,7 @@ import ModerationObjectivesSidebar from '../../components/ModerationObjectivesSi
 
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
+import { pendingBasePath, type ModerationHubMode, type ModerationQueueView } from '@/lib/moderation/hubConfig';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -69,7 +70,18 @@ function useSimilarOffers(store: string | null, title: string, offerUrl: string 
   return similar;
 }
 
-export default function ModerationPendingPanel() {
+export type ModerationPendingPanelProps = {
+  mode?: ModerationHubMode;
+  queueView?: ModerationQueueView;
+  basePath?: string;
+};
+
+export default function ModerationPendingPanel({
+  mode = 'admin',
+  queueView = 'split',
+  basePath,
+}: ModerationPendingPanelProps) {
+  const moderationPath = basePath ?? pendingBasePath(mode);
   const pathname = usePathname();
   const { session } = useAuth();
   const [pending, setPending] = useState<ModerationOffer[]>([]);
@@ -249,7 +261,11 @@ export default function ModerationPendingPanel() {
   };
 
   useEffect(() => {
-    if (pathname !== MODERATION_PATH) return;
+    const isPendingRoot =
+      pathname === moderationPath ||
+      pathname === `${moderationPath}/bot` ||
+      pathname === `${moderationPath}/cazadores`;
+    if (!isPendingRoot) return;
     const normalizeAndRefresh = async () => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
@@ -267,7 +283,32 @@ export default function ModerationPendingPanel() {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [pathname, refreshList, session?.access_token]);
+  }, [pathname, moderationPath, refreshList, session?.access_token]);
+
+  useEffect(() => {
+    if (queueView === 'bot') setOnlyBot(true);
+    else if (queueView === 'hunters') setOnlyBot(false);
+  }, [queueView]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        if (e.key === 'Escape') (e.target as HTMLElement).blur();
+        return;
+      }
+      if (e.key === '/') {
+        e.preventDefault();
+        document.getElementById('moderation-search-input')?.focus();
+      }
+      if (e.key === 'b' || e.key === 'B') {
+        if (queueView === 'split') setOnlyBot((v) => !v);
+      }
+      if (e.key === 'Escape') setSelectedIds(new Set());
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [queueView]);
 
   const setStatus = async (
     id: string,
@@ -435,6 +476,7 @@ export default function ModerationPendingPanel() {
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-500/80" />
             <input
+              id="moderation-search-input"
               type="search"
               placeholder="Buscar por título, tienda o autor..."
               value={searchQuery}
@@ -663,7 +705,14 @@ export default function ModerationPendingPanel() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+        <div
+          className={
+            queueView === 'split'
+              ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start'
+              : 'grid grid-cols-1 gap-6 items-start max-w-3xl'
+          }
+        >
+          {(queueView === 'split' || queueView === 'hunters') && (
           <section className="rounded-[28px] border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200">
@@ -697,7 +746,9 @@ export default function ModerationPendingPanel() {
               </ul>
             )}
           </section>
+          )}
 
+          {(queueView === 'split' || queueView === 'bot') && (
           <section className="rounded-[28px] border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm md:text-base font-semibold text-sky-800 dark:text-sky-200">
@@ -750,6 +801,7 @@ export default function ModerationPendingPanel() {
               </ul>
             )}
           </section>
+          )}
         </div>
       )}
       </div>

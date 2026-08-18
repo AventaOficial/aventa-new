@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { ROLES, pickEffectiveRole, ADMIN_PANEL_ROLES, STAFF_HUB_ROLES, type Role } from '@/lib/admin/roles';
 import { canAccessStaffDepartment } from '@/lib/staff/permissions';
+import { canAccessEquipoPath } from '@/lib/staff/equipoAccess';
 import type { StaffDepartmentId } from '@/lib/staff/permissions';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
@@ -110,7 +111,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(home);
     }
     const dept = parseEquipoDepartment(pathname);
-    if (dept && dept !== 'home' && !canAccessStaffDepartment(effectiveRole, dept)) {
+    if (dept && dept !== 'home' && !canAccessEquipoPath(effectiveRole, pathname)) {
       const fallback = request.nextUrl.clone();
       fallback.pathname = '/equipo';
       return NextResponse.redirect(fallback);

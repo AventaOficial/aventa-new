@@ -279,6 +279,12 @@ export default function AdminLayout({
     );
   }
 
+  /** Owner OS routes tienen su propio shell en /admin/owner/layout.tsx */
+  const isOwnerOsRoute = pathname.startsWith('/admin/owner');
+  if (isOwnerOsRoute) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F5F7] dark:bg-black flex">
       <aside

@@ -17,6 +17,7 @@ import {
   type StaffWorkBoard,
 } from '@/lib/staff/workBoard';
 import { fetchStaffPulse, buildStaffQueue, type StaffPulse } from '@/lib/staff/buildStaffPulse';
+import { filterStaffQueueForRole } from '@/lib/staff/equipoAccess';
 import { listStaffDepartmentsForRole } from '@/lib/staff/permissions';
 import { roleDefaultDepartment } from '@/lib/staff/roleRouting';
 
@@ -98,10 +99,23 @@ function quickLinksForRole(role: Role): { label: string; href: string }[] {
     links.push({ label: 'Panel admin', href: '/admin' });
     links.push({ label: 'Asignar roles', href: '/admin/team' });
   }
-  if (role === 'moderator' || role === 'admin' || role === 'owner') {
-    links.push({ label: 'Cola de moderación', href: '/admin/moderation' });
+  if (role === 'moderator' || role === 'admin' || role === 'owner' || role === 'gerente') {
+    links.push({ label: 'Cola de moderación', href: '/equipo/moderacion' });
+  }
+  if (role === 'marketing' || role === 'admin' || role === 'owner' || role === 'gerente') {
+    links.push({ label: 'Content hub', href: '/equipo/marketing' });
+  }
+  if (role === 'finance' || role === 'admin' || role === 'owner' || role === 'gerente') {
+    links.push({ label: 'Finance hub', href: '/equipo/contabilidad' });
+  }
+  if (role === 'analyst' || role === 'admin' || role === 'owner' || role === 'gerente') {
+    links.push({ label: 'Operations hub', href: '/equipo/operaciones' });
+  }
+  if (role === 'gerente') {
+    links.push({ label: 'Supervisión', href: '/equipo/gerencia' });
   }
   if (role === 'owner') {
+    links.push({ label: 'Founder OS', href: '/admin/owner' });
     links.push({ label: 'Centro de operaciones', href: '/admin/operaciones' });
   }
   return links;
@@ -126,7 +140,7 @@ export async function buildStaffHomePayload(
     greeting: greetingForRole(role, displayName),
     departments: listStaffDepartmentsForRole(role),
     pulse,
-    queue: buildStaffQueue(role, pulse),
+    queue: filterStaffQueueForRole(buildStaffQueue(role, pulse), role),
     board,
     film,
     targets: { liveToday: TEAM_DAILY_LIVE_TARGET, qualityToday: TEAM_DAILY_QUALITY_TARGET },
@@ -147,11 +161,23 @@ export type GerenciaStaffRow = {
 
 export type GerenciaPayload = {
   generatedAt: string;
+  greeting: string;
+  role: Role;
+  canAssignRoles: boolean;
+  board: StaffWorkBoard;
+  taskPct: number;
   pulse: StaffPulse;
   queue: ReturnType<typeof buildStaffQueue>;
   staff: GerenciaStaffRow[];
   alerts: string[];
-  departmentProgress: { department: StaffDepartmentId; label: string; taskPct: number; pendingTasks: number }[];
+  departmentProgress: {
+    department: StaffDepartmentId;
+    label: string;
+    href: string;
+    taskPct: number;
+    pendingTasks: number;
+    totalTasks: number;
+  }[];
   sla: {
     pendingTotal: number;
     pendingWarnThreshold: number;
@@ -160,10 +186,18 @@ export type GerenciaPayload = {
   };
 };
 
-export async function buildGerenciaPayload(): Promise<GerenciaPayload> {
+function gerenciaGreeting(displayName: string | null): string {
+  const name = displayName?.trim() || 'equipo';
+  const hour = new Date().getHours();
+  const time = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+  return `${time}, ${name}. Supervisión del equipo AVENTA — SLA, colas y progreso por área.`;
+}
+
+export async function buildGerenciaPayload(role: Role, displayName: string | null): Promise<GerenciaPayload> {
   const supabase = createServerClient();
   const pulse = await fetchStaffPulse();
-  const queue = buildStaffQueue('gerente', pulse);
+  const queue = filterStaffQueueForRole(buildStaffQueue(role, pulse), role);
+  const board = await loadDepartmentBoard('gerencia');
 
   const { data: roleRows } = await supabase.from('user_roles').select('user_id, role');
   const byUser = new Map<string, Role>();
@@ -186,31 +220,44 @@ export async function buildGerenciaPayload(): Promise<GerenciaPayload> {
     profileMap.set(p.id, p.display_name ?? null);
   }
 
-  const deptBoards = await Promise.all(
-    STAFF_DEPARTMENTS.filter((d) => d.id !== 'home' && d.id !== 'gerencia').map(async (d) => {
-      const board = await loadDepartmentBoard(d.id);
-      const pending = board.tasks.filter((t) => !t.done).length;
-      return {
-        department: d.id,
-        label: d.label,
-        taskPct: taskCompletionPct(board.tasks),
-        pendingTasks: pending,
-      };
-    }),
+  const targetDepts = STAFF_DEPARTMENTS.filter((d) => d.id !== 'home' && d.id !== 'gerencia');
+  const loadedDeptBoards = await Promise.all(
+    targetDepts.map(async (d) => ({ meta: d, board: await loadDepartmentBoard(d.id) })),
   );
 
+  const deptBoards = loadedDeptBoards.map(({ meta, board: deptBoard }) => {
+    const pending = deptBoard.tasks.filter((t) => !t.done).length;
+    return {
+      department: meta.id,
+      label: meta.label,
+      href: meta.href,
+      taskPct: taskCompletionPct(deptBoard.tasks),
+      pendingTasks: pending,
+      totalTasks: deptBoard.tasks.length,
+    };
+  });
+
+  const boardByDept = new Map<StaffDepartmentId, StaffWorkBoard>();
+  boardByDept.set('gerencia', board);
+  for (const { meta, board: deptBoard } of loadedDeptBoards) {
+    boardByDept.set(meta.id, deptBoard);
+  }
+
   const staff: GerenciaStaffRow[] = staffIds.map((userId) => {
-    const role = byUser.get(userId)!;
-    const dept = roleDefaultDepartment(role);
+    const staffRole = byUser.get(userId)!;
+    const dept = roleDefaultDepartment(staffRole);
+    const deptBoard = boardByDept.get(dept === 'home' ? 'moderacion' : dept) ?? board;
+    const done = deptBoard.tasks.filter((t) => t.done).length;
+    const total = deptBoard.tasks.length;
     return {
       userId,
       displayName: profileMap.get(userId) ?? null,
-      role,
-      roleLabel: ROLE_LABELS[role],
+      role: staffRole,
+      roleLabel: ROLE_LABELS[staffRole],
       department: dept,
-      taskTotal: 0,
-      taskDone: 0,
-      taskPct: 0,
+      taskTotal: total,
+      taskDone: done,
+      taskPct: taskCompletionPct(deptBoard.tasks),
     };
   });
 
@@ -232,6 +279,11 @@ export async function buildGerenciaPayload(): Promise<GerenciaPayload> {
 
   return {
     generatedAt: new Date().toISOString(),
+    greeting: gerenciaGreeting(displayName),
+    role,
+    canAssignRoles: role === 'owner' || role === 'admin',
+    board,
+    taskPct: taskCompletionPct(board.tasks),
     pulse,
     queue,
     staff,

@@ -1,5 +1,5 @@
-import GerenciaView from '../components/GerenciaView';
+import GerenciaOverviewPanel from './components/GerenciaOverviewPanel';
 
 export default function EquipoGerenciaPage() {
-  return <GerenciaView />;
+  return <GerenciaOverviewPanel />;
 }

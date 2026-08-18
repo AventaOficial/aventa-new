@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions",
+    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/staff",
     "ci:verify": "npm run test:contracts && npm run build"
   },
   "dependencies": {
