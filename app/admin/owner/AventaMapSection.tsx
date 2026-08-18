@@ -189,7 +189,7 @@ function FlowPanel({ flow, index }: { flow: MapFlowLive; index: number }) {
         <FlowSteps flow={flow} />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-3.5">
+          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3.5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
               Estado ahora
             </p>

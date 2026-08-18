@@ -46,10 +46,10 @@ function FounderCard({ title, icon: Icon, tone = 'green', children, href, footer
     <div
       className={`rounded-2xl border p-4 h-full flex flex-col transition-shadow hover:shadow-md ${
         tone === 'red'
-          ? 'border-red-200/80 dark:border-red-900/50 bg-red-50/40 dark:bg-red-950/15'
+          ? 'border-red-500/25 bg-red-500/[0.08]'
           : tone === 'yellow'
-            ? 'border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/15'
-            : 'border-gray-200/70 dark:border-gray-800 bg-white dark:bg-[#1C1C1E]'
+            ? 'border-amber-500/25 bg-amber-500/[0.08]'
+            : 'border-white/[0.08] bg-white/[0.04]'
       }`}
     >
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -57,13 +57,13 @@ function FounderCard({ title, icon: Icon, tone = 'green', children, href, footer
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 dark:bg-violet-500/20">
             <Icon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
           </div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40 truncate">
             {title}
           </h3>
         </div>
         <span className="text-sm shrink-0">{statusEmoji(tone)}</span>
       </div>
-      <div className="flex-1 text-sm text-gray-800 dark:text-gray-200 space-y-1">{children}</div>
+      <div className="flex-1 text-sm text-white/80 space-y-1">{children}</div>
       {footer ? <p className="mt-2 text-[11px] text-violet-600 dark:text-violet-400 font-medium">{footer}</p> : null}
     </div>
   );

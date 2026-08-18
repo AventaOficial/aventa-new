@@ -146,7 +146,7 @@ export default function HealthPage() {
   const pulse = visibility?.areasPulse;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#141414] py-12 px-4">
+    <div className="space-y-10">
       <div className="max-w-4xl mx-auto space-y-10">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Salud del sistema</h1>

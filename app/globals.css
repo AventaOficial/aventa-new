@@ -228,11 +228,18 @@ body {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
-/* Hide global footer inside panel routes */
-body:has(.aventa-panel-route) > footer {
-  display: none;
+/* Hide public chrome inside panel routes (Founder OS / Workspace) */
+body:has(.aventa-panel-route) > footer,
+body:has(.aventa-panel-route) .aventa-desktop-sidebar,
+body:has(.aventa-panel-route) .aventa-public-tabbar,
+body:has(.aventa-panel-route) .aventa-public-navbar {
+  display: none !important;
 }
 body:has(.aventa-panel-route) {
+  padding-bottom: 0 !important;
+}
+body:has(.aventa-panel-route) main {
+  padding-left: 0 !important;
   padding-bottom: 0 !important;
 }
 
@@ -251,4 +258,247 @@ body:has(.aventa-panel-route) {
 }
 .aventa-lift:hover {
   transform: translateY(-1px);
+}
+
+/* Legacy admin pages inside Founder OS: paper → iPhone glass */
+body:has(.owner-os-bg) {
+  background: var(--owner-bg) !important;
+  color: var(--owner-text) !important;
+}
+
+.owner-os-bg {
+  color: var(--owner-text);
+}
+
+.owner-os-bg :is(
+  [class~="bg-white"],
+  [class~="bg-white/50"],
+  [class~="bg-white/60"],
+  [class~="bg-white/70"],
+  [class~="bg-white/80"],
+  [class~="bg-white/90"],
+  [class~="bg-white/95"],
+  [class~="bg-gray-50"],
+  [class~="bg-gray-50/40"],
+  [class~="bg-gray-50/50"],
+  [class~="bg-gray-50/70"],
+  [class~="bg-gray-50/80"],
+  [class~="bg-gray-100"],
+  [class~="bg-gray-100/80"],
+  [class~="bg-gray-200"],
+  [class~="bg-slate-50"],
+  [class~="bg-[#F5F5F7]"],
+  [class~="bg-[#F5F5F7]/60"],
+  [class~="bg-[#F5F5F7]/80"],
+  [class~="bg-[#F5F5F7]/90"],
+  [class~="dark:bg-[#141414]"],
+  [class~="dark:bg-[#141414]/50"],
+  [class~="dark:bg-[#141414]/70"],
+  [class~="dark:bg-[#141414]/90"],
+  [class~="dark:bg-[#1a1a1a]"],
+  [class~="dark:bg-[#1a1a1a]/50"],
+  [class~="dark:bg-[#1a1a1a]/80"],
+  [class~="dark:bg-[#1C1C1E]"],
+  [class~="dark:bg-[#1C1C1E]/80"],
+  [class~="dark:bg-[#111113]"],
+  [class~="dark:bg-[#151517]"],
+  [class~="dark:bg-[#101012]"],
+  [class~="dark:bg-gray-700"],
+  [class~="dark:bg-gray-700/50"],
+  [class~="dark:bg-gray-700/80"],
+  [class~="dark:bg-gray-800"],
+  [class~="dark:bg-gray-800/50"],
+  [class~="dark:bg-gray-900/30"],
+  [class~="dark:bg-gray-900/40"],
+  [class~="dark:bg-gray-900/50"]
+) {
+  background: var(--owner-surface) !important;
+  backdrop-filter: blur(var(--owner-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--owner-blur)) saturate(150%);
+  box-shadow: var(--owner-shadow);
+}
+
+.owner-os-bg :is(
+  [class~="hover:bg-gray-50"]:hover,
+  [class~="hover:bg-gray-100"]:hover,
+  [class~="hover:bg-gray-200"]:hover,
+  [class~="dark:hover:bg-gray-700"]:hover,
+  [class~="dark:hover:bg-gray-800"]:hover,
+  [class~="dark:hover:bg-gray-900"]:hover,
+  [class~="dark:hover:bg-[#202024]"]:hover
+) {
+  background: var(--owner-surface-hover) !important;
+}
+
+.owner-os-bg :is(
+  [class~="border-gray-100"],
+  [class~="border-gray-200"],
+  [class~="border-gray-200/70"],
+  [class~="border-gray-200/80"],
+  [class~="border-gray-200/90"],
+  [class~="border-gray-300"],
+  [class~="border-gray-300/80"],
+  [class~="border-gray-700"],
+  [class~="border-gray-700/50"],
+  [class~="border-gray-700/80"],
+  [class~="border-gray-700/90"],
+  [class~="border-gray-800"],
+  [class~="dark:border-gray-600"],
+  [class~="dark:border-gray-700"],
+  [class~="dark:border-gray-700/50"],
+  [class~="dark:border-gray-700/80"],
+  [class~="dark:border-gray-700/90"],
+  [class~="dark:border-gray-800"],
+  [class~="divide-gray-100"],
+  [class~="divide-gray-200"],
+  [class~="dark:divide-gray-800"]
+) {
+  border-color: var(--owner-border) !important;
+}
+
+.owner-os-bg :is(
+  [class~="text-gray-900"],
+  [class~="text-gray-800"],
+  [class~="text-gray-700"],
+  [class~="text-gray-300"],
+  [class~="text-[#1D1D1F]"],
+  [class~="text-[#1d1d1f]"],
+  [class~="dark:text-gray-100"],
+  [class~="dark:text-gray-200"],
+  [class~="dark:text-gray-300"]
+) {
+  color: var(--owner-text) !important;
+}
+
+.owner-os-bg :is(
+  [class~="text-gray-600"],
+  [class~="text-gray-500"],
+  [class~="text-gray-400"],
+  [class~="dark:text-gray-400"],
+  [class~="dark:text-gray-500"]
+) {
+  color: var(--owner-text-muted) !important;
+}
+
+.owner-os-bg :is(
+  [class~="bg-violet-50"],
+  [class~="bg-violet-50/40"],
+  [class~="bg-violet-50/80"],
+  [class~="bg-violet-50/90"],
+  [class~="bg-violet-100"]
+) {
+  background: rgba(var(--aventa-violet), 0.12) !important;
+  box-shadow: none;
+}
+
+.owner-os-bg :is(
+  [class~="border-violet-100"],
+  [class~="border-violet-200"],
+  [class~="border-violet-200/70"],
+  [class~="border-violet-200/80"],
+  [class~="dark:border-violet-900/40"],
+  [class~="dark:border-violet-900/50"]
+) {
+  border-color: rgba(var(--aventa-violet), 0.28) !important;
+}
+
+.owner-os-bg :is(
+  [class~="text-violet-800"],
+  [class~="text-violet-700"]
+) {
+  color: rgb(196, 181, 253) !important;
+}
+
+.owner-os-bg :is(
+  [class~="bg-emerald-50"],
+  [class~="bg-emerald-50/40"],
+  [class~="bg-emerald-50/70"],
+  [class~="bg-emerald-50/80"],
+  [class~="bg-emerald-100"]
+) {
+  background: rgba(16, 185, 129, 0.14) !important;
+  box-shadow: none;
+}
+
+.owner-os-bg :is(
+  [class~="border-emerald-100"],
+  [class~="border-emerald-200"],
+  [class~="border-emerald-200/80"],
+  [class~="dark:border-emerald-800/50"],
+  [class~="dark:border-emerald-900/40"],
+  [class~="dark:border-emerald-900/50"]
+) {
+  border-color: rgba(16, 185, 129, 0.28) !important;
+}
+
+.owner-os-bg :is(
+  [class~="text-emerald-800"],
+  [class~="text-emerald-700"]
+) {
+  color: rgb(167, 243, 208) !important;
+}
+
+.owner-os-bg :is(
+  [class~="bg-amber-50"],
+  [class~="bg-amber-50/40"],
+  [class~="bg-amber-50/80"],
+  [class~="bg-amber-100"]
+) {
+  background: rgba(251, 191, 36, 0.12) !important;
+  box-shadow: none;
+}
+
+.owner-os-bg :is(
+  [class~="border-amber-200"],
+  [class~="border-amber-200/80"],
+  [class~="dark:border-amber-800/50"]
+) {
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+
+.owner-os-bg :is(
+  [class~="text-amber-800"],
+  [class~="text-amber-700"]
+) {
+  color: rgb(253, 230, 138) !important;
+}
+
+.owner-os-bg :is(
+  [class~="bg-red-50"],
+  [class~="bg-red-50/40"],
+  [class~="bg-red-50/50"],
+  [class~="bg-red-50/80"],
+  [class~="bg-red-100"]
+) {
+  background: rgba(248, 113, 113, 0.12) !important;
+  box-shadow: none;
+}
+
+.owner-os-bg :is(
+  [class~="border-red-200"],
+  [class~="border-red-300"],
+  [class~="dark:border-red-800"],
+  [class~="dark:border-red-900/50"]
+) {
+  border-color: rgba(248, 113, 113, 0.32) !important;
+}
+
+.owner-os-bg :is(
+  [class~="text-red-800"],
+  [class~="text-red-700"]
+) {
+  color: rgb(254, 202, 202) !important;
+}
+
+.owner-os-bg input:not([type='checkbox']):not([type='radio']),
+.owner-os-bg textarea,
+.owner-os-bg select {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--owner-border);
+  color: var(--owner-text);
+}
+
+.owner-os-bg input::placeholder,
+.owner-os-bg textarea::placeholder {
+  color: var(--owner-text-subtle);
 }

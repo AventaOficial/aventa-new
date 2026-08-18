@@ -404,7 +404,7 @@ export default function AdminCommissionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] -m-4 lg:-m-6 p-4 lg:p-6">
+    <div className="space-y-5">
       <div className="max-w-5xl mx-auto px-2 md:px-4 py-6 space-y-5">
         <Link href="/admin/operaciones" className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline">
           <ArrowLeft className="h-4 w-4" />

@@ -138,13 +138,13 @@ export default function TrustedHuntersSection() {
   const hunterIds = new Set(hunters.map((h) => h.user_id));
 
   return (
-    <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+    <section className="rounded-3xl glass-dark p-5 md:p-6">
       <div className="flex items-start gap-3 mb-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
           <BowArrow className="h-5 w-5 text-violet-600 dark:text-violet-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+          <h2 className="text-lg font-semibold tracking-tight text-white/90">
             Cazadores de confianza
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 max-w-2xl">
@@ -161,7 +161,7 @@ export default function TrustedHuntersSection() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar por nombre o usuario para agregar…"
-          className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-[#F5F5F7] dark:bg-[#111113] pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+          className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] pl-10 pr-4 py-2.5 text-sm text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
         />
         {searching && (
           <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
@@ -174,7 +174,7 @@ export default function TrustedHuntersSection() {
             const label = hit.display_name || hit.username || hit.user_id.slice(0, 8);
             const already = hunterIds.has(hit.user_id);
             return (
-              <li key={hit.user_id} className="flex items-center justify-between gap-3 px-3 py-2.5 bg-white dark:bg-[#141414]">
+              <li key={hit.user_id} className="flex items-center justify-between gap-3 px-3 py-2.5 bg-white/[0.03]">
                 <span className="text-sm text-gray-800 dark:text-gray-200 truncate">{label}</span>
                 <button
                   type="button"
@@ -208,7 +208,7 @@ export default function TrustedHuntersSection() {
             return (
               <li
                 key={h.user_id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-gray-200/80 dark:border-gray-700 bg-[#F5F5F7]/60 dark:bg-[#111113] px-3 py-2.5"
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2.5"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{label}</p>

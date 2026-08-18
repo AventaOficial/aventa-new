@@ -119,7 +119,7 @@ export default function AdminCreatorTagsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] -m-4 lg:-m-6 p-4 lg:p-6">
+    <div className="space-y-5">
       <div className="max-w-4xl mx-auto space-y-5">
         <Link href="/admin/commissions" className="inline-flex items-center gap-1 text-sm text-violet-600 hover:underline">
           <ArrowLeft className="h-4 w-4" />

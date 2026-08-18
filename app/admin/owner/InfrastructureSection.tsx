@@ -27,20 +27,20 @@ const GROUP_ICONS: Record<InfraGroupId, typeof Server> = {
 
 function statusBorder(status: InfraDependencyView['status']): string {
   if (status === 'active' || status === 'configured') {
-    return 'border-emerald-200/80 dark:border-emerald-800/50';
+    return 'border-emerald-500/25';
   }
-  if (status === 'partial') return 'border-amber-200/80 dark:border-amber-800/50';
-  if (status === 'inactive') return 'border-red-200/80 dark:border-red-900/50';
-  return 'border-gray-200/70 dark:border-gray-800';
+  if (status === 'partial') return 'border-amber-500/25';
+  if (status === 'inactive') return 'border-red-500/25';
+  return 'border-white/[0.08]';
 }
 
 function DependencyCard({ dep }: { dep: InfraDependencyView }) {
   return (
     <article
-      className={`rounded-2xl border bg-[#F5F5F7]/60 dark:bg-[#111113]/80 p-4 flex flex-col gap-3 ${statusBorder(dep.status)}`}
+      className={`rounded-2xl border glass-dark p-4 flex flex-col gap-3 ${statusBorder(dep.status)}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <h4 className="font-semibold text-[#1D1D1F] dark:text-gray-100 text-sm leading-snug">{dep.name}</h4>
+        <h4 className="font-semibold text-white/90 text-sm leading-snug">{dep.name}</h4>
         <span
           className="shrink-0 text-xs font-medium whitespace-nowrap"
           title={dep.statusLabel}
@@ -60,7 +60,7 @@ function DependencyCard({ dep }: { dep: InfraDependencyView }) {
           {dep.costCurrent}
         </p>
         {dep.runtimeDetail ? (
-          <p className="rounded-lg bg-white/70 dark:bg-black/20 px-2.5 py-1.5 text-[11px] text-violet-800 dark:text-violet-200 font-mono leading-snug">
+          <p className="rounded-lg bg-white/[0.06] border border-white/[0.06] px-2.5 py-1.5 text-[11px] text-violet-200 font-mono leading-snug">
             Runtime: {dep.runtimeDetail}
           </p>
         ) : null}
@@ -159,7 +159,7 @@ export default function InfrastructureSection() {
 
   return (
     <section className="space-y-6" aria-labelledby="infra-heading">
-      <div className="rounded-3xl bg-gradient-to-br from-[#1d1d1f] via-[#252528] to-[#1a1a1a] text-white p-5 md:p-6 border border-gray-800/80 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+      <div className="rounded-3xl glass-dark p-5 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/20 ring-1 ring-violet-400/30">
@@ -228,7 +228,7 @@ export default function InfrastructureSection() {
             <div className="flex items-center gap-2">
               <Icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               <div>
-                <h3 className="text-lg font-semibold text-[#1D1D1F] dark:text-gray-100">{group.title}</h3>
+                <h3 className="text-lg font-semibold text-white/90">{group.title}</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{group.subtitle}</p>
               </div>
               <span className="ml-auto text-xs font-medium text-gray-400">{deps.length} servicios</span>
@@ -242,7 +242,7 @@ export default function InfrastructureSection() {
         );
       })}
 
-      <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-4 text-xs text-gray-500 dark:text-gray-400 flex flex-wrap gap-3 items-center">
+      <div className="rounded-2xl border border-dashed border-white/[0.1] p-4 text-xs text-white/45 flex flex-wrap gap-3 items-center">
         <Server className="h-4 w-4 shrink-0" />
         <span>
           Detalle operativo del bot y crons:{' '}

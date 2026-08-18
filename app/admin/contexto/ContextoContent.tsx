@@ -9,7 +9,7 @@ export default function ContextoContent() {
     <div className="space-y-8 pb-10 max-w-3xl">
       <header>
         <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-300">
             <Shield className="h-6 w-6" />
           </div>
           <div>

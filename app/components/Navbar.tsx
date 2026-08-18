@@ -249,7 +249,7 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="absolute top-0 right-0 z-50 p-3 md:p-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <nav className="aventa-public-navbar absolute top-0 right-0 z-50 p-3 md:p-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2 md:gap-3">
         {user && isMd && (
           <p className="hidden lg:block text-sm font-medium text-[#1d1d1f] dark:text-[#fafafa]">

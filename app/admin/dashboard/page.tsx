@@ -38,18 +38,18 @@ function StatCard({
   tone?: 'violet' | 'amber' | 'emerald' | 'red';
 }) {
   const tones = {
-    violet: 'text-violet-600 dark:text-violet-400',
-    amber: 'text-amber-500 dark:text-amber-400',
-    emerald: 'text-emerald-600 dark:text-emerald-400',
-    red: 'text-red-500 dark:text-red-400',
+    violet: 'text-violet-300',
+    amber: 'text-amber-400',
+    emerald: 'text-emerald-400',
+    red: 'text-red-400',
   } as const;
 
   const content = (
-    <div className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+    <div className="rounded-3xl glass-dark p-5 aventa-lift">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">{value}</p>
+          <p className="mt-1 text-3xl font-semibold tracking-tight text-white/90">{value}</p>
         </div>
         <Icon className={`h-8 w-8 ${tones[tone]}`} />
       </div>
@@ -132,21 +132,21 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[28px] bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400">
+      <section className="rounded-[28px] glass-dark p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
           Panel de control
         </p>
-        <h1 className="mt-2 text-3xl md:text-4xl font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+        <h1 className="mt-2 text-3xl md:text-4xl font-semibold tracking-tight text-white/90">
           Admin AVENTA
         </h1>
-        <p className="mt-3 max-w-2xl text-sm md:text-base text-gray-500 dark:text-gray-400 leading-relaxed">
+        <p className="mt-3 max-w-2xl text-sm md:text-base text-white/50 leading-relaxed">
           Vista rápida de lo que urge hoy: cola de moderación, reportes, salud del sistema y accesos
           directos a las herramientas más importantes.
         </p>
       </section>
 
       {loading ? (
-        <div className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 text-sm text-gray-500 dark:text-gray-400">
+        <div className="rounded-3xl glass-dark p-6 text-sm text-white/45">
           Cargando panel...
         </div>
       ) : (
@@ -191,26 +191,26 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
-            <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-              <h2 className="text-lg font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+            <section className="rounded-3xl glass-dark p-6">
+              <h2 className="text-lg font-semibold tracking-tight text-white/90">
                 Resumen de comunidad
               </h2>
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Usuarios nuevos hoy</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                  <p className="text-sm text-white/45">Usuarios nuevos hoy</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-white/90">
                     {stats?.productMetrics?.new_users_today ?? '—'}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Activos últimas 24h</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                  <p className="text-sm text-white/45">Activos últimas 24h</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-white/90">
                     {stats?.productMetrics?.active_users_24h ?? '—'}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Retención 48h</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                  <p className="text-sm text-white/45">Retención 48h</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-white/90">
                     {stats?.productMetrics?.retention_48h_pct != null
                       ? `${stats.productMetrics.retention_48h_pct}%`
                       : '—'}
@@ -219,10 +219,10 @@ export default function AdminDashboardPage() {
               </div>
             </section>
 
-            <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+            <section className="rounded-3xl glass-dark p-6">
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-violet-500" />
-                <h2 className="text-lg font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+                <h2 className="text-lg font-semibold tracking-tight text-white/90">
                   Acciones rápidas
                 </h2>
               </div>
@@ -239,7 +239,7 @@ export default function AdminDashboardPage() {
                 {canMet ? (
                   <Link
                     href="/admin/metrics"
-                    className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-gray-100 dark:bg-[#111113] text-gray-800 dark:text-gray-200 text-sm font-semibold transition-transform active:scale-95 hover:bg-gray-200 dark:hover:bg-[#202024]"
+                    className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-white/[0.06] border border-white/[0.08] text-white/80 text-sm font-semibold transition-transform active:scale-95 hover:bg-white/[0.1]"
                   >
                     <BarChart3 className="h-4 w-4" />
                     Ver métricas
@@ -248,7 +248,7 @@ export default function AdminDashboardPage() {
                 {canOwnerOps ? (
                   <Link
                     href="/admin/operaciones/trabajo"
-                    className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-gray-100 dark:bg-[#111113] text-gray-800 dark:text-gray-200 text-sm font-semibold transition-transform active:scale-95 hover:bg-gray-200 dark:hover:bg-[#202024]"
+                    className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-white/[0.06] border border-white/[0.08] text-white/80 text-sm font-semibold transition-transform active:scale-95 hover:bg-white/[0.1]"
                   >
                     <Wrench className="h-4 w-4" />
                     Trabajo

@@ -275,7 +275,7 @@ export default function TrabajoPageContent() {
   if (!isOwner) return null;
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] -m-4 lg:-m-6 p-4 lg:p-6">
+    <div className="space-y-8">
         <div className="max-w-3xl mx-auto px-4 py-8 md:py-10 pb-28 md:pb-10">
           <Link
             href="/admin/operaciones"

@@ -188,7 +188,7 @@ export default function TeamPage() {
   const teamIds = new Set(team.map((m) => m.user_id));
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-[#141414] p-6">
+    <div>
       <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Equipo
       </h1>

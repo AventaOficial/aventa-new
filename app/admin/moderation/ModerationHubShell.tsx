@@ -39,24 +39,24 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
           'bg-white/80 dark:bg-white/[0.04] text-gray-600 dark:text-gray-400 border border-black/[0.06] dark:border-white/[0.08] hover:border-emerald-300 dark:hover:border-emerald-700',
       }
     : {
-        border: 'border-violet-200/70 dark:border-violet-900/50',
-        gradient:
-          'from-violet-50/90 via-white to-slate-50 dark:from-violet-950/30 dark:via-[#151517] dark:to-[#101012]',
-        iconBg: 'bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400',
-        label: 'text-violet-600 dark:text-violet-400',
-        tabActive: 'bg-violet-600 text-white dark:bg-violet-500',
+        border: 'border-white/[0.08]',
+        gradient: 'from-violet-500/12 via-transparent to-transparent',
+        iconBg: 'bg-violet-500/15 text-violet-300',
+        label: 'text-violet-300/80',
+        tabActive: 'bg-violet-500 text-white',
         tabIdle:
-          'bg-white/80 dark:bg-[#1a1a1a]/80 text-gray-600 dark:text-gray-400 border border-gray-200/80 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700',
+          'bg-white/[0.04] text-white/50 border border-white/[0.08] hover:border-violet-400/40 hover:text-white/80',
       };
 
   return (
     <div className="space-y-6 pb-6">
       <header
         className={cn(
-          'rounded-2xl border px-5 py-5 md:px-7 md:py-6 glass-light dark:glass-dark shadow-sm',
+          'rounded-2xl border px-5 py-5 md:px-7 md:py-6',
           accent.border,
-          isWorkspace && 'bg-gradient-to-br',
-          !isWorkspace && `bg-gradient-to-br ${accent.gradient}`
+          isWorkspace
+            ? 'glass-light dark:glass-dark bg-gradient-to-br'
+            : `glass-dark bg-gradient-to-br ${accent.gradient}`
         )}
       >
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -68,10 +68,20 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
               <p className={cn('text-[10px] font-bold uppercase tracking-[0.16em]', accent.label)}>
                 {isWorkspace ? 'AVENTA Workspace' : 'Contenido · AVENTA'}
               </p>
-              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
+              <h1
+                className={cn(
+                  'text-xl md:text-2xl font-semibold tracking-tight',
+                  isWorkspace ? 'text-gray-900 dark:text-gray-100' : 'text-white/90'
+                )}
+              >
                 {isWorkspace ? 'Moderación' : 'Centro de moderación'}
               </h1>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 max-w-xl">
+              <p
+                className={cn(
+                  'mt-1 text-sm max-w-xl',
+                  isWorkspace ? 'text-gray-600 dark:text-gray-400' : 'text-white/45'
+                )}
+              >
                 {isWorkspace
                   ? 'Cola, preview, acciones y historial — todo desde tu jornada.'
                   : 'Herramienta administrativa profunda para revisar ofertas, comentarios y reportes.'}

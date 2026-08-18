@@ -534,7 +534,7 @@ export default function OperacionesPageContent() {
   const alertsOptionalMissing = areaStatuses.alertas === 'warn';
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] -m-4 lg:-m-6 p-4 lg:p-6">
+    <div className="space-y-8">
         <div className="max-w-5xl mx-auto px-4 py-8 md:py-10 pb-28 md:pb-10">
           <header className="mb-8">
             <div className="flex items-center gap-3 mb-2">

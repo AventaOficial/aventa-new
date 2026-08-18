@@ -122,14 +122,14 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[28px] bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400">
+      <section className="rounded-[28px] glass-dark p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
           Cuarto de máquinas
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white/90">
           Datos técnicos
         </h1>
-        <p className="mt-3 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-3 max-w-2xl text-sm text-white/50">
           Estado crudo del bot e integridad del sistema para debugging y copy-paste a IA.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
@@ -144,7 +144,7 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
           <button
             type="button"
             onClick={() => void loadData()}
-            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-gray-100 dark:bg-[#111113] text-gray-800 dark:text-gray-200 text-sm font-semibold transition-transform active:scale-95 hover:bg-gray-200 dark:hover:bg-[#202024]"
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-white/[0.06] border border-white/[0.08] text-white/80 text-sm font-semibold transition-transform active:scale-95 hover:bg-white/[0.1]"
           >
             <RefreshCw className="h-4 w-4" />
             Recargar
@@ -153,15 +153,15 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
       </section>
 
       {loading ? (
-        <div className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 text-sm text-gray-500 dark:text-gray-400">
+        <div className="rounded-3xl glass-dark p-6 text-sm text-white/45">
           Cargando datos técnicos...
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <section className="rounded-3xl glass-dark p-6">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5 text-violet-500" />
-              <h2 className="text-lg font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">Bot de ingesta</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-white/90">Bot de ingesta</h2>
             </div>
             {botData ? (
               <div className="mt-4 space-y-4 text-sm">
@@ -176,29 +176,29 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
                   ) : null}
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                    <p className="text-gray-500 dark:text-gray-400">Perfil</p>
-                    <p className="mt-1 font-semibold text-[#1D1D1F] dark:text-gray-100">{botData.config.profile ?? 'standard'}</p>
+                  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                    <p className="text-white/45">Perfil</p>
+                    <p className="mt-1 font-semibold text-white/90">{botData.config.profile ?? 'standard'}</p>
                   </div>
-                  <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                    <p className="text-gray-500 dark:text-gray-400">Cron</p>
-                    <p className="mt-1 font-semibold text-[#1D1D1F] dark:text-gray-100">{botData.cron.schedule}</p>
+                  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                    <p className="text-white/45">Cron</p>
+                    <p className="mt-1 font-semibold text-white/90">{botData.cron.schedule}</p>
                   </div>
-                  <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                    <p className="text-gray-500 dark:text-gray-400">Fuentes Amazon</p>
-                    <p className="mt-1 font-semibold text-[#1D1D1F] dark:text-gray-100">
+                  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                    <p className="text-white/45">Fuentes Amazon</p>
+                    <p className="mt-1 font-semibold text-white/90">
                       {botData.config.amazon_asins_count ?? 0} ASINs · {botData.config.amazon_source ?? 'scrape'}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                    <p className="text-gray-500 dark:text-gray-400">Hoy</p>
-                    <p className="mt-1 font-semibold text-[#1D1D1F] dark:text-gray-100">
+                  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                    <p className="text-white/45">Hoy</p>
+                    <p className="mt-1 font-semibold text-white/90">
                       {botData.capacity.inserted_today_approx ?? '—'} insertadas
                     </p>
                   </div>
                 </div>
-                <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
-                  <p className="font-medium text-[#1D1D1F] dark:text-gray-100">Variables de entorno</p>
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
+                  <p className="font-medium text-white/90">Variables de entorno</p>
                   <ul className="mt-2 space-y-1">
                     {botData.env_required.map((key) => (
                       <li key={key} className="flex items-center gap-2 text-xs">
@@ -215,10 +215,10 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
             )}
           </section>
 
-          <section className="rounded-3xl bg-white dark:bg-[#1C1C1E] border border-gray-200/70 dark:border-gray-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <section className="rounded-3xl glass-dark p-6">
             <div className="flex items-center gap-2">
               <Database className="h-5 w-5 text-violet-500" />
-              <h2 className="text-lg font-semibold tracking-tight text-[#1D1D1F] dark:text-gray-100">Integridad del sistema</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-white/90">Integridad del sistema</h2>
             </div>
             {integrity ? (
               <div className="mt-4 space-y-4">
@@ -226,20 +226,20 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
                   <ShieldAlert className="h-4 w-4" />
                   {integrity.ok ? 'Sistema OK' : 'Fallos detectados'}
                 </div>
-                <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4 text-sm">
-                  <p className="text-gray-500 dark:text-gray-400">Última ejecución</p>
-                  <p className="mt-1 font-semibold text-[#1D1D1F] dark:text-gray-100">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 text-sm">
+                  <p className="text-white/45">Última ejecución</p>
+                  <p className="mt-1 font-semibold text-white/90">
                     {new Date(integrity.finishedAt).toLocaleString('es-MX')}
                   </p>
                   <p className="mt-2 text-gray-500 dark:text-gray-400">
                     {integrity.summary.passed}/{integrity.summary.total} checks OK
                   </p>
                 </div>
-                <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
                   <ul className="space-y-2 text-sm">
                     {integrity.checks.map((check) => (
                       <li key={check.name} className="border-b border-gray-200/70 dark:border-gray-800 pb-2 last:border-b-0 last:pb-0">
-                        <p className="font-medium text-[#1D1D1F] dark:text-gray-100">
+                        <p className="font-medium text-white/90">
                           [{check.ok ? 'OK' : 'FAIL'}] {check.name}
                         </p>
                         <p className="text-gray-500 dark:text-gray-400">{check.detail}</p>

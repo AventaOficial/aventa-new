@@ -32,6 +32,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const showMain = layoutReady && !showOnboarding;
   const isHome = pathname === '/';
   const showContent = !isHome || (hasDecided && showMain);
+  const isPanelRoute = pathname.startsWith('/admin') || pathname.startsWith('/equipo');
 
   useEffect(() => {
     if (!session?.access_token) return;
@@ -50,7 +51,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <OnboardingV1 />
       <GuideModalStandalone />
       {showContent ? (
-        <main className="pb-24 md:pb-0 md:pl-56 min-h-screen">
+        <main className={isPanelRoute ? 'min-h-screen' : 'pb-24 md:pb-0 md:pl-56 min-h-screen'}>
           {children}
         </main>
       ) : (

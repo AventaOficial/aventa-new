@@ -49,10 +49,10 @@ function NavLink({
         flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-medium tracking-tight transition-all
         ${
           isActive
-            ? 'bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shadow-[0_4px_20px_rgba(0,0,0,0.03)]'
+            ? 'bg-violet-500/15 text-violet-300 border border-violet-500/20'
             : item.subtle
-              ? 'text-gray-500 dark:text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-900'
-              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-900'
+              ? 'text-white/35 hover:bg-white/[0.05] hover:text-white/55 border border-transparent'
+              : 'text-white/55 hover:bg-white/[0.05] hover:text-white/80 border border-transparent'
         }
       `}
     >
@@ -82,22 +82,20 @@ function NavSection({
         type="button"
         onClick={onToggle}
         className={`flex w-full flex-col items-stretch gap-0.5 px-3 py-2 rounded-xl text-left transition-colors ${
-          hasActiveChild
-            ? 'bg-violet-50/80 dark:bg-violet-950/30'
-            : 'hover:bg-gray-100/80 dark:hover:bg-gray-900'
+          hasActiveChild ? 'bg-violet-500/10' : 'hover:bg-white/[0.04]'
         }`}
       >
         <span className="flex items-center justify-between gap-2">
           <span
             className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
-              hasActiveChild ? 'text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400'
+              hasActiveChild ? 'text-violet-300' : 'text-white/35'
             }`}
           >
             {section.title}
           </span>
-          <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-white/30 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </span>
-        <span className="text-[10px] text-gray-400 dark:text-gray-500 pr-6">{section.subtitle}</span>
+        <span className="text-[10px] text-white/25 pr-6">{section.subtitle}</span>
       </button>
       {isOpen ? (
         <div className="mt-1 space-y-0.5 pl-1">
@@ -253,18 +251,18 @@ export default function AdminLayout({
 
   if (!authGateReady) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-[#141414] flex items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Cargando…</div>
+      <div className="aventa-panel-route owner-os-bg min-h-screen flex items-center justify-center">
+        <div className="text-white/45">Cargando…</div>
       </div>
     );
   }
 
   if (!user || hasAllowedRole === false) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-[#141414] flex items-center justify-center">
+      <div className="aventa-panel-route owner-os-bg min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-700 dark:text-gray-300 font-medium">Acceso restringido</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-white/80 font-medium">Acceso restringido</p>
+          <p className="text-sm text-white/45 mt-1">
             Solo usuarios con rol admin panel (owner, admin, moderator, analyst) pueden acceder aquí.
             Si eres del equipo operativo, entra a{' '}
             <Link href="/equipo" className="text-emerald-600 hover:underline">
@@ -286,23 +284,23 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-black flex">
+    <div className="aventa-panel-route owner-os-bg min-h-screen flex text-white">
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 w-72 bg-white/95 dark:bg-[#111113]/95 backdrop-blur-xl border-r border-gray-200/80 dark:border-gray-800
+          fixed inset-y-0 left-0 z-40 w-72 bg-black/20 backdrop-blur-2xl border-r border-white/[0.06]
           transform transition-transform duration-200 ease-in-out
           lg:translate-x-0 lg:static
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="flex h-16 items-center justify-between px-5 border-b border-gray-200/80 dark:border-gray-800 lg:justify-start">
-          <Link href={homeHref} className="font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+        <div className="flex h-16 items-center justify-between px-5 border-b border-white/[0.06] lg:justify-start">
+          <Link href={homeHref} className="font-semibold tracking-tight text-white/90">
             Panel Admin
           </Link>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="lg:hidden p-2 rounded-lg hover:bg-white/[0.06] text-white/70"
             aria-label="Cerrar menú"
           >
             <X className="h-5 w-5" />
@@ -316,7 +314,7 @@ export default function AdminLayout({
 
           {nav.moderationMain.length > 0 ? (
             <div>
-              <p className="px-3 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+              <p className="px-3 py-1 text-[10px] font-semibold text-white/30 uppercase tracking-[0.2em]">
                 Moderación
               </p>
               <div className="mt-1 space-y-0.5">
@@ -372,16 +370,16 @@ export default function AdminLayout({
       )}
 
       <main className="flex-1 min-w-0">
-        <div className="sticky top-0 z-20 flex h-14 items-center gap-2 px-4 bg-[#F5F5F7]/90 dark:bg-black/90 backdrop-blur-xl border-b border-gray-200/80 dark:border-gray-800 lg:hidden">
+        <div className="sticky top-0 z-20 flex h-14 items-center gap-2 px-4 bg-[#060608]/80 backdrop-blur-xl border-b border-white/[0.06] lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-white/[0.06] text-white/70"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-medium text-gray-800 dark:text-gray-200">{mobileTitle}</span>
+          <span className="font-medium text-white/80">{mobileTitle}</span>
         </div>
         <div className="p-4 lg:p-6 max-w-7xl mx-auto w-full">{children}</div>
       </main>

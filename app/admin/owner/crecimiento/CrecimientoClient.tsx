@@ -175,7 +175,7 @@ export default function CrecimientoClient() {
         </div>
         <div className="mt-5 h-2.5 rounded-full bg-white/20 overflow-hidden">
           <div
-            className="h-full rounded-full bg-white transition-all duration-500"
+            className="h-full rounded-full bg-violet-200 transition-all duration-500"
             style={{ width: `${Math.max(2, aspiration.progressToMillionPct)}%` }}
           />
         </div>
@@ -224,7 +224,7 @@ export default function CrecimientoClient() {
           {nextActions.map((a) => (
             <li
               key={a.id}
-              className="flex items-start gap-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-[#F5F5F7]/60 dark:bg-[#111113] p-3"
+              className="flex items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] p-3"
             >
               <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${statusDot(a.priority)}`} />
               <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ export default function CrecimientoClient() {
               {row.billingNote ? (
                 <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">{row.billingNote}</p>
               ) : null}
-              <div className="mt-3 rounded-xl bg-[#F5F5F7]/80 dark:bg-[#111113] px-3 py-2">
+              <div className="mt-3 rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-2">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Siguiente plan</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200 mt-0.5">{row.nextTierLabel}</p>
                 {row.id !== 'domain' && row.nextTierMonthlyUsd > 0 ? (

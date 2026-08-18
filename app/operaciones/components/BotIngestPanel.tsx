@@ -207,7 +207,7 @@ export default function BotIngestPanel() {
             ) : null}
           </div>
 
-          <div className="rounded-3xl bg-[#F5F5F7] dark:bg-[#111113] p-4">
+          <div className="rounded-3xl bg-white/[0.04] border border-white/[0.06] p-4">
             <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
