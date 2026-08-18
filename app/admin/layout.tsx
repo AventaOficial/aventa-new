@@ -14,6 +14,7 @@ import {
   canManageTeam,
   canManageAnnouncements,
   canAccessOwnerOperationsPanel,
+  canAccessTeamBoard,
   type Role,
 } from '@/lib/admin/roles';
 import {
@@ -154,6 +155,7 @@ export default function AdminLayout({
   const canTeam = canManageTeam(userRole);
   const canAnnouncements = canManageAnnouncements(userRole);
   const canOwnerOpsPanel = canAccessOwnerOperationsPanel(userRole);
+  const canTeamBoard = canAccessTeamBoard(userRole);
   const canMet = canAccessMetrics(userRole);
   const canHea = canAccessHealth(userRole);
   const canTechnical = canOwnerOpsPanel;
@@ -164,6 +166,7 @@ export default function AdminLayout({
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
+    const isEquipoPath = pathname.startsWith('/admin/equipo');
     const isOwnerPanelPath = pathname === '/admin/owner';
     const isAnalistaPath = pathname === '/admin/analista';
     const isAnnouncementsPath = pathname === '/admin/announcements';
@@ -179,6 +182,8 @@ export default function AdminLayout({
     const isInfraestructuraPath = pathname === '/admin/infraestructura';
     const isContextoPath = pathname === '/admin/contexto';
     if (isOwnerPanelPath && !canOwnerOpsPanel) {
+      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isEquipoPath && !canTeamBoard) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isDashboardPath && userRole === 'owner') {
       router.replace('/admin/owner');
@@ -220,6 +225,7 @@ export default function AdminLayout({
     canUsersLogs,
     canTeam,
     canOwnerOpsPanel,
+    canTeamBoard,
     canAnnouncements,
     canMet,
     canHea,

@@ -5,9 +5,9 @@ import { resolveGrowthStage, computeBillingTotals, AVENTA_DOMAIN_PAYMENT } from 
 describe('homeFeedClient', () => {
   it('applyVitalesFeedTransform excluye score >= cap', () => {
     const list = [
-      { votes: { score: DIA_A_DIA_SCORE_CAP } },
-      { votes: { score: 10 } },
-      { votes: { score: 5 } },
+      { votes: { up: 0, down: 0, score: DIA_A_DIA_SCORE_CAP } },
+      { votes: { up: 10, down: 0, score: 10 } },
+      { votes: { up: 5, down: 0, score: 5 } },
     ];
     const out = applyVitalesFeedTransform(list, 10);
     expect(out.every((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP)).toBe(true);

@@ -5,6 +5,7 @@ import {
   Briefcase,
   CheckCircle,
   CircleDollarSign,
+  ClipboardCheck,
   ClipboardList,
   Database,
   FileText,
@@ -31,6 +32,7 @@ import {
   canAccessMetrics,
   canAccessModeration,
   canAccessOwnerOperationsPanel,
+  canAccessTeamBoard,
   canAccessUsersLogs,
   canManageAnnouncements,
   canManageTeam,
@@ -121,6 +123,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/moderation',
     label: 'Moderación',
+    domain: 'contenido',
+    frequency: 'diario',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'moderation',
+  },
+  {
+    href: '/admin/equipo',
+    label: 'Zona de trabajo',
     domain: 'contenido',
     frequency: 'diario',
     audiences: ['founder', 'moderador', 'admin'],
@@ -316,6 +326,7 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/commissions': CircleDollarSign,
   '/admin/creator-tags': Tags,
   '/admin/moderation': ClipboardList,
+  '/admin/equipo': ClipboardCheck,
   '/admin/moderation/reports': Flag,
   '/admin/reports': Flag,
   '/admin/moderation/comments': MessageCircle,
@@ -394,6 +405,8 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
       return canManageAnnouncements(role);
     case '/admin/moderation/social':
       return canManageTeam(role);
+    case '/admin/equipo':
+      return canAccessTeamBoard(role);
     case '/admin/users':
     case '/admin/logs':
       return canAccessUsersLogs(role);
@@ -529,6 +542,7 @@ export function getInitialOpenSections(
 /** Título móvil del sistema CEO OS según ruta */
 export function getAdminMobileSectionTitle(pathname: string): string {
   if (pathname === '/admin/owner') return 'Owner Dashboard';
+  if (pathname === '/admin/equipo') return 'Zona de trabajo';
   if (pathname === '/admin/owner/crecimiento') return 'Crecimiento AVENTA';
   if (pathname === '/admin/owner/cazadores') return 'Cazadores de confianza';
   if (pathname === '/admin/metrics') return 'Crecimiento';

@@ -57,6 +57,11 @@ export async function requireModeration(request: Request): Promise<AuthResult> {
   return requireRole(request, MODERATION_ROLES)
 }
 
+/** Zona de trabajo del equipo (owner / admin / moderator) */
+export async function requireTeamBoard(request: Request): Promise<AuthResult> {
+  return requireRole(request, MODERATION_ROLES)
+}
+
 /** Para métricas (refresh-metrics) */
 export async function requireMetrics(request: Request): Promise<AuthResult> {
   return requireRole(request, METRICS_ROLES)

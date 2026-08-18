@@ -1,14 +1,13 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, Suspense, type ReactNode } from 'react';
 import Navbar from './components/Navbar';
 import ActionBar from './components/ActionBar';
 import OnboardingV1, { GuideModalStandalone } from './components/OnboardingV1';
 import AventaIcon from './components/AventaIcon';
 import { useUI } from './providers/UIProvider';
 import { useAuth } from './providers/AuthProvider';
-import { ReactNode } from 'react';
 import { logClientError } from '@/lib/utils/handleError';
 
 const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 min
@@ -57,7 +56,9 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       ) : (
         <LoadingScreen />
       )}
-      <ActionBar />
+      <Suspense fallback={null}>
+        <ActionBar />
+      </Suspense>
       {toastMessage && (
         <div
           className={`fixed bottom-28 left-1/2 z-[10001] -translate-x-1/2 rounded-2xl bg-[#1d1d1f] dark:bg-[#1d1d1f] px-5 py-3 text-white shadow-lg flex items-center justify-center text-center ${

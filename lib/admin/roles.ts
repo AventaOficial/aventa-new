@@ -2,9 +2,10 @@
  * Roles AVENTA y permisos por sección.
  * owner: acceso total (moderación + usuarios/logs + métricas/health)
  * admin: casi igual que owner; **no** ve Centro de operaciones, Trabajo ni Peso de voto (solo owner).
- * moderator: solo moderación (Pendientes, Aprobadas, Rechazadas, Comentarios, Reportes). No ve Usuarios, Logs, Métricas, Health.
+ * moderator: cola de moderación + zona de trabajo del equipo. No ve Usuarios, Logs, Métricas, Health ni paneles de fundador.
  * analyst: solo Métricas y Health.
  * Equipo (/admin/team): owner y admin; solo el owner puede tocar cuentas owner, asignar owner/admin o editar a otros admins.
+ * Zona de trabajo (/admin/equipo): owner, admin y moderator. Tareas y checklist operativo del staff.
  */
 
 export const ROLES = ['owner', 'admin', 'moderator', 'analyst'] as const;
@@ -13,6 +14,8 @@ export type Role = (typeof ROLES)[number];
 export const ADMIN_NAV = {
   /** Ver pendientes, aprobadas, rechazadas, comentarios, reportes */
   moderation: ['owner', 'admin', 'moderator'],
+  /** Tablero operativo del staff (no el centro de operaciones del founder) */
+  teamBoard: ['owner', 'admin', 'moderator'],
   /** Ver usuarios y logs (solo owner/admin) */
   usersLogs: ['owner', 'admin'],
   /** Gestionar equipo: ver y editar roles (owner y admin) */
@@ -25,6 +28,11 @@ export const ADMIN_NAV = {
 
 export function canAccessModeration(role: Role | null): boolean {
   return role !== null && (ADMIN_NAV.moderation as readonly Role[]).includes(role);
+}
+
+/** Zona de trabajo del equipo: checklist, tareas y ofertas para grabar. No incluye bot/finanzas del owner. */
+export function canAccessTeamBoard(role: Role | null): boolean {
+  return role !== null && (ADMIN_NAV.teamBoard as readonly Role[]).includes(role);
 }
 
 /** Solo owner y admin ven Usuarios y Logs; moderadores no. */
