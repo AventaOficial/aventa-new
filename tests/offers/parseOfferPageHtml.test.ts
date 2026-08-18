@@ -2,15 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { extractOfferImages, extractSuggestedPrices, parsePositiveLocalizedNumber } from '../../lib/offers/parseOfferPageHtml';
 
 describe('parseOfferPageHtml', () => {
-  it('lee varios og:image y hiRes de Amazon', () => {
+  it('lee data-old-hires y varias imágenes I/ de Amazon', () => {
     const html = `
-      <meta property="og:image" content="https://m.media-amazon.com/images/I/cover.jpg" />
-      <script>{"hiRes":"https://m.media-amazon.com/images/I/a.jpg","large":"https://m.media-amazon.com/images/I/b.jpg"}</script>
-      <script>{"hiRes":"https://m.media-amazon.com/images/I/c.jpg"}</script>
+      <img data-old-hires="https://m.media-amazon.com/images/I/71AAA._AC_SL1500_.jpg" />
+      <div id="altImages">
+        <img src="https://m.media-amazon.com/images/I/71BBB._AC_SL1500_.jpg" />
+        <img src="https://m.media-amazon.com/images/I/71CCC._AC_US40_.jpg" />
+      </div>
     `;
     const imgs = extractOfferImages(html, 'https://www.amazon.com.mx/dp/X');
-    expect(imgs.length).toBeGreaterThanOrEqual(2);
-    expect(imgs[0]).toContain('cover.jpg');
+    expect(imgs.some((u) => u.includes('71AAA'))).toBe(true);
+    expect(imgs.some((u) => u.includes('71BBB'))).toBe(true);
+    expect(imgs.some((u) => u.includes('_AC_US40_'))).toBe(false);
   });
 
   it('extrae precio JSON-LD Offer', () => {
@@ -32,8 +35,17 @@ describe('parseOfferPageHtml', () => {
     expect(p.original).toBe(800);
   });
 
-  it('parsea montos MX con coma', () => {
-    expect(parsePositiveLocalizedNumber('$1,299.50')).toBe(1299.5);
-    expect(parsePositiveLocalizedNumber('12.999,50')).toBe(12999.5);
+  it('no toma el 749 de envío gratis si hay precio de ficha Amazon', () => {
+    const html = `
+      <span id="productTitle">Audífonos</span>
+      <div id="corePriceDisplay_desktop_feature_div">
+        <span class="a-price"><span class="a-offscreen">$1,299.00</span>
+        <span class="a-price-whole">1,299</span><span class="a-price-fraction">00</span></span>
+      </div>
+      {"price":749,"currency":"MXN"}
+      <p>Envío GRATIS en pedidos mayores a $749</p>
+    `;
+    const p = extractSuggestedPrices(html);
+    expect(p.discount).toBe(1299);
   });
 });

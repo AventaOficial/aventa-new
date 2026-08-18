@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
     // Si el usuario ya guardó nombre desde Configuración, no sobrescribir display_name/slug con OAuth
     const customNameAt = (existing as { display_name_updated_at?: string | null }).display_name_updated_at;
-    if (customNameAt) {
+    if (customNameAt || (existing.display_name && String(existing.display_name).trim())) {
       const { error: avatarOnlyError } = await supabase
         .from('profiles')
         .update({ avatar_url: avatarUrlVal })

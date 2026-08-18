@@ -109,6 +109,41 @@ function extractJsonLikeNumber(html: string, field: string): number | null {
 
 export type ExtractedPrices = { discount: number | null; original: number | null };
 
+/** Precio visible en ficha Amazon. Evita el primer `"price":749` (umbral de envío gratis, widgets). */
+export function extractAmazonDomPrices(html: string): ExtractedPrices {
+  if (!/a-price|data-asin-price|priceAmount|productTitle/i.test(html)) {
+    return { discount: null, original: null };
+  }
+  const core =
+    html.match(/id="corePrice(?:Display)?(?:_desktop)?_feature_div"[\s\S]{0,4000}/i)?.[0] ??
+    html.match(/class="[^"]*priceToPay[^"]*"[\s\S]{0,1200}/i)?.[0] ??
+    '';
+  const scope = core || html;
+  const offscreen = parsePositiveLocalizedNumber(scope.match(/a-offscreen[^>]*>([^<]{1,40})/i)?.[1]);
+  const whole = scope.match(/a-price-whole[^>]*>([0-9.,]+)/i)?.[1];
+  const frac = scope.match(/a-price-fraction[^>]*>([0-9]{1,2})/i)?.[1];
+  let fromWhole: number | null = null;
+  if (whole) {
+    const combined = frac ? `${whole.replace(/<[^>]+>/g, '')}.${frac}` : whole;
+    fromWhole = parsePositiveLocalizedNumber(combined);
+  }
+  const asinPrice = parsePositiveLocalizedNumber(html.match(/data-asin-price=["']([^"']+)["']/i)?.[1]);
+  const priceAmount = parsePositiveLocalizedNumber(html.match(/"priceAmount"\s*:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1]);
+  const displayPrice = parsePositiveLocalizedNumber(html.match(/"displayPrice"\s*:\s*"([^"]+)"/i)?.[1]);
+  const discount = offscreen ?? fromWhole ?? asinPrice ?? priceAmount ?? displayPrice;
+  const list =
+    parsePositiveLocalizedNumber(html.match(/basisPrice[\s\S]{0,400}?a-offscreen[^>]*>([^<]+)/i)?.[1]) ??
+    parsePositiveLocalizedNumber(html.match(/"listPrice"\s*:\s*"([^"]+)"/i)?.[1]);
+  return {
+    discount,
+    original: list != null && discount != null && list > discount ? list : null,
+  };
+}
+
+export function amazonHtmlMatchesAsin(html: string, asin: string): boolean {
+  return html.toUpperCase().includes(asin.toUpperCase());
+}
+
 function collectLdJson(html: string): unknown[] {
   const out: unknown[] = [];
   const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -141,9 +176,7 @@ function walkLd(node: unknown, visit: (o: Record<string, unknown>, typeStr: stri
 }
 
 export function extractSuggestedPrices(html: string): ExtractedPrices {
-  let discount: number | null =
-    parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
-    parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount'));
+  let discount: number | null = null;
   let original: number | null = parsePositiveNumber(getMetaContent(html, 'product:original_price:amount'));
 
   for (const parsed of collectLdJson(html)) {
@@ -164,15 +197,9 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
   if (discount == null) {
     discount = parsePositiveLocalizedNumber(html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1]);
   }
-  if (discount == null) {
-    discount =
-      parsePositiveLocalizedNumber(html.match(/["']priceAmount["']\s*:\s*([0-9][0-9.]*)/i)?.[1]) ||
-      parsePositiveLocalizedNumber(html.match(/data-asin-price=["']([^"']+)["']/i)?.[1]) ||
-      parsePositiveLocalizedNumber(html.match(/["']displayPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]) ||
-      parsePositiveLocalizedNumber(
-        html.match(/["']price["']\s*:\s*["']([^"']+)["']/i)?.[1] ?? html.match(/["']price["']\s*:\s*([0-9][0-9.,]+)/i)?.[1],
-      );
-  }
+  const amazonDom = extractAmazonDomPrices(html);
+  if (amazonDom.discount) discount = amazonDom.discount;
+  if (amazonDom.original) original = amazonDom.original || original;
   if (original == null) {
     original =
       extractJsonLikeNumber(html, 'original_price') ||
@@ -184,6 +211,12 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
   const mlDom = extractMercadoLibreDomPrices(html);
   if (mlDom.discount) discount = mlDom.discount;
   if (mlDom.original) original = mlDom.original;
+
+  if (discount == null && /productTitle|andes-money-amount|ld\+json/i.test(html)) {
+    discount =
+      parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount')) ||
+      parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount'));
+  }
 
   if (original != null && discount != null && original < discount) {
     const tmp = original;
@@ -254,6 +287,28 @@ export function extractOfferImages(html: string, base: string): string[] {
   while ((hm = mlCdnRe.exec(html)) !== null) {
     const u = hm[1];
     if (/D_NQ_NP_2X_|-F\.|-O\./i.test(u)) pushUnique(images, absoluteUrl(base, u));
+  }
+
+  const amzIRe = /(https?:\/\/[^"'\\\s]*media-amazon\.com\/images\/I\/[A-Za-z0-9,._%+-]+)/gi;
+  while ((hm = amzIRe.exec(html)) !== null) {
+    const u = hm[1];
+    if (/_AC_US\d{1,2}_|_SS\d{1,2}_|_SR\d+,\d+|sprite|grey-pixel|1x1/i.test(u)) continue;
+    pushUnique(images, absoluteUrl(base, u));
+  }
+
+  const oldHiresRe = /data-old-hires=["'](https?:[^"']+)["']/gi;
+  while ((hm = oldHiresRe.exec(html)) !== null) {
+    pushUnique(images, absoluteUrl(base, hm[1]));
+  }
+
+  const altImgRe = /id=["']altImages["'][\s\S]{0,8000}/i;
+  const altBlock = html.match(altImgRe)?.[0];
+  if (altBlock) {
+    const srcRe = /(?:src|data-src)=["'](https?:[^"']+media-amazon[^"']+)["']/gi;
+    while ((hm = srcRe.exec(altBlock)) !== null) {
+      if (/_AC_US\d{1,2}_|_SS\d{1,2}_/i.test(hm[1])) continue;
+      pushUnique(images, absoluteUrl(base, hm[1]));
+    }
   }
 
   return images.slice(0, MAX_IMAGES);

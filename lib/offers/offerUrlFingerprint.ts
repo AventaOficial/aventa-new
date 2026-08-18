@@ -65,6 +65,17 @@ export function extractAmazonAsin(rawUrl: string): string | null {
   }
 }
 
+function isWeakProductPath(path: string): boolean {
+  const p = path.replace(/\/+$/, '') || '/';
+  if (p === '/') return true;
+  if (
+    /^\/(s|search|gp\/search|gp\/slredirect|gp\/bestsellers|stores?|deals|gp\/goldbox)(\/|$)/i.test(p)
+  ) {
+    return true;
+  }
+  return p.length < 6;
+}
+
 function hostKey(hostname: string): string {
   return hostname.replace(/^www\./i, '').toLowerCase();
 }
@@ -99,19 +110,23 @@ export function offerUrlFingerprint(rawUrl: string): string | null {
     if (isMercadoLibreHost(u.hostname)) {
       const itemId = extractMercadoLibreItemId(trimmed);
       if (itemId) return `ml:${itemId}`;
-      // Shortlinks sin resolver: fingerprint por path del short id
       if (host === 'meli.la' || host.endsWith('.meli.la')) {
         const shortId = u.pathname.replace(/^\//, '').split('/')[0];
         if (shortId) return `meli.la:${shortId.toLowerCase()}`;
       }
+      const path = u.pathname.replace(/\/+$/, '') || '/';
+      if (isWeakProductPath(path)) return null;
     }
 
     if (isAmazonHost(u.hostname)) {
       const asin = extractAmazonAsin(trimmed);
       if (asin) return `amz:${asin}`;
+      const path = u.pathname.replace(/\/+$/, '') || '/';
+      if (isWeakProductPath(path)) return null;
     }
 
     const path = u.pathname.replace(/\/+$/, '') || '/';
+    if (isWeakProductPath(path)) return null;
     const kept = new URLSearchParams();
     u.searchParams.forEach((value, key) => {
       const k = key.toLowerCase();

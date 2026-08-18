@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   if (!eligibility.eligible) {
     return NextResponse.json(
       {
-        error: 'Aún no cumples los requisitos: necesitas 15 ofertas aprobadas, cada una con al menos 120 votos positivos.',
+        error: `Aún no cumples los requisitos: necesitas ${eligibility.requiredOffers} ofertas aprobadas, cada una con al menos ${eligibility.voteThreshold} votos positivos.`,
         ...eligibility,
       },
       { status: 403 },

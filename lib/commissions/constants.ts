@@ -1,9 +1,15 @@
-/** Ofertas aprobadas que deben alcanzar el umbral de votos (cada una). */
-export const COMMISSION_REQUIRED_OFFERS = 15;
-/** Votos positivos mínimos por oferta (columna upvotes_count). */
-export const COMMISSION_MIN_UPVOTES_PER_OFFER = 120;
+/**
+ * Ofertas aprobadas que deben alcanzar el umbral de votos (cada una).
+ * Beta: 5×15. En comunidad grande se puede volver a 15×120.
+ */
+export const COMMISSION_REQUIRED_OFFERS = 5;
+/**
+ * Likes distintos por oferta (filas en offer_votes), no usuarios totales del sitio.
+ * Los mismos cazadores pueden votar las 5 ofertas: el mínimo real es ~15 personas activas.
+ */
+export const COMMISSION_MIN_UPVOTES_PER_OFFER = 15;
 /** Versión de términos al aceptar el programa (debe alinearse con /terms §8). */
-export const COMMISSION_TERMS_VERSION = '2026-08-14';
+export const COMMISSION_TERMS_VERSION = '2026-08-18';
 
 /**
  * % del ingreso afiliado **atribuible** que va al creador (4000 = 40%).

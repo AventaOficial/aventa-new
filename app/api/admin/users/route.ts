@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
+import { COMMISSION_MIN_UPVOTES_PER_OFFER } from '@/lib/commissions/constants';
 
 export type AdminUserRow = {
   id: string;
@@ -173,7 +174,7 @@ export async function GET(request: Request) {
   }
   const qualifyingByUser: Record<string, number> = {};
   for (const row of (qualifyingRes.data ?? []) as { created_by: string; upvotes_count: number | null }[]) {
-    if ((row.upvotes_count ?? 0) < 120) continue;
+    if ((row.upvotes_count ?? 0) < COMMISSION_MIN_UPVOTES_PER_OFFER) continue;
     qualifyingByUser[row.created_by] = (qualifyingByUser[row.created_by] ?? 0) + 1;
   }
 

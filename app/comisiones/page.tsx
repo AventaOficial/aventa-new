@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import ClientLayout from '@/app/ClientLayout';
+import LegalBackLink from '@/app/components/LegalBackLink';
 import {
   COMMISSION_MIN_UPVOTES_PER_OFFER,
   COMMISSION_REQUIRED_OFFERS,
@@ -23,8 +25,10 @@ export const metadata: Metadata = {
 
 export default function ComisionesPage() {
   return (
-    <main className="min-h-screen pb-24 md:pb-0 md:pl-56 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
-      <div className="mx-auto max-w-3xl px-4 pt-24 md:pt-28 pb-16 space-y-10">
+    <ClientLayout>
+    <main className="min-h-screen pb-24 md:pb-0 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
+      <div className="mx-auto max-w-3xl px-4 pt-8 md:pt-12 pb-16 space-y-10">
+        <LegalBackLink />
         <header className="space-y-4">
           <p className="text-xs font-semibold tracking-[0.25em] uppercase text-violet-600 dark:text-violet-400">
             AVENTA · Cazadores
@@ -111,8 +115,9 @@ export default function ComisionesPage() {
               <strong>{COMMISSION_REQUIRED_OFFERS} ofertas</strong> aprobadas o publicadas por ti.
             </li>
             <li>
-              Cada una con al menos <strong>{COMMISSION_MIN_UPVOTES_PER_OFFER} votos positivos</strong> (calidad,
-              no volumen vacío).
+              Cada una con al menos <strong>{COMMISSION_MIN_UPVOTES_PER_OFFER} votos positivos</strong> (likes
+              distintos en esa oferta: ~{COMMISSION_MIN_UPVOTES_PER_OFFER} personas. Quien ya votó una oferta tuya
+              puede votar las demás).
             </li>
             <li>Datos fiscales válidos: nombre legal y RFC (CLABE recomendada para transferencia SPEI).</li>
             <li>
@@ -211,5 +216,6 @@ export default function ComisionesPage() {
         </div>
       </div>
     </main>
+    </ClientLayout>
   );
 }

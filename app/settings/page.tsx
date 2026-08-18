@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { User, Check, Lock, Mail, Smartphone, Bell, Tag, Search } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
+import LegalBackLink from '@/app/components/LegalBackLink';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { notifyUserError } from '@/lib/utils/handleError';
+import { writeCachedDisplayName } from '@/lib/profileDisplayName';
 
 const DAYS_LIMIT = 14;
 
@@ -243,6 +245,7 @@ function SettingsPageInner() {
     }
     setDisplayName(trimmed);
     setDisplayNameUpdatedAt(updated?.display_name_updated_at ?? updatedAt);
+    writeCachedDisplayName(user.id, trimmed);
     setNameSavedInSettingsAt(
       (updated as { name_saved_in_settings_at?: string | null } | null)?.name_saved_in_settings_at ?? null
     );
@@ -273,7 +276,8 @@ function SettingsPageInner() {
     <ClientLayout>
       <div className="min-h-screen bg-transparent">
         <div className="mx-auto max-w-xl px-4 py-8 md:py-12">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#1d1d1f] dark:text-gray-100 mb-1">
+          <LegalBackLink />
+          <h1 className="mt-6 text-2xl md:text-3xl font-bold text-[#1d1d1f] dark:text-gray-100 mb-1">
             Configuración
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">

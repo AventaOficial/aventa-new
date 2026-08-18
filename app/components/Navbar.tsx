@@ -9,6 +9,7 @@ import { playNotificationDropSound } from '@/lib/playNotificationSound';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
+import { readCachedDisplayName, writeCachedDisplayName } from '@/lib/profileDisplayName';
 
 type NotifTab = 'ofertas' | 'explorar' | 'avisos';
 
@@ -51,7 +52,9 @@ export default function Navbar() {
   const loadNotifSoundPrimedRef = useRef(false);
 
   const userPhoto = user?.user_metadata?.avatar_url ?? null;
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(() =>
+    user?.id ? readCachedDisplayName(user.id) : null,
+  );
   const [canAccessModeration, setCanAccessModeration] = useState(false);
   const [reputationLevel, setReputationLevel] = useState<number>(1);
   const [reputationScore, setReputationScore] = useState<number>(0);
@@ -64,6 +67,8 @@ export default function Navbar() {
       setReputationScore(0);
       return;
     }
+    const cached = readCachedDisplayName(user.id);
+    if (cached) setDisplayName(cached);
     const loadProfileAndRole = async () => {
       const { createClient } = await import('@/lib/supabase/client');
       const supabase = createClient();
@@ -74,7 +79,9 @@ export default function Navbar() {
         .maybeSingle();
       const name = (profile as { display_name?: string } | null)?.display_name?.trim();
       const emailPart = user.email?.split('@')[0] ?? '';
-      setDisplayName(name || emailPart || null);
+      const nextName = name || emailPart || null;
+      setDisplayName(nextName);
+      if (nextName) writeCachedDisplayName(user.id, nextName);
       setReputationLevel((profile as { reputation_level?: number } | null)?.reputation_level ?? 1);
       setReputationScore((profile as { reputation_score?: number } | null)?.reputation_score ?? 0);
 
@@ -89,7 +96,7 @@ export default function Navbar() {
     loadProfileAndRole();
   }, [user?.id]);
 
-  const userName = displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
+  const userName = displayName || (user ? '' : 'Usuario');
 
   const [isMd, setIsMd] = useState(false);
   useEffect(() => {

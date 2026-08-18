@@ -10,7 +10,6 @@ import {
   extractBreadcrumbs,
   extractMercadoLibreItemId,
   extractOfferImages,
-  extractSuggestedPrices,
   getById,
   getMetaContent,
 } from '@/lib/offers/parseOfferPageHtml';
@@ -179,12 +178,10 @@ export async function POST(request: Request) {
       image: null,
       store: isMercadoLibre ? 'Mercado Libre' : isAmazon ? 'Amazon' : null,
     };
-    let prices = { discount: null as number | null, original: null as number | null };
     let htmlImages: string[] = [];
     let breadcrumbs: string[] = [];
 
     if (html) {
-      prices = extractSuggestedPrices(html);
       htmlImages = extractOfferImages(html, base);
       breadcrumbs = extractBreadcrumbs(html);
       if (isAmazon) data = parseAmazon(html, base);
@@ -192,14 +189,12 @@ export async function POST(request: Request) {
       else data = parseGeneric(html, base);
     }
 
-    let discount = prices.discount;
-    let original = prices.original;
     let images = mergeImages(data.image, htmlImages);
     let mlCategoryId: string | null = null;
     let mlPathNames: string[] = [];
 
     let ml = mlFirst;
-    if (isMercadoLibre && (!ml || !ml.price || ml.pictures.length < 2)) {
+    if (isMercadoLibre && (!ml || ml.pictures.length < 2)) {
       const mlFromPage = await fetchMercadoLibrePublicOffer(pageUrl.href, html || null).catch(() => null);
       if (mlFromPage) ml = mlFromPage;
     }
@@ -210,17 +205,9 @@ export async function POST(request: Request) {
         image: ml.pictures[0] || data.image,
         store: data.store || 'Mercado Libre',
       };
-      if (ml.price && ml.price > 0) discount = ml.price;
-      if (ml.originalPrice && ml.originalPrice > 0) original = ml.originalPrice;
       images = mergeImages(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
       mlCategoryId = ml.categoryId;
       mlPathNames = ml.pathNames;
-    }
-
-    if (original != null && discount != null && original < discount) {
-      const tmp = original;
-      original = discount;
-      discount = tmp;
     }
 
     const suggestedCategory = inferOfferCategory({
@@ -235,8 +222,8 @@ export async function POST(request: Request) {
       image: images[0] ?? data.image,
       images,
       store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
-      suggested_discount_price: discount,
-      suggested_original_price: original,
+      suggested_discount_price: null,
+      suggested_original_price: null,
       suggested_category: suggestedCategory,
     });
   } catch {

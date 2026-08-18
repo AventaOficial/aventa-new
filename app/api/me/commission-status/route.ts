@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getCommissionEligibility } from '@/lib/server/commissionEligibility';
 
-/** GET: elegibilidad para activar comisiones (15 ofertas con ≥120 votos positivos cada una). */
+/** GET: elegibilidad para activar comisiones. */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;

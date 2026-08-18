@@ -127,7 +127,7 @@ function HomeContent() {
   const [justPublished, setJustPublished] = useState<Offer[]>([]);
   const [feedError, setFeedError] = useState<string | null>(null);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
-  const fetchOffersRef = useRef<((overrideLimit?: number) => void) | null>(null);
+  const fetchOffersRef = useRef<((overrideLimit?: number, opts?: { silent?: boolean }) => void) | null>(null);
   const debouncedQueryRef = useRef(debouncedQuery);
   const feedStaleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -140,7 +140,7 @@ function HomeContent() {
     if (feedStaleTimerRef.current) clearTimeout(feedStaleTimerRef.current);
     feedStaleTimerRef.current = setTimeout(() => {
       feedStaleTimerRef.current = null;
-      fetchOffersRef.current?.(undefined);
+      fetchOffersRef.current?.(undefined, { silent: true });
     }, 700);
   }, []);
 
@@ -187,8 +187,8 @@ function HomeContent() {
     }
   }, [pathname, searchParams, openUploadModal]);
 
-  const fetchOffers = useCallback((overrideLimit?: number) => {
-    setLoading(true);
+  const fetchOffers = useCallback((overrideLimit?: number, opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setFeedError(null);
     const effectiveLimit = overrideLimit ?? limit;
 
@@ -324,7 +324,7 @@ function HomeContent() {
         setJustPublished((prev) => [published, ...prev.filter((o) => o.id !== published.id)]);
         setOffers((prev) => [published, ...prev.filter((o) => o.id !== published.id)]);
       }
-      fetchOffersRef.current?.(undefined);
+      fetchOffersRef.current?.(undefined, { silent: true });
     };
     window.addEventListener('aventa:offer-published', onOfferPublished);
     return () => window.removeEventListener('aventa:offer-published', onOfferPublished);
@@ -334,7 +334,7 @@ function HomeContent() {
   useEffect(() => {
     if (viewMode !== 'latest' || debouncedQuery.trim()) return;
     const intervalId = setInterval(() => {
-      fetchOffersRef.current?.(undefined);
+      fetchOffersRef.current?.(undefined, { silent: true });
     }, 45_000);
     return () => clearInterval(intervalId);
   }, [viewMode, debouncedQuery]);

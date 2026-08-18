@@ -228,40 +228,17 @@ export default function ActionBar() {
         });
         if (cancelled) return;
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data) {
-          setUrlParseLoading(false);
-          return;
-        }
+        if (!res.ok || !data) return;
         setFormData((prev) => {
           if (prev.offer_url.trim() !== url) return prev;
-          const sd =
-            typeof data.suggested_discount_price === 'number' && data.suggested_discount_price > 0
-              ? data.suggested_discount_price
-              : null;
-          const so =
-            typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
-              ? data.suggested_original_price
-              : null;
-          const next = {
+          return {
             ...prev,
-            ...(data.title && !prev.title.trim() && { title: data.title }),
-            ...(data.store && !prev.store.trim() && { store: data.store }),
+            ...(data.title && { title: prev.title.trim() ? prev.title : data.title }),
+            ...(data.store && { store: prev.store.trim() ? prev.store : data.store }),
             ...(typeof data.suggested_category === 'string' &&
               data.suggested_category &&
               !prev.category.trim() && { category: data.suggested_category }),
           };
-          const discEmpty = !parseDecimalPrice(prev.discountPrice);
-          const origEmpty = !parseDecimalPrice(prev.originalPrice);
-          if (hasDiscount) {
-            if (sd != null && discEmpty) next.discountPrice = String(sd);
-            if (so != null && origEmpty) next.originalPrice = String(so);
-            if (sd != null && so == null && origEmpty && discEmpty) {
-              next.discountPrice = String(sd);
-            }
-          } else if (sd != null && origEmpty) {
-            next.originalPrice = String(sd);
-          }
-          return next;
         });
         const parsedImages = Array.isArray(data.images)
           ? (data.images as unknown[]).filter((u): u is string => typeof u === 'string' && u.startsWith('http'))
@@ -283,7 +260,7 @@ export default function ActionBar() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [formData.offer_url, session?.access_token, hasDiscount]);
+  }, [formData.offer_url, session?.access_token]);
 
   useEffect(() => {
     if (!showUploadModal || uploadLinkGatePassed) return;
@@ -908,6 +885,7 @@ export default function ActionBar() {
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Precio</label>
+                      <span className="text-[11px] text-gray-400">Lo escribes tú; no se toma del enlace</span>
                       {hasDiscount &&
                         formData.originalPrice &&
                         formData.discountPrice &&

@@ -116,8 +116,12 @@ export async function resolveMercadoLibreShortlinks(url: string): Promise<string
       return trimmed;
     }
     if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
-    if (final.toLowerCase().includes('mercadolibre.')) return final;
-    return trimmed;
+    if (!final.toLowerCase().includes('mercadolibre.')) return trimmed;
+    const { extractMercadoLibreItemId } = await import('@/lib/offers/offerUrlFingerprint');
+    if (!extractMercadoLibreItemId(final) && !extractMercadoLibreItemId(trimmed)) {
+      return trimmed;
+    }
+    return final;
   } catch {
     clearTimeout(timeoutId);
     return trimmed;
@@ -174,8 +178,13 @@ export async function resolveAmazonShortlinks(url: string): Promise<string> {
       return trimmed;
     }
     if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
-    if (final.toLowerCase().includes('amazon.')) return final;
-    return trimmed;
+    if (!final.toLowerCase().includes('amazon.')) return trimmed;
+    const { extractAmazonAsin } = await import('@/lib/offers/offerUrlFingerprint');
+    if (!extractAmazonAsin(final) && extractAmazonAsin(trimmed) == null) {
+      // Captcha / home de Amazon: no sustituir el shortlink por la portada.
+      return trimmed;
+    }
+    return final;
   } catch {
     clearTimeout(timeoutId);
     return trimmed;

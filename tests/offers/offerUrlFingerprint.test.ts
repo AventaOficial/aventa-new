@@ -39,4 +39,17 @@ describe('offerUrlFingerprint', () => {
     const b = 'https://www.amazon.com.mx/dp/B0BBBBBBB2?tag=x';
     expect(offerUrlsAreSameProduct(a, b)).toBe(false);
   });
+
+  it('no colapsa el home de Amazon en un duplicado genérico', () => {
+    expect(offerUrlFingerprint('https://www.amazon.com.mx/')).toBeNull();
+    expect(offerUrlFingerprint('https://www.amazon.com.mx/s?k=audifonos')).toBeNull();
+    expect(offerUrlsAreSameProduct('https://www.amazon.com.mx/', 'https://www.amazon.com.mx/dp/B0TESTASI1')).toBe(
+      false,
+    );
+  });
+
+  it('no trata dos shortlinks Amazon distintos como el mismo producto', () => {
+    expect(offerUrlsAreSameProduct('https://amzn.to/abc123', 'https://amzn.to/xyz999')).toBe(false);
+    expect(offerUrlFingerprint('https://amzn.to/abc123')?.startsWith('url:')).toBe(true);
+  });
 });

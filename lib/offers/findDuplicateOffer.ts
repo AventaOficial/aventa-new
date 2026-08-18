@@ -6,18 +6,25 @@ export type DuplicateOfferMatch = {
   status: string | null;
 };
 
+/** Solo ASIN / item id. `url:` y `meli.la:` colapsan homes y shortlinks distintos. */
+function isProductFingerprint(fp: string | null): boolean {
+  if (!fp) return false;
+  return fp.startsWith('amz:') || fp.startsWith('ml:');
+}
+
 /**
  * Busca una oferta activa/pending que ya apunte al mismo producto (fingerprint).
  * No considera rejected ni soft-deleted.
+ * URLs débiles (home de tienda, búsquedas) no se tratan como duplicado.
  */
 export async function findDuplicateOfferByUrl(
   supabase: SupabaseClient,
   normalizedOfferUrl: string,
 ): Promise<DuplicateOfferMatch | null> {
+  if (!normalizedOfferUrl.trim()) return null;
   const fingerprint = offerUrlFingerprint(normalizedOfferUrl);
-  if (!fingerprint || !normalizedOfferUrl.trim()) return null;
+  if (!isProductFingerprint(fingerprint)) return null;
 
-  // Match exacto primero (mismo string guardado)
   const { data: exact } = await supabase
     .from('offers')
     .select('id, status, deleted_at')
@@ -31,7 +38,6 @@ export async function findDuplicateOfferByUrl(
     return { id: exact.id as string, status: (exact as { status?: string | null }).status ?? null };
   }
 
-  // Candidatos recientes con URL (ventana acotada para no escanear toda la tabla en MVP)
   const { data: candidates, error } = await supabase
     .from('offers')
     .select('id, status, offer_url, deleted_at')

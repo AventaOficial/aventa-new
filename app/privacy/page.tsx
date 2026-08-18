@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import ClientLayout from '@/app/ClientLayout';
+import LegalBackLink from '@/app/components/LegalBackLink';
 
 export const metadata: Metadata = {
   title: 'Política de Privacidad | AVENTA',
@@ -9,8 +11,10 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen pb-24 md:pb-0 md:pl-56 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
-      <div className="mx-auto max-w-3xl px-4 pt-24 md:pt-28 pb-16 space-y-10">
+    <ClientLayout>
+    <main className="min-h-screen pb-24 md:pb-0 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
+      <div className="mx-auto max-w-3xl px-4 pt-8 md:pt-12 pb-16 space-y-10">
+        <LegalBackLink />
         <header className="space-y-3">
           <p className="text-xs font-semibold tracking-[0.25em] uppercase text-violet-600 dark:text-violet-400">
             AVENTA
@@ -420,5 +424,6 @@ export default function PrivacyPage() {
         </section>
       </div>
     </main>
+    </ClientLayout>
   );
 }
