@@ -297,7 +297,7 @@ export default function AdminLayout({
       >
         <div className="flex h-16 items-center justify-between px-5 border-b border-gray-200/80 dark:border-gray-800 lg:justify-start">
           <Link href={homeHref} className="font-semibold tracking-tight text-gray-900 dark:text-gray-100">
-            {userRole === 'owner' ? 'AVENTA · Fundador' : 'Panel Admin'}
+            Panel Admin
           </Link>
           <button
             type="button"
