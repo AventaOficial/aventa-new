@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireTeamManagement } from '@/lib/server/requireAdmin';
-import type { Role } from '@/lib/admin/roles';
-
-const ROLE_PRIORITY: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
+import {
+  ASSIGNABLE_STAFF_ROLES,
+  pickEffectiveRole,
+  type Role,
+} from '@/lib/admin/roles';
 
 function effectiveRoleFromRows(rows: { role: Role }[] | null | undefined): Role | null {
-  let best: Role | null = null;
-  let bestIdx = ROLE_PRIORITY.length;
-  for (const r of rows ?? []) {
-    const idx = ROLE_PRIORITY.indexOf(r.role);
-    if (idx >= 0 && idx < bestIdx) {
-      bestIdx = idx;
-      best = r.role;
-    }
-  }
-  return best;
+  return pickEffectiveRole(((rows ?? []) as { role: Role }[]).map((r) => r.role));
 }
 
-/** GET: lista usuarios con rol (owner o admin). Devuelve user_id, role efectivo, display_name. */
+/** GET: lista usuarios con rol (owner o admin). */
 export async function GET(request: NextRequest) {
   const auth = await requireTeamManagement(request);
   if ('error' in auth) {
@@ -26,9 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServerClient();
-  const { data: rows, error } = await supabase
-    .from('user_roles')
-    .select('user_id, role');
+  const { data: rows, error } = await supabase.from('user_roles').select('user_id, role');
 
   if (error) {
     console.error('[admin/team] user_roles:', error.message);
@@ -38,9 +29,7 @@ export async function GET(request: NextRequest) {
   const byUser = new Map<string, Role>();
   for (const r of (rows ?? []) as { user_id: string; role: Role }[]) {
     const current = byUser.get(r.user_id);
-    const idxCurrent = current ? ROLE_PRIORITY.indexOf(current) : -1;
-    const idxNew = ROLE_PRIORITY.indexOf(r.role);
-    if (idxNew < idxCurrent || !current) {
+    if (!current || pickEffectiveRole([current, r.role]) === r.role) {
       byUser.set(r.user_id, r.role);
     }
   }
@@ -55,8 +44,22 @@ export async function GET(request: NextRequest) {
     .select('id, display_name, avatar_url, reputation_level, reputation_score')
     .in('id', userIds);
 
-  const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null; reputation_level: number; reputation_score: number }>();
-  for (const p of (profiles ?? []) as { id: string; display_name: string | null; avatar_url?: string | null; reputation_level?: number; reputation_score?: number }[]) {
+  const profileMap = new Map<
+    string,
+    {
+      display_name: string | null;
+      avatar_url: string | null;
+      reputation_level: number;
+      reputation_score: number;
+    }
+  >();
+  for (const p of (profiles ?? []) as {
+    id: string;
+    display_name: string | null;
+    avatar_url?: string | null;
+    reputation_level?: number;
+    reputation_score?: number;
+  }[]) {
     profileMap.set(p.id, {
       display_name: p.display_name ?? null,
       avatar_url: p.avatar_url ?? null,
@@ -80,7 +83,13 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ team });
 }
 
-/** POST: agregar usuario al equipo (owner o admin). Body: { user_id, role }. */
+function canAssignRole(actor: Role, targetRole: Role): boolean {
+  if (targetRole === 'owner') return false;
+  if (targetRole === 'admin' || targetRole === 'gerente') return actor === 'owner';
+  return actor === 'owner' || actor === 'admin';
+}
+
+/** POST: agregar usuario al equipo. Body: { user_id, role }. */
 export async function POST(request: NextRequest) {
   const auth = await requireTeamManagement(request);
   if ('error' in auth) {
@@ -89,27 +98,23 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : null;
-  const role = typeof body?.role === 'string' && ROLE_PRIORITY.includes(body.role as Role) ? (body.role as Role) : null;
+  const role =
+    typeof body?.role === 'string' && ASSIGNABLE_STAFF_ROLES.includes(body.role as Role)
+      ? (body.role as Role)
+      : null;
 
   if (!userId || !role) {
     return NextResponse.json(
-      { error: 'Body debe incluir user_id (UUID) y role (owner|admin|moderator|analyst)' },
-      { status: 400 }
+      {
+        error:
+          'Body debe incluir user_id y role (admin|gerente|finance|marketing|moderator|analyst)',
+      },
+      { status: 400 },
     );
   }
 
-  if (role === 'owner') {
-    return NextResponse.json(
-      { error: 'No puedes asignar el rol owner por esta vía' },
-      { status: 400 }
-    );
-  }
-
-  if (role === 'admin' && auth.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Solo el owner puede asignar el rol admin' },
-      { status: 403 }
-    );
+  if (!canAssignRole(auth.role, role)) {
+    return NextResponse.json({ error: 'No tienes permiso para asignar ese rol' }, { status: 403 });
   }
 
   const supabase = createServerClient();
@@ -118,7 +123,7 @@ export async function POST(request: NextRequest) {
   if (existing) {
     return NextResponse.json(
       { error: 'Ese usuario ya tiene un rol. Usa la tabla para cambiar su rol.' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -131,7 +136,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/** PATCH: actualizar rol de un usuario (owner o admin). Body: { user_id, role }. */
+/** PATCH: actualizar rol. Body: { user_id, role }. */
 export async function PATCH(request: NextRequest) {
   const auth = await requireTeamManagement(request);
   if ('error' in auth) {
@@ -140,13 +145,23 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : null;
-  const role = typeof body?.role === 'string' && ROLE_PRIORITY.includes(body.role as Role) ? (body.role as Role) : null;
+  const role =
+    typeof body?.role === 'string' && ASSIGNABLE_STAFF_ROLES.includes(body.role as Role)
+      ? (body.role as Role)
+      : null;
 
   if (!userId || !role) {
     return NextResponse.json(
-      { error: 'Body debe incluir user_id (UUID) y role (owner|admin|moderator|analyst)' },
-      { status: 400 }
+      {
+        error:
+          'Body debe incluir user_id y role (admin|gerente|finance|marketing|moderator|analyst)',
+      },
+      { status: 400 },
     );
+  }
+
+  if (!canAssignRole(auth.role, role)) {
+    return NextResponse.json({ error: 'No tienes permiso para asignar ese rol' }, { status: 403 });
   }
 
   const supabase = createServerClient();
@@ -154,50 +169,29 @@ export async function PATCH(request: NextRequest) {
   const { data: targetRows } = await supabase.from('user_roles').select('role').eq('user_id', userId);
   const targetEffective = effectiveRoleFromRows((targetRows ?? []) as { role: Role }[]);
 
-  if (role === 'owner' && auth.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Solo el owner puede asignar el rol owner' },
-      { status: 403 }
-    );
-  }
-
-  if (role === 'admin' && auth.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Solo el owner puede asignar el rol admin' },
-      { status: 403 }
-    );
-  }
-
   if (targetEffective === 'owner' && auth.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Solo el owner puede modificar la cuenta owner' },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: 'Solo el owner puede modificar la cuenta owner' }, { status: 403 });
   }
 
   if (targetEffective === 'admin' && auth.role !== 'owner' && userId !== auth.user.id) {
-    return NextResponse.json(
-      { error: 'Solo el owner puede modificar a otros admins' },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: 'Solo el owner puede modificar a otros admins' }, { status: 403 });
+  }
+
+  if (targetEffective === 'gerente' && auth.role !== 'owner' && role !== targetEffective) {
+    return NextResponse.json({ error: 'Solo el owner puede cambiar el rol de un gerente' }, { status: 403 });
   }
 
   if (userId === auth.user.id && auth.role === 'owner' && role !== 'owner') {
-    return NextResponse.json(
-      { error: 'No puedes quitarte el rol owner a ti mismo' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'No puedes quitarte el rol owner a ti mismo' }, { status: 400 });
   }
 
   const { error: delError } = await supabase.from('user_roles').delete().eq('user_id', userId);
   if (delError) {
-    console.error('[admin/team] delete:', delError.message);
     return NextResponse.json({ error: 'Error al actualizar rol' }, { status: 500 });
   }
 
   const { error: insertError } = await supabase.from('user_roles').insert({ user_id: userId, role });
   if (insertError) {
-    console.error('[admin/team] insert:', insertError.message);
     return NextResponse.json({ error: 'Error al guardar rol' }, { status: 500 });
   }
 

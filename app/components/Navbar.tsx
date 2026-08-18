@@ -56,6 +56,7 @@ export default function Navbar() {
     user?.id ? readCachedDisplayName(user.id) : null,
   );
   const [canAccessModeration, setCanAccessModeration] = useState(false);
+  const [canAccessStaffHub, setCanAccessStaffHub] = useState(false);
   const [reputationLevel, setReputationLevel] = useState<number>(1);
   const [reputationScore, setReputationScore] = useState<number>(0);
 
@@ -63,6 +64,7 @@ export default function Navbar() {
     if (!user?.id) {
       setDisplayName(null);
       setCanAccessModeration(false);
+      setCanAccessStaffHub(false);
       setReputationLevel(1);
       setReputationScore(0);
       return;
@@ -88,10 +90,12 @@ export default function Navbar() {
       const { data: roles } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id)
-        .in('role', ['owner', 'admin', 'moderator']);
+        .eq('user_id', user.id);
       const roleList = (roles ?? []) as { role: string }[];
-      setCanAccessModeration(roleList.length > 0);
+      setCanAccessStaffHub(roleList.length > 0);
+      setCanAccessModeration(
+        roleList.some((r) => r.role === 'owner' || r.role === 'admin' || r.role === 'moderator'),
+      );
     };
     loadProfileAndRole();
   }, [user?.id]);
@@ -320,6 +324,16 @@ export default function Navbar() {
                     <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
                   </Link>
                   <UserMenuContent />
+                  {canAccessStaffHub && (
+                    <Link
+                      href="/equipo"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors duration-150"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Hub de equipo
+                    </Link>
+                  )}
                   {canAccessModeration && (
                     <Link
                       href="/admin/moderation"

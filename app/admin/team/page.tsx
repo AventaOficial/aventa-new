@@ -1,10 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { getReputationLabel } from '@/lib/reputation';
-import { ROLES, type Role } from '@/lib/admin/roles';
+import {
+  ROLES,
+  ROLE_LABELS,
+  ROLE_DESCRIPTIONS,
+  ASSIGNABLE_STAFF_ROLES,
+  type Role,
+} from '@/lib/admin/roles';
 
 type TeamMember = {
   user_id: string;
@@ -21,14 +28,9 @@ type SearchUser = {
   avatar_url: string | null;
 };
 
-const ROLE_LABELS: Record<Role, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  moderator: 'Moderador',
-  analyst: 'Analista',
-};
+const ROLE_LABELS_UI: Record<Role, string> = ROLE_LABELS;
 
-const ADDABLE_ROLES: Role[] = ['moderator', 'analyst', 'admin'];
+const ADDABLE_ROLES: Role[] = ASSIGNABLE_STAFF_ROLES.filter((r) => r !== 'admin');
 
 export default function TeamPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -191,7 +193,12 @@ export default function TeamPage() {
         Equipo
       </h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Integra usuarios y asigna roles (moderador, analista, etc.). Busca por nombre para agregar al equipo.
+        Asigna roles para el hub{' '}
+        <Link href="/equipo" className="text-emerald-600 hover:underline">
+          /equipo
+        </Link>{' '}
+        (gerente, marketing, contabilidad, moderador, analista). Solo el owner asigna gerente y admin.
+        Busca por nombre para agregar al equipo.
       </p>
 
       {/* Bloque: Agregar al equipo — buscar usuarios registrados y asignar rol */}

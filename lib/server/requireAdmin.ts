@@ -1,13 +1,10 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { User } from '@supabase/supabase-js'
-
-type Role = 'owner' | 'admin' | 'moderator' | 'analyst'
+import { pickEffectiveRole, type Role } from '@/lib/admin/roles'
 
 type AuthSuccess = { user: User; role: Role }
 type AuthError = { error: string; status: 401 | 403 }
 type AuthResult = AuthSuccess | AuthError
-
-const ROLE_PRIORITY: Role[] = ['owner', 'admin', 'moderator', 'analyst']
 
 /** Roles que pueden moderar ofertas */
 export const MODERATION_ROLES: Role[] = ['owner', 'admin', 'moderator']
@@ -43,7 +40,7 @@ async function requireRole(
     .in('role', allowedRoles)
 
   const userRoles = ((roles ?? []) as { role: Role }[]).map((r) => r.role)
-  const role = ROLE_PRIORITY.find((p) => userRoles.includes(p)) ?? null
+  const role = pickEffectiveRole(userRoles)
 
   if (!role || !allowedRoles.includes(role)) {
     return { error: 'Forbidden', status: 403 }
@@ -91,5 +88,5 @@ export async function requireAnnouncements(request: Request): Promise<AuthResult
 
 /** Cualquier rol admin (compatibilidad con código existente) */
 export async function requireAdmin(request: Request): Promise<AuthResult> {
-  return requireRole(request, ROLE_PRIORITY)
+  return requireRole(request, ['owner', 'admin', 'moderator', 'analyst'])
 }

@@ -5,7 +5,6 @@ import {
   Briefcase,
   CheckCircle,
   CircleDollarSign,
-  ClipboardCheck,
   ClipboardList,
   Database,
   FileText,
@@ -123,14 +122,6 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/moderation',
     label: 'Moderación',
-    domain: 'contenido',
-    frequency: 'diario',
-    audiences: ['founder', 'moderador', 'admin'],
-    visibility: 'moderation',
-  },
-  {
-    href: '/admin/equipo',
-    label: 'Zona de trabajo',
     domain: 'contenido',
     frequency: 'diario',
     audiences: ['founder', 'moderador', 'admin'],
@@ -326,7 +317,6 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/commissions': CircleDollarSign,
   '/admin/creator-tags': Tags,
   '/admin/moderation': ClipboardList,
-  '/admin/equipo': ClipboardCheck,
   '/admin/moderation/reports': Flag,
   '/admin/reports': Flag,
   '/admin/moderation/comments': MessageCircle,
@@ -357,7 +347,10 @@ const OWNER_SECTION_ORDER: Exclude<NavDomain, 'negocio'>[] = [
   'hangar',
 ];
 
-const STAFF_SECTION_ORDER: Record<Exclude<Role, 'owner'>, Exclude<NavDomain, 'negocio'>[]> = {
+const STAFF_SECTION_ORDER: Record<
+  Extract<Role, 'admin' | 'moderator' | 'analyst'>,
+  Exclude<NavDomain, 'negocio'>[]
+> = {
   moderator: ['contenido', 'personas'],
   analyst: ['crecimiento', 'operacion'],
   admin: ['contenido', 'personas', 'crecimiento', 'operacion', 'hangar'],
@@ -405,8 +398,6 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
       return canManageAnnouncements(role);
     case '/admin/moderation/social':
       return canManageTeam(role);
-    case '/admin/equipo':
-      return canAccessTeamBoard(role);
     case '/admin/users':
     case '/admin/logs':
       return canAccessUsersLogs(role);
@@ -465,7 +456,10 @@ function buildOwnerNavigation(accessible: AdminNavItem[]): AdminNavigationModel 
   return { home, moderationMain, dailyLinks, sections };
 }
 
-function buildStaffNavigation(role: Exclude<Role, 'owner'>, accessible: AdminNavItem[]): AdminNavigationModel {
+function buildStaffNavigation(
+  role: Extract<Role, 'admin' | 'moderator' | 'analyst'>,
+  accessible: AdminNavItem[],
+): AdminNavigationModel {
   const home =
     role === 'moderator'
       ? accessible.find((s) => s.href === '/admin/moderation') ??
@@ -515,7 +509,10 @@ export function buildAdminNavigation(role: Role | null): AdminNavigationModel {
   const accessible = ADMIN_SCREEN_REGISTRY.filter((s) => canRoleAccessScreen(role, s)).map(toNavItem);
 
   if (role === 'owner') return buildOwnerNavigation(accessible);
-  return buildStaffNavigation(role, accessible);
+  if (role === 'admin' || role === 'moderator' || role === 'analyst') {
+    return buildStaffNavigation(role, accessible);
+  }
+  return { home: null, moderationMain: [], dailyLinks: [], sections: [] };
 }
 
 export function getDefaultAdminHome(role: Role | null): string {
@@ -542,7 +539,6 @@ export function getInitialOpenSections(
 /** Título móvil del sistema CEO OS según ruta */
 export function getAdminMobileSectionTitle(pathname: string): string {
   if (pathname === '/admin/owner') return 'Owner Dashboard';
-  if (pathname === '/admin/equipo') return 'Zona de trabajo';
   if (pathname === '/admin/owner/crecimiento') return 'Crecimiento AVENTA';
   if (pathname === '/admin/owner/cazadores') return 'Cazadores de confianza';
   if (pathname === '/admin/metrics') return 'Crecimiento';

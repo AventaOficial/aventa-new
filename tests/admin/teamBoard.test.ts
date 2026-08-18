@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseTeamWorkBoard,
+  parseStaffWorkBoard,
   isFilmWorthyOffer,
   queueTone,
   seedDefaultTasks,
-} from '../../lib/admin/teamBoard';
+} from '../../lib/staff/workBoard';
 
 describe('teamBoard', () => {
   it('parseTeamWorkBoard ignora filas rotas y recorta texto', () => {
-    const board = parseTeamWorkBoard({
+    const board = parseStaffWorkBoard({
       tasks: [
         { id: 'a', text: 'Revisar cola', done: true, createdAt: '2026-08-18T00:00:00.000Z' },
         { id: 'a', text: 'duplicada' },
@@ -58,6 +58,6 @@ describe('teamBoard', () => {
     expect(queueTone(13, 'pending-bot')).toBe('blocked');
     expect(queueTone(3, 'live-today')).toBe('blocked');
     expect(queueTone(15, 'live-today')).toBe('ok');
-    expect(seedDefaultTasks().length).toBeGreaterThan(3);
+    expect(seedDefaultTasks('moderacion').length).toBeGreaterThan(3);
   });
 });

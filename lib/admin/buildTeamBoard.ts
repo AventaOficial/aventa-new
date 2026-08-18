@@ -126,7 +126,7 @@ export async function buildTeamBoardPayload(role: Role): Promise<TeamBoardPayloa
   let board = parseTeamWorkBoard(boardRes.data?.value);
   let seededTasks = false;
   if (board.tasks.length === 0) {
-    board = { ...board, tasks: seedDefaultTasks(generatedAt) };
+    board = { ...board, department: 'moderacion', tasks: seedDefaultTasks('moderacion', generatedAt) };
     seededTasks = true;
   }
 

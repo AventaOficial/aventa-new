@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import {
   ROLES,
+  pickEffectiveRole,
   canAccessModeration,
   canAccessMetrics,
   canAccessHealth,
@@ -15,8 +16,10 @@ import {
   canManageAnnouncements,
   canAccessOwnerOperationsPanel,
   canAccessTeamBoard,
+  canAccessAdmin,
   type Role,
 } from '@/lib/admin/roles';
+import { staffHomePathForRole } from '@/lib/staff/roleRouting';
 import {
   buildAdminNavigation,
   getAdminMobileSectionTitle,
@@ -140,16 +143,18 @@ export default function AdminLayout({
             setAuthGateReady(true);
             return;
           }
-          const roles = ((data ?? []) as { role: Role }[]).map((x) => x.role);
-          const priority: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
-          const r = priority.find((p) => roles.includes(p)) ?? null;
+          const roles = ((data ?? []) as { role: Role }[]).map((row) => row.role);
+          const r = pickEffectiveRole(roles);
           setUserRole(r);
           setAuthGateReady(true);
+          if (r && !canAccessAdmin(r)) {
+            router.replace(staffHomePathForRole(r));
+          }
         });
     });
   }, []);
 
-  const hasAllowedRole = userRole !== null;
+  const hasAllowedRole = canAccessAdmin(userRole);
   const canMod = canAccessModeration(userRole);
   const canUsersLogs = canAccessUsersLogs(userRole);
   const canTeam = canManageTeam(userRole);
@@ -166,7 +171,6 @@ export default function AdminLayout({
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
-    const isEquipoPath = pathname.startsWith('/admin/equipo');
     const isOwnerPanelPath = pathname === '/admin/owner';
     const isAnalistaPath = pathname === '/admin/analista';
     const isAnnouncementsPath = pathname === '/admin/announcements';
@@ -182,8 +186,6 @@ export default function AdminLayout({
     const isInfraestructuraPath = pathname === '/admin/infraestructura';
     const isContextoPath = pathname === '/admin/contexto';
     if (isOwnerPanelPath && !canOwnerOpsPanel) {
-      router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
-    } else if (isEquipoPath && !canTeamBoard) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isDashboardPath && userRole === 'owner') {
       router.replace('/admin/owner');
@@ -262,7 +264,12 @@ export default function AdminLayout({
         <div className="text-center">
           <p className="text-gray-700 dark:text-gray-300 font-medium">Acceso restringido</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Solo usuarios con rol (owner, admin, moderator, analyst) pueden acceder.
+            Solo usuarios con rol admin panel (owner, admin, moderator, analyst) pueden acceder aquí.
+            Si eres del equipo operativo, entra a{' '}
+            <Link href="/equipo" className="text-emerald-600 hover:underline">
+              /equipo
+            </Link>
+            .
           </p>
           <Link href="/" className="mt-4 inline-block text-purple-600 dark:text-purple-400 hover:underline">
             Volver al inicio
