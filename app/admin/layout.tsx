@@ -29,6 +29,7 @@ import {
   type AdminNavSection,
   type SidebarAccordionKey,
 } from '@/lib/admin/navigation';
+import OwnerShell from '@/app/admin/owner/components/OwnerShell';
 
 function NavLink({
   item,
@@ -171,7 +172,7 @@ export default function AdminLayout({
     const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
-    const isOwnerPanelPath = pathname === '/admin/owner';
+    const isOwnerPanelPath = pathname.startsWith('/admin/owner');
     const isAnalistaPath = pathname === '/admin/analista';
     const isAnnouncementsPath = pathname === '/admin/announcements';
     const isMetPath = pathname === '/admin/metrics';
@@ -279,10 +280,9 @@ export default function AdminLayout({
     );
   }
 
-  /** Owner OS routes tienen su propio shell en /admin/owner/layout.tsx */
-  const isOwnerOsRoute = pathname.startsWith('/admin/owner');
-  if (isOwnerOsRoute) {
-    return <>{children}</>;
+  /** Owner siempre usa Founder OS. Admin/moderator/analyst siguen el panel técnico. */
+  if (userRole === 'owner') {
+    return <OwnerShell>{children}</OwnerShell>;
   }
 
   return (

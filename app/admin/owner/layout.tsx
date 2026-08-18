@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import OwnerShell from './components/OwnerShell';
 
+/** El chrome de Founder OS lo aplica `app/admin/layout.tsx` cuando el rol es owner. */
 export default function OwnerLayout({ children }: { children: ReactNode }) {
-  return <OwnerShell>{children}</OwnerShell>;
+  return children;
 }
