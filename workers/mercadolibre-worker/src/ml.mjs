@@ -141,43 +141,127 @@ function clampDiscountPercent(n) {
   return Math.max(0, Math.min(90, Math.round(n)));
 }
 
+function parseDiscountBadgePercent(raw) {
+  const text = normalizeText(raw);
+  if (!text) return 0;
+  const match = text.match(/(\d{1,2})\s*%/);
+  if (!match) return 0;
+  const n = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(n) || n < 1 || n > 90) return 0;
+  return n;
+}
+
+function candidateFromCard(card, minDiscountPercent) {
+  if (isBlockedNonProductPath(card.href)) {
+    return { ok: false, reason: 'url_no_producto' };
+  }
+  const itemId = inferItemId(card.href);
+  if (!itemId && !/\/p\//i.test(card.href)) {
+    return { ok: false, reason: 'sin_item_id' };
+  }
+  if (!isProductLikeUrl(card.href)) {
+    return { ok: false, reason: 'url_no_producto' };
+  }
+
+  const title = normalizeText(card.title);
+  if (!title || looksGenericMercadoLibreTitle(title)) {
+    return { ok: false, reason: 'title_generico' };
+  }
+
+  const discountPrice = parseLocalizedNumber(card.priceText);
+  if (discountPrice == null || discountPrice <= 0) {
+    return { ok: false, reason: 'sin_discount_price' };
+  }
+
+  let originalPrice = parseLocalizedNumber(card.originalText);
+  const badgePercent = parseDiscountBadgePercent(card.discountBadge);
+
+  // Si no hay tachado pero sí badge % creíble, reconstruir original.
+  if ((originalPrice == null || originalPrice <= discountPrice) && badgePercent >= minDiscountPercent) {
+    originalPrice = Number((discountPrice / (1 - badgePercent / 100)).toFixed(2));
+  }
+
+  if (originalPrice == null || originalPrice <= discountPrice) {
+    return { ok: false, reason: 'sin_original_price' };
+  }
+
+  const discountPercent = clampDiscountPercent((1 - discountPrice / originalPrice) * 100);
+  if (discountPercent < minDiscountPercent) {
+    return { ok: false, reason: `discount_bajo_${discountPercent}` };
+  }
+
+  const canonicalUrl = canonicalizeUrl(card.href);
+  return {
+    ok: true,
+    candidate: {
+      url: canonicalUrl,
+      canonicalUrl,
+      title,
+      store: 'Mercado Libre',
+      imageUrl: card.image,
+      discountPrice,
+      originalPrice,
+      discountPercent,
+      sourceDetail: 'worker:playwright:card',
+      signals: {
+        soldQuantity: null,
+        condition: 'new',
+        listingTypeId: 'worker_card',
+        categoryId: null,
+      },
+    },
+  };
+}
+
 async function extractCards(page) {
   return page.evaluate(() => {
     const cards = Array.from(document.querySelectorAll('a[href]'));
     return cards.map((anchor) => {
-      const card = anchor.closest('article, div') ?? anchor.parentElement ?? anchor;
+      const card = anchor.closest('article, li, div') ?? anchor.parentElement ?? anchor;
       const rawHref = anchor.getAttribute('href') || '';
       const href = rawHref.startsWith('http') ? rawHref : new URL(rawHref, location.origin).href;
       const image =
         card.querySelector('img')?.getAttribute('src') ||
         card.querySelector('img')?.getAttribute('data-src') ||
         null;
-      const fraction =
+      const amounts = Array.from(card.querySelectorAll('.andes-money-amount'));
+      const previous =
+        card.querySelector('s .andes-money-amount__fraction')?.textContent ||
+        card.querySelector('.andes-money-amount--previous .andes-money-amount__fraction')?.textContent ||
+        card.querySelector('.ui-search-price__original-value .andes-money-amount__fraction')?.textContent ||
+        '';
+      const currentFraction =
         card.querySelector('[data-testid="price-part"]')?.textContent ||
+        amounts.find((node) => !node.classList.contains('andes-money-amount--previous'))?.querySelector(
+          '.andes-money-amount__fraction'
+        )?.textContent ||
         card.querySelector('.andes-money-amount__fraction')?.textContent ||
         '';
-      const cents = card.querySelector('.andes-money-amount__cents')?.textContent || '';
-      const original =
-        card.querySelector('.andes-money-amount__discount .andes-money-amount__fraction')?.textContent ||
-        card.querySelector('s .andes-money-amount__fraction')?.textContent ||
+      const currentCents =
+        amounts
+          .find((node) => !node.classList.contains('andes-money-amount--previous'))
+          ?.querySelector('.andes-money-amount__cents')?.textContent ||
+        card.querySelector('.andes-money-amount__cents')?.textContent ||
         '';
       const discountBadge =
         card.querySelector('.andes-money-amount__discount')?.textContent ||
-        Array.from(card.querySelectorAll('span, div'))
+        Array.from(card.querySelectorAll('span'))
           .map((node) => node.textContent || '')
-          .find((text) => /%/.test(text) && /(off|dto|descuento)/i.test(text)) ||
+          .find((text) => /\d{1,2}\s*%/.test(text) && /(off|dto|descuento|% )/i.test(text)) ||
+        Array.from(card.querySelectorAll('span'))
+          .map((node) => node.textContent || '')
+          .find((text) => /^\s*\d{1,2}\s*%\s*$/.test(text)) ||
         '';
       const title =
         anchor.getAttribute('title') ||
-        card.querySelector('h2, h3')?.textContent ||
-        anchor.textContent ||
+        card.querySelector('h2, h3, .poly-component__title, .ui-search-item__title')?.textContent ||
         '';
       return {
         href,
         title,
         image,
-        priceText: `${fraction}${cents ? `.${cents}` : ''}`,
-        originalText: original,
+        priceText: `${currentFraction}${currentCents ? `.${currentCents}` : ''}`,
+        originalText: previous,
         discountBadge,
       };
     });
@@ -324,101 +408,35 @@ export async function discoverMercadoLibreCandidates(page, options) {
   const out = [];
   const seen = new Set();
 
+  // GitHub Actions / datacenter: ML redirige PDP a account-verification.
+  // Usamos solo datos de la card en /ofertas (URL + precios), sin abrir el producto.
   for (const seed of seeds) {
     if (out.length >= maxItems) break;
     await page.goto(seed, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForTimeout(1500).catch(() => {});
     await page.mouse.wheel(0, 2500).catch(() => {});
     await page.waitForTimeout(1200).catch(() => {});
+    await page.mouse.wheel(0, 2500).catch(() => {});
+    await page.waitForTimeout(800).catch(() => {});
+
     const cards = (await extractCards(page)).filter((card) => isProductLikeUrl(card.href));
-    console.log(`[worker] seed=${seed} raw_links=${cards.length}`);
+    console.log(`[worker] seed=${seed} raw_links=${cards.length} mode=card_only`);
+
     for (const card of cards) {
       if (out.length >= maxItems) break;
-      if (!card.href || seen.has(card.href)) continue;
-      seen.add(card.href);
-      try {
-        console.log(`[worker] visiting=${card.href}`);
-        if (isBlockedNonProductPath(card.href)) {
-          console.log(`[worker] skipped=${card.href} reason=url_no_producto`);
-          continue;
-        }
-        const enriched = await enrichCandidate(page, card);
-        if (isBlockedNonProductPath(enriched.url) || isBlockedNonProductPath(enriched.canonicalUrl)) {
-          console.log(
-            `[worker] skipped=${card.href} reason=redirect_no_producto final=${enriched.url}`
-          );
-          continue;
-        }
-        const itemId = inferItemId(enriched.url) || inferItemId(enriched.canonicalUrl) || inferItemId(card.href);
-        if (!itemId && !/\/p\//i.test(enriched.pathname || '')) {
-          console.log(
-            `[worker] skipped=${card.href} reason=sin_item_id final=${enriched.url}`
-          );
-          continue;
-        }
-        if (!isProductLikeUrl(enriched.url) && !isProductLikeUrl(enriched.canonicalUrl)) {
-          console.log(
-            `[worker] skipped=${card.href} reason=url_final_no_producto final=${enriched.url}`
-          );
-          continue;
-        }
-        if (looksGenericMercadoLibreTitle(enriched.title)) {
-          console.log(`[worker] skipped=${card.href} reason=title_generico title="${enriched.title}"`);
-          continue;
-        }
-        if (!enriched.title) {
-          console.log(`[worker] skipped=${card.href} reason=sin_title`);
-          continue;
-        }
-        if (!enriched.discountPrice) {
-          console.log(`[worker] skipped=${card.href} reason=sin_discount_price`);
-          continue;
-        }
-        if (!enriched.originalPrice) {
-          // Sin precio tachado real no inventamos % desde el badge (antes generaba % absurdos).
-          console.log(`[worker] skipped=${card.href} reason=sin_original_price`);
-          continue;
-        }
-        if (enriched.originalPrice <= enriched.discountPrice) {
-          console.log(
-            `[worker] skipped=${card.href} reason=original_menor_igual discount=${enriched.discountPrice} original=${enriched.originalPrice}`
-          );
-          continue;
-        }
-        const discountPercent = clampDiscountPercent(
-          (1 - enriched.discountPrice / enriched.originalPrice) * 100
-        );
-        if (discountPercent < minDiscountPercent) {
-          console.log(
-            `[worker] skipped=${card.href} reason=discount_bajo discount=${discountPercent}%`
-          );
-          continue;
-        }
-        out.push({
-          url: enriched.url,
-          canonicalUrl: enriched.canonicalUrl,
-          title: enriched.title,
-          store: 'Mercado Libre',
-          imageUrl: enriched.imageUrl,
-          discountPrice: enriched.discountPrice,
-          originalPrice: enriched.originalPrice,
-          discountPercent,
-          sourceDetail: 'worker:playwright',
-          signals: {
-            soldQuantity: (() => {
-              const match = enriched.soldText.match(/(\d+)\s+vendid/i);
-              return match ? Number(match[1]) : null;
-            })(),
-            condition: 'new',
-            listingTypeId: 'worker_seed',
-            categoryId: null
-          }
-        });
-        console.log(`[worker] accepted=${enriched.canonicalUrl} discount=${discountPercent}%`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.log(`[worker] skipped=${card.href} reason=${message}`);
+      const dedupeKey = canonicalizeUrl(card.href);
+      if (!card.href || seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      const parsed = candidateFromCard(card, minDiscountPercent);
+      if (!parsed.ok) {
+        console.log(`[worker] skipped=${card.href} reason=${parsed.reason}`);
+        continue;
       }
+      out.push(parsed.candidate);
+      console.log(
+        `[worker] accepted=${parsed.candidate.canonicalUrl} discount=${parsed.candidate.discountPercent}% mode=card`
+      );
     }
   }
 
