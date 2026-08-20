@@ -1,18 +1,54 @@
+import { extractAmazonAsin, extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import type { BotIngestConfig } from './config';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { fetchKeepaPriceIntel } from './keepa';
-
-function extractAmazonAsin(url: string): string | null {
-  const match = url.toUpperCase().match(/\/DP\/(B[0-9A-Z]{9})\b/);
-  return match?.[1] ?? null;
-}
+import { enrichMercadoLibrePriceIntel } from './mlPriceEngine';
 
 export async function enrichWithPriceIntel(
   meta: ParsedOfferMetadata,
   config: BotIngestConfig
 ): Promise<ParsedOfferMetadata> {
+  const store = meta.store.toLowerCase();
+
+  if (store.includes('mercado')) {
+    const ml = await enrichMercadoLibrePriceIntel({
+      url: meta.canonicalUrl,
+      itemId: extractMercadoLibreItemId(meta.canonicalUrl),
+      current: meta.discountPrice,
+      listPrice: meta.originalPrice,
+    });
+    if (!ml) return meta;
+
+    const current = ml.quote.current;
+    const labelOriginal = ml.quote.listPrice ?? meta.originalPrice;
+    const discountPercent =
+      ml.intel.effectiveDiscountPercent != null
+        ? ml.intel.effectiveDiscountPercent
+        : labelOriginal != null && labelOriginal > current
+          ? Math.round((1 - current / labelOriginal) * 100)
+          : meta.discountPercent;
+
+    return {
+      ...meta,
+      discountPrice: current,
+      originalPrice: labelOriginal,
+      discountPercent,
+      signals: {
+        ...(meta.signals ?? {}),
+        priceLowest30d: ml.intel.lowest30d,
+        priceLowest90d: ml.intel.lowest90d,
+        priceVsLowest90dPct: ml.intel.priceVsLowest90dPct,
+        habitual30d: ml.intel.habitual30d,
+        savingsVsHabitualPct: ml.intel.savingsVsHabitualPct,
+        effectiveDiscountPercent: ml.intel.effectiveDiscountPercent,
+        priceIntelSource: 'aventa_ml',
+        suspectedArtificialListPrice: ml.intel.suspectedArtificialListPrice,
+      },
+    };
+  }
+
   if (!config.keepaEnabled || !config.keepaApiKey) return meta;
-  if (!/amazon/i.test(meta.store)) return meta;
+  if (!store.includes('amazon')) return meta;
 
   const asin = extractAmazonAsin(meta.canonicalUrl);
   if (!asin) return meta;

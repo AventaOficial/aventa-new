@@ -224,6 +224,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'submenu',
   },
   {
+    href: '/admin/hunter',
+    label: 'AVENTA Hunter',
+    domain: 'operacion',
+    frequency: 'diario',
+    audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
     href: '/admin/users',
     label: 'Usuarios',
     domain: 'personas',
@@ -333,6 +341,7 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/infraestructura': Database,
   '/admin/health': Heart,
   '/admin/technical': Wrench,
+  '/admin/hunter': BowArrow,
   '/admin/logs': FileText,
   '/admin/mantenimiento': NotebookPen,
   '/admin/contexto': MapIcon,
@@ -393,6 +402,7 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
     case '/admin/contexto':
       return canAccessOwnerOperationsPanel(role);
     case '/admin/technical':
+    case '/admin/hunter':
       return role === 'owner';
     case '/admin/announcements':
       return canManageAnnouncements(role);
@@ -560,7 +570,8 @@ export function getAdminMobileSectionTitle(pathname: string): string {
   if (
     pathname.startsWith('/admin/operaciones') ||
     pathname === '/admin/health' ||
-    pathname === '/admin/technical'
+    pathname === '/admin/technical' ||
+    pathname === '/admin/hunter'
   ) {
     return 'Operación';
   }

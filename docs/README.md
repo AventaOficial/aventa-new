@@ -5,6 +5,8 @@ Documentos activos en `docs/`:
 | Archivo | Descripción |
 |---------|-------------|
 | [GUIA_AVENTA.md](./GUIA_AVENTA.md) | **Estado, roadmap y checklist** — documento único de referencia para el día a día |
+| [HUNTER_INFRA_Y_ROADMAP.md](./HUNTER_INFRA_Y_ROADMAP.md) | **Hunter:** infra conectada (Vercel, Supabase, Upstash, cron-job.org, Railway) y checklist para incorporarlo a prod |
+| [CRON_EXTERNO_BOT.md](./CRON_EXTERNO_BOT.md) | Cómo configurar cron-job.org → `/api/cron/bot-ingest` |
 | [FEEDBACK_Y_ROADMAP.md](./FEEDBACK_Y_ROADMAP.md) | Encuestas de beta, patrón de respuestas, qué toca ahora, filtros (AVENTA vs Promodescuentos) |
 | [SISTEMAS_AVENTA.md](./SISTEMAS_AVENTA.md) | Mapa de sistemas (app por partes), notificaciones, referencia a propuestas archivadas |
 | [SUPABASE_CONTEXTO.md](./SUPABASE_CONTEXTO.md) | Schema public, funciones, triggers y extensiones Supabase |

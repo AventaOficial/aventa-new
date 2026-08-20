@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  BowArrow,
   CircleDollarSign,
   Cog,
   Globe2,
@@ -65,6 +66,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
       { href: '/admin/health', label: 'Health', icon: Heart },
       { href: '/admin/operaciones', label: 'Alerts', icon: AlertTriangle },
       { href: '/admin/operaciones/trabajo', label: 'Automations', icon: Zap },
+      { href: '/admin/hunter', label: 'Hunter', icon: BowArrow },
     ],
   },
   {
@@ -88,6 +90,7 @@ export const OWNER_COMMAND_ITEMS: { href: string; label: string; group: string }
   { href: '/admin/announcements', label: 'Anuncios', group: 'Admin' },
   { href: '/admin/creator-tags', label: 'Creator Tags', group: 'Admin' },
   { href: '/admin/owner/cazadores', label: 'Cazadores', group: 'Admin' },
+  { href: '/admin/hunter', label: 'Hunter', group: 'Operations' },
   { href: '/equipo', label: 'Team Hub', group: 'Workspace' },
   { href: '/admin/mantenimiento', label: 'Mantenimiento', group: 'System' },
 ];

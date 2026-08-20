@@ -218,6 +218,19 @@ export async function discoverMercadoLibreIngestItems(
   }
 
   const details = await fetchMercadoLibreItemsMulti(idOrder);
+
+  const priceObservations = idOrder.flatMap((id) => {
+    const body = details.get(id);
+    const price = typeof body?.price === 'number' ? body.price : null;
+    if (price == null || !Number.isFinite(price) || price <= 0) return [];
+    const orig = body?.original_price;
+    const listPrice = typeof orig === 'number' && orig > 0 ? orig : null;
+    return [{ productId: id, current: price, listPrice, regularPrice: null }];
+  });
+  if (priceObservations.length > 0) {
+    const { recordMlDailySnapshots } = await import('./mlPriceEngine');
+    await recordMlDailySnapshots(priceObservations);
+  }
   type Row = { id: string; meta: ParsedOfferMetadata; signals: OfferQualitySignals };
   const candidates: Row[] = [];
 

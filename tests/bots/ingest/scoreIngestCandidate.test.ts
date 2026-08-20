@@ -115,6 +115,54 @@ describe('scoreIngestCandidate', () => {
     expect(r.decision).toBe('reject');
   });
 
+  it('historial habitual real puntúa mejor que descuento de etiqueta falso', () => {
+    const cfg = baseConfig();
+    const fake = scoreIngestCandidate(
+      {
+        canonicalUrl: 'https://a',
+        title: 'Audifonos',
+        store: 'Mercado Libre',
+        imageUrl: 'x',
+        discountPrice: 1999,
+        originalPrice: 3999,
+        discountPercent: 50,
+      },
+      {
+        soldQuantity: 80,
+        ratingAverage: 4.4,
+        ratingCount: 40,
+        categoryId: 'MLM1648',
+        effectiveDiscountPercent: 0,
+        suspectedArtificialListPrice: true,
+        savingsVsHabitualPct: 0,
+      },
+      cfg
+    );
+    const real = scoreIngestCandidate(
+      {
+        canonicalUrl: 'https://a',
+        title: 'Audifonos',
+        store: 'Mercado Libre',
+        imageUrl: 'x',
+        discountPrice: 4699,
+        originalPrice: 5899,
+        discountPercent: 20,
+      },
+      {
+        soldQuantity: 80,
+        ratingAverage: 4.4,
+        ratingCount: 40,
+        categoryId: 'MLM1648',
+        effectiveDiscountPercent: 20,
+        savingsVsHabitualPct: 20,
+        priceVsLowest90dPct: 2,
+      },
+      cfg
+    );
+    expect(real.breakdown.historical).toBeGreaterThan(fake.breakdown.historical);
+    expect(real.breakdown.discount).toBeGreaterThan(fake.breakdown.discount);
+  });
+
   it('FORCE_PENDING_MIN_SCORE: iba a reject pero sube a pending', () => {
     const cfg = baseConfig({
       rejectBelowScore: 50,

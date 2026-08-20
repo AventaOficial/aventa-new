@@ -39,7 +39,7 @@ export function scoreIngestCandidate(
   signals: OfferQualitySignals | undefined,
   config: BotIngestConfig
 ): ScoreResult {
-  const d = clamp(meta.discountPercent, 0, 80);
+  const d = clamp(signals?.effectiveDiscountPercent ?? meta.discountPercent, 0, 80);
   const discountPts = clamp((d / 80) * 100, 0, 100);
 
   const sold = signals?.soldQuantity ?? null;
@@ -68,8 +68,15 @@ export function scoreIngestCandidate(
   else if (price >= 25000) priceAppeal = 55;
 
   let historicalPts = 50;
+  const vsHabitual = signals?.savingsVsHabitualPct ?? null;
   const vsLowest90d = signals?.priceVsLowest90dPct ?? null;
-  if (vsLowest90d != null) {
+  if (vsHabitual != null) {
+    if (vsHabitual >= 20) historicalPts = 100;
+    else if (vsHabitual >= 12) historicalPts = 85;
+    else if (vsHabitual >= 6) historicalPts = 65;
+    else if (vsHabitual >= 0) historicalPts = 45;
+    else historicalPts = 20;
+  } else if (vsLowest90d != null) {
     if (vsLowest90d <= 3) historicalPts = 100;
     else if (vsLowest90d <= 8) historicalPts = 85;
     else if (vsLowest90d <= 15) historicalPts = 65;

@@ -181,6 +181,7 @@ export default function AdminLayout({
       pathname === '/admin/commissions' || pathname === '/admin/creator-tags';
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
     const isTechnicalPath = pathname === '/admin/technical';
+    const isHunterPath = pathname === '/admin/hunter';
     const isSistemasMapaPath = pathname === '/admin/sistemas/mapa';
     const isInfraestructuraPath = pathname === '/admin/infraestructura';
     const isContextoPath = pathname === '/admin/contexto';
@@ -212,7 +213,7 @@ export default function AdminLayout({
       router.replace(canMod ? '/admin/moderation' : '/admin/health');
     } else if (isHeaPath && !canHea) {
       router.replace(canMod ? '/admin/moderation' : '/admin/metrics');
-    } else if (isTechnicalPath && !canTechnical) {
+    } else if ((isTechnicalPath || isHunterPath) && !canTechnical) {
       router.replace(canOwnerOpsPanel ? '/admin/owner' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if ((isSistemasMapaPath || isInfraestructuraPath || isContextoPath) && !canOwnerOpsPanel) {
       router.replace(canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');

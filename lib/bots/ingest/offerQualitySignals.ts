@@ -12,6 +12,9 @@ export type OfferQualitySignals = {
   priceLowest30d?: number | null;
   priceLowest90d?: number | null;
   priceVsLowest90dPct?: number | null;
+  habitual30d?: number | null;
+  savingsVsHabitualPct?: number | null;
+  effectiveDiscountPercent?: number | null;
   suspectedArtificialListPrice?: boolean | null;
-  priceIntelSource?: 'keepa' | 'other' | null;
+  priceIntelSource?: 'keepa' | 'aventa_ml' | 'other' | null;
 };

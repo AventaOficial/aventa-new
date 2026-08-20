@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mercado Libre">
-  <circle cx="32" cy="32" r="32" fill="#FFE600"/>
-  <text x="32" y="39" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#2D3277">ML</text>
+  <rect width="64" height="64" rx="14" fill="#FFE600"/>
+  <g fill="#2D3277">
+    <circle cx="20.6" cy="18.6" r="6.5"/>
+    <circle cx="43.4" cy="18.6" r="6.5"/>
+    <path d="M12.2 27c0-1.85 1.5-3.35 3.35-3.35h11.7c2.15 0 4.05 1.35 4.8 3.4L35 35.2l-3.9 2.15c-1.55.85-3.5.6-4.8-.55L22.8 32.6h-7.25C13.7 32.6 12.2 31.1 12.2 29.25V27z"/>
+    <path d="M51.8 27c0-1.85-1.5-3.35-3.35-3.35H36.75c-2.15 0-4.05 1.35-4.8 3.4L29 35.2l3.9 2.15c1.55.85 3.5.6 4.8-.55l3.5-4.2h7.25c1.85 0 3.35-1.5 3.35-3.35V27z"/>
+    <ellipse cx="32" cy="41.2" rx="8.4" ry="5.6"/>
+  </g>
 </svg>

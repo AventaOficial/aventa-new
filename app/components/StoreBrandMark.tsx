@@ -7,7 +7,7 @@ type StoreBrandMarkProps = {
   className?: string;
 };
 
-/** Logo circular de tienda + nombre en negrita (Mercado Libre, Amazon u otras). */
+/** Logo de tienda + nombre en negrita (Mercado Libre, Amazon u otras). */
 export default function StoreBrandMark({ store, className = '' }: StoreBrandMarkProps) {
   const brand = resolveStoreBrand(store);
   return (
@@ -20,7 +20,9 @@ export default function StoreBrandMark({ store, className = '' }: StoreBrandMark
           alt=""
           width={18}
           height={18}
-          className="h-4 w-4 md:h-[18px] md:w-[18px] rounded-full object-cover shrink-0 ring-1 ring-black/10 dark:ring-white/10"
+          className={`h-4 w-4 md:h-[18px] md:w-[18px] object-cover shrink-0 ring-1 ring-black/10 dark:ring-white/10 ${
+            brand.markShape === 'squircle' ? 'rounded-[4px]' : 'rounded-full'
+          }`}
         />
       ) : (
         <span

@@ -3,20 +3,24 @@ export type StoreBrand = {
   logoSrc: string | null;
   initials: string;
   bg: string;
+  /** El icono oficial de ML es squircle amarillo, no un círculo con letras. */
+  markShape: 'circle' | 'squircle';
 };
 
-const KNOWN: Array<{ match: RegExp; name: string; logoSrc: string; bg: string }> = [
+const KNOWN: Array<{ match: RegExp; name: string; logoSrc: string; bg: string; markShape: StoreBrand['markShape'] }> = [
   {
     match: /mercado\s*libre|mercadolibre|mercadolivre/i,
     name: 'Mercado Libre',
     logoSrc: '/stores/mercado-libre.svg',
     bg: '#FFE600',
+    markShape: 'squircle',
   },
   {
     match: /\bamazon\b/i,
     name: 'Amazon',
     logoSrc: '/stores/amazon.svg',
     bg: '#232F3E',
+    markShape: 'circle',
   },
 ];
 
@@ -28,7 +32,7 @@ function initialsFrom(name: string): string {
   return name.slice(0, 2).toUpperCase() || 'TI';
 }
 
-/** Identidad visual de tienda para el feed (logo circular + nombre). */
+/** Identidad visual de tienda para el feed (logo + nombre). */
 export function resolveStoreBrand(store: string | null | undefined): StoreBrand {
   const trimmed = (store ?? '').trim() || 'Tienda';
   for (const known of KNOWN) {
@@ -38,6 +42,7 @@ export function resolveStoreBrand(store: string | null | undefined): StoreBrand 
         logoSrc: known.logoSrc,
         initials: initialsFrom(known.name),
         bg: known.bg,
+        markShape: known.markShape,
       };
     }
   }
@@ -46,5 +51,6 @@ export function resolveStoreBrand(store: string | null | undefined): StoreBrand 
     logoSrc: null,
     initials: initialsFrom(trimmed),
     bg: '#7c3aed',
+    markShape: 'circle',
   };
 }
