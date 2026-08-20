@@ -193,9 +193,13 @@ export async function discoverMercadoLibreIngestItems(
         cache: 'no-store',
       });
     } catch {
+      bumpReason(skipReasonCounts, 'ml discovery: error de red en búsqueda');
       continue;
     }
-    if (!res.ok) continue;
+    if (!res.ok) {
+      bumpReason(skipReasonCounts, `ml discovery: search HTTP ${res.status}`);
+      continue;
+    }
 
     let json: MlSearchResponse;
     try {

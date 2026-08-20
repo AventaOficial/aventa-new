@@ -154,7 +154,23 @@ Lista completa de flags: panel Trabajo / `GET /api/admin/bot-ingest-status`.
 
 ---
 
-## 6. Qué no hacer todavía
+## 6. Bloqueo real de Mercado Libre (por qué Explorar ahora da 0)
+
+La API pública `api.mercadolibre.com` (search e items) responde **403 PolicyAgent** desde IPs de cloud (Vercel y muchos VPS). El ciclo puede devolver HTTP 200 con `inserted: 0` y `ml_api.collected: 0`.
+
+Por eso existe **Camino B**: `workers/mercadolibre-worker` (Playwright en Railway) → `POST /api/cron/bot-ingest-candidates`.
+
+Mientras Railway esté offline / trial vencido, Hunter en Vercel **no puede descubrir ML solo con API**.
+
+Mitigaciones:
+
+1. Renovar Railway, cron cada ~15 min, `AVENTA_CRON_SECRET` = `CRON_SECRET`, y `BOT_INGEST_EXTERNAL_WORKER=1` en Vercel.
+2. Otra máquina con IP residencial / Playwright apuntando al mismo endpoint.
+3. No esperar que cron-job.org solucione el 403: solo llama a Vercel.
+
+---
+
+## 7. Qué no hacer todavía
 
 - No empezar Coupon Hunter ni Bank Hunter hasta que Price Engine ML lleve días de snapshots y el ciclo A esté estable.
 - No meter un LLM genérico como “el bot”; el copy solo limpia título.
@@ -163,7 +179,7 @@ Lista completa de flags: panel Trabajo / `GET /api/admin/bot-ingest-status`.
 
 ---
 
-## 7. Criterio de “Hunter incorporado”
+## 8. Criterio de “Hunter incorporado”
 
 Se considera listo cuando:
 

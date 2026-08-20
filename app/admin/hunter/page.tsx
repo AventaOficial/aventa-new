@@ -107,11 +107,51 @@ export default function HunterPage() {
     });
     const body = (await res.json().catch(() => ({}))) as {
       error?: string;
-      summary?: { inserted?: number };
+      enabled?: boolean;
+      pausedByOwner?: boolean;
+      runMode?: string;
+      summary?: {
+        inserted?: number;
+        skipped?: number;
+        rejected?: number;
+        duplicate?: number;
+        stageCounts?: { collected?: number; evaluated?: number };
+        skipReasonCounts?: Record<string, number>;
+        sourceStats?: { ml_api?: { collected?: number } };
+      };
     };
-    setRunMsg(
-      res.ok ? `Ciclo listo. Insertadas: ${body.summary?.inserted ?? '—'}` : body.error ?? 'Falló el ciclo'
-    );
+    if (!res.ok) {
+      setRunMsg(body.error ?? 'Falló el ciclo');
+      setRunning(false);
+      await load();
+      return;
+    }
+    if (body.pausedByOwner) {
+      setRunMsg('Pausado en Automations (Permitir ejecución del bot).');
+    } else if (body.enabled === false) {
+      setRunMsg('Bot apagado en env (BOT_INGEST_ENABLED).');
+    } else {
+      const topSkips = Object.entries(body.summary?.skipReasonCounts ?? {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([reason, n]) => `${reason} ×${n}`)
+        .join(' · ');
+      const mlCollected = body.summary?.sourceStats?.ml_api?.collected ?? 0;
+      const collected = body.summary?.stageCounts?.collected ?? 0;
+      setRunMsg(
+        [
+          `Modo ${body.runMode ?? '—'}.`,
+          `Insertadas ${body.summary?.inserted ?? 0}`,
+          `omitidas ${body.summary?.skipped ?? 0}`,
+          `rechazadas ${body.summary?.rejected ?? 0}`,
+          `dup ${body.summary?.duplicate ?? 0}.`,
+          `Pool ${collected} (ML búsqueda ${mlCollected}).`,
+          topSkips ? `Top filtros: ${topSkips}` : mlCollected === 0 ? 'Sin candidatos ML: API bloqueada o sin resultados.' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+    }
     setRunning(false);
     await load();
   };
@@ -193,6 +233,13 @@ export default function HunterPage() {
               ))}
             </ul>
             <p className="mt-3 text-xs text-white/35">Cron objetivo: {data.cron.schedule}. {data.cron.deployment_note}</p>
+            {data.config.discover_ml && !data.config.external_worker_ingest ? (
+              <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">
+                La API pública de Mercado Libre suele responder 403 desde Vercel. Si Explorar ahora deja el pool en 0,
+                reactiva el worker Playwright (Railway) o alimenta URLs; el cron de cron-job.org solo despierta el mismo
+                camino.
+              </p>
+            ) : null}
           </GlassCard>
 
           <GlassCard>
