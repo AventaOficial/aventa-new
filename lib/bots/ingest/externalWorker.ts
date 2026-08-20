@@ -328,9 +328,6 @@ export async function processExternalWorkerBatch(
     const allowAuto = config.autoApproveEnabled && row.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
-      const moderatorNote = isPromoUnverifiedItem(row.item, row.meta)
-        ? 'promo ML sin precio original verificable; revisar descuento manualmente'
-        : undefined;
 
     if (payload.dryRun) {
       insertedThisRun += 1;
@@ -352,7 +349,6 @@ export async function processExternalWorkerBatch(
         titleOverride: title,
         ingestScore: row.total,
         scoreBreakdown: row.breakdown,
-          moderatorNote,
       });
       if (ins.ok) {
         insertedThisRun += 1;
