@@ -33,12 +33,24 @@ export function buildOfferPublicPath(id: string, title?: string | null): string 
 export function normalizeOfferImageUrl(raw?: string | null): string | null {
   const value = typeof raw === 'string' ? raw.trim() : '';
   if (!value) return null;
+  if (value.startsWith('data:')) return value;
   if (value.startsWith('//')) return `https:${value}`;
-  if (/^https?:\/\//i.test(value)) return value;
+  if (/^https?:\/\//i.test(value)) {
+    // Evita rutas rotas en nuestro dominio (p.ej. /placeholder.png o paths relativos mal guardados).
+    try {
+      const u = new URL(value);
+      if (/placeholder/i.test(u.pathname)) return null;
+      return value;
+    } catch {
+      return null;
+    }
+  }
   if (value.startsWith('/') && /mlstatic|meli/i.test(value)) {
     return `https://http2.mlstatic.com${value}`;
   }
-  return value.startsWith('/') ? null : value;
+  // Paths relativos locales → no usar (causan 404 en aventaofertas.com).
+  if (value.startsWith('/') || !value.includes('.')) return null;
+  return null;
 }
 
 /** Lista única: portada + extras, sin duplicados. */

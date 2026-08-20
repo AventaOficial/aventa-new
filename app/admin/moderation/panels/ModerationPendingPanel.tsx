@@ -25,6 +25,7 @@ import { ALL_CATEGORIES } from '@/lib/categories';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { pendingBasePath, type ModerationHubMode, type ModerationQueueView } from '@/lib/moderation/hubConfig';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
+import { moderationUi } from '../moderationUi';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -532,6 +533,7 @@ export default function ModerationPendingPanel({
 
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
   const canAdvancedModeration = isOwner || isAdmin;
+  const ui = moderationUi(mode);
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -553,51 +555,51 @@ export default function ModerationPendingPanel({
 
   return (
     <div className="space-y-4">
-      <header className="rounded-2xl glass-dark px-5 py-5 md:px-6">
+      <header className={`${ui.card} px-5 py-5 md:px-6`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">
+            <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${ui.label}`}>
               Moderación
             </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white/90">
+            <h2 className={`mt-1 text-2xl font-semibold tracking-tight ${ui.title}`}>
               Cola de revisión
             </h2>
-            <p className="mt-2 max-w-xl text-sm text-white/45 leading-relaxed">
+            <p className={`mt-2 max-w-xl text-sm leading-relaxed ${ui.subtitle}`}>
               Lista a la izquierda, detalle a la derecha. Abre la tienda en pestaña nueva; aprueba o
               rechaza sin modales raros.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-medium text-emerald-200">
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-medium text-emerald-700 dark:text-emerald-200">
               Calidad hoy: {qualityToday}
             </span>
-            <span className="rounded-full bg-violet-500/15 px-2.5 py-1 font-medium text-violet-200">
+            <span className="rounded-full bg-violet-500/15 px-2.5 py-1 font-medium text-violet-700 dark:text-violet-200">
               7d: {qualityWeek}
             </span>
-            <span className="rounded-full bg-sky-500/15 px-2.5 py-1 font-medium text-sky-200">
+            <span className="rounded-full bg-sky-500/15 px-2.5 py-1 font-medium text-sky-700 dark:text-sky-200">
               Bot: {botPending}
             </span>
           </div>
         </div>
       </header>
 
-      <div className="rounded-2xl glass-dark p-4 space-y-3">
+      <div className={`${ui.card} space-y-3 p-4`}>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+            <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${ui.iconMuted}`} />
             <input
               id="moderation-search-input"
               type="search"
               placeholder="Buscar título, tienda o autor…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-9 pr-4 text-sm text-white/90 placeholder:text-white/30 outline-none focus:border-violet-400/40"
+              className={`w-full py-2.5 pl-9 pr-4 text-sm ${ui.input}`}
             />
           </div>
           <select
             value={storeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
-            className="max-w-[160px] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
+            className={`max-w-[160px] px-3 py-2.5 ${ui.select}`}
             title="Filtrar por tienda"
           >
             <option value="">Todas las tiendas</option>
@@ -610,7 +612,7 @@ export default function ModerationPendingPanel({
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="max-w-[140px] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
+            className={`max-w-[140px] px-3 py-2.5 ${ui.select}`}
             title="Filtrar por categoría"
           >
             {CATEGORY_OPTIONS.map(({ value, label }) => (
@@ -625,38 +627,38 @@ export default function ModerationPendingPanel({
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
+                className={`px-3 py-2.5 ${ui.select}`}
                 title="Desde fecha"
               />
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
+                className={`px-3 py-2.5 ${ui.select}`}
                 title="Hasta fecha"
               />
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-white/55">
+              <label className={`flex cursor-pointer items-center gap-2 text-sm ${ui.soft}`}>
                 <input
                   type="checkbox"
                   checked={riskHighOnly}
                   onChange={(e) => setRiskHighOnly(e.target.checked)}
-                  className="rounded border-white/20 text-amber-500 focus:ring-amber-500"
+                  className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 dark:border-white/20"
                 />
                 <span>Risk alto</span>
               </label>
             </>
           ) : null}
-          <span className="text-sm text-white/40">
+          <span className={`text-sm ${ui.muted}`}>
             {deskList.length} en vista · Bot {botFiltered.length} · Usuarios {userFiltered.length}
           </span>
         </div>
 
         {canAdvancedModeration && deskList.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+          <div className={`flex flex-wrap items-center gap-2 border-t pt-3 ${ui.hairline}`}>
             <button
               type="button"
               onClick={toggleSelectAll}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-white/70 hover:bg-white/[0.04]"
+              className={`inline-flex items-center gap-1.5 ${ui.btnGhost}`}
             >
               {selectedIds.size >= deskList.length ? (
                 <CheckSquare className="h-4 w-4" />
@@ -667,7 +669,7 @@ export default function ModerationPendingPanel({
             </button>
             {selectedIds.size > 0 ? (
               <>
-                <span className="text-sm text-white/40">{selectedIds.size} sel.</span>
+                <span className={`text-sm ${ui.muted}`}>{selectedIds.size} sel.</span>
                 <button
                   type="button"
                   onClick={runBatchApprove}
@@ -722,26 +724,26 @@ export default function ModerationPendingPanel({
           onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl glass-dark border border-red-500/30 p-5 shadow-xl"
+            className={`w-full max-w-lg ${ui.modal} border-red-500/30 p-5`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-1 text-lg font-semibold text-red-200">Vaciar cola del bot (irreversible)</h3>
-            <p className="mb-3 text-sm text-white/50">
-              Se eliminarán las ofertas <strong className="text-white/70">pendientes</strong> del bot.
+            <h3 className="mb-1 text-lg font-semibold text-red-700 dark:text-red-200">Vaciar cola del bot (irreversible)</h3>
+            <p className={`mb-3 text-sm ${ui.subtitle}`}>
+              Se eliminarán las ofertas <strong className={ui.body}>pendientes</strong> del bot.
               No afecta ofertas de usuarios reales.
             </p>
-            <label className="mb-4 flex cursor-pointer items-start gap-2 text-sm text-white/70">
+            <label className={`mb-4 flex cursor-pointer items-start gap-2 text-sm ${ui.body}`}>
               <input
                 type="checkbox"
                 checked={deleteBotAck}
                 onChange={(e) => setDeleteBotAck(e.target.checked)}
-                className="mt-1 rounded border-white/20 text-red-600 focus:ring-red-500"
+                className="mt-1 rounded border-gray-300 text-red-600 focus:ring-red-500 dark:border-white/20"
               />
               <span>Entiendo que esta acción no se puede deshacer.</span>
             </label>
-            <p className="mb-1 text-xs text-white/40">
+            <p className={`mb-1 text-xs ${ui.muted}`}>
               Escribe exactamente:{' '}
-              <code className="rounded bg-white/10 px-1 font-mono">
+              <code className="rounded bg-black/[0.06] px-1 font-mono dark:bg-white/10">
                 {MODERATION_DELETE_BOT_CONFIRM_PHRASE}
               </code>
             </p>
@@ -751,13 +753,13 @@ export default function ModerationPendingPanel({
               onChange={(e) => setDeleteBotPhrase(e.target.value)}
               autoComplete="off"
               placeholder="Frase de confirmación…"
-              className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-white/90"
+              className={`mb-4 w-full px-3 py-2.5 font-mono text-sm ${ui.input}`}
             />
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/70"
+                className={ui.btnGhost}
               >
                 Cancelar
               </button>
@@ -789,20 +791,20 @@ export default function ModerationPendingPanel({
           onClick={() => !batchActing && setShowBatchReject(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl glass-dark border border-white/10 p-5 shadow-xl"
+            className={`w-full max-w-md ${ui.modal} p-5`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-2 text-lg font-semibold text-white/90">
+            <h3 className={`mb-2 text-lg font-semibold ${ui.title}`}>
               Rechazar {selectedIds.size} ofertas
             </h3>
-            <p className="mb-2 text-sm text-white/45">Mismo motivo para todas (obligatorio):</p>
+            <p className={`mb-2 text-sm ${ui.subtitle}`}>Mismo motivo para todas (obligatorio):</p>
             <div className="mb-3 flex flex-wrap gap-1.5">
               {MODERATION_REJECTION_PRESETS.map((r) => (
                 <button
                   key={r.short}
                   type="button"
                   onClick={() => setBatchRejectReason(r.full)}
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-white/70 hover:border-violet-400/40"
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-medium ${ui.borderStrong} ${ui.soft} hover:border-violet-400/40`}
                 >
                   {r.short}
                 </button>
@@ -813,13 +815,13 @@ export default function ModerationPendingPanel({
               value={batchRejectReason}
               onChange={(e) => setBatchRejectReason(e.target.value)}
               placeholder="Motivo detallado…"
-              className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/90"
+              className={`mb-4 w-full px-3 py-2.5 text-sm ${ui.input}`}
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setShowBatchReject(false)}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/70"
+                className={ui.btnGhost}
               >
                 Cancelar
               </button>
@@ -837,7 +839,7 @@ export default function ModerationPendingPanel({
       ) : null}
 
       {loading ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-white/10 py-16 text-white/45">
+        <div className={`flex items-center justify-center gap-2 ${ui.emptyDash}`}>
           <span
             className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-violet-400 border-t-transparent"
             aria-hidden
@@ -845,22 +847,22 @@ export default function ModerationPendingPanel({
           Cargando cola…
         </div>
       ) : deskList.length === 0 ? (
-        <div className="rounded-2xl glass-dark p-10 text-center">
-          <p className="text-[15px] text-white/50">
+        <div className={`${ui.card} p-10 text-center`}>
+          <p className={`text-[15px] ${ui.subtitle}`}>
             {pending.length === 0
               ? 'No hay ofertas pendientes. Buen trabajo.'
               : 'Ninguna coincide con los filtros. Prueba a limpiar la búsqueda.'}
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)_minmax(240px,280px)] xl:items-start xl:gap-5">
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)_minmax(240px,280px)] xl:items-start xl:gap-5">
           <aside
-            className={`flex min-h-0 flex-col rounded-2xl glass-dark overflow-hidden ${
+            className={`flex min-h-0 flex-col overflow-hidden ${ui.card} ${
               mobileShowDetail ? 'hidden md:flex' : 'flex'
             }`}
           >
             {!tabLocked ? (
-              <div className="flex gap-1 border-b border-white/[0.06] p-2">
+              <div className={`flex gap-1 border-b p-2 ${ui.hairline}`}>
                 {(
                   [
                     { id: 'all' as const, label: 'Todos', icon: LayoutList },
@@ -873,9 +875,7 @@ export default function ModerationPendingPanel({
                     type="button"
                     onClick={() => setSourceTab(id)}
                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
-                      sourceTab === id
-                        ? 'bg-white/[0.08] text-white'
-                        : 'text-white/45 hover:bg-white/[0.04] hover:text-white/70'
+                      sourceTab === id ? ui.chipActive : ui.chipIdle
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -884,7 +884,7 @@ export default function ModerationPendingPanel({
                 ))}
               </div>
             ) : (
-              <div className="border-b border-white/[0.06] px-3 py-2.5 text-xs font-medium text-white/50">
+              <div className={`border-b px-3 py-2.5 text-xs font-medium ${ui.hairline} ${ui.soft}`}>
                 {sourceTab === 'bot' ? 'Cola del bot' : 'Cola de usuarios'}
               </div>
             )}
@@ -899,20 +899,18 @@ export default function ModerationPendingPanel({
                   <li key={offer.id} className="mb-1">
                     <div
                       className={`flex w-full items-stretch gap-2 rounded-xl border transition-colors ${
-                        active
-                          ? 'border-violet-400/40 bg-violet-500/10'
-                          : 'border-transparent hover:bg-white/[0.03]'
+                        active ? ui.rowActive : `border-transparent ${ui.rowHover}`
                       }`}
                     >
                       {canAdvancedModeration ? (
                         <button
                           type="button"
                           onClick={() => toggleSelect(offer.id)}
-                          className="shrink-0 self-center pl-2 text-white/40 hover:text-white/70"
+                          className={`shrink-0 self-center pl-2 ${ui.iconSoft} hover:opacity-80`}
                           aria-label="Seleccionar"
                         >
                           {selectedIds.has(offer.id) ? (
-                            <CheckSquare className="h-4 w-4 text-violet-300" />
+                            <CheckSquare className="h-4 w-4 text-emerald-600 dark:text-violet-300" />
                           ) : (
                             <Square className="h-4 w-4" />
                           )}
@@ -923,29 +921,37 @@ export default function ModerationPendingPanel({
                         onClick={() => selectOffer(offer.id)}
                         className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2 text-left"
                       >
-                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white/[0.06]">
+                        <div className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg ${ui.thumbBg}`}>
                           {thumb ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={thumb} alt="" className="h-full w-full object-cover" />
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-[9px] text-white/30">
+                            <div className={`flex h-full w-full items-center justify-center text-[9px] ${ui.faint}`}>
                               Sin foto
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-white/85">{offer.title}</p>
-                          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-white/45">
-                            <span className="font-semibold text-emerald-300/90">
+                          <p className={`truncate text-xs font-medium ${ui.body}`}>{offer.title}</p>
+                          <p className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${ui.muted}`}>
+                            <span className="font-semibold text-emerald-700 dark:text-emerald-300/90">
                               ${Number(offer.price ?? 0).toLocaleString('es-MX')}
                             </span>
                             {pct > 0 ? (
-                              <span className="rounded bg-emerald-500/15 px-1 text-emerald-300">
+                              <span className="rounded bg-emerald-500/15 px-1 text-emerald-700 dark:text-emerald-300">
                                 −{pct}%
                               </span>
                             ) : null}
                             {bot ? (
-                              <span className="rounded bg-sky-500/15 px-1 text-sky-300">bot</span>
+                              <span className="rounded bg-sky-500/15 px-1 text-sky-700 dark:text-sky-300">bot</span>
                             ) : null}
                           </p>
                         </div>
@@ -965,13 +971,14 @@ export default function ModerationPendingPanel({
             <button
               type="button"
               onClick={() => setMobileShowDetail(false)}
-              className="mb-2 inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/80 md:hidden"
+              className={`mb-2 inline-flex items-center gap-1 text-sm md:hidden ${ui.soft} hover:opacity-80`}
             >
               <ChevronLeft className="h-4 w-4" />
               Volver a la lista
             </button>
             {selectedOffer ? (
               <ModerationOfferDetail
+                mode={mode}
                 offer={selectedOffer}
                 similarOffers={similarOffers}
                 qualityCandidate={isQualityCandidate(selectedOffer)}
@@ -984,7 +991,7 @@ export default function ModerationPendingPanel({
                 onBack={() => setMobileShowDetail(false)}
               />
             ) : (
-              <div className="flex flex-1 items-center justify-center rounded-2xl glass-dark p-10 text-sm text-white/40">
+              <div className={`flex flex-1 items-center justify-center p-10 text-sm ${ui.card} ${ui.muted}`}>
                 Selecciona una oferta de la lista
               </div>
             )}

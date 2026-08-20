@@ -19,6 +19,8 @@ import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupo
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
+import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
+import { moderationUi } from '../moderation/moderationUi';
 
 export type ModerationDetailOffer = {
   id: string;
@@ -79,6 +81,7 @@ type Props = {
   similarOffers?: SimilarOffer[];
   onOfferUpdated?: () => void;
   onBack?: () => void;
+  mode?: ModerationHubMode;
 };
 
 function storeOpenLabel(store: string | null): string {
@@ -97,7 +100,9 @@ export default function ModerationOfferDetail({
   similarOffers = [],
   onOfferUpdated,
   onBack,
+  mode = 'admin',
 }: Props) {
+  const ui = moderationUi(mode);
   const { session } = useAuth();
   const [imgBroken, setImgBroken] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -186,15 +191,15 @@ export default function ModerationOfferDetail({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-2xl glass-dark overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-3">
+    <div className={`flex h-full min-h-0 flex-col overflow-hidden ${ui.card}`}>
+      <div className={`flex items-center justify-between gap-2 border-b px-4 py-3 ${ui.hairline}`}>
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">Revisión</p>
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${ui.label}`}>Revisión</p>
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
-              className="mt-0.5 text-sm text-violet-300 hover:underline lg:hidden"
+              className="mt-0.5 text-sm text-emerald-700 hover:underline dark:text-violet-300 lg:hidden"
             >
               ← Volver a la cola
             </button>
@@ -202,15 +207,15 @@ export default function ModerationOfferDetail({
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {isBotOffer ? (
-            <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[11px] font-medium text-sky-200">Bot</span>
+            <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:text-sky-200">Bot</span>
           ) : null}
           {qualityCandidate ? (
-            <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-medium text-emerald-200">
+            <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
               Calidad
             </span>
           ) : null}
           {offer.risk_score != null && offer.risk_score > 50 ? (
-            <span className="rounded-md bg-amber-500/25 px-2 py-0.5 text-[11px] font-semibold text-amber-100">
+            <span className="rounded-md bg-amber-500/25 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:text-amber-100">
               Risk {offer.risk_score}
             </span>
           ) : null}
@@ -218,7 +223,7 @@ export default function ModerationOfferDetail({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="relative aspect-[4/3] max-h-[320px] w-full bg-white/[0.04]">
+        <div className={`relative aspect-[4/3] max-h-[320px] w-full ${ui.heroBg}`}>
           {heroSrc ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -226,6 +231,7 @@ export default function ModerationOfferDetail({
                 src={heroSrc}
                 alt=""
                 className="absolute inset-0 h-full w-full object-contain p-3"
+                referrerPolicy="no-referrer"
                 onError={() => setImgBroken(true)}
               />
               <button
@@ -246,7 +252,7 @@ export default function ModerationOfferDetail({
                         setGalleryIndex(i);
                         setImgBroken(false);
                       }}
-                      className={`h-1.5 rounded-full ${i === galleryIndex ? 'w-3 bg-white' : 'w-1.5 bg-white/40'}`}
+                      className={`h-1.5 rounded-full ${i === galleryIndex ? 'w-3 bg-emerald-600 dark:bg-white' : 'w-1.5 bg-gray-300 dark:bg-white/40'}`}
                       aria-label={`Imagen ${i + 1}`}
                     />
                   ))}
@@ -254,10 +260,10 @@ export default function ModerationOfferDetail({
               ) : null}
             </>
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white/35">
+            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-1 ${ui.faint}`}>
               <Store className="h-8 w-8 opacity-50" />
               <p className="text-sm">Sin foto</p>
-              <p className="text-xs text-white/25">{offer.store ?? 'Tienda'}</p>
+              <p className={`text-xs ${ui.muted}`}>{offer.store ?? 'Tienda'}</p>
             </div>
           )}
         </div>
@@ -265,40 +271,40 @@ export default function ModerationOfferDetail({
         <div className="space-y-4 px-4 py-4">
           <div className="flex flex-wrap gap-1.5">
             {categoryLabel ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-200">
+              <span className="inline-flex items-center gap-1 rounded-md bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-800 dark:text-violet-200">
                 <Tag className="h-3 w-3 opacity-80" />
                 {categoryLabel}
-                {vital ? <span className="font-normal text-violet-300/80">· vital</span> : null}
+                {vital ? <span className="font-normal opacity-80">· vital</span> : null}
               </span>
             ) : (
-              <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] text-white/45">Sin categoría</span>
+              <span className={`rounded-md px-2 py-0.5 text-[11px] ${ui.thumbBg} ${ui.muted}`}>Sin categoría</span>
             )}
             {bankCouponLabel ? (
-              <span className="rounded-md bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-200">
+              <span className="rounded-md bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-800 dark:text-violet-200">
                 {formatCupónBancarioDisplay(bankCouponLabel)}
               </span>
             ) : null}
             {discountPercent > 0 ? (
-              <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-medium text-amber-100">
+              <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:text-amber-100">
                 {discountPercent}% off
               </span>
             ) : null}
           </div>
 
-          <h2 className="text-xl font-semibold leading-snug text-white/90">{offer.title}</h2>
+          <h2 className={`text-xl font-semibold leading-snug ${ui.title}`}>{offer.title}</h2>
 
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-2xl font-bold tabular-nums text-emerald-300">
+            <span className="text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
               ${Number(offer.price).toLocaleString('es-MX')}
             </span>
             {offer.original_price != null ? (
-              <span className="text-sm tabular-nums text-white/35 line-through">
+              <span className={`text-sm tabular-nums line-through ${ui.faint}`}>
                 ${Number(offer.original_price).toLocaleString('es-MX')}
               </span>
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/45">
+          <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs ${ui.muted}`}>
             <span className="inline-flex items-center gap-1">
               <Store className="h-3.5 w-3.5" />
               {offer.store ?? '—'}
@@ -312,10 +318,10 @@ export default function ModerationOfferDetail({
                 minute: '2-digit',
               })}
             </span>
-            <span className="inline-flex items-center gap-1 min-w-0">
+            <span className="inline-flex min-w-0 items-center gap-1">
               <User className="h-3.5 w-3.5 shrink-0" />
               {authorSlug ? (
-                <Link href={`/u/${authorSlug}`} className="truncate text-violet-300 hover:underline">
+                <Link href={`/u/${authorSlug}`} className="truncate text-emerald-700 hover:underline dark:text-violet-300">
                   {authorName}
                 </Link>
               ) : (
@@ -329,13 +335,13 @@ export default function ModerationOfferDetail({
               href={offer.offer_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 dark:bg-violet-500 dark:hover:bg-violet-400"
             >
               <ExternalLink className="h-4 w-4" />
               {storeOpenLabel(offer.store)}
             </a>
           ) : (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
               Esta oferta no tiene URL de tienda.
             </p>
           )}
@@ -350,7 +356,7 @@ export default function ModerationOfferDetail({
                 setEditImageUrl(offer.image_url ?? '');
                 setShowEdit(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/70 hover:bg-white/[0.04]"
+              className={ui.btnGhostSm}
             >
               <Pencil className="h-4 w-4" />
               Editar
@@ -359,7 +365,7 @@ export default function ModerationOfferDetail({
               type="button"
               onClick={fetchHistory}
               disabled={historyLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/70 hover:bg-white/[0.04] disabled:opacity-50"
+              className={`${ui.btnGhostSm} disabled:opacity-50`}
             >
               <History className="h-4 w-4" />
               Historial
@@ -367,15 +373,15 @@ export default function ModerationOfferDetail({
           </div>
 
           {offer.moderator_comment?.trim() ? (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white/55">
-              <span className="font-medium text-white/70">Nota ingest:</span> {offer.moderator_comment.trim()}
+            <div className={`rounded-xl border px-3 py-2 text-sm ${ui.border} ${ui.thumbBg} ${ui.soft}`}>
+              <span className={`font-medium ${ui.body}`}>Nota ingest:</span> {offer.moderator_comment.trim()}
             </div>
           ) : null}
 
           {similarOffers.length > 0 ? (
-            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100/90">
               <p className="font-medium">Posibles duplicados</p>
-              <ul className="mt-1 space-y-1 text-amber-100/70">
+              <ul className="mt-1 space-y-1 opacity-80">
                 {similarOffers.slice(0, 3).map((s) => (
                   <li key={s.id} className="flex justify-between gap-3">
                     <span className="truncate" title={s.title}>
@@ -392,29 +398,29 @@ export default function ModerationOfferDetail({
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-white/[0.06] bg-black/20 px-4 py-3 space-y-3">
+      <div className={`shrink-0 space-y-3 px-4 py-3 ${ui.stickyBar}`}>
         <div>
-          <label className="text-[11px] text-white/40">Mensaje opcional al autor</label>
+          <label className={`text-[11px] ${ui.label}`}>Mensaje opcional al autor</label>
           <textarea
             placeholder="Ej: ¡Muy buena oferta! Ya está en el feed."
             value={modMessage}
             onChange={(e) => setModMessage(e.target.value.slice(0, 500))}
             rows={2}
-            className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-violet-400/50"
+            className={`mt-1 w-full px-3 py-2 text-sm ${ui.input}`}
           />
         </div>
         {offer.offer_url?.trim() ? (
-          <label className="flex cursor-pointer items-start gap-2 text-xs text-white/55">
+          <label className={`flex cursor-pointer items-start gap-2 text-xs ${ui.soft}`}>
             <input
               type="checkbox"
               checked={linkConfirmed}
               onChange={(e) => setLinkConfirmed(e.target.checked)}
-              className="mt-0.5 rounded border-white/20 text-emerald-500 focus:ring-emerald-500"
+              className="mt-0.5 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 dark:border-white/20"
             />
             <span>
               Confirmé el producto en la tienda
               <span
-                className="ml-1 text-white/30"
+                className={`ml-1 ${ui.faint}`}
                 title="Al aprobar, AVENTA aplica tracking de afiliado (ML tag/matt, Amazon, etc.) según env."
               >
                 (?)
@@ -455,7 +461,7 @@ export default function ModerationOfferDetail({
                   key={r.short}
                   type="button"
                   onClick={() => setRejectReason(r.full)}
-                  className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/70 hover:border-violet-400/40"
+                  className={`rounded-lg border px-2 py-1 text-[11px] ${ui.borderStrong} ${ui.soft} hover:border-violet-400/40`}
                 >
                   {r.short}
                 </button>
@@ -474,7 +480,7 @@ export default function ModerationOfferDetail({
                     setRejectReason('');
                   }
                 }}
-                className="min-w-[160px] flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/85 outline-none focus:border-violet-400/50"
+                className={`min-w-[160px] flex-1 px-3 py-2 text-sm ${ui.input}`}
                 autoFocus
               />
               <button
@@ -496,24 +502,24 @@ export default function ModerationOfferDetail({
           onClick={() => setShowHistory(false)}
         >
           <div
-            className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl glass-dark border border-white/10 p-5"
+            className={`max-h-[80vh] w-full max-w-md overflow-auto p-5 ${ui.modal}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white/90">Historial</h3>
-              <button type="button" onClick={() => setShowHistory(false)} className="rounded p-1 hover:bg-white/10" aria-label="Cerrar">
-                <X className="h-5 w-5 text-white/70" />
+              <h3 className={`text-lg font-semibold ${ui.title}`}>Historial</h3>
+              <button type="button" onClick={() => setShowHistory(false)} className={`rounded p-1 ${ui.rowHover}`} aria-label="Cerrar">
+                <X className={`h-5 w-5 ${ui.soft}`} />
               </button>
             </div>
             {historyLogs.length === 0 ? (
-              <p className="text-sm text-white/40">Aún no hay acciones.</p>
+              <p className={`text-sm ${ui.muted}`}>Aún no hay acciones.</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {historyLogs.map((log) => (
-                  <li key={log.id} className="border-b border-white/[0.06] py-2 last:border-0">
-                    <span className="font-medium text-white/85">{ACTION_LABELS[log.action] ?? log.action}</span>
-                    <span className="ml-2 text-white/40">{new Date(log.created_at).toLocaleString('es-MX')}</span>
-                    {log.reason ? <p className="text-white/45">Motivo: {log.reason}</p> : null}
+                  <li key={log.id} className={`border-b py-2 last:border-0 ${ui.hairline}`}>
+                    <span className={`font-medium ${ui.body}`}>{ACTION_LABELS[log.action] ?? log.action}</span>
+                    <span className={`ml-2 ${ui.muted}`}>{new Date(log.created_at).toLocaleString('es-MX')}</span>
+                    {log.reason ? <p className={ui.subtitle}>Motivo: {log.reason}</p> : null}
                   </li>
                 ))}
               </ul>
@@ -540,57 +546,63 @@ export default function ModerationOfferDetail({
             <X className="h-6 w-6" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={heroSrc} alt="" className="max-h-full max-w-full object-contain" onClick={(e) => e.stopPropagation()} />
+          <img
+            src={heroSrc}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+            referrerPolicy="no-referrer"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       ) : null}
 
       {showEdit ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowEdit(false)}>
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-2xl glass-dark border border-white/10"
+            className={`max-h-[90vh] w-full max-w-lg overflow-auto ${ui.modal}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 flex items-center justify-between border-b border-white/[0.06] bg-[#0c0c0e]/95 px-4 py-3">
-              <h3 className="text-lg font-semibold text-white/90">Editar oferta</h3>
-              <button type="button" onClick={() => setShowEdit(false)} className="rounded p-1 hover:bg-white/10" aria-label="Cerrar">
-                <X className="h-5 w-5 text-white/70" />
+            <div className={`sticky top-0 flex items-center justify-between border-b px-4 py-3 backdrop-blur ${ui.hairline} ${ui.ws ? 'bg-white/95 dark:bg-[#0c0c0e]/95' : 'bg-[#0c0c0e]/95'}`}>
+              <h3 className={`text-lg font-semibold ${ui.title}`}>Editar oferta</h3>
+              <button type="button" onClick={() => setShowEdit(false)} className={`rounded p-1 ${ui.rowHover}`} aria-label="Cerrar">
+                <X className={`h-5 w-5 ${ui.soft}`} />
               </button>
             </div>
             <div className="space-y-4 p-4">
               <div>
-                <label className="mb-1 block text-sm text-white/60">Título</label>
+                <label className={`mb-1 block text-sm ${ui.soft}`}>Título</label>
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value.slice(0, 500))}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90"
+                  className={`w-full px-3 py-2 text-sm ${ui.input}`}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-white/60">URL</label>
+                <label className={`mb-1 block text-sm ${ui.soft}`}>URL</label>
                 <input
                   type="url"
                   value={editOfferUrl}
                   onChange={(e) => setEditOfferUrl(e.target.value.slice(0, 2048))}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-white/90"
+                  className={`w-full px-3 py-2 font-mono text-sm ${ui.input}`}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-white/60">Descripción</label>
+                <label className={`mb-1 block text-sm ${ui.soft}`}>Descripción</label>
                 <textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value.slice(0, 2000))}
                   rows={3}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90"
+                  className={`w-full px-3 py-2 text-sm ${ui.input}`}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-white/60">Imagen (URL)</label>
+                <label className={`mb-1 block text-sm ${ui.soft}`}>Imagen (URL)</label>
                 <input
                   type="url"
                   value={editImageUrl}
                   onChange={(e) => setEditImageUrl(e.target.value.slice(0, 2048))}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-white/90"
+                  className={`w-full px-3 py-2 font-mono text-sm ${ui.input}`}
                 />
               </div>
               <div className="flex gap-2">
@@ -617,14 +629,14 @@ export default function ModerationOfferDetail({
                     setShowEdit(false);
                     onOfferUpdated?.();
                   }}
-                  className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-50"
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 dark:bg-violet-500 dark:hover:bg-violet-400"
                 >
                   {editSaving ? 'Guardando…' : 'Guardar'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowEdit(false)}
-                  className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/70"
+                  className={ui.btnGhostSm}
                 >
                   Cancelar
                 </button>
