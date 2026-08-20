@@ -29,10 +29,22 @@ export function buildOfferPublicPath(id: string, title?: string | null): string 
   return `/oferta/${id}`;
 }
 
+/** Normaliza src de imagen ML (protocol-relative / path) a https absoluto. */
+export function normalizeOfferImageUrl(raw?: string | null): string | null {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  if (!value) return null;
+  if (value.startsWith('//')) return `https:${value}`;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith('/') && /mlstatic|meli/i.test(value)) {
+    return `https://http2.mlstatic.com${value}`;
+  }
+  return value.startsWith('/') ? null : value;
+}
+
 /** Lista única: portada + extras, sin duplicados. */
 export function mergeOfferImageUrls(image?: string | null, imageUrls?: string[] | null): string[] {
-  const raw = [image, ...(Array.isArray(imageUrls) ? imageUrls : [])].filter(
-    (u): u is string => typeof u === 'string' && u.length > 0
-  );
+  const raw = [image, ...(Array.isArray(imageUrls) ? imageUrls : [])]
+    .map((u) => normalizeOfferImageUrl(u))
+    .filter((u): u is string => typeof u === 'string' && u.length > 0);
   return raw.filter((u, i, arr) => arr.indexOf(u) === i);
 }

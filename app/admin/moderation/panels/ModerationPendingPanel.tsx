@@ -1,17 +1,30 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { Search, CheckSquare, Square, Clock, Check, X, Trash2 } from 'lucide-react';
+import {
+  Search,
+  CheckSquare,
+  Square,
+  Clock,
+  Check,
+  X,
+  Trash2,
+  Bot,
+  Users,
+  LayoutList,
+  ChevronLeft,
+} from 'lucide-react';
 import { MODERATION_DELETE_BOT_CONFIRM_PHRASE } from '@/lib/moderation/deleteBotQueue';
-import ModerationOfferCard from '../../components/ModerationOfferCard';
+import ModerationOfferDetail from '../../components/ModerationOfferDetail';
 import ModerationObjectivesSidebar from '../../components/ModerationObjectivesSidebar';
 
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { pendingBasePath, type ModerationHubMode, type ModerationQueueView } from '@/lib/moderation/hubConfig';
+import { mergeOfferImageUrls } from '@/lib/offerPath';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -42,6 +55,8 @@ type ModerationOffer = {
   is_bot?: boolean;
 };
 
+type SourceTab = 'all' | 'bot' | 'users';
+
 function getOfferDiscountPercent(offer: ModerationOffer): number {
   const price = Number(offer.price ?? 0);
   const original = Number(offer.original_price ?? 0);
@@ -50,24 +65,46 @@ function getOfferDiscountPercent(offer: ModerationOffer): number {
   return Math.round(((original - price) / original) * 100);
 }
 
-const MODERATION_PATH = '/admin/moderation';
-
-type SimilarOffer = { id: string; title: string; price: number; original_price: number | null; store: string | null; created_at: string };
+type SimilarOffer = {
+  id: string;
+  title: string;
+  price: number;
+  original_price: number | null;
+  store: string | null;
+  created_at: string;
+};
 
 function useSimilarOffers(store: string | null, title: string, offerUrl: string | null) {
   const [similar, setSimilar] = useState<SimilarOffer[]>([]);
   useEffect(() => {
-    if (!store?.trim() && !title?.trim()) return;
+    if (!store?.trim() && !title?.trim()) {
+      setSimilar([]);
+      return;
+    }
     const params = new URLSearchParams();
     if (store?.trim()) params.set('store', store.trim());
     if (title?.trim()) params.set('title', title.trim());
     if (offerUrl?.trim()) params.set('offer_url', offerUrl.trim());
+    let cancelled = false;
     fetch(`/api/offers/similar?${params}`)
       .then((r) => r.json())
-      .then((data) => setSimilar(Array.isArray(data?.similar) ? data.similar : []))
-      .catch(() => setSimilar([]));
+      .then((data) => {
+        if (!cancelled) setSimilar(Array.isArray(data?.similar) ? data.similar : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSimilar([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [store, title, offerUrl]);
   return similar;
+}
+
+function sourceTabFromQueueView(queueView: ModerationQueueView): SourceTab {
+  if (queueView === 'bot') return 'bot';
+  if (queueView === 'hunters') return 'users';
+  return 'all';
 }
 
 export type ModerationPendingPanelProps = {
@@ -89,6 +126,9 @@ export default function ModerationPendingPanel({
   const [actingId, setActingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sourceTab, setSourceTab] = useState<SourceTab>(() => sourceTabFromQueueView(queueView));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -136,7 +176,6 @@ export default function ModerationPendingPanel({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [riskHighOnly, setRiskHighOnly] = useState(false);
-  const [onlyBot, setOnlyBot] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showDeleteBotModal, setShowDeleteBotModal] = useState(false);
@@ -161,6 +200,106 @@ export default function ModerationPendingPanel({
       });
   }, [session?.user?.id]);
 
+  const isBotOffer = useCallback(
+    (o: ModerationOffer) =>
+      o.is_bot === true ||
+      (o.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
+      (o.description ?? '').toLowerCase().includes('ingesta automática (bot)'),
+    []
+  );
+
+  const isQualityCandidate = (o: ModerationOffer) => {
+    const hasUrl = Boolean(o.offer_url?.trim());
+    const hasImage = Boolean(o.image_url?.trim());
+    const hasPrice = Number(o.price ?? 0) > 0;
+    const hasContext = Boolean(
+      (o.description ?? '').trim() || (o.conditions ?? '').trim() || (o.coupons ?? '').trim()
+    );
+    const saneDiscount =
+      o.original_price == null ||
+      (Number(o.original_price) > Number(o.price) &&
+        ((Number(o.original_price) - Number(o.price)) / Number(o.original_price)) * 100 >= 5);
+    return hasUrl && hasImage && hasPrice && hasContext && saneDiscount;
+  };
+
+  const filtered = useMemo(() => {
+    return pending.filter((o) => {
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
+        if (
+          !o.title?.toLowerCase().includes(q) &&
+          !o.store?.toLowerCase().includes(q) &&
+          !o.profiles?.display_name?.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (storeFilter && o.store !== storeFilter) return false;
+      if (categoryFilter && (o.category ?? '') !== categoryFilter) return false;
+      if (riskHighOnly && (o.risk_score == null || o.risk_score <= 50)) return false;
+      if (dateFrom) {
+        const d = new Date(o.created_at).toISOString().slice(0, 10);
+        if (d < dateFrom) return false;
+      }
+      if (dateTo) {
+        const d = new Date(o.created_at).toISOString().slice(0, 10);
+        if (d > dateTo) return false;
+      }
+      return true;
+    });
+  }, [pending, debouncedSearch, storeFilter, categoryFilter, riskHighOnly, dateFrom, dateTo]);
+
+  const botFiltered = useMemo(() => {
+    return [...filtered]
+      .filter((o) => isBotOffer(o))
+      .sort((a, b) => {
+        const aFree = Number(a.price ?? 0) <= 0 ? 1 : 0;
+        const bFree = Number(b.price ?? 0) <= 0 ? 1 : 0;
+        if (aFree !== bFree) return bFree - aFree;
+        const aDiscount = getOfferDiscountPercent(a);
+        const bDiscount = getOfferDiscountPercent(b);
+        if (aDiscount !== bDiscount) return bDiscount - aDiscount;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+  }, [filtered, isBotOffer]);
+
+  const userFiltered = useMemo(
+    () => filtered.filter((o) => !isBotOffer(o)),
+    [filtered, isBotOffer]
+  );
+
+  const deskList = useMemo(() => {
+    if (sourceTab === 'bot') return botFiltered;
+    if (sourceTab === 'users') return userFiltered;
+    return [...botFiltered, ...userFiltered];
+  }, [sourceTab, botFiltered, userFiltered]);
+
+  useEffect(() => {
+    setSourceTab(sourceTabFromQueueView(queueView));
+  }, [queueView]);
+
+  useEffect(() => {
+    if (deskList.length === 0) {
+      setSelectedId(null);
+      setMobileShowDetail(false);
+      return;
+    }
+    if (!selectedId || !deskList.some((o) => o.id === selectedId)) {
+      setSelectedId(deskList[0].id);
+    }
+  }, [deskList, selectedId]);
+
+  const selectedOffer = useMemo(
+    () => deskList.find((o) => o.id === selectedId) ?? null,
+    [deskList, selectedId]
+  );
+
+  const similarOffers = useSimilarOffers(
+    selectedOffer?.store ?? null,
+    selectedOffer?.title ?? '',
+    selectedOffer?.offer_url ?? null
+  );
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -169,9 +308,10 @@ export default function ModerationPendingPanel({
       return next;
     });
   };
+
   const toggleSelectAll = () => {
-    if (selectedIds.size >= filtered.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filtered.map((o) => o.id)));
+    if (selectedIds.size >= deskList.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(deskList.map((o) => o.id)));
   };
 
   const runBatchApprove = async () => {
@@ -188,7 +328,11 @@ export default function ModerationPendingPanel({
         body: JSON.stringify({ id, status: 'approved', batch_approve: true }),
       });
       if (offer?.created_by) {
-        await fetch('/api/reputation/increment-approved', { method: 'POST', headers, body: JSON.stringify({ userId: offer.created_by }) }).catch(() => {});
+        await fetch('/api/reputation/increment-approved', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ userId: offer.created_by }),
+        }).catch(() => {});
       }
     }
     setBatchActing(false);
@@ -205,9 +349,17 @@ export default function ModerationPendingPanel({
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     for (const id of ids) {
       const offer = pending.find((o) => o.id === id);
-      await fetch('/api/admin/moderate-offer', { method: 'POST', headers, body: JSON.stringify({ id, status: 'rejected', reason }) });
+      await fetch('/api/admin/moderate-offer', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id, status: 'rejected', reason }),
+      });
       if (offer?.created_by) {
-        await fetch('/api/reputation/increment-rejected', { method: 'POST', headers, body: JSON.stringify({ userId: offer.created_by }) }).catch(() => {});
+        await fetch('/api/reputation/increment-rejected', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ userId: offer.created_by }),
+        }).catch(() => {});
       }
     }
     setBatchActing(false);
@@ -253,7 +405,11 @@ export default function ModerationPendingPanel({
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     for (const id of ids) {
-      await fetch('/api/admin/expire-offer', { method: 'POST', headers, body: JSON.stringify({ offerId: id }) });
+      await fetch('/api/admin/expire-offer', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ offerId: id }),
+      });
     }
     setBatchActing(false);
     setSelectedIds(new Set());
@@ -286,11 +442,6 @@ export default function ModerationPendingPanel({
   }, [pathname, moderationPath, refreshList, session?.access_token]);
 
   useEffect(() => {
-    if (queueView === 'bot') setOnlyBot(true);
-    else if (queueView === 'hunters') setOnlyBot(false);
-  }, [queueView]);
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
@@ -301,14 +452,31 @@ export default function ModerationPendingPanel({
         e.preventDefault();
         document.getElementById('moderation-search-input')?.focus();
       }
-      if (e.key === 'b' || e.key === 'B') {
-        if (queueView === 'split') setOnlyBot((v) => !v);
+      if ((e.key === 'b' || e.key === 'B') && queueView === 'split') {
+        setSourceTab((v) => (v === 'bot' ? 'all' : 'bot'));
       }
-      if (e.key === 'Escape') setSelectedIds(new Set());
+      if (e.key === 'Escape') {
+        setSelectedIds(new Set());
+        setMobileShowDetail(false);
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (deskList.length === 0) return;
+        e.preventDefault();
+        const idx = Math.max(
+          0,
+          deskList.findIndex((o) => o.id === selectedId)
+        );
+        const nextIdx =
+          e.key === 'ArrowDown'
+            ? Math.min(deskList.length - 1, idx + 1)
+            : Math.max(0, idx - 1);
+        setSelectedId(deskList[nextIdx].id);
+        setMobileShowDetail(true);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [queueView]);
+  }, [queueView, deskList, selectedId]);
 
   const setStatus = async (
     id: string,
@@ -316,16 +484,18 @@ export default function ModerationPendingPanel({
     createdBy?: string | null,
     reason?: string,
     modMessage?: string,
-    /** Si la oferta tiene URL, el moderador debe haber marcado la casilla; se envía link_mod_ok al API. */
     offerHasUrl?: boolean
   ) => {
     setActingId(id);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-    const body: { id: string; status: string; reason?: string; mod_message?: string; link_mod_ok?: boolean } = {
-      id,
-      status,
-    };
+    const body: {
+      id: string;
+      status: string;
+      reason?: string;
+      mod_message?: string;
+      link_mod_ok?: boolean;
+    } = { id, status };
     if (reason) body.reason = reason;
     if (status === 'approved' && modMessage?.trim()) body.mod_message = modMessage.trim();
     if (status === 'approved' && offerHasUrl) body.link_mod_ok = true;
@@ -356,153 +526,97 @@ export default function ModerationPendingPanel({
         body: JSON.stringify({ userId: createdBy }),
       }).catch(() => {});
     }
+    setMobileShowDetail(false);
     await refreshList(true);
   };
 
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
-
-  const isBotOffer = (o: ModerationOffer) =>
-    o.is_bot === true ||
-    (o.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
-    (o.description ?? '').toLowerCase().includes('ingesta automática (bot)');
-
-  const isQualityCandidate = (o: ModerationOffer) => {
-    const hasUrl = Boolean(o.offer_url?.trim());
-    const hasImage = Boolean(o.image_url?.trim());
-    const hasPrice = Number(o.price ?? 0) > 0;
-    const hasContext = Boolean(
-      (o.description ?? '').trim() || (o.conditions ?? '').trim() || (o.coupons ?? '').trim()
-    );
-    const saneDiscount =
-      o.original_price == null ||
-      (Number(o.original_price) > Number(o.price) &&
-        ((Number(o.original_price) - Number(o.price)) / Number(o.original_price)) * 100 >= 5);
-    return hasUrl && hasImage && hasPrice && hasContext && saneDiscount;
-  };
-
-  const filtered = pending.filter((o) => {
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
-      if (
-        !o.title?.toLowerCase().includes(q) &&
-        !o.store?.toLowerCase().includes(q) &&
-        !o.profiles?.display_name?.toLowerCase().includes(q)
-      ) return false;
-    }
-    if (storeFilter && o.store !== storeFilter) return false;
-    if (categoryFilter && (o.category ?? '') !== categoryFilter) return false;
-    if (riskHighOnly && (o.risk_score == null || o.risk_score <= 50)) return false;
-    if (onlyBot && !isBotOffer(o)) return false;
-    if (dateFrom) {
-      const d = new Date(o.created_at).toISOString().slice(0, 10);
-      if (d < dateFrom) return false;
-    }
-    if (dateTo) {
-      const d = new Date(o.created_at).toISOString().slice(0, 10);
-      if (d > dateTo) return false;
-    }
-    return true;
-  });
   const canAdvancedModeration = isOwner || isAdmin;
-  const botFiltered = [...filtered]
-    .filter((o) => isBotOffer(o))
-    .sort((a, b) => {
-      const aFree = Number(a.price ?? 0) <= 0 ? 1 : 0;
-      const bFree = Number(b.price ?? 0) <= 0 ? 1 : 0;
-      if (aFree !== bFree) return bFree - aFree; // gratis primero
-      const aDiscount = getOfferDiscountPercent(a);
-      const bDiscount = getOfferDiscountPercent(b);
-      if (aDiscount !== bDiscount) return bDiscount - aDiscount; // mayor % primero
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
-  const userFiltered = filtered.filter((o) => !isBotOffer(o));
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-  const qualityToday = pending.filter((o) => isQualityCandidate(o) && new Date(o.created_at).getTime() >= startOfDay).length;
-  const qualityWeek = pending.filter((o) => isQualityCandidate(o) && new Date(o.created_at).getTime() >= weekAgo).length;
+  const qualityToday = pending.filter(
+    (o) => isQualityCandidate(o) && new Date(o.created_at).getTime() >= startOfDay
+  ).length;
+  const qualityWeek = pending.filter(
+    (o) => isQualityCandidate(o) && new Date(o.created_at).getTime() >= weekAgo
+  ).length;
   const botPending = pending.filter((o) => isBotOffer(o)).length;
 
+  const tabLocked = queueView !== 'split';
+
+  const selectOffer = (id: string) => {
+    setSelectedId(id);
+    setMobileShowDetail(true);
+  };
+
   return (
-    <div className="lg:grid lg:grid-cols-[1fr_minmax(260px,300px)] xl:grid-cols-[1fr_minmax(280px,320px)] lg:gap-8 lg:items-start">
-      <div className="min-w-0">
-      <header className="mb-6 rounded-[28px] border border-violet-200/70 dark:border-violet-900/50 bg-linear-to-br from-violet-50 via-white to-slate-50 dark:from-violet-950/40 dark:via-[#151517] dark:to-[#101012] px-5 py-6 md:px-8 md:py-7 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-        <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-          Cola de revisión
-        </h2>
-        <p className="text-sm md:text-[15px] text-gray-600 dark:text-gray-400 mt-2 max-w-2xl leading-relaxed">
-          Prioriza coherencia precio–enlace, duplicados y categoría. Usa filtros, vista previa e historial por tarjeta.
-          Los atajos de rechazo rellenan un motivo claro para el autor (siempre editable).
-        </p>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Al entrar a esta vista, el sistema normaliza automáticamente enlaces pendientes con tracking de afiliado de plataforma.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/35 text-emerald-800 dark:text-emerald-200 px-2.5 py-1 font-medium">
-            Calidad hoy: {qualityToday}
-          </span>
-          <span className="rounded-full bg-violet-100 dark:bg-violet-900/35 text-violet-800 dark:text-violet-200 px-2.5 py-1 font-medium">
-            Calidad 7 días: {qualityWeek}
-          </span>
-          <span className="rounded-full bg-sky-100 dark:bg-sky-900/35 text-sky-800 dark:text-sky-200 px-2.5 py-1 font-medium">
-            Pendientes del bot: {botPending}
-          </span>
-        </div>
-        <div className="mt-4 rounded-3xl border border-violet-100 dark:border-violet-900/40 bg-white/80 dark:bg-[#141414]/50 px-4 py-4 text-left">
-          <p className="text-xs font-semibold text-violet-800 dark:text-violet-200 mb-2">Checklist rápido (calidad y “vida” de la oferta)</p>
-          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1.5 list-disc list-inside leading-relaxed">
-            <li>
-              <strong className="text-gray-800 dark:text-gray-200">Enlace:</strong> abre, muestra el mismo producto y precio razonable.
-            </li>
-            <li>
-              <strong className="text-gray-800 dark:text-gray-200">Duplicados:</strong> revisa el bloque ámbar; evita publicar la misma oferta dos veces.
-            </li>
-            <li>
-              <strong className="text-gray-800 dark:text-gray-200">Categoría y tienda:</strong> coherente con el producto (afecta descubrimiento y ranking).
-            </li>
-            <li>
-              <strong className="text-gray-800 dark:text-gray-200">Cupón / MSI:</strong> si el cazador los indicó, que cuadren con lo visible en tienda.
-            </li>
-            <li>
-              <strong className="text-gray-800 dark:text-gray-200">Risk alto:</strong> filtro “Risk alto” primero cuando la cola crece.
-            </li>
-          </ul>
+    <div className="space-y-4">
+      <header className="rounded-2xl glass-dark px-5 py-5 md:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">
+              Moderación
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white/90">
+              Cola de revisión
+            </h2>
+            <p className="mt-2 max-w-xl text-sm text-white/45 leading-relaxed">
+              Lista a la izquierda, detalle a la derecha. Abre la tienda en pestaña nueva; aprueba o
+              rechaza sin modales raros.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-medium text-emerald-200">
+              Calidad hoy: {qualityToday}
+            </span>
+            <span className="rounded-full bg-violet-500/15 px-2.5 py-1 font-medium text-violet-200">
+              7d: {qualityWeek}
+            </span>
+            <span className="rounded-full bg-sky-500/15 px-2.5 py-1 font-medium text-sky-200">
+              Bot: {botPending}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="mb-5 space-y-3 rounded-[28px] border border-gray-200/90 dark:border-gray-700/90 bg-white/90 dark:bg-[#141414]/90 backdrop-blur-sm p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+      <div className="rounded-2xl glass-dark p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-500/80" />
+          <div className="relative min-w-[200px] max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
             <input
               id="moderation-search-input"
               type="search"
-              placeholder="Buscar por título, tienda o autor..."
+              placeholder="Buscar título, tienda o autor…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-[#1a1a1a]/80 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20 outline-none transition-shadow"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-9 pr-4 text-sm text-white/90 placeholder:text-white/30 outline-none focus:border-violet-400/40"
             />
           </div>
           <select
             value={storeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
-            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[160px]"
+            className="max-w-[160px] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
             title="Filtrar por tienda"
           >
             <option value="">Todas las tiendas</option>
             {storesInList.sort().map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5 min-w-0 max-w-[140px]"
+            className="max-w-[140px] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
             title="Filtrar por categoría"
           >
             {CATEGORY_OPTIONS.map(({ value, label }) => (
-              <option key={value || 'all'} value={value}>{label}</option>
+              <option key={value || 'all'} value={value}>
+                {label}
+              </option>
             ))}
           </select>
           {canAdvancedModeration ? (
@@ -511,60 +625,55 @@ export default function ModerationPendingPanel({
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5"
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
                 title="Desde fecha"
               />
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-sm text-gray-900 dark:text-gray-100 px-3 py-2.5"
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/85"
                 title="Hasta fecha"
               />
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-white/55">
                 <input
                   type="checkbox"
                   checked={riskHighOnly}
                   onChange={(e) => setRiskHighOnly(e.target.checked)}
-                  className="rounded border-gray-400 text-amber-500 focus:ring-amber-500"
+                  className="rounded border-white/20 text-amber-500 focus:ring-amber-500"
                 />
                 <span>Risk alto</span>
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={onlyBot}
-                  onChange={(e) => setOnlyBot(e.target.checked)}
-                  className="rounded border-gray-400 text-sky-500 focus:ring-sky-500"
-                />
-                <span>Solo bot</span>
-              </label>
             </>
           ) : null}
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {filtered.length} de {pending.length} pendientes · Bot: {botFiltered.length} · Usuarios: {userFiltered.length}
+          <span className="text-sm text-white/40">
+            {deskList.length} en vista · Bot {botFiltered.length} · Usuarios {userFiltered.length}
           </span>
         </div>
 
-        {canAdvancedModeration && filtered.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 py-2 border-t border-gray-200 dark:border-gray-700">
+        {canAdvancedModeration && deskList.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
             <button
               type="button"
               onClick={toggleSelectAll}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-transform active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-white/70 hover:bg-white/[0.04]"
             >
-              {selectedIds.size >= filtered.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-              {selectedIds.size >= filtered.length ? 'Quitar todas' : 'Seleccionar todas'}
+              {selectedIds.size >= deskList.length ? (
+                <CheckSquare className="h-4 w-4" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              {selectedIds.size >= deskList.length ? 'Quitar todas' : 'Seleccionar'}
             </button>
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 ? (
               <>
-                <span className="text-sm text-gray-500 dark:text-gray-400">{selectedIds.size} seleccionadas</span>
+                <span className="text-sm text-white/40">{selectedIds.size} sel.</span>
                 <button
                   type="button"
                   onClick={runBatchApprove}
                   disabled={batchActing}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-transform active:scale-95"
-                  title="No marca verificación de enlace; conviene revisar ofertas con URL una a una."
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                  title="Batch no marca verificación de enlace; revisa ofertas con URL una a una."
                 >
                   <Check className="h-4 w-4" />
                   Aprobar
@@ -573,7 +682,7 @@ export default function ModerationPendingPanel({
                   type="button"
                   onClick={() => setShowBatchReject(true)}
                   disabled={batchActing}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-transform active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
                 >
                   <X className="h-4 w-4" />
                   Rechazar
@@ -582,275 +691,314 @@ export default function ModerationPendingPanel({
                   type="button"
                   onClick={runBatchExpire}
                   disabled={batchActing}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 transition-transform active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
                 >
                   <Clock className="h-4 w-4" />
-                  Marcar expiradas
+                  Expirar
                 </button>
               </>
-            )}
+            ) : null}
+            {botFiltered.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteBotPhrase('');
+                  setDeleteBotAck(false);
+                  setShowDeleteBotModal(true);
+                }}
+                className="ml-auto inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-300 hover:bg-red-500/20"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                Vaciar cola bot
+              </button>
+            ) : null}
           </div>
-        )}
-
-        {showDeleteBotModal && (
-          <div
-            className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60"
-            onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
-          >
-            <div
-              className="bg-white dark:bg-[#1a1a1a] rounded-[28px] shadow-xl p-5 max-w-lg w-full border border-red-200 dark:border-red-900/50"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-1">Vaciar cola del bot (irreversible)</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Se eliminarán de la base de datos todas las ofertas <strong>pendientes</strong> creadas por los usuarios del bot
-                (según <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">BOT_INGEST_USER_ID*</code>).
-                No afecta ofertas de usuarios reales. Solo owner/admin.
-              </p>
-              <label className="flex items-start gap-2 text-sm text-gray-800 dark:text-gray-200 mb-4 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={deleteBotAck}
-                  onChange={(e) => setDeleteBotAck(e.target.checked)}
-                  className="mt-1 rounded border-gray-400 text-red-600 focus:ring-red-500"
-                />
-                <span>Entiendo que esta acción no se puede deshacer y solo quiero borrar la cola del bot.</span>
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                Escribe exactamente (mayúsculas):{' '}
-                <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">{MODERATION_DELETE_BOT_CONFIRM_PHRASE}</code>
-              </p>
-              <input
-                type="text"
-                value={deleteBotPhrase}
-                onChange={(e) => setDeleteBotPhrase(e.target.value)}
-                autoComplete="off"
-                placeholder="Frase de confirmación…"
-                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 mb-4 font-mono"
-              />
-              <div className="flex gap-2 justify-end flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
-                  className="rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void runDeleteAllBotPending()}
-                  disabled={
-                    deleteBotLoading ||
-                    !deleteBotAck ||
-                    deleteBotPhrase.trim() !== MODERATION_DELETE_BOT_CONFIRM_PHRASE
-                  }
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
-                >
-                  {deleteBotLoading ? (
-                    <span className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Eliminar todas (bot)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showBatchReject && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !batchActing && setShowBatchReject(false)}>
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-[28px] shadow-xl p-5 max-w-md w-full border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Rechazar {selectedIds.size} ofertas</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mismo motivo para todas (obligatorio). Atajos:</p>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {MODERATION_REJECTION_PRESETS.map((r) => (
-                  <button
-                    key={r.short}
-                    type="button"
-                    onClick={() => setBatchRejectReason(r.full)}
-                    className="rounded-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/80 px-3 py-1.5 text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:border-violet-400"
-                  >
-                    {r.short}
-                  </button>
-                ))}
-              </div>
-              <input
-                type="text"
-                value={batchRejectReason}
-                onChange={(e) => setBatchRejectReason(e.target.value)}
-                placeholder="Motivo detallado para todas las seleccionadas…"
-                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 mb-4"
-              />
-              <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setShowBatchReject(false)} className="rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">Cancelar</button>
-                <button type="button" onClick={runBatchReject} disabled={!batchRejectReason.trim() || batchActing} className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">Rechazar</button>
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
 
+      {showDeleteBotModal ? (
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl glass-dark border border-red-500/30 p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-1 text-lg font-semibold text-red-200">Vaciar cola del bot (irreversible)</h3>
+            <p className="mb-3 text-sm text-white/50">
+              Se eliminarán las ofertas <strong className="text-white/70">pendientes</strong> del bot.
+              No afecta ofertas de usuarios reales.
+            </p>
+            <label className="mb-4 flex cursor-pointer items-start gap-2 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={deleteBotAck}
+                onChange={(e) => setDeleteBotAck(e.target.checked)}
+                className="mt-1 rounded border-white/20 text-red-600 focus:ring-red-500"
+              />
+              <span>Entiendo que esta acción no se puede deshacer.</span>
+            </label>
+            <p className="mb-1 text-xs text-white/40">
+              Escribe exactamente:{' '}
+              <code className="rounded bg-white/10 px-1 font-mono">
+                {MODERATION_DELETE_BOT_CONFIRM_PHRASE}
+              </code>
+            </p>
+            <input
+              type="text"
+              value={deleteBotPhrase}
+              onChange={(e) => setDeleteBotPhrase(e.target.value)}
+              autoComplete="off"
+              placeholder="Frase de confirmación…"
+              className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-white/90"
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !deleteBotLoading && setShowDeleteBotModal(false)}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/70"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void runDeleteAllBotPending()}
+                disabled={
+                  deleteBotLoading ||
+                  !deleteBotAck ||
+                  deleteBotPhrase.trim() !== MODERATION_DELETE_BOT_CONFIRM_PHRASE
+                }
+                className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleteBotLoading ? (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Eliminar todas (bot)
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showBatchReject ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !batchActing && setShowBatchReject(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl glass-dark border border-white/10 p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-2 text-lg font-semibold text-white/90">
+              Rechazar {selectedIds.size} ofertas
+            </h3>
+            <p className="mb-2 text-sm text-white/45">Mismo motivo para todas (obligatorio):</p>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {MODERATION_REJECTION_PRESETS.map((r) => (
+                <button
+                  key={r.short}
+                  type="button"
+                  onClick={() => setBatchRejectReason(r.full)}
+                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-white/70 hover:border-violet-400/40"
+                >
+                  {r.short}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={batchRejectReason}
+              onChange={(e) => setBatchRejectReason(e.target.value)}
+              placeholder="Motivo detallado…"
+              className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white/90"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBatchReject(false)}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/70"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={runBatchReject}
+                disabled={!batchRejectReason.trim() || batchActing}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                Rechazar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {loading ? (
-        <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 py-16 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-          <span className="inline-block h-4 w-4 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" aria-hidden />
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-white/10 py-16 text-white/45">
+          <span
+            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-violet-400 border-t-transparent"
+            aria-hidden
+          />
           Cargando cola…
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-[28px] border border-gray-200 dark:border-gray-700 bg-linear-to-b from-gray-50/80 to-white dark:from-gray-800/40 dark:to-gray-900 p-10 md:p-12 text-center">
-          <p className="text-gray-600 dark:text-gray-400 text-[15px]">
+      ) : deskList.length === 0 ? (
+        <div className="rounded-2xl glass-dark p-10 text-center">
+          <p className="text-[15px] text-white/50">
             {pending.length === 0
               ? 'No hay ofertas pendientes. Buen trabajo.'
               : 'Ninguna coincide con los filtros. Prueba a limpiar la búsqueda.'}
           </p>
         </div>
       ) : (
-        <div
-          className={
-            queueView === 'split'
-              ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start'
-              : 'grid grid-cols-1 gap-6 items-start max-w-3xl'
-          }
-        >
-          {(queueView === 'split' || queueView === 'hunters') && (
-          <section className="rounded-[28px] border border-gray-200/80 dark:border-gray-700/80 bg-white/70 dark:bg-[#141414]/70 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200">
-                Ofertas de usuarios
-              </h2>
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{userFiltered.length} en cola</span>
-            </div>
-            {userFiltered.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
-                Sin ofertas de usuarios en esta vista.
-              </p>
-            ) : (
-              <ul className="space-y-4">
-                {userFiltered.map((offer) => (
-                  <ModerationOfferCardWithSimilar
-                    key={offer.id}
-                    offer={offer}
-                    status="pending"
-                    onApprove={(id, createdBy, modMessage, offerHasUrl) => {
-                      void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
-                    }}
-                    onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
-                    actingId={actingId}
-                    qualityCandidate={isQualityCandidate(offer)}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
-                    batchMode={canAdvancedModeration}
-                    onOfferUpdated={() => refreshList(true)}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
-          )}
-
-          {(queueView === 'split' || queueView === 'bot') && (
-          <section className="rounded-[28px] border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/20 p-3 md:p-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm md:text-base font-semibold text-sky-800 dark:text-sky-200">
-                Ofertas del bot
-              </h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-sky-700 dark:text-sky-300 font-medium">{botFiltered.length} en cola</span>
-                {canAdvancedModeration && botFiltered.length > 0 ? (
+        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)_minmax(240px,280px)] xl:items-start xl:gap-5">
+          <aside
+            className={`flex min-h-0 flex-col rounded-2xl glass-dark overflow-hidden ${
+              mobileShowDetail ? 'hidden md:flex' : 'flex'
+            }`}
+          >
+            {!tabLocked ? (
+              <div className="flex gap-1 border-b border-white/[0.06] p-2">
+                {(
+                  [
+                    { id: 'all' as const, label: 'Todos', icon: LayoutList },
+                    { id: 'bot' as const, label: 'Bot', icon: Bot },
+                    { id: 'users' as const, label: 'Usuarios', icon: Users },
+                  ] as const
+                ).map(({ id, label, icon: Icon }) => (
                   <button
+                    key={id}
                     type="button"
-                    onClick={() => {
-                      setDeleteBotPhrase('');
-                      setDeleteBotAck(false);
-                      setShowDeleteBotModal(true);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-full border border-red-300 dark:border-red-800 bg-white/90 dark:bg-red-950/30 px-3 py-1.5 text-[11px] font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                    onClick={() => setSourceTab(id)}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
+                      sourceTab === id
+                        ? 'bg-white/[0.08] text-white'
+                        : 'text-white/45 hover:bg-white/[0.04] hover:text-white/70'
+                    }`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    Vaciar cola del bot
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
                   </button>
-                ) : null}
-              </div>
-            </div>
-            <p className="text-[11px] text-sky-800/80 dark:text-sky-300/90 mb-3">
-              Prioridad: gratis primero, luego mayor % de descuento.
-            </p>
-            {botFiltered.length === 0 ? (
-              <p className="text-sm text-sky-700/80 dark:text-sky-400/90 py-6 text-center border border-dashed border-sky-200 dark:border-sky-800 rounded-2xl">
-                Sin ofertas del bot en esta vista.
-              </p>
-            ) : (
-              <ul className="space-y-4">
-                {botFiltered.map((offer) => (
-                  <ModerationOfferCardWithSimilar
-                    key={offer.id}
-                    offer={offer}
-                    status="pending"
-                    onApprove={(id, createdBy, modMessage, offerHasUrl) => {
-                      void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
-                    }}
-                    onReject={(id, reason) => setStatus(id, 'rejected', undefined, reason)}
-                    actingId={actingId}
-                    qualityCandidate={isQualityCandidate(offer)}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
-                    batchMode={canAdvancedModeration}
-                    onOfferUpdated={() => refreshList(true)}
-                  />
                 ))}
-              </ul>
+              </div>
+            ) : (
+              <div className="border-b border-white/[0.06] px-3 py-2.5 text-xs font-medium text-white/50">
+                {sourceTab === 'bot' ? 'Cola del bot' : 'Cola de usuarios'}
+              </div>
             )}
-          </section>
-          )}
+
+            <ul className="max-h-[min(70vh,720px)] flex-1 overflow-y-auto p-2">
+              {deskList.map((offer) => {
+                const thumb = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null)[0];
+                const pct = getOfferDiscountPercent(offer);
+                const active = offer.id === selectedId;
+                const bot = isBotOffer(offer);
+                return (
+                  <li key={offer.id} className="mb-1">
+                    <div
+                      className={`flex w-full items-stretch gap-2 rounded-xl border transition-colors ${
+                        active
+                          ? 'border-violet-400/40 bg-violet-500/10'
+                          : 'border-transparent hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      {canAdvancedModeration ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSelect(offer.id)}
+                          className="shrink-0 self-center pl-2 text-white/40 hover:text-white/70"
+                          aria-label="Seleccionar"
+                        >
+                          {selectedIds.has(offer.id) ? (
+                            <CheckSquare className="h-4 w-4 text-violet-300" />
+                          ) : (
+                            <Square className="h-4 w-4" />
+                          )}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => selectOffer(offer.id)}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2 text-left"
+                      >
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white/[0.06]">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[9px] text-white/30">
+                              Sin foto
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium text-white/85">{offer.title}</p>
+                          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-white/45">
+                            <span className="font-semibold text-emerald-300/90">
+                              ${Number(offer.price ?? 0).toLocaleString('es-MX')}
+                            </span>
+                            {pct > 0 ? (
+                              <span className="rounded bg-emerald-500/15 px-1 text-emerald-300">
+                                −{pct}%
+                              </span>
+                            ) : null}
+                            {bot ? (
+                              <span className="rounded bg-sky-500/15 px-1 text-sky-300">bot</span>
+                            ) : null}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+
+          <div
+            className={`min-h-0 min-w-0 ${
+              mobileShowDetail ? 'flex' : 'hidden md:flex'
+            } flex-col`}
+          >
+            <button
+              type="button"
+              onClick={() => setMobileShowDetail(false)}
+              className="mb-2 inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/80 md:hidden"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Volver a la lista
+            </button>
+            {selectedOffer ? (
+              <ModerationOfferDetail
+                offer={selectedOffer}
+                similarOffers={similarOffers}
+                qualityCandidate={isQualityCandidate(selectedOffer)}
+                actingId={actingId}
+                onApprove={(id, createdBy, modMessage, offerHasUrl) => {
+                  void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
+                }}
+                onReject={(id, reason) => void setStatus(id, 'rejected', undefined, reason)}
+                onOfferUpdated={() => refreshList(true)}
+                onBack={() => setMobileShowDetail(false)}
+              />
+            ) : (
+              <div className="flex flex-1 items-center justify-center rounded-2xl glass-dark p-10 text-sm text-white/40">
+                Selecciona una oferta de la lista
+              </div>
+            )}
+          </div>
+
+          <div className="hidden xl:block">
+            <ModerationObjectivesSidebar />
+          </div>
         </div>
       )}
-      </div>
 
-      <div className="mt-8 lg:mt-0">
+      <div className="xl:hidden">
         <ModerationObjectivesSidebar />
       </div>
     </div>
-  );
-}
-
-function ModerationOfferCardWithSimilar({
-  offer,
-  selectedIds,
-  onToggleSelect,
-  batchMode,
-  qualityCandidate,
-  onOfferUpdated,
-  ...props
-}: {
-  offer: ModerationOffer;
-  status: 'pending';
-  onApprove: (
-    id: string,
-    createdBy?: string | null,
-    modMessage?: string,
-    offerHasUrl?: boolean
-  ) => void;
-  onReject: (id: string, reason?: string) => void;
-  actingId: string | null;
-  qualityCandidate?: boolean;
-  selectedIds?: Set<string>;
-  onToggleSelect?: (id: string) => void;
-  batchMode?: boolean;
-  onOfferUpdated?: () => void;
-}) {
-  const similarOffers = useSimilarOffers(offer.store, offer.title, offer.offer_url);
-  return (
-    <li>
-      <ModerationOfferCard
-        offer={offer}
-        similarOffers={similarOffers}
-        selected={selectedIds?.has(offer.id)}
-        onToggleSelect={onToggleSelect ? () => onToggleSelect(offer.id) : undefined}
-        batchMode={batchMode}
-        qualityCandidate={qualityCandidate}
-        onOfferUpdated={onOfferUpdated}
-        {...props}
-      />
-    </li>
   );
 }

@@ -151,6 +151,15 @@ function parseDiscountBadgePercent(raw) {
   return n;
 }
 
+function normalizeAbsoluteImageUrl(raw) {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  if (!value) return null;
+  if (value.startsWith('//')) return `https:${value}`;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith('/')) return `https://http2.mlstatic.com${value}`;
+  return null;
+}
+
 function candidateFromCard(card, minDiscountPercent) {
   if (isBlockedNonProductPath(card.href)) {
     return { ok: false, reason: 'url_no_producto' };
@@ -198,7 +207,7 @@ function candidateFromCard(card, minDiscountPercent) {
       canonicalUrl,
       title,
       store: 'Mercado Libre',
-      imageUrl: card.image,
+      imageUrl: normalizeAbsoluteImageUrl(card.image),
       discountPrice,
       originalPrice,
       discountPercent,
@@ -220,10 +229,15 @@ async function extractCards(page) {
       const card = anchor.closest('article, li, div') ?? anchor.parentElement ?? anchor;
       const rawHref = anchor.getAttribute('href') || '';
       const href = rawHref.startsWith('http') ? rawHref : new URL(rawHref, location.origin).href;
-      const image =
+      const rawImage =
         card.querySelector('img')?.getAttribute('src') ||
         card.querySelector('img')?.getAttribute('data-src') ||
+        card.querySelector('img')?.getAttribute('data-srcset')?.split(/\s+/)[0] ||
         null;
+      let image = rawImage;
+      if (image?.startsWith('//')) image = `https:${image}`;
+      else if (image?.startsWith('/')) image = new URL(image, location.origin).href;
+      else if (image && !/^https?:\/\//i.test(image)) image = null;
       const amounts = Array.from(card.querySelectorAll('.andes-money-amount'));
       const previous =
         card.querySelector('s .andes-money-amount__fraction')?.textContent ||
@@ -395,7 +409,7 @@ async function enrichCandidate(page, candidate) {
     url: extracted.url || candidate.href,
     canonicalUrl: canonicalizeUrl(extracted.url || candidate.href),
     title: normalizeText(extracted.title || candidate.title),
-    imageUrl: extracted.image || candidate.image,
+    imageUrl: normalizeAbsoluteImageUrl(extracted.image || candidate.image),
     discountPrice,
     originalPrice,
     soldText: extracted.soldText || '',
