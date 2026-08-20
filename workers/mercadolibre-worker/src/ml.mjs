@@ -117,14 +117,28 @@ function looksGenericMercadoLibreTitle(title) {
 function isBlockedNonProductPath(rawUrl) {
   try {
     const url = new URL(rawUrl);
+    const path = url.pathname.toLowerCase();
     return (
-      /\/glossary\//i.test(url.pathname) ||
-      /\/ofertas(?:\/|$)/i.test(url.pathname) ||
-      /\/categorias?/i.test(url.pathname)
+      /\/glossary\//i.test(path) ||
+      /\/ofertas(?:\/|$)/i.test(path) ||
+      /\/categorias?/i.test(path) ||
+      /\/gz\//i.test(path) ||
+      /account-verification/i.test(path) ||
+      /\/login/i.test(path) ||
+      /\/registration/i.test(path) ||
+      /\/jms\//i.test(path) ||
+      /\/navigation\//i.test(path) ||
+      /\/ayuda\//i.test(path) ||
+      /\/help\//i.test(path)
     );
   } catch {
     return true;
   }
+}
+
+function clampDiscountPercent(n) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(90, Math.round(n)));
 }
 
 async function extractCards(page) {
@@ -329,15 +343,20 @@ export async function discoverMercadoLibreCandidates(page, options) {
           continue;
         }
         const enriched = await enrichCandidate(page, card);
-        const initialLooksProduct = isProductLikeUrl(card.href) && !isBlockedNonProductPath(card.href);
-        const finalLooksProduct = isProductLikeUrl(enriched.url) && !isBlockedNonProductPath(enriched.url);
-        const hasPdpSignals =
-          !!inferItemId(enriched.url || card.href) ||
-          /\/p\//i.test(enriched.pathname || '') ||
-          (!!enriched.title && !looksGenericMercadoLibreTitle(enriched.title)) ||
-          (!!enriched.discountPrice && !!enriched.imageUrl);
-
-        if (!finalLooksProduct && !initialLooksProduct && !hasPdpSignals) {
+        if (isBlockedNonProductPath(enriched.url) || isBlockedNonProductPath(enriched.canonicalUrl)) {
+          console.log(
+            `[worker] skipped=${card.href} reason=redirect_no_producto final=${enriched.url}`
+          );
+          continue;
+        }
+        const itemId = inferItemId(enriched.url) || inferItemId(enriched.canonicalUrl) || inferItemId(card.href);
+        if (!itemId && !/\/p\//i.test(enriched.pathname || '')) {
+          console.log(
+            `[worker] skipped=${card.href} reason=sin_item_id final=${enriched.url}`
+          );
+          continue;
+        }
+        if (!isProductLikeUrl(enriched.url) && !isProductLikeUrl(enriched.canonicalUrl)) {
           console.log(
             `[worker] skipped=${card.href} reason=url_final_no_producto final=${enriched.url}`
           );
@@ -356,34 +375,7 @@ export async function discoverMercadoLibreCandidates(page, options) {
           continue;
         }
         if (!enriched.originalPrice) {
-          const badgePercent = Number.parseInt(String(card.discountBadge || '').replace(/[^\d]/g, ''), 10) || 0;
-          const isDealCandidate = /[?&]pdp_filters=deal%3A/i.test(card.href) || /[?&]pdp_filters=deal:/i.test(card.href);
-          if (isDealCandidate && badgePercent >= minDiscountPercent) {
-            out.push({
-              url: enriched.url,
-              canonicalUrl: enriched.canonicalUrl,
-              title: enriched.title,
-              store: 'Mercado Libre',
-              imageUrl: enriched.imageUrl,
-              discountPrice: enriched.discountPrice,
-              originalPrice: null,
-              discountPercent: badgePercent,
-              sourceDetail: 'worker:playwright:promo-unverified',
-              signals: {
-                soldQuantity: (() => {
-                  const match = enriched.soldText.match(/(\d+)\s+vendid/i);
-                  return match ? Number(match[1]) : null;
-                })(),
-                condition: 'new',
-                listingTypeId: 'worker_seed_promo_unverified',
-                categoryId: null
-              }
-            });
-            console.log(
-              `[worker] accepted=${enriched.canonicalUrl} discount=${badgePercent}% mode=promo_unverified`
-            );
-            continue;
-          }
+          // Sin precio tachado real no inventamos % desde el badge (antes generaba % absurdos).
           console.log(`[worker] skipped=${card.href} reason=sin_original_price`);
           continue;
         }
@@ -393,7 +385,9 @@ export async function discoverMercadoLibreCandidates(page, options) {
           );
           continue;
         }
-        const discountPercent = Math.round((1 - enriched.discountPrice / enriched.originalPrice) * 100);
+        const discountPercent = clampDiscountPercent(
+          (1 - enriched.discountPrice / enriched.originalPrice) * 100
+        );
         if (discountPercent < minDiscountPercent) {
           console.log(
             `[worker] skipped=${card.href} reason=discount_bajo discount=${discountPercent}%`

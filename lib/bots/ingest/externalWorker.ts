@@ -15,6 +15,9 @@ import { optimizeIngestTitle } from './optimizeIngestTitle';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import { scoreIngestCandidate, type ScoreBreakdown } from './scoreIngestCandidate';
 import { enrichWithPriceIntel } from './priceIntel';
+import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
+
+const MAX_WORKER_DISCOUNT_PERCENT = 85;
 
 type ExternalCandidateSignals = NonNullable<ParsedOfferMetadata['signals']>;
 
@@ -62,6 +65,24 @@ function markSourceSkip(
   stats[source].skipReasonCounts = map;
 }
 
+function isBlockedWorkerUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    const path = url.pathname.toLowerCase();
+    return (
+      /\/gz\//i.test(path) ||
+      /account-verification/i.test(path) ||
+      /\/login/i.test(path) ||
+      /\/registration/i.test(path) ||
+      /\/ofertas(?:\/|$)/i.test(path) ||
+      /\/categorias?/i.test(path) ||
+      /\/ayuda\//i.test(path)
+    );
+  } catch {
+    return true;
+  }
+}
+
 function normalizeSignals(
   signals: Partial<ExternalCandidateSignals> | null | undefined
 ): ParsedOfferMetadata['signals'] | undefined {
@@ -105,15 +126,23 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
   if (!url || !title || !canonicalUrl || !Number.isFinite(discountPrice) || discountPrice <= 0) {
     return null;
   }
+  if (isBlockedWorkerUrl(url) || isBlockedWorkerUrl(canonicalUrl)) {
+    return null;
+  }
+  const storeLower = store.toLowerCase();
+  if (storeLower.includes('mercado') && !extractMercadoLibreItemId(canonicalUrl) && !extractMercadoLibreItemId(url)) {
+    return null;
+  }
 
   const computedDiscount =
     originalPrice != null && originalPrice > discountPrice
       ? Math.round((1 - discountPrice / originalPrice) * 100)
       : 0;
-  const discountPercent =
+  const rawPercent =
     candidate.discountPercent != null && Number.isFinite(Number(candidate.discountPercent))
-      ? Math.max(0, Math.round(Number(candidate.discountPercent)))
+      ? Math.round(Number(candidate.discountPercent))
       : computedDiscount;
+  const discountPercent = Math.max(0, Math.min(MAX_WORKER_DISCOUNT_PERCENT, rawPercent));
 
   return {
     canonicalUrl,
@@ -137,14 +166,6 @@ function passesAmazonHardFilters(meta: ParsedOfferMetadata, config: BotIngestCon
     if ((s.ratingAverage ?? 0) < config.minRatingAverage) return false;
   }
   return true;
-}
-
-function isPromoUnverifiedItem(item: IngestItem, meta: ParsedOfferMetadata): boolean {
-  return (
-    item.source === 'ml_worker' &&
-    (item.sourceDetail ?? '').includes('promo-unverified') &&
-    meta.discountPercent > 0
-  );
 }
 
 function buildSkipSummary(results: IngestSingleResult[], sourceStats: Record<IngestSourceId, IngestSourceStats>) {
@@ -226,15 +247,20 @@ export async function processExternalWorkerBatch(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
-      const promoUnverified = isPromoUnverifiedItem(item, meta);
-      if (!promoUnverified && (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice)) {
+      if (isBlockedWorkerUrl(meta.canonicalUrl) || isBlockedWorkerUrl(item.url)) {
+        const reason = 'url no producto (login/verificación/listado)';
+        results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+        markSourceSkip(sourceStats, item.source, reason);
+        continue;
+      }
+      if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) {
         const reason = 'sin precio original verificable';
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
-      if (meta.discountPercent < config.minDiscountPercent) {
-        const reason = `descuento ${meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`;
+      if (meta.discountPercent < config.minDiscountPercent || meta.discountPercent > MAX_WORKER_DISCOUNT_PERCENT) {
+        const reason = `descuento ${meta.discountPercent}% fuera de rango`;
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;

@@ -8,7 +8,7 @@ const MAX_LEN = 500;
 export function optimizeIngestTitle(meta: ParsedOfferMetadata): string {
   const base = meta.title.replace(/\s+/g, ' ').trim();
   const store = meta.store.trim() || 'tienda';
-  const pct = meta.discountPercent;
+  const pct = Math.max(0, Math.min(90, Math.round(Number(meta.discountPercent) || 0)));
   const suffix = pct >= 10 ? ` — Ahorra ~${pct}% en ${store}` : ` — Oferta en ${store}`;
   let out = base;
   if (!base.toLowerCase().includes(`${pct}%`) && pct >= 10) {
