@@ -32,8 +32,13 @@ function pickAmount(rows: MlPriceRow[] | undefined, type: string): number | null
  */
 export async function fetchMlItemPriceQuote(
   itemId: string,
-  fallback: { current: number; listPrice: number | null }
+  fallback: { current: number; listPrice: number | null; regularPrice?: number | null }
 ): Promise<MlPriceQuote> {
+  const safeFallback: MlPriceQuote = {
+    current: fallback.current,
+    listPrice: fallback.listPrice,
+    regularPrice: fallback.regularPrice ?? null,
+  };
   const url = `https://api.mercadolibre.com/items/${encodeURIComponent(itemId)}/prices`;
   let res: Response;
   try {
@@ -42,15 +47,15 @@ export async function fetchMlItemPriceQuote(
       cache: 'no-store',
     });
   } catch {
-    return fallback;
+    return safeFallback;
   }
-  if (!res.ok) return fallback;
+  if (!res.ok) return safeFallback;
 
   let json: MlPricesResponse;
   try {
     json = (await res.json()) as MlPricesResponse;
   } catch {
-    return fallback;
+    return safeFallback;
   }
 
   const promo = pickAmount(json.prices, 'promotion');
