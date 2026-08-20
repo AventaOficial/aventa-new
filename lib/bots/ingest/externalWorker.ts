@@ -14,8 +14,10 @@ import { insertIngestedOffer } from './insertIngestedOffer';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import { scoreIngestCandidate, type ScoreBreakdown } from './scoreIngestCandidate';
+import { shouldAutoApproveWorkerCandidate } from './workerAutoApprove';
 import { enrichWithPriceIntel } from './priceIntel';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
+import { normalizeOfferImageUrl } from '@/lib/offerPath';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
 
@@ -115,7 +117,7 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
   const url = candidate.url?.trim();
   const title = candidate.title?.trim();
   const store = candidate.store?.trim() || 'Mercado Libre';
-  const imageUrl = candidate.imageUrl?.trim() || '/placeholder.png';
+  const imageUrl = normalizeOfferImageUrl(candidate.imageUrl) ?? '';
   const canonicalUrl = candidate.canonicalUrl?.trim() || url;
   const discountPrice = Number(candidate.discountPrice);
   const originalPrice =
@@ -144,6 +146,12 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
       : computedDiscount;
   const discountPercent = Math.max(0, Math.min(MAX_WORKER_DISCOUNT_PERCENT, rawPercent));
 
+  const baseSignals = normalizeSignals(candidate.signals) ?? {};
+  const signals: ExternalCandidateSignals = {
+    ...baseSignals,
+    listingTypeId: baseSignals.listingTypeId ?? 'worker_card',
+  };
+
   return {
     canonicalUrl,
     title,
@@ -152,7 +160,7 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
     discountPrice,
     originalPrice,
     discountPercent,
-    ...(normalizeSignals(candidate.signals) ? { signals: normalizeSignals(candidate.signals) } : {}),
+    signals,
   };
 }
 
@@ -314,9 +322,11 @@ export async function processExternalWorkerBatch(
     config.morningSustainedEnabled &&
     hour >= config.morningHourStart &&
     hour < config.morningHourEndExclusive;
-  const maxPerRunCap = inMorningSustained
+  const organicCap = inMorningSustained
     ? randomIntInclusive(config.morningMaxPerRunMin, config.morningMaxPerRunMax)
     : randomIntInclusive(config.normalMaxPerRunMin, config.normalMaxPerRunMax);
+  // El worker trae un lote ya filtrado: no limitar a 1–3 como el ciclo API.
+  const maxPerRunCap = Math.max(organicCap, config.workerMaxPerRun);
   const maxInsertsThisBatch = Math.min(slotsDaily, maxPerRunCap);
 
   let autoApproved = 0;
@@ -325,7 +335,12 @@ export async function processExternalWorkerBatch(
   for (const row of resolved) {
     if (insertedThisRun >= maxInsertsThisBatch) break;
 
-    const allowAuto = config.autoApproveEnabled && row.decision === 'auto_approve';
+    const allowAuto = shouldAutoApproveWorkerCandidate({
+      config,
+      decision: row.decision,
+      scoreTotal: row.total,
+      meta: row.meta,
+    });
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
 

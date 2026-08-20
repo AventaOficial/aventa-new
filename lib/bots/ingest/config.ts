@@ -112,6 +112,17 @@ export type BotIngestConfig = {
   /** Si false, nunca status approved por score; todo pasa a moderación (pending). */
   autoApproveEnabled: boolean;
   autoApproveMinScore: number;
+  /**
+   * Umbral más bajo para auto-aprobar candidatos del worker Playwright (card-only),
+   * que suelen llegar sin sold/rating ricos.
+   */
+  autoApproveWorkerMinScore: number;
+  /** % mínimo de descuento para auto-aprobar vía worker (además de minDiscountPercent). */
+  autoApproveWorkerMinDiscountPercent: number;
+  /** Exigir image_url no vacía para auto-aprobar worker. */
+  autoApproveRequireImage: boolean;
+  /** Tope de inserciones por batch del endpoint bot-ingest-candidates. */
+  workerMaxPerRun: number;
   rejectBelowScore: number;
   /**
    * Si el score total ≥ este valor, no se descarta (reject): pasa a moderación (pending).
@@ -367,6 +378,31 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     ? Math.min(100, Math.max(50, autoApproveRaw))
     : 78;
 
+  const autoApproveWorkerRaw = Number.parseInt(
+    process.env.BOT_INGEST_AUTO_APPROVE_WORKER_MIN_SCORE ?? '55',
+    10
+  );
+  const autoApproveWorkerMinScore = Number.isFinite(autoApproveWorkerRaw)
+    ? Math.min(autoApproveMinScore, Math.max(40, autoApproveWorkerRaw))
+    : 55;
+
+  const autoApproveWorkerMinDiscountRaw = Number.parseInt(
+    process.env.BOT_INGEST_AUTO_APPROVE_WORKER_MIN_DISCOUNT ?? '28',
+    10
+  );
+  const autoApproveWorkerMinDiscountPercent = Number.isFinite(autoApproveWorkerMinDiscountRaw)
+    ? Math.min(80, Math.max(10, autoApproveWorkerMinDiscountRaw))
+    : 25;
+
+  const autoApproveRequireImage =
+    process.env.BOT_INGEST_AUTO_APPROVE_REQUIRE_IMAGE !== '0' &&
+    process.env.BOT_INGEST_AUTO_APPROVE_REQUIRE_IMAGE !== 'false';
+
+  const workerMaxPerRunRaw = Number.parseInt(process.env.BOT_INGEST_WORKER_MAX_PER_RUN ?? '10', 10);
+  const workerMaxPerRun = Number.isFinite(workerMaxPerRunRaw)
+    ? Math.min(40, Math.max(1, workerMaxPerRunRaw))
+    : 10;
+
   const rejectRaw = Number.parseInt(process.env.BOT_INGEST_REJECT_BELOW_SCORE ?? '42', 10);
   const rejectBelowScore = Number.isFinite(rejectRaw)
     ? Math.min(autoApproveMinScore - 1, Math.max(0, rejectRaw))
@@ -439,6 +475,10 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     keepaDomainId,
     autoApproveEnabled,
     autoApproveMinScore,
+    autoApproveWorkerMinScore,
+    autoApproveWorkerMinDiscountPercent,
+    autoApproveRequireImage,
+    workerMaxPerRun,
     rejectBelowScore,
     forcePendingMinScore,
     scoreWeights,

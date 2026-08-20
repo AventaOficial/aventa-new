@@ -421,11 +421,14 @@ export async function discoverMercadoLibreCandidates(page, options) {
   const { seeds, maxItems, minDiscountPercent } = options;
   const out = [];
   const seen = new Set();
+  // Reparte cupo entre seeds para no llenar solo con el hub genérico.
+  const perSeedSoftCap = Math.max(4, Math.ceil(maxItems / Math.max(1, seeds.length)) + 2);
 
   // GitHub Actions / datacenter: ML redirige PDP a account-verification.
   // Usamos solo datos de la card en /ofertas (URL + precios), sin abrir el producto.
   for (const seed of seeds) {
     if (out.length >= maxItems) break;
+    let acceptedFromSeed = 0;
     await page.goto(seed, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForTimeout(1500).catch(() => {});
     await page.mouse.wheel(0, 2500).catch(() => {});
@@ -437,7 +440,7 @@ export async function discoverMercadoLibreCandidates(page, options) {
     console.log(`[worker] seed=${seed} raw_links=${cards.length} mode=card_only`);
 
     for (const card of cards) {
-      if (out.length >= maxItems) break;
+      if (out.length >= maxItems || acceptedFromSeed >= perSeedSoftCap) break;
       const dedupeKey = canonicalizeUrl(card.href);
       if (!card.href || seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
@@ -448,6 +451,7 @@ export async function discoverMercadoLibreCandidates(page, options) {
         continue;
       }
       out.push(parsed.candidate);
+      acceptedFromSeed += 1;
       console.log(
         `[worker] accepted=${parsed.candidate.canonicalUrl} discount=${parsed.candidate.discountPercent}% mode=card`
       );

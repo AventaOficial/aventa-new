@@ -143,7 +143,8 @@ No pagar dos recolectores solapados “por si acaso”.
 | `BOT_INGEST_ENABLED` | Master switch de código |
 | `BOT_INGEST_DISCOVER_ML` | Fuente ML vía API |
 | `BOT_INGEST_USER_ID_*` | Quién “caza” en DB |
-| `BOT_INGEST_AUTO_APPROVE` / scores | Cola vs auto-publish |
+| `BOT_INGEST_AUTO_APPROVE` / scores | Cola vs auto-publish. Worker: umbral propio (`BOT_INGEST_AUTO_APPROVE_WORKER_MIN_SCORE`, default 55) + % ≥ 28 + imagen + URL producto |
+| `BOT_INGEST_WORKER_MAX_PER_RUN` | Tope de inserts por lote del Playwright (default 10) |
 | `BOT_INGEST_DAILY_MAX` / `MAX_PER_RUN` | Cupos |
 | `CRON_SECRET` | cron-job.org + run-now interno vía rutas cron |
 | `UPSTASH_REDIS_REST_*` | No Hunter; sí protección del sitio |

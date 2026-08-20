@@ -16,7 +16,7 @@ concurrency:
 jobs:
   scrape-and-ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     defaults:
       run:
         working-directory: workers/mercadolibre-worker
@@ -26,11 +26,23 @@ jobs:
       AVENTA_CRON_SECRET: ${{ secrets.AVENTA_CRON_SECRET }}
       WORKER_PROFILE: standard
       WORKER_HEADLESS: '1'
-      WORKER_MAX_ITEMS: '12'
-      WORKER_MIN_DISCOUNT_PERCENT: '15'
+      WORKER_MAX_ITEMS: '28'
+      WORKER_MIN_DISCOUNT_PERCENT: '18'
       WORKER_TIMEOUT_MS: '45000'
+      # Más hubs = más variedad día a día (tech, hogar, belleza, deporte, supermercado, moda).
       WORKER_ML_SEEDS: >-
-        https://www.mercadolibre.com.mx/ofertas#nav-header,https://www.mercadolibre.com.mx/ofertas?container_id=MLM779363-1&promotion_type=lightning
+        https://www.mercadolibre.com.mx/ofertas,
+        https://www.mercadolibre.com.mx/ofertas?container_id=MLM779363-1&promotion_type=lightning,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1000,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1648,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1574,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1144,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1246,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1430,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1276,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1747,
+        https://www.mercadolibre.com.mx/ofertas?category=MLM1168,
+        https://www.mercadolibre.com.mx/ofertas?deal_ids=MLM779363-1
 
     steps:
       - name: Checkout

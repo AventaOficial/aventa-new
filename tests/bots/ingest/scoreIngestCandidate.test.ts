@@ -56,6 +56,10 @@ function baseConfig(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
     keepaDomainId: 11,
     autoApproveEnabled: true,
     autoApproveMinScore: 78,
+    autoApproveWorkerMinScore: 55,
+    autoApproveWorkerMinDiscountPercent: 28,
+    autoApproveRequireImage: true,
+    workerMaxPerRun: 10,
     rejectBelowScore: 40,
     forcePendingMinScore: null,
     scoreWeights: {

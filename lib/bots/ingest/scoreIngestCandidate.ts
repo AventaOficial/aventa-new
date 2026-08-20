@@ -46,6 +46,9 @@ export function scoreIngestCandidate(
   let popularityPts = 40;
   if (sold != null && sold > 0) {
     popularityPts = clamp(15 + Math.log10(1 + sold) * 28, 0, 100);
+  } else if (signals?.listingTypeId === 'worker_card') {
+    // Card-only scrape: sin soldQuantity; no castigar tanto la popularidad.
+    popularityPts = 58;
   }
 
   const avg = signals?.ratingAverage ?? null;
@@ -56,6 +59,8 @@ export function scoreIngestCandidate(
   } else if (avg != null && count != null && count > 0 && count < config.minRatingReviewsCount) {
     ratingPts = 50 + avg * 6;
     ratingPts = clamp(ratingPts, 0, 85);
+  } else if (signals?.listingTypeId === 'worker_card') {
+    ratingPts = 60;
   }
 
   const catPts = categoryTechScore(signals?.categoryId ?? null, config.techCategoryIdSet);
