@@ -40,6 +40,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Cursor IDE (preferencias locales del editor)
+.cursor/
+
+# Supabase CLI cache (ref del proyecto; no subir)
+supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
