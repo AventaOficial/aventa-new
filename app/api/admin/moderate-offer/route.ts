@@ -13,6 +13,12 @@ function hasMissingColumn(error: { message?: string } | null, columnName: string
   return msg.includes(columnName.toLowerCase())
 }
 
+const LOCK_CLEAR = {
+  locked_by: null,
+  locked_at: null,
+  snoozed_until: null,
+} as const
+
 export async function POST(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {
@@ -61,7 +67,10 @@ export async function POST(request: Request) {
         expires_at?: string
         offer_url?: string
         link_mod_ok?: boolean | null
-      } = { status: 'approved' }
+        locked_by?: null
+        locked_at?: null
+        snoozed_until?: null
+      } = { status: 'approved', ...LOCK_CLEAR }
       if (row?.expires_at == null) {
         payload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }
@@ -79,14 +88,32 @@ export async function POST(request: Request) {
         delete payload.link_mod_ok
         ;({ error: updateError } = await supabase.from('offers').update(payload).eq('id', id))
       }
+      if (updateError && hasMissingColumn(updateError, 'locked_by')) {
+        delete payload.locked_by
+        delete payload.locked_at
+        delete payload.snoozed_until
+        ;({ error: updateError } = await supabase.from('offers').update(payload).eq('id', id))
+      }
       if (updateError) {
         console.error('[moderate-offer] update failed:', updateError.message)
         return NextResponse.json({ ok: false }, { status: 500 })
       }
     } else {
-      const payload: { status: string; rejection_reason?: string | null } = { status: 'rejected' }
+      const payload: {
+        status: string
+        rejection_reason?: string | null
+        locked_by?: null
+        locked_at?: null
+        snoozed_until?: null
+      } = { status: 'rejected', ...LOCK_CLEAR }
       if (reason !== undefined) payload.rejection_reason = reason
-      const { error } = await supabase.from('offers').update(payload).eq('id', id)
+      let { error } = await supabase.from('offers').update(payload).eq('id', id)
+      if (error && hasMissingColumn(error, 'locked_by')) {
+        delete payload.locked_by
+        delete payload.locked_at
+        delete payload.snoozed_until
+        ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
+      }
       if (error) {
         console.error('[moderate-offer] update failed:', error.message)
         return NextResponse.json({ ok: false }, { status: 500 })

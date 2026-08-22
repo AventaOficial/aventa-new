@@ -6,6 +6,7 @@ import {
   Calendar,
   ExternalLink,
   History,
+  Lock,
   Maximize2,
   Pencil,
   Store,
@@ -14,6 +15,7 @@ import {
   X,
   Save,
   AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
@@ -24,6 +26,8 @@ import { mergeOfferImageUrls, normalizeOfferImageUrl } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
+import ModerationConfidenceChip from './ModerationConfidenceChip';
+import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 
 export type ModerationDetailOffer = {
   id: string;
@@ -45,6 +49,10 @@ export type ModerationDetailOffer = {
   moderator_comment?: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
   is_bot?: boolean;
+  locked_by?: string | null;
+  locked_at?: string | null;
+  locked_by_name?: string | null;
+  snoozed_until?: string | null;
 };
 
 type SimilarOffer = {
@@ -79,12 +87,17 @@ type Props = {
     offerHasUrl?: boolean
   ) => void;
   onReject: (id: string, reason?: string) => void;
-  actingId: string | null;
   qualityCandidate?: boolean;
   similarOffers?: SimilarOffer[];
   onOfferUpdated?: () => void;
   onBack?: () => void;
   mode?: ModerationHubMode;
+  currentUserId?: string | null;
+  linkConfirmed?: boolean;
+  onLinkConfirmedChange?: (confirmed: boolean) => void;
+  onSnooze?: (minutes: 15 | 60 | 240) => void;
+  requestReject?: boolean;
+  onRequestRejectHandled?: () => void;
 };
 
 function storeOpenLabel(store: string | null): string {
@@ -98,12 +111,17 @@ export default function ModerationOfferDetail({
   offer,
   onApprove,
   onReject,
-  actingId,
   qualityCandidate = false,
   similarOffers = [],
   onOfferUpdated,
   onBack,
   mode = 'admin',
+  currentUserId = null,
+  linkConfirmed: linkConfirmedProp,
+  onLinkConfirmedChange,
+  onSnooze,
+  requestReject = false,
+  onRequestRejectHandled,
 }: Props) {
   const ui = moderationUi(mode);
   const { session } = useAuth();
@@ -130,7 +148,16 @@ export default function ModerationOfferDetail({
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [modMessage, setModMessage] = useState('');
-  const [linkConfirmed, setLinkConfirmed] = useState(false);
+  const [internalLinkConfirmed, setInternalLinkConfirmed] = useState(false);
+  const [snoozeLoading, setSnoozeLoading] = useState<number | null>(null);
+  const linkConfirmed = linkConfirmedProp ?? internalLinkConfirmed;
+  const setLinkConfirmed = onLinkConfirmedChange ?? setInternalLinkConfirmed;
+
+  const readOnly = isOfferLockedByOther(
+    { locked_by: offer.locked_by, locked_at: offer.locked_at },
+    currentUserId
+  );
+  const lockerLabel = offer.locked_by_name?.trim() || 'Otro moderador';
 
   const allPreviewImages = useMemo(
     () => mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null),
@@ -149,6 +176,12 @@ export default function ModerationOfferDetail({
     setBotCategory(offer.category ?? '');
     setBotQuickMsg(null);
   }, [offer.id, offer.image_url, offer.offer_url, offer.category]);
+
+  useEffect(() => {
+    if (!requestReject || readOnly) return;
+    setShowRejectInput(true);
+    onRequestRejectHandled?.();
+  }, [requestReject, readOnly, onRequestRejectHandled]);
 
   const authorName = offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug =
@@ -294,13 +327,18 @@ export default function ModerationOfferDetail({
               Calidad
             </span>
           ) : null}
-          {offer.risk_score != null && offer.risk_score > 50 ? (
-            <span className="rounded-md bg-amber-500/25 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:text-amber-100">
-              Risk {offer.risk_score}
-            </span>
-          ) : null}
+          <ModerationConfidenceChip offer={offer} mode={mode} size="md" />
         </div>
       </div>
+
+      {readOnly ? (
+        <div className="flex items-center gap-2 border-b border-amber-500/25 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+          <Lock className="h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            En revisión por <strong>{lockerLabel}</strong>. Solo lectura hasta que libere la oferta.
+          </span>
+        </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className={`relative aspect-[4/3] max-h-[320px] w-full ${ui.heroBg}`}>
@@ -567,6 +605,36 @@ export default function ModerationOfferDetail({
       </div>
 
       <div className={`shrink-0 space-y-3 px-4 py-3 ${ui.stickyBar}`}>
+        {!readOnly && onSnooze ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-[11px] font-medium ${ui.label}`}>Revisar después</span>
+            {(
+              [
+                { minutes: 15 as const, label: '15 min' },
+                { minutes: 60 as const, label: '1 h' },
+                { minutes: 240 as const, label: '4 h' },
+              ] as const
+            ).map(({ minutes, label }) => (
+              <button
+                key={minutes}
+                type="button"
+                disabled={snoozeLoading != null}
+                onClick={() => {
+                  setSnoozeLoading(minutes);
+                  Promise.resolve(onSnooze(minutes)).finally(() => setSnoozeLoading(null));
+                }}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium disabled:opacity-50 ${ui.borderStrong} ${ui.soft} hover:border-violet-400/40`}
+              >
+                {snoozeLoading === minutes ? (
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Clock className="h-3 w-3" aria-hidden />
+                )}
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div>
           <label className={`text-[11px] ${ui.label}`}>Mensaje opcional al autor</label>
           <textarea
@@ -607,7 +675,9 @@ export default function ModerationOfferDetail({
                 Boolean(offer.offer_url?.trim())
               )
             }
-            disabled={actingId === offer.id || (Boolean(offer.offer_url?.trim()) && !linkConfirmed)}
+            disabled={
+              readOnly || (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
+            }
             className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Aprobar
@@ -615,8 +685,8 @@ export default function ModerationOfferDetail({
           <button
             type="button"
             onClick={() => setShowRejectInput((v) => !v)}
-            disabled={actingId === offer.id}
-            className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+            disabled={readOnly}
+            className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Rechazar
           </button>
@@ -654,7 +724,7 @@ export default function ModerationOfferDetail({
               <button
                 type="button"
                 onClick={handleReject}
-                disabled={actingId === offer.id || !rejectReason.trim()}
+                disabled={!rejectReason.trim()}
                 className="rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
                 Confirmar

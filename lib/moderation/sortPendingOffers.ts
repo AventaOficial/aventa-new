@@ -24,7 +24,14 @@ export type ModerationSortableOffer = {
   is_bot?: boolean;
   moderator_comment?: string | null;
   description?: string | null;
+  snoozed_until?: string | null;
 };
+
+function isSnoozedActive(o: ModerationSortableOffer, nowMs = Date.now()): boolean {
+  if (!o.snoozed_until) return false;
+  const t = new Date(o.snoozed_until).getTime();
+  return Number.isFinite(t) && t > nowMs;
+}
 
 function getDiscountPercent(offer: ModerationSortableOffer): number {
   const price = Number(offer.price ?? 0);
@@ -67,6 +74,10 @@ export function sortPendingOffersForModeration<T extends ModerationSortableOffer
   offers: T[]
 ): T[] {
   return [...offers].sort((a, b) => {
+    const aSnooze = isSnoozedActive(a) ? 1 : 0;
+    const bSnooze = isSnoozedActive(b) ? 1 : 0;
+    if (aSnooze !== bSnooze) return aSnooze - bSnooze;
+
     const aFix = needsModerationFix(a) ? 0 : 1;
     const bFix = needsModerationFix(b) ? 0 : 1;
     if (aFix !== bFix) return aFix - bFix;

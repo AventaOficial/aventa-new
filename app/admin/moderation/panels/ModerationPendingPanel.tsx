@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -16,10 +16,14 @@ import {
   Users,
   LayoutList,
   ChevronLeft,
+  Lock,
 } from 'lucide-react';
 import { MODERATION_DELETE_BOT_CONFIRM_PHRASE } from '@/lib/moderation/deleteBotQueue';
 import ModerationOfferDetail from '../../components/ModerationOfferDetail';
 import ModerationObjectivesSidebar from '../../components/ModerationObjectivesSidebar';
+import ModerationTurnSummaryModal, {
+  type ModerationSessionSummary,
+} from '../../components/ModerationTurnSummaryModal';
 
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
@@ -31,6 +35,15 @@ import {
   offerMatchesVitalFilter,
   offerNeedsFixFilter,
 } from '@/lib/moderation/sortPendingOffers';
+import { isLowModerationTrust } from '@/lib/moderation/confidenceBadge';
+import ModerationConfidenceChip from '../../components/ModerationConfidenceChip';
+import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
+import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
+import {
+  readModerationLastSeen,
+  writeModerationLastSeen,
+  defaultModerationSinceIso,
+} from '@/lib/moderation/moderationSessionSummary';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -62,6 +75,10 @@ type ModerationOffer = {
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
   /** Resuelto en servidor (IDs de usuario bot + marcadores en comentario/descripción). */
   is_bot?: boolean;
+  locked_by?: string | null;
+  locked_at?: string | null;
+  locked_by_name?: string | null;
+  snoozed_until?: string | null;
 };
 
 type SourceTab = 'all' | 'bot' | 'users';
@@ -132,7 +149,7 @@ export default function ModerationPendingPanel({
   const { session } = useAuth();
   const [pending, setPending] = useState<ModerationOffer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actingId, setActingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sourceTab, setSourceTab] = useState<SourceTab>(() => sourceTabFromQueueView(queueView));
@@ -193,6 +210,12 @@ export default function ModerationPendingPanel({
   const [deleteBotPhrase, setDeleteBotPhrase] = useState('');
   const [deleteBotAck, setDeleteBotAck] = useState(false);
   const [deleteBotLoading, setDeleteBotLoading] = useState(false);
+  const [linkConfirmed, setLinkConfirmed] = useState(false);
+  const [requestReject, setRequestReject] = useState(false);
+  const [turnSummary, setTurnSummary] = useState<ModerationSessionSummary | null>(null);
+  const [lockSupported, setLockSupported] = useState(true);
+  const summaryFetchedRef = useRef(false);
+  const heldLockIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -247,7 +270,7 @@ export default function ModerationPendingPanel({
       }
       if (storeFilter && o.store !== storeFilter) return false;
       if (categoryFilter && (o.category ?? '') !== categoryFilter) return false;
-      if (riskHighOnly && (o.risk_score == null || o.risk_score <= 50)) return false;
+      if (riskHighOnly && !isLowModerationTrust(o)) return false;
       if (dateFrom) {
         const d = new Date(o.created_at).toISOString().slice(0, 10);
         if (d < dateFrom) return false;
@@ -301,6 +324,167 @@ export default function ModerationPendingPanel({
     () => deskList.find((o) => o.id === selectedId) ?? null,
     [deskList, selectedId]
   );
+
+  const selectedReadOnly = useMemo(
+    () =>
+      selectedOffer
+        ? isOfferLockedByOther(
+            { locked_by: selectedOffer.locked_by, locked_at: selectedOffer.locked_at },
+            session?.user?.id
+          )
+        : false,
+    [selectedOffer, session?.user?.id]
+  );
+
+  const authHeaders = useCallback((): Record<string, string> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    return headers;
+  }, [session?.access_token]);
+
+  const postLock = useCallback(
+    async (offerId: string, action: 'acquire' | 'release' | 'heartbeat') => {
+      if (!lockSupported) return { ok: true as const };
+      const res = await fetch('/api/admin/moderation-lock', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ offerId, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.lockSupported === false) {
+        setLockSupported(false);
+        return { ok: true as const, unsupported: true as const };
+      }
+      if (res.status === 409) {
+        setPending((prev) =>
+          prev.map((o) =>
+            o.id === offerId
+              ? {
+                  ...o,
+                  locked_by: typeof data?.lockedBy === 'string' ? data.lockedBy : o.locked_by,
+                  locked_at: typeof data?.lockedAt === 'string' ? data.lockedAt : o.locked_at,
+                  locked_by_name:
+                    typeof data?.lockedByName === 'string' ? data.lockedByName : o.locked_by_name,
+                }
+              : o
+          )
+        );
+        return { ok: false as const, conflict: true as const };
+      }
+      if (!res.ok) return { ok: false as const };
+      if (action !== 'release') {
+        heldLockIdRef.current = offerId;
+        setPending((prev) =>
+          prev.map((o) =>
+            o.id === offerId
+              ? {
+                  ...o,
+                  locked_by: session?.user?.id ?? o.locked_by,
+                  locked_at: new Date().toISOString(),
+                  locked_by_name: null,
+                }
+              : o
+          )
+        );
+      } else if (heldLockIdRef.current === offerId) {
+        heldLockIdRef.current = null;
+        setPending((prev) =>
+          prev.map((o) =>
+            o.id === offerId
+              ? { ...o, locked_by: null, locked_at: null, locked_by_name: null }
+              : o
+          )
+        );
+      }
+      return { ok: true as const };
+    },
+    [authHeaders, lockSupported, session?.user?.id]
+  );
+
+  useModerationQueueRealtime({
+    enabled: Boolean(session?.access_token) && lockSupported,
+    onOfferPatch: (patch) => {
+      setPending((prev) =>
+        prev.map((o) => (o.id === patch.id ? { ...o, ...patch } : o))
+      );
+    },
+  });
+
+  useEffect(() => {
+    setLinkConfirmed(false);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!session?.user?.id || summaryFetchedRef.current) return;
+    summaryFetchedRef.current = true;
+    const since = readModerationLastSeen(session.user.id) ?? defaultModerationSinceIso();
+    const headers: Record<string, string> = {};
+    if (session.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    fetch(`/api/admin/moderation-session-summary?since=${encodeURIComponent(since)}`, { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.newOffers === 'number') {
+          setTurnSummary(data as ModerationSessionSummary);
+        }
+      })
+      .catch(() => {});
+  }, [session?.access_token, session?.user?.id]);
+
+  useEffect(() => {
+    if (!selectedId || !session?.user?.id || selectedReadOnly) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await postLock(selectedId, 'acquire');
+      if (cancelled || !result.ok) return;
+    })();
+    const interval = window.setInterval(() => {
+      if (heldLockIdRef.current === selectedId) {
+        void postLock(selectedId, 'heartbeat');
+      }
+    }, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      if (heldLockIdRef.current === selectedId) {
+        void postLock(selectedId, 'release');
+      }
+    };
+  }, [selectedId, selectedReadOnly, session?.user?.id, postLock]);
+
+  const dismissTurnSummary = () => {
+    if (session?.user?.id) writeModerationLastSeen(session.user.id);
+    setTurnSummary(null);
+  };
+
+  const runSnooze = async (offerId: string, minutes: 15 | 60 | 240) => {
+    const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    setPending((prev) =>
+      prev.map((o) =>
+        o.id === offerId
+          ? { ...o, snoozed_until: until, locked_by: null, locked_at: null, locked_by_name: null }
+          : o
+      )
+    );
+    if (heldLockIdRef.current === offerId) heldLockIdRef.current = null;
+    const res = await fetch('/api/admin/moderation-snooze', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ offerId, minutes }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setActionError(typeof err?.error === 'string' ? err.error : 'No se pudo posponer la oferta');
+      await refreshList(true);
+      return;
+    }
+    const listSnapshot = deskList;
+    const idx = listSnapshot.findIndex((o) => o.id === offerId);
+    const nextSelectedId =
+      listSnapshot[idx + 1]?.id ?? listSnapshot[idx - 1]?.id ?? null;
+    setSelectedId(nextSelectedId);
+    setMobileShowDetail(Boolean(nextSelectedId));
+    void refreshList(true);
+  };
 
   const similarOffers = useSimilarOffers(
     selectedOffer?.store ?? null,
@@ -449,6 +633,81 @@ export default function ModerationPendingPanel({
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [pathname, moderationPath, refreshList, session?.access_token]);
 
+  const setStatus = async (
+    id: string,
+    status: 'approved' | 'rejected',
+    createdBy?: string | null,
+    reason?: string,
+    modMessage?: string,
+    offerHasUrl?: boolean
+  ) => {
+    const offer = pending.find((o) => o.id === id);
+    if (!offer) return;
+
+    const listSnapshot = deskList;
+    const idx = listSnapshot.findIndex((o) => o.id === id);
+    const nextSelectedId =
+      listSnapshot[idx + 1]?.id ?? listSnapshot[idx - 1]?.id ?? null;
+
+    setActionError(null);
+    setPending((prev) => prev.filter((o) => o.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setSelectedId(nextSelectedId);
+    setMobileShowDetail(Boolean(nextSelectedId));
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const body: {
+      id: string;
+      status: string;
+      reason?: string;
+      mod_message?: string;
+      link_mod_ok?: boolean;
+    } = { id, status };
+    if (reason) body.reason = reason;
+    if (status === 'approved' && modMessage?.trim()) body.mod_message = modMessage.trim();
+    if (status === 'approved' && offerHasUrl) body.link_mod_ok = true;
+
+    try {
+      const res = await fetch('/api/admin/moderate-offer', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err?.error === 'string' ? err.error : 'No se pudo actualizar la oferta');
+      }
+
+      const repHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) repHeaders.Authorization = `Bearer ${session.access_token}`;
+      if (status === 'approved' && createdBy) {
+        fetch('/api/reputation/increment-approved', {
+          method: 'POST',
+          headers: repHeaders,
+          body: JSON.stringify({ userId: createdBy }),
+        }).catch(() => {});
+      } else if (status === 'rejected' && createdBy) {
+        fetch('/api/reputation/increment-rejected', {
+          method: 'POST',
+          headers: repHeaders,
+          body: JSON.stringify({ userId: createdBy }),
+        }).catch(() => {});
+      }
+
+      void refreshList(true);
+    } catch (e) {
+      setPending((prev) => sortPendingOffersForModeration([...prev, offer]));
+      setSelectedId(id);
+      setMobileShowDetail(true);
+      setActionError(e instanceof Error ? e.message : 'No se pudo actualizar la oferta');
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -467,76 +726,39 @@ export default function ModerationPendingPanel({
         setSelectedIds(new Set());
         setMobileShowDetail(false);
       }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const navKeys = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'];
+      if (navKeys.includes(e.key)) {
         if (deskList.length === 0) return;
         e.preventDefault();
         const idx = Math.max(
           0,
           deskList.findIndex((o) => o.id === selectedId)
         );
-        const nextIdx =
-          e.key === 'ArrowDown'
-            ? Math.min(deskList.length - 1, idx + 1)
-            : Math.max(0, idx - 1);
+        const delta = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1;
+        const nextIdx = Math.min(deskList.length - 1, Math.max(0, idx + delta));
         setSelectedId(deskList[nextIdx].id);
         setMobileShowDetail(true);
+      }
+      if ((e.key === 'a' || e.key === 'A') && selectedOffer && !selectedReadOnly) {
+        if (selectedOffer.offer_url?.trim() && !linkConfirmed) return;
+        e.preventDefault();
+        void setStatus(
+          selectedOffer.id,
+          'approved',
+          selectedOffer.created_by,
+          undefined,
+          undefined,
+          Boolean(selectedOffer.offer_url?.trim())
+        );
+      }
+      if ((e.key === 'r' || e.key === 'R') && selectedOffer && !selectedReadOnly) {
+        e.preventDefault();
+        setRequestReject(true);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [queueView, deskList, selectedId]);
-
-  const setStatus = async (
-    id: string,
-    status: 'approved' | 'rejected',
-    createdBy?: string | null,
-    reason?: string,
-    modMessage?: string,
-    offerHasUrl?: boolean
-  ) => {
-    setActingId(id);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-    const body: {
-      id: string;
-      status: string;
-      reason?: string;
-      mod_message?: string;
-      link_mod_ok?: boolean;
-    } = { id, status };
-    if (reason) body.reason = reason;
-    if (status === 'approved' && modMessage?.trim()) body.mod_message = modMessage.trim();
-    if (status === 'approved' && offerHasUrl) body.link_mod_ok = true;
-    const res = await fetch('/api/admin/moderate-offer', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-    setActingId(null);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error('Error updating offer', err);
-      alert(typeof err?.error === 'string' ? err.error : 'No se pudo actualizar la oferta');
-      return;
-    }
-    const repHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (session?.access_token) repHeaders.Authorization = `Bearer ${session.access_token}`;
-    if (status === 'approved' && createdBy) {
-      fetch('/api/reputation/increment-approved', {
-        method: 'POST',
-        headers: repHeaders,
-        body: JSON.stringify({ userId: createdBy }),
-      }).catch(() => {});
-    } else if (status === 'rejected' && createdBy) {
-      fetch('/api/reputation/increment-rejected', {
-        method: 'POST',
-        headers: repHeaders,
-        body: JSON.stringify({ userId: createdBy }),
-      }).catch(() => {});
-    }
-    setMobileShowDetail(false);
-    await refreshList(true);
-  };
+  }, [queueView, deskList, selectedId, selectedOffer, selectedReadOnly, linkConfirmed]);
 
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
   const canAdvancedModeration = isOwner || isAdmin;
@@ -589,6 +811,22 @@ export default function ModerationPendingPanel({
           </div>
         </div>
       </header>
+
+      {actionError ? (
+        <div
+          className={`${ui.card} border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-200`}
+          role="alert"
+        >
+          {actionError}
+          <button
+            type="button"
+            className="ml-3 font-medium underline"
+            onClick={() => setActionError(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      ) : null}
 
       <div className={`${ui.card} space-y-3 p-4`}>
         <div className="flex flex-wrap items-center gap-2">
@@ -651,7 +889,7 @@ export default function ModerationPendingPanel({
                   onChange={(e) => setRiskHighOnly(e.target.checked)}
                   className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 dark:border-white/20"
                 />
-                <span>Risk alto</span>
+                <span>Confianza baja</span>
               </label>
               <label className={`flex cursor-pointer items-center gap-2 text-sm ${ui.soft}`}>
                 <input
@@ -926,6 +1164,10 @@ export default function ModerationPendingPanel({
                   : null;
                 const vital = isVitalCategory(catNorm);
                 const needsFix = !thumb || !catNorm;
+                const lockedByOther = isOfferLockedByOther(
+                  { locked_by: offer.locked_by, locked_at: offer.locked_at },
+                  session?.user?.id
+                );
                 return (
                   <li key={offer.id} className="mb-1">
                     <div
@@ -971,7 +1213,12 @@ export default function ModerationPendingPanel({
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className={`truncate text-xs font-medium ${ui.body}`}>{offer.title}</p>
+                          <div className="flex items-start gap-1.5">
+                            <p className={`min-w-0 flex-1 truncate text-xs font-medium ${ui.body}`}>
+                              {offer.title}
+                            </p>
+                            <ModerationConfidenceChip offer={offer} mode={mode} size="sm" />
+                          </div>
                           <p className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${ui.muted}`}>
                             <span className="font-semibold text-emerald-700 dark:text-emerald-300/90">
                               ${Number(offer.price ?? 0).toLocaleString('es-MX')}
@@ -994,6 +1241,12 @@ export default function ModerationPendingPanel({
                             ) : null}
                             {bot ? (
                               <span className="rounded bg-sky-500/15 px-1 text-sky-700 dark:text-sky-300">bot</span>
+                            ) : null}
+                            {lockedByOther ? (
+                              <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/20 px-1 text-amber-800 dark:text-amber-200">
+                                <Lock className="h-2.5 w-2.5" aria-hidden />
+                                {offer.locked_by_name ?? 'En revisión'}
+                              </span>
                             ) : null}
                           </p>
                         </div>
@@ -1024,7 +1277,12 @@ export default function ModerationPendingPanel({
                 offer={selectedOffer}
                 similarOffers={similarOffers}
                 qualityCandidate={isQualityCandidate(selectedOffer)}
-                actingId={actingId}
+                currentUserId={session?.user?.id ?? null}
+                linkConfirmed={linkConfirmed}
+                onLinkConfirmedChange={setLinkConfirmed}
+                requestReject={requestReject}
+                onRequestRejectHandled={() => setRequestReject(false)}
+                onSnooze={(minutes) => void runSnooze(selectedOffer.id, minutes)}
                 onApprove={(id, createdBy, modMessage, offerHasUrl) => {
                   void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
                 }}
@@ -1048,6 +1306,10 @@ export default function ModerationPendingPanel({
       <div className="xl:hidden">
         <ModerationObjectivesSidebar />
       </div>
+
+      {turnSummary ? (
+        <ModerationTurnSummaryModal mode={mode} summary={turnSummary} onDismiss={dismissTurnSummary} />
+      ) : null}
     </div>
   );
 }
