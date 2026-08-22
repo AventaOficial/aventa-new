@@ -49,19 +49,19 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
       };
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-4 pb-6 md:space-y-6 md:pb-6">
       <header
         className={cn(
-          'rounded-2xl border px-5 py-5 md:px-7 md:py-6',
+          'rounded-2xl border px-4 py-4 md:px-7 md:py-6',
           accent.border,
           isWorkspace
             ? 'glass-light dark:glass-dark bg-gradient-to-br'
             : `glass-dark bg-gradient-to-br ${accent.gradient}`
         )}
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3 md:gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex items-start gap-3 min-w-0">
-            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', accent.iconBg)}>
+            <div className={cn('flex h-10 w-10 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-2xl', accent.iconBg)}>
               {isWorkspace ? <ClipboardList className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
             </div>
             <div className="min-w-0">
@@ -70,7 +70,7 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
               </p>
               <h1
                 className={cn(
-                  'text-xl md:text-2xl font-semibold tracking-tight',
+                  'text-lg md:text-2xl font-semibold tracking-tight',
                   isWorkspace ? 'text-gray-900 dark:text-gray-100' : 'text-white/90'
                 )}
               >
@@ -78,7 +78,7 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
               </h1>
               <p
                 className={cn(
-                  'mt-1 text-sm max-w-xl',
+                  'mt-1 hidden text-sm max-w-xl md:block',
                   isWorkspace ? 'text-gray-600 dark:text-gray-400' : 'text-white/45'
                 )}
               >
@@ -90,10 +90,10 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
           </div>
         </div>
 
-        {isWorkspace ? <ModerationWorkspaceStats /> : null}
+        <div className="mt-3 hidden md:block">{isWorkspace ? <ModerationWorkspaceStats /> : null}</div>
 
         <nav
-          className="mt-5 flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide -mx-1 px-1"
+          className="mt-3 md:mt-5 flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide -mx-1 px-1"
           aria-label="Secciones de moderación"
         >
           {tabs.map((tab) => {
@@ -104,7 +104,7 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
                 key={tab.id}
                 href={tab.href}
                 className={cn(
-                  'inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200',
+                  'inline-flex shrink-0 items-center gap-1.5 md:gap-2 rounded-xl px-2.5 py-2 md:px-3 text-[11px] md:text-xs font-semibold transition-all duration-200',
                   active ? accent.tabActive + ' shadow-sm' : accent.tabIdle
                 )}
                 aria-current={active ? 'page' : undefined}
@@ -117,7 +117,7 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
         </nav>
 
         {isWorkspace ? (
-          <p className="mt-3 text-[10px] text-gray-500 dark:text-gray-400">
+          <p className="mt-3 hidden text-[10px] text-gray-500 dark:text-gray-400 md:block">
             Atajos: <kbd className="rounded border px-1">/</kbd> buscar ·{' '}
             <kbd className="rounded border px-1">B</kbd> filtro bot ·{' '}
             <kbd className="rounded border px-1">Esc</kbd> limpiar selección

@@ -24,6 +24,7 @@ import ModerationObjectivesSidebar from '../../components/ModerationObjectivesSi
 import ModerationTurnSummaryModal, {
   type ModerationSessionSummary,
 } from '../../components/ModerationTurnSummaryModal';
+import ModerationMobileReview from '../../components/ModerationMobileReview';
 
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
@@ -801,6 +802,53 @@ export default function ModerationPendingPanel({
 
   return (
     <div className="space-y-4">
+      {actionError ? (
+        <div
+          className={`${ui.card} border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-200`}
+          role="alert"
+        >
+          {actionError}
+          <button
+            type="button"
+            className="ml-3 font-medium underline"
+            onClick={() => setActionError(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      ) : null}
+
+      {/* —— Móvil: una tarjeta + acciones al pulgar —— */}
+      <div className="md:hidden">
+        <ModerationMobileReview
+          mode={mode}
+          offers={deskList}
+          selectedId={selectedId}
+          sourceTab={sourceTab}
+          tabLocked={queueView !== 'split'}
+          currentUserId={session?.user?.id ?? null}
+          linkConfirmed={linkConfirmed}
+          onLinkConfirmedChange={setLinkConfirmed}
+          onSelect={(id) => {
+            setSelectedId(id);
+            setMobileShowDetail(true);
+          }}
+          onSourceTab={setSourceTab}
+          onApprove={(id, createdBy, modMessage, offerHasUrl) => {
+            void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
+          }}
+          onReject={(id, reason) => void setStatus(id, 'rejected', undefined, reason)}
+          onSnooze={
+            selectedOffer
+              ? (minutes) => void runSnooze(selectedOffer.id, minutes)
+              : undefined
+          }
+          loading={loading}
+        />
+      </div>
+
+      {/* —— Desktop: desk detalle + cola —— */}
+      <div className="hidden space-y-4 md:block">
       <header className={`${ui.card} px-5 py-5 md:px-6`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -828,22 +876,6 @@ export default function ModerationPendingPanel({
           </div>
         </div>
       </header>
-
-      {actionError ? (
-        <div
-          className={`${ui.card} border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-200`}
-          role="alert"
-        >
-          {actionError}
-          <button
-            type="button"
-            className="ml-3 font-medium underline"
-            onClick={() => setActionError(null)}
-          >
-            Cerrar
-          </button>
-        </div>
-      ) : null}
 
       <div className={`${ui.card} space-y-3 p-4`}>
         <div className="flex flex-wrap items-center gap-2">
@@ -1320,6 +1352,7 @@ export default function ModerationPendingPanel({
           </div>
         </div>
       )}
+      </div>
 
       {turnSummary ? (
         <ModerationTurnSummaryModal mode={mode} summary={turnSummary} onDismiss={dismissTurnSummary} />
