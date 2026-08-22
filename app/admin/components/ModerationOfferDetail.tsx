@@ -12,12 +12,14 @@ import {
   Tag,
   User,
   X,
+  Save,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
-import { mergeOfferImageUrls } from '@/lib/offerPath';
+import { mergeOfferImageUrls, normalizeOfferImageUrl } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
@@ -117,7 +119,13 @@ export default function ModerationOfferDetail({
     typeof offer.description === 'string' ? offer.description : ''
   );
   const [editImageUrl, setEditImageUrl] = useState(offer.image_url ?? '');
+  const [editCategory, setEditCategory] = useState(offer.category ?? '');
   const [editSaving, setEditSaving] = useState(false);
+  const [botImageUrl, setBotImageUrl] = useState(offer.image_url ?? '');
+  const [botOfferUrl, setBotOfferUrl] = useState(offer.offer_url ?? '');
+  const [botCategory, setBotCategory] = useState(offer.category ?? '');
+  const [botQuickSaving, setBotQuickSaving] = useState(false);
+  const [botQuickMsg, setBotQuickMsg] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [modMessage, setModMessage] = useState('');
@@ -135,7 +143,11 @@ export default function ModerationOfferDetail({
     setShowRejectInput(false);
     setRejectReason('');
     setModMessage('');
-  }, [offer.id]);
+    setBotImageUrl(offer.image_url ?? '');
+    setBotOfferUrl(offer.offer_url ?? '');
+    setBotCategory(offer.category ?? '');
+    setBotQuickMsg(null);
+  }, [offer.id, offer.image_url, offer.offer_url, offer.category]);
 
   const authorName = offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug =
@@ -188,6 +200,51 @@ export default function ModerationOfferDetail({
       setShowRejectInput(false);
       setRejectReason('');
     }
+  };
+
+  const feedDestination = vital
+    ? `Día a día → ${categoryLabel ?? 'Sin categoría'}`
+    : categoryLabel
+      ? `Top / Recientes (${categoryLabel})`
+      : 'Sin categoría — asignar antes de aprobar';
+
+  const saveBotQuickFix = async () => {
+    setBotQuickSaving(true);
+    setBotQuickMsg(null);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const body: Record<string, unknown> = { id: offer.id };
+    if (botImageUrl.trim() !== (offer.image_url ?? '')) {
+      body.image_url = botImageUrl.trim();
+    }
+    if (botOfferUrl.trim() !== (offer.offer_url ?? '')) {
+      body.offer_url = botOfferUrl.trim();
+    }
+    const normCat = normalizeCategoryForStorage(botCategory);
+    const prevCat = normalizeCategoryForStorage(offer.category ?? null);
+    if (normCat !== prevCat) {
+      body.category = normCat ?? '';
+    }
+    if (Object.keys(body).length <= 1) {
+      setBotQuickSaving(false);
+      setBotQuickMsg('Sin cambios');
+      return;
+    }
+    const res = await fetch('/api/admin/update-offer', { method: 'PATCH', headers, body: JSON.stringify(body) });
+    setBotQuickSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setBotQuickMsg(typeof err?.error === 'string' ? err.error : 'Error al guardar');
+      return;
+    }
+    setBotQuickMsg('Guardado');
+    setImgBroken(false);
+    onOfferUpdated?.();
+  };
+
+  const applyNormalizedImage = () => {
+    const n = normalizeOfferImageUrl(botImageUrl);
+    if (n) setBotImageUrl(n);
   };
 
   return (
@@ -330,6 +387,80 @@ export default function ModerationOfferDetail({
             </span>
           </div>
 
+          {isBotOffer ? (
+            <div className={`rounded-xl border px-3 py-3 space-y-3 ${ui.border} border-sky-500/30 bg-sky-500/5`}>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${!heroSrc ? 'text-amber-600' : 'text-sky-600'}`} />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${ui.body}`}>Revisión bot</p>
+                  <p className={`text-xs ${ui.soft}`}>
+                    Destino: <span className="font-medium">{feedDestination}</span>
+                  </p>
+                  {!heroSrc ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-200">
+                      Falta imagen válida — pega URL mlstatic o corrige enlace y vuelve a abrir la tienda.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <label className={`mb-1 block text-[11px] ${ui.label}`}>Categoría (Día a día)</label>
+                <select
+                  value={botCategory}
+                  onChange={(e) => setBotCategory(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm ${ui.select}`}
+                >
+                  <option value="">Sin categoría</option>
+                  {ALL_CATEGORIES.filter((c) => c.value !== 'other').map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                      {c.vital ? ' · Día a día' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={`mb-1 block text-[11px] ${ui.label}`}>Imagen (URL https)</label>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="url"
+                    value={botImageUrl}
+                    onChange={(e) => setBotImageUrl(e.target.value.slice(0, 2048))}
+                    placeholder="https://http2.mlstatic.com/…"
+                    className={`min-w-[200px] flex-1 px-3 py-2 font-mono text-xs ${ui.input}`}
+                  />
+                  <button type="button" onClick={applyNormalizedImage} className={ui.btnGhostSm}>
+                    Normalizar
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className={`mb-1 block text-[11px] ${ui.label}`}>
+                  Enlace tienda (se aplica tag afiliado al guardar)
+                </label>
+                <input
+                  type="url"
+                  value={botOfferUrl}
+                  onChange={(e) => setBotOfferUrl(e.target.value.slice(0, 2048))}
+                  placeholder="https://articulo.mercadolibre.com.mx/…"
+                  className={`w-full px-3 py-2 font-mono text-xs ${ui.input}`}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={botQuickSaving}
+                  onClick={() => void saveBotQuickFix()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  {botQuickSaving ? 'Guardando…' : 'Guardar correcciones'}
+                </button>
+                {botQuickMsg ? <span className={`text-xs ${ui.muted}`}>{botQuickMsg}</span> : null}
+              </div>
+            </div>
+          ) : null}
+
           {offer.offer_url?.trim() ? (
             <a
               href={offer.offer_url}
@@ -354,6 +485,7 @@ export default function ModerationOfferDetail({
                 setEditOfferUrl(offer.offer_url ?? '');
                 setEditDescription(typeof offer.description === 'string' ? offer.description : '');
                 setEditImageUrl(offer.image_url ?? '');
+                setEditCategory(offer.category ?? '');
                 setShowEdit(true);
               }}
               className={ui.btnGhostSm}
@@ -605,6 +737,21 @@ export default function ModerationOfferDetail({
                   className={`w-full px-3 py-2 font-mono text-sm ${ui.input}`}
                 />
               </div>
+              <div>
+                <label className={`mb-1 block text-sm ${ui.soft}`}>Categoría</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm ${ui.input}`}
+                >
+                  <option value="">Sin categoría</option>
+                  {ALL_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -622,6 +769,7 @@ export default function ModerationOfferDetail({
                         offer_url: editOfferUrl.trim() || undefined,
                         description: editDescription.trim() || undefined,
                         image_url: editImageUrl.trim() || undefined,
+                        category: editCategory.trim() || null,
                       }),
                     });
                     setEditSaving(false);

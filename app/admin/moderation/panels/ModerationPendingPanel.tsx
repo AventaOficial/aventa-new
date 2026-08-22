@@ -21,15 +21,23 @@ import { MODERATION_DELETE_BOT_CONFIRM_PHRASE } from '@/lib/moderation/deleteBot
 import ModerationOfferDetail from '../../components/ModerationOfferDetail';
 import ModerationObjectivesSidebar from '../../components/ModerationObjectivesSidebar';
 
-import { ALL_CATEGORIES } from '@/lib/categories';
+import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { pendingBasePath, type ModerationHubMode, type ModerationQueueView } from '@/lib/moderation/hubConfig';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { moderationUi } from '../moderationUi';
+import {
+  sortPendingOffersForModeration,
+  offerMatchesVitalFilter,
+  offerNeedsFixFilter,
+} from '@/lib/moderation/sortPendingOffers';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Todas' },
-  ...ALL_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
+  ...ALL_CATEGORIES.map((c) => ({
+    value: c.value,
+    label: c.vital ? `${c.label} · Día a día` : c.label,
+  })),
 ];
 
 type ModerationOffer = {
@@ -177,6 +185,8 @@ export default function ModerationPendingPanel({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [riskHighOnly, setRiskHighOnly] = useState(false);
+  const [vitalOnlyFilter, setVitalOnlyFilter] = useState(false);
+  const [needsFixFilter, setNeedsFixFilter] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showDeleteBotModal, setShowDeleteBotModal] = useState(false);
@@ -251,28 +261,25 @@ export default function ModerationPendingPanel({
   }, [pending, debouncedSearch, storeFilter, categoryFilter, riskHighOnly, dateFrom, dateTo]);
 
   const botFiltered = useMemo(() => {
-    return [...filtered]
-      .filter((o) => isBotOffer(o))
-      .sort((a, b) => {
-        const aFree = Number(a.price ?? 0) <= 0 ? 1 : 0;
-        const bFree = Number(b.price ?? 0) <= 0 ? 1 : 0;
-        if (aFree !== bFree) return bFree - aFree;
-        const aDiscount = getOfferDiscountPercent(a);
-        const bDiscount = getOfferDiscountPercent(b);
-        if (aDiscount !== bDiscount) return bDiscount - aDiscount;
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      });
-  }, [filtered, isBotOffer]);
+    let list = filtered.filter((o) => isBotOffer(o));
+    if (vitalOnlyFilter) list = list.filter((o) => offerMatchesVitalFilter(o));
+    if (needsFixFilter) list = list.filter((o) => offerNeedsFixFilter(o));
+    return sortPendingOffersForModeration(list);
+  }, [filtered, isBotOffer, vitalOnlyFilter, needsFixFilter]);
 
-  const userFiltered = useMemo(
-    () => filtered.filter((o) => !isBotOffer(o)),
-    [filtered, isBotOffer]
-  );
+  const userFiltered = useMemo(() => {
+    let list = filtered.filter((o) => !isBotOffer(o));
+    if (vitalOnlyFilter) list = list.filter((o) => offerMatchesVitalFilter(o));
+    if (needsFixFilter) list = list.filter((o) => offerNeedsFixFilter(o));
+    return sortPendingOffersForModeration(list);
+  }, [filtered, isBotOffer, vitalOnlyFilter, needsFixFilter]);
 
   const deskList = useMemo(() => {
-    if (sourceTab === 'bot') return botFiltered;
-    if (sourceTab === 'users') return userFiltered;
-    return [...botFiltered, ...userFiltered];
+    let list: ModerationOffer[];
+    if (sourceTab === 'bot') list = botFiltered;
+    else if (sourceTab === 'users') list = userFiltered;
+    else list = sortPendingOffersForModeration([...botFiltered, ...userFiltered]);
+    return list;
   }, [sourceTab, botFiltered, userFiltered]);
 
   useEffect(() => {
@@ -646,6 +653,24 @@ export default function ModerationPendingPanel({
                 />
                 <span>Risk alto</span>
               </label>
+              <label className={`flex cursor-pointer items-center gap-2 text-sm ${ui.soft}`}>
+                <input
+                  type="checkbox"
+                  checked={vitalOnlyFilter}
+                  onChange={(e) => setVitalOnlyFilter(e.target.checked)}
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-white/20"
+                />
+                <span>Solo Día a día</span>
+              </label>
+              <label className={`flex cursor-pointer items-center gap-2 text-sm ${ui.soft}`}>
+                <input
+                  type="checkbox"
+                  checked={needsFixFilter}
+                  onChange={(e) => setNeedsFixFilter(e.target.checked)}
+                  className="rounded border-gray-300 text-violet-600 focus:ring-violet-500 dark:border-white/20"
+                />
+                <span>Sin foto / categoría</span>
+              </label>
             </>
           ) : null}
           <span className={`text-sm ${ui.muted}`}>
@@ -895,6 +920,12 @@ export default function ModerationPendingPanel({
                 const pct = getOfferDiscountPercent(offer);
                 const active = offer.id === selectedId;
                 const bot = isBotOffer(offer);
+                const catNorm = normalizeCategoryForStorage(offer.category ?? null);
+                const catLabel = catNorm
+                  ? ALL_CATEGORIES.find((c) => c.value === catNorm)?.label
+                  : null;
+                const vital = isVitalCategory(catNorm);
+                const needsFix = !thumb || !catNorm;
                 return (
                   <li key={offer.id} className="mb-1">
                     <div
@@ -948,6 +979,17 @@ export default function ModerationPendingPanel({
                             {pct > 0 ? (
                               <span className="rounded bg-emerald-500/15 px-1 text-emerald-700 dark:text-emerald-300">
                                 −{pct}%
+                              </span>
+                            ) : null}
+                            {catLabel ? (
+                              <span
+                                className={`rounded px-1 ${vital ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : 'bg-gray-200/80 text-gray-700 dark:bg-white/10 dark:text-white/60'}`}
+                              >
+                                {catLabel}
+                              </span>
+                            ) : needsFix ? (
+                              <span className="rounded bg-amber-500/20 px-1 text-amber-800 dark:text-amber-200">
+                                sin cat.
                               </span>
                             ) : null}
                             {bot ? (

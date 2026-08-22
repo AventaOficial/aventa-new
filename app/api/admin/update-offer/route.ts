@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate'
+import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories'
+import { normalizeOfferImageUrl } from '@/lib/offerPath'
 
-/** PATCH: editar oferta en moderación (solo pendientes). Campos: title, offer_url, description, image_url. */
+/** PATCH: editar oferta en moderación. Campos: title, offer_url, description, image_url, category. */
 export async function PATCH(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {
@@ -34,6 +36,7 @@ export async function PATCH(request: Request) {
       offer_url?: string | null
       description?: string | null
       image_url?: string | null
+      category?: string | null
     } = {}
     if (typeof body.title === 'string') {
       const t = body.title.trim().slice(0, 500)
@@ -47,9 +50,19 @@ export async function PATCH(request: Request) {
       payload.description = typeof body.description === 'string' ? body.description.trim().slice(0, 2000) || null : null
     }
     if (body.image_url !== undefined) {
-      payload.image_url = typeof body.image_url === 'string' && body.image_url.trim()
-        ? body.image_url.trim().slice(0, 2048)
-        : null
+      const raw = typeof body.image_url === 'string' ? body.image_url.trim() : ''
+      payload.image_url = raw ? (normalizeOfferImageUrl(raw) ?? raw).slice(0, 2048) : null
+    }
+    if (body.category !== undefined) {
+      if (body.category === null || body.category === '') {
+        payload.category = null
+      } else if (typeof body.category === 'string') {
+        const norm = normalizeCategoryForStorage(body.category.trim())
+        if (!norm || !isValidCategoryId(norm)) {
+          return NextResponse.json({ error: 'Categoría inválida' }, { status: 400 })
+        }
+        payload.category = norm
+      }
     }
 
     if (Object.keys(payload).length === 0) {

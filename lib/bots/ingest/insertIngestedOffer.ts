@@ -1,9 +1,13 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
+import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories';
+import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { BotIngestConfig } from './config';
 import type { ScoreBreakdown } from './scoreIngestCandidate';
 import { resolveBotAuthorUserId } from './resolveBotAuthorUserId';
+import { classifyBotCategoryForStorage } from './classifyBotCategory';
+import { buildBotOfferDescription } from './buildBotOfferDescription';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -58,13 +62,25 @@ export async function insertIngestedOffer(
     return { ok: false, duplicate: true };
   }
 
-  const category = config.category && config.category.trim() ? config.category.trim() : null;
+  const categoryFromEnv =
+    config.category && config.category.trim()
+      ? normalizeCategoryForStorage(config.category.trim())
+      : null;
+  const categoryInferred = classifyBotCategoryForStorage(meta, config.techCategoryIdSet);
+  const category = categoryFromEnv ?? categoryInferred;
   const hasOriginal = meta.originalPrice != null && meta.originalPrice > meta.discountPrice;
   const status = opts?.status ?? 'pending';
   const title = (opts?.titleOverride ?? meta.title).slice(0, 500);
+  const imageNormalized = normalizeOfferImageUrl(meta.imageUrl) ?? '';
 
   const expiresAt =
     status === 'approved' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined;
+
+  const catNote = category ? ` cat=${category}` : '';
+  const moderatorComment = buildModeratorComment({
+    ...opts,
+    moderatorNote: `${opts?.moderatorNote ?? ''}${catNote}`.trim() || undefined,
+  });
 
   const payload: Record<string, unknown> = {
     title,
@@ -74,10 +90,10 @@ export async function insertIngestedOffer(
     ...(category ? { category } : {}),
     status,
     created_by: authorId,
-    image_url: meta.imageUrl.slice(0, 2048),
+    image_url: imageNormalized.slice(0, 2048),
     offer_url: offerUrl,
-    description: `Ingesta automática (bot). Origen: ${new URL(meta.canonicalUrl).hostname}`,
-    moderator_comment: buildModeratorComment(opts),
+    description: buildBotOfferDescription(meta, category).slice(0, 2000),
+    moderator_comment: moderatorComment,
     ...(expiresAt ? { expires_at: expiresAt } : {}),
     ...(status === 'approved' ? { link_mod_ok: true } : {}),
   };
