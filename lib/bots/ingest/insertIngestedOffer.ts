@@ -78,7 +78,10 @@ export async function insertIngestedOffer(
 
   const catNote = category ? ` cat=${category}` : '';
   const moderatorComment = buildModeratorComment({
-    ...opts,
+    status,
+    titleOverride: opts?.titleOverride,
+    ingestScore: opts?.ingestScore,
+    scoreBreakdown: opts?.scoreBreakdown,
     moderatorNote: `${opts?.moderatorNote ?? ''}${catNote}`.trim() || undefined,
   });
 

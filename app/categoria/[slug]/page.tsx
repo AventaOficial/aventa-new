@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES, getDbCategoryValuesForMacro } from '@/lib/categories';
 import Link from 'next/link';
-import ClientLayout from '@/app/ClientLayout';
+import AppShell from '@/app/AppShell';
 import CategoriaOfferList from './CategoriaOfferList';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
 
@@ -50,7 +50,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
   const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
 
   return (
-    <ClientLayout>
+    <AppShell>
       <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
         <section className="max-w-4xl lg:max-w-5xl mx-auto px-4 md:px-8 pt-24 pb-32 md:pt-12 md:pb-12">
           <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -86,6 +86,6 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
           </div>
         </section>
       </div>
-    </ClientLayout>
+    </AppShell>
   );
 }

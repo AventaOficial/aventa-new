@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import ClientLayout from '@/app/ClientLayout';
+import AppShell from '@/app/AppShell';
 import LegalBackLink from '@/app/components/LegalBackLink';
 
 export const metadata: Metadata = {
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <ClientLayout>
+    <AppShell>
     <main className="min-h-screen pb-24 md:pb-0 bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#111827] dark:text-[#F9FAFB]">
       <div className="mx-auto max-w-3xl px-4 pt-8 md:pt-12 pb-16 space-y-10">
         <LegalBackLink />
@@ -424,6 +424,6 @@ export default function PrivacyPage() {
         </section>
       </div>
     </main>
-    </ClientLayout>
+    </AppShell>
   );
 }
