@@ -304,7 +304,7 @@ export default function ModerationOfferDetail({
   };
 
   return (
-    <div className={`flex h-full min-h-0 flex-col overflow-hidden ${ui.card}`}>
+    <div className={`flex h-full max-h-[min(82vh,900px)] min-h-[min(70vh,720px)] flex-col overflow-hidden ${ui.card}`}>
       <div className={`flex items-center justify-between gap-2 border-b px-4 py-3 ${ui.hairline}`}>
         <div className="min-w-0">
           <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${ui.label}`}>Revisión</p>
@@ -341,7 +341,7 @@ export default function ModerationOfferDetail({
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className={`relative aspect-[4/3] max-h-[320px] w-full ${ui.heroBg}`}>
+        <div className={`relative aspect-[4/3] max-h-[min(48vh,480px)] w-full ${ui.heroBg}`}>
           {heroSrc ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -604,7 +604,11 @@ export default function ModerationOfferDetail({
         </div>
       </div>
 
-      <div className={`shrink-0 space-y-3 px-4 py-3 ${ui.stickyBar}`}>
+      <div
+        className={`sticky bottom-0 z-10 shrink-0 space-y-3 px-4 py-3 backdrop-blur-md ${ui.stickyBar} ${
+          ui.ws ? 'supports-[backdrop-filter]:bg-gray-50/95' : 'supports-[backdrop-filter]:bg-black/40'
+        }`}
+      >
         {!readOnly && onSnooze ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className={`text-[11px] font-medium ${ui.label}`}>Revisar después</span>

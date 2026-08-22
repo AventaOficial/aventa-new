@@ -1,8 +1,9 @@
 'use client';
 
-import { Clock, ShieldAlert, FileWarning, Lock } from 'lucide-react';
+import { Clock, ShieldAlert, FileWarning } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
+import { hasModerationSummaryActivity } from '@/lib/moderation/moderationSessionSummary';
 
 export type ModerationSessionSummary = {
   since: string;
@@ -35,11 +36,7 @@ export default function ModerationTurnSummaryModal({
   onDismiss,
 }: Props) {
   const ui = moderationUi(mode);
-  const hasActivity =
-    summary.newOffers > 0 ||
-    summary.lowTrustOffers > 0 ||
-    summary.newReports > 0 ||
-    summary.lockedNow > 0;
+  const hasActivity = hasModerationSummaryActivity(summary);
 
   return (
     <div
@@ -88,13 +85,6 @@ export default function ModerationTurnSummaryModal({
               Reportes nuevos
             </span>
             <span className={`text-lg font-semibold tabular-nums ${ui.title}`}>{summary.newReports}</span>
-          </li>
-          <li className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${ui.border} ${ui.thumbBg}`}>
-            <span className={`flex items-center gap-2 text-sm ${ui.body}`}>
-              <Lock className={`h-4 w-4 ${ui.iconMuted}`} aria-hidden />
-              En revisión ahora
-            </span>
-            <span className={`text-lg font-semibold tabular-nums ${ui.title}`}>{summary.lockedNow}</span>
           </li>
         </ul>
 

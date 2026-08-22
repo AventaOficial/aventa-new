@@ -39,10 +39,14 @@ import { isLowModerationTrust } from '@/lib/moderation/confidenceBadge';
 import ModerationConfidenceChip from '../../components/ModerationConfidenceChip';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
+import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import {
   readModerationLastSeen,
   writeModerationLastSeen,
   defaultModerationSinceIso,
+  wasModerationSummaryShownThisSession,
+  markModerationSummaryShownThisSession,
+  hasModerationSummaryActivity,
 } from '@/lib/moderation/moderationSessionSummary';
 
 const CATEGORY_OPTIONS = [
@@ -417,15 +421,25 @@ export default function ModerationPendingPanel({
   useEffect(() => {
     if (!session?.user?.id || summaryFetchedRef.current) return;
     summaryFetchedRef.current = true;
+
+    if (wasModerationSummaryShownThisSession(session.user.id)) {
+      return;
+    }
+
     const since = readModerationLastSeen(session.user.id) ?? defaultModerationSinceIso();
     const headers: Record<string, string> = {};
     if (session.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     fetch(`/api/admin/moderation-session-summary?since=${encodeURIComponent(since)}`, { headers })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data && typeof data.newOffers === 'number') {
-          setTurnSummary(data as ModerationSessionSummary);
+        if (!data || typeof data.newOffers !== 'number') return;
+        const summary = data as ModerationSessionSummary;
+        if (!hasModerationSummaryActivity(summary)) {
+          markModerationSummaryShownThisSession(session.user.id);
+          writeModerationLastSeen(session.user.id);
+          return;
         }
+        setTurnSummary(summary);
       })
       .catch(() => {});
   }, [session?.access_token, session?.user?.id]);
@@ -452,7 +466,10 @@ export default function ModerationPendingPanel({
   }, [selectedId, selectedReadOnly, session?.user?.id, postLock]);
 
   const dismissTurnSummary = () => {
-    if (session?.user?.id) writeModerationLastSeen(session.user.id);
+    if (session?.user?.id) {
+      markModerationSummaryShownThisSession(session.user.id);
+      writeModerationLastSeen(session.user.id);
+    }
     setTurnSummary(null);
   };
 
@@ -794,8 +811,8 @@ export default function ModerationPendingPanel({
               Cola de revisión
             </h2>
             <p className={`mt-2 max-w-xl text-sm leading-relaxed ${ui.subtitle}`}>
-              Lista a la izquierda, detalle a la derecha. Abre la tienda en pestaña nueva; aprueba o
-              rechaza sin modales raros.
+              Detalle grande a la izquierda, cola a la derecha. Atajos: A aprobar, R rechazar, flechas
+              navegar.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -1118,194 +1135,191 @@ export default function ModerationPendingPanel({
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)_minmax(240px,280px)] xl:items-start xl:gap-5">
-          <aside
-            className={`flex min-h-0 flex-col overflow-hidden ${ui.card} ${
-              mobileShowDetail ? 'hidden md:flex' : 'flex'
-            }`}
-          >
-            {!tabLocked ? (
-              <div className={`flex gap-1 border-b p-2 ${ui.hairline}`}>
-                {(
-                  [
-                    { id: 'all' as const, label: 'Todos', icon: LayoutList },
-                    { id: 'bot' as const, label: 'Bot', icon: Bot },
-                    { id: 'users' as const, label: 'Usuarios', icon: Users },
-                  ] as const
-                ).map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setSourceTab(id)}
-                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
-                      sourceTab === id ? ui.chipActive : ui.chipIdle
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className={`border-b px-3 py-2.5 text-xs font-medium ${ui.hairline} ${ui.soft}`}>
-                {sourceTab === 'bot' ? 'Cola del bot' : 'Cola de usuarios'}
-              </div>
-            )}
+        <div className="space-y-3">
+          <ModerationObjectivesSidebar variant="bar" mode={mode} />
 
-            <ul className="max-h-[min(70vh,720px)] flex-1 overflow-y-auto p-2">
-              {deskList.map((offer) => {
-                const thumb = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null)[0];
-                const pct = getOfferDiscountPercent(offer);
-                const active = offer.id === selectedId;
-                const bot = isBotOffer(offer);
-                const catNorm = normalizeCategoryForStorage(offer.category ?? null);
-                const catLabel = catNorm
-                  ? ALL_CATEGORIES.find((c) => c.value === catNorm)?.label
-                  : null;
-                const vital = isVitalCategory(catNorm);
-                const needsFix = !thumb || !catNorm;
-                const lockedByOther = isOfferLockedByOther(
-                  { locked_by: offer.locked_by, locked_at: offer.locked_at },
-                  session?.user?.id
-                );
-                return (
-                  <li key={offer.id} className="mb-1">
-                    <div
-                      className={`flex w-full items-stretch gap-2 rounded-xl border transition-colors ${
-                        active ? ui.rowActive : `border-transparent ${ui.rowHover}`
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-start lg:gap-5">
+            <div
+              className={`min-h-0 min-w-0 ${
+                mobileShowDetail ? 'flex' : 'hidden md:flex'
+              } flex-col lg:min-h-[min(82vh,900px)]`}
+            >
+              <button
+                type="button"
+                onClick={() => setMobileShowDetail(false)}
+                className={`mb-2 inline-flex items-center gap-1 text-sm md:hidden ${ui.soft} hover:opacity-80`}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Volver a la cola
+              </button>
+              {selectedOffer ? (
+                <ModerationOfferDetail
+                  mode={mode}
+                  offer={selectedOffer}
+                  similarOffers={similarOffers}
+                  qualityCandidate={isQualityCandidate(selectedOffer)}
+                  currentUserId={session?.user?.id ?? null}
+                  linkConfirmed={linkConfirmed}
+                  onLinkConfirmedChange={setLinkConfirmed}
+                  requestReject={requestReject}
+                  onRequestRejectHandled={() => setRequestReject(false)}
+                  onSnooze={(minutes) => void runSnooze(selectedOffer.id, minutes)}
+                  onApprove={(id, createdBy, modMessage, offerHasUrl) => {
+                    void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
+                  }}
+                  onReject={(id, reason) => void setStatus(id, 'rejected', undefined, reason)}
+                  onOfferUpdated={() => refreshList(true)}
+                  onBack={() => setMobileShowDetail(false)}
+                />
+              ) : (
+                <div className={`flex flex-1 items-center justify-center p-10 text-sm ${ui.card} ${ui.muted}`}>
+                  Selecciona una oferta de la cola
+                </div>
+              )}
+            </div>
+
+            <aside
+              className={`flex min-h-0 flex-col overflow-hidden lg:sticky lg:top-[4.5rem] ${ui.card} ${
+                mobileShowDetail ? 'hidden md:flex' : 'flex'
+              }`}
+            >
+              {!tabLocked ? (
+                <div className={`flex gap-1 border-b p-2 ${ui.hairline}`}>
+                  {(
+                    [
+                      { id: 'all' as const, label: 'Todos', icon: LayoutList },
+                      { id: 'bot' as const, label: 'Bot', icon: Bot },
+                      { id: 'users' as const, label: 'Usuarios', icon: Users },
+                    ] as const
+                  ).map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSourceTab(id)}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
+                        sourceTab === id ? ui.chipActive : ui.chipIdle
                       }`}
                     >
-                      {canAdvancedModeration ? (
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={`border-b px-3 py-2.5 text-xs font-medium ${ui.hairline} ${ui.soft}`}>
+                  {sourceTab === 'bot' ? 'Cola del bot' : 'Cola de usuarios'}
+                </div>
+              )}
+
+              <ul className="max-h-[min(70vh,820px)] flex-1 overflow-y-auto p-2">
+                {deskList.map((offer) => {
+                  const thumb = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null)[0];
+                  const pct = getOfferDiscountPercent(offer);
+                  const active = offer.id === selectedId;
+                  const bot = isBotOffer(offer);
+                  const catNorm = normalizeCategoryForStorage(offer.category ?? null);
+                  const catLabel = catNorm
+                    ? ALL_CATEGORIES.find((c) => c.value === catNorm)?.label
+                    : null;
+                  const vital = isVitalCategory(catNorm);
+                  const needsFix = !thumb || !catNorm;
+                  const lockedByOther = isOfferLockedByOther(
+                    { locked_by: offer.locked_by, locked_at: offer.locked_at },
+                    session?.user?.id
+                  );
+                  return (
+                    <li key={offer.id} className="mb-1">
+                      <div
+                        className={`flex w-full items-stretch gap-2 rounded-xl border transition-colors ${
+                          active ? ui.rowActive : `border-transparent ${ui.rowHover}`
+                        }`}
+                      >
+                        {canAdvancedModeration ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleSelect(offer.id)}
+                            className={`shrink-0 self-center pl-2 ${ui.iconSoft} hover:opacity-80`}
+                            aria-label="Seleccionar"
+                          >
+                            {selectedIds.has(offer.id) ? (
+                              <CheckSquare className="h-4 w-4 text-emerald-600 dark:text-violet-300" />
+                            ) : (
+                              <Square className="h-4 w-4" />
+                            )}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => toggleSelect(offer.id)}
-                          className={`shrink-0 self-center pl-2 ${ui.iconSoft} hover:opacity-80`}
-                          aria-label="Seleccionar"
+                          onClick={() => selectOffer(offer.id)}
+                          className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2 text-left"
                         >
-                          {selectedIds.has(offer.id) ? (
-                            <CheckSquare className="h-4 w-4 text-emerald-600 dark:text-violet-300" />
-                          ) : (
-                            <Square className="h-4 w-4" />
-                          )}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => selectOffer(offer.id)}
-                        className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2 text-left"
-                      >
-                        <div className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg ${ui.thumbBg}`}>
-                          {thumb ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={thumb}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className={`flex h-full w-full items-center justify-center text-[9px] ${ui.faint}`}>
-                              Sin foto
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start gap-1.5">
-                            <p className={`min-w-0 flex-1 truncate text-xs font-medium ${ui.body}`}>
-                              {offer.title}
-                            </p>
-                            <ModerationConfidenceChip offer={offer} mode={mode} size="sm" />
+                          <div className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg ${ui.thumbBg}`}>
+                            {thumb ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className={`flex h-full w-full items-center justify-center text-[9px] ${ui.faint}`}>
+                                Sin foto
+                              </div>
+                            )}
                           </div>
-                          <p className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${ui.muted}`}>
-                            <span className="font-semibold text-emerald-700 dark:text-emerald-300/90">
-                              ${Number(offer.price ?? 0).toLocaleString('es-MX')}
-                            </span>
-                            {pct > 0 ? (
-                              <span className="rounded bg-emerald-500/15 px-1 text-emerald-700 dark:text-emerald-300">
-                                −{pct}%
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`truncate text-[12px] font-medium leading-snug ${ui.body}`}
+                              title={offer.title}
+                            >
+                              {shortModerationQueueTitle(offer.title)}
+                            </p>
+                            <p className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${ui.muted}`}>
+                              <ModerationConfidenceChip offer={offer} mode={mode} size="sm" />
+                              <span className="font-semibold text-emerald-700 dark:text-emerald-300/90">
+                                ${Number(offer.price ?? 0).toLocaleString('es-MX')}
                               </span>
-                            ) : null}
-                            {catLabel ? (
-                              <span
-                                className={`rounded px-1 ${vital ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : 'bg-gray-200/80 text-gray-700 dark:bg-white/10 dark:text-white/60'}`}
-                              >
-                                {catLabel}
-                              </span>
-                            ) : needsFix ? (
-                              <span className="rounded bg-amber-500/20 px-1 text-amber-800 dark:text-amber-200">
-                                sin cat.
-                              </span>
-                            ) : null}
-                            {bot ? (
-                              <span className="rounded bg-sky-500/15 px-1 text-sky-700 dark:text-sky-300">bot</span>
-                            ) : null}
-                            {lockedByOther ? (
-                              <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/20 px-1 text-amber-800 dark:text-amber-200">
-                                <Lock className="h-2.5 w-2.5" aria-hidden />
-                                {offer.locked_by_name ?? 'En revisión'}
-                              </span>
-                            ) : null}
-                          </p>
-                        </div>
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </aside>
-
-          <div
-            className={`min-h-0 min-w-0 ${
-              mobileShowDetail ? 'flex' : 'hidden md:flex'
-            } flex-col`}
-          >
-            <button
-              type="button"
-              onClick={() => setMobileShowDetail(false)}
-              className={`mb-2 inline-flex items-center gap-1 text-sm md:hidden ${ui.soft} hover:opacity-80`}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Volver a la lista
-            </button>
-            {selectedOffer ? (
-              <ModerationOfferDetail
-                mode={mode}
-                offer={selectedOffer}
-                similarOffers={similarOffers}
-                qualityCandidate={isQualityCandidate(selectedOffer)}
-                currentUserId={session?.user?.id ?? null}
-                linkConfirmed={linkConfirmed}
-                onLinkConfirmedChange={setLinkConfirmed}
-                requestReject={requestReject}
-                onRequestRejectHandled={() => setRequestReject(false)}
-                onSnooze={(minutes) => void runSnooze(selectedOffer.id, minutes)}
-                onApprove={(id, createdBy, modMessage, offerHasUrl) => {
-                  void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
-                }}
-                onReject={(id, reason) => void setStatus(id, 'rejected', undefined, reason)}
-                onOfferUpdated={() => refreshList(true)}
-                onBack={() => setMobileShowDetail(false)}
-              />
-            ) : (
-              <div className={`flex flex-1 items-center justify-center p-10 text-sm ${ui.card} ${ui.muted}`}>
-                Selecciona una oferta de la lista
-              </div>
-            )}
-          </div>
-
-          <div className="hidden xl:block">
-            <ModerationObjectivesSidebar />
+                              {pct > 0 ? (
+                                <span className="rounded bg-emerald-500/15 px-1 text-emerald-700 dark:text-emerald-300">
+                                  −{pct}%
+                                </span>
+                              ) : null}
+                              {catLabel ? (
+                                <span
+                                  className={`rounded px-1 ${vital ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : 'bg-gray-200/80 text-gray-700 dark:bg-white/10 dark:text-white/60'}`}
+                                >
+                                  {catLabel}
+                                </span>
+                              ) : needsFix ? (
+                                <span className="rounded bg-amber-500/20 px-1 text-amber-800 dark:text-amber-200">
+                                  sin cat.
+                                </span>
+                              ) : null}
+                              {bot ? (
+                                <span className="rounded bg-sky-500/15 px-1 text-sky-700 dark:text-sky-300">bot</span>
+                              ) : null}
+                              {lockedByOther ? (
+                                <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/20 px-1 text-amber-800 dark:text-amber-200">
+                                  <Lock className="h-2.5 w-2.5" aria-hidden />
+                                  {offer.locked_by_name ?? 'En revisión'}
+                                </span>
+                              ) : null}
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </aside>
           </div>
         </div>
       )}
-
-      <div className="xl:hidden">
-        <ModerationObjectivesSidebar />
-      </div>
 
       {turnSummary ? (
         <ModerationTurnSummaryModal mode={mode} summary={turnSummary} onDismiss={dismissTurnSummary} />
