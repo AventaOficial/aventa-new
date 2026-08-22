@@ -1,28 +1,40 @@
 import { NextResponse } from 'next/server';
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { ROLES, pickEffectiveRole, ADMIN_PANEL_ROLES, STAFF_HUB_ROLES, type Role } from '@/lib/admin/roles';
-import { canAccessStaffDepartment } from '@/lib/staff/permissions';
-import { canAccessEquipoPath } from '@/lib/staff/equipoAccess';
-import type { StaffDepartmentId } from '@/lib/staff/permissions';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
 const STAFF_PREFIX = '/equipo';
+/** Edge middleware budget on Vercel; fail fast instead of 504. */
+const AUTH_TIMEOUT_MS = 8000;
 
-function parseEquipoDepartment(pathname: string): StaffDepartmentId | null {
-  if (pathname === '/equipo' || pathname === '/equipo/') return 'home';
-  const m = pathname.match(/^\/equipo\/([^/]+)/);
-  if (!m) return null;
-  const slug = m[1];
-  const allowed: StaffDepartmentId[] = [
-    'moderacion',
-    'marketing',
-    'contabilidad',
-    'operaciones',
-    'gerencia',
-  ];
-  return allowed.includes(slug as StaffDepartmentId) ? (slug as StaffDepartmentId) : null;
+function isProtectedPath(pathname: string): boolean {
+  const isStaff = pathname === STAFF_PREFIX || pathname.startsWith(`${STAFF_PREFIX}/`);
+  return (
+    PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
+    pathname.startsWith(ADMIN_PREFIX) ||
+    isStaff
+  );
+}
+
+function redirectHome(request: NextRequest) {
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = '/';
+  return NextResponse.redirect(loginUrl);
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | 'timeout'> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<'timeout'>((resolve) => {
+        timer = setTimeout(() => resolve('timeout'), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export async function middleware(request: NextRequest) {
@@ -38,13 +50,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const isStaff = pathname === STAFF_PREFIX || pathname.startsWith(`${STAFF_PREFIX}/`);
-  const isProtected =
-    PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
-    pathname.startsWith(ADMIN_PREFIX) ||
-    isStaff;
-
-  if (!isProtected) return NextResponse.next();
+  if (!isProtectedPath(pathname)) return NextResponse.next();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -68,54 +74,15 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/';
-    return NextResponse.redirect(loginUrl);
+  // Session-only gate: roles are enforced in /admin and /equipo layouts (client + API).
+  const sessionResult = await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS);
+  if (sessionResult === 'timeout') {
+    console.error('[middleware] auth timeout on', pathname);
+    return redirectHome(request);
   }
 
-  const { data: roleRows, error: rolesError } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user.id)
-    .in('role', [...ROLES]);
-
-  if (rolesError) {
-    console.error('[middleware] user_roles:', rolesError.message);
-  }
-
-  const userRoles = ((roleRows ?? []) as { role: Role }[]).map((r) => r.role);
-  const effectiveRole = pickEffectiveRole(userRoles);
-
-  if (pathname.startsWith(ADMIN_PREFIX)) {
-    if (!effectiveRole || !ADMIN_PANEL_ROLES.includes(effectiveRole)) {
-      if (effectiveRole && STAFF_HUB_ROLES.includes(effectiveRole)) {
-        const staffHome = request.nextUrl.clone();
-        staffHome.pathname = '/equipo';
-        return NextResponse.redirect(staffHome);
-      }
-      const home = request.nextUrl.clone();
-      home.pathname = '/';
-      return NextResponse.redirect(home);
-    }
-  }
-
-  if (isStaff) {
-    if (!effectiveRole || !STAFF_HUB_ROLES.includes(effectiveRole)) {
-      const home = request.nextUrl.clone();
-      home.pathname = '/';
-      return NextResponse.redirect(home);
-    }
-    const dept = parseEquipoDepartment(pathname);
-    if (dept && dept !== 'home' && !canAccessEquipoPath(effectiveRole, pathname)) {
-      const fallback = request.nextUrl.clone();
-      fallback.pathname = '/equipo';
-      return NextResponse.redirect(fallback);
-    }
+  if (!sessionResult.data.session?.user) {
+    return redirectHome(request);
   }
 
   return response;
