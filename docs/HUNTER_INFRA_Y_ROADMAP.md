@@ -2,6 +2,8 @@
 
 Documento de decisión: qué piezas de infraestructura existen, qué hace cada una para el **Cazador (Hunter)**, y el camino concreto para dejar Hunter en producción.
 
+> **Nota de seguridad:** no incluir en este doc IDs de proyecto (Supabase, Railway, Upstash), tokens ni URLs con `?secret=`. Esos valores viven solo en Vercel, GitHub Secrets y el gestor de contraseñas del equipo.
+
 Hunter **no es una IA monolítica**. Son **8 módulos** que se enchufan al pipeline de ingest que ya corre en Vercel (`lib/bots/ingest/`). La UI vive en `/admin/hunter`.
 
 ---
@@ -10,12 +12,12 @@ Hunter **no es una IA monolítica**. Son **8 módulos** que se enchufan al pipel
 
 | Pieza | Rol para Hunter | Estado |
 |-------|-----------------|--------|
-| **Vercel** (`aventa-oficial/aventa-new`) | Corre el cerebro del bot: recolector API, Price Engine, scorer, publisher | **Activo** · [aventaofertas.com](https://aventaofertas.com) |
-| **Supabase** `Aventa Cazadores de ofertas` (`mkgsrpsuvedwwlzmzmzh`) | Ofertas, moderación, `app_config`, snapshots de precio ML | **ACTIVE_HEALTHY** |
-| **Supabase** `AventaOficial's Project` (`oojshofrpbfwsiypcecr`) | Proyecto antiguo / paralelo | **No usar para Hunter** |
-| **Upstash Redis** `AVENTA` (`touching-mole-61559`) | Rate limit + cache de feed (no es el bot) | **Conectado** en Vercel (`UPSTASH_REDIS_REST_*`) |
-| **cron-job.org** “AVENTA BOT” | Despierta cada ~15 min `GET /api/cron/bot-ingest?secret=…` | **Activo** (camino principal hoy) |
-| **Railway** `aventa-new` · root `/workers/mercadolibre-worker` | Playwright → `POST /api/cron/bot-ingest-candidates` | **Offline** · trial expired · cron solo domingos |
+| **Vercel** (repo `aventa-new`) | Corre el cerebro del bot: recolector API, Price Engine, scorer, publisher | **Activo** · [aventaofertas.com](https://aventaofertas.com) |
+| **Supabase** (proyecto prod) | Ofertas, moderación, `app_config`, snapshots de precio ML | Ver dashboard Supabase |
+| **Supabase** (proyecto legacy) | Proyecto antiguo / paralelo | **No usar para Hunter** |
+| **Upstash Redis** | Rate limit + cache de feed (no es el bot) | Variables `UPSTASH_REDIS_REST_*` en Vercel |
+| **Cron externo** (p. ej. cron-job.org) | Despierta cada ~15 min `GET /api/cron/bot-ingest` con `CRON_SECRET` | Configurar en el panel del proveedor |
+| **Railway** · `workers/mercadolibre-worker` | Playwright → `POST /api/cron/bot-ingest-candidates` | Opcional; ver README del worker |
 | **Resend** | Digests / alertas (no es el ciclo Hunter) | Variables en Vercel |
 | **Afiliados ML / Amazon** | Tags al publicar | Variables en Vercel |
 
@@ -27,11 +29,11 @@ Worker Playwright: `workers/mercadolibre-worker/README.md`.
 
 ```text
 Camino A (vivo) — API dentro de Vercel
-  cron-job.org ──GET──► /api/cron/bot-ingest
+  cron externo ──GET──► /api/cron/bot-ingest
                          └── discover ML (API pública) + score + insert
 
 Camino B (opcional) — scrapeo fuera de Vercel
-  Railway Playwright ──POST──► /api/cron/bot-ingest-candidates
+  Worker Playwright ──POST──► /api/cron/bot-ingest-candidates
                                 └── solo candidatos; AVENTA scorea e inserta
 ```
 
@@ -45,7 +47,7 @@ Registro vivo: `lib/hunter/modules.ts`.
 
 | # | Módulo | Estado código | Dónde corre | Dependencia infra |
 |---|--------|---------------|-------------|-------------------|
-| 1 | **Recolector** | live | Vercel (`collectIngestItems` / `discoverMercadoLibre`) | cron-job.org + `BOT_INGEST_DISCOVER_ML=1` (+ Railway solo si quieres Playwright) |
+| 1 | **Recolector** | live | Vercel (`collectIngestItems` / `discoverMercadoLibre`) | Cron externo + `BOT_INGEST_DISCOVER_ML=1` (+ worker Playwright opcional) |
 | 2 | **Price Engine** | live (ML) | Vercel (`mlPriceEngine.ts`) | Tabla `product_price_snapshots` en Supabase (service_role) |
 | 3 | **Coupon Hunter** | planned | — | No tocar aún |
 | 4 | **Bank Hunter** | planned | — | No tocar aún |
@@ -65,15 +67,15 @@ Registro vivo: `lib/hunter/modules.ts`.
 - Interruptor owner: `/admin/operaciones/trabajo` → `app_config.bot_ingest_paused`
 - Endpoint: `/api/cron/bot-ingest` (+ run-now admin)
 - `BOT_INGEST_ENABLED=1`, `BOT_INGEST_DISCOVER_ML=1` (tras redeploy)
-- `CRON_SECRET` + job en cron-job.org
+- `CRON_SECRET` + job en cron externo
 - Crons Vercel diarios (digest / integridad / health) — **sin** bot cada 15 min (Hobby)
 
-### En repo local (aún no necesariamente en `master`/prod)
+### En repo (verificar en prod tras deploy)
 
 - UI `/admin/hunter` + nav owner/admin
 - Price Engine ML (`mlPriceEngine.ts`, `mlPricesApi.ts`)
 - Scorer con descuento efectivo / vs habitual
-- Migración SQL: `docs/supabase-migrations/product_price_snapshots.sql` (**tabla ya aplicada en prod**)
+- Migración SQL: `docs/supabase-migrations/product_price_snapshots.sql`
 
 ### No hace falta para el primer Hunter “vivo”
 
@@ -91,7 +93,7 @@ Objetivo: el owner abre `/admin/hunter`, ve módulos live, dispara un ciclo y el
 
 ### Paso 1 — Código en producción
 
-1. Commit + push a `master` de lo de Hunter / Price Engine (sin `.cursor/settings.json` ni `supabase/.temp/`).
+1. Commit + push a `master`.
 2. Esperar deploy Vercel Ready en [aventaofertas.com](https://aventaofertas.com).
 3. Verificar que `/admin/hunter` responde (solo owner, mismo gate que technical).
 
@@ -107,8 +109,7 @@ Objetivo: el owner abre `/admin/hunter`, ve módulos live, dispara un ciclo y el
 
 ### Paso 3 — Despertador 24/7
 
-1. Mantener cron-job.org cada ~15 min a:
-   `https://aventaofertas.com/api/cron/bot-ingest?secret=CRON_SECRET`
+1. Mantener cron externo cada ~15 min a `/api/cron/bot-ingest` con header `Authorization: Bearer CRON_SECRET` (preferido) o el método documentado en `docs/CRON_EXTERNO_BOT.md`.
 2. Historial del cron: HTTP 202 = OK (la ingesta sigue en `after()`).
 3. Logs Vercel: buscar `[bot-ingest:after]`.
 
@@ -143,12 +144,11 @@ No pagar dos recolectores solapados “por si acaso”.
 | `BOT_INGEST_ENABLED` | Master switch de código |
 | `BOT_INGEST_DISCOVER_ML` | Fuente ML vía API |
 | `BOT_INGEST_USER_ID_*` | Quién “caza” en DB |
-| `BOT_INGEST_AUTO_APPROVE` / scores | Cola vs auto-publish. Worker: umbral propio (`BOT_INGEST_AUTO_APPROVE_WORKER_MIN_SCORE`, default 55) + % ≥ 28 + imagen + URL producto |
-| `BOT_INGEST_WORKER_MAX_PER_RUN` | Tope de inserts por lote del Playwright (default 10) |
+| `BOT_INGEST_AUTO_APPROVE` / scores | Cola vs auto-publish |
 | `BOT_INGEST_DAILY_MAX` / `MAX_PER_RUN` | Cupos |
-| `CRON_SECRET` | cron-job.org + run-now interno vía rutas cron |
+| `CRON_SECRET` | Cron externo + run-now interno |
 | `UPSTASH_REDIS_REST_*` | No Hunter; sí protección del sitio |
-| `BOT_INGEST_EXTERNAL_WORKER` | Solo si Railway está vivo |
+| `BOT_INGEST_EXTERNAL_WORKER` | Solo si worker Playwright está vivo |
 | `BOT_INGEST_KEEPA_ENABLED` | Amazon price intel (aparte de ML) |
 
 Lista completa de flags: panel Trabajo / `GET /api/admin/bot-ingest-status`.
@@ -159,15 +159,13 @@ Lista completa de flags: panel Trabajo / `GET /api/admin/bot-ingest-status`.
 
 La API pública `api.mercadolibre.com` (search e items) responde **403 PolicyAgent** desde IPs de cloud (Vercel y muchos VPS). El ciclo puede devolver HTTP 200 con `inserted: 0` y `ml_api.collected: 0`.
 
-Por eso existe **Camino B**: `workers/mercadolibre-worker` (Playwright en Railway) → `POST /api/cron/bot-ingest-candidates`.
-
-Mientras Railway esté offline / trial vencido, Hunter en Vercel **no puede descubrir ML solo con API**.
+Por eso existe **Camino B**: `workers/mercadolibre-worker` (Playwright) → `POST /api/cron/bot-ingest-candidates`.
 
 Mitigaciones:
 
-1. Renovar Railway, cron cada ~15 min, `AVENTA_CRON_SECRET` = `CRON_SECRET`, y `BOT_INGEST_EXTERNAL_WORKER=1` en Vercel.
-2. Otra máquina con IP residencial / Playwright apuntando al mismo endpoint.
-3. No esperar que cron-job.org solucione el 403: solo llama a Vercel.
+1. Worker Playwright en cron (GitHub Actions cada 30 min o Railway si lo renuevas).
+2. Otra máquina con IP residencial apuntando al mismo endpoint.
+3. No esperar que el cron externo solucione el 403: solo llama a Vercel.
 
 ---
 
@@ -176,7 +174,7 @@ Mitigaciones:
 - No empezar Coupon Hunter ni Bank Hunter hasta que Price Engine ML lleve días de snapshots y el ciclo A esté estable.
 - No meter un LLM genérico como “el bot”; el copy solo limpia título.
 - No volver a meter `bot-ingest` en `vercel.json` en plan Hobby (rompe el límite de 1 cron/día por job).
-- No mezclar credenciales del segundo proyecto Supabase.
+- No mezclar credenciales del proyecto Supabase legacy.
 
 ---
 
@@ -185,9 +183,9 @@ Mitigaciones:
 Se considera listo cuando:
 
 1. `/admin/hunter` en prod muestra Recolector + Price + Scorer + Affiliate + Publisher en **live**.
-2. cron-job.org sigue en **Éxito** (2xx) cada ~15 min.
+2. Cron externo sigue en **Éxito** (2xx) cada ~15 min.
 3. Logs muestran corridas con `inserted` / candidatos ML.
 4. `product_price_snapshots` crece día a día.
-5. El owner modera desde la cola sin depender de Railway.
+5. El owner modera desde la cola sin depender del worker Playwright.
 
 Cuando eso esté verde, el siguiente módulo a diseñar (bajo pedido explícito) es **Coupon / Bank Hunter** — no antes.

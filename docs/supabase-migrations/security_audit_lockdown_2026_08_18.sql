@@ -1,6 +1,6 @@
 -- =============================================================================
 -- AVENTA — Lockdown post-auditoría (18 ago 2026)
--- Proyecto vivo: mkgsrpsuvedwwlzmzmzh
+-- Proyecto vivo: ver Supabase Dashboard (no pegar project ref en git público).
 -- =============================================================================
 -- QUÉ HACE:
 --   1) profiles: REVOKE amplio; SELECT solo columnas públicas; UPDATE solo
