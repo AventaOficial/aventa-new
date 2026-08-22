@@ -2,9 +2,11 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES, getDbCategoryValuesForMacro } from '@/lib/categories';
+import { getSubgroupsForCategory } from '@/lib/categories/subgroups';
 import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import CategoriaOfferList from './CategoriaOfferList';
+import CategorySubgroupNav from '@/app/components/CategorySubgroupNav';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
@@ -48,6 +50,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
 
   if (error) notFound();
   const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
+  const subgroups = getSubgroupsForCategory(slug);
 
   return (
     <AppShell>
@@ -62,8 +65,14 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
             Ofertas en {cat.label}
           </h1>
           {cat.subtitle && (
-            <p className="text-gray-600 dark:text-gray-400 mb-8">{cat.subtitle}</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">{cat.subtitle}</p>
           )}
+
+          <CategorySubgroupNav
+            categorySlug={slug}
+            categoryLabel={cat.label}
+            subgroups={subgroups}
+          />
 
           {offers.length === 0 ? (
             <p className="py-12 text-center text-gray-500 dark:text-gray-400">

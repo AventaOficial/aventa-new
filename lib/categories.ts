@@ -1,17 +1,19 @@
 /**
- * Categorías de ofertas: 8 macro categorías tipo Promodescuentos.
- * Pocas categorías fuertes = más claridad. Las etiquetas/marcas pueden crecer después.
- * Vitales = categorías del tab «Día a día» (moda, supermercado, hogar, belleza, viajes, servicios).
- * Tecnología y Gaming van en Top / Recientes / Para ti, no en Día a día.
+ * Macros alineadas con Promodescuentos (13 grupos) + Otros.
+ * Vitales = tab «Día a día». Resto = Top / Recientes / Para ti.
  */
-
 export type CategoryId =
   | 'tecnologia'
   | 'gaming'
-  | 'hogar'
   | 'supermercado'
   | 'moda'
   | 'belleza'
+  | 'bebes'
+  | 'hogar'
+  | 'jardin'
+  | 'autos'
+  | 'entretenimiento'
+  | 'deportes'
   | 'viajes'
   | 'servicios'
   | 'other';
@@ -19,71 +21,167 @@ export type CategoryId =
 export interface CategoryOption {
   value: string;
   label: string;
-  /** Ejemplos para onboarding y guiar al usuario (no genérico). */
   subtitle?: string;
-  /** Si true, aparece en el tab "Día a día" / Vitales del feed. */
   vital?: boolean;
-  /** Nombre del icono Lucide para onboarding (ej. "Smartphone"). */
   icon: string;
+  promodescuentosGroup?: string;
 }
 
-/** 8 macro categorías + Otros. Orden: las que dominamos primero (Tecnología, Gaming, Hogar, Supermercado). */
 export const ALL_CATEGORIES: CategoryOption[] = [
-  { value: 'tecnologia', label: 'Tecnología', subtitle: 'Celulares, laptops, audífonos, gadgets', vital: false, icon: 'Smartphone' },
-  { value: 'gaming', label: 'Gaming', subtitle: 'Consolas, videojuegos, accesorios', vital: false, icon: 'Gamepad2' },
-  { value: 'hogar', label: 'Hogar', subtitle: 'Electrodomésticos, cocina, herramientas', vital: true, icon: 'Home' },
-  { value: 'supermercado', label: 'Supermercado', subtitle: 'Comida, bebidas, limpieza', vital: true, icon: 'ShoppingCart' },
-  { value: 'moda', label: 'Moda', subtitle: 'Ropa, tenis, accesorios', vital: true, icon: 'Shirt' },
-  { value: 'belleza', label: 'Belleza', subtitle: 'Perfumes, cuidado personal', vital: true, icon: 'Sparkles' },
-  { value: 'viajes', label: 'Viajes', subtitle: 'Vuelos, hoteles', vital: true, icon: 'Plane' },
-  { value: 'servicios', label: 'Servicios', subtitle: 'Suscripciones, bancos, apps', vital: true, icon: 'CreditCard' },
+  {
+    value: 'tecnologia',
+    label: 'Tecnología',
+    subtitle: 'Celulares, laptops, TV, audio, gadgets',
+    vital: false,
+    icon: 'Smartphone',
+    promodescuentosGroup: 'Tecnología',
+  },
+  {
+    value: 'gaming',
+    label: 'Videojuegos',
+    subtitle: 'Consolas, juegos, accesorios gaming',
+    vital: false,
+    icon: 'Gamepad2',
+    promodescuentosGroup: 'Videojuegos',
+  },
+  {
+    value: 'supermercado',
+    label: 'Supermercado',
+    subtitle: 'Abarrotes, bebidas, despensa',
+    vital: true,
+    icon: 'ShoppingCart',
+    promodescuentosGroup: 'Abarrotes y alimentos',
+  },
+  {
+    value: 'moda',
+    label: 'Moda',
+    subtitle: 'Ropa, tenis, accesorios',
+    vital: true,
+    icon: 'Shirt',
+    promodescuentosGroup: 'Ropa y accesorios',
+  },
+  {
+    value: 'belleza',
+    label: 'Belleza',
+    subtitle: 'Perfumes, skincare, maquillaje',
+    vital: true,
+    icon: 'Sparkles',
+    promodescuentosGroup: 'Salud y belleza',
+  },
+  {
+    value: 'bebes',
+    label: 'Bebés y familia',
+    subtitle: 'Pañales, fórmulas, ropa infantil, juguetes',
+    vital: true,
+    icon: 'Baby',
+    promodescuentosGroup: 'Familia, bebés y niños',
+  },
+  {
+    value: 'hogar',
+    label: 'Hogar',
+    subtitle: 'Electrodomésticos, cocina, muebles, limpieza',
+    vital: true,
+    icon: 'Home',
+    promodescuentosGroup: 'Hogar',
+  },
+  {
+    value: 'jardin',
+    label: 'Jardín y bricolaje',
+    subtitle: 'Herramientas, plantas, outdoor, DIY',
+    vital: true,
+    icon: 'Flower2',
+    promodescuentosGroup: 'Jardín y hazlo tú mismo',
+  },
+  {
+    value: 'autos',
+    label: 'Autos',
+    subtitle: 'Refacciones, llantas, accesorios, motos',
+    vital: false,
+    icon: 'Car',
+    promodescuentosGroup: 'Autos y motos',
+  },
+  {
+    value: 'entretenimiento',
+    label: 'Entretenimiento',
+    subtitle: 'Libros, música, coleccionables, hobbies',
+    vital: false,
+    icon: 'BookOpen',
+    promodescuentosGroup: 'Entretenimiento y tiempo libre',
+  },
+  {
+    value: 'deportes',
+    label: 'Deportes',
+    subtitle: 'Fitness, outdoor, equipamiento deportivo',
+    vital: false,
+    icon: 'Dumbbell',
+    promodescuentosGroup: 'Deportes y ejercicio',
+  },
+  {
+    value: 'viajes',
+    label: 'Viajes',
+    subtitle: 'Vuelos, hoteles, maletas',
+    vital: true,
+    icon: 'Plane',
+    promodescuentosGroup: 'Viajes',
+  },
+  {
+    value: 'servicios',
+    label: 'Servicios',
+    subtitle: 'Streaming, apps, bancos, comida a domicilio',
+    vital: true,
+    icon: 'CreditCard',
+    promodescuentosGroup: 'Servicios y suscripciones',
+  },
   { value: 'other', label: 'Otros', vital: false, icon: 'Package' },
 ];
 
-/** Valores de categoría que se muestran en el tab "Día a día" del feed (sin Tecnología ni Gaming). */
 export const DIA_A_DIA_CATEGORY_IDS: string[] = ALL_CATEGORIES.filter((c) => c.vital).map((c) => c.value);
-/** @deprecated Alias histórico; mismo conjunto que DIA_A_DIA_CATEGORY_IDS. */
 export const VITAL_CATEGORY_IDS: string[] = DIA_A_DIA_CATEGORY_IDS;
 const CATEGORY_IDS_SET = new Set<string>(ALL_CATEGORIES.map((c) => c.value));
 
-/**
- * Valores legacy en DB se mapean a las 8 macro.
- * Ofertas antiguas (despensa, electrones, ropa_mujer, etc.) siguen apareciendo en el filtro correcto.
- */
 export const LEGACY_CATEGORY_MAP: Record<string, string> = {
   despensa: 'supermercado',
   comida: 'supermercado',
   hogar: 'hogar',
-  mascotas: 'other',
+  mascotas: 'bebes',
   bebidas: 'supermercado',
   electrones: 'tecnologia',
   electronics: 'tecnologia',
   ropa_mujer: 'moda',
   ropa_hombre: 'moda',
   fashion: 'moda',
-  deportes: 'other',
-  sports: 'other',
-  libros: 'other',
-  books: 'other',
+  deportes: 'deportes',
+  sports: 'deportes',
+  libros: 'entretenimiento',
+  books: 'entretenimiento',
   bancaria: 'servicios',
   home: 'hogar',
+  bebes_ninos: 'bebes',
+  jardin: 'jardin',
+  garden: 'jardin',
+  autos: 'autos',
+  automotriz: 'autos',
+  entretenimiento: 'entretenimiento',
   other: 'other',
 };
 
-/** Alias históricos que pueden existir en BD y deben seguir encontrándose durante la transición. */
 const CATEGORY_QUERY_ALIASES: Record<string, string[]> = {
   tecnologia: ['electronics', 'electrones'],
   gaming: [],
-  hogar: ['home'],
   supermercado: ['despensa', 'comida', 'bebidas'],
   moda: ['fashion', 'ropa_mujer', 'ropa_hombre'],
   belleza: [],
+  bebes: ['mascotas'],
+  hogar: ['home'],
+  jardin: ['garden'],
+  autos: ['automotriz'],
+  entretenimiento: ['libros', 'books'],
+  deportes: ['sports'],
   viajes: [],
   servicios: ['bancaria'],
-  other: ['sports', 'books', 'deportes', 'libros', 'mascotas'],
+  other: [],
 };
 
-/** Normaliza cualquier valor de categoría a macro canónica del producto. */
 export function normalizeCategoryForStorage(category: string | null | undefined): CategoryId | null {
   if (!category?.trim()) return null;
   const lower = category.trim().toLowerCase();
@@ -97,7 +195,6 @@ export function isValidCategoryId(value: string | null | undefined): value is Ca
   return CATEGORY_IDS_SET.has(value.trim().toLowerCase());
 }
 
-/** Para filtrar en el feed: devuelve el valor macro y todos los legacy que mapean a él. */
 function getDbCategoryValuesForMacro(macro: string): string[] {
   const normalized = normalizeCategoryForStorage(macro);
   if (!normalized) return [];
@@ -108,7 +205,6 @@ function getDbCategoryValuesForMacro(macro: string): string[] {
   return [...new Set([normalized, ...fromMap, ...aliases])];
 }
 
-/** Valores de category para la query al feed. Incluye macro canónica + alias legacy durante transición. */
 export function getValidCategoryValuesForFeed(macro: string): string[] {
   const all = getDbCategoryValuesForMacro(macro);
   if (all.length > 0) return all;
@@ -116,18 +212,27 @@ export function getValidCategoryValuesForFeed(macro: string): string[] {
   return raw ? [raw] : [];
 }
 
-/** Valores DB para filtro del tab Día a día. */
 export const DIA_A_DIA_FILTER_VALUES: string[] = [
   ...new Set(DIA_A_DIA_CATEGORY_IDS.flatMap((macro) => getDbCategoryValuesForMacro(macro))),
 ];
 
-/** @deprecated Usar DIA_A_DIA_FILTER_VALUES. */
 export const VITAL_FILTER_VALUES: string[] = DIA_A_DIA_FILTER_VALUES;
 
-/** Categorías para onboarding (todas menos Otros). */
 export const GENERAL_CATEGORIES_FOR_ONBOARDING: CategoryOption[] = ALL_CATEGORIES.filter((c) => c.value !== 'other');
-/** Marcas/tiendas buscables en onboarding. */
-export const ONBOARDING_SEARCHABLE_EXTRA = ['zara', 'nike', 'amazon', 'walmart', 'chedraui', 'soriana', 'liverpool', 'elektra', 'coppel', 'mercadolibre', 'costco'];
+
+export const ONBOARDING_SEARCHABLE_EXTRA = [
+  'zara',
+  'nike',
+  'amazon',
+  'walmart',
+  'chedraui',
+  'soriana',
+  'liverpool',
+  'elektra',
+  'coppel',
+  'mercadolibre',
+  'costco',
+];
 
 export const FEED_CATEGORY_OPTIONS = ALL_CATEGORIES;
 

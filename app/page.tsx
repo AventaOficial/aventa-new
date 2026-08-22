@@ -21,7 +21,8 @@ import {
   type VoteValueMap,
   type FavoriteMap,
 } from '@/lib/offers/batchUserData';
-import { getSearchTerms } from '@/lib/searchGroups';
+import { ALL_CATEGORIES } from '@/lib/categories';
+import { buildOfferSearchOrFilter } from '@/lib/offers/inferOfferTags';
 import {
   mapOfferToCard,
   type CardOffer,
@@ -76,14 +77,9 @@ interface OfferRow {
 /** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
 const DESTACADA_RANKING_BLEND_MIN = 15;
 
-const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = [
-  { value: 'moda', label: 'Ropa' },
-  { value: 'supermercado', label: 'Comida' },
-  { value: 'hogar', label: 'Hogar' },
-  { value: 'belleza', label: 'Belleza' },
-  { value: 'viajes', label: 'Viajes' },
-  { value: 'servicios', label: 'Servicios' },
-];
+const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = ALL_CATEGORIES.filter((c) => c.vital).map(
+  (c) => ({ value: c.value, label: c.label })
+);
 
 function processHomeFeedList(
   raw: ReturnType<typeof mapOfferToCard>[],
@@ -402,15 +398,8 @@ function HomeContent() {
     if (debouncedQuery.trim()) {
       const supabase = createClient();
       const nowISO = new Date().toISOString();
-      const terms = getSearchTerms(debouncedQuery.trim());
-      const escape = (s: string) => s.replace(/%/g, '\\%').replace(/_/g, '\\_');
-      const searchConditions = terms.length > 0
-        ? terms.flatMap((t) => {
-            const safe = escape(t);
-            return [`title.ilike.%${safe}%`, `store.ilike.%${safe}%`, `description.ilike.%${safe}%`];
-          }).join(',')
-        : `title.ilike.%${escape(debouncedQuery.trim())}%,store.ilike.%${escape(debouncedQuery.trim())}%,description.ilike.%${escape(debouncedQuery.trim())}%`;
-      // Búsqueda en título, tienda y descripción; grupos (ej. apple → iphone, mac) en lib/searchGroups
+      const searchConditions = buildOfferSearchOrFilter(debouncedQuery.trim());
+      // Búsqueda en título, tienda, descripción y tags; grupos en lib/searchGroups
       let searchQueryBuilder = supabase
         .from('ofertas_ranked_general')
         .select(

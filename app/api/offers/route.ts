@@ -7,6 +7,7 @@ import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { createOfferInputSchema } from '@/lib/contracts/offers';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
+import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 
 type OfferInsertPayload = {
   title: string;
@@ -143,15 +144,25 @@ export async function POST(request: Request) {
     }
 
     const categoryRaw = typeof input.category === 'string' ? input.category : null;
-    const category = normalizeCategoryForStorage(categoryRaw);
+    const categoryBase = normalizeCategoryForStorage(categoryRaw);
     const bankCoupon = normalizeBankCoupon(typeof input.bank_coupon === 'string' ? input.bank_coupon : null);
-    const tags = Array.isArray(input.tags)
-      ? [...new Set(input.tags
-        .filter((v: unknown): v is string => typeof v === 'string')
-        .map((v: string) => v.trim().toLowerCase())
-        .filter(Boolean)
-        .slice(0, 20))]
+    const userTags = Array.isArray(input.tags)
+      ? input.tags
+          .filter((v: unknown): v is string => typeof v === 'string')
+          .map((v: string) => v.trim().toLowerCase())
+          .filter(Boolean)
       : [];
+    const descriptionText =
+      typeof input.description === 'string' && input.description.trim() ? input.description.trim() : '';
+    const autogroup = inferOfferAutogroup({
+      title,
+      store,
+      category: categoryBase,
+      description: descriptionText,
+      extraTags: userTags,
+    });
+    const category = autogroup.category ?? categoryBase;
+    const tags = [...new Set([...userTags, ...autogroup.tags])].slice(0, 20);
 
     const rawOfferUrl = typeof input.offer_url === 'string' ? input.offer_url.trim() : '';
     const offerUrlNormalized = rawOfferUrl ? await resolveAndNormalizeAffiliateOfferUrl(rawOfferUrl) : '';
@@ -197,7 +208,7 @@ export async function POST(request: Request) {
         coupons: input.coupons.trim(),
       }),
       ...(bankCoupon && { bank_coupon: bankCoupon }),
-      ...(tags.length > 0 && { tags }),
+      ...(tags.length > 0 ? { tags } : {}),
       // moderator_comment solo lo escribe staff/bots vía APIs admin — no confiar en el body de usuario
     };
 

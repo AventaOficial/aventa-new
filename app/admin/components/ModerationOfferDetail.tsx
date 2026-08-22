@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
+import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { mergeOfferImageUrls, normalizeOfferImageUrl } from '@/lib/offerPath';
@@ -161,6 +162,26 @@ export default function ModerationOfferDetail({
     return ALL_CATEGORIES.find((c) => c.value === n)?.label ?? n;
   }, [offer.category]);
 
+  const suggestedCategory = useMemo(() => {
+    if (normalizeCategoryForStorage(offer.category ?? null)) return null;
+    return inferOfferCategory({
+      title: offer.title,
+      breadcrumbs: offer.store ? [offer.store] : undefined,
+    });
+  }, [offer.title, offer.store, offer.category]);
+
+  const suggestedCategoryLabel = useMemo(() => {
+    if (!suggestedCategory) return null;
+    return ALL_CATEGORIES.find((c) => c.value === suggestedCategory)?.label ?? suggestedCategory;
+  }, [suggestedCategory]);
+
+  const previewCategory = botCategory.trim() || offer.category || '';
+  const previewCategoryNorm = normalizeCategoryForStorage(previewCategory || null);
+  const previewCategoryLabel = previewCategoryNorm
+    ? ALL_CATEGORIES.find((c) => c.value === previewCategoryNorm)?.label ?? previewCategoryNorm
+    : null;
+  const previewVital = isVitalCategory(previewCategoryNorm);
+
   const vital = isVitalCategory(offer.category ?? null);
   const bankCouponLabel = getBankCouponLabel(offer.bank_coupon);
   const isBotOffer =
@@ -202,11 +223,13 @@ export default function ModerationOfferDetail({
     }
   };
 
-  const feedDestination = vital
-    ? `Día a día → ${categoryLabel ?? 'Sin categoría'}`
-    : categoryLabel
-      ? `Top / Recientes (${categoryLabel})`
-      : 'Sin categoría — asignar antes de aprobar';
+  const feedDestination = previewVital
+    ? `Día a día → ${previewCategoryLabel ?? 'Sin categoría'}`
+    : previewCategoryLabel
+      ? `Top / Recientes (${previewCategoryLabel})`
+      : suggestedCategoryLabel
+        ? `Sin categoría — sugerencia: ${suggestedCategoryLabel} → Top / Recientes`
+        : 'Sin categoría — asignar antes de aprobar';
 
   const saveBotQuickFix = async () => {
     setBotQuickSaving(true);
@@ -404,7 +427,10 @@ export default function ModerationOfferDetail({
                 </div>
               </div>
               <div>
-                <label className={`mb-1 block text-[11px] ${ui.label}`}>Categoría (Día a día)</label>
+                <label className={`mb-1 block text-[11px] ${ui.label}`}>Categoría del feed</label>
+                <p className={`mb-1.5 text-[10px] leading-snug ${ui.muted}`}>
+                  Tecnología y Gaming → Top / Recientes. Hogar, Súper, Moda… → Día a día.
+                </p>
                 <select
                   value={botCategory}
                   onChange={(e) => setBotCategory(e.target.value)}
@@ -414,10 +440,20 @@ export default function ModerationOfferDetail({
                   {ALL_CATEGORIES.filter((c) => c.value !== 'other').map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.label}
-                      {c.vital ? ' · Día a día' : ''}
+                      {c.vital ? ' · Día a día' : ' · Top / Recientes'}
                     </option>
                   ))}
                 </select>
+                {suggestedCategoryLabel && !previewCategoryNorm ? (
+                  <button
+                    type="button"
+                    className={`mt-1.5 text-[11px] font-medium text-sky-700 hover:underline dark:text-sky-300`}
+                    onClick={() => setBotCategory(suggestedCategory ?? '')}
+                  >
+                    Usar sugerencia: {suggestedCategoryLabel}
+                    {suggestedCategory && !isVitalCategory(suggestedCategory) ? ' (Top / Recientes)' : ''}
+                  </button>
+                ) : null}
               </div>
               <div>
                 <label className={`mb-1 block text-[11px] ${ui.label}`}>Imagen (URL https)</label>

@@ -16,6 +16,14 @@ export const SEARCH_TERM_GROUPS: Record<string, string[]> = {
   soriana: ['soriana'],
   heb: ['heb'],
   chedraui: ['chedraui'],
+  nike: ['nike', 'jordan', 'air max'],
+  adidas: ['adidas', 'yeezy'],
+  playstation: ['playstation', 'ps5', 'ps4', 'consola sony'],
+  xbox: ['xbox', 'series x', 'series s'],
+  nintendo: ['nintendo', 'switch'],
+  tv: ['smart tv', 'televisor', 'television', 'televisiones', 'monitores'],
+  laptop: ['laptop', 'notebook', 'macbook', 'computadora'],
+  celular: ['celular', 'smartphone', 'iphone', 'samsung galaxy'],
 };
 
 /**

@@ -45,6 +45,10 @@ const KEYWORD_MAP: Array<{ id: CategoryId; words: string[] }> = [
       'celular',
       'televisor',
       'smart tv',
+      'caminadora',
+      'treadmill',
+      'impresora',
+      'creatina',
     ],
   },
   {
@@ -72,6 +76,8 @@ const KEYWORD_MAP: Array<{ id: CategoryId; words: string[] }> = [
       'espejo',
       'lampara',
       'lámpara',
+      'limpieza',
+      'detergente',
     ],
   },
   {
@@ -83,8 +89,122 @@ const KEYWORD_MAP: Array<{ id: CategoryId; words: string[] }> = [
     words: ['vuelo', 'hotel', 'viaje', 'maleta', 'aerolinea', 'aerolínea'],
   },
   {
+    id: 'bebes',
+    words: [
+      'bebe',
+      'bebé',
+      'bebes',
+      'bebés',
+      'pañal',
+      'panal',
+      'pañales',
+      'formula',
+      'fórmula',
+      'infantil',
+      'mamadera',
+      'cuna',
+      'carriola',
+      'stroller',
+      'juguetes',
+      'lego duplo',
+      'fisher price',
+    ],
+  },
+  {
+    id: 'jardin',
+    words: [
+      'jardin',
+      'jardín',
+      'maceta',
+      'planta',
+      'pasto',
+      'manguera',
+      'taladro',
+      'broca',
+      'bricolaje',
+      'diy',
+      'herramienta electrica',
+      'herramienta eléctrica',
+      'pintura',
+      'brocha',
+    ],
+  },
+  {
+    id: 'autos',
+    words: [
+      'llanta',
+      'llantas',
+      'refaccion',
+      'refacción',
+      'refacciones',
+      'aceite motor',
+      'bateria auto',
+      'batería auto',
+      'motocicleta',
+      'moto',
+      'auto',
+      'automotriz',
+      'carro',
+    ],
+  },
+  {
+    id: 'entretenimiento',
+    words: [
+      'libro',
+      'libros',
+      'vinilo',
+      'cd',
+      'bluray',
+      'blu-ray',
+      'pelicula',
+      'película',
+      'coleccionable',
+      'figura',
+      'funko',
+      'lego',
+      'rompecabezas',
+      'board game',
+    ],
+  },
+  {
+    id: 'deportes',
+    words: [
+      'deporte',
+      'deportes',
+      'gym',
+      'fitness',
+      'pesas',
+      'mancuerna',
+      'caminadora',
+      'treadmill',
+      'creatina',
+      'pre workout',
+      'bicicleta estatica',
+      'bicicleta estática',
+      'eliptica',
+      'elíptica',
+      'yoga',
+      'outdoor',
+      'camping',
+      'mochila camping',
+    ],
+  },
+  {
     id: 'servicios',
-    words: ['suscripcion', 'suscripción', 'gift card', 'membresia', 'membresía', 'spotify', 'netflix', 'office 365'],
+    words: [
+      'suscripcion',
+      'suscripción',
+      'gift card',
+      'membresia',
+      'membresía',
+      'spotify',
+      'netflix',
+      'office 365',
+      'uber eats',
+      'rappi',
+      'dominos',
+      "domino's",
+    ],
   },
 ];
 
@@ -100,7 +220,7 @@ const ML_ROOT_TO_CATEGORY: Record<string, CategoryId> = {
   MLM1276: 'moda',
   MLM1248: 'belleza',
   MLM1459: 'viajes',
-  MLM1747: 'servicios',
+  MLM1747: 'supermercado',
 };
 
 function normalizeHaystack(parts: Array<string | null | undefined>): string {
@@ -124,9 +244,34 @@ export function inferOfferCategory(input: {
   if (ML_ROOT_TO_CATEGORY[mlPrefix]) return ML_ROOT_TO_CATEGORY[mlPrefix];
 
   const path = (input.mlPathNames ?? []).join(' ').toLowerCase();
+  const titleHay = normalizeHaystack([input.title]);
+  if (
+    titleHay.includes('smart tv') ||
+    titleHay.includes('televisor') ||
+    titleHay.includes('television') ||
+    titleHay.includes('impresora') ||
+    titleHay.includes('monitor') ||
+    /\btv\b/.test(titleHay)
+  ) {
+    return 'tecnologia';
+  }
+  if (titleHay.includes('caminadora') || titleHay.includes('treadmill') || titleHay.includes('creatina')) {
+    return 'deportes';
+  }
+  if (titleHay.includes('parrilla') || titleHay.includes('asador') || titleHay.includes('barbacoa')) {
+    return 'jardin';
+  }
+  if (/silla gamer|silla gaming|gamepad|control xbox|control ps5|nintendo switch/.test(titleHay)) {
+    return 'gaming';
+  }
   if (/consola|videojuego|gaming/.test(path)) return 'gaming';
-  if (/electr[oó]nica|computaci[oó]n|celulares/.test(path)) return 'tecnologia';
-  if (/hogar|muebles|jard[ií]n|electrodom/.test(path)) return 'hogar';
+  if (/electr[oó]nica|computaci[oó]n|celulares|televisores/.test(path)) return 'tecnologia';
+  if (/beb[eé]|infantil|pañal|juguetes/.test(path)) return 'bebes';
+  if (/jard[ií]n|herramient|bricolaje|plantas/.test(path)) return 'jardin';
+  if (/auto|motocicleta|refaccion|llanta/.test(path)) return 'autos';
+  if (/deporte|fitness|outdoor/.test(path)) return 'deportes';
+  if (/libro|m[uú]sica|entretenimiento|pel[ií]cula/.test(path)) return 'entretenimiento';
+  if (/hogar|muebles|electrodom/.test(path)) return 'hogar';
   if (/alimento|bebida|supermercado/.test(path)) return 'supermercado';
   if (/ropa|calzado|accesorio/.test(path)) return 'moda';
   if (/belleza|cuidado personal|perfum/.test(path)) return 'belleza';

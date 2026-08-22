@@ -36,6 +36,14 @@ describe('classifyBotCategory', () => {
     expect(classifyBotCategory(meta({ title: 'Audífonos bluetooth Sony WH-1000' }))).toBe('tecnologia');
   });
 
+  it('tecnologia por Smart TV', () => {
+    expect(
+      classifyBotCategory(
+        meta({ title: 'Smart TV Motorola MOT32HLE11 32" HD DLED color negro' })
+      )
+    ).toBe('tecnologia');
+  });
+
   it('MLM1747 en URL → supermercado', () => {
     expect(
       classifyBotCategory(

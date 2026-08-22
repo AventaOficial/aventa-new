@@ -8,6 +8,7 @@ import type { ScoreBreakdown } from './scoreIngestCandidate';
 import { resolveBotAuthorUserId } from './resolveBotAuthorUserId';
 import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { buildBotOfferDescription } from './buildBotOfferDescription';
+import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -67,10 +68,19 @@ export async function insertIngestedOffer(
       ? normalizeCategoryForStorage(config.category.trim())
       : null;
   const categoryInferred = classifyBotCategoryForStorage(meta, config.techCategoryIdSet);
-  const category = categoryFromEnv ?? categoryInferred;
+  const categoryBase = categoryFromEnv ?? categoryInferred;
   const hasOriginal = meta.originalPrice != null && meta.originalPrice > meta.discountPrice;
   const status = opts?.status ?? 'pending';
   const title = (opts?.titleOverride ?? meta.title).slice(0, 500);
+  const description = buildBotOfferDescription(meta, categoryBase).slice(0, 2000);
+  const autogroup = inferOfferAutogroup({
+    title,
+    store: meta.store,
+    category: categoryBase,
+    description,
+  });
+  const category = autogroup.category ?? categoryBase;
+  const tags = autogroup.tags;
   const imageNormalized = normalizeOfferImageUrl(meta.imageUrl) ?? '';
 
   const expiresAt =
@@ -91,11 +101,12 @@ export async function insertIngestedOffer(
     original_price: hasOriginal ? meta.originalPrice : null,
     store: meta.store.slice(0, 200),
     ...(category ? { category } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
     status,
     created_by: authorId,
     image_url: imageNormalized.slice(0, 2048),
     offer_url: offerUrl,
-    description: buildBotOfferDescription(meta, category).slice(0, 2000),
+    description,
     moderator_comment: moderatorComment,
     ...(expiresAt ? { expires_at: expiresAt } : {}),
     ...(status === 'approved' ? { link_mod_ok: true } : {}),

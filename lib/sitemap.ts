@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES } from '@/lib/categories';
+import { listAllSubgroupRoutes } from '@/lib/categories/subgroups';
 import { slugifyStore } from '@/lib/slug';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 
@@ -24,12 +25,19 @@ export function getSitemapStatic(): MetadataRoute.Sitemap {
 }
 
 export function getSitemapCategories(): MetadataRoute.Sitemap {
-  return ALL_CATEGORIES.map((c) => ({
+  const macro = ALL_CATEGORIES.map((c) => ({
     url: `${BASE_URL}/categoria/${c.value}`,
     lastModified: new Date(),
     changeFrequency: 'daily' as const,
     priority: 0.8,
   }));
+  const sub = listAllSubgroupRoutes().map(({ category, subgroup }) => ({
+    url: `${BASE_URL}/categoria/${category}/${subgroup.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.75,
+  }));
+  return [...macro, ...sub];
 }
 
 export async function getSitemapStores(): Promise<MetadataRoute.Sitemap> {
