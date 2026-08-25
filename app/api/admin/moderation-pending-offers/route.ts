@@ -8,11 +8,16 @@ function hasMissingColumn(error: { message?: string } | null, columnName: string
   return msg.includes(columnName.toLowerCase());
 }
 
-const SELECT_WITH_LOCK =
-  'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, profiles:public_profiles_view!created_by(display_name, avatar_url)';
+const SELECT_CORE =
+  'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment';
 
-const SELECT_BASE =
-  'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, profiles:public_profiles_view!created_by(display_name, avatar_url)';
+const SELECT_PROFILE = 'profiles:public_profiles_view!created_by(display_name, avatar_url)';
+
+/** Columnas de migraciones recientes: si el esquema no las tiene, se sueltan y se reintenta. */
+const OPTIONAL_GROUPS = [
+  { probe: 'bot_meta', columns: 'bot_meta' },
+  { probe: 'locked_by', columns: 'locked_by, locked_at, snoozed_until' },
+] as const;
 
 function computeIsBot(
   row: {
@@ -39,28 +44,39 @@ export async function GET(request: Request) {
   }
 
   const supabase = createServerClient();
-  const primary = await supabase
-    .from('offers')
-    .select(SELECT_WITH_LOCK)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true });
+  const active = new Set<string>(OPTIONAL_GROUPS.map((g) => g.probe));
 
-  let data = primary.data;
-  let error = primary.error;
+  let data: Record<string, unknown>[] | null = null;
+  let error: { message?: string } | null = null;
 
-  if (error && hasMissingColumn(error, 'locked_by')) {
-    const fallback = await supabase
+  for (let attempt = 0; attempt <= OPTIONAL_GROUPS.length; attempt += 1) {
+    const columns = [
+      SELECT_CORE,
+      ...OPTIONAL_GROUPS.filter((g) => active.has(g.probe)).map((g) => g.columns),
+      SELECT_PROFILE,
+    ].join(', ');
+
+    const res = await supabase
       .from('offers')
-      .select(SELECT_BASE)
+      .select(columns)
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
-    data = fallback.data as typeof data;
-    error = fallback.error;
+
+    data = (res.data ?? null) as Record<string, unknown>[] | null;
+    error = res.error;
+    if (!error) break;
+
+    const missing = OPTIONAL_GROUPS.find(
+      (g) => active.has(g.probe) && hasMissingColumn(error, g.probe)
+    );
+    if (!missing) break;
+    active.delete(missing.probe);
   }
 
   if (error) {
-    console.error('[moderation-pending-offers]', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error.message ?? 'Error al leer la cola';
+    console.error('[moderation-pending-offers]', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   const lockerIds = [

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Trophy } from 'lucide-react';
+import CatalogGapsBoard from '@/app/components/CatalogGapsBoard';
 import { GUIDES, type GuideId, type GuideTheme } from '../guides/content';
 import {
   completedGuideCount,
@@ -154,6 +155,10 @@ export default function GuideHub({ onSelect, progress }: Props) {
             onSelect={onSelect}
           />
         ))}
+      </div>
+
+      <div className="mt-4">
+        <CatalogGapsBoard title="Qué le falta al catálogo hoy" />
       </div>
 
       <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#e8e8ed] bg-white px-4 py-3.5 dark:border-[#2a2a2a] dark:bg-[#141414]">

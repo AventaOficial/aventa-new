@@ -352,6 +352,9 @@ export async function runIngestCycleForProfile(
         titleOverride: title,
         ingestScore: r.total,
         scoreBreakdown: r.breakdown,
+        ingestSource: r.item.source,
+        ingestSourceDetail: r.item.sourceDetail ?? undefined,
+        decision: r.decision,
       });
       if (ins.ok) {
         insertedThisRun += 1;

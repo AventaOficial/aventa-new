@@ -364,6 +364,9 @@ export async function processExternalWorkerBatch(
         titleOverride: title,
         ingestScore: row.total,
         scoreBreakdown: row.breakdown,
+        ingestSource: row.item.source,
+        ingestSourceDetail: row.item.sourceDetail ?? undefined,
+        decision: row.decision,
       });
       if (ins.ok) {
         insertedThisRun += 1;

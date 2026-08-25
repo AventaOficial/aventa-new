@@ -127,6 +127,23 @@ body {
     0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
+/*
+ * Ilustración del hero. Se resuelve por CSS (no por JS) para que el tema
+ * aplicado por el script inline del layout acierte en el primer pintado:
+ * el navegador descarga solo la variante que corresponde.
+ */
+.hero-art {
+  background-image: url('/brand/aventa-hero.png');
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: contain;
+  filter: drop-shadow(0 18px 22px rgba(20, 16, 28, 0.12));
+}
+.dark .hero-art {
+  background-image: url('/brand/aventa-hero-dark.png');
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.5));
+}
+
 /* ============================================
    AVENTA PANEL DESIGN SYSTEM
    Owner OS (dark) + Team Workspace (light)

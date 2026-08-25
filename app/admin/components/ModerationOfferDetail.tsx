@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Calendar,
@@ -14,7 +14,6 @@ import {
   User,
   X,
   Save,
-  AlertTriangle,
   Clock,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -27,7 +26,10 @@ import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
+import ModerationBotFactsCard from './ModerationBotFactsCard';
+import ModerationChecklist from './ModerationChecklist';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
+import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
 
 export type ModerationDetailOffer = {
   id: string;
@@ -47,6 +49,7 @@ export type ModerationDetailOffer = {
   created_by: string | null;
   risk_score?: number | null;
   moderator_comment?: string | null;
+  bot_meta?: unknown;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
   is_bot?: boolean;
   locked_by?: string | null;
@@ -150,6 +153,9 @@ export default function ModerationOfferDetail({
   const [modMessage, setModMessage] = useState('');
   const [internalLinkConfirmed, setInternalLinkConfirmed] = useState(false);
   const [snoozeLoading, setSnoozeLoading] = useState<number | null>(null);
+  const botImageInputRef = useRef<HTMLInputElement>(null);
+  const botUrlInputRef = useRef<HTMLInputElement>(null);
+  const botCategoryRef = useRef<HTMLSelectElement>(null);
   const linkConfirmed = linkConfirmedProp ?? internalLinkConfirmed;
   const setLinkConfirmed = onLinkConfirmedChange ?? setInternalLinkConfirmed;
 
@@ -303,6 +309,39 @@ export default function ModerationOfferDetail({
     if (n) setBotImageUrl(n);
   };
 
+  const checklist = useMemo(
+    () =>
+      buildModerationChecklist({
+        title: offer.title,
+        image_url: offer.image_url,
+        image_urls: offer.image_urls,
+        offer_url: offer.offer_url,
+        category: offer.category,
+      }),
+    [offer.title, offer.image_url, offer.image_urls, offer.offer_url, offer.category]
+  );
+  const blockers = countChecklistBlockers(checklist);
+
+  const handleFix = (id: 'photo' | 'link' | 'category' | 'title') => {
+    if (id === 'title') {
+      setEditTitle(offer.title);
+      setEditOfferUrl(offer.offer_url ?? '');
+      setEditDescription(typeof offer.description === 'string' ? offer.description : '');
+      setEditImageUrl(offer.image_url ?? '');
+      setEditCategory(offer.category ?? '');
+      setShowEdit(true);
+      return;
+    }
+    const target =
+      id === 'photo'
+        ? botImageInputRef.current
+        : id === 'link'
+          ? botUrlInputRef.current
+          : botCategoryRef.current;
+    target?.focus();
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+
   return (
     <div className={`flex h-full max-h-[min(82vh,900px)] min-h-[min(70vh,720px)] flex-col overflow-hidden ${ui.card}`}>
       <div className={`flex items-center justify-between gap-2 border-b px-4 py-3 ${ui.hairline}`}>
@@ -341,8 +380,8 @@ export default function ModerationOfferDetail({
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className={`relative aspect-[4/3] max-h-[min(48vh,480px)] w-full ${ui.heroBg}`}>
-          {heroSrc ? (
+        {heroSrc ? (
+          <div className={`relative aspect-[4/3] max-h-[min(48vh,480px)] w-full ${ui.heroBg}`}>
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -377,14 +416,25 @@ export default function ModerationOfferDetail({
                 </div>
               ) : null}
             </>
-          ) : (
-            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-1 ${ui.faint}`}>
-              <Store className="h-8 w-8 opacity-50" />
-              <p className="text-sm">Sin foto</p>
-              <p className={`text-xs ${ui.muted}`}>{offer.store ?? 'Tienda'}</p>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : isBotOffer ? (
+          <ModerationBotFactsCard
+            variant="hero"
+            mode={mode}
+            store={offer.store}
+            botMeta={offer.bot_meta}
+            moderatorComment={offer.moderator_comment}
+            destination={feedDestination}
+          />
+        ) : (
+          <div
+            className={`flex flex-col items-center justify-center gap-1 border-b py-10 ${ui.hairline} ${ui.heroBg} ${ui.faint}`}
+          >
+            <Store className="h-8 w-8 opacity-50" />
+            <p className="text-sm">Sin foto</p>
+            <p className={`text-xs ${ui.muted}`}>{offer.store ?? 'Tienda'}</p>
+          </div>
+        )}
 
         <div className="space-y-4 px-4 py-4">
           <div className="flex flex-wrap gap-1.5">
@@ -450,26 +500,42 @@ export default function ModerationOfferDetail({
 
           {isBotOffer ? (
             <div className={`rounded-xl border px-3 py-3 space-y-3 ${ui.border} border-sky-500/30 bg-sky-500/5`}>
-              <div className="flex items-start gap-2">
-                <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${!heroSrc ? 'text-amber-600' : 'text-sky-600'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold ${ui.body}`}>Revisión bot</p>
-                  <p className={`text-xs ${ui.soft}`}>
-                    Destino: <span className="font-medium">{feedDestination}</span>
-                  </p>
-                  {!heroSrc ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-200">
-                      Falta imagen válida — pega URL mlstatic o corrige enlace y vuelve a abrir la tienda.
-                    </p>
-                  ) : null}
-                </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className={`text-sm font-semibold ${ui.body}`}>Qué falta para publicar</p>
+                <span
+                  className={`shrink-0 text-[11px] font-semibold ${
+                    blockers > 0
+                      ? 'text-red-700 dark:text-red-300'
+                      : 'text-emerald-700 dark:text-emerald-300'
+                  }`}
+                >
+                  {blockers > 0
+                    ? `${blockers} pendiente${blockers > 1 ? 's' : ''}`
+                    : 'Todo listo'}
+                </span>
               </div>
+              <ModerationChecklist
+                mode={mode}
+                items={checklist}
+                onFix={handleFix}
+                disabled={readOnly}
+              />
+              {heroSrc ? (
+                <ModerationBotFactsCard
+                  mode={mode}
+                  store={offer.store}
+                  botMeta={offer.bot_meta}
+                  moderatorComment={offer.moderator_comment}
+                  destination={feedDestination}
+                />
+              ) : null}
               <div>
                 <label className={`mb-1 block text-[11px] ${ui.label}`}>Categoría del feed</label>
                 <p className={`mb-1.5 text-[10px] leading-snug ${ui.muted}`}>
                   Tecnología y Gaming → Top / Recientes. Hogar, Súper, Moda… → Día a día.
                 </p>
                 <select
+                  ref={botCategoryRef}
                   value={botCategory}
                   onChange={(e) => setBotCategory(e.target.value)}
                   className={`w-full px-3 py-2 text-sm ${ui.select}`}
@@ -497,6 +563,7 @@ export default function ModerationOfferDetail({
                 <label className={`mb-1 block text-[11px] ${ui.label}`}>Imagen (URL https)</label>
                 <div className="flex flex-wrap gap-2">
                   <input
+                    ref={botImageInputRef}
                     type="url"
                     value={botImageUrl}
                     onChange={(e) => setBotImageUrl(e.target.value.slice(0, 2048))}
@@ -513,6 +580,7 @@ export default function ModerationOfferDetail({
                   Enlace tienda (se aplica tag afiliado al guardar)
                 </label>
                 <input
+                  ref={botUrlInputRef}
                   type="url"
                   value={botOfferUrl}
                   onChange={(e) => setBotOfferUrl(e.target.value.slice(0, 2048))}
@@ -578,9 +646,10 @@ export default function ModerationOfferDetail({
             </button>
           </div>
 
-          {offer.moderator_comment?.trim() ? (
+          {!isBotOffer && offer.moderator_comment?.trim() ? (
             <div className={`rounded-xl border px-3 py-2 text-sm ${ui.border} ${ui.thumbBg} ${ui.soft}`}>
-              <span className={`font-medium ${ui.body}`}>Nota ingest:</span> {offer.moderator_comment.trim()}
+              <span className={`font-medium ${ui.body}`}>Nota del cazador:</span>{' '}
+              {offer.moderator_comment.trim()}
             </div>
           ) : null}
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 
@@ -13,18 +12,10 @@ function Sparkle({ className }: { className?: string }) {
   );
 }
 
-function HeroScene({ compact }: { compact?: boolean }) {
+function HeroScene() {
   return (
     <div className="relative h-full w-full overflow-visible" aria-hidden>
-      <Image
-        src="/brand/aventa-hero.png"
-        alt=""
-        fill
-        priority
-        unoptimized
-        sizes={compact ? '260px' : '(max-width: 1024px) 320px, 420px'}
-        className="pointer-events-none bg-transparent object-contain object-bottom select-none [filter:drop-shadow(0_18px_22px_rgba(20,16,28,0.12))] dark:[filter:drop-shadow(0_18px_24px_rgba(0,0,0,0.5))]"
-      />
+      <div className="hero-art pointer-events-none absolute inset-0 select-none" />
       <Sparkle className="pointer-events-none absolute left-[6%] top-[8%] z-[2] h-2.5 w-2.5 text-violet-500/75 dark:text-violet-400/80" />
       <Sparkle className="pointer-events-none absolute right-[10%] top-[14%] z-[2] h-2 w-2 text-violet-400/70" />
     </div>
@@ -87,7 +78,7 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             </p>
           </div>
           <div className="relative mx-auto mt-0.5 h-[176px] max-[400px]:h-[156px] w-full max-w-[300px]">
-            <HeroScene compact />
+            <HeroScene />
           </div>
           <div className="px-4 max-[400px]:px-3 pt-1 pb-3 max-[400px]:pb-2">
             <SearchField compact searchQuery={searchQuery} onChange={setSearchQuery} placeholder="iPhone, Nike, Costco…" />

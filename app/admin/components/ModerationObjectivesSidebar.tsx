@@ -6,6 +6,7 @@ import { Target, ShieldCheck, LayoutGrid } from 'lucide-react';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
+import ModerationCatalogMap from './ModerationCatalogMap';
 
 type Period = '24h' | '7d';
 
@@ -38,6 +39,7 @@ export default function ModerationObjectivesSidebar({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [budgetsOpen, setBudgetsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -170,10 +172,23 @@ export default function ModerationObjectivesSidebar({
                 >
                   {categoriesOpen ? 'Ocultar categorías' : 'Categorías'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setBudgetsOpen((v) => !v)}
+                  className={`${ui.btnGhostSm} text-[11px]`}
+                >
+                  {budgetsOpen ? 'Ocultar presupuestos' : 'Presupuestos'}
+                </button>
               </>
             )}
           </div>
         </div>
+
+        {budgetsOpen ? (
+          <div className={`mt-3 border-t pt-3 ${ui.hairline}`}>
+            <ModerationCatalogMap mode={mode} />
+          </div>
+        ) : null}
 
         {categoriesOpen && !loading && !error ? (
           <div className={`mt-3 grid gap-2 border-t pt-3 sm:grid-cols-2 lg:grid-cols-3 ${ui.hairline}`}>

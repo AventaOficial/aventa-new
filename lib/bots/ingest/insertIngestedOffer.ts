@@ -4,11 +4,15 @@ import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { BotIngestConfig } from './config';
-import type { ScoreBreakdown } from './scoreIngestCandidate';
+import type { ScoreBreakdown, ScoreDecision } from './scoreIngestCandidate';
 import { resolveBotAuthorUserId } from './resolveBotAuthorUserId';
 import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { buildBotOfferDescription } from './buildBotOfferDescription';
+import { buildBotMeta } from './buildBotMeta';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
+
+/** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
+const OPTIONAL_COLUMNS = ['bot_meta', 'link_mod_ok', 'moderator_comment'] as const;
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -21,6 +25,9 @@ export type InsertIngestOptions = {
   ingestScore?: number;
   scoreBreakdown?: ScoreBreakdown;
   moderatorNote?: string;
+  ingestSource?: string;
+  ingestSourceDetail?: string;
+  decision?: ScoreDecision;
 };
 
 export type InsertIngestResult =
@@ -95,6 +102,14 @@ export async function insertIngestedOffer(
     moderatorNote: `${opts?.moderatorNote ?? ''}${catNote}`.trim() || undefined,
   });
 
+  const botMeta = buildBotMeta({
+    meta,
+    scoreBreakdown: opts?.scoreBreakdown,
+    ingestSource: opts?.ingestSource,
+    ingestSourceDetail: opts?.ingestSourceDetail,
+    decision: opts?.decision,
+  });
+
   const payload: Record<string, unknown> = {
     title,
     price: meta.discountPrice,
@@ -108,23 +123,21 @@ export async function insertIngestedOffer(
     offer_url: offerUrl,
     description,
     moderator_comment: moderatorComment,
+    ...(botMeta ? { bot_meta: botMeta } : {}),
     ...(expiresAt ? { expires_at: expiresAt } : {}),
     ...(status === 'approved' ? { link_mod_ok: true } : {}),
   };
 
-  let { data, error } = await supabase.from('offers').insert([payload]).select('id').single();
+  const attempt: Record<string, unknown> = { ...payload };
+  let { data, error } = await supabase.from('offers').insert([attempt]).select('id').single();
 
-  if (error && hasMissingColumn(error, 'link_mod_ok')) {
-    const fallback = { ...payload };
-    delete fallback.link_mod_ok;
-    ({ data, error } = await supabase.from('offers').insert([fallback]).select('id').single());
-  }
-
-  if (error && hasMissingColumn(error, 'moderator_comment')) {
-    const fallback = { ...payload };
-    delete fallback.moderator_comment;
-    delete fallback.link_mod_ok;
-    ({ data, error } = await supabase.from('offers').insert([fallback]).select('id').single());
+  for (let retry = 0; error && retry < OPTIONAL_COLUMNS.length; retry += 1) {
+    const missing = OPTIONAL_COLUMNS.find(
+      (column) => column in attempt && hasMissingColumn(error, column)
+    );
+    if (!missing) break;
+    delete attempt[missing];
+    ({ data, error } = await supabase.from('offers').insert([attempt]).select('id').single());
   }
 
   if (error) {

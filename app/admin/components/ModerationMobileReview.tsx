@@ -5,20 +5,27 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   List,
   Lock,
+  MoreHorizontal,
+  PenLine,
   Store,
   X,
 } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
+import ModerationBotFactsCard from './ModerationBotFactsCard';
+import ModerationChecklist from './ModerationChecklist';
+import ModerationFixSheet, { type FixField } from './ModerationFixSheet';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
-import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
+import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
+import { ALL_CATEGORIES, isVitalCategory, normalizeCategoryForStorage } from '@/lib/categories';
 
 export type MobileModerationOffer = {
   id: string;
@@ -35,6 +42,7 @@ export type MobileModerationOffer = {
   created_by: string | null;
   risk_score?: number | null;
   moderator_comment?: string | null;
+  bot_meta?: unknown;
   is_bot?: boolean;
   locked_by?: string | null;
   locked_at?: string | null;
@@ -63,6 +71,7 @@ type Props = {
   ) => void;
   onReject: (id: string, reason?: string) => void;
   onSnooze?: (minutes: 15 | 60 | 240) => void;
+  onOfferUpdated?: () => void;
   loading?: boolean;
 };
 
@@ -92,6 +101,7 @@ export default function ModerationMobileReview({
   onApprove,
   onReject,
   onSnooze,
+  onOfferUpdated,
   loading = false,
 }: Props) {
   const ui = moderationUi(mode);
@@ -99,6 +109,9 @@ export default function ModerationMobileReview({
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [imgBroken, setImgBroken] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [fixField, setFixField] = useState<FixField | null>(null);
+  const [showFix, setShowFix] = useState(false);
 
   const index = Math.max(
     0,
@@ -110,6 +123,9 @@ export default function ModerationMobileReview({
     setImgBroken(false);
     setShowReject(false);
     setRejectReason('');
+    setShowMore(false);
+    setShowFix(false);
+    setFixField(null);
   }, [offer?.id]);
 
   const total = offers.length;
@@ -135,6 +151,33 @@ export default function ModerationMobileReview({
   const pct = offer ? discountPct(offer) : 0;
   const hasUrl = Boolean(offer?.offer_url?.trim());
   const canApprove = !readOnly && (!hasUrl || linkConfirmed);
+
+  const checklist = useMemo(
+    () =>
+      offer
+        ? buildModerationChecklist({
+            title: offer.title,
+            image_url: offer.image_url,
+            image_urls: offer.image_urls,
+            offer_url: offer.offer_url,
+            category: offer.category,
+          })
+        : [],
+    [offer]
+  );
+  const blockers = countChecklistBlockers(checklist);
+
+  const destination = catLabel
+    ? isVitalCategory(catNorm)
+      ? `Día a día → ${catLabel}`
+      : `Top / Recientes → ${catLabel}`
+    : 'Sin categoría — asígnala antes de aprobar';
+
+  const openFix = (field: FixField | null) => {
+    setFixField(field);
+    setShowFix(true);
+    setShowMore(false);
+  };
 
   const goPrev = () => {
     if (index <= 0) return;
@@ -238,9 +281,18 @@ export default function ModerationMobileReview({
 
       {/* Card */}
       <article className={`overflow-hidden ${ui.card}`}>
-        <div className={`relative aspect-[4/5] max-h-[52vh] w-full ${ui.heroBg}`}>
-          {heroSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
+        <div className={`flex flex-wrap gap-1.5 border-b px-4 py-2.5 ${ui.hairline}`}>
+          <ModerationConfidenceChip offer={offer} mode={mode} size="md" />
+          {offer.is_bot ? (
+            <span className="rounded-md bg-sky-500/90 px-2 py-0.5 text-[11px] font-semibold text-white">
+              Bot
+            </span>
+          ) : null}
+        </div>
+
+        {heroSrc ? (
+          <div className={`relative aspect-[4/3] max-h-[38vh] w-full ${ui.heroBg}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={heroSrc}
               alt=""
@@ -248,21 +300,24 @@ export default function ModerationMobileReview({
               referrerPolicy="no-referrer"
               onError={() => setImgBroken(true)}
             />
-          ) : (
-            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${ui.faint}`}>
-              <Store className="h-10 w-10 opacity-40" />
-              <p className="text-sm">Sin foto</p>
-            </div>
-          )}
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            <ModerationConfidenceChip offer={offer} mode={mode} size="md" />
-            {offer.is_bot ? (
-              <span className="rounded-md bg-sky-500/90 px-2 py-0.5 text-[11px] font-semibold text-white">
-                Bot
-              </span>
-            ) : null}
           </div>
-        </div>
+        ) : offer.is_bot ? (
+          <ModerationBotFactsCard
+            variant="hero"
+            mode={mode}
+            store={offer.store}
+            botMeta={offer.bot_meta}
+            moderatorComment={offer.moderator_comment}
+            destination={destination}
+          />
+        ) : (
+          <div
+            className={`flex flex-col items-center justify-center gap-1.5 border-b py-8 ${ui.hairline} ${ui.heroBg} ${ui.faint}`}
+          >
+            <Store className="h-8 w-8 opacity-40" />
+            <p className="text-sm">Sin foto</p>
+          </div>
+        )}
 
         <div className="space-y-3 px-4 py-4">
           {readOnly ? (
@@ -291,6 +346,15 @@ export default function ModerationMobileReview({
               {catLabel ? <span className={ui.muted}>· {catLabel}</span> : null}
             </p>
           </div>
+
+          {offer.is_bot ? (
+            <ModerationChecklist
+              mode={mode}
+              items={checklist}
+              onFix={readOnly ? undefined : openFix}
+              disabled={readOnly}
+            />
+          ) : null}
 
           {hasUrl ? (
             <a
@@ -390,7 +454,61 @@ export default function ModerationMobileReview({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2">
+            {showMore ? (
+              <div className={`space-y-3 rounded-2xl border p-3 ${ui.border} ${ui.card}`}>
+                <button
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => openFix(null)}
+                  className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold disabled:opacity-40 ${ui.btnGhost}`}
+                >
+                  <PenLine className="h-4 w-4" aria-hidden />
+                  Editar la oferta
+                </button>
+                {onSnooze && !readOnly ? (
+                  <div>
+                    <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${ui.label}`}>
+                      Revisar después
+                    </p>
+                    <div className="flex gap-2">
+                      {(
+                        [
+                          { m: 15 as const, label: '15m' },
+                          { m: 60 as const, label: '1h' },
+                          { m: 240 as const, label: '4h' },
+                        ] as const
+                      ).map(({ m, label }) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => {
+                            onSnooze(m);
+                            setShowMore(false);
+                          }}
+                          className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl text-xs font-semibold ${ui.btnGhost}`}
+                        >
+                          <Clock className="h-3.5 w-3.5" aria-hidden />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {blockers > 0 && !readOnly ? (
+              <button
+                type="button"
+                onClick={() => openFix(checklist.find((i) => i.state === 'missing')?.id ?? null)}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 text-sm font-bold text-amber-950 active:bg-amber-600"
+              >
+                <PenLine className="h-4 w-4" aria-hidden />
+                Arreglar · {blockers} pendiente{blockers > 1 ? 's' : ''}
+              </button>
+            ) : null}
+
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
               <button
                 type="button"
                 disabled={readOnly}
@@ -403,40 +521,22 @@ export default function ModerationMobileReview({
               <button
                 type="button"
                 disabled={!canApprove}
-                onClick={() =>
-                  onApprove(
-                    offer.id,
-                    offer.created_by,
-                    undefined,
-                    hasUrl
-                  )
-                }
+                onClick={() => onApprove(offer.id, offer.created_by, undefined, hasUrl)}
                 className="inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-[15px] font-bold text-white active:bg-emerald-700 disabled:opacity-40"
               >
                 <Check className="h-5 w-5" aria-hidden />
                 Aprobar
               </button>
+              <button
+                type="button"
+                onClick={() => setShowMore((v) => !v)}
+                aria-expanded={showMore}
+                aria-label="Más acciones"
+                className={`inline-flex min-h-[3.25rem] w-14 items-center justify-center rounded-2xl ${ui.btnGhost}`}
+              >
+                <MoreHorizontal className="h-5 w-5" aria-hidden />
+              </button>
             </div>
-            {onSnooze && !readOnly ? (
-              <div className="flex gap-2">
-                {(
-                  [
-                    { m: 15 as const, label: '15m' },
-                    { m: 60 as const, label: '1h' },
-                    { m: 240 as const, label: '4h' },
-                  ] as const
-                ).map(({ m, label }) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => onSnooze(m)}
-                    className={`min-h-10 flex-1 rounded-xl text-xs font-medium ${ui.btnGhost}`}
-                  >
-                    Luego {label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
             {hasUrl && !linkConfirmed ? (
               <p className={`text-center text-[11px] ${ui.muted}`}>
                 Abre la tienda y confirma el producto para poder aprobar
@@ -521,6 +621,28 @@ export default function ModerationMobileReview({
             </ul>
           </div>
         </div>
+      ) : null}
+
+      {showFix ? (
+        <ModerationFixSheet
+          mode={mode}
+          offer={{
+            id: offer.id,
+            title: offer.title,
+            image_url: offer.image_url,
+            offer_url: offer.offer_url,
+            category: offer.category,
+          }}
+          focusField={fixField}
+          onClose={() => {
+            setShowFix(false);
+            setFixField(null);
+          }}
+          onSaved={() => {
+            setImgBroken(false);
+            onOfferUpdated?.();
+          }}
+        />
       ) : null}
     </div>
   );

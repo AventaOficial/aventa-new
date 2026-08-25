@@ -77,6 +77,8 @@ type ModerationOffer = {
   created_by: string | null;
   risk_score?: number | null;
   moderator_comment?: string | null;
+  /** jsonb con señales del bot de ingesta (vendidos, rating, intel de precio). */
+  bot_meta?: unknown;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
   /** Resuelto en servidor (IDs de usuario bot + marcadores en comentario/descripción). */
   is_bot?: boolean;
@@ -843,6 +845,7 @@ export default function ModerationPendingPanel({
               ? (minutes) => void runSnooze(selectedOffer.id, minutes)
               : undefined
           }
+          onOfferUpdated={() => refreshList(true)}
           loading={loading}
         />
       </div>

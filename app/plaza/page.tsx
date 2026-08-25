@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import ClientLayout from '@/app/ClientLayout';
+import CatalogGapsBoard from '@/app/components/CatalogGapsBoard';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 
@@ -140,6 +141,7 @@ function PlazaInner() {
 
       {tab === 'requests' ? (
         <div className="mt-5 space-y-4">
+          <CatalogGapsBoard />
           <form onSubmit={submitRequest} className="rounded-2xl border border-[#e8e8ed] bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#141414]">
             <p className="text-sm font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Pedir una oferta</p>
             <input
