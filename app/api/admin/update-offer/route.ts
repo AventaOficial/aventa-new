@@ -36,6 +36,7 @@ export async function PATCH(request: Request) {
       offer_url?: string | null
       description?: string | null
       image_url?: string | null
+      image_urls?: string[] | null
       category?: string | null
     } = {}
     if (typeof body.title === 'string') {
@@ -52,6 +53,15 @@ export async function PATCH(request: Request) {
     if (body.image_url !== undefined) {
       const raw = typeof body.image_url === 'string' ? body.image_url.trim() : ''
       payload.image_url = raw ? (normalizeOfferImageUrl(raw) ?? raw).slice(0, 2048) : null
+    }
+    if (body.image_urls !== undefined) {
+      const rawList = Array.isArray(body.image_urls) ? body.image_urls : []
+      const cleaned = rawList
+        .filter((u: unknown): u is string => typeof u === 'string' && u.trim().startsWith('http'))
+        .map((u: string) => (normalizeOfferImageUrl(u.trim()) ?? u.trim()).slice(0, 4096))
+        .filter((u: string, i: number, arr: string[]) => arr.indexOf(u) === i)
+        .slice(0, 8)
+      payload.image_urls = cleaned.length > 0 ? cleaned : null
     }
     if (body.category !== undefined) {
       if (body.category === null || body.category === '') {

@@ -139,9 +139,21 @@ body {
   background-size: contain;
   filter: drop-shadow(0 18px 22px rgba(20, 16, 28, 0.12));
 }
+
+/* En oscuro la bolsa blanca ya contrasta de sobra; lo que falta es separarla del
+   fondo. Una sombra negra sobre negro no se ve, así que va un halo violeta
+   detrás de la ilustración (segunda capa = se pinta debajo de la primera). */
 .dark .hero-art {
-  background-image: url('/brand/aventa-hero-dark.png');
-  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.5));
+  background-image:
+    url('/brand/aventa-hero.png'),
+    radial-gradient(ellipse 64% 50% at 50% 64%, rgba(139, 92, 246, 0.2), transparent 72%);
+  background-position:
+    bottom center,
+    center;
+  background-size:
+    contain,
+    100% 100%;
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.55));
 }
 
 /* ============================================
@@ -169,6 +181,7 @@ body {
   --owner-radius-sm: 12px;
   --owner-blur: 24px;
   --owner-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --owner-sheet: #15151c;
   --owner-glow: 0 0 80px rgba(var(--aventa-violet-glow), 0.12);
 
   /* Team Workspace — light glass */
@@ -176,6 +189,7 @@ body {
   --workspace-bg-dark: #0a0f0c;
   --workspace-surface: rgba(255, 255, 255, 0.72);
   --workspace-surface-dark: rgba(255, 255, 255, 0.05);
+  --workspace-sheet-dark: #121a16;
   --workspace-border: rgba(0, 0, 0, 0.06);
   --workspace-border-dark: rgba(255, 255, 255, 0.08);
   --workspace-accent: rgb(var(--aventa-emerald));
@@ -243,6 +257,26 @@ body {
   background: var(--workspace-surface-dark);
   border-color: var(--workspace-border-dark);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Superficies flotantes (modales y hojas). Nunca cristal: el cristal depende de
+   backdrop-filter, que varios navegadores móviles ignoran, y entonces la hoja se
+   ve transparente y el contenido de atrás la atraviesa. */
+.sheet-owner {
+  background: var(--owner-sheet);
+  border: 1px solid var(--owner-border-strong);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.sheet-workspace {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+}
+.dark .sheet-workspace {
+  background: var(--workspace-sheet-dark);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
 }
 
 /* Hide public chrome inside panel routes (Founder OS / Workspace) */

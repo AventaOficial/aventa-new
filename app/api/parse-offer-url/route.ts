@@ -10,6 +10,7 @@ import {
   extractBreadcrumbs,
   extractMercadoLibreItemId,
   extractOfferImages,
+  extractSuggestedPrices,
   getById,
   getMetaContent,
 } from '@/lib/offers/parseOfferPageHtml';
@@ -192,6 +193,9 @@ export async function POST(request: Request) {
     let images = mergeImages(data.image, htmlImages);
     let mlCategoryId: string | null = null;
     let mlPathNames: string[] = [];
+    const htmlPrices = html ? extractSuggestedPrices(html) : { discount: null, original: null };
+    let suggestedDiscount: number | null = htmlPrices.discount;
+    let suggestedOriginal: number | null = htmlPrices.original;
 
     let ml = mlFirst;
     if (isMercadoLibre && (!ml || ml.pictures.length < 2)) {
@@ -208,6 +212,20 @@ export async function POST(request: Request) {
       images = mergeImages(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
       mlCategoryId = ml.categoryId;
       mlPathNames = ml.pathNames;
+      if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
+      if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
+        suggestedOriginal = ml.originalPrice;
+      }
+    }
+
+    if (
+      suggestedOriginal != null &&
+      suggestedDiscount != null &&
+      suggestedOriginal < suggestedDiscount
+    ) {
+      const tmp = suggestedOriginal;
+      suggestedOriginal = suggestedDiscount;
+      suggestedDiscount = tmp;
     }
 
     const suggestedCategory = inferOfferCategory({
@@ -222,8 +240,8 @@ export async function POST(request: Request) {
       image: images[0] ?? data.image,
       images,
       store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
-      suggested_discount_price: null,
-      suggested_original_price: null,
+      suggested_discount_price: suggestedDiscount,
+      suggested_original_price: suggestedOriginal,
       suggested_category: suggestedCategory,
     });
   } catch {

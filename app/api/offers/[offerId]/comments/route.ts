@@ -3,6 +3,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
 import { REPUTATION_LEVEL_AUTO_APPROVE_COMMENTS } from '@/lib/server/reputation';
+import { moderateCommentText } from '@/lib/moderation/commentProfanity';
+import { normalizeOfferImageUrl } from '@/lib/offerPath';
 
 type CommentRow = {
   id: string;
@@ -187,6 +189,22 @@ export async function POST(
   }
   const parentId = typeof body?.parent_id === 'string' && isValidUuid(body.parent_id.trim()) ? body.parent_id.trim() : null;
 
+  const imageRaw = typeof body?.image_url === 'string' ? body.image_url.trim() : '';
+  const imageUrl = imageRaw
+    ? (normalizeOfferImageUrl(imageRaw) ?? (imageRaw.startsWith('http') ? imageRaw.slice(0, 2048) : null))
+    : null;
+  if (imageRaw && !imageUrl) {
+    return NextResponse.json({ error: 'La foto del comentario no es válida' }, { status: 400 });
+  }
+
+  const textMod = moderateCommentText(raw);
+  if (textMod.verdict === 'block') {
+    return NextResponse.json(
+      { error: 'Tu comentario no se puede publicar. Evita insultos u ofensas.' },
+      { status: 400 }
+    );
+  }
+
   let commentStatus: 'pending' | 'approved' = 'pending';
   try {
     const { data: profile } = await supabase
@@ -195,26 +213,59 @@ export async function POST(
       .eq('id', userId)
       .maybeSingle();
     const level = (profile as { reputation_level?: number } | null)?.reputation_level ?? 1;
-    if (level >= REPUTATION_LEVEL_AUTO_APPROVE_COMMENTS) commentStatus = 'approved';
+    if (level >= REPUTATION_LEVEL_AUTO_APPROVE_COMMENTS && textMod.verdict === 'allow' && !imageUrl) {
+      commentStatus = 'approved';
+    }
   } catch {
     // si no existe la columna, mantener pending
   }
 
-  const insertPayload: { offer_id: string; user_id: string; content: string; status?: string; parent_id?: string } = {
+  // Foto o contenido en hold → siempre revisión humana
+  if (imageUrl || textMod.verdict === 'hold') {
+    commentStatus = 'pending';
+  }
+
+  const insertPayload: {
+    offer_id: string;
+    user_id: string;
+    content: string;
+    status?: string;
+    parent_id?: string;
+    image_url?: string;
+  } = {
     offer_id: offerId,
     user_id: userId,
     content: raw,
     status: commentStatus,
   };
   if (parentId) insertPayload.parent_id = parentId;
+  if (imageUrl) insertPayload.image_url = imageUrl;
 
   const { data: inserted, error: insertError } = await supabase
     .from('comments')
     .insert(insertPayload)
-    .select('id, content, created_at, user_id, parent_id')
+    .select('id, content, created_at, user_id, parent_id, image_url, status')
     .single();
 
   if (insertError) {
+    // Schema sin image_url: reintentar sin foto
+    if (imageUrl && (insertError.message?.includes('image_url') || insertError.message?.includes('column'))) {
+      delete insertPayload.image_url;
+      const retry = await supabase
+        .from('comments')
+        .insert(insertPayload)
+        .select('id, content, created_at, user_id, parent_id, status')
+        .single();
+      if (retry.error) {
+        console.error('[comments] POST insert:', retry.error.message);
+        return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
+      }
+      return NextResponse.json({
+        comment: toComment({ ...(retry.data as CommentRow), image_url: null }),
+        status: (retry.data as { status?: string })?.status ?? commentStatus,
+        needsModeration: commentStatus === 'pending',
+      });
+    }
     console.error('[comments] POST insert:', insertError.message);
     return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
   }
@@ -237,10 +288,15 @@ export async function POST(
     content: inserted.content,
     created_at: inserted.created_at,
     author: { username: fallbackName, avatar_url: fallbackAvatar },
+    user_id: userId,
     parent_id: parentId,
-    image_url: null,
+    image_url: (inserted as { image_url?: string | null }).image_url ?? imageUrl,
     like_count: 0,
     liked_by_me: false,
   };
-  return NextResponse.json(comment);
+  return NextResponse.json({
+    ...comment,
+    status: commentStatus,
+    needsModeration: commentStatus === 'pending',
+  });
 }

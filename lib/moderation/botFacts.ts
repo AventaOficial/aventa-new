@@ -1,4 +1,5 @@
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
+import { assessOfferAffiliateLink } from '@/lib/affiliate/assessOfferAffiliateLink';
 
 /** Título más largo que esto se marca para recortar antes de publicar. */
 export const MODERATION_TITLE_MAX = 110;
@@ -251,7 +252,7 @@ export function buildBotFacts(botMeta?: BotMeta | null): BotFact[] {
 export type ChecklistState = 'ok' | 'missing' | 'warn';
 
 export type ModerationChecklistItem = {
-  id: 'photo' | 'link' | 'category' | 'title';
+  id: 'photo' | 'link' | 'affiliate' | 'category' | 'title';
   label: string;
   state: ChecklistState;
   detail: string;
@@ -278,6 +279,36 @@ export function buildModerationChecklist(offer: ChecklistInput): ModerationCheck
     ? ALL_CATEGORIES.find((c) => c.value === categoryNorm)?.label ?? categoryNorm
     : null;
   const title = (offer.title ?? '').trim();
+  const affiliate = assessOfferAffiliateLink(offer.offer_url);
+
+  const linkItems: ModerationChecklistItem[] = [
+    {
+      id: 'link',
+      label: 'Enlace',
+      state: hasLink ? 'ok' : 'missing',
+      detail: hasLink ? 'Listo' : 'Falta — pega la URL del producto',
+    },
+    {
+      id: 'affiliate',
+      label: 'Enlace Aventa',
+      state: !hasLink
+        ? 'missing'
+        : !affiliate.isProduct
+          ? 'missing'
+          : affiliate.needsAffiliate && !affiliate.isTagged
+            ? 'missing'
+            : 'ok',
+      detail: !hasLink
+        ? 'Primero pega el enlace de la tienda'
+        : !affiliate.isProduct
+          ? 'No resuelve a un producto — abre y corrige la URL'
+          : affiliate.needsAffiliate && !affiliate.isTagged
+            ? 'Falta el tag de afiliado — guarda de nuevo el enlace'
+            : affiliate.needsAffiliate
+              ? 'Tag Aventa aplicado'
+              : 'Listo (tienda sin programa configurado)',
+    },
+  ];
 
   return [
     {
@@ -286,12 +317,7 @@ export function buildModerationChecklist(offer: ChecklistInput): ModerationCheck
       state: hasPhoto ? 'ok' : 'missing',
       detail: hasPhoto ? 'Lista' : 'Falta — pega la imagen de la tienda',
     },
-    {
-      id: 'link',
-      label: 'Enlace',
-      state: hasLink ? 'ok' : 'missing',
-      detail: hasLink ? 'Listo' : 'Falta — pega la URL del producto',
-    },
+    ...linkItems,
     {
       id: 'category',
       label: 'Categoría',

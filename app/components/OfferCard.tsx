@@ -36,6 +36,7 @@ import { logEvent } from '@/lib/monitoring/clientLogger';
 import { publicProfilePath } from '@/lib/profileSlug';
 import type { OfferScopeUi } from '@/lib/offerScope';
 import StoreBrandMark from './StoreBrandMark';
+import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -224,6 +225,7 @@ export default function OfferCard({
   const [localScore, setLocalScore] = useState(() => scoreFromFeed);
   const [imgError, setImgError] = useState(false);
   const [votePending, setVotePending] = useState(false);
+  const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false);
 
   const baseScore = scoreFromFeed;
   const authorProfileHref =
@@ -475,6 +477,7 @@ export default function OfferCard({
   );
 
   return (
+    <>
     <div
       ref={cardRef}
       onClick={() => {
@@ -701,6 +704,18 @@ export default function OfferCard({
                     compartidos
                   </span>
                 </div>
+                {offerId ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAdvancedMetrics(true);
+                    }}
+                    className="mt-2 w-full rounded-lg border border-violet-200 bg-violet-50 py-1.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300 dark:hover:bg-violet-950/60"
+                  >
+                    Ver métricas avanzadas
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -777,5 +792,12 @@ export default function OfferCard({
         </div>
       </div>
     </div>
+    {showAdvancedMetrics && offerId ? (
+      <OfferAdvancedMetricsModal
+        offerId={offerId}
+        onClose={() => setShowAdvancedMetrics(false)}
+      />
+    ) : null}
+    </>
   );
 }

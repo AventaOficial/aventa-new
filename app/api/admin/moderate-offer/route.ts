@@ -5,7 +5,7 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
-import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate'
+import { resolveAndNormalizeAffiliateOfferUrl, isPlatformAffiliateTagged, isResolvedProductOfferUrl, storeHasAffiliateProgram } from '@/lib/affiliate'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
@@ -76,7 +76,31 @@ export async function POST(request: Request) {
       }
       if (rawUrl) {
         const normalized = await resolveAndNormalizeAffiliateOfferUrl(rawUrl)
-        if (normalized !== rawUrl) {
+        if (!isResolvedProductOfferUrl(normalized) && !batchApprove) {
+          return NextResponse.json(
+            {
+              error:
+                'El enlace no apunta a un producto válido. Ábrelo, corrígelo y vuelve a guardar antes de aprobar.',
+            },
+            { status: 400 }
+          )
+        }
+        if (isResolvedProductOfferUrl(normalized)) {
+          if (
+            storeHasAffiliateProgram(normalized) &&
+            !isPlatformAffiliateTagged(normalized) &&
+            !batchApprove
+          ) {
+            return NextResponse.json(
+              {
+                error:
+                  'Falta el tag de afiliado Aventa. Guarda de nuevo el enlace de la tienda antes de aprobar.',
+              },
+              { status: 400 }
+            )
+          }
+          payload.offer_url = normalized
+        } else if (normalized !== rawUrl) {
           payload.offer_url = normalized
         }
       }

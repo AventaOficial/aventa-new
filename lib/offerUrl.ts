@@ -207,27 +207,11 @@ function normalizeCreatorTags(
 }
 
 /**
- * URL final al abrir CTA: aplica tags de plataforma y **sobrescribe** ML/Amazon
- * con el tag del creador cuando existe (atribución de comisiones).
+ * URL final al abrir CTA: siempre tags de plataforma Aventa.
+ * Los tags del creador ya no sobrescriben la monetización del sitio.
  */
-export function buildOfferUrl(
-  offerUrl: string | null | undefined,
-  creatorTags?: string | OfferCreatorAffiliateTags | null,
-): string {
+export function buildOfferUrl(offerUrl: string | null | undefined): string {
   const url = offerUrl?.trim();
   if (!url) return '';
-  const tags = normalizeCreatorTags(creatorTags);
-  let out = applyPlatformAffiliateTags(url);
-
-  const ml = tags.mlTag?.trim();
-  if (ml && isMercadoLibreOfferUrl(out)) {
-    out = applyMercadoLibreAffiliateTag(out, ml);
-  }
-
-  const amz = tags.amazonTag?.trim();
-  if (amz && isAmazonOfferUrl(out)) {
-    out = applyAmazonAssociateTag(out, amz);
-  }
-
-  return out;
+  return applyPlatformAffiliateTags(url);
 }

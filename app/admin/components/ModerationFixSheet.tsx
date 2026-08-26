@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ClipboardPaste, Scissors, Wand2, X } from 'lucide-react';
+import { ClipboardPaste, Images, Scissors, Wand2, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
 import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
@@ -16,6 +17,7 @@ export type FixableOffer = {
   id: string;
   title: string;
   image_url: string | null;
+  image_urls?: string[] | null;
   offer_url: string | null;
   category?: string | null;
 };
@@ -41,11 +43,14 @@ export default function ModerationFixSheet({
 }: Props) {
   const ui = moderationUi(mode);
   const { session } = useAuth();
+  useBodyScrollLock(true);
   const [imageUrl, setImageUrl] = useState(offer.image_url ?? '');
+  const [imageUrls, setImageUrls] = useState<string[]>(offer.image_urls ?? []);
   const [offerUrl, setOfferUrl] = useState(offer.offer_url ?? '');
   const [category, setCategory] = useState(offer.category ?? '');
   const [title, setTitle] = useState(offer.title ?? '');
   const [saving, setSaving] = useState(false);
+  const [fetchingPhotos, setFetchingPhotos] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [previewBroken, setPreviewBroken] = useState(false);
 
@@ -84,12 +89,64 @@ export default function ModerationFixSheet({
     }
   };
 
+  const fetchPhotosFromLink = async () => {
+    const url = offerUrl.trim();
+    if (!url.startsWith('http')) {
+      setMessage('Pega primero un enlace de producto válido');
+      return;
+    }
+    if (!session?.access_token) {
+      setMessage('Inicia sesión para traer fotos del enlace');
+      return;
+    }
+    setFetchingPhotos(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/parse-offer-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(typeof data?.error === 'string' ? data.error : 'No pudimos leer fotos de ese enlace');
+        return;
+      }
+      const parsedImages = Array.isArray(data.images)
+        ? (data.images as unknown[]).filter((u): u is string => typeof u === 'string' && u.startsWith('http'))
+        : [];
+      if (data.image && typeof data.image === 'string' && !parsedImages.includes(data.image)) {
+        parsedImages.unshift(data.image);
+      }
+      if (parsedImages.length === 0) {
+        setMessage('No encontramos fotos en ese enlace. Pega una URL de imagen a mano.');
+        return;
+      }
+      setImageUrl(parsedImages[0]);
+      setImageUrls(parsedImages.slice(1, 8));
+      setPreviewBroken(false);
+      setMessage(`${parsedImages.length} foto${parsedImages.length > 1 ? 's' : ''} lista${parsedImages.length > 1 ? 's' : ''} — guarda para aplicar`);
+    } catch {
+      setMessage('Error al traer fotos. Intenta de nuevo.');
+    } finally {
+      setFetchingPhotos(false);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setMessage(null);
 
     const body: Record<string, unknown> = { id: offer.id };
     if (imageUrl.trim() !== (offer.image_url ?? '')) body.image_url = imageUrl.trim();
+    const prevExtras = offer.image_urls ?? [];
+    const extrasChanged =
+      imageUrls.length !== prevExtras.length ||
+      imageUrls.some((u, i) => u !== prevExtras[i]);
+    if (extrasChanged) body.image_urls = imageUrls;
     if (offerUrl.trim() !== (offer.offer_url ?? '')) body.offer_url = offerUrl.trim();
     if (title.trim() && title.trim() !== offer.title) body.title = title.trim();
 
@@ -187,7 +244,7 @@ export default function ModerationFixSheet({
                   placeholder="https://http2.mlstatic.com/…"
                   className={`w-full min-h-12 px-3 font-mono text-xs ${ui.input}`}
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => void pasteInto(setImageUrl)}
@@ -212,7 +269,21 @@ export default function ModerationFixSheet({
                     <Wand2 className="h-4 w-4" aria-hidden />
                     Arreglar URL
                   </button>
+                  <button
+                    type="button"
+                    disabled={fetchingPhotos || !offerUrl.trim()}
+                    onClick={() => void fetchPhotosFromLink()}
+                    className={`inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 ${ui.btnGhost}`}
+                  >
+                    <Images className="h-4 w-4" aria-hidden />
+                    {fetchingPhotos ? 'Buscando fotos…' : 'Traer fotos del enlace'}
+                  </button>
                 </div>
+                {imageUrls.length > 0 ? (
+                  <p className={`text-[11px] ${ui.muted}`}>
+                    +{imageUrls.length} en galería al guardar
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

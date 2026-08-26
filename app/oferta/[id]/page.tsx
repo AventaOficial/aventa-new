@@ -91,9 +91,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     `Oferta en ${store}. ${offer.original_price ? `Precio ${offer.price}` : ''}`;
 
   const canonical = `${BASE_URL}${buildOfferPublicPath(id, offer.title)}`;
-  const ogImageUrl = offer.image_url
-    ? (offer.image_url.startsWith('http') ? offer.image_url : new URL(offer.image_url, BASE_URL).toString())
-    : undefined;
+  const ogGenerated = `${BASE_URL}${buildOfferPublicPath(id, offer.title)}/opengraph-image`;
 
   return {
     title,
@@ -105,12 +103,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       url: canonical,
       siteName: 'AVENTA',
       type: 'website',
-      images: ogImageUrl ? [{ url: ogImageUrl, width: 800, height: 600, alt: offer.title }] : undefined,
+      images: [{ url: ogGenerated, width: 1200, height: 630, alt: offer.title }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description: desc,
+      images: [ogGenerated],
     },
   };
 }

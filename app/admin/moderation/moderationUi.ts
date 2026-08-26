@@ -47,9 +47,8 @@ export function moderationUi(mode: ModerationHubMode = 'admin') {
       ? 'border-t border-gray-100 bg-gray-50/90 dark:border-white/[0.06] dark:bg-black/20'
       : 'border-t border-white/[0.06] bg-black/20',
     heroBg: ws ? 'bg-gray-50 dark:bg-white/[0.04]' : 'bg-white/[0.04]',
-    modal: ws
-      ? 'rounded-2xl glass-light border border-gray-200 shadow-xl dark:glass-dark dark:border-white/10'
-      : 'rounded-2xl glass-dark border border-white/10 shadow-xl',
+    /** Modales y hojas: fondo sólido, nunca cristal (ver .sheet-* en globals.css). */
+    modal: ws ? 'rounded-2xl sheet-workspace' : 'rounded-2xl sheet-owner',
     emptyDash: ws
       ? 'rounded-2xl border border-dashed border-gray-200 py-16 text-gray-500 dark:border-white/10 dark:text-white/45'
       : 'rounded-2xl border border-dashed border-white/10 py-16 text-white/45',

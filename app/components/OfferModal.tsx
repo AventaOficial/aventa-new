@@ -143,6 +143,8 @@ export default function OfferModal({
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [commentImageUrl, setCommentImageUrl] = useState<string | null>(null);
+  const [commentImageUploading, setCommentImageUploading] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [likingId, setLikingId] = useState<string | null>(null);
@@ -373,11 +375,7 @@ export default function OfferModal({
         }).catch((err) => logClientError('offer-modal:track-outbound', err));
       }
       if (offerUrl?.trim()) {
-        const url =
-          buildOfferUrl(offerUrl, {
-            mlTag: author?.creatorMlTag,
-            amazonTag: author?.creatorAmazonTag,
-          }) || offerUrl.trim();
+        const url = buildOfferUrl(offerUrl) || offerUrl.trim();
         window.open(url, '_blank', 'noopener,noreferrer');
       }
     } catch {
@@ -397,16 +395,56 @@ export default function OfferModal({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ content: text, parent_id: replyingToId || undefined }),
+        body: JSON.stringify({
+          content: text,
+          parent_id: replyingToId || undefined,
+          ...(commentImageUrl ? { image_url: commentImageUrl } : {}),
+        }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setCommentText('');
+        setCommentImageUrl(null);
         setReplyingToId(null);
-        showToast?.('Comentario enviado. Será visible cuando pase la moderación.');
+        const needsMod =
+          data?.needsModeration === true || data?.status === 'pending';
+        showToast?.(
+          needsMod
+            ? 'Comentario enviado. Será visible cuando pase la moderación.'
+            : 'Comentario publicado.'
+        );
         fetchComments();
+      } else {
+        showToast?.(typeof data?.error === 'string' ? data.error : 'No se pudo publicar');
       }
     } finally {
       setCommentSubmitting(false);
+    }
+  };
+
+  const handleCommentImage = async (file: File | null) => {
+    if (!file || !session?.access_token) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast?.('La foto no puede superar 2 MB');
+      return;
+    }
+    setCommentImageUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/upload-offer-image', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data?.url !== 'string') {
+        showToast?.(data?.error ?? 'No se pudo subir la foto');
+        return;
+      }
+      setCommentImageUrl(data.url);
+    } finally {
+      setCommentImageUploading(false);
     }
   };
 
@@ -676,6 +714,7 @@ export default function OfferModal({
                   {offerId ? (
                     <OfferPriceInsightBlock offerId={offerId} />
                   ) : null}
+                  <AffiliateDisclosure variant="block" includeAmazonEn />
                   {steps?.trim() && (() => {
                     let stepItems: string[] = [];
                     try {
@@ -917,7 +956,24 @@ export default function OfferModal({
                           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-purple-500 focus:outline-none resize-none disabled:opacity-60"
                           rows={2}
                         />
-                        <div className="flex items-center gap-2">
+                        {commentImageUrl ? (
+                          <div className="relative inline-block">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={commentImageUrl}
+                              alt=""
+                              className="h-20 w-20 rounded-lg object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setCommentImageUrl(null)}
+                              className="absolute -right-1.5 -top-1.5 rounded-full bg-black/70 px-1.5 text-[10px] text-white"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap items-center gap-2">
                           {replyingToId && (
                             <button
                               type="button"
@@ -927,6 +983,21 @@ export default function OfferModal({
                               Cancelar respuesta
                             </button>
                           )}
+                          {session ? (
+                            <label className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                disabled={commentImageUploading}
+                                onChange={(e) => {
+                                  void handleCommentImage(e.target.files?.[0] ?? null);
+                                  e.target.value = '';
+                                }}
+                              />
+                              {commentImageUploading ? 'Subiendo…' : 'Foto'}
+                            </label>
+                          ) : null}
                           <button
                             onClick={handleSubmitComment}
                             disabled={!commentText.trim() || commentSubmitting || !session}
@@ -1004,7 +1075,7 @@ export default function OfferModal({
               )}
             </div>
             <div className="mt-2">
-              <AffiliateDisclosure variant="compact" includeAmazonEn />
+              <AffiliateDisclosure variant="badge" />
             </div>
           </div>
 

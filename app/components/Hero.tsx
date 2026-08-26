@@ -12,12 +12,31 @@ function Sparkle({ className }: { className?: string }) {
   );
 }
 
+function Coin({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}
+
 function HeroScene() {
   return (
     <div className="relative h-full w-full overflow-visible" aria-hidden>
       <div className="hero-art pointer-events-none absolute inset-0 select-none" />
-      <Sparkle className="pointer-events-none absolute left-[6%] top-[8%] z-[2] h-2.5 w-2.5 text-violet-500/75 dark:text-violet-400/80" />
-      <Sparkle className="pointer-events-none absolute right-[10%] top-[14%] z-[2] h-2 w-2 text-violet-400/70" />
+      {/* En claro los adornos son un guiño discreto; en oscuro suben de brillo y
+          ganan halo, porque a esa opacidad se perdían contra el fondo. */}
+      <Sparkle className="pointer-events-none absolute left-[6%] top-[8%] z-[2] h-2.5 w-2.5 text-violet-500/75 dark:text-violet-300 dark:[filter:drop-shadow(0_0_6px_rgba(167,139,250,0.55))]" />
+      <Sparkle className="pointer-events-none absolute right-[10%] top-[14%] z-[2] h-2 w-2 text-violet-400/70 dark:text-violet-300/90 dark:[filter:drop-shadow(0_0_5px_rgba(167,139,250,0.5))]" />
+      <Sparkle className="pointer-events-none absolute left-[13%] top-[47%] z-[2] h-1.5 w-1.5 text-violet-400/50 dark:text-violet-200/80" />
+      <Coin className="pointer-events-none absolute right-[5%] top-[39%] z-[2] h-2.5 w-2.5 text-violet-400/40 dark:text-violet-300/65" />
     </div>
   );
 }

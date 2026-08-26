@@ -25,18 +25,16 @@ describe('parseAffiliateLedgerCsv', () => {
   });
 });
 
-describe('buildOfferUrl creator priority', () => {
-  it('aplica tag ML del creador', () => {
-    const url = buildOfferUrl('https://articulo.mercadolibre.com.mx/MLM-1', {
-      mlTag: 'aventa_ana',
-    });
+describe('buildOfferUrl plataforma', () => {
+  it('aplica tag ML de plataforma', () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa_ana';
+    const url = buildOfferUrl('https://articulo.mercadolibre.com.mx/MLM-1234567890-1');
     expect(url).toContain('tag=aventa_ana');
   });
 
-  it('aplica tag Amazon del creador', () => {
-    const url = buildOfferUrl('https://www.amazon.com.mx/dp/B000', {
-      amazonTag: 'aventa-20',
-    });
+  it('aplica tag Amazon de plataforma', () => {
+    process.env.AMAZON_ASSOCIATE_TAG = 'aventa-20';
+    const url = buildOfferUrl('https://www.amazon.com.mx/dp/B000TEST123');
     expect(url).toContain('tag=aventa-20');
   });
 });

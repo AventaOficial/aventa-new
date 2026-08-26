@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, Suspense, type ReactNode } from 'react';
 import Navbar from './components/Navbar';
 import ActionBar from './components/ActionBar';
+import InstallAppBanner from './components/InstallAppBanner';
 import OnboardingV1, { GuideModalStandalone } from './components/OnboardingV1';
 import AventaIcon from './components/AventaIcon';
 import { useUI } from './providers/UIProvider';
@@ -60,6 +61,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <ActionBar />
       </Suspense>
+      {!isPanelRoute ? <InstallAppBanner /> : null}
       {toastMessage && (
         <div
           className={`fixed bottom-28 left-1/2 z-[10001] -translate-x-1/2 rounded-2xl bg-[#1d1d1f] dark:bg-[#1d1d1f] px-5 py-3 text-white shadow-lg flex items-center justify-center text-center ${

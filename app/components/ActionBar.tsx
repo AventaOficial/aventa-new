@@ -12,9 +12,11 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
+import { describeOfferIssue } from '@/lib/contracts/offers';
 import { logClientError } from '@/lib/utils/handleError';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
+import CatalogGapsBoard from './CatalogGapsBoard';
 import AventaIcon from './AventaIcon';
 import SidebarProgressCard from './SidebarProgressCard';
 
@@ -100,6 +102,9 @@ export default function ActionBar() {
   const [submitThanksApproved, setSubmitThanksApproved] = useState(false);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
+  const [urlParseStatus, setUrlParseStatus] = useState<string | null>(null);
+  /** En móvil: 1 = esencial, 2 = detalles + fotos. Desktop ignora y muestra todo. */
+  const [uploadStep, setUploadStep] = useState<1 | 2>(1);
   const prevUrlParseLoadingRef = useRef(false);
   /** Tras pegar el enlace (y parse si hay sesión), se desbloquea el formulario completo. */
   const [uploadLinkGatePassed, setUploadLinkGatePassed] = useState(false);
@@ -217,6 +222,7 @@ export default function ActionBar() {
     let cancelled = false;
     const t = setTimeout(async () => {
       setUrlParseLoading(true);
+      setUrlParseStatus('Leyendo la página…');
       try {
         const res = await fetch('/api/parse-offer-url', {
           method: 'POST',
@@ -228,10 +234,15 @@ export default function ActionBar() {
         });
         if (cancelled) return;
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data) return;
+        if (!res.ok || !data) {
+          setUrlParseStatus(
+            typeof data?.error === 'string' ? data.error : 'No pudimos leer ese enlace'
+          );
+          return;
+        }
         setFormData((prev) => {
           if (prev.offer_url.trim() !== url) return prev;
-          return {
+          const next = {
             ...prev,
             ...(data.title && { title: prev.title.trim() ? prev.title : data.title }),
             ...(data.store && { store: prev.store.trim() ? prev.store : data.store }),
@@ -239,7 +250,27 @@ export default function ActionBar() {
               data.suggested_category &&
               !prev.category.trim() && { category: data.suggested_category }),
           };
+          const disc =
+            typeof data.suggested_discount_price === 'number' && data.suggested_discount_price > 0
+              ? String(data.suggested_discount_price)
+              : null;
+          const orig =
+            typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
+              ? String(data.suggested_original_price)
+              : null;
+          if (disc && !prev.discountPrice.trim()) next.discountPrice = disc;
+          if (orig && !prev.originalPrice.trim()) next.originalPrice = orig;
+          else if (disc && !prev.originalPrice.trim() && !orig) next.originalPrice = disc;
+          return next;
         });
+        if (
+          typeof data.suggested_discount_price === 'number' &&
+          data.suggested_discount_price > 0 &&
+          typeof data.suggested_original_price === 'number' &&
+          data.suggested_original_price > data.suggested_discount_price
+        ) {
+          setHasDiscount(true);
+        }
         const parsedImages = Array.isArray(data.images)
           ? (data.images as unknown[]).filter((u): u is string => typeof u === 'string' && u.startsWith('http'))
           : [];
@@ -250,8 +281,18 @@ export default function ActionBar() {
           setImageUrl((cover) => cover || parsedImages[0] || null);
           setImageUrls((extras) => (extras.length > 0 ? extras : parsedImages.slice(1).slice(0, 7)));
         }
+        const bits: string[] = [];
+        if (data.title) bits.push('título');
+        if (parsedImages.length > 0) bits.push(`${parsedImages.length} foto${parsedImages.length > 1 ? 's' : ''}`);
+        if (typeof data.suggested_discount_price === 'number') bits.push('precio');
+        if (data.suggested_category) bits.push('categoría');
+        setUrlParseStatus(
+          bits.length > 0
+            ? `Listo: ${bits.join(', ')}. Revisa y completa lo que falte.`
+            : 'Leímos la página, pero no trajo datos. Complétalos tú.'
+        );
       } catch {
-        // do nothing; form continues as before
+        if (!cancelled) setUrlParseStatus('No pudimos leer ese enlace. Sigue a mano.');
       } finally {
         if (!cancelled) setUrlParseLoading(false);
       }
@@ -384,6 +425,8 @@ export default function ActionBar() {
     setHasDiscount(true);
     setMobileTab('form');
     setUploadLinkGatePassed(false);
+    setUploadStep(1);
+    setUrlParseStatus(null);
     prevUrlParseLoadingRef.current = false;
   };
 
@@ -449,7 +492,10 @@ export default function ActionBar() {
     setIsSubmitting(false);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const firstIssue = Array.isArray(data?.issues) && data.issues.length > 0 ? data.issues[0]?.message : null;
+      const firstIssue =
+        Array.isArray(data?.issues) && data.issues.length > 0
+          ? describeOfferIssue(data.issues[0])
+          : null;
       showToast(firstIssue || data?.error || 'Error al crear la oferta');
       return;
     }
@@ -766,6 +812,11 @@ export default function ActionBar() {
                           Inicia sesión para que podamos leer la página y rellenar título e imagen automáticamente.
                         </p>
                       ) : null}
+                      <CatalogGapsBoard
+                        variant="compact"
+                        title="Ideas de qué buscar"
+                        showCta={false}
+                      />
                       <button
                         type="button"
                         onClick={() => setUploadLinkGatePassed(true)}
@@ -808,6 +859,34 @@ export default function ActionBar() {
                 </button>
               </div>
 
+              {mobileTab === 'form' ? (
+                <div className="md:hidden flex-shrink-0 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 bg-violet-50/60 dark:bg-violet-950/20">
+                  <button
+                    type="button"
+                    onClick={() => setUploadStep(1)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      uploadStep === 1
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    1 · Lo esencial
+                  </button>
+                  <span className="text-gray-300 dark:text-gray-600">→</span>
+                  <button
+                    type="button"
+                    onClick={() => setUploadStep(2)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      uploadStep === 2
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    2 · Detalles
+                  </button>
+                </div>
+              ) : null}
+
               <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden bg-white dark:bg-[#141414]">
                 <div
                   className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-4 sm:p-5 md:p-6 space-y-3 min-w-0 bg-white dark:bg-[#141414] ${
@@ -815,7 +894,7 @@ export default function ActionBar() {
                   }`}
                 >
                   <div className="space-y-6">
-                  <section className="space-y-4">
+                  <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden md:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                       Oferta · esencial
                     </p>
@@ -838,9 +917,15 @@ export default function ActionBar() {
                         className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 pl-10 pr-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                       />
                     </div>
-                    <p className="mt-2 rounded-lg bg-violet-50 dark:bg-violet-950/40 px-3 py-2 text-xs text-violet-800 dark:text-violet-300 leading-snug">
-                      Detectamos título, fotos, precios y categoría cuando el sitio lo permite. Siempre puedes corregirlos.
-                    </p>
+                    {urlParseStatus ? (
+                      <p className="mt-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 leading-snug">
+                        {urlParseStatus}
+                      </p>
+                    ) : (
+                      <p className="mt-2 rounded-lg bg-violet-50 dark:bg-violet-950/40 px-3 py-2 text-xs text-violet-800 dark:text-violet-300 leading-snug">
+                        Detectamos título, fotos, precios y categoría cuando el sitio lo permite. Siempre puedes corregirlos.
+                      </p>
+                    )}
                   </div>
 
                     <div>
@@ -890,7 +975,6 @@ export default function ActionBar() {
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Precio</label>
-                      <span className="text-[11px] text-gray-400">Lo escribes tú; no se toma del enlace</span>
                       {hasDiscount &&
                         formData.originalPrice &&
                         formData.discountPrice &&
@@ -970,7 +1054,7 @@ export default function ActionBar() {
                   ) : null}
                   </section>
 
-                  <section className="space-y-4">
+                  <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden md:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                       Detalles · importante
                     </p>
@@ -1055,7 +1139,17 @@ export default function ActionBar() {
                   </div>
                   </section>
 
-                  <section className="space-y-4">
+                  {uploadStep === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => setUploadStep(2)}
+                      className="md:hidden w-full rounded-xl bg-violet-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-violet-500"
+                    >
+                      Continuar · fotos y extras
+                    </button>
+                  ) : null}
+
+                  <section className={`space-y-4 ${uploadStep === 2 ? '' : 'hidden md:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                       Multimedia · opcional
                     </p>
@@ -1459,14 +1553,34 @@ export default function ActionBar() {
                     Cancelar
                   </button>
                   {uploadLinkGatePassed ? (
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={!isFormValid() || isSubmitting || imageUploading}
-                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
-                    >
-                      {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
-                    </button>
+                    uploadStep === 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setUploadStep(2)}
+                          className="md:hidden flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg"
+                        >
+                          Continuar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={!isFormValid() || isSubmitting || imageUploading}
+                          className="hidden md:block flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={!isFormValid() || isSubmitting || imageUploading}
+                        className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
+                      >
+                        {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
+                      </button>
+                    )
                   ) : (
                     <button
                       type="button"

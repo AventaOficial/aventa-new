@@ -163,6 +163,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [commentImageUrl, setCommentImageUrl] = useState<string | null>(null);
+  const [commentImageUploading, setCommentImageUploading] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [likingId, setLikingId] = useState<string | null>(null);
@@ -314,6 +316,32 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     });
   };
 
+  const handleCommentImage = async (file: File | null) => {
+    if (!file || !session?.access_token) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast?.('La foto no puede superar 2 MB');
+      return;
+    }
+    setCommentImageUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/upload-offer-image', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data?.url !== 'string') {
+        showToast?.(data?.error ?? 'No se pudo subir la foto');
+        return;
+      }
+      setCommentImageUrl(data.url);
+    } finally {
+      setCommentImageUploading(false);
+    }
+  };
+
   const handleSubmitComment = async () => {
     const text = commentText.trim();
     if (!text || !offer.id || !session?.access_token || commentSubmitting) return;
@@ -326,13 +354,24 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ content: text, parent_id: replyingToId || undefined }),
+        body: JSON.stringify({
+          content: text,
+          parent_id: replyingToId || undefined,
+          ...(commentImageUrl ? { image_url: commentImageUrl } : {}),
+        }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setCommentText('');
+        setCommentImageUrl(null);
         setReplyingToId(null);
-        showToast?.('Listo — en revisión breve.');
+        const needsMod = data?.needsModeration === true || data?.status === 'pending';
+        showToast?.(
+          needsMod ? 'Comentario enviado. Será visible cuando pase la moderación.' : 'Comentario publicado.'
+        );
         fetchComments();
+      } else {
+        showToast?.(typeof data?.error === 'string' ? data.error : 'No se pudo publicar');
       }
     } finally {
       setCommentSubmitting(false);
@@ -403,10 +442,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     }
   };
 
-  const ctaUrl = buildOfferUrl(offer.offerUrl, {
-    mlTag: offer.author.creatorMlTag,
-    amazonTag: offer.author.creatorAmazonTag,
-  });
+  const ctaUrl = buildOfferUrl(offer.offerUrl);
   const bankCouponLabel = getBankCouponLabel(offer.bankCoupon ?? null);
   const personalCouponTrim = offer.coupons?.trim() ?? '';
   const showCtaCouponChip = Boolean(ctaUrl && (bankCouponLabel || personalCouponTrim));
@@ -486,16 +522,43 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                         dealUrl
                       );
                       const trackShare = () => {
-                        if (session?.access_token) {
-                          fetch('/api/events', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                            body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
-                          }).catch((err) => logClientError('offer-page:share-event', err));
+                        fetch('/api/events', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(session?.access_token
+                              ? { Authorization: `Bearer ${session.access_token}` }
+                              : {}),
+                          },
+                          body: JSON.stringify({ offer_id: offer.id, event_type: 'share' }),
+                        }).catch((err) => logClientError('offer-page:share-event', err));
+                      };
+                      const nativeShare = async () => {
+                        if (typeof navigator.share !== 'function') return false;
+                        try {
+                          await navigator.share({
+                            title: offer.title,
+                            text: shareText,
+                            url: dealUrl,
+                          });
+                          trackShare();
+                          setShowShareMenu(false);
+                          return true;
+                        } catch {
+                          return false;
                         }
                       };
                       return (
                         <>
+                          {typeof navigator !== 'undefined' && typeof navigator.share === 'function' ? (
+                            <button
+                              type="button"
+                              onClick={() => void nativeShare()}
+                              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold text-violet-600 dark:text-violet-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                              Compartir…
+                            </button>
+                          ) : null}
                           <a
                             href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
                             target="_blank"
@@ -756,7 +819,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
               {ctaUrl ? (
                 <div className="mt-2">
-                  <AffiliateDisclosure variant="compact" includeAmazonEn />
+                  <AffiliateDisclosure variant="badge" />
                 </div>
               ) : null}
 
@@ -779,8 +842,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
                     Información adicional
                   </summary>
-                  <div className="mt-3">
+                  <div className="mt-3 space-y-4">
                     <OfferPriceInsightBlock offerId={offer.id} />
+                    <AffiliateDisclosure variant="block" includeAmazonEn />
                   </div>
                 </details>
               ) : null}
@@ -941,7 +1005,24 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-purple-500 focus:outline-none resize-none disabled:opacity-60"
                 rows={2}
               />
-              <div className="flex items-center gap-2">
+              {commentImageUrl ? (
+                <div className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={commentImageUrl}
+                    alt=""
+                    className="h-20 w-20 rounded-lg object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCommentImageUrl(null)}
+                    className="absolute -right-1.5 -top-1.5 rounded-full bg-black/70 px-1.5 text-[10px] text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
                 {replyingToId && (
                   <button
                     type="button"
@@ -951,6 +1032,21 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     Cancelar respuesta
                   </button>
                 )}
+                {session ? (
+                  <label className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={commentImageUploading}
+                      onChange={(e) => {
+                        void handleCommentImage(e.target.files?.[0] ?? null);
+                        e.target.value = '';
+                      }}
+                    />
+                    {commentImageUploading ? 'Subiendo…' : 'Foto'}
+                  </label>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleSubmitComment}

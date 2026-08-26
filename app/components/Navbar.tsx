@@ -436,7 +436,7 @@ export default function Navbar() {
                 Avisos
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            <div className="flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] min-h-0">
               {notifTab === 'ofertas' && (
                 <>
                   {unreadCount > 0 && notifications.length > 0 && (
@@ -548,7 +548,7 @@ export default function Navbar() {
                                     />
                                   )}
                                   <div className="min-w-0 flex-1">
-                                    <span className="font-semibold text-[15px]">{n.title}</span>
+                                    <span className="block truncate font-semibold text-[15px]">{n.title}</span>
                                     {n.body && <p className="mt-1 text-sm opacity-90 leading-snug">{n.body}</p>}
                                     {isMilestoneLikes && n.link && (
                                       <p className="mt-2 text-sm font-semibold text-violet-600 dark:text-violet-400">

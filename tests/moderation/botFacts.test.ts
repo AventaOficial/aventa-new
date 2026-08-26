@@ -104,27 +104,42 @@ describe('buildBotFacts', () => {
 
 describe('buildModerationChecklist', () => {
   it('marca lo que falta en una oferta del bot sin foto', () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa_test';
     const items = buildModerationChecklist({
       title: 'Cerveza Clara Modelo Especial 24 Latas',
       image_url: '',
-      offer_url: 'https://www.mercadolibre.com.mx/x',
+      offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1?tag=aventa_test',
       category: 'supermercado',
     });
     const map = Object.fromEntries(items.map((i) => [i.id, i]));
     expect(map.photo.state).toBe('missing');
     expect(map.link.state).toBe('ok');
+    expect(map.affiliate.state).toBe('ok');
     expect(map.category.state).toBe('ok');
     expect(map.category.detail).toContain('Día a día');
     expect(map.title.state).toBe('ok');
     expect(countChecklistBlockers(items)).toBe(1);
   });
 
+  it('marca enlace sin tag de afiliado', () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa_test';
+    const items = buildModerationChecklist({
+      title: 'Producto',
+      image_url: 'https://http2.mlstatic.com/a.jpg',
+      offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1',
+      category: 'hogar',
+    });
+    expect(items.find((i) => i.id === 'affiliate')?.state).toBe('missing');
+    expect(countChecklistBlockers(items)).toBe(1);
+  });
+
   it('acepta foto desde image_urls', () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa_test';
     const items = buildModerationChecklist({
       title: 'Audífonos',
       image_url: null,
       image_urls: ['https://http2.mlstatic.com/a.jpg'],
-      offer_url: 'https://x.com',
+      offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1?tag=aventa_test',
       category: 'tecnologia',
     });
     expect(items.find((i) => i.id === 'photo')?.state).toBe('ok');
@@ -132,10 +147,11 @@ describe('buildModerationChecklist', () => {
   });
 
   it('avisa de título largo sin bloquear', () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa_test';
     const items = buildModerationChecklist({
       title: 'A'.repeat(140),
       image_url: 'https://x/a.jpg',
-      offer_url: 'https://x.com',
+      offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1?tag=aventa_test',
       category: 'hogar',
     });
     expect(items.find((i) => i.id === 'title')?.state).toBe('warn');

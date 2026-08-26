@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
+import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
@@ -24,7 +25,11 @@ import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
-import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
+import {
+  buildModerationChecklist,
+  countChecklistBlockers,
+  type ModerationChecklistItem,
+} from '@/lib/moderation/botFacts';
 import { ALL_CATEGORIES, isVitalCategory, normalizeCategoryForStorage } from '@/lib/categories';
 
 export type MobileModerationOffer = {
@@ -112,6 +117,7 @@ export default function ModerationMobileReview({
   const [showMore, setShowMore] = useState(false);
   const [fixField, setFixField] = useState<FixField | null>(null);
   const [showFix, setShowFix] = useState(false);
+  useBodyScrollLock(showQueue);
 
   const index = Math.max(
     0,
@@ -173,8 +179,10 @@ export default function ModerationMobileReview({
       : `Top / Recientes → ${catLabel}`
     : 'Sin categoría — asígnala antes de aprobar';
 
-  const openFix = (field: FixField | null) => {
-    setFixField(field);
+  const openFix = (field: FixField | ModerationChecklistItem['id'] | null) => {
+    const mapped: FixField | null =
+      field === 'affiliate' ? 'link' : field === null ? null : (field as FixField);
+    setFixField(mapped);
     setShowFix(true);
     setShowMore(false);
   };
@@ -233,24 +241,24 @@ export default function ModerationMobileReview({
               {position}/{total}
             </span>
           </button>
-          <div className="flex items-center gap-1">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={goPrev}
               disabled={index <= 0}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl disabled:opacity-30"
-              aria-label="Anterior"
+              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold disabled:opacity-30 ${ui.border} ${ui.btnGhost}`}
             >
-              <ChevronLeft className={`h-5 w-5 ${ui.soft}`} />
+              <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+              Anterior
             </button>
             <button
               type="button"
               onClick={goNext}
               disabled={index >= total - 1}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl disabled:opacity-30"
-              aria-label="Siguiente"
+              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold disabled:opacity-30 ${ui.border} ${ui.btnGhost}`}
             >
-              <ChevronRight className={`h-5 w-5 ${ui.soft}`} />
+              Siguiente
+              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
             </button>
           </div>
         </div>
@@ -549,17 +557,19 @@ export default function ModerationMobileReview({
       {/* Queue sheet */}
       {showQueue ? (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50"
+          className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/60"
           onClick={() => setShowQueue(false)}
           role="presentation"
         >
           <div
-            className={`max-h-[75vh] overflow-hidden rounded-t-3xl ${ui.modal}`}
+            className={`flex max-h-[80vh] flex-col overflow-hidden rounded-t-3xl ${ui.modal}`}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-label="Cola de ofertas"
           >
-            <div className={`sticky top-0 flex items-center justify-between border-b px-4 py-3 ${ui.hairline}`}>
+            <div
+              className={`flex shrink-0 items-center justify-between border-b px-4 py-3 ${ui.hairline}`}
+            >
               <div>
                 <p className={`text-sm font-semibold ${ui.title}`}>Cola</p>
                 <p className={`text-xs ${ui.muted}`}>{total} en esta vista</p>
@@ -567,13 +577,13 @@ export default function ModerationMobileReview({
               <button
                 type="button"
                 onClick={() => setShowQueue(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full"
                 aria-label="Cerrar"
               >
                 <X className={`h-5 w-5 ${ui.soft}`} />
               </button>
             </div>
-            <ul className="overflow-y-auto px-2 py-2 pb-8">
+            <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {offers.map((o, i) => {
                 const thumb = mergeOfferImageUrls(o.image_url, o.image_urls ?? null)[0];
                 const active = o.id === offer.id;
@@ -630,6 +640,7 @@ export default function ModerationMobileReview({
             id: offer.id,
             title: offer.title,
             image_url: offer.image_url,
+            image_urls: offer.image_urls,
             offer_url: offer.offer_url,
             category: offer.category,
           }}

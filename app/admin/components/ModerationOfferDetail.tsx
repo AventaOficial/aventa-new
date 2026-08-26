@@ -322,7 +322,8 @@ export default function ModerationOfferDetail({
   );
   const blockers = countChecklistBlockers(checklist);
 
-  const handleFix = (id: 'photo' | 'link' | 'category' | 'title') => {
+  const handleFix = (id: 'photo' | 'link' | 'affiliate' | 'category' | 'title') => {
+    const targetId = id === 'affiliate' ? 'link' : id;
     if (id === 'title') {
       setEditTitle(offer.title);
       setEditOfferUrl(offer.offer_url ?? '');
@@ -333,9 +334,9 @@ export default function ModerationOfferDetail({
       return;
     }
     const target =
-      id === 'photo'
+      targetId === 'photo'
         ? botImageInputRef.current
-        : id === 'link'
+        : targetId === 'link'
           ? botUrlInputRef.current
           : botCategoryRef.current;
     target?.focus();

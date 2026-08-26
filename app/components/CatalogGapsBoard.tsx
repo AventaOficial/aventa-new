@@ -9,6 +9,8 @@ type Props = {
   /** `card` para Plaza y la Guía; `compact` para rieles laterales. */
   variant?: 'card' | 'compact';
   title?: string;
+  /** Oculta el botón «Subir una oferta» (p. ej. dentro del modal de subir). */
+  showCta?: boolean;
 };
 
 /**
@@ -18,6 +20,7 @@ type Props = {
 export default function CatalogGapsBoard({
   variant = 'card',
   title = 'Qué falta hoy',
+  showCta = true,
 }: Props) {
   const [gaps, setGaps] = useState<CatalogGap[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,13 +93,15 @@ export default function CatalogGapsBoard({
         </ul>
       )}
 
-      <Link
-        href="/subir"
-        className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2.5 text-[12px] font-semibold text-white hover:bg-violet-500"
-      >
-        <Target className="h-3.5 w-3.5" aria-hidden />
-        Subir una oferta
-      </Link>
+      {showCta ? (
+        <Link
+          href="/subir"
+          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2.5 text-[12px] font-semibold text-white hover:bg-violet-500"
+        >
+          <Target className="h-3.5 w-3.5" aria-hidden />
+          Subir una oferta
+        </Link>
+      ) : null}
     </div>
   );
 }
