@@ -528,7 +528,7 @@ export default function ModerationMobileReview({
               </button>
               <button
                 type="button"
-                disabled={!canApprove}
+                disabled={!canApprove || blockers > 0}
                 onClick={() => onApprove(offer.id, offer.created_by, undefined, hasUrl)}
                 className="inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-[15px] font-bold text-white active:bg-emerald-700 disabled:opacity-40"
               >
@@ -548,6 +548,10 @@ export default function ModerationMobileReview({
             {hasUrl && !linkConfirmed ? (
               <p className={`text-center text-[11px] ${ui.muted}`}>
                 Abre la tienda y confirma el producto para poder aprobar
+              </p>
+            ) : blockers > 0 ? (
+              <p className={`text-center text-[11px] ${ui.muted}`}>
+                Arregla lo pendiente antes de aprobar
               </p>
             ) : null}
           </>

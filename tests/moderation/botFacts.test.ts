@@ -121,7 +121,7 @@ describe('buildModerationChecklist', () => {
     expect(countChecklistBlockers(items)).toBe(1);
   });
 
-  it('marca enlace sin tag de afiliado', () => {
+  it('avisa enlace sin tag de afiliado sin bloquear (se aplica al aprobar)', () => {
     process.env.ML_AFFILIATE_TAG = 'aventa_test';
     const items = buildModerationChecklist({
       title: 'Producto',
@@ -129,8 +129,8 @@ describe('buildModerationChecklist', () => {
       offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1',
       category: 'hogar',
     });
-    expect(items.find((i) => i.id === 'affiliate')?.state).toBe('missing');
-    expect(countChecklistBlockers(items)).toBe(1);
+    expect(items.find((i) => i.id === 'affiliate')?.state).toBe('warn');
+    expect(countChecklistBlockers(items)).toBe(0);
   });
 
   it('acepta foto desde image_urls', () => {

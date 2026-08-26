@@ -296,14 +296,14 @@ export function buildModerationChecklist(offer: ChecklistInput): ModerationCheck
         : !affiliate.isProduct
           ? 'missing'
           : affiliate.needsAffiliate && !affiliate.isTagged
-            ? 'missing'
+            ? 'warn'
             : 'ok',
       detail: !hasLink
         ? 'Primero pega el enlace de la tienda'
         : !affiliate.isProduct
           ? 'No resuelve a un producto — abre y corrige la URL'
           : affiliate.needsAffiliate && !affiliate.isTagged
-            ? 'Falta el tag de afiliado — guarda de nuevo el enlace'
+            ? 'Sin tag aún — al aprobar AVENTA lo aplica sola'
             : affiliate.needsAffiliate
               ? 'Tag Aventa aplicado'
               : 'Listo (tienda sin programa configurado)',

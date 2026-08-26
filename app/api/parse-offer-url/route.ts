@@ -88,7 +88,7 @@ function mergeImages(primary: string | null, extras: string[]): string[] {
     const key = u.split('?')[0];
     if (out.some((x) => x.split('?')[0] === key)) continue;
     out.push(u);
-    if (out.length >= 8) break;
+    if (out.length >= 12) break;
   }
   return out;
 }

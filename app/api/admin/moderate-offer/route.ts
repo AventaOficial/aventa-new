@@ -5,7 +5,7 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
-import { resolveAndNormalizeAffiliateOfferUrl, isPlatformAffiliateTagged, isResolvedProductOfferUrl, storeHasAffiliateProgram } from '@/lib/affiliate'
+import { resolveAndNormalizeAffiliateOfferUrl, isResolvedProductOfferUrl } from '@/lib/affiliate'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
@@ -75,6 +75,8 @@ export async function POST(request: Request) {
         payload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }
       if (rawUrl) {
+        // Al aprobar: resuelve acortadores y aplica tags Aventa. Si ya es producto,
+        // guardamos la URL normalizada (con tag) sin pedirle otro paso al moderador.
         const normalized = await resolveAndNormalizeAffiliateOfferUrl(rawUrl)
         if (!isResolvedProductOfferUrl(normalized) && !batchApprove) {
           return NextResponse.json(
@@ -86,19 +88,6 @@ export async function POST(request: Request) {
           )
         }
         if (isResolvedProductOfferUrl(normalized)) {
-          if (
-            storeHasAffiliateProgram(normalized) &&
-            !isPlatformAffiliateTagged(normalized) &&
-            !batchApprove
-          ) {
-            return NextResponse.json(
-              {
-                error:
-                  'Falta el tag de afiliado Aventa. Guarda de nuevo el enlace de la tienda antes de aprobar.',
-              },
-              { status: 400 }
-            )
-          }
           payload.offer_url = normalized
         } else if (normalized !== rawUrl) {
           payload.offer_url = normalized

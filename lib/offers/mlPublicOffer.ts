@@ -59,10 +59,17 @@ function picturesFrom(
   if (!body?.pictures?.length) return [];
   const out: string[] = [];
   for (const p of body.pictures) {
+    // Preferir tamaño grande (como scrapers tipo PD): -O / 2X antes que thumbnails.
     const direct = httpsUrl(p.secure_url || p.url);
-    if (direct) out.push(direct);
-    else if (p.id) out.push(`https://http2.mlstatic.com/D_NQ_NP_2X_${p.id}-F.webp`);
-    if (out.length >= 8) break;
+    if (direct) {
+      const upsized = direct
+        .replace(/-I\.(jpg|webp|jpeg|png)/i, '-O.$1')
+        .replace(/D_Q_NP_/i, 'D_NQ_NP_2X_');
+      out.push(upsized);
+    } else if (p.id) {
+      out.push(`https://http2.mlstatic.com/D_NQ_NP_2X_${p.id}-F.webp`);
+    }
+    if (out.length >= 12) break;
   }
   return out;
 }
@@ -74,7 +81,7 @@ function mergePictures(...lists: string[][]): string[] {
       const key = u.split('?')[0];
       if (out.some((x) => x.split('?')[0] === key)) continue;
       out.push(u);
-      if (out.length >= 8) return out;
+      if (out.length >= 12) return out;
     }
   }
   return out;

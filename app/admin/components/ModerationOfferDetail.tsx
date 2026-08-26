@@ -750,7 +750,9 @@ export default function ModerationOfferDetail({
               )
             }
             disabled={
-              readOnly || (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
+              readOnly ||
+              blockers > 0 ||
+              (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
             }
             className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           >

@@ -664,20 +664,7 @@ export default function ModerationPendingPanel({
     const offer = pending.find((o) => o.id === id);
     if (!offer) return;
 
-    const listSnapshot = deskList;
-    const idx = listSnapshot.findIndex((o) => o.id === id);
-    const nextSelectedId =
-      listSnapshot[idx + 1]?.id ?? listSnapshot[idx - 1]?.id ?? null;
-
     setActionError(null);
-    setPending((prev) => prev.filter((o) => o.id !== id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    setSelectedId(nextSelectedId);
-    setMobileShowDetail(Boolean(nextSelectedId));
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
@@ -703,6 +690,20 @@ export default function ModerationPendingPanel({
         throw new Error(typeof err?.error === 'string' ? err.error : 'No se pudo actualizar la oferta');
       }
 
+      const listSnapshot = deskList;
+      const idx = listSnapshot.findIndex((o) => o.id === id);
+      const nextSelectedId =
+        listSnapshot[idx + 1]?.id ?? listSnapshot[idx - 1]?.id ?? null;
+
+      setPending((prev) => prev.filter((o) => o.id !== id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setSelectedId(nextSelectedId);
+      setMobileShowDetail(Boolean(nextSelectedId));
+
       const repHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) repHeaders.Authorization = `Bearer ${session.access_token}`;
       if (status === 'approved' && createdBy) {
@@ -721,9 +722,6 @@ export default function ModerationPendingPanel({
 
       void refreshList(true);
     } catch (e) {
-      setPending((prev) => sortPendingOffersForModeration([...prev, offer]));
-      setSelectedId(id);
-      setMobileShowDetail(true);
       setActionError(e instanceof Error ? e.message : 'No se pudo actualizar la oferta');
     }
   };

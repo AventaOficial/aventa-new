@@ -279,7 +279,17 @@ export default function ActionBar() {
         }
         if (parsedImages.length > 0 && !cancelled) {
           setImageUrl((cover) => cover || parsedImages[0] || null);
-          setImageUrls((extras) => (extras.length > 0 ? extras : parsedImages.slice(1).slice(0, 7)));
+          setImageUrls((extras) => {
+            const incoming = parsedImages.slice(0, 12);
+            if (extras.length === 0) return incoming.slice(1);
+            if (incoming.length > extras.length + 1) return incoming.slice(1);
+            const merged = [...extras];
+            for (const u of incoming.slice(1)) {
+              if (merged.length >= 11) break;
+              if (!merged.includes(u) && u !== parsedImages[0]) merged.push(u);
+            }
+            return merged;
+          });
         }
         const bits: string[] = [];
         if (data.title) bits.push('título');

@@ -1,6 +1,6 @@
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 
-const MAX_IMAGES = 8;
+const MAX_IMAGES = 12;
 
 export function getMetaContent(html: string, selector: string): string | null {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -308,6 +308,30 @@ export function extractOfferImages(html: string, base: string): string[] {
     while ((hm = srcRe.exec(altBlock)) !== null) {
       if (/_AC_US\d{1,2}_|_SS\d{1,2}_/i.test(hm[1])) continue;
       pushUnique(images, absoluteUrl(base, hm[1]));
+    }
+  }
+
+  // Galería Amazon (mismo JSON que usan scrapers tipo PromoDescuentos)
+  const colorImagesBlocks = [
+    html.match(/["']colorImages["']\s*:\s*(\{[\s\S]*?\})\s*,\s*["']colorToAsin["']/i)?.[1],
+    html.match(/["']colorImages["']\s*:\s*(\{[\s\S]{0,120000}?\})\s*[,}]/i)?.[1],
+  ].filter(Boolean) as string[];
+  for (const block of colorImagesBlocks) {
+    const hi = /["'](?:hiRes|large|mainUrl|thumb)["']\s*:\s*["'](https?:[^"']+)["']/gi;
+    let cm: RegExpExecArray | null;
+    while ((cm = hi.exec(block)) !== null) {
+      const u = unescapeJsonUrl(cm[1]);
+      if (/sprite|grey-pixel|1x1|_US\d{1,2}_|_SS\d{1,2}_/i.test(u)) continue;
+      pushUnique(images, absoluteUrl(base, u));
+    }
+  }
+
+  const imageGalleryRe = /["']imageGalleryData["']\s*:\s*(\[[\s\S]{0,80000}?\])/i;
+  const galleryRaw = html.match(imageGalleryRe)?.[1];
+  if (galleryRaw) {
+    const mainRe = /["']mainUrl["']\s*:\s*["'](https?:[^"']+)["']/gi;
+    while ((hm = mainRe.exec(galleryRaw)) !== null) {
+      pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
     }
   }
 

@@ -133,20 +133,18 @@ body {
  * el navegador descarga solo la variante que corresponde.
  */
 .hero-art {
-  background-image: url('/brand/aventa-hero.png');
+  background-image: url('/brand/aventa-hero.png?v=20260826');
   background-repeat: no-repeat;
   background-position: bottom center;
   background-size: contain;
   filter: drop-shadow(0 18px 22px rgba(20, 16, 28, 0.12));
 }
 
-/* En oscuro la bolsa blanca ya contrasta de sobra; lo que falta es separarla del
-   fondo. Una sombra negra sobre negro no se ve, así que va un halo violeta
-   detrás de la ilustración (segunda capa = se pinta debajo de la primera). */
+/* Variante oscura: PNG propio + halo violeta (el claro deja orilla blanca). */
 .dark .hero-art {
   background-image:
-    url('/brand/aventa-hero.png'),
-    radial-gradient(ellipse 64% 50% at 50% 64%, rgba(139, 92, 246, 0.2), transparent 72%);
+    url('/brand/aventa-hero-dark.png?v=20260826'),
+    radial-gradient(ellipse 70% 55% at 50% 68%, rgba(139, 92, 246, 0.32), transparent 74%);
   background-position:
     bottom center,
     center;
