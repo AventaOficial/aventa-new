@@ -13,4 +13,13 @@ describe('inferOfferCategory', () => {
   it('infiere hogar por título de espejo', () => {
     expect(inferOfferCategory({ title: 'Espejos Led Touch Espejo Pared Tocador' })).toBe('hogar');
   });
+
+  it('infiere supermercado para croquetas de gato', () => {
+    expect(
+      inferOfferCategory({
+        title: 'Croquetas para gato adulto 15kg',
+        mlPathNames: ['Hogar, Muebles y Jardín', 'Mascotas', 'Alimentos'],
+      }),
+    ).toBe('supermercado');
+  });
 });

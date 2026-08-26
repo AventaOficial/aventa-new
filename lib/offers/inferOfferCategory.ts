@@ -82,7 +82,24 @@ const KEYWORD_MAP: Array<{ id: CategoryId; words: string[] }> = [
   },
   {
     id: 'supermercado',
-    words: ['cafe', 'café', 'aceite', 'arroz', 'leche', 'cereal', 'snack', 'supermercado', 'despensa'],
+    words: [
+      'cafe',
+      'café',
+      'aceite',
+      'arroz',
+      'leche',
+      'cereal',
+      'snack',
+      'supermercado',
+      'despensa',
+      'croquetas',
+      'croqueta',
+      'alimento para gato',
+      'alimento para perro',
+      'alimento mascota',
+      'mascota',
+      'mascotas',
+    ],
   },
   {
     id: 'viajes',
@@ -267,6 +284,7 @@ export function inferOfferCategory(input: {
   if (/consola|videojuego|gaming/.test(path)) return 'gaming';
   if (/electr[oó]nica|computaci[oó]n|celulares|televisores/.test(path)) return 'tecnologia';
   if (/beb[eé]|infantil|pañal|juguetes/.test(path)) return 'bebes';
+  if (/mascota|mascotas|animales|perro|perros|gato|gatos/.test(path)) return 'supermercado';
   if (/jard[ií]n|herramient|bricolaje|plantas/.test(path)) return 'jardin';
   if (/auto|motocicleta|refaccion|llanta/.test(path)) return 'autos';
   if (/deporte|fitness|outdoor/.test(path)) return 'deportes';

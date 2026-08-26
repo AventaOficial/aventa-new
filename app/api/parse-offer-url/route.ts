@@ -260,7 +260,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (isMercadoLibre && html && ml?.source !== 'ml_api') {
+    if (isMercadoLibre && html && (suggestedDiscount == null || suggestedOriginal == null)) {
       const structured = extractMercadoLibreStructuredPrices(html);
       if (suggestedDiscount == null) {
         suggestedDiscount =

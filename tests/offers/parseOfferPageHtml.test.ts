@@ -106,6 +106,16 @@ describe('parseOfferPageHtml', () => {
     expect(p.original).toBe(800);
   });
 
+  it('extractMercadoLibreStructuredPrices lee precio embebido MXN en JSON', () => {
+    const html = `
+      <script>window.__PRELOADED_STATE__={"price":429,"currency_id":"MXN","original_price":599}</script>
+      <span class="andes-money-amount__fraction">999</span>
+    `;
+    const p = extractMercadoLibreStructuredPrices(html);
+    expect(p.discount).toBe(429);
+    expect(p.original).toBe(599);
+  });
+
   it('strip tracking conserva wid / item_id / pdp_filters', () => {
     const raw =
       'https://www.mercadolibre.com.mx/x/p/MLM1?wid=MLM2&utm_source=a&matt_tool=1&tag=aventa&pdp_filters=item_id:MLM3';

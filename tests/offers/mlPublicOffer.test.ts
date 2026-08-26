@@ -17,6 +17,9 @@ describe('fetchMercadoLibrePublicOffer', () => {
 
   it('marca source ml_api cuando la API autenticada responde', async () => {
     fetchMlApiMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/items/') && path.endsWith('/prices')) {
+        return { ok: false, status: 404, authenticated: true };
+      }
       if (path.startsWith('/items/')) {
         return {
           ok: true,
@@ -63,6 +66,9 @@ describe('fetchMercadoLibrePublicOffer', () => {
 
   it('no inventa original_price cuando falta en API', async () => {
     fetchMlApiMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/items/') && path.endsWith('/prices')) {
+        return { ok: false, status: 404, authenticated: true };
+      }
       if (path.startsWith('/items/')) {
         return {
           ok: true,
@@ -85,5 +91,56 @@ describe('fetchMercadoLibrePublicOffer', () => {
 
     expect(result?.price).toBe(500);
     expect(result?.originalPrice).toBeNull();
+  });
+
+  it('usa /items/{id}/prices cuando el item no trae price', async () => {
+    fetchMlApiMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/items/') && path.endsWith('/prices')) {
+        return {
+          ok: true,
+          authenticated: true,
+          status: 200,
+          data: {
+            prices: [
+              { type: 'promotion', amount: 397, regular_amount: 800 },
+              { type: 'standard', amount: 800 },
+            ],
+          },
+        };
+      }
+      if (path.startsWith('/items/')) {
+        return {
+          ok: true,
+          authenticated: true,
+          status: 200,
+          data: {
+            title: 'Croquetas Gato',
+            category_id: 'MLM1574',
+            pictures: [{ secure_url: 'https://http2.mlstatic.com/D_NQ_NP_2X_444-I.webp' }],
+          },
+        };
+      }
+      if (path.startsWith('/products/')) {
+        return { ok: false, status: 404, authenticated: true };
+      }
+      if (path.startsWith('/categories/')) {
+        return {
+          ok: true,
+          authenticated: true,
+          status: 200,
+          data: { path_from_root: [{ name: 'Mascotas' }, { name: 'Alimentos' }] },
+        };
+      }
+      return { ok: false, status: 404, authenticated: true };
+    });
+
+    const { fetchMercadoLibrePublicOffer } = await import('@/lib/offers/mlPublicOffer');
+    const result = await fetchMercadoLibrePublicOffer(
+      'https://articulo.mercadolibre.com.mx/MLM-8888888888-test',
+    );
+
+    expect(result?.source).toBe('ml_api');
+    expect(result?.price).toBe(397);
+    expect(result?.originalPrice).toBe(800);
   });
 });

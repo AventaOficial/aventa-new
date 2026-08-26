@@ -225,7 +225,10 @@ export function extractMercadoLibreStructuredPrices(html: string): ExtractedPric
     discount =
       parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount')) ||
       parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
-      parsePositiveLocalizedNumber(html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1]);
+      parsePositiveLocalizedNumber(html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1]) ||
+      parsePositiveLocalizedNumber(
+        html.match(/"price"\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*"currency_id"\s*:\s*"MXN"/i)?.[1],
+      );
   }
 
   if (original == null) {
@@ -233,7 +236,8 @@ export function extractMercadoLibreStructuredPrices(html: string): ExtractedPric
       extractJsonLikeNumber(html, 'original_price') ||
       extractJsonLikeNumber(html, 'priceBefore') ||
       parsePositiveLocalizedNumber(html.match(/["']basisPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]) ||
-      parsePositiveLocalizedNumber(html.match(/["']listPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]);
+      parsePositiveLocalizedNumber(html.match(/["']listPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]) ||
+      parsePositiveLocalizedNumber(html.match(/"original_price"\s*:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1]);
   }
 
   if (original != null && discount != null && original < discount) {

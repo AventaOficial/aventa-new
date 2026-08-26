@@ -32,6 +32,35 @@ type MlProductBody = {
   buy_box_winner?: { price?: number; original_price?: number; item_id?: string };
 };
 
+type MlPriceRow = {
+  type?: string;
+  amount?: number;
+  regular_amount?: number | null;
+};
+
+function finitePrice(n: unknown): number | null {
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+async function fetchItemPrices(
+  itemId: string,
+): Promise<{ price: number | null; originalPrice: number | null; authenticated: boolean }> {
+  const result = await fetchMlApi(`/items/${encodeURIComponent(itemId)}/prices`);
+  if (!result.ok || !result.data) {
+    return { price: null, originalPrice: null, authenticated: result.authenticated };
+  }
+  const body = result.data as { prices?: MlPriceRow[] };
+  const rows = body.prices ?? [];
+  const promo = rows.find((p) => (p.type ?? '').toLowerCase() === 'promotion');
+  const standard = rows.find((p) => (p.type ?? '').toLowerCase() === 'standard');
+  const price = finitePrice(promo?.amount) ?? finitePrice(standard?.amount);
+  const originalPrice =
+    finitePrice(promo?.regular_amount) ??
+    (price != null && finitePrice(standard?.amount) !== price ? finitePrice(standard?.amount) : null);
+  return { price, originalPrice, authenticated: result.authenticated };
+}
+
 async function fetchJson(path: string): Promise<{ data: unknown | null; authenticated: boolean }> {
   const result = await fetchMlApi(path);
   if (!result.ok) return { data: null, authenticated: result.authenticated };
@@ -105,6 +134,7 @@ export async function fetchMercadoLibrePublicOffer(
   let originalPrice: number | null = null;
   let pictures: string[] = [];
   let categoryId: string | null = null;
+  let priceItemId: string | null = isUsableItem(item) ? id : null;
 
   if (isUsableItem(item)) {
     title = typeof item.title === 'string' ? item.title : null;
@@ -134,6 +164,7 @@ export async function fetchMercadoLibrePublicOffer(
       if (winnerFetch.authenticated) usedAuthenticatedApi = true;
       const winner = winnerFetch.data as MlItemBody | null;
       if (isUsableItem(winner)) {
+        priceItemId = winnerId;
         title = title || (typeof winner.title === 'string' ? winner.title : null);
         if (typeof winner.price === 'number' && winner.price > 0) price = price ?? winner.price;
         if (typeof winner.original_price === 'number' && winner.original_price > 0) {
@@ -142,7 +173,16 @@ export async function fetchMercadoLibrePublicOffer(
         categoryId = categoryId || (typeof winner.category_id === 'string' ? winner.category_id : null);
         pictures = mergePictures(pictures, picturesFrom(winner));
       }
+    } else if (product.buy_box_winner?.item_id) {
+      priceItemId = product.buy_box_winner.item_id;
     }
+  }
+
+  if (priceItemId) {
+    const quote = await fetchItemPrices(priceItemId);
+    if (quote.authenticated) usedAuthenticatedApi = true;
+    if (quote.price != null) price = quote.price;
+    if (quote.originalPrice != null) originalPrice = quote.originalPrice;
   }
 
   const pathNames: string[] = [];
