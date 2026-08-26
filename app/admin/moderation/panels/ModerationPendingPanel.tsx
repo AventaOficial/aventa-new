@@ -802,22 +802,6 @@ export default function ModerationPendingPanel({
 
   return (
     <div className="space-y-4">
-      {actionError ? (
-        <div
-          className={`${ui.card} border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-200`}
-          role="alert"
-        >
-          {actionError}
-          <button
-            type="button"
-            className="ml-3 font-medium underline"
-            onClick={() => setActionError(null)}
-          >
-            Cerrar
-          </button>
-        </div>
-      ) : null}
-
       {/* —— Móvil: una tarjeta + acciones al pulgar —— */}
       <div className="md:hidden">
         <ModerationMobileReview
@@ -829,6 +813,8 @@ export default function ModerationPendingPanel({
           currentUserId={session?.user?.id ?? null}
           linkConfirmed={linkConfirmed}
           onLinkConfirmedChange={setLinkConfirmed}
+          actionError={actionError}
+          onClearActionError={() => setActionError(null)}
           onSelect={(id) => {
             setSelectedId(id);
             setMobileShowDetail(true);
@@ -1194,6 +1180,8 @@ export default function ModerationPendingPanel({
                   currentUserId={session?.user?.id ?? null}
                   linkConfirmed={linkConfirmed}
                   onLinkConfirmedChange={setLinkConfirmed}
+                  actionError={actionError}
+                  onClearActionError={() => setActionError(null)}
                   requestReject={requestReject}
                   onRequestRejectHandled={() => setRequestReject(false)}
                   onSnooze={(minutes) => void runSnooze(selectedOffer.id, minutes)}

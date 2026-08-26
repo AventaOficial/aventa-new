@@ -78,6 +78,9 @@ type Props = {
   onSnooze?: (minutes: 15 | 60 | 240) => void;
   onOfferUpdated?: () => void;
   loading?: boolean;
+  /** Error de Aprobar/Rechazar: se muestra junto a los botones (pulgar), no arriba. */
+  actionError?: string | null;
+  onClearActionError?: () => void;
 };
 
 function discountPct(offer: MobileModerationOffer): number {
@@ -108,6 +111,8 @@ export default function ModerationMobileReview({
   onSnooze,
   onOfferUpdated,
   loading = false,
+  actionError = null,
+  onClearActionError,
 }: Props) {
   const ui = moderationUi(mode);
   const [showQueue, setShowQueue] = useState(false);
@@ -516,6 +521,23 @@ export default function ModerationMobileReview({
               </button>
             ) : null}
 
+            {actionError ? (
+              <div
+                className="rounded-2xl border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-[13px] text-red-800 dark:text-red-200"
+                role="alert"
+              >
+                {actionError}
+                {onClearActionError ? (
+                  <button
+                    type="button"
+                    className="ml-2 font-semibold underline"
+                    onClick={onClearActionError}
+                  >
+                    Cerrar
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
               <button
                 type="button"

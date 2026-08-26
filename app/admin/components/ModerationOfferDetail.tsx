@@ -101,6 +101,9 @@ type Props = {
   onSnooze?: (minutes: 15 | 60 | 240) => void;
   requestReject?: boolean;
   onRequestRejectHandled?: () => void;
+  /** Error de Aprobar/Rechazar junto a la barra de acciones. */
+  actionError?: string | null;
+  onClearActionError?: () => void;
 };
 
 function storeOpenLabel(store: string | null): string {
@@ -125,6 +128,8 @@ export default function ModerationOfferDetail({
   onSnooze,
   requestReject = false,
   onRequestRejectHandled,
+  actionError = null,
+  onClearActionError,
 }: Props) {
   const ui = moderationUi(mode);
   const { session } = useAuth();
@@ -737,6 +742,23 @@ export default function ModerationOfferDetail({
               </span>
             </span>
           </label>
+        ) : null}
+        {actionError ? (
+          <div
+            className="rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:text-red-200"
+            role="alert"
+          >
+            {actionError}
+            {onClearActionError ? (
+              <button
+                type="button"
+                className="ml-2 font-medium underline"
+                onClick={onClearActionError}
+              >
+                Cerrar
+              </button>
+            ) : null}
+          </div>
         ) : null}
         <div className="grid grid-cols-2 gap-2">
           <button

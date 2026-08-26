@@ -75,10 +75,12 @@ export async function POST(request: Request) {
         payload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }
       if (rawUrl) {
-        // Al aprobar: resuelve acortadores y aplica tags Aventa. Si ya es producto,
-        // guardamos la URL normalizada (con tag) sin pedirle otro paso al moderador.
+        // Al aprobar: intenta expandir acortadores y aplicar tags. Si ML/Amazon
+        // bloquean el fetch (p. ej. 403 desde Vercel) y el moderador ya confirmó
+        // el producto (link_mod_ok), no bloqueamos: guardamos lo mejor que haya.
         const normalized = await resolveAndNormalizeAffiliateOfferUrl(rawUrl)
-        if (!isResolvedProductOfferUrl(normalized) && !batchApprove) {
+        const isProduct = isResolvedProductOfferUrl(normalized)
+        if (!isProduct && !batchApprove && body?.link_mod_ok !== true) {
           return NextResponse.json(
             {
               error:
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
             { status: 400 }
           )
         }
-        if (isResolvedProductOfferUrl(normalized)) {
+        if (isProduct) {
           payload.offer_url = normalized
         } else if (normalized !== rawUrl) {
           payload.offer_url = normalized
