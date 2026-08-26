@@ -22,11 +22,11 @@ export function moderationUi(mode: ModerationHubMode = 'admin') {
       ? 'text-gray-600 hover:bg-black/[0.04] hover:text-gray-900 dark:text-white/45 dark:hover:bg-white/[0.04] dark:hover:text-white/70'
       : 'text-white/45 hover:bg-white/[0.04] hover:text-white/70',
     chipActive: ws
-      ? 'bg-emerald-600 text-white dark:bg-white/[0.08] dark:text-white'
-      : 'bg-white/[0.08] text-white',
+      ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white'
+      : 'bg-violet-500 text-white',
     rowHover: ws ? 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03]' : 'hover:bg-white/[0.03]',
     rowActive: ws
-      ? 'border-emerald-400/50 bg-emerald-50 dark:border-violet-400/40 dark:bg-violet-500/10'
+      ? 'border-emerald-400/50 bg-emerald-50 dark:border-emerald-400/40 dark:bg-emerald-500/10'
       : 'border-violet-400/40 bg-violet-500/10',
     thumbBg: ws ? 'bg-gray-100 dark:bg-white/[0.06]' : 'bg-white/[0.06]',
     input: ws

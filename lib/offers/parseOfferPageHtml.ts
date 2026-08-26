@@ -64,25 +64,45 @@ export function absoluteUrl(base: string, path: string | null): string | null {
   }
 }
 
+/**
+ * Parsea importes de ficha (MX / US / EU) sin inventar.
+ * - "1.299" / "1.299.000" → miles → 1299 / 1299000
+ * - "1.29" → decimal → 1.29
+ * - "1,299.00" → 1299
+ * - "1.299,00" → 1299
+ */
 export function parsePositiveLocalizedNumber(raw: string | null | undefined): number | null {
   if (!raw || !String(raw).trim()) return null;
   const clean = String(raw).replace(/[^\d,.-]/g, '').trim();
-  if (!clean) return null;
+  if (!clean || clean === '.' || clean === ',') return null;
   const hasComma = clean.includes(',');
   const hasDot = clean.includes('.');
   let normalized = clean;
   if (hasComma && hasDot) {
     if (clean.lastIndexOf('.') > clean.lastIndexOf(',')) {
+      // 1,299.00 (US / MX con coma de miles)
       normalized = clean.replace(/,/g, '');
     } else {
+      // 1.299,00 (EU / MX con punto de miles)
       normalized = clean.replace(/\./g, '').replace(',', '.');
     }
   } else if (hasComma && !hasDot) {
     const parts = clean.split(',');
     if (parts.length === 2 && parts[1].length <= 2) {
-      normalized = `${parts[0].replace(/,/g, '')}.${parts[1]}`;
+      normalized = `${parts[0]}.${parts[1]}`;
     } else {
       normalized = clean.replace(/,/g, '');
+    }
+  } else if (hasDot && !hasComma) {
+    const parts = clean.split('.');
+    if (parts.length === 2 && parts[1].length <= 2) {
+      // 1.29 → decimal
+      normalized = clean;
+    } else if (parts.length >= 2 && parts.slice(1).every((p) => p.length === 3)) {
+      // 1.299 o 1.299.000 → miles (MX)
+      normalized = clean.replace(/\./g, '');
+    } else {
+      normalized = clean;
     }
   }
   const n = Number(normalized);
@@ -174,7 +194,39 @@ function walkLd(node: unknown, visit: (o: Record<string, unknown>, typeStr: stri
   if (o.offers) walkLd(o.offers, visit);
 }
 
+/** Páginas Amazon: priorizar corePrice / ASIN y no tomar umbrales de envío del JSON genérico. */
+function looksLikeAmazonProductHtml(html: string): boolean {
+  return /id=["']productTitle["']|id=["']corePrice|data-asin-price=|m\.media-amazon\.com|ssl-images-amazon/i.test(
+    html,
+  );
+}
+
 export function extractSuggestedPrices(html: string): ExtractedPrices {
+  const amazonDom = extractAmazonDomPrices(html);
+  if (looksLikeAmazonProductHtml(html)) {
+    let discount = amazonDom.discount;
+    let original = amazonDom.original;
+    // Solo refuerzo estructurado Product→Offer (no AggregateOffer / umbrales sueltos).
+    if (discount == null) {
+      for (const parsed of collectLdJson(html)) {
+        walkLd(parsed, (o, typeStr) => {
+          if (typeStr.includes('AggregateOffer')) return;
+          if (!typeStr.includes('Offer') && !typeStr.includes('Product')) return;
+          const p = o.price;
+          if (typeof p === 'number' && p > 0) discount = discount ?? p;
+          else if (typeof p === 'string') discount = discount ?? parsePositiveLocalizedNumber(p);
+        });
+      }
+    }
+    if (original != null && discount != null && original < discount) {
+      const tmp = original;
+      original = discount;
+      discount = tmp;
+    }
+    // Sin fuente confiable → null (el usuario completa a mano). Nunca inventar.
+    return { discount, original };
+  }
+
   let discount: number | null = null;
   let original: number | null = parsePositiveNumber(getMetaContent(html, 'product:original_price:amount'));
 
@@ -196,7 +248,6 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
   if (discount == null) {
     discount = parsePositiveLocalizedNumber(html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1]);
   }
-  const amazonDom = extractAmazonDomPrices(html);
   if (amazonDom.discount) discount = amazonDom.discount;
   if (amazonDom.original) original = amazonDom.original || original;
   if (original == null) {
@@ -211,7 +262,7 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
   if (mlDom.discount) discount = mlDom.discount;
   if (mlDom.original) original = mlDom.original;
 
-  if (discount == null && /productTitle|andes-money-amount|ld\+json/i.test(html)) {
+  if (discount == null && /andes-money-amount|ld\+json/i.test(html)) {
     discount =
       parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount')) ||
       parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount'));
@@ -222,7 +273,29 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
     original = discount;
     discount = tmp;
   }
+  // Nunca copiar discount → original.
+  if (original != null && discount != null && original === discount) {
+    original = null;
+  }
   return { discount, original };
+}
+
+/** Quita tracking conocido sin tocar params funcionales de producto (wid, item_id, pdp_filters…). */
+export function stripOfferTrackingParams(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl.trim());
+    const dropExact = new Set(['tag', 'ref', 'ref_', 'ascsubtag', 'linkcode', 'camp', 'creative', 'creativeasin', 'adid']);
+    const keys = [...u.searchParams.keys()];
+    for (const key of keys) {
+      const k = key.toLowerCase();
+      if (k.startsWith('utm_') || k.startsWith('matt_') || dropExact.has(k)) {
+        u.searchParams.delete(key);
+      }
+    }
+    return u.toString();
+  } catch {
+    return rawUrl;
+  }
 }
 
 function pushUnique(list: string[], url: string | null) {

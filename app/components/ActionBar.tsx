@@ -117,6 +117,10 @@ export default function ActionBar() {
   const offerScopeManuallySelectedRef = useRef(false);
   const [showCouponSection, setShowCouponSection] = useState(false);
   const imageGalleryRef = useRef<{ cover: string | null; extras: string[] }>({ cover: null, extras: [] });
+  /** Campos editados a mano; el parse no los sobrescribe. */
+  const userEditedFieldsRef = useRef<Set<string>>(new Set());
+  /** true si el usuario tocó la galería (subir / quitar / portada). */
+  const imagesUserEditedRef = useRef(false);
 
   useEffect(() => {
     imageGalleryRef.current = { cover: imageUrl, extras: imageUrls };
@@ -217,10 +221,13 @@ export default function ActionBar() {
   }, [cooldownRemaining]);
 
   const handleInputChange = (field: string, value: string) => {
+    if (field !== 'offer_url') {
+      userEditedFieldsRef.current.add(field);
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Parse offer URL for OG metadata and auto-fill title, store, image (no override of existing fields)
+  // Parse URL → rellena campos AUTO. No pisa lo marcado como editado por el usuario.
   useEffect(() => {
     const url = formData.offer_url.trim();
     if (!url || !url.startsWith('http')) return;
@@ -263,36 +270,56 @@ export default function ActionBar() {
           setUrlParseStatus('Este enlace no es válido. Revisa que sea una URL de tienda (https://…).');
           return;
         }
+        const edited = userEditedFieldsRef.current;
+        const disc =
+          typeof data.suggested_discount_price === 'number' && data.suggested_discount_price > 0
+            ? String(data.suggested_discount_price)
+            : null;
+        const orig =
+          typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
+            ? String(data.suggested_original_price)
+            : null;
         setFormData((prev) => {
           if (prev.offer_url.trim() !== url) return prev;
-          const next = {
-            ...prev,
-            ...(data.title && { title: prev.title.trim() ? prev.title : data.title }),
-            ...(data.store && { store: prev.store.trim() ? prev.store : data.store }),
-            ...(typeof data.suggested_category === 'string' &&
-              data.suggested_category &&
-              !prev.category.trim() && { category: data.suggested_category }),
-          };
-          const disc =
-            typeof data.suggested_discount_price === 'number' && data.suggested_discount_price > 0
-              ? String(data.suggested_discount_price)
-              : null;
-          const orig =
-            typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
-              ? String(data.suggested_original_price)
-              : null;
-          if (disc && !prev.discountPrice.trim()) next.discountPrice = disc;
-          if (orig && !prev.originalPrice.trim()) next.originalPrice = orig;
-          else if (disc && !prev.originalPrice.trim() && !orig) next.originalPrice = disc;
+          const next = { ...prev };
+          if (!edited.has('title')) {
+            next.title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '';
+          }
+          if (!edited.has('store')) {
+            next.store = typeof data.store === 'string' && data.store.trim() ? data.store.trim() : '';
+          }
+          if (!edited.has('category')) {
+            next.category =
+              typeof data.suggested_category === 'string' && data.suggested_category.trim()
+                ? data.suggested_category.trim()
+                : '';
+          }
+          // Precio actual / anterior: actualizar auto; NUNCA inventar original = discount.
+          if (!edited.has('discountPrice') && !edited.has('originalPrice')) {
+            if (disc && orig) {
+              next.discountPrice = disc;
+              next.originalPrice = orig;
+            } else if (disc && !orig) {
+              // Un solo precio → campo único del form (sin “antes”).
+              next.originalPrice = disc;
+              next.discountPrice = '';
+            } else if (!disc && orig) {
+              next.originalPrice = orig;
+              next.discountPrice = '';
+            } else {
+              next.discountPrice = '';
+              next.originalPrice = '';
+            }
+          } else {
+            if (!edited.has('discountPrice')) next.discountPrice = disc ?? '';
+            if (!edited.has('originalPrice')) next.originalPrice = orig ?? '';
+          }
           return next;
         });
-        if (
-          typeof data.suggested_discount_price === 'number' &&
-          data.suggested_discount_price > 0 &&
-          typeof data.suggested_original_price === 'number' &&
-          data.suggested_original_price > data.suggested_discount_price
-        ) {
+        if (disc && orig && Number(orig) > Number(disc)) {
           setHasDiscount(true);
+        } else if (!edited.has('originalPrice') && !edited.has('discountPrice')) {
+          setHasDiscount(Boolean(disc && orig && Number(orig) > Number(disc)));
         }
         const parsedImages = Array.isArray(data.images)
           ? (data.images as unknown[]).filter((u): u is string => typeof u === 'string' && u.startsWith('http'))
@@ -300,13 +327,11 @@ export default function ActionBar() {
         if (data.image && typeof data.image === 'string' && !parsedImages.includes(data.image)) {
           parsedImages.unshift(data.image);
         }
-        if (!cancelled) {
-          const { cover, extras } = imageGalleryRef.current;
-          const preferred = cover || (typeof data.image === 'string' ? data.image : parsedImages[0] || null);
-          const gallery = selectOfferImages([cover, ...extras, ...parsedImages].filter((u): u is string => Boolean(u)), {
-            preferredCover: preferred,
-          });
-          setImageUrl(gallery[0] ?? cover);
+        if (!cancelled && !imagesUserEditedRef.current) {
+          // URL nueva → galería de esta URL (sin residuales de la anterior).
+          const preferred = typeof data.image === 'string' ? data.image : parsedImages[0] || null;
+          const gallery = selectOfferImages(parsedImages, { preferredCover: preferred });
+          setImageUrl(gallery[0] ?? null);
           setImageUrls(gallery.slice(1));
         }
         const bits: string[] = [];
@@ -317,7 +342,9 @@ export default function ActionBar() {
         if (data.reason === 'extract_failed' || bits.length === 0) {
           setUrlParseKind('extract_failed');
           setUrlParseStatus(
-            'No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.',
+            typeof data.error === 'string' && data.error.trim()
+              ? data.error
+              : 'No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.',
           );
         } else {
           setUrlParseKind('ok');
@@ -397,6 +424,7 @@ export default function ActionBar() {
       }
       setImageUrl(cover);
       setImageUrls(extras);
+      imagesUserEditedRef.current = true;
     } catch {
       showToast('Error al subir');
     } finally {
@@ -418,6 +446,7 @@ export default function ActionBar() {
     const all = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u));
     if (index < 0 || index >= all.length) return;
     const next = all.filter((_, i) => i !== index);
+    imagesUserEditedRef.current = true;
     setImageUrl(next[0] ?? null);
     setImageUrls(next.slice(1));
   };
@@ -427,6 +456,7 @@ export default function ActionBar() {
     if (index < 0 || index >= all.length) return;
     const cover = all[index];
     const rest = all.filter((_, i) => i !== index);
+    imagesUserEditedRef.current = true;
     setImageUrl(cover);
     setImageUrls(rest);
   };
@@ -455,6 +485,8 @@ export default function ActionBar() {
     setMsiMonths(null);
     setOfferScope(null);
     offerScopeManuallySelectedRef.current = false;
+    userEditedFieldsRef.current = new Set();
+    imagesUserEditedRef.current = false;
     setHasDiscount(true);
     setMobileTab('form');
     setUploadLinkGatePassed(false);

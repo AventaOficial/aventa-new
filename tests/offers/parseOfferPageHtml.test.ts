@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractOfferImages, extractSuggestedPrices, parsePositiveLocalizedNumber } from '../../lib/offers/parseOfferPageHtml';
+import {
+  extractOfferImages,
+  extractSuggestedPrices,
+  parsePositiveLocalizedNumber,
+  stripOfferTrackingParams,
+} from '../../lib/offers/parseOfferPageHtml';
 
 describe('parseOfferPageHtml', () => {
   it('lee data-old-hires y varias imágenes I/ de Amazon', () => {
@@ -47,5 +52,57 @@ describe('parseOfferPageHtml', () => {
     `;
     const p = extractSuggestedPrices(html);
     expect(p.discount).toBe(1299);
+  });
+
+  it('en página Amazon sin corePrice no inventa precio desde umbral 749', () => {
+    const html = `
+      <span id="productTitle">Algo</span>
+      <img src="https://m.media-amazon.com/images/I/71X.jpg" />
+      <p>Envío GRATIS en pedidos mayores a $749</p>
+      {"price":749}
+    `;
+    const p = extractSuggestedPrices(html);
+    expect(p.discount).toBeNull();
+    expect(p.original).toBeNull();
+  });
+
+  it('parsea locale MX / US / EU', () => {
+    expect(parsePositiveLocalizedNumber('1.299')).toBe(1299);
+    expect(parsePositiveLocalizedNumber('1.29')).toBeCloseTo(1.29);
+    expect(parsePositiveLocalizedNumber('1,299.00')).toBe(1299);
+    expect(parsePositiveLocalizedNumber('$1,299 MXN')).toBe(1299);
+    expect(parsePositiveLocalizedNumber('1.299,00')).toBe(1299);
+  });
+
+  it('ML fraction con miles MX', () => {
+    const html = `
+      <span class="andes-money-amount__fraction">1.299</span>
+      <span class="andes-money-amount andes-money-amount--previous">
+        <span class="andes-money-amount__fraction">1.599</span>
+      </span>
+    `;
+    const p = extractSuggestedPrices(html);
+    expect(p.discount).toBe(1299);
+    expect(p.original).toBe(1599);
+  });
+
+  it('nunca iguala original al precio actual', () => {
+    const html = `{"price":500,"currency_id":"MXN","original_price":500}
+      <span class="andes-money-amount__fraction">500</span>`;
+    const p = extractSuggestedPrices(html);
+    expect(p.discount).toBe(500);
+    expect(p.original).toBeNull();
+  });
+
+  it('strip tracking conserva wid / item_id / pdp_filters', () => {
+    const raw =
+      'https://www.mercadolibre.com.mx/x/p/MLM1?wid=MLM2&utm_source=a&matt_tool=1&tag=aventa&pdp_filters=item_id:MLM3';
+    const cleaned = stripOfferTrackingParams(raw);
+    const u = new URL(cleaned);
+    expect(u.searchParams.get('wid')).toBe('MLM2');
+    expect(u.searchParams.get('pdp_filters')).toBe('item_id:MLM3');
+    expect(u.searchParams.get('utm_source')).toBeNull();
+    expect(u.searchParams.get('matt_tool')).toBeNull();
+    expect(u.searchParams.get('tag')).toBeNull();
   });
 });

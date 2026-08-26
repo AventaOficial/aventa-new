@@ -5,6 +5,14 @@ import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
 import { fetchMercadoLibrePublicOffer } from '@/lib/offers/mlPublicOffer';
+import { resolveMercadoLibreShortlinks, resolveAmazonShortlinks } from '@/lib/offerUrl';
+import {
+  isOfferAmazonHost,
+  isOfferMeliLaHost,
+  isOfferMercadoLibreHost,
+  offerStoreLabelFromFlags,
+  resolveOfferStoreFlags,
+} from '@/lib/offers/detectOfferStore';
 import {
   absoluteUrl,
   extractBreadcrumbs,
@@ -13,31 +21,13 @@ import {
   extractSuggestedPrices,
   getById,
   getMetaContent,
+  stripOfferTrackingParams,
 } from '@/lib/offers/parseOfferPageHtml';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-
-function getDomain(hostname: string): string {
-  return hostname.replace(/^www\./, '').toLowerCase();
-}
-
-function isMercadoLibreHost(hostname: string): boolean {
-  const d = getDomain(hostname);
-  return (
-    d.includes('mercadolibre') ||
-    d.includes('mercadolivre') ||
-    d === 'meli.la' ||
-    d.endsWith('.meli.la')
-  );
-}
-
-function isAmazonHost(hostname: string): boolean {
-  const d = getDomain(hostname);
-  return d === 'amazon.com' || d === 'amazon.com.mx' || d.endsWith('.amazon.com') || d.endsWith('.amazon.com.mx');
-}
 
 function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
   return {
@@ -166,23 +156,59 @@ export async function POST(request: Request) {
       );
     }
 
-    const looksMl = isMercadoLibreHost(url.hostname) || Boolean(extractMercadoLibreItemId(rawUrl));
+    // Tracking fuera; params funcionales (wid, item_id, pdp_filters) se conservan.
+    let workingHref = stripOfferTrackingParams(url.href);
+    const wasMeliLa = isOfferMeliLaHost(url.hostname);
+    const wasAmazonShort =
+      isOfferAmazonHost(url.hostname) && !url.hostname.toLowerCase().includes('amazon.');
 
-    const htmlPromise = fetchHtml(url.href);
-    const mlPromise = looksMl ? fetchMercadoLibrePublicOffer(rawUrl).catch(() => null) : Promise.resolve(null);
+    if (wasMeliLa) {
+      workingHref = await resolveMercadoLibreShortlinks(workingHref);
+    }
+    if (wasAmazonShort) {
+      workingHref = await resolveAmazonShortlinks(workingHref);
+    }
+
+    let workingUrl: URL;
+    try {
+      workingUrl = new URL(workingHref);
+    } catch {
+      workingUrl = url;
+      workingHref = url.href;
+    }
+
+    // Hostname-first: NO usar extractMercadoLibreItemId en hosts no-ML.
+    const inputIsMl = isOfferMercadoLibreHost(url.hostname) || isOfferMercadoLibreHost(workingUrl.hostname);
+    const mlIdOnMlHost = inputIsMl ? extractMercadoLibreItemId(workingHref) : null;
+
+    const htmlPromise = fetchHtml(workingHref);
+    const mlPromise =
+      inputIsMl && mlIdOnMlHost
+        ? fetchMercadoLibrePublicOffer(workingHref).catch(() => null)
+        : Promise.resolve(null);
 
     const [htmlResult, mlFirst] = await Promise.all([htmlPromise, mlPromise]);
 
     const html = htmlResult?.html ?? '';
-    const pageUrl = htmlResult?.pageUrl ?? url;
+    const pageUrl = htmlResult?.pageUrl ?? workingUrl;
     const base = pageUrl.origin + pageUrl.pathname;
-    const isAmazon = isAmazonHost(pageUrl.hostname) || isAmazonHost(url.hostname);
-    const isMercadoLibre = looksMl || isMercadoLibreHost(pageUrl.hostname);
+    const flags = resolveOfferStoreFlags(url.hostname, pageUrl.hostname);
+    const { isAmazon, isMercadoLibre } = flags;
+    const storeFromHost = offerStoreLabelFromFlags(flags);
+
+    if (wasMeliLa && isOfferMeliLaHost(pageUrl.hostname) && !extractMercadoLibreItemId(pageUrl.href) && !html) {
+      return NextResponse.json({
+        ...emptyPayload('extract_failed'),
+        store: 'Mercado Libre',
+        error:
+          'No pudimos abrir este enlace corto de Mercado Libre. Pega la URL completa del producto (mercadolibre.com.mx/…) y vuelve a intentar.',
+      });
+    }
 
     let data: { title: string | null; image: string | null; store: string | null } = {
       title: null,
       image: null,
-      store: isMercadoLibre ? 'Mercado Libre' : isAmazon ? 'Amazon' : null,
+      store: storeFromHost,
     };
     let htmlImages: string[] = [];
     let breadcrumbs: string[] = [];
@@ -208,11 +234,12 @@ export async function POST(request: Request) {
       if (mlFromPage) ml = mlFromPage;
     }
 
-    if (ml) {
+    // API ML = fuente de verdad cuando responde.
+    if (ml && isMercadoLibre) {
       data = {
         title: ml.title || data.title,
         image: ml.pictures[0] || data.image,
-        store: data.store || 'Mercado Libre',
+        store: 'Mercado Libre',
       };
       candidates = collectCandidates(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
       mlCategoryId = ml.categoryId;
@@ -220,6 +247,8 @@ export async function POST(request: Request) {
       if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
       if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
         suggestedOriginal = ml.originalPrice;
+      } else if (typeof ml.price === 'number' && ml.price > 0) {
+        suggestedOriginal = null;
       }
     }
 
@@ -232,6 +261,9 @@ export async function POST(request: Request) {
       suggestedOriginal = suggestedDiscount;
       suggestedDiscount = tmp;
     }
+    if (suggestedOriginal != null && suggestedDiscount != null && suggestedOriginal === suggestedDiscount) {
+      suggestedOriginal = null;
+    }
 
     const suggestedCategory = inferOfferCategory({
       title: data.title,
@@ -240,12 +272,23 @@ export async function POST(request: Request) {
       mlPathNames,
     });
 
-    const preferredCover = ml?.pictures[0] || data.image;
+    const preferredCover = (isMercadoLibre ? ml?.pictures[0] : null) || data.image;
     const images = selectOfferImages(candidates, { preferredCover });
     const title = sanitizeOfferTitle(data.title);
-    const store = data.store ?? inferStoreFromHostname(pageUrl.hostname);
-    const extracted =
-      Boolean(title) || images.length > 0 || suggestedDiscount != null;
+    const store =
+      data.store ??
+      storeFromHost ??
+      inferStoreFromHostname(pageUrl.hostname);
+    const extracted = Boolean(title) || images.length > 0 || suggestedDiscount != null;
+
+    if (wasMeliLa && !extracted && isMercadoLibre) {
+      return NextResponse.json({
+        ...emptyPayload('extract_failed'),
+        store: 'Mercado Libre',
+        error:
+          'No pudimos obtener el producto desde este enlace corto. Pega la URL completa de Mercado Libre y puedes completar los datos a mano.',
+      });
+    }
 
     return NextResponse.json({
       title,

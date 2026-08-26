@@ -760,7 +760,7 @@ export default function ModerationOfferDetail({
             ) : null}
           </div>
         ) : null}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <button
             type="button"
             onClick={() =>
@@ -776,7 +776,7 @@ export default function ModerationOfferDetail({
               blockers > 0 ||
               (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
             }
-            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Aprobar
           </button>
@@ -784,7 +784,7 @@ export default function ModerationOfferDetail({
             type="button"
             onClick={() => setShowRejectInput((v) => !v)}
             disabled={readOnly}
-            className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Rechazar
           </button>

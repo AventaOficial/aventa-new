@@ -83,8 +83,8 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
                 )}
               >
                 {isWorkspace
-                  ? 'Cola, preview, acciones y historial — todo desde tu jornada.'
-                  : 'Herramienta administrativa profunda para revisar ofertas, comentarios y reportes.'}
+                  ? 'Revisa ofertas: ve → decide → siguiente.'
+                  : 'Revisa ofertas: ve → decide → siguiente.'}
               </p>
             </div>
           </div>

@@ -4,11 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   ChevronLeft,
-  ChevronRight,
   Clock,
   ExternalLink,
-  List,
-  Lock,
   MoreHorizontal,
   PenLine,
   Store,
@@ -20,11 +17,16 @@ import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
 import ModerationChecklist from './ModerationChecklist';
+import ModerationDecisionCard from './ModerationDecisionCard';
 import ModerationFixSheet, { type FixField } from './ModerationFixSheet';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
+import {
+  formatModerationRelativeTime,
+  getOfferDiscountPercent,
+} from '@/lib/moderation/relativeTime';
 import {
   buildModerationChecklist,
   countChecklistBlockers,
@@ -44,6 +46,7 @@ export type MobileModerationOffer = {
   offer_url: string | null;
   description?: string | null;
   conditions?: string | null;
+  created_at?: string;
   created_by: string | null;
   risk_score?: number | null;
   moderator_comment?: string | null;
@@ -78,22 +81,15 @@ type Props = {
   onSnooze?: (minutes: 15 | 60 | 240) => void;
   onOfferUpdated?: () => void;
   loading?: boolean;
-  /** Error de Aprobar/Rechazar: se muestra junto a los botones (pulgar), no arriba. */
   actionError?: string | null;
   onClearActionError?: () => void;
+  /** Si true, muestra detalle; si false, lista decision-first. */
+  showDetail?: boolean;
+  onShowDetailChange?: (show: boolean) => void;
 };
 
-function discountPct(offer: MobileModerationOffer): number {
-  const price = Number(offer.price ?? 0);
-  const original = Number(offer.original_price ?? 0);
-  if (!Number.isFinite(price) || !Number.isFinite(original)) return 0;
-  if (original <= 0 || original <= price) return 0;
-  return Math.round(((original - price) / original) * 100);
-}
-
 /**
- * Desk móvil: una tarjeta a la vez, acciones al pulgar, cola en sheet.
- * Independiente del layout desktop (detalle + rail).
+ * Mobile decision-first: lista con Aprobar/Rechazar → detalle al tocar la card.
  */
 export default function ModerationMobileReview({
   mode = 'admin',
@@ -113,16 +109,23 @@ export default function ModerationMobileReview({
   loading = false,
   actionError = null,
   onClearActionError,
+  showDetail: showDetailProp,
+  onShowDetailChange,
 }: Props) {
   const ui = moderationUi(mode);
-  const [showQueue, setShowQueue] = useState(false);
+  const [internalShowDetail, setInternalShowDetail] = useState(false);
+  const showDetail = showDetailProp ?? internalShowDetail;
+  const setShowDetail = onShowDetailChange ?? setInternalShowDetail;
+
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [imgBroken, setImgBroken] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [fixField, setFixField] = useState<FixField | null>(null);
   const [showFix, setShowFix] = useState(false);
-  useBodyScrollLock(showQueue);
+  const [linkGateId, setLinkGateId] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+  useBodyScrollLock(showFix);
 
   const index = Math.max(
     0,
@@ -138,9 +141,6 @@ export default function ModerationMobileReview({
     setShowFix(false);
     setFixField(null);
   }, [offer?.id]);
-
-  const total = offers.length;
-  const position = offer ? index + 1 : 0;
 
   const images = useMemo(
     () => (offer ? mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null) : []),
@@ -159,7 +159,9 @@ export default function ModerationMobileReview({
   const catLabel = catNorm
     ? ALL_CATEGORIES.find((c) => c.value === catNorm)?.label ?? catNorm
     : null;
-  const pct = offer ? discountPct(offer) : 0;
+  const pct = offer ? getOfferDiscountPercent(offer.price, offer.original_price) : 0;
+  const hasOriginal =
+    offer?.original_price != null && Number(offer.original_price) > Number(offer.price);
   const hasUrl = Boolean(offer?.offer_url?.trim());
   const canApprove = !readOnly && (!hasUrl || linkConfirmed);
 
@@ -192,17 +194,43 @@ export default function ModerationMobileReview({
     setShowMore(false);
   };
 
-  const goPrev = () => {
-    if (index <= 0) return;
-    onSelect(offers[index - 1].id);
-    setShowReject(false);
-    setImgBroken(false);
+  const tryApprove = (o: MobileModerationOffer) => {
+    const locked = isOfferLockedByOther(
+      { locked_by: o.locked_by, locked_at: o.locked_at },
+      currentUserId
+    );
+    if (locked) return;
+    const url = Boolean(o.offer_url?.trim());
+    const alreadySelected = selectedId === o.id;
+    if (!alreadySelected) onSelect(o.id);
+    if (url && !(alreadySelected && linkConfirmed) && linkGateId !== o.id) {
+      setLinkGateId(o.id);
+      return;
+    }
+    setActingId(o.id);
+    onApprove(o.id, o.created_by, undefined, url);
+    setLinkGateId(null);
+    setActingId(null);
   };
-  const goNext = () => {
-    if (index >= offers.length - 1) return;
-    onSelect(offers[index + 1].id);
-    setShowReject(false);
-    setImgBroken(false);
+
+  const confirmLinkAndApprove = (o: MobileModerationOffer) => {
+    onLinkConfirmedChange(true);
+    setActingId(o.id);
+    onApprove(o.id, o.created_by, undefined, true);
+    setLinkGateId(null);
+    setActingId(null);
+  };
+
+  const tryReject = (o: MobileModerationOffer) => {
+    const locked = isOfferLockedByOther(
+      { locked_by: o.locked_by, locked_at: o.locked_at },
+      currentUserId
+    );
+    if (locked) return;
+    onSelect(o.id);
+    setShowDetail(true);
+    setShowReject(true);
+    setLinkGateId(null);
   };
 
   const confirmReject = () => {
@@ -211,6 +239,29 @@ export default function ModerationMobileReview({
     setShowReject(false);
     setRejectReason('');
   };
+
+  const sourceTabs = (
+    <div className={`flex gap-1 rounded-xl p-1 ${ui.thumbBg}`}>
+      {(
+        [
+          { id: 'all' as const, label: 'Todas' },
+          { id: 'bot' as const, label: 'Bot' },
+          { id: 'users' as const, label: 'Usuarios' },
+        ] as const
+      ).map(({ id, label }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onSourceTab(id)}
+          className={`min-h-10 flex-1 rounded-lg text-xs font-semibold transition-colors ${
+            sourceTab === id ? ui.chipActive : ui.chipIdle
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -221,78 +272,96 @@ export default function ModerationMobileReview({
     );
   }
 
+  /* —— Lista decision-first —— */
+  if (!showDetail) {
+    return (
+      <div className="mx-auto w-full max-w-lg space-y-3">
+        <div>
+          <h2 className={`text-xl font-semibold tracking-tight ${ui.title}`}>Moderación</h2>
+          <p className={`mt-0.5 text-sm ${ui.subtitle}`}>
+            {offers.length} pendiente{offers.length === 1 ? '' : 's'}
+          </p>
+        </div>
+
+        {!tabLocked ? sourceTabs : null}
+
+        {offers.length === 0 ? (
+          <div className={`${ui.card} px-5 py-14 text-center`}>
+            <p className={`text-base font-medium ${ui.title}`}>Cola vacía</p>
+            <p className={`mt-1 text-sm ${ui.subtitle}`}>No hay ofertas pendientes en esta vista.</p>
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {offers.map((o) => (
+              <li key={o.id}>
+                <ModerationDecisionCard
+                  mode={mode}
+                  offer={{
+                    ...o,
+                    created_at: o.created_at ?? new Date().toISOString(),
+                  }}
+                  active={o.id === selectedId}
+                  currentUserId={currentUserId}
+                  linkGateOpen={linkGateId === o.id}
+                  acting={actingId === o.id}
+                  onSelect={() => {
+                    onSelect(o.id);
+                    setShowDetail(true);
+                    setLinkGateId(null);
+                  }}
+                  onApprove={() => tryApprove(o)}
+                  onReject={() => tryReject(o)}
+                  onConfirmLinkAndApprove={() => confirmLinkAndApprove(o)}
+                  onDismissLinkGate={() => setLinkGateId(null)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  /* —— Detalle de una oferta —— */
   if (!offer) {
     return (
       <div className={`${ui.card} px-5 py-16 text-center`}>
         <p className={`text-base font-medium ${ui.title}`}>Cola vacía</p>
-        <p className={`mt-1 text-sm ${ui.subtitle}`}>No hay ofertas pendientes en esta vista.</p>
+        <button
+          type="button"
+          onClick={() => setShowDetail(false)}
+          className={`mt-4 ${ui.btnGhost}`}
+        >
+          Volver a la lista
+        </button>
       </div>
     );
   }
 
   return (
     <div className="relative mx-auto flex w-full max-w-lg flex-col">
-      {/* Top chrome */}
-      <div className={`sticky top-0 z-20 -mx-1 mb-2 px-1 pb-2 pt-1 backdrop-blur-md ${ui.ws ? 'bg-white/90 dark:bg-[#0c0c0e]/90' : 'bg-[#0a0a0c]/90'}`}>
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setShowQueue(true)}
-            className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold ${ui.btnGhost}`}
-          >
-            <List className="h-4 w-4" aria-hidden />
-            Cola
-            <span className={`tabular-nums ${ui.muted}`}>
-              {position}/{total}
-            </span>
-          </button>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={goPrev}
-              disabled={index <= 0}
-              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold disabled:opacity-30 ${ui.border} ${ui.btnGhost}`}
-            >
-              <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
-              Anterior
-            </button>
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={index >= total - 1}
-              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold disabled:opacity-30 ${ui.border} ${ui.btnGhost}`}
-            >
-              Siguiente
-              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
-            </button>
-          </div>
-        </div>
-
-        {!tabLocked ? (
-          <div className={`mt-2 flex gap-1 rounded-xl p-1 ${ui.thumbBg}`}>
-            {(
-              [
-                { id: 'all' as const, label: 'Todos' },
-                { id: 'bot' as const, label: 'Bot' },
-                { id: 'users' as const, label: 'Usuarios' },
-              ] as const
-            ).map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onSourceTab(id)}
-                className={`min-h-10 flex-1 rounded-lg text-xs font-semibold transition-colors ${
-                  sourceTab === id ? ui.chipActive : ui.chipIdle
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        ) : null}
+      <div
+        className={`sticky top-0 z-20 -mx-1 mb-2 px-1 pb-2 pt-1 backdrop-blur-md ${
+          ui.ws ? 'bg-white/90 dark:bg-[#0c0c0e]/90' : 'bg-[#0a0a0c]/90'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setShowDetail(false);
+            setShowReject(false);
+            setLinkGateId(null);
+          }}
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold ${ui.btnGhost}`}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          Cola
+          <span className={`tabular-nums ${ui.muted}`}>
+            {index + 1}/{offers.length}
+          </span>
+        </button>
       </div>
 
-      {/* Card */}
       <article className={`overflow-hidden ${ui.card}`}>
         <div className={`flex flex-wrap gap-1.5 border-b px-4 py-2.5 ${ui.hairline}`}>
           <ModerationConfidenceChip offer={offer} mode={mode} size="md" />
@@ -335,7 +404,6 @@ export default function ModerationMobileReview({
         <div className="space-y-3 px-4 py-4">
           {readOnly ? (
             <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
                 En revisión por <strong>{offer.locked_by_name?.trim() || 'otro moderador'}</strong>
               </span>
@@ -350,13 +418,21 @@ export default function ModerationMobileReview({
               <span className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                 ${Number(offer.price ?? 0).toLocaleString('es-MX')}
               </span>
+              {hasOriginal ? (
+                <span className={`text-sm tabular-nums line-through ${ui.faint}`}>
+                  ${Number(offer.original_price).toLocaleString('es-MX')}
+                </span>
+              ) : null}
               {pct > 0 ? (
                 <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                   −{pct}%
                 </span>
               ) : null}
-              {offer.store ? <span className={ui.muted}>· {offer.store}</span> : null}
-              {catLabel ? <span className={ui.muted}>· {catLabel}</span> : null}
+            </p>
+            <p className={`mt-1.5 text-sm ${ui.muted}`}>
+              {offer.store ?? 'Sin tienda'}
+              {offer.created_at ? ` · ${formatModerationRelativeTime(offer.created_at)}` : ''}
+              {catLabel ? ` · ${catLabel}` : ''}
             </p>
           </div>
 
@@ -416,7 +492,6 @@ export default function ModerationMobileReview({
         </div>
       </article>
 
-      {/* Thumb zone */}
       <div
         className={`sticky bottom-0 z-20 -mx-1 mt-3 space-y-2 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md ${
           ui.ws ? 'bg-white/95 dark:bg-[#0c0c0e]/95' : 'bg-[#0a0a0c]/95'
@@ -538,16 +613,8 @@ export default function ModerationMobileReview({
                 ) : null}
               </div>
             ) : null}
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <button
-                type="button"
-                disabled={readOnly}
-                onClick={() => setShowReject(true)}
-                className="inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-2xl bg-red-600 text-[15px] font-bold text-white active:bg-red-700 disabled:opacity-40"
-              >
-                <X className="h-5 w-5" aria-hidden />
-                Rechazar
-              </button>
+
+            <div className="grid grid-cols-1 gap-2">
               <button
                 type="button"
                 disabled={!canApprove || blockers > 0}
@@ -559,12 +626,21 @@ export default function ModerationMobileReview({
               </button>
               <button
                 type="button"
+                disabled={readOnly}
+                onClick={() => setShowReject(true)}
+                className="inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-2xl bg-red-600 text-[15px] font-bold text-white active:bg-red-700 disabled:opacity-40"
+              >
+                <X className="h-5 w-5" aria-hidden />
+                Rechazar
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowMore((v) => !v)}
                 aria-expanded={showMore}
-                aria-label="Más acciones"
-                className={`inline-flex min-h-[3.25rem] w-14 items-center justify-center rounded-2xl ${ui.btnGhost}`}
+                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl text-sm font-semibold ${ui.btnGhost}`}
               >
-                <MoreHorizontal className="h-5 w-5" aria-hidden />
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+                Más acciones
               </button>
             </div>
             {hasUrl && !linkConfirmed ? (
@@ -579,85 +655,6 @@ export default function ModerationMobileReview({
           </>
         )}
       </div>
-
-      {/* Queue sheet */}
-      {showQueue ? (
-        <div
-          className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/60"
-          onClick={() => setShowQueue(false)}
-          role="presentation"
-        >
-          <div
-            className={`flex max-h-[80vh] flex-col overflow-hidden rounded-t-3xl ${ui.modal}`}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Cola de ofertas"
-          >
-            <div
-              className={`flex shrink-0 items-center justify-between border-b px-4 py-3 ${ui.hairline}`}
-            >
-              <div>
-                <p className={`text-sm font-semibold ${ui.title}`}>Cola</p>
-                <p className={`text-xs ${ui.muted}`}>{total} en esta vista</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowQueue(false)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full"
-                aria-label="Cerrar"
-              >
-                <X className={`h-5 w-5 ${ui.soft}`} />
-              </button>
-            </div>
-            <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              {offers.map((o, i) => {
-                const thumb = mergeOfferImageUrls(o.image_url, o.image_urls ?? null)[0];
-                const active = o.id === offer.id;
-                return (
-                  <li key={o.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSelect(o.id);
-                        setShowQueue(false);
-                        setShowReject(false);
-                        setImgBroken(false);
-                      }}
-                      className={`flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left ${
-                        active ? ui.rowActive : ui.rowHover
-                      }`}
-                    >
-                      <span className={`w-6 shrink-0 text-center text-xs tabular-nums ${ui.muted}`}>
-                        {i + 1}
-                      </span>
-                      <div className={`h-12 w-12 shrink-0 overflow-hidden rounded-xl ${ui.thumbBg}`}>
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={thumb}
-                            alt=""
-                            className="h-full w-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm font-medium ${ui.body}`}>
-                          {shortModerationQueueTitle(o.title)}
-                        </p>
-                        <p className={`text-xs ${ui.muted}`}>
-                          ${Number(o.price ?? 0).toLocaleString('es-MX')}
-                          {o.store ? ` · ${o.store}` : ''}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      ) : null}
 
       {showFix ? (
         <ModerationFixSheet
