@@ -105,17 +105,6 @@ export async function getMercadoLibreTokenRow(): Promise<MercadoLibreOAuthTokenR
   return (data as MercadoLibreOAuthTokenRow | null) ?? null;
 }
 
-/**
- * Devuelve access token si existe y no está expirado (con skew).
- * FASE 4 añadirá refresh automático cuando expire.
- */
-export async function getValidAccessToken(): Promise<string | null> {
-  const row = await getMercadoLibreTokenRow();
-  if (!row?.access_token?.trim()) return null;
-  if (isAccessTokenExpired(row.expires_at)) return null;
-  return row.access_token;
-}
-
 export async function getMercadoLibreOAuthStatus(): Promise<MercadoLibreOAuthStatus> {
   const enabled = isMlOAuthEnabled();
 

@@ -149,6 +149,55 @@ export async function exchangeCodeForTokens(params: {
   return data;
 }
 
+export async function refreshAccessToken(params: {
+  config: MlOAuthConfig;
+  refreshToken: string;
+}): Promise<MlOAuthTokenResponse> {
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: params.config.clientId,
+    client_secret: params.config.clientSecret,
+    refresh_token: params.refreshToken,
+  });
+
+  const res = await fetch(ML_OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+    cache: 'no-store',
+  });
+
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error('ML_OAUTH_REFRESH_PARSE_FAILED');
+  }
+
+  if (!res.ok) {
+    const err = json as { error?: string };
+    const code = typeof err?.error === 'string' ? err.error : 'refresh_failed';
+    console.error('[ml-oauth] token refresh failed', { status: res.status, error: code });
+    throw new Error(`ML_OAUTH_REFRESH_${code.toUpperCase()}`);
+  }
+
+  const data = json as MlOAuthTokenResponse;
+  if (!data.access_token?.trim()) {
+    throw new Error('ML_OAUTH_REFRESH_MISSING_ACCESS');
+  }
+  if (!data.refresh_token?.trim()) {
+    throw new Error('ML_OAUTH_REFRESH_MISSING_REFRESH');
+  }
+  if (typeof data.expires_in !== 'number' || !Number.isFinite(data.expires_in) || data.expires_in <= 0) {
+    throw new Error('ML_OAUTH_REFRESH_INVALID_EXPIRES');
+  }
+
+  return data;
+}
+
 /** Sanitiza errores ML para logs — nunca incluir tokens ni secrets. */
 export function sanitizeMlOAuthLogMessage(error: unknown): string {
   if (error instanceof Error) return error.message.slice(0, 120);

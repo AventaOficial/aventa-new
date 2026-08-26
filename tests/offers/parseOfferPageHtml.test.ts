@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  extractMercadoLibreStructuredPrices,
   extractOfferImages,
   extractSuggestedPrices,
   parsePositiveLocalizedNumber,
@@ -92,6 +93,17 @@ describe('parseOfferPageHtml', () => {
     const p = extractSuggestedPrices(html);
     expect(p.discount).toBe(500);
     expect(p.original).toBeNull();
+  });
+
+  it('extractMercadoLibreStructuredPrices ignora andes-money-amount DOM', () => {
+    const html = `
+      <meta property="product:price:amount" content="397" />
+      <meta property="product:original_price:amount" content="800" />
+      <span class="andes-money-amount__fraction">999</span>
+    `;
+    const p = extractMercadoLibreStructuredPrices(html);
+    expect(p.discount).toBe(397);
+    expect(p.original).toBe(800);
   });
 
   it('strip tracking conserva wid / item_id / pdp_filters', () => {

@@ -201,6 +201,53 @@ function looksLikeAmazonProductHtml(html: string): boolean {
   );
 }
 
+/** Precios ML desde JSON-LD / meta — sin DOM andes-money-amount (fallback cuando API no responde). */
+export function extractMercadoLibreStructuredPrices(html: string): ExtractedPrices {
+  let discount: number | null = null;
+  let original: number | null = parsePositiveNumber(getMetaContent(html, 'product:original_price:amount'));
+
+  for (const parsed of collectLdJson(html)) {
+    walkLd(parsed, (o, typeStr) => {
+      if (!typeStr.includes('Offer') && !typeStr.includes('AggregateOffer')) return;
+      const low = o.lowPrice;
+      const high = o.highPrice;
+      const p = o.price;
+      if (typeof low === 'number' && low > 0) discount = discount ?? low;
+      else if (typeof low === 'string') discount = discount ?? parsePositiveLocalizedNumber(low);
+      if (typeof p === 'number' && p > 0) discount = discount ?? p;
+      else if (typeof p === 'string') discount = discount ?? parsePositiveLocalizedNumber(p);
+      if (typeof high === 'number' && high > 0) original = original ?? high;
+      else if (typeof high === 'string') original = original ?? parsePositiveLocalizedNumber(high);
+    });
+  }
+
+  if (discount == null) {
+    discount =
+      parsePositiveLocalizedNumber(getMetaContent(html, 'product:price:amount')) ||
+      parsePositiveLocalizedNumber(getMetaContent(html, 'og:price:amount')) ||
+      parsePositiveLocalizedNumber(html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)?.[1]);
+  }
+
+  if (original == null) {
+    original =
+      extractJsonLikeNumber(html, 'original_price') ||
+      extractJsonLikeNumber(html, 'priceBefore') ||
+      parsePositiveLocalizedNumber(html.match(/["']basisPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]) ||
+      parsePositiveLocalizedNumber(html.match(/["']listPrice["']\s*:\s*["']([^"']+)["']/i)?.[1]);
+  }
+
+  if (original != null && discount != null && original < discount) {
+    const tmp = original;
+    original = discount;
+    discount = tmp;
+  }
+  if (original != null && discount != null && original === discount) {
+    original = null;
+  }
+
+  return { discount, original };
+}
+
 export function extractSuggestedPrices(html: string): ExtractedPrices {
   const amazonDom = extractAmazonDomPrices(html);
   if (looksLikeAmazonProductHtml(html)) {

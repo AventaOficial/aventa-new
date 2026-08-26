@@ -2,9 +2,9 @@ import {
   extractMercadoLibreItemId,
   extractMercadoLibreItemIdFromHtml,
 } from '@/lib/offers/parseOfferPageHtml';
+import { fetchMlApi } from '@/lib/integrations/mercadolibre/apiClient';
 
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+export type MercadoLibreOfferSource = 'ml_api' | 'anonymous';
 
 export type MercadoLibrePublicOffer = {
   title: string | null;
@@ -13,6 +13,7 @@ export type MercadoLibrePublicOffer = {
   pictures: string[];
   categoryId: string | null;
   pathNames: string[];
+  source: MercadoLibreOfferSource;
 };
 
 type MlItemBody = {
@@ -31,21 +32,10 @@ type MlProductBody = {
   buy_box_winner?: { price?: number; original_price?: number; item_id?: string };
 };
 
-async function fetchJson(url: string): Promise<unknown | null> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': UA,
-        'Accept-Language': 'es-MX,es;q=0.9',
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+async function fetchJson(path: string): Promise<{ data: unknown | null; authenticated: boolean }> {
+  const result = await fetchMlApi(path);
+  if (!result.ok) return { data: null, authenticated: result.authenticated };
+  return { data: result.data, authenticated: result.authenticated };
 }
 
 function httpsUrl(raw: string | undefined | null): string | null {
@@ -99,13 +89,16 @@ export async function fetchMercadoLibrePublicOffer(
     extractMercadoLibreItemId(rawUrl) || (html ? extractMercadoLibreItemIdFromHtml(html) : null);
   if (!id) return null;
 
-  const [itemRaw, productRaw] = await Promise.all([
-    fetchJson(`https://api.mercadolibre.com/items/${encodeURIComponent(id)}`),
-    fetchJson(`https://api.mercadolibre.com/products/${encodeURIComponent(id)}`),
-  ]);
+  let usedAuthenticatedApi = false;
 
-  const item = itemRaw as MlItemBody | null;
-  const product = productRaw as MlProductBody | null;
+  const itemPath = `/items/${encodeURIComponent(id)}`;
+  const productPath = `/products/${encodeURIComponent(id)}`;
+
+  const [itemFetch, productFetch] = await Promise.all([fetchJson(itemPath), fetchJson(productPath)]);
+  if (itemFetch.authenticated || productFetch.authenticated) usedAuthenticatedApi = true;
+
+  const item = itemFetch.data as MlItemBody | null;
+  const product = productFetch.data as MlProductBody | null;
 
   let title: string | null = null;
   let price: number | null = null;
@@ -137,9 +130,9 @@ export async function fetchMercadoLibrePublicOffer(
 
     const winnerId = product.buy_box_winner?.item_id;
     if (winnerId && winnerId !== id) {
-      const winner = (await fetchJson(
-        `https://api.mercadolibre.com/items/${encodeURIComponent(winnerId)}`,
-      )) as MlItemBody | null;
+      const winnerFetch = await fetchJson(`/items/${encodeURIComponent(winnerId)}`);
+      if (winnerFetch.authenticated) usedAuthenticatedApi = true;
+      const winner = winnerFetch.data as MlItemBody | null;
       if (isUsableItem(winner)) {
         title = title || (typeof winner.title === 'string' ? winner.title : null);
         if (typeof winner.price === 'number' && winner.price > 0) price = price ?? winner.price;
@@ -154,7 +147,9 @@ export async function fetchMercadoLibrePublicOffer(
 
   const pathNames: string[] = [];
   if (categoryId) {
-    const cat = (await fetchJson(`https://api.mercadolibre.com/categories/${encodeURIComponent(categoryId)}`)) as {
+    const catFetch = await fetchJson(`/categories/${encodeURIComponent(categoryId)}`);
+    if (catFetch.authenticated) usedAuthenticatedApi = true;
+    const cat = catFetch.data as {
       path_from_root?: Array<{ name?: string }>;
     } | null;
     for (const n of cat?.path_from_root ?? []) {
@@ -163,5 +158,13 @@ export async function fetchMercadoLibrePublicOffer(
   }
 
   if (!title && !price && pictures.length === 0) return null;
-  return { title, price, originalPrice, pictures, categoryId, pathNames };
+  return {
+    title,
+    price,
+    originalPrice,
+    pictures,
+    categoryId,
+    pathNames,
+    source: usedAuthenticatedApi ? 'ml_api' : 'anonymous',
+  };
 }

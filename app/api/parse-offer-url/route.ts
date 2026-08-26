@@ -17,6 +17,7 @@ import {
   absoluteUrl,
   extractBreadcrumbs,
   extractMercadoLibreItemId,
+  extractMercadoLibreStructuredPrices,
   extractOfferImages,
   extractSuggestedPrices,
   getById,
@@ -224,9 +225,14 @@ export async function POST(request: Request) {
     let candidates = collectCandidates(data.image, htmlImages);
     let mlCategoryId: string | null = null;
     let mlPathNames: string[] = [];
-    const htmlPrices = html ? extractSuggestedPrices(html) : { discount: null, original: null };
-    let suggestedDiscount: number | null = htmlPrices.discount;
-    let suggestedOriginal: number | null = htmlPrices.original;
+    let suggestedDiscount: number | null = null;
+    let suggestedOriginal: number | null = null;
+
+    if (html && isAmazon) {
+      const amazonPrices = extractSuggestedPrices(html);
+      suggestedDiscount = amazonPrices.discount;
+      suggestedOriginal = amazonPrices.original;
+    }
 
     let ml = mlFirst;
     if (isMercadoLibre && (!ml || ml.pictures.length < 2)) {
@@ -234,7 +240,7 @@ export async function POST(request: Request) {
       if (mlFromPage) ml = mlFromPage;
     }
 
-    // API ML = fuente de verdad cuando responde.
+    // API ML autenticada = fuente de verdad para precio/título/imágenes/categoría.
     if (ml && isMercadoLibre) {
       data = {
         title: ml.title || data.title,
@@ -244,12 +250,34 @@ export async function POST(request: Request) {
       candidates = collectCandidates(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
       mlCategoryId = ml.categoryId;
       mlPathNames = ml.pathNames;
-      if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
-      if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
-        suggestedOriginal = ml.originalPrice;
-      } else if (typeof ml.price === 'number' && ml.price > 0) {
-        suggestedOriginal = null;
+      if (ml.source === 'ml_api') {
+        if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
+        if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
+          suggestedOriginal = ml.originalPrice;
+        } else {
+          suggestedOriginal = null;
+        }
       }
+    }
+
+    if (isMercadoLibre && html && ml?.source !== 'ml_api') {
+      const structured = extractMercadoLibreStructuredPrices(html);
+      if (suggestedDiscount == null) {
+        suggestedDiscount =
+          structured.discount ??
+          (typeof ml?.price === 'number' && ml.price > 0 ? ml.price : null);
+      }
+      if (suggestedOriginal == null) {
+        suggestedOriginal =
+          structured.original ??
+          (typeof ml?.originalPrice === 'number' && ml.originalPrice > 0 ? ml.originalPrice : null);
+      }
+    }
+
+    if (html && !isAmazon && !isMercadoLibre) {
+      const genericPrices = extractSuggestedPrices(html);
+      suggestedDiscount = genericPrices.discount;
+      suggestedOriginal = genericPrices.original;
     }
 
     if (
