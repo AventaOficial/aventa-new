@@ -141,12 +141,12 @@ body {
 }
 
 /*
- * Dark: PNG con alfa limpia (mate negro bajo transparencia + sombra de
- * contacto atenuada). Sin gradiente de relleno detrás: con drop-shadow
- * ese halo se leía como rectángulo claro sobre el glass del hero.
+ * Dark: ilustración propia en grafito (no la clara recortada). La versión
+ * clara dejaba la bolsa y las monedas en blanco, que sobre el glass del hero
+ * se leían como una placa luminosa por más que se limpiara la alfa.
  */
 .dark .hero-art {
-  background-image: url('/brand/aventa-hero-dark.png?v=20260826d');
+  background-image: url('/brand/aventa-hero-dark.png?v=20260826e');
   background-position: bottom center;
   background-size: contain;
   filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45));
