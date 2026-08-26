@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import type { Role } from '@/lib/admin/roles';
 import { ROLE_LABELS, pickEffectiveRole } from '@/lib/admin/roles';
+import { getDefaultAdminHome } from '@/lib/admin/navigation';
 import type { StaffDepartmentId } from '@/lib/staff/permissions';
 import { STAFF_DEPARTMENTS, canAccessStaffDepartment } from '@/lib/staff/permissions';
 import { staffTasksConfigKey } from '@/lib/staff/departments';
@@ -96,7 +97,7 @@ async function loadFilmCandidates(): Promise<StaffFilmCandidate[]> {
 function quickLinksForRole(role: Role): { label: string; href: string }[] {
   const links: { label: string; href: string }[] = [{ label: 'Ir al sitio público', href: '/' }];
   if (role === 'owner' || role === 'admin') {
-    links.push({ label: 'Panel admin', href: '/admin' });
+    links.push({ label: 'Panel admin', href: getDefaultAdminHome(role) });
     links.push({ label: 'Asignar roles', href: '/admin/team' });
   }
   if (role === 'moderator' || role === 'admin' || role === 'owner' || role === 'gerente') {

@@ -12,7 +12,8 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { describeOfferIssue } from '@/lib/contracts/offers';
+import { describeOfferIssue, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { logClientError } from '@/lib/utils/handleError';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
@@ -103,7 +104,8 @@ export default function ActionBar() {
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
   const [urlParseStatus, setUrlParseStatus] = useState<string | null>(null);
-  /** En móvil: 1 = esencial, 2 = detalles + fotos. Desktop ignora y muestra todo. */
+  const [urlParseKind, setUrlParseKind] = useState<'ok' | 'invalid_url' | 'extract_failed' | null>(null);
+  /** En móvil: 1 = lo que Aventa encontró, 2 = completar y publicar. Desktop ignora y muestra todo. */
   const [uploadStep, setUploadStep] = useState<1 | 2>(1);
   const prevUrlParseLoadingRef = useRef(false);
   /** Tras pegar el enlace (y parse si hay sesión), se desbloquea el formulario completo. */
@@ -114,6 +116,11 @@ export default function ActionBar() {
   /** Evita que la inferencia por URL sobrescriba una elección explícita. */
   const offerScopeManuallySelectedRef = useRef(false);
   const [showCouponSection, setShowCouponSection] = useState(false);
+  const imageGalleryRef = useRef<{ cover: string | null; extras: string[] }>({ cover: null, extras: [] });
+
+  useEffect(() => {
+    imageGalleryRef.current = { cover: imageUrl, extras: imageUrls };
+  }, [imageUrl, imageUrls]);
 
   useEffect(() => {
     if (offerScopeManuallySelectedRef.current) return;
@@ -235,9 +242,25 @@ export default function ActionBar() {
         if (cancelled) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data) {
+          if (data?.reason === 'invalid_url') {
+            setUrlParseKind('invalid_url');
+            setUrlParseStatus('Este enlace no es válido. Revisa que sea una URL de tienda (https://…).');
+            return;
+          }
+          if (typeof data?.error === 'string' && res.status !== 500 && res.status !== 502) {
+            setUrlParseKind('extract_failed');
+            setUrlParseStatus(data.error);
+            return;
+          }
+          setUrlParseKind('extract_failed');
           setUrlParseStatus(
-            typeof data?.error === 'string' ? data.error : 'No pudimos leer ese enlace'
+            'No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.',
           );
+          return;
+        }
+        if (data.reason === 'invalid_url') {
+          setUrlParseKind('invalid_url');
+          setUrlParseStatus('Este enlace no es válido. Revisa que sea una URL de tienda (https://…).');
           return;
         }
         setFormData((prev) => {
@@ -277,32 +300,32 @@ export default function ActionBar() {
         if (data.image && typeof data.image === 'string' && !parsedImages.includes(data.image)) {
           parsedImages.unshift(data.image);
         }
-        if (parsedImages.length > 0 && !cancelled) {
-          setImageUrl((cover) => cover || parsedImages[0] || null);
-          setImageUrls((extras) => {
-            const incoming = parsedImages.slice(0, 12);
-            if (extras.length === 0) return incoming.slice(1);
-            if (incoming.length > extras.length + 1) return incoming.slice(1);
-            const merged = [...extras];
-            for (const u of incoming.slice(1)) {
-              if (merged.length >= 11) break;
-              if (!merged.includes(u) && u !== parsedImages[0]) merged.push(u);
-            }
-            return merged;
+        if (!cancelled) {
+          const { cover, extras } = imageGalleryRef.current;
+          const preferred = cover || (typeof data.image === 'string' ? data.image : parsedImages[0] || null);
+          const gallery = selectOfferImages([cover, ...extras, ...parsedImages].filter((u): u is string => Boolean(u)), {
+            preferredCover: preferred,
           });
+          setImageUrl(gallery[0] ?? cover);
+          setImageUrls(gallery.slice(1));
         }
         const bits: string[] = [];
         if (data.title) bits.push('título');
-        if (parsedImages.length > 0) bits.push(`${parsedImages.length} foto${parsedImages.length > 1 ? 's' : ''}`);
+        if (parsedImages.length > 0) bits.push(`${Math.min(parsedImages.length, OFFER_MAX_IMAGES)} foto${parsedImages.length > 1 ? 's' : ''}`);
         if (typeof data.suggested_discount_price === 'number') bits.push('precio');
         if (data.suggested_category) bits.push('categoría');
-        setUrlParseStatus(
-          bits.length > 0
-            ? `Listo: ${bits.join(', ')}. Revisa y completa lo que falte.`
-            : 'Leímos la página, pero no trajo datos. Complétalos tú.'
-        );
+        if (data.reason === 'extract_failed' || bits.length === 0) {
+          setUrlParseKind('extract_failed');
+          setUrlParseStatus(
+            'No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.',
+          );
+        } else {
+          setUrlParseKind('ok');
+          setUrlParseStatus(`Listo: ${bits.join(', ')}. Revisa y completa lo que falte.`);
+        }
       } catch {
-        if (!cancelled) setUrlParseStatus('No pudimos leer ese enlace. Sigue a mano.');
+        if (!cancelled) setUrlParseStatus('No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.');
+        if (!cancelled) setUrlParseKind('extract_failed');
       } finally {
         if (!cancelled) setUrlParseLoading(false);
       }
@@ -365,8 +388,8 @@ export default function ActionBar() {
         if (typeof data?.url !== 'string') continue;
         const nextUrl = data.url;
         const total = (cover ? 1 : 0) + extras.length;
-        if (total >= 8) {
-          showToast('Máximo 8 fotos por oferta');
+        if (total >= OFFER_MAX_IMAGES) {
+          showToast('Puedes agregar un máximo de 8 imágenes');
           break;
         }
         if (!cover) cover = nextUrl;
@@ -437,6 +460,7 @@ export default function ActionBar() {
     setUploadLinkGatePassed(false);
     setUploadStep(1);
     setUrlParseStatus(null);
+    setUrlParseKind(null);
     prevUrlParseLoadingRef.current = false;
   };
 
@@ -453,7 +477,10 @@ export default function ActionBar() {
       originalPriceNum = price;
       price = t;
     }
-    const dedupImages = [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)).filter((u, i, arr) => arr.indexOf(u) === i);
+    const dedupImages = selectOfferImages(
+      [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)),
+      { preferredCover: imageUrl },
+    );
     const firstImage = dedupImages[0] ?? '/placeholder.png';
     const extraImages = dedupImages.slice(1);
     let conditionsOut = formData.conditions.trim();
@@ -506,7 +533,7 @@ export default function ActionBar() {
         Array.isArray(data?.issues) && data.issues.length > 0
           ? describeOfferIssue(data.issues[0])
           : null;
-      showToast(firstIssue || data?.error || 'Error al crear la oferta');
+      showToast(firstIssue || data?.error || 'No se pudo publicar. Revisa los datos e inténtalo de nuevo.');
       return;
     }
     setSubmitThanksApproved(data?.status === 'approved');
@@ -880,7 +907,7 @@ export default function ActionBar() {
                         : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
                     }`}
                   >
-                    1 · Lo esencial
+                    1 · Encontrado
                   </button>
                   <span className="text-gray-300 dark:text-gray-600">→</span>
                   <button
@@ -892,7 +919,7 @@ export default function ActionBar() {
                         : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
                     }`}
                   >
-                    2 · Detalles
+                    2 · Completar
                   </button>
                 </div>
               ) : null}
@@ -906,7 +933,7 @@ export default function ActionBar() {
                   <div className="space-y-6">
                   <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden md:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                      Oferta · esencial
+                      Lo que encontramos
                     </p>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -928,13 +955,94 @@ export default function ActionBar() {
                       />
                     </div>
                     {urlParseStatus ? (
-                      <p className="mt-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 leading-snug">
+                      <p
+                        className={`mt-2 rounded-lg px-3 py-2 text-xs leading-snug ${
+                          urlParseKind === 'invalid_url' || urlParseKind === 'extract_failed'
+                            ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                        }`}
+                      >
                         {urlParseStatus}
                       </p>
                     ) : (
                       <p className="mt-2 rounded-lg bg-violet-50 dark:bg-violet-950/40 px-3 py-2 text-xs text-violet-800 dark:text-violet-300 leading-snug">
                         Detectamos título, fotos, precios y categoría cuando el sitio lo permite. Siempre puedes corregirlos.
                       </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Imágenes encontradas
+                      </p>
+                      <span className="text-[11px] text-gray-400">
+                        {(imageUrl ? 1 : 0) + imageUrls.length}/{OFFER_MAX_IMAGES}
+                      </span>
+                    </div>
+                    {urlParseLoading && !imageUrl && imageUrls.length === 0 ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Buscando fotos del producto…</p>
+                    ) : (
+                      <>
+                        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                          {imageUrl || imageUrls.length > 0
+                            ? 'Toca una foto para usarla de portada. Puedes quitar las que no sirvan.'
+                            : 'Aún no hay fotos. Añade al menos una si las tienes.'}
+                        </p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[imageUrl, ...imageUrls]
+                            .filter((u): u is string => Boolean(u))
+                            .map((url, idx) => (
+                              <div
+                                key={`${url}-${idx}`}
+                                className={`relative overflow-hidden rounded-lg border ${
+                                  idx === 0
+                                    ? 'border-violet-500 ring-1 ring-violet-500/30'
+                                    : 'border-gray-200 dark:border-gray-600'
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => setCoverImageAt(idx)}
+                                  className="block w-full"
+                                  title={idx === 0 ? 'Portada actual' : 'Poner como portada'}
+                                >
+                                  <img src={url} alt={`Foto ${idx + 1}`} className="h-16 w-full object-cover" />
+                                </button>
+                                {idx === 0 && (
+                                  <span className="absolute left-1 top-1 rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                    Portada
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => removeImageAt(idx)}
+                                  className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white hover:bg-black/80"
+                                  aria-label="Eliminar foto"
+                                  title="Eliminar foto"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          {(imageUrl ? 1 : 0) + imageUrls.length < OFFER_MAX_IMAGES ? (
+                            <label className="flex h-16 min-h-16 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-violet-200 bg-violet-50/50 text-violet-600 dark:border-violet-800 dark:bg-violet-950/20 dark:text-violet-300">
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                multiple
+                                onChange={handleImageSelect}
+                                disabled={imageUploading}
+                                className="hidden"
+                              />
+                              <ImageIcon className="h-4 w-4" />
+                              <span className="mt-0.5 text-[10px] font-medium">
+                                {imageUploading ? 'Subiendo' : 'Añadir'}
+                              </span>
+                            </label>
+                          ) : null}
+                        </div>
+                      </>
                     )}
                   </div>
 
@@ -1033,41 +1141,9 @@ export default function ActionBar() {
                     )}
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowCouponSection((v) => !v)}
-                    className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
-                  >
-                    {showCouponSection ? 'Ocultar cupón' : '+ Agregar cupón de descuento (opcional)'}
-                  </button>
-                  {showCouponSection ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <input
-                        type="text"
-                        value={formData.coupons}
-                        onChange={(e) => handleInputChange('coupons', e.target.value)}
-                        placeholder="Código (ej. DESCUENTO20)"
-                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"
-                      />
-                      <select
-                        value={formData.bank_coupon}
-                        onChange={(e) => handleInputChange('bank_coupon', e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"
-                      >
-                        <option value="">Sin cupón bancario</option>
-                        {BANK_COUPON_OPTIONS.map((b) => (
-                          <option key={b.value} value={b.value}>{b.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : null}
                   </section>
 
                   <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden md:block'}`}>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                      Detalles · importante
-                    </p>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Categoría *
@@ -1094,6 +1170,37 @@ export default function ActionBar() {
                       onChange={(e) => handleInputChange('store', e.target.value)}
                       placeholder="Ej: Amazon, Mercado Libre"
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                    />
+                  </div>
+                  </section>
+
+                  {uploadStep === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => setUploadStep(2)}
+                      className="md:hidden min-h-12 w-full rounded-xl bg-violet-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-violet-500"
+                    >
+                      Continuar
+                    </button>
+                  ) : null}
+
+                  <section className={`space-y-4 ${uploadStep === 2 ? '' : 'hidden md:block'}`}>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                      Completar y publicar
+                    </p>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Descripción
+                      </label>
+                      <span className="text-[11px] text-gray-400">{formData.description.length}/300</span>
+                    </div>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value.slice(0, 300))}
+                      placeholder="Describe brevemente la oferta..."
+                      rows={4}
+                      className="w-full min-h-[6.5rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y break-words whitespace-pre-wrap transition-colors duration-200"
                     />
                   </div>
 
@@ -1132,42 +1239,40 @@ export default function ActionBar() {
                       </div>
                     </div>
 
-                  <div>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Descripción
-                      </label>
-                      <span className="text-[11px] text-gray-400">{formData.description.length}/300</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCouponSection((v) => !v)}
+                    className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
+                  >
+                    {showCouponSection ? 'Ocultar cupón' : '+ Agregar cupón de descuento (opcional)'}
+                  </button>
+                  {showCouponSection ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        value={formData.coupons}
+                        onChange={(e) => handleInputChange('coupons', e.target.value)}
+                        placeholder="Código (ej. DESCUENTO20)"
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"
+                      />
+                      <select
+                        value={formData.bank_coupon}
+                        onChange={(e) => handleInputChange('bank_coupon', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="">Sin cupón bancario</option>
+                        {BANK_COUPON_OPTIONS.map((b) => (
+                          <option key={b.value} value={b.value}>{b.label}</option>
+                        ))}
+                      </select>
                     </div>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value.slice(0, 300))}
-                      placeholder="Describe brevemente la oferta..."
-                      rows={4}
-                      className="w-full min-h-[6.5rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y break-words whitespace-pre-wrap transition-colors duration-200"
-                    />
-                  </div>
-                  </section>
-
-                  {uploadStep === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => setUploadStep(2)}
-                      className="md:hidden w-full rounded-xl bg-violet-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-violet-500"
-                    >
-                      Continuar · fotos y extras
-                    </button>
                   ) : null}
 
-                  <section className={`space-y-4 ${uploadStep === 2 ? '' : 'hidden md:block'}`}>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                      Multimedia · opcional
-                    </p>
-                  <div>
+                  <div className="hidden md:block">
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Fotos de la oferta
+                      Añadir más fotos
                     </label>
-                    <label className="block w-full rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 px-4 py-8 text-center transition-all duration-200 ease-out hover:border-violet-400 dark:hover:border-violet-500 cursor-pointer">
+                    <label className="block w-full cursor-pointer rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/40 px-4 py-6 text-center dark:border-violet-800 dark:bg-violet-950/20">
                       <input
                         type="file"
                         accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -1176,53 +1281,13 @@ export default function ActionBar() {
                         disabled={imageUploading}
                         className="hidden"
                       />
-                      <ImageIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                      <ImageIcon className="mx-auto mb-2 h-7 w-7 text-gray-400 dark:text-gray-500" />
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {imageUploading ? 'Subiendo...' : imageUrl || imageUrls.length > 0 ? `${1 + imageUrls.length} foto(s) · la primera es portada` : 'Arrastra fotos o toca para subir (jpg, png, webp, máx. 2MB). Si pegaste un enlace, ya intentamos traer varias.'}
+                        {imageUploading
+                          ? 'Subiendo...'
+                          : `jpg, png o webp · máx. 2MB · ${(imageUrl ? 1 : 0) + imageUrls.length}/${OFFER_MAX_IMAGES}`}
                       </p>
                     </label>
-                    {(imageUrl || imageUrls.length > 0) && (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Toca una foto para ponerla de portada o elimínala.
-                        </p>
-                        <div className="grid grid-cols-4 gap-2">
-                          {[imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)).map((url, idx) => (
-                            <div
-                              key={`${url}-${idx}`}
-                              className={`relative rounded-lg overflow-hidden border ${
-                                idx === 0
-                                  ? 'border-violet-500 ring-1 ring-violet-500/30'
-                                  : 'border-gray-200 dark:border-gray-600'
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => setCoverImageAt(idx)}
-                                className="block w-full"
-                                title={idx === 0 ? 'Portada actual' : 'Poner como portada'}
-                              >
-                                <img src={url} alt={`Foto ${idx + 1}`} className="h-16 w-full object-cover" />
-                              </button>
-                              {idx === 0 && (
-                                <span className="absolute left-1 top-1 rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                                  Portada
-                                </span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => removeImageAt(idx)}
-                                className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white hover:bg-black/80"
-                                aria-label="Eliminar foto"
-                                title="Eliminar foto"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div>

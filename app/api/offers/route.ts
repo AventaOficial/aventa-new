@@ -4,7 +4,8 @@ import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { resolveOfferAutoApproveForUser } from '@/lib/server/offerAutoApprove';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
-import { createOfferInputSchema } from '@/lib/contracts/offers';
+import { createOfferInputSchema, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
@@ -123,11 +124,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Precio inválido' }, { status: 400 });
     }
 
-    const imageUrlRaw = typeof input.image_url === 'string' ? input.image_url : null;
+    const imageUrlRaw = typeof input.image_url === 'string' ? input.image_url.trim() : '';
     const imageUrlsArr = Array.isArray(input.image_urls)
       ? input.image_urls.filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '')
       : [];
-    const firstImage = imageUrlRaw ?? imageUrlsArr[0] ?? '/placeholder.png';
+    const { cover, extras } = splitCoverAndExtras(
+      [imageUrlRaw, ...imageUrlsArr].filter((u) => u && u !== '/placeholder.png'),
+    );
+    const firstImage = cover ?? (imageUrlRaw && imageUrlRaw !== '/placeholder.png' ? imageUrlRaw : null) ?? '/placeholder.png';
+    const extraImages = extras.slice(0, Math.max(0, OFFER_MAX_IMAGES - (firstImage === '/placeholder.png' ? 0 : 1)));
     const msiMonths = input.msi_months ?? null;
 
     let offerStatus: 'pending' | 'approved' = 'pending';
@@ -193,7 +198,7 @@ export async function POST(request: Request) {
       created_by: createdBy,
       ...(expiresAt && { expires_at: expiresAt }),
       image_url: firstImage,
-      ...(imageUrlsArr.length > 0 && { image_urls: imageUrlsArr }),
+      ...(extraImages.length > 0 && { image_urls: extraImages }),
       ...(msiMonths != null && { msi_months: msiMonths }),
       ...(offerUrlNormalized && { offer_url: offerUrlNormalized }),
       ...(typeof input.description === 'string' && input.description.trim() && {

@@ -103,7 +103,7 @@ describe('buildBotFacts', () => {
 });
 
 describe('buildModerationChecklist', () => {
-  it('marca lo que falta en una oferta del bot sin foto', () => {
+  it('avisa foto faltante sin bloquear (ficha del bot basta para decidir)', () => {
     process.env.ML_AFFILIATE_TAG = 'aventa_test';
     const items = buildModerationChecklist({
       title: 'Cerveza Clara Modelo Especial 24 Latas',
@@ -112,13 +112,13 @@ describe('buildModerationChecklist', () => {
       category: 'supermercado',
     });
     const map = Object.fromEntries(items.map((i) => [i.id, i]));
-    expect(map.photo.state).toBe('missing');
+    expect(map.photo.state).toBe('warn');
     expect(map.link.state).toBe('ok');
     expect(map.affiliate.state).toBe('ok');
     expect(map.category.state).toBe('ok');
     expect(map.category.detail).toContain('Día a día');
     expect(map.title.state).toBe('ok');
-    expect(countChecklistBlockers(items)).toBe(1);
+    expect(countChecklistBlockers(items)).toBe(0);
   });
 
   it('avisa enlace sin tag de afiliado sin bloquear (se aplica al aprobar)', () => {
@@ -127,6 +127,18 @@ describe('buildModerationChecklist', () => {
       title: 'Producto',
       image_url: 'https://http2.mlstatic.com/a.jpg',
       offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1',
+      category: 'hogar',
+    });
+    expect(items.find((i) => i.id === 'affiliate')?.state).toBe('warn');
+    expect(countChecklistBlockers(items)).toBe(0);
+  });
+
+  it('avisa acortador meli.la sin bloquear (se resuelve al aprobar)', () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa_test';
+    const items = buildModerationChecklist({
+      title: 'Producto corto',
+      image_url: 'https://http2.mlstatic.com/a.jpg',
+      offer_url: 'https://meli.la/abc123',
       category: 'hogar',
     });
     expect(items.find((i) => i.id === 'affiliate')?.state).toBe('warn');

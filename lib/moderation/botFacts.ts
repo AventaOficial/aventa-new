@@ -1,5 +1,6 @@
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { assessOfferAffiliateLink } from '@/lib/affiliate/assessOfferAffiliateLink';
+import { isAmazonShortUrl, isMeliLaShortUrl } from '@/lib/offerUrl';
 
 /** Título más largo que esto se marca para recortar antes de publicar. */
 export const MODERATION_TITLE_MAX = 110;
@@ -274,6 +275,8 @@ export function buildModerationChecklist(offer: ChecklistInput): ModerationCheck
     Boolean(offer.image_url?.trim()) ||
     (offer.image_urls ?? []).some((u) => Boolean(u?.trim()));
   const hasLink = Boolean(offer.offer_url?.trim());
+  const rawUrl = offer.offer_url?.trim() ?? '';
+  const isResolvableShortlink = Boolean(rawUrl && (isMeliLaShortUrl(rawUrl) || isAmazonShortUrl(rawUrl)));
   const categoryNorm = normalizeCategoryForStorage(offer.category ?? null);
   const categoryLabel = categoryNorm
     ? ALL_CATEGORIES.find((c) => c.value === categoryNorm)?.label ?? categoryNorm
@@ -294,14 +297,19 @@ export function buildModerationChecklist(offer: ChecklistInput): ModerationCheck
       state: !hasLink
         ? 'missing'
         : !affiliate.isProduct
-          ? 'missing'
+          ? // Acortadores se resuelven en el servidor al aprobar; no bloquear el botón.
+            isResolvableShortlink
+              ? 'warn'
+              : 'missing'
           : affiliate.needsAffiliate && !affiliate.isTagged
             ? 'warn'
             : 'ok',
       detail: !hasLink
         ? 'Primero pega el enlace de la tienda'
         : !affiliate.isProduct
-          ? 'No resuelve a un producto — abre y corrige la URL'
+          ? isResolvableShortlink
+            ? 'Acortador — al aprobar AVENTA lo resuelve; si no es producto, fallará'
+            : 'No resuelve a un producto — abre y corrige la URL'
           : affiliate.needsAffiliate && !affiliate.isTagged
             ? 'Sin tag aún — al aprobar AVENTA lo aplica sola'
             : affiliate.needsAffiliate
@@ -314,8 +322,9 @@ export function buildModerationChecklist(offer: ChecklistInput): ModerationCheck
     {
       id: 'photo',
       label: 'Foto',
-      state: hasPhoto ? 'ok' : 'missing',
-      detail: hasPhoto ? 'Lista' : 'Falta — pega la imagen de la tienda',
+      // Aviso, no bloqueo: la ficha del bot permite decidir sin imagen.
+      state: hasPhoto ? 'ok' : 'warn',
+      detail: hasPhoto ? 'Lista' : 'Sin foto — conviene pegar la de la tienda',
     },
     ...linkItems,
     {

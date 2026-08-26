@@ -14,6 +14,7 @@ import {
   getById,
   getMetaContent,
 } from '@/lib/offers/parseOfferPageHtml';
+import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
@@ -38,7 +39,7 @@ function isAmazonHost(hostname: string): boolean {
   return d === 'amazon.com' || d === 'amazon.com.mx' || d.endsWith('.amazon.com') || d.endsWith('.amazon.com.mx');
 }
 
-function emptyPayload() {
+function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
   return {
     title: null as string | null,
     image: null as string | null,
@@ -47,6 +48,7 @@ function emptyPayload() {
     suggested_discount_price: null as number | null,
     suggested_original_price: null as number | null,
     suggested_category: null as string | null,
+    reason,
   };
 }
 
@@ -81,14 +83,12 @@ function parseGeneric(html: string, base: string): { title: string | null; image
   };
 }
 
-function mergeImages(primary: string | null, extras: string[]): string[] {
+function collectCandidates(primary: string | null, extras: string[]): string[] {
   const out: string[] = [];
   for (const u of [primary, ...extras]) {
     if (!u) continue;
-    const key = u.split('?')[0];
-    if (out.some((x) => x.split('?')[0] === key)) continue;
     out.push(u);
-    if (out.length >= 12) break;
+    if (out.length >= OFFER_IMAGE_CANDIDATE_CAP) break;
   }
   return out;
 }
@@ -146,19 +146,24 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
-    if (!rawUrl) return NextResponse.json(emptyPayload());
+    if (!rawUrl) return NextResponse.json(emptyPayload('invalid_url'));
 
     let url: URL;
     try {
       url = new URL(rawUrl);
     } catch {
-      return NextResponse.json(emptyPayload());
+      return NextResponse.json(emptyPayload('invalid_url'));
     }
-    if (!['http:', 'https:'].includes(url.protocol)) return NextResponse.json(emptyPayload());
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return NextResponse.json(emptyPayload('invalid_url'));
+    }
 
     const block = isBlockedOfferParseUrl(url);
     if (block.blocked) {
-      return NextResponse.json({ error: block.reason ?? 'URL no permitida' }, { status: 400 });
+      return NextResponse.json(
+        { ...emptyPayload('invalid_url'), error: 'Este enlace no se puede usar. Revisa que sea una URL de tienda válida.' },
+        { status: 400 },
+      );
     }
 
     const looksMl = isMercadoLibreHost(url.hostname) || Boolean(extractMercadoLibreItemId(rawUrl));
@@ -190,7 +195,7 @@ export async function POST(request: Request) {
       else data = parseGeneric(html, base);
     }
 
-    let images = mergeImages(data.image, htmlImages);
+    let candidates = collectCandidates(data.image, htmlImages);
     let mlCategoryId: string | null = null;
     let mlPathNames: string[] = [];
     const htmlPrices = html ? extractSuggestedPrices(html) : { discount: null, original: null };
@@ -209,7 +214,7 @@ export async function POST(request: Request) {
         image: ml.pictures[0] || data.image,
         store: data.store || 'Mercado Libre',
       };
-      images = mergeImages(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
+      candidates = collectCandidates(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
       mlCategoryId = ml.categoryId;
       mlPathNames = ml.pathNames;
       if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
@@ -235,16 +240,24 @@ export async function POST(request: Request) {
       mlPathNames,
     });
 
+    const preferredCover = ml?.pictures[0] || data.image;
+    const images = selectOfferImages(candidates, { preferredCover });
+    const title = sanitizeOfferTitle(data.title);
+    const store = data.store ?? inferStoreFromHostname(pageUrl.hostname);
+    const extracted =
+      Boolean(title) || images.length > 0 || suggestedDiscount != null;
+
     return NextResponse.json({
-      title: sanitizeOfferTitle(data.title),
-      image: images[0] ?? data.image,
+      title,
+      image: images[0] ?? null,
       images,
-      store: data.store ?? inferStoreFromHostname(pageUrl.hostname),
+      store,
       suggested_discount_price: suggestedDiscount,
       suggested_original_price: suggestedOriginal,
       suggested_category: suggestedCategory,
+      reason: extracted ? null : 'extract_failed',
     });
   } catch {
-    return NextResponse.json(emptyPayload());
+    return NextResponse.json(emptyPayload('extract_failed'));
   }
 }

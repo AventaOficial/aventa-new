@@ -69,7 +69,7 @@ function picturesFrom(
     } else if (p.id) {
       out.push(`https://http2.mlstatic.com/D_NQ_NP_2X_${p.id}-F.webp`);
     }
-    if (out.length >= 12) break;
+    if (out.length >= 24) break;
   }
   return out;
 }
@@ -81,7 +81,7 @@ function mergePictures(...lists: string[][]): string[] {
       const key = u.split('?')[0];
       if (out.some((x) => x.split('?')[0] === key)) continue;
       out.push(u);
-      if (out.length >= 12) return out;
+      if (out.length >= 24) return out;
     }
   }
   return out;

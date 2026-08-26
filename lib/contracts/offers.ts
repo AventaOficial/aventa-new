@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+/** Tope único de fotos por oferta (portada + extras). Parser, cliente, Zod y upload deben usarlo. */
+export const OFFER_MAX_IMAGES = 8;
+
 /**
  * Todos los campos llevan mensaje en español. Un error sin texto útil (el
  * «Invalid input» por defecto de Zod) deja al usuario sin saber qué arreglar y
@@ -65,7 +68,7 @@ export const createOfferInputSchema = z
           .max(4096, 'La dirección de una foto es demasiado larga'),
         { error: 'Las fotos deben venir en una lista' }
       )
-      .max(8, 'Máximo 8 fotos por oferta')
+      .max(OFFER_MAX_IMAGES, 'Puedes agregar un máximo de 8 imágenes')
       .optional()
       .default([]),
     msi_months: z
@@ -130,6 +133,21 @@ export const createOfferInputSchema = z
         message: 'El precio original no puede ser negativo',
       });
     }
+
+    const cover = typeof data.image_url === 'string' && data.image_url.trim() ? data.image_url.trim() : '';
+    const extras = Array.isArray(data.image_urls) ? data.image_urls : [];
+    const unique = new Set(
+      [cover, ...extras]
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0 && u !== '/placeholder.png'),
+    );
+    if (unique.size > OFFER_MAX_IMAGES) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['image_urls'],
+        message: 'Puedes agregar un máximo de 8 imágenes',
+      });
+    }
   });
 
 export type CreateOfferInput = z.infer<typeof createOfferInputSchema>;
@@ -155,14 +173,19 @@ const OFFER_FIELD_LABELS: Record<string, string> = {
   moderator_comment: 'Nota para moderadores',
 };
 
+const GENERIC_INVALID = /^(invalid input|too (small|big)|required|expected )/i;
+
 /** Convierte un issue de la API en una frase que le sirve al usuario. */
 export function describeOfferIssue(issue: {
   path?: string | null;
   message?: string | null;
 }): string | null {
-  const message = issue.message?.trim();
-  if (!message) return null;
+  const raw = issue.message?.trim() ?? '';
   const field = issue.path?.split('.')[0] ?? '';
   const label = OFFER_FIELD_LABELS[field];
+  const message =
+    !raw || GENERIC_INVALID.test(raw)
+      ? 'Revisa este dato y vuelve a intentar'
+      : raw;
   return label ? `${label}: ${message}` : message;
 }

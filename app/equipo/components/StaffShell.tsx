@@ -25,6 +25,7 @@ import {
 import { listStaffDepartmentsForRole } from '@/lib/staff/permissions';
 import type { StaffDepartmentMeta } from '@/lib/staff/permissions';
 import { staffHomePathForRole } from '@/lib/staff/roleRouting';
+import { getDefaultAdminHome } from '@/lib/admin/navigation';
 import CountrySelector from '@/app/components/panel/CountrySelector';
 import LoadingState from '@/app/components/panel/LoadingState';
 import { cn } from '@/app/components/panel/utils';
@@ -171,7 +172,7 @@ export default function StaffShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           {(role === 'owner' || role === 'admin') && (
-            <Link href="/admin" className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 hover:underline">
+            <Link href={getDefaultAdminHome(role)} className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 hover:underline">
               <Shield className="h-3 w-3" />
               Admin Control
             </Link>

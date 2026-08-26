@@ -1,6 +1,5 @@
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
-
-const MAX_IMAGES = 12;
+import { OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 
 export function getMetaContent(html: string, selector: string): string | null {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -230,7 +229,7 @@ function pushUnique(list: string[], url: string | null) {
   if (!url) return;
   const clean = url.split('?')[0] ?? url;
   if (list.some((u) => u.split('?')[0] === clean || u === url)) return;
-  if (list.length >= MAX_IMAGES) return;
+  if (list.length >= OFFER_IMAGE_CANDIDATE_CAP) return;
   list.push(url);
 }
 
@@ -335,7 +334,7 @@ export function extractOfferImages(html: string, base: string): string[] {
     }
   }
 
-  return images.slice(0, MAX_IMAGES);
+  return images.slice(0, OFFER_IMAGE_CANDIDATE_CAP);
 }
 
 export function extractBreadcrumbs(html: string): string[] {

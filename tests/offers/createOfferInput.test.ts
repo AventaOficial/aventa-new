@@ -107,7 +107,28 @@ describe('describeOfferIssue', () => {
     expect(describeOfferIssue({ path: 'raro', message: 'Algo pasó' })).toBe('Algo pasó');
   });
 
-  it('devuelve null sin mensaje', () => {
-    expect(describeOfferIssue({ path: 'title', message: '   ' })).toBeNull();
+  it('traduce Invalid input genérico', () => {
+    expect(describeOfferIssue({ path: 'price', message: 'Invalid input' })).toBe(
+      'Precio con descuento: Revisa este dato y vuelve a intentar',
+    );
+  });
+
+  it('rechaza más de 8 fotos en total', () => {
+    const urls = Array.from({ length: 9 }, (_, i) => `https://cdn.example/${i}.jpg`);
+    const parsed = createOfferInputSchema.safeParse({
+      ...base,
+      image_url: urls[0],
+      image_urls: urls.slice(1),
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.some((i) => i.message.includes('máximo de 8'))).toBe(true);
+    }
+  });
+
+  it('nunca deja Invalid input ni un mensaje vacío', () => {
+    expect(describeOfferIssue({ path: 'title', message: '   ' })).toBe(
+      'Título: Revisa este dato y vuelve a intentar',
+    );
   });
 });

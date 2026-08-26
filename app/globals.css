@@ -133,25 +133,23 @@ body {
  * el navegador descarga solo la variante que corresponde.
  */
 .hero-art {
-  background-image: url('/brand/aventa-hero.png?v=20260826');
+  background-image: url('/brand/aventa-hero.png?v=20260826d');
   background-repeat: no-repeat;
   background-position: bottom center;
   background-size: contain;
   filter: drop-shadow(0 18px 22px rgba(20, 16, 28, 0.12));
 }
 
-/* Variante oscura: PNG propio + halo violeta (el claro deja orilla blanca). */
+/*
+ * Dark: PNG con alfa limpia (mate negro bajo transparencia + sombra de
+ * contacto atenuada). Sin gradiente de relleno detrás: con drop-shadow
+ * ese halo se leía como rectángulo claro sobre el glass del hero.
+ */
 .dark .hero-art {
-  background-image:
-    url('/brand/aventa-hero-dark.png?v=20260826'),
-    radial-gradient(ellipse 70% 55% at 50% 68%, rgba(139, 92, 246, 0.32), transparent 74%);
-  background-position:
-    bottom center,
-    center;
-  background-size:
-    contain,
-    100% 100%;
-  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.55));
+  background-image: url('/brand/aventa-hero-dark.png?v=20260826d');
+  background-position: bottom center;
+  background-size: contain;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45));
 }
 
 /* ============================================

@@ -97,6 +97,7 @@ export const config = {
     '/mi-panel/:path*',
     '/contexto/:path*',
     '/operaciones/:path*',
+    '/admin',
     '/admin/:path*',
     '/equipo',
     '/equipo/:path*',
