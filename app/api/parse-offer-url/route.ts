@@ -5,7 +5,11 @@ import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
 import { fetchMercadoLibrePublicOffer } from '@/lib/offers/mlPublicOffer';
-import { resolveMercadoLibreShortlinks, resolveAmazonShortlinks } from '@/lib/offerUrl';
+import {
+  normalizePastedOfferUrl,
+  resolveMercadoLibreShortlinks,
+  resolveAmazonShortlinks,
+} from '@/lib/offerUrl';
 import {
   isOfferAmazonHost,
   isOfferMeliLaHost,
@@ -136,7 +140,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
+    const rawUrl = normalizePastedOfferUrl(typeof body?.url === 'string' ? body.url : '');
     if (!rawUrl) return NextResponse.json(emptyPayload('invalid_url'));
 
     let url: URL;

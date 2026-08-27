@@ -15,6 +15,8 @@ import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } 
 import { describeOfferIssue, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { logClientError } from '@/lib/utils/handleError';
+import { normalizePastedOfferUrl } from '@/lib/offerUrl';
+import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
 import CatalogGapsBoard from './CatalogGapsBoard';
@@ -229,23 +231,50 @@ export default function ActionBar() {
 
   // Parse URL → rellena campos AUTO. No pisa lo marcado como editado por el usuario.
   useEffect(() => {
-    const url = formData.offer_url.trim();
+    if (!showUploadModal) return;
+    const url = normalizePastedOfferUrl(formData.offer_url);
     if (!url || !url.startsWith('http')) return;
-    const token = session?.access_token;
-    if (!token) return;
     let cancelled = false;
     const t = setTimeout(async () => {
       setUrlParseLoading(true);
       setUrlParseStatus('Leyendo la página…');
+      setUrlParseKind(null);
       try {
-        const res = await fetch('/api/parse-offer-url', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ url }),
-        });
+        const supabase = createClient();
+        let activeSession = session;
+        if (!activeSession?.access_token) {
+          const { data: { session: s } } = await supabase.auth.getSession();
+          activeSession = s;
+        }
+        if (!activeSession?.access_token) {
+          if (!cancelled) {
+            setUrlParseKind('extract_failed');
+            setUrlParseStatus('Inicia sesión para que podamos leer la página y rellenar los datos.');
+          }
+          return;
+        }
+
+        const fetchParse = (accessToken: string) =>
+          fetch('/api/parse-offer-url', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ url }),
+          });
+
+        let refreshed = await refreshSessionIfNeeded(supabase, activeSession);
+        let activeToken = refreshed?.access_token ?? activeSession.access_token;
+        let res = await fetchParse(activeToken);
+        if (res.status === 401) {
+          const { data: { session: s } } = await supabase.auth.getSession();
+          refreshed = await refreshSessionIfNeeded(supabase, s);
+          if (refreshed?.access_token) {
+            activeToken = refreshed.access_token;
+            res = await fetchParse(activeToken);
+          }
+        }
         if (cancelled) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data) {
@@ -361,19 +390,20 @@ export default function ActionBar() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [formData.offer_url, session?.access_token]);
+  }, [showUploadModal, formData.offer_url, session]);
 
   useEffect(() => {
     if (!showUploadModal || uploadLinkGatePassed) return;
-    const u = formData.offer_url.trim();
+    const u = normalizePastedOfferUrl(formData.offer_url);
     if (!u.startsWith('http')) return;
     if (!session?.access_token) return;
     const wasLoading = prevUrlParseLoadingRef.current;
     prevUrlParseLoadingRef.current = urlParseLoading;
     if (!wasLoading || urlParseLoading) return;
+    if (urlParseKind !== 'ok') return;
     const t = window.setTimeout(() => setUploadLinkGatePassed(true), 350);
     return () => window.clearTimeout(t);
-  }, [showUploadModal, uploadLinkGatePassed, formData.offer_url, urlParseLoading, session?.access_token]);
+  }, [showUploadModal, uploadLinkGatePassed, formData.offer_url, urlParseLoading, urlParseKind, session?.access_token]);
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -661,6 +691,10 @@ export default function ActionBar() {
               }
               setShowSubmitThanksModal(false);
               setUploadLinkGatePassed(false);
+              setUploadStep(1);
+              setMobileTab('form');
+              setUrlParseStatus(null);
+              setUrlParseKind(null);
               prevUrlParseLoadingRef.current = false;
               setShowUploadModal(true);
             }}
@@ -750,6 +784,10 @@ export default function ActionBar() {
             }
             setShowSubmitThanksModal(false);
             setUploadLinkGatePassed(false);
+            setUploadStep(1);
+            setMobileTab('form');
+            setUrlParseStatus(null);
+            setUrlParseKind(null);
             prevUrlParseLoadingRef.current = false;
             setShowUploadModal(true);
           }}
@@ -876,6 +914,17 @@ export default function ActionBar() {
                           inputMode="url"
                         />
                       </div>
+                      {urlParseStatus ? (
+                        <p
+                          className={`rounded-lg px-3 py-2 text-xs leading-snug ${
+                            urlParseKind === 'invalid_url' || urlParseKind === 'extract_failed'
+                              ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200'
+                              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                          }`}
+                        >
+                          {urlParseStatus}
+                        </p>
+                      ) : null}
                       {!session?.access_token ? (
                         <p className="text-xs text-amber-700 dark:text-amber-300/90 text-center sm:text-left leading-snug">
                           Inicia sesión para que podamos leer la página y rellenar título e imagen automáticamente.
@@ -889,7 +938,8 @@ export default function ActionBar() {
                       <button
                         type="button"
                         onClick={() => setUploadLinkGatePassed(true)}
-                        className="w-full text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline py-1"
+                        disabled={urlParseLoading}
+                        className="w-full text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline py-1 disabled:opacity-50 disabled:no-underline"
                       >
                         Continuar sin enlace
                       </button>
@@ -1692,9 +1742,10 @@ export default function ActionBar() {
                     <button
                       type="button"
                       onClick={() => setUploadLinkGatePassed(true)}
-                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99]"
+                      disabled={urlParseLoading}
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Continuar al formulario
+                      {urlParseLoading ? 'Obteniendo datos…' : 'Continuar al formulario'}
                     </button>
                   )}
                 </div>

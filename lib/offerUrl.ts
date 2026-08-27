@@ -14,6 +14,16 @@ export type OfferCreatorAffiliateTags = {
   amazonTag?: string | null;
 };
 
+/** Normaliza URLs pegadas desde apps móviles (sin https, espacios, caracteres invisibles). */
+export function normalizePastedOfferUrl(raw: string): string {
+  let s = raw.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+  if (!s) return '';
+  if (!/^https?:\/\//i.test(s)) {
+    s = `https://${s.replace(/^\/\//, '')}`;
+  }
+  return s;
+}
+
 /** Enlaces cortos del programa de colaboradores (redirigen a articulo.mercadolibre…). */
 export function isMeliLaShortUrl(url: string): boolean {
   try {
