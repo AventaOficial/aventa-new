@@ -50,6 +50,23 @@ describe('selectOfferImages', () => {
     expect(picked[0]).toContain('-O.');
   });
 
+  it('conserva fotos ML distintas aunque compartan prefijo numérico', () => {
+    const picked = selectOfferImages([
+      'https://http2.mlstatic.com/D_NQ_NP_2X_987654-MLA2023123456789-I.webp',
+      'https://http2.mlstatic.com/D_NQ_NP_2X_987654-MLB2023987654321-I.webp',
+      'https://http2.mlstatic.com/D_NQ_NP_2X_987654-MLC2023111111111-I.webp',
+    ]);
+    expect(picked).toHaveLength(3);
+  });
+
+  it('dedupe por id de picture cuando la API genera URLs con -F.webp', () => {
+    const picked = selectOfferImages([
+      'https://http2.mlstatic.com/D_NQ_NP_2X_123456-MLA-F.webp',
+      'https://http2.mlstatic.com/D_NQ_NP_2X_123457-MLA-F.webp',
+    ]);
+    expect(picked).toHaveLength(2);
+  });
+
   it('elimina basura de alta confianza y conserva una URL con "logo" en el nombre', () => {
     expect(isHighConfidenceJunkImage('https://cdn.example/favicon.ico')).toBe(true);
     expect(isHighConfidenceJunkImage('https://cdn.example/grey-pixel.gif')).toBe(true);

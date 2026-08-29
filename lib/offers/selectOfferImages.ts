@@ -29,11 +29,15 @@ export function amazonImageResourceId(raw: string): string | null {
   return m ? m[1].toUpperCase() : null;
 }
 
-/** Id de foto Mercado Libre para unificar -I / -O / 2X. */
+/** Id de foto Mercado Libre para unificar -I / -O / 2X del mismo recurso. */
 export function mercadoLibreImageResourceId(raw: string): string | null {
   const path = tryUrl(raw)?.pathname ?? raw;
-  const m = path.match(/D_(?:NQ_NP_2X_|NQ_NP_|Q_NP_)?([A-Za-z0-9]+)/i);
-  return m ? m[1].toUpperCase() : null;
+  const withVariant = path.match(
+    /D_(?:NQ_NP_2X_|NQ_NP_|Q_NP_)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)(?:-[IOF])\.(?:jpg|jpeg|webp|png)/i,
+  );
+  if (withVariant) return withVariant[1].toUpperCase();
+  const loose = path.match(/D_(?:NQ_NP_2X_|NQ_NP_|Q_NP_)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/i);
+  return loose ? loose[1].toUpperCase() : null;
 }
 
 function resourceKey(raw: string): string {
