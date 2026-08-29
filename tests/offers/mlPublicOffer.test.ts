@@ -93,6 +93,38 @@ describe('fetchMercadoLibrePublicOffer', () => {
     expect(result?.originalPrice).toBeNull();
   });
 
+  it('mergeMercadoLibrePublicOffers une fotos sin duplicar', async () => {
+    const { mergeMercadoLibrePublicOffers } = await import('@/lib/offers/mlPublicOffer');
+    const merged = mergeMercadoLibrePublicOffers(
+      {
+        title: 'A',
+        price: 100,
+        originalPrice: null,
+        pictures: [
+          'https://http2.mlstatic.com/D_NQ_NP_2X_111-I.webp',
+          'https://http2.mlstatic.com/D_NQ_NP_2X_222-I.webp',
+        ],
+        categoryId: 'MLM1',
+        pathNames: ['Cat'],
+        source: 'ml_api',
+      },
+      {
+        title: null,
+        price: null,
+        originalPrice: null,
+        pictures: [
+          'https://http2.mlstatic.com/D_NQ_NP_2X_222-I.webp',
+          'https://http2.mlstatic.com/D_NQ_NP_2X_333-I.webp',
+        ],
+        categoryId: null,
+        pathNames: [],
+        source: 'anonymous',
+      },
+    );
+    expect(merged.pictures).toHaveLength(3);
+    expect(merged.source).toBe('ml_api');
+  });
+
   it('usa /items/{id}/prices cuando el item no trae price', async () => {
     fetchMlApiMock.mockImplementation(async (path: string) => {
       if (path.startsWith('/items/') && path.endsWith('/prices')) {

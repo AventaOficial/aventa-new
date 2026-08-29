@@ -106,6 +106,22 @@ function mergePictures(...lists: string[][]): string[] {
   return out;
 }
 
+/** Combina dos respuestas ML (API + HTML) sin perder fotos únicas. */
+export function mergeMercadoLibrePublicOffers(
+  a: MercadoLibrePublicOffer,
+  b: MercadoLibrePublicOffer,
+): MercadoLibrePublicOffer {
+  return {
+    title: a.title || b.title,
+    price: a.price ?? b.price,
+    originalPrice: a.originalPrice ?? b.originalPrice,
+    pictures: mergePictures(a.pictures, b.pictures),
+    categoryId: a.categoryId || b.categoryId,
+    pathNames: a.pathNames.length >= b.pathNames.length ? a.pathNames : b.pathNames,
+    source: a.source === 'ml_api' || b.source === 'ml_api' ? 'ml_api' : 'anonymous',
+  };
+}
+
 function isUsableItem(item: MlItemBody | null): item is MlItemBody {
   return Boolean(item && !item.error && (item.title || (item.price && item.price > 0) || item.pictures?.length));
 }

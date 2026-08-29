@@ -4,7 +4,10 @@ import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
-import { fetchMercadoLibrePublicOffer } from '@/lib/offers/mlPublicOffer';
+import {
+  fetchMercadoLibrePublicOffer,
+  mergeMercadoLibrePublicOffers,
+} from '@/lib/offers/mlPublicOffer';
 import {
   normalizePastedOfferUrl,
   resolveMercadoLibreShortlinks,
@@ -239,9 +242,14 @@ export async function POST(request: Request) {
     }
 
     let ml = mlFirst;
-    if (isMercadoLibre && (!ml || ml.pictures.length < 2)) {
-      const mlFromPage = await fetchMercadoLibrePublicOffer(pageUrl.href, html || null).catch(() => null);
-      if (mlFromPage) ml = mlFromPage;
+    if (isMercadoLibre) {
+      if (html) {
+        const mlFromPage = await fetchMercadoLibrePublicOffer(pageUrl.href, html).catch(() => null);
+        if (mlFromPage) ml = ml ? mergeMercadoLibrePublicOffers(ml, mlFromPage) : mlFromPage;
+      } else if (!ml || selectOfferImages(ml.pictures).length < 2) {
+        const mlRetry = await fetchMercadoLibrePublicOffer(pageUrl.href, null).catch(() => null);
+        if (mlRetry) ml = ml ? mergeMercadoLibrePublicOffers(ml, mlRetry) : mlRetry;
+      }
     }
 
     // API ML autenticada = fuente de verdad para precio/título/imágenes/categoría.

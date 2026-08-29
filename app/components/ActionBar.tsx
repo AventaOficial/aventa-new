@@ -123,6 +123,48 @@ export default function ActionBar() {
   const userEditedFieldsRef = useRef<Set<string>>(new Set());
   /** true si el usuario tocó la galería (subir / quitar / portada). */
   const imagesUserEditedRef = useRef(false);
+  const lastParsedOfferUrlRef = useRef('');
+
+  const resetUploadModalState = () => {
+    setFormData({
+      title: '',
+      offer_url: '',
+      description: '',
+      originalPrice: '',
+      discountPrice: '',
+      category: '',
+      store: '',
+      conditions: '',
+      coupons: '',
+      bank_coupon: '',
+      tags: '',
+      moderator_comment: '',
+    });
+    setStepsList(['']);
+    setShowOptionalSection(false);
+    setShowCouponSection(false);
+    setImageUrl(null);
+    setImageUrls([]);
+    setMsiMonths(null);
+    setOfferScope(null);
+    offerScopeManuallySelectedRef.current = false;
+    userEditedFieldsRef.current = new Set();
+    imagesUserEditedRef.current = false;
+    lastParsedOfferUrlRef.current = '';
+    setHasDiscount(true);
+    setMobileTab('form');
+    setUploadLinkGatePassed(false);
+    setUploadStep(1);
+    setUrlParseStatus(null);
+    setUrlParseKind(null);
+    prevUrlParseLoadingRef.current = false;
+  };
+
+  const openUploadModal = () => {
+    setShowSubmitThanksModal(false);
+    resetUploadModalState();
+    setShowUploadModal(true);
+  };
 
   useEffect(() => {
     imageGalleryRef.current = { cover: imageUrl, extras: imageUrls };
@@ -146,8 +188,7 @@ export default function ActionBar() {
 
   useEffect(() => {
     if (uploadModalRequested) {
-      setUploadLinkGatePassed(false);
-      setShowUploadModal(true);
+      openUploadModal();
       clearUploadModalRequest();
     }
   }, [uploadModalRequested, clearUploadModalRequest]);
@@ -234,6 +275,9 @@ export default function ActionBar() {
     if (!showUploadModal) return;
     const url = normalizePastedOfferUrl(formData.offer_url);
     if (!url || !url.startsWith('http')) return;
+    if (url !== lastParsedOfferUrlRef.current) {
+      imagesUserEditedRef.current = false;
+    }
     let cancelled = false;
     const t = setTimeout(async () => {
       setUrlParseLoading(true);
@@ -356,16 +400,18 @@ export default function ActionBar() {
         if (data.image && typeof data.image === 'string' && !parsedImages.includes(data.image)) {
           parsedImages.unshift(data.image);
         }
+        let galleryCount = 0;
         if (!cancelled && !imagesUserEditedRef.current) {
-          // URL nueva → galería de esta URL (sin residuales de la anterior).
           const preferred = typeof data.image === 'string' ? data.image : parsedImages[0] || null;
           const gallery = selectOfferImages(parsedImages, { preferredCover: preferred });
+          galleryCount = gallery.length;
           setImageUrl(gallery[0] ?? null);
           setImageUrls(gallery.slice(1));
+          lastParsedOfferUrlRef.current = url;
         }
         const bits: string[] = [];
         if (data.title) bits.push('título');
-        if (parsedImages.length > 0) bits.push(`${Math.min(parsedImages.length, OFFER_MAX_IMAGES)} foto${parsedImages.length > 1 ? 's' : ''}`);
+        if (galleryCount > 0) bits.push(`${galleryCount} foto${galleryCount > 1 ? 's' : ''}`);
         if (typeof data.suggested_discount_price === 'number') bits.push('precio');
         if (data.suggested_category) bits.push('categoría');
         if (data.reason === 'extract_failed' || bits.length === 0) {
@@ -493,37 +539,7 @@ export default function ActionBar() {
 
   const handleCancel = () => {
     setShowUploadModal(false);
-    setFormData({
-      title: '',
-      offer_url: '',
-      description: '',
-      originalPrice: '',
-      discountPrice: '',
-      category: '',
-      store: '',
-      conditions: '',
-      coupons: '',
-      bank_coupon: '',
-      tags: '',
-      moderator_comment: '',
-    });
-    setStepsList(['']);
-    setShowOptionalSection(false);
-    setShowCouponSection(false);
-    setImageUrl(null);
-    setImageUrls([]);
-    setMsiMonths(null);
-    setOfferScope(null);
-    offerScopeManuallySelectedRef.current = false;
-    userEditedFieldsRef.current = new Set();
-    imagesUserEditedRef.current = false;
-    setHasDiscount(true);
-    setMobileTab('form');
-    setUploadLinkGatePassed(false);
-    setUploadStep(1);
-    setUrlParseStatus(null);
-    setUrlParseKind(null);
-    prevUrlParseLoadingRef.current = false;
+    resetUploadModalState();
   };
 
   const handleSubmit = async () => {
@@ -689,14 +705,7 @@ export default function ActionBar() {
                 openRegisterModal('signup');
                 return;
               }
-              setShowSubmitThanksModal(false);
-              setUploadLinkGatePassed(false);
-              setUploadStep(1);
-              setMobileTab('form');
-              setUrlParseStatus(null);
-              setUrlParseKind(null);
-              prevUrlParseLoadingRef.current = false;
-              setShowUploadModal(true);
+              openUploadModal();
             }}
             className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-violet-600 dark:to-purple-700 text-white shadow-lg shadow-violet-500/25 dark:shadow-violet-950/50 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
@@ -782,14 +791,7 @@ export default function ActionBar() {
               openRegisterModal('signup');
               return;
             }
-            setShowSubmitThanksModal(false);
-            setUploadLinkGatePassed(false);
-            setUploadStep(1);
-            setMobileTab('form');
-            setUrlParseStatus(null);
-            setUrlParseKind(null);
-            prevUrlParseLoadingRef.current = false;
-            setShowUploadModal(true);
+            openUploadModal();
           }}
           className={`mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
