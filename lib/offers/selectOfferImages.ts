@@ -58,7 +58,10 @@ function resourceKey(raw: string): string {
  */
 export function isHighConfidenceJunkImage(raw: string): boolean {
   const lower = raw.toLowerCase();
+  const host = tryUrl(raw)?.hostname.toLowerCase() ?? '';
   const path = (tryUrl(raw)?.pathname ?? raw).toLowerCase();
+  if (host === 'aventaofertas.com' || host.endsWith('.aventaofertas.com')) return true;
+  if (/logo-email|\/logo\.(?:png|webp|jpg|jpeg|svg)(?:$|[?#])/i.test(path)) return true;
   if (/favicon/i.test(path)) return true;
   if (/(^|\/)sprite([._/-]|$)/i.test(path)) return true;
   if (/grey-pixel|gray-pixel|transparent-pixel|spacer\.gif/i.test(lower)) return true;

@@ -87,6 +87,7 @@ describe('selectOfferImages', () => {
   it('elimina basura de alta confianza y conserva una URL con "logo" en el nombre', () => {
     expect(isHighConfidenceJunkImage('https://cdn.example/favicon.ico')).toBe(true);
     expect(isHighConfidenceJunkImage('https://cdn.example/grey-pixel.gif')).toBe(true);
+    expect(isHighConfidenceJunkImage('https://aventaofertas.com/logo-email.png')).toBe(true);
     expect(isHighConfidenceJunkImage('https://cdn.example/product-logo-front.jpg')).toBe(false);
 
     const picked = selectOfferImages([

@@ -7,7 +7,6 @@ import {
   ExternalLink,
   History,
   Lock,
-  Maximize2,
   Pencil,
   Store,
   Tag,
@@ -28,6 +27,7 @@ import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
 import ModerationChecklist from './ModerationChecklist';
+import ModerationImageGallery from './ModerationImageGallery';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
 
@@ -349,7 +349,7 @@ export default function ModerationOfferDetail({
   };
 
   return (
-    <div className={`flex h-full max-h-[min(82vh,900px)] min-h-[min(70vh,720px)] flex-col overflow-hidden ${ui.card}`}>
+    <div className={`flex h-full max-h-[min(calc(100dvh-6rem),920px)] min-h-[min(60vh,640px)] flex-col overflow-hidden ${ui.card}`}>
       <div className={`flex items-center justify-between gap-2 border-b px-4 py-3 ${ui.hairline}`}>
         <div className="min-w-0">
           <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${ui.label}`}>Revisión</p>
@@ -385,44 +385,21 @@ export default function ModerationOfferDetail({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {heroSrc ? (
-          <div className={`relative aspect-[4/3] max-h-[min(48vh,480px)] w-full ${ui.heroBg}`}>
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={heroSrc}
-                alt=""
-                className="absolute inset-0 h-full w-full object-contain p-3"
-                referrerPolicy="no-referrer"
-                onError={() => setImgBroken(true)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowImageExpand(true)}
-                className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-lg bg-black/55 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-black/75"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-                Ampliar
-              </button>
-              {allPreviewImages.length > 1 ? (
-                <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
-                  {allPreviewImages.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        setGalleryIndex(i);
-                        setImgBroken(false);
-                      }}
-                      className={`h-1.5 rounded-full ${i === galleryIndex ? 'w-3 bg-emerald-600 dark:bg-white' : 'w-1.5 bg-gray-300 dark:bg-white/40'}`}
-                      aria-label={`Imagen ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </>
-          </div>
+          <ModerationImageGallery
+            images={allPreviewImages}
+            index={galleryIndex}
+            onIndexChange={(i) => {
+              setGalleryIndex(i);
+              setImgBroken(false);
+            }}
+            onImageError={() => setImgBroken(true)}
+            heroBg={ui.heroBg}
+            heroClassName="aspect-[4/3] max-h-[min(36vh,320px)] md:max-h-[min(42vh,380px)]"
+            showExpand
+            onExpand={() => setShowImageExpand(true)}
+          />
         ) : isBotOffer ? (
           <ModerationBotFactsCard
             variant="hero"

@@ -1240,14 +1240,14 @@ export default function ModerationPendingPanel({
             </section>
 
             {/* Panel de detalle (derecha) */}
-            <aside className={`sticky top-[4.5rem] min-h-0 min-w-0 overflow-hidden ${ui.card}`}>
+            <aside className={`sticky top-[4.5rem] flex max-h-[calc(100dvh-5.5rem)] min-h-0 min-w-0 flex-col overflow-hidden ${ui.card}`}>
               <div className={`flex items-center justify-between border-b px-4 py-3 ${ui.hairline}`}>
                 <h3 className={`text-sm font-semibold ${ui.title}`}>Detalles de la oferta</h3>
                 <span className={`text-xs tabular-nums ${ui.muted}`}>
                   {deskList.findIndex((o) => o.id === selectedId) + 1}/{deskList.length}
                 </span>
               </div>
-              <div className="max-h-[min(82vh,920px)] overflow-y-auto p-3">
+              <div className="flex min-h-0 flex-1 flex-col p-3">
                 {selectedOffer ? (
                   <ModerationOfferDetail
                     mode={mode}

@@ -19,6 +19,7 @@ import ModerationBotFactsCard from './ModerationBotFactsCard';
 import ModerationChecklist from './ModerationChecklist';
 import ModerationDecisionCard from './ModerationDecisionCard';
 import ModerationFixSheet, { type FixField } from './ModerationFixSheet';
+import ModerationImageGallery from './ModerationImageGallery';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
@@ -120,6 +121,7 @@ export default function ModerationMobileReview({
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [imgBroken, setImgBroken] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [fixField, setFixField] = useState<FixField | null>(null);
   const [showFix, setShowFix] = useState(false);
@@ -135,6 +137,7 @@ export default function ModerationMobileReview({
 
   useEffect(() => {
     setImgBroken(false);
+    setGalleryIndex(0);
     setShowReject(false);
     setRejectReason('');
     setShowMore(false);
@@ -146,7 +149,7 @@ export default function ModerationMobileReview({
     () => (offer ? mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null) : []),
     [offer]
   );
-  const heroSrc = !imgBroken ? images[0] ?? null : null;
+  const heroSrc = !imgBroken ? images[galleryIndex] ?? images[0] ?? null : null;
 
   const readOnly = offer
     ? isOfferLockedByOther(
@@ -339,9 +342,9 @@ export default function ModerationMobileReview({
   }
 
   return (
-    <div className="relative mx-auto flex w-full max-w-lg flex-col">
+    <div className="relative mx-auto flex w-full max-w-lg flex-col md:max-h-[calc(100dvh-5.5rem)]">
       <div
-        className={`sticky top-0 z-20 -mx-1 mb-2 px-1 pb-2 pt-1 backdrop-blur-md ${
+        className={`z-20 shrink-0 -mx-1 mb-2 px-1 pb-2 pt-1 backdrop-blur-md ${
           ui.ws ? 'bg-white/90 dark:bg-[#0c0c0e]/90' : 'bg-[#0a0a0c]/90'
         }`}
       >
@@ -362,6 +365,7 @@ export default function ModerationMobileReview({
         </button>
       </div>
 
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <article className={`overflow-hidden ${ui.card}`}>
         <div className={`flex flex-wrap gap-1.5 border-b px-4 py-2.5 ${ui.hairline}`}>
           <ModerationConfidenceChip offer={offer} mode={mode} size="md" />
@@ -373,16 +377,17 @@ export default function ModerationMobileReview({
         </div>
 
         {heroSrc ? (
-          <div className={`relative aspect-[4/3] max-h-[38vh] w-full ${ui.heroBg}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={heroSrc}
-              alt=""
-              className="absolute inset-0 h-full w-full object-contain p-3"
-              referrerPolicy="no-referrer"
-              onError={() => setImgBroken(true)}
-            />
-          </div>
+          <ModerationImageGallery
+            images={images}
+            index={galleryIndex}
+            onIndexChange={(i) => {
+              setGalleryIndex(i);
+              setImgBroken(false);
+            }}
+            onImageError={() => setImgBroken(true)}
+            heroBg={ui.heroBg}
+            heroClassName="aspect-[4/3] max-h-[34vh]"
+          />
         ) : offer.is_bot ? (
           <ModerationBotFactsCard
             variant="hero"
@@ -491,9 +496,10 @@ export default function ModerationMobileReview({
           )}
         </div>
       </article>
+      </div>
 
       <div
-        className={`sticky bottom-0 z-20 -mx-1 mt-3 space-y-2 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md ${
+        className={`z-20 mt-3 shrink-0 space-y-2 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md ${
           ui.ws ? 'bg-white/95 dark:bg-[#0c0c0e]/95' : 'bg-[#0a0a0c]/95'
         }`}
       >
