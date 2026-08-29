@@ -127,6 +127,8 @@ export async function resolveMercadoLibreShortlinks(url: string): Promise<string
     }
     if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
     if (!final.toLowerCase().includes('mercadolibre.')) return trimmed;
+    // meli.la puede redirigir a /social/… sin item id en la URL; igual es destino ML válido.
+    if (isMeliLaShortUrl(trimmed)) return final;
     const { extractMercadoLibreItemId } = await import('@/lib/offers/offerUrlFingerprint');
     if (!extractMercadoLibreItemId(final) && !extractMercadoLibreItemId(trimmed)) {
       return trimmed;

@@ -1015,7 +1015,7 @@ export default function ActionBar() {
                   }`}
                 >
                   <div className="space-y-6">
-                  <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden md:block'}`}>
+                  <section className="space-y-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                       Lo que encontramos
                     </p>

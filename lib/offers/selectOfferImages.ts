@@ -29,15 +29,19 @@ export function amazonImageResourceId(raw: string): string | null {
   return m ? m[1].toUpperCase() : null;
 }
 
-/** Id de foto Mercado Libre para unificar -I / -O / 2X del mismo recurso. */
+/** Id de foto Mercado Libre para unificar variantes (-I / -O / -OO / -F / -G) del mismo recurso. */
 export function mercadoLibreImageResourceId(raw: string): string | null {
+  if (!/mlstatic\.com/i.test(raw)) return null;
   const path = tryUrl(raw)?.pathname ?? raw;
-  const withVariant = path.match(
-    /D_(?:NQ_NP_2X_|NQ_NP_|Q_NP_)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)(?:-[IOF])\.(?:jpg|jpeg|webp|png)/i,
-  );
-  if (withVariant) return withVariant[1].toUpperCase();
-  const loose = path.match(/D_(?:NQ_NP_2X_|NQ_NP_|Q_NP_)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/i);
-  return loose ? loose[1].toUpperCase() : null;
+  const file = path.split('/').pop();
+  if (!file) return null;
+  const stem = file.replace(/\.(jpg|jpeg|webp|png)$/i, '');
+  const m = stem.match(/^D_(?:NQ_NP_2X_|NQ_NP_|NQ_|Q_NP_)?(.+)$/i);
+  if (!m) return null;
+  const token = m[1]
+    .replace(/^2X_/i, '')
+    .replace(/-(?:I|O|OO|F|G|V|T)$/i, '');
+  return token ? token.toUpperCase() : null;
 }
 
 function resourceKey(raw: string): string {

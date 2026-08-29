@@ -406,10 +406,11 @@ export function extractOfferImages(html: string, base: string): string[] {
     pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
   }
 
-  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_(?:NQ_NP_2X_)?[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
+  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
   while ((hm = mlCdnRe.exec(html)) !== null) {
     const u = hm[1];
-    if (/D_NQ_NP_2X_|-F\.|-O\./i.test(u)) pushUnique(images, absoluteUrl(base, u));
+    if (/placeholder|pixel|1x1|sprite|grey-pixel/i.test(u)) continue;
+    pushUnique(images, absoluteUrl(base, u));
   }
 
   const amzIRe = /(https?:\/\/[^"'\\\s]*media-amazon\.com\/images\/I\/[A-Za-z0-9,._%+-]+)/gi;

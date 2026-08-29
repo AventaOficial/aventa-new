@@ -59,6 +59,23 @@ describe('selectOfferImages', () => {
     expect(picked).toHaveLength(3);
   });
 
+  it('conserva fotos con formato nuevo D_NQ_ y sufijo -OO', () => {
+    const picked = selectOfferImages([
+      'https://http2.mlstatic.com/D_NQ_915700-MLA116764501833_082026-OO.webp',
+      'https://http2.mlstatic.com/D_NQ_NP_857412-MLA109806180229_032026-G.webp',
+      'https://http2.mlstatic.com/D_NQ_915700-MLA116764501833_082026-OO.webp',
+    ]);
+    expect(picked).toHaveLength(2);
+  });
+
+  it('unifica -O y -OO de la misma foto ML', () => {
+    const picked = selectOfferImages([
+      'https://http2.mlstatic.com/D_NQ_NP_791619-MLA99904952681_112025-O.webp',
+      'https://http2.mlstatic.com/D_NQ_NP_791619-MLA99904952681_112025-OO.webp',
+    ]);
+    expect(picked).toHaveLength(1);
+  });
+
   it('dedupe por id de picture cuando la API genera URLs con -F.webp', () => {
     const picked = selectOfferImages([
       'https://http2.mlstatic.com/D_NQ_NP_2X_123456-MLA-F.webp',

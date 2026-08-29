@@ -116,6 +116,19 @@ describe('parseOfferPageHtml', () => {
     expect(p.original).toBe(599);
   });
 
+  it('extrae varias fotos ML con formato nuevo D_NQ_ y sufijos -OO / -G', () => {
+    const html = `
+      <meta property="og:image" content="https://http2.mlstatic.com/D_NQ_915700-MLA116764501833_082026-OO.webp" />
+      "secure_url":"https:\\/\\/http2.mlstatic.com\\/D_NQ_NP_857412-MLA109806180229_032026-G.webp"
+      https://http2.mlstatic.com/D_NQ_NP_791619-MLA99904952681_112025-O.webp
+    `;
+    const imgs = extractOfferImages(html, 'https://www.mercadolibre.com.mx/social/test');
+    expect(imgs.length).toBeGreaterThanOrEqual(3);
+    expect(imgs.some((u) => u.includes('915700-MLA116764501833'))).toBe(true);
+    expect(imgs.some((u) => u.includes('857412-MLA109806180229'))).toBe(true);
+    expect(imgs.some((u) => u.includes('791619-MLA99904952681'))).toBe(true);
+  });
+
   it('strip tracking conserva wid / item_id / pdp_filters', () => {
     const raw =
       'https://www.mercadolibre.com.mx/x/p/MLM1?wid=MLM2&utm_source=a&matt_tool=1&tag=aventa&pdp_filters=item_id:MLM3';
