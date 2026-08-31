@@ -4,6 +4,7 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { resolveAndNormalizeAffiliateOfferUrl, validateAffiliatePaste } from '@/lib/affiliate'
 import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories'
 import { normalizeOfferImageUrl } from '@/lib/offerPath'
+import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -27,7 +28,7 @@ export async function PATCH(request: Request) {
     const supabase = createServerClient()
     const { data: offer } = await supabase
       .from('offers')
-      .select('id, status, offer_url')
+      .select('id, status, offer_url, locked_by, locked_at')
       .eq('id', id)
       .single()
 
@@ -38,6 +39,19 @@ export async function PATCH(request: Request) {
 
     const currentOfferUrl = (offer as { offer_url?: string | null }).offer_url?.trim() ?? ''
     const affiliatePaste = body?.affiliate_paste === true
+
+    if (offerStatus === 'pending') {
+      const lockCheck = assertModeratorOwnsLock(
+        {
+          locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
+          locked_at: (offer as { locked_at?: string | null }).locked_at ?? null,
+        },
+        auth.user.id
+      )
+      if (!lockCheck.ok) {
+        return NextResponse.json({ error: lockCheck.error }, { status: 409 })
+      }
+    }
 
     const payload: {
       title?: string

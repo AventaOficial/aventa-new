@@ -55,7 +55,20 @@ class MemoryModerationStore {
 }
 
 describe('concurrent claim simulation', () => {
-  it('10 claims simultáneos producen 10 ofertas distintas', async () => {
+  it('escenario 1: 10 moderadores y 10 ofertas → 10 distintas', async () => {
+    const store = new MemoryModerationStore(
+      Array.from({ length: 10 }, (_, i) => String(i + 1))
+    );
+    const moderators = Array.from({ length: 10 }, (_, i) => `mod-${i + 1}`);
+
+    const claimed = await Promise.all(moderators.map(async (mod) => store.claimNext(mod)));
+
+    const valid = claimed.filter((id): id is string => Boolean(id));
+    expect(valid).toHaveLength(10);
+    expect(new Set(valid).size).toBe(10);
+  });
+
+  it('10 claims simultáneos producen 10 ofertas distintas (backlog > mods)', async () => {
     const store = new MemoryModerationStore(
       Array.from({ length: 12 }, (_, i) => String(i + 1))
     );
@@ -68,6 +81,16 @@ describe('concurrent claim simulation', () => {
     const valid = claimed.filter((id): id is string => Boolean(id));
     expect(valid).toHaveLength(10);
     expect(new Set(valid).size).toBe(10);
+  });
+
+  it('escenario 2: 10 moderadores y 1 oferta → solo 1 gana', async () => {
+    const store = new MemoryModerationStore(['solo']);
+    const moderators = Array.from({ length: 10 }, (_, i) => `mod-${i + 1}`);
+    const claimed = await Promise.all(moderators.map(async (mod) => store.claimNext(mod)));
+    const valid = claimed.filter((id): id is string => Boolean(id));
+    expect(valid).toHaveLength(1);
+    expect(valid[0]).toBe('solo');
+    expect(claimed.filter((id) => id === null)).toHaveLength(9);
   });
 
   it('2 claims simultáneos sobre la misma oferta: solo uno gana', async () => {

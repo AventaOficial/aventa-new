@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
+import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess';
 import { isValidUuid } from '@/lib/server/validateUuid';
 
 /** POST: marca una oferta como expirada (expires_at = ahora). Solo mods. */
@@ -12,8 +13,15 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null;
+  const batchExpire = body?.batch_expire === true;
   if (!offerId || !isValidUuid(offerId)) {
     return NextResponse.json({ error: 'offerId obligatorio' }, { status: 400 });
+  }
+  if (batchExpire && !canUseBulkModeration(auth.role)) {
+    return NextResponse.json(
+      { error: 'Solo owner o admin pueden expirar ofertas en lote.' },
+      { status: 403 }
+    );
   }
 
   const supabase = createServerClient();

@@ -4,6 +4,13 @@ import { tryAcquireModerationLock, releaseModerationLockIfOwner } from './atomic
 import { countClaimEligibleOffers, isOfferClaimEligible } from './offerClaimEligibility';
 import type { ModerationQueueOffer } from './pickNextEligibleOffer';
 import { sortPendingOffersForModeration } from './sortPendingOffers';
+import type { ModerationLevel } from './classifyModerationLevel';
+import { classifyOfferModerationLevel } from './classifyOfferModerationLevel';
+import { moderationLevelWithinMax } from './moderationLevelRank';
+import {
+  fetchBannedCreatorIds,
+  fetchPendingReportOfferIds,
+} from './moderationQueueSignals';
 
 const CLAIM_SELECT =
   'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, link_mod_ok, profiles:public_profiles_view!created_by(display_name, avatar_url)';
@@ -50,11 +57,13 @@ export async function claimNextModerationOffer(
     excludeOfferIds?: string[];
     sourceTab?: ClaimSourceTab;
     maxAttempts?: number;
+    maxLevel?: ModerationLevel;
   }
 ): Promise<ClaimNextResult> {
   const sourceTab = options?.sourceTab ?? 'all';
   const exclude = new Set(options?.excludeOfferIds ?? []);
   const maxAttempts = options?.maxAttempts ?? 40;
+  const maxLevel = options?.maxLevel ?? 'enforcement';
 
   if (options?.releaseOfferId) {
     await releaseModerationLockIfOwner(supabase, options.releaseOfferId, moderatorId);
@@ -89,9 +98,33 @@ export async function claimNextModerationOffer(
   const globalPending = scoped.length;
   const availableEstimate = countClaimEligibleOffers(scoped, moderatorId);
 
-  const sorted = sortPendingOffersForModeration(
-    scoped.filter((o) => isOfferClaimEligible(o, moderatorId, exclude))
-  );
+  const eligible = scoped.filter((o) => isOfferClaimEligible(o, moderatorId, exclude));
+  const offerIds = eligible.map((o) => o.id);
+  const creatorIds = [
+    ...new Set(
+      eligible
+        .map((o) => (o as { created_by?: string | null }).created_by)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  const [reportedOfferIds, bannedCreatorIds] = await Promise.all([
+    fetchPendingReportOfferIds(supabase, offerIds),
+    fetchBannedCreatorIds(supabase, creatorIds),
+  ]);
+
+  const sorted = sortPendingOffersForModeration(eligible).filter((candidate) => {
+    const createdBy = (candidate as { created_by?: string | null }).created_by;
+    const { level } = classifyOfferModerationLevel(
+      candidate as Parameters<typeof classifyOfferModerationLevel>[0],
+      {
+        authorBanned: Boolean(createdBy && bannedCreatorIds.has(createdBy)),
+        hasPendingReport: reportedOfferIds.has(candidate.id),
+        similarCount: 0,
+      }
+    );
+    return moderationLevelWithinMax(level, maxLevel);
+  });
 
   for (const candidate of sorted.slice(0, maxAttempts)) {
     const acquired = await tryAcquireModerationLock(supabase, candidate.id, moderatorId);

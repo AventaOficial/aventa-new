@@ -8,8 +8,10 @@ export function classifyModerationLevel(input: {
   hasPendingReport?: boolean;
   authorBanned?: boolean;
   blockerCount?: number;
+  riskScore?: number | null;
 }): ModerationLevel {
   if (input.authorBanned || input.hasPendingReport) return 'enforcement';
+  if (input.riskScore != null && input.riskScore > 70) return 'enforcement';
   if (
     input.trust.level === 'low' ||
     input.similarCount > 0 ||

@@ -34,8 +34,8 @@ import {
   offerMatchesVitalFilter,
   offerNeedsFixFilter,
 } from '@/lib/moderation/sortPendingOffers';
-import { isLowModerationTrust, computeModerationTrust } from '@/lib/moderation/confidenceBadge';
-import { classifyModerationLevel } from '@/lib/moderation/classifyModerationLevel';
+import { isLowModerationTrust } from '@/lib/moderation/confidenceBadge';
+import { classifyOfferModerationLevel } from '@/lib/moderation/classifyOfferModerationLevel';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
@@ -220,6 +220,10 @@ export default function ModerationPendingPanel({
   const summaryFetchedRef = useRef(false);
   const [queueStats, setQueueStats] = useState({ globalPending: 0, availableEstimate: 0 });
   const [showFullQueue, setShowFullQueue] = useState(false);
+  const [offerSignals, setOfferSignals] = useState({
+    authorBanned: false,
+    hasPendingReport: false,
+  });
   const claimInFlightRef = useRef(false);
   const heldLockIdRef = useRef<string | null>(null);
 
@@ -361,6 +365,10 @@ export default function ModerationPendingPanel({
         ? (row.profiles[0] as ModerationOffer['profiles'])
         : (row.profiles as ModerationOffer['profiles']),
     } as ModerationOffer;
+  }, []);
+
+  const patchOfferInPending = useCallback((id: string, patch: Partial<ModerationOffer>) => {
+    setPending((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
   }, []);
 
   const claimNextFromServer = useCallback(
@@ -526,6 +534,8 @@ export default function ModerationPendingPanel({
   }, [session?.access_token, session?.user?.id]);
 
   useEffect(() => {
+    // Legacy heartbeat: refuerza el lock de claim-next al seleccionar manualmente.
+    // Camino principal de asignación: POST /api/admin/moderation/claim-next.
     if (!selectedId || !session?.user?.id || selectedReadOnly) return;
     let cancelled = false;
     void (async () => {
@@ -576,7 +586,6 @@ export default function ModerationPendingPanel({
       return;
     }
     void claimNextFromServer({ releaseOfferId: offerId, excludeOfferIds: [offerId] });
-    void refreshList(true);
   };
 
   const similarOffers = useSimilarOffers(
@@ -585,23 +594,53 @@ export default function ModerationPendingPanel({
     selectedOriginalUrl
   );
 
-  const moderationLevel = useMemo(() => {
-    if (!selectedOffer) return 'sprint' as const;
-    const trust = computeModerationTrust({
-      risk_score: selectedOffer.risk_score,
-      moderator_comment: selectedOffer.moderator_comment,
-      image_url: selectedOffer.image_url,
-      category: selectedOffer.category,
-      original_price: selectedOffer.original_price,
-      price: selectedOffer.price,
-      is_bot: selectedOffer.is_bot,
-    });
-    return classifyModerationLevel({
-      trust,
-      similarCount: similarOffers.length,
-      blockerCount: 0,
-    });
-  }, [selectedOffer, similarOffers.length]);
+  useEffect(() => {
+    if (!selectedOffer?.id || !session?.access_token) {
+      setOfferSignals({ authorBanned: false, hasPendingReport: false });
+      return;
+    }
+    const params = new URLSearchParams({ offerId: selectedOffer.id });
+    if (selectedOffer.created_by) params.set('createdBy', selectedOffer.created_by);
+    fetch(`/api/admin/moderation-offer-signals?${params.toString()}`, {
+      headers: authHeaders(),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setOfferSignals({
+          authorBanned: Boolean(data.authorBanned),
+          hasPendingReport: Boolean(data.hasPendingReport),
+        });
+      })
+      .catch(() => {});
+  }, [selectedOffer?.id, selectedOffer?.created_by, session?.access_token, authHeaders]);
+
+  const moderationMeta = useMemo(() => {
+    if (!selectedOffer) {
+      return { level: 'sprint' as const, reasons: [] as string[], blockerCount: 0 };
+    }
+    return classifyOfferModerationLevel(
+      {
+        risk_score: selectedOffer.risk_score,
+        moderator_comment: selectedOffer.moderator_comment,
+        image_url: selectedOffer.image_url,
+        image_urls: selectedOffer.image_urls,
+        category: selectedOffer.category,
+        original_price: selectedOffer.original_price,
+        price: selectedOffer.price,
+        is_bot: selectedOffer.is_bot,
+        title: selectedOffer.title,
+        offer_url: selectedOffer.offer_url,
+      },
+      {
+        similarCount: similarOffers.length,
+        authorBanned: offerSignals.authorBanned,
+        hasPendingReport: offerSignals.hasPendingReport,
+      }
+    );
+  }, [selectedOffer, similarOffers.length, offerSignals]);
+
+  const moderationLevel = moderationMeta.level;
 
   const sessionPaceSeconds = useMemo(() => {
     if (sessionProcessed <= 0) return 0;
@@ -660,7 +699,7 @@ export default function ModerationPendingPanel({
       await fetch('/api/admin/moderate-offer', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ id, status: 'rejected', reason }),
+        body: JSON.stringify({ id, status: 'rejected', reason, batch_reject: true }),
       });
       if (offer?.created_by) {
         await fetch('/api/reputation/increment-rejected', {
@@ -716,7 +755,7 @@ export default function ModerationPendingPanel({
       await fetch('/api/admin/expire-offer', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ offerId: id }),
+        body: JSON.stringify({ offerId: id, batch_expire: true }),
       });
     }
     setBatchActing(false);
@@ -816,8 +855,6 @@ export default function ModerationPendingPanel({
           body: JSON.stringify({ userId: createdBy }),
         }).catch(() => {});
       }
-
-      void refreshList(true);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'No se pudo actualizar la oferta');
     }
@@ -971,7 +1008,9 @@ export default function ModerationPendingPanel({
               ? (minutes) => void runSnooze(selectedOffer.id, minutes)
               : undefined
           }
-          onOfferUpdated={() => refreshList(true)}
+          onOfferUpdated={() => {
+            if (selectedId) patchOfferInPending(selectedId, { link_mod_ok: true });
+          }}
           loading={loading}
           showDetail={mobileShowDetail}
           onShowDetailChange={setMobileShowDetail}
@@ -1406,6 +1445,9 @@ export default function ModerationPendingPanel({
                     currentUserId={session?.user?.id ?? null}
                     productOriginalUrl={selectedOriginalUrl}
                     moderationLevel={moderationLevel}
+                    authorBanned={offerSignals.authorBanned}
+                    hasPendingReport={offerSignals.hasPendingReport}
+                    moderationReasons={moderationMeta.reasons}
                     queueLabel={`${Math.max(1, globalPendingCount - availableCount + 1)}/${globalPendingCount}`}
                     onAffiliateReadyChange={setAffiliateReady}
                     actionError={actionError}
@@ -1417,7 +1459,9 @@ export default function ModerationPendingPanel({
                       void setStatus(id, 'approved', createdBy, undefined, modMessage, offerHasUrl);
                     }}
                     onReject={(id, reason) => void setStatus(id, 'rejected', undefined, reason)}
-                    onOfferUpdated={() => refreshList(true)}
+                    onOfferUpdated={() => {
+                      if (selectedId) patchOfferInPending(selectedId, { link_mod_ok: true });
+                    }}
                   />
                 ) : (
                   <div className={`flex items-center justify-center p-10 text-sm ${ui.muted}`}>

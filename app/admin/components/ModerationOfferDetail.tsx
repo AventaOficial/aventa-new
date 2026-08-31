@@ -106,6 +106,9 @@ type Props = {
   productOriginalUrl?: string | null;
   moderationLevel?: ModerationLevel;
   queueLabel?: string | null;
+  authorBanned?: boolean;
+  hasPendingReport?: boolean;
+  moderationReasons?: string[];
   onAffiliateReadyChange?: (ready: boolean) => void;
   /** @deprecated Mobile legacy — desktop usa validación de paste */
   linkConfirmed?: boolean;
@@ -138,6 +141,9 @@ export default function ModerationOfferDetail({
   productOriginalUrl = null,
   moderationLevel = 'sprint',
   queueLabel = null,
+  authorBanned = false,
+  hasPendingReport = false,
+  moderationReasons = [],
   onAffiliateReadyChange,
   linkConfirmed: linkConfirmedProp,
   onLinkConfirmedChange,
@@ -492,6 +498,27 @@ export default function ModerationOfferDetail({
         </div>
       ) : null}
 
+      {moderationLevel !== 'sprint' && moderationReasons.length > 0 ? (
+        <div
+          className={`border-b px-4 py-2.5 text-sm ${
+            moderationLevel === 'enforcement'
+              ? 'border-red-500/25 bg-red-500/10 text-red-950 dark:text-red-100'
+              : 'border-amber-500/25 bg-amber-500/10 text-amber-950 dark:text-amber-100'
+          }`}
+        >
+          <p className="font-medium">
+            {moderationLevel === 'enforcement' ? 'Enforcement' : 'Revisión adicional'}
+          </p>
+          <p className="mt-0.5 text-xs opacity-90">{moderationReasons.slice(0, 4).join(' · ')}</p>
+          {authorBanned ? (
+            <p className="mt-1 text-xs font-semibold">Autor baneado — evaluar con cuidado.</p>
+          ) : null}
+          {hasPendingReport ? (
+            <p className="mt-1 text-xs font-semibold">Hay un reporte pendiente sobre esta oferta.</p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-h-0 overflow-y-auto overscroll-contain border-b lg:border-b-0 lg:border-r border-white/[0.06] dark:border-white/[0.06]">
           {onBack ? (
@@ -700,6 +727,24 @@ export default function ModerationOfferDetail({
                 </button>
                 {botQuickMsg ? <span className={`text-xs ${ui.muted}`}>{botQuickMsg}</span> : null}
               </div>
+            </div>
+          ) : null}
+
+          {moderationLevel === 'review' && similarOffers.length > 0 ? (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100/90">
+              <p className="font-medium">Posibles duplicados</p>
+              <ul className="mt-1 space-y-1 opacity-80">
+                {similarOffers.slice(0, 3).map((s) => (
+                  <li key={s.id} className="flex justify-between gap-3">
+                    <span className="truncate" title={s.title}>
+                      {s.title}
+                    </span>
+                    <span className="shrink-0 font-semibold">
+                      ${Number(s.price).toLocaleString('es-MX')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
 

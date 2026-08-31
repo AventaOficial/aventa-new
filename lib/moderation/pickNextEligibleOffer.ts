@@ -7,6 +7,12 @@ export type ModerationQueueOffer = ModerationSortableOffer & {
   locked_at?: string | null;
 };
 
+/**
+ * LEGACY — selección local en cliente.
+ * El flujo de estación normal usa claim-next server-side; estos helpers siguen
+ * usados en tests y como respaldo si la cola ya está cargada en memoria.
+ */
+
 function isEligible<T extends ModerationQueueOffer>(
   offer: T,
   currentUserId: string | null,

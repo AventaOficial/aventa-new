@@ -5,6 +5,8 @@ import {
   claimNextModerationOffer,
   type ClaimSourceTab,
 } from '@/lib/moderation/claimNextModerationOffer';
+import { moderationMaxLevelForRole } from '@/lib/moderation/moderationMaxLevelForRole';
+import { recordClaimLatencyMs } from '@/lib/moderation/claimLatencyTracker';
 
 function parseSourceTab(value: unknown): ClaimSourceTab {
   if (value === 'bot' || value === 'users' || value === 'all') return value;
@@ -28,6 +30,9 @@ export async function POST(request: Request) {
     ? body.excludeOfferIds.filter((id: unknown): id is string => typeof id === 'string')
     : undefined;
   const sourceTab = parseSourceTab(body?.sourceTab);
+  const maxLevel = moderationMaxLevelForRole(auth.role);
+
+  const started = Date.now();
 
   try {
     const supabase = createServerClient();
@@ -35,13 +40,19 @@ export async function POST(request: Request) {
       releaseOfferId,
       excludeOfferIds,
       sourceTab,
+      maxLevel,
     });
+
+    const claimLatencyMs = Date.now() - started;
+    recordClaimLatencyMs(claimLatencyMs);
 
     return NextResponse.json({
       ok: true,
       claimed: result.claimed,
       offer: result.offer,
       stats: result.stats,
+      claimLatencyMs,
+      maxLevel,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'No se pudo reclamar la siguiente oferta';

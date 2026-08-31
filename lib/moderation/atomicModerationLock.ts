@@ -15,16 +15,33 @@ export function moderatorOwnsActiveLock(
   return !isModerationLockStale(lock.locked_at);
 }
 
+/**
+ * Estación normal: requiere lock activo del moderador que decide.
+ * No permite decidir sin claim ni con lock ajeno/stale.
+ */
 export function assertModeratorOwnsLock(
   lock: ModerationLockFields,
   moderatorId: string
 ): { ok: true } | { ok: false; error: string } {
-  if (!lock.locked_by) return { ok: true };
   if (moderatorOwnsActiveLock(lock, moderatorId)) return { ok: true };
-  if (isModerationLockStale(lock.locked_at)) return { ok: true };
+
+  if (!lock.locked_by) {
+    return {
+      ok: false,
+      error: 'Debes reclamar la oferta antes de decidir.',
+    };
+  }
+
+  if (lock.locked_by !== moderatorId) {
+    return {
+      ok: false,
+      error: 'Esta oferta ya está siendo moderada por otro usuario.',
+    };
+  }
+
   return {
     ok: false,
-    error: 'Esta oferta ya está siendo moderada por otro usuario.',
+    error: 'El lock de la oferta expiró. Reclámala de nuevo.',
   };
 }
 

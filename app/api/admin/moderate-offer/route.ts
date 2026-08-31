@@ -15,6 +15,7 @@ import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveRe
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
+import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -40,8 +41,16 @@ export async function POST(request: Request) {
     const reason = typeof body?.reason === 'string' ? body.reason.trim() || null : null
     const modMessage = typeof body?.mod_message === 'string' ? body.mod_message.trim().slice(0, 500) || null : null
     const batchApprove = body?.batch_approve === true
+    const batchReject = body?.batch_reject === true
+    const bulkAction = batchApprove || batchReject
     if (!id || !status) {
       return NextResponse.json({ ok: false }, { status: 400 })
+    }
+    if (bulkAction && !canUseBulkModeration(auth.role)) {
+      return NextResponse.json(
+        { error: 'Solo owner o admin pueden usar acciones en lote.' },
+        { status: 403 }
+      )
     }
     if (status === 'rejected' && !reason) {
       return NextResponse.json({ error: 'Motivo obligatorio al rechazar' }, { status: 400 })
@@ -63,7 +72,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'La oferta ya fue moderada' }, { status: 409 })
     }
 
-    if (!batchApprove) {
+    if (!bulkAction) {
       const lockCheck = assertModeratorOwnsLock(
         {
           locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
