@@ -36,10 +36,6 @@ import {
 } from '@/lib/moderation/sortPendingOffers';
 import { isLowModerationTrust, computeModerationTrust } from '@/lib/moderation/confidenceBadge';
 import { classifyModerationLevel } from '@/lib/moderation/classifyModerationLevel';
-import {
-  pickFirstEligibleOffer,
-  pickNextEligibleOffer,
-} from '@/lib/moderation/pickNextEligibleOffer';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
@@ -222,6 +218,9 @@ export default function ModerationPendingPanel({
   const [turnSummary, setTurnSummary] = useState<ModerationSessionSummary | null>(null);
   const [lockSupported, setLockSupported] = useState(true);
   const summaryFetchedRef = useRef(false);
+  const [queueStats, setQueueStats] = useState({ globalPending: 0, availableEstimate: 0 });
+  const [showFullQueue, setShowFullQueue] = useState(false);
+  const claimInFlightRef = useRef(false);
   const heldLockIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -317,17 +316,6 @@ export default function ModerationPendingPanel({
   }, [queueView]);
 
   useEffect(() => {
-    if (deskList.length === 0) {
-      setSelectedId(null);
-      setMobileShowDetail(false);
-      return;
-    }
-    if (!selectedId || !deskList.some((o) => o.id === selectedId)) {
-      setSelectedId(pickFirstEligibleOffer(deskList, session?.user?.id ?? null));
-    }
-  }, [deskList, selectedId, session?.user?.id]);
-
-  useEffect(() => {
     if (!selectedId) return;
     const offer = deskList.find((o) => o.id === selectedId);
     if (!offer) return;
@@ -364,6 +352,80 @@ export default function ModerationPendingPanel({
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     return headers;
   }, [session?.access_token]);
+
+  const mapClaimedOffer = useCallback((row: Record<string, unknown>): ModerationOffer => {
+    return {
+      ...row,
+      is_bot: Boolean((row as { is_bot?: boolean }).is_bot),
+      profiles: Array.isArray(row.profiles)
+        ? (row.profiles[0] as ModerationOffer['profiles'])
+        : (row.profiles as ModerationOffer['profiles']),
+    } as ModerationOffer;
+  }, []);
+
+  const claimNextFromServer = useCallback(
+    async (options?: { releaseOfferId?: string | null; excludeOfferIds?: string[] }) => {
+      if (!session?.access_token || claimInFlightRef.current) return null;
+      claimInFlightRef.current = true;
+      try {
+        const res = await fetch('/api/admin/moderation/claim-next', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            releaseOfferId: options?.releaseOfferId ?? null,
+            excludeOfferIds: options?.excludeOfferIds,
+            sourceTab,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setActionError(
+            typeof data?.error === 'string' ? data.error : 'No se pudo obtener la siguiente oferta'
+          );
+          return null;
+        }
+        if (data?.stats) {
+          setQueueStats({
+            globalPending: Number(data.stats.globalPending) || 0,
+            availableEstimate: Number(data.stats.availableEstimate) || 0,
+          });
+        }
+        if (data?.claimed && data?.offer) {
+          const claimed = mapClaimedOffer(data.offer as Record<string, unknown>);
+          setPending((prev) => {
+            const idx = prev.findIndex((o) => o.id === claimed.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = { ...next[idx], ...claimed };
+              return next;
+            }
+            return [...prev, claimed];
+          });
+          heldLockIdRef.current = claimed.id;
+          setSelectedId(claimed.id);
+          setMobileShowDetail(true);
+          return claimed.id;
+        }
+        setSelectedId(null);
+        setMobileShowDetail(false);
+        return null;
+      } finally {
+        claimInFlightRef.current = false;
+      }
+    },
+    [authHeaders, mapClaimedOffer, session?.access_token, sourceTab]
+  );
+
+  useEffect(() => {
+    if (loading || !session?.access_token) return;
+    if (deskList.length === 0) {
+      setSelectedId(null);
+      setMobileShowDetail(false);
+      return;
+    }
+    if (selectedId && deskList.some((o) => o.id === selectedId)) return;
+    void claimNextFromServer();
+  }, [loading, session?.access_token, deskList, selectedId, claimNextFromServer]);
 
   const postLock = useCallback(
     async (offerId: string, action: 'acquire' | 'release' | 'heartbeat') => {
@@ -513,14 +575,7 @@ export default function ModerationPendingPanel({
       await refreshList(true);
       return;
     }
-    const listSnapshot = deskList;
-    const nextSelectedId = pickNextEligibleOffer(
-      listSnapshot.filter((o) => o.id !== offerId),
-      offerId,
-      session?.user?.id ?? null
-    );
-    setSelectedId(nextSelectedId);
-    setMobileShowDetail((wasDetail) => wasDetail && Boolean(nextSelectedId));
+    void claimNextFromServer({ releaseOfferId: offerId, excludeOfferIds: [offerId] });
     void refreshList(true);
   };
 
@@ -735,13 +790,7 @@ export default function ModerationPendingPanel({
         throw new Error(typeof err?.error === 'string' ? err.error : 'No se pudo actualizar la oferta');
       }
 
-      const listSnapshot = deskList;
-      const nextSelectedId = pickNextEligibleOffer(
-        listSnapshot.filter((o) => o.id !== id),
-        id,
-        session?.user?.id ?? null
-      );
-
+      const currentId = id;
       originalUrlSnapshots.current.delete(id);
       setPending((prev) => prev.filter((o) => o.id !== id));
       setSelectedIds((prev) => {
@@ -749,10 +798,8 @@ export default function ModerationPendingPanel({
         next.delete(id);
         return next;
       });
-      setSelectedId(nextSelectedId);
       setSessionProcessed((n) => n + 1);
-      // En lista mobile: quedarse en la lista. En detalle: pasar a la siguiente.
-      setMobileShowDetail((wasDetail) => wasDetail && Boolean(nextSelectedId));
+      void claimNextFromServer({ releaseOfferId: currentId, excludeOfferIds: [currentId] });
 
       const repHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) repHeaders.Authorization = `Bearer ${session.access_token}`;
@@ -842,6 +889,22 @@ export default function ModerationPendingPanel({
   const ui = moderationUi(mode);
 
   const tabLocked = queueView !== 'split';
+  const globalPendingCount = queueStats.globalPending || deskList.length;
+  const availableCount =
+    queueStats.availableEstimate > 0
+      ? queueStats.availableEstimate
+      : deskList.filter(
+          (o) =>
+            !isOfferLockedByOther(
+              { locked_by: o.locked_by, locked_at: o.locked_at },
+              session?.user?.id
+            )
+        ).length;
+  const visibleDeskList = showFullQueue
+    ? deskList
+    : selectedOffer
+      ? deskList.filter((o) => o.id === selectedOffer.id)
+      : [];
 
   const selectOffer = (id: string) => {
     setSelectedId(id);
@@ -921,10 +984,13 @@ export default function ModerationPendingPanel({
           <div className="min-w-0">
             <h2 className={`text-2xl font-semibold tracking-tight ${ui.title}`}>Moderación</h2>
             <p className={`mt-1 text-sm ${ui.subtitle}`}>
-              Ofertas pendientes · {deskList.length} en vista
+              Pendientes globales: {globalPendingCount}
+              <span className={`ml-2 tabular-nums ${ui.muted}`}>
+                · Tu cola estimada: {availableCount}
+              </span>
               {sessionProcessed > 0 ? (
                 <span className={`ml-2 tabular-nums ${ui.muted}`}>
-                  · Hoy: {sessionProcessed}/{sessionProcessed + deskList.length}
+                  · Hoy: {sessionProcessed}
                   {sessionPaceSeconds > 0 ? ` · Ritmo: ${sessionPaceSeconds}s` : ''}
                 </span>
               ) : null}
@@ -1269,8 +1335,31 @@ export default function ModerationPendingPanel({
                 </div>
               )}
 
+              {!showFullQueue ? (
+                <div className={`flex items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-xs ${ui.card} ${ui.soft}`}>
+                  <span>
+                    Próximas: <span className="tabular-nums font-semibold">{Math.max(0, availableCount - (selectedOffer ? 1 : 0))}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowFullQueue(true)}
+                    className={`font-semibold underline-offset-2 hover:underline ${ui.muted}`}
+                  >
+                    Ver cola completa
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowFullQueue(false)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-medium ${ui.btnGhost}`}
+                >
+                  Ocultar cola · enfocar oferta actual
+                </button>
+              )}
+
               <ul className="space-y-2.5">
-                {deskList.map((offer) => (
+                {visibleDeskList.map((offer) => (
                   <li key={offer.id} className="relative">
                     {canAdvancedModeration ? (
                       <button
@@ -1317,7 +1406,7 @@ export default function ModerationPendingPanel({
                     currentUserId={session?.user?.id ?? null}
                     productOriginalUrl={selectedOriginalUrl}
                     moderationLevel={moderationLevel}
-                    queueLabel={`${deskList.findIndex((o) => o.id === selectedId) + 1}/${deskList.length}`}
+                    queueLabel={`${Math.max(1, globalPendingCount - availableCount + 1)}/${globalPendingCount}`}
                     onAffiliateReadyChange={setAffiliateReady}
                     actionError={actionError}
                     onClearActionError={() => setActionError(null)}

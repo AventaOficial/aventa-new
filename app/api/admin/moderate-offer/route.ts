@@ -12,6 +12,7 @@ import {
   validateAffiliatePaste,
 } from '@/lib/affiliate'
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
+import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 
@@ -45,14 +46,36 @@ export async function POST(request: Request) {
     if (status === 'rejected' && !reason) {
       return NextResponse.json({ error: 'Motivo obligatorio al rechazar' }, { status: 400 })
     }
+
     const supabase = createServerClient()
 
     const { data: offer } = await supabase
       .from('offers')
-      .select('status, created_by, title')
+      .select('status, created_by, title, locked_by, locked_at')
       .eq('id', id)
       .single()
     const previousStatus = offer?.status ?? 'pending'
+
+    if (previousStatus === status) {
+      return NextResponse.json({ ok: true, idempotent: true })
+    }
+    if (previousStatus !== 'pending') {
+      return NextResponse.json({ error: 'La oferta ya fue moderada' }, { status: 409 })
+    }
+
+    if (!batchApprove) {
+      const lockCheck = assertModeratorOwnsLock(
+        {
+          locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
+          locked_at: (offer as { locked_at?: string | null }).locked_at ?? null,
+        },
+        auth.user.id
+      )
+      if (!lockCheck.ok) {
+        return NextResponse.json({ error: lockCheck.error }, { status: 409 })
+      }
+    }
+
     const createdBy = (offer as { created_by?: string } | null)?.created_by
     const offerTitle =
       typeof (offer as { title?: string } | null)?.title === 'string'
@@ -135,16 +158,37 @@ export async function POST(request: Request) {
       if (!batchApprove) {
         payload.link_mod_ok = rawUrl ? true : null
       }
-      let { error: updateError } = await supabase.from('offers').update(payload).eq('id', id)
+      let { data: updatedRow, error: updateError } = await supabase
+        .from('offers')
+        .update(payload)
+        .eq('id', id)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle()
       if (updateError && hasMissingColumn(updateError, 'link_mod_ok')) {
         delete payload.link_mod_ok
-        ;({ error: updateError } = await supabase.from('offers').update(payload).eq('id', id))
+        ;({ data: updatedRow, error: updateError } = await supabase
+          .from('offers')
+          .update(payload)
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id')
+          .maybeSingle())
       }
       if (updateError && hasMissingColumn(updateError, 'locked_by')) {
         delete payload.locked_by
         delete payload.locked_at
         delete payload.snoozed_until
-        ;({ error: updateError } = await supabase.from('offers').update(payload).eq('id', id))
+        ;({ data: updatedRow, error: updateError } = await supabase
+          .from('offers')
+          .update(payload)
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id')
+          .maybeSingle())
+      }
+      if (!updatedRow && !updateError) {
+        return NextResponse.json({ ok: true, idempotent: true })
       }
       if (updateError) {
         console.error('[moderate-offer] update failed:', updateError.message)
@@ -159,12 +203,27 @@ export async function POST(request: Request) {
         snoozed_until?: null
       } = { status: 'rejected', ...LOCK_CLEAR }
       if (reason !== undefined) payload.rejection_reason = reason
-      let { error } = await supabase.from('offers').update(payload).eq('id', id)
+      let { data: updatedRow, error } = await supabase
+        .from('offers')
+        .update(payload)
+        .eq('id', id)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle()
       if (error && hasMissingColumn(error, 'locked_by')) {
         delete payload.locked_by
         delete payload.locked_at
         delete payload.snoozed_until
-        ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
+        ;({ data: updatedRow, error } = await supabase
+          .from('offers')
+          .update(payload)
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id')
+          .maybeSingle())
+      }
+      if (!updatedRow && !error) {
+        return NextResponse.json({ ok: true, idempotent: true })
       }
       if (error) {
         console.error('[moderate-offer] update failed:', error.message)

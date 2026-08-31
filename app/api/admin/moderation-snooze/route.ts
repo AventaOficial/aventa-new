@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
+import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -29,6 +30,28 @@ export async function POST(request: Request) {
 
   const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
   const supabase = createServerClient();
+
+  const { data: row } = await supabase
+    .from('offers')
+    .select('locked_by, locked_at')
+    .eq('id', offerId)
+    .eq('status', 'pending')
+    .maybeSingle();
+
+  if (!row) {
+    return NextResponse.json({ error: 'Oferta no encontrada o ya moderada' }, { status: 404 });
+  }
+
+  const lockCheck = assertModeratorOwnsLock(
+    {
+      locked_by: (row as { locked_by?: string | null }).locked_by ?? null,
+      locked_at: (row as { locked_at?: string | null }).locked_at ?? null,
+    },
+    auth.user.id
+  );
+  if (!lockCheck.ok) {
+    return NextResponse.json({ error: lockCheck.error }, { status: 409 });
+  }
 
   const { error } = await supabase
     .from('offers')

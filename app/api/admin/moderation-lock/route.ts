@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
-import { isModerationLockStale, MODERATION_LOCK_STALE_MS } from '@/lib/moderation/moderationLock';
+import {
+  isModerationLockStale,
+  MODERATION_LOCK_STALE_MS,
+} from '@/lib/moderation/moderationLock';
+import {
+  releaseModerationLockIfOwner,
+  tryAcquireModerationLock,
+} from '@/lib/moderation/atomicModerationLock';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -52,52 +59,58 @@ export async function POST(request: Request) {
   const nowIso = new Date().toISOString();
 
   if (action === 'release') {
-    if (lockedBy && lockedBy !== auth.user.id) {
-      return NextResponse.json({ ok: true, released: false });
-    }
-    const { error } = await supabase
-      .from('offers')
-      .update({ locked_by: null, locked_at: null })
-      .eq('id', offerId);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    await releaseModerationLockIfOwner(supabase, offerId, auth.user.id);
     return NextResponse.json({ ok: true, released: true });
   }
 
   const blockedByOther =
     lockedBy && lockedBy !== auth.user.id && !isModerationLockStale(lockedAt);
 
-  if (action === 'acquire' && blockedByOther) {
-    const { data: lockerProfile } = await supabase
-      .from('profiles')
-      .select('display_name')
-      .eq('id', lockedBy)
-      .maybeSingle();
+  if (action === 'heartbeat') {
+    if (blockedByOther) {
+      return NextResponse.json({ error: 'Lock de otro moderador' }, { status: 409 });
+    }
+    const { error } = await supabase
+      .from('offers')
+      .update({ locked_at: nowIso })
+      .eq('id', offerId)
+      .eq('locked_by', auth.user.id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({
+      ok: true,
+      lockSupported: true,
+      lockedBy: auth.user.id,
+      lockedAt: nowIso,
+      staleMs: MODERATION_LOCK_STALE_MS,
+    });
+  }
+
+  const acquired = await tryAcquireModerationLock(supabase, offerId, auth.user.id);
+  if (!acquired.claimed) {
+    if (lockedBy && lockedBy !== auth.user.id && !isModerationLockStale(lockedAt)) {
+      const { data: lockerProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', lockedBy)
+        .maybeSingle();
+      return NextResponse.json(
+        {
+          error: 'En revisión por otro moderador',
+          lockedBy,
+          lockedByName:
+            (lockerProfile as { display_name?: string | null } | null)?.display_name?.trim() ||
+            'Otro moderador',
+          lockedAt,
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
-      {
-        error: 'En revisión por otro moderador',
-        lockedBy,
-        lockedByName:
-          (lockerProfile as { display_name?: string | null } | null)?.display_name?.trim() ||
-          'Otro moderador',
-        lockedAt,
-      },
+      { error: acquired.error ?? 'No se pudo reclamar la oferta' },
       { status: 409 }
     );
-  }
-
-  if (action === 'heartbeat' && blockedByOther) {
-    return NextResponse.json({ error: 'Lock de otro moderador' }, { status: 409 });
-  }
-
-  const { error: upErr } = await supabase
-    .from('offers')
-    .update({ locked_by: auth.user.id, locked_at: nowIso })
-    .eq('id', offerId);
-
-  if (upErr) {
-    return NextResponse.json({ error: upErr.message }, { status: 500 });
   }
 
   return NextResponse.json({
