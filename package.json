@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/staff tests/moderation",
+    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension",
+    "build:extension": "tsc -p browser-extension/tsconfig.json",
     "ci:verify": "npm run test:contracts && npm run build"
   },
   "dependencies": {

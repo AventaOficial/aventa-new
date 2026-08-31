@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/ml-oauth-refresh",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/process-write-queue",
+      "schedule": "45 3 * * *"
+    },
+    {
+      "path": "/api/cron/rewards-release-holds",
+      "schedule": "0 5 * * *"
     }
   ]
 }

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser';
 
 export type PlazaRequest = {
   id: string;
@@ -38,13 +42,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const rl = await enforceRateLimit(`plaza-req-w:${getClientIp(request)}`);
   if (!rl.success) return NextResponse.json({ error: 'Demasiadas solicitudes.' }, { status: 429 });
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'Inicia sesión para pedir una oferta.' }, { status: 401 });
 
-  const supabase = createServerClient();
-  const { data: auth, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !auth.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const authResult = await requireBearerCommunityUser(request);
+  if ('error' in authResult) {
+    return communityAuthFailureResponse(authResult);
+  }
+  const { user, supabase } = authResult;
 
   const body = await request.json().catch(() => ({}));
   const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 120) : '';
@@ -55,17 +58,18 @@ export async function POST(request: Request) {
   const budget_max =
     typeof budgetRaw === 'number' && Number.isFinite(budgetRaw) && budgetRaw > 0 ? budgetRaw : null;
 
+  // El servidor fija el estado; el cliente no puede enviar status para saltarse moderación.
   const { data, error } = await supabase
     .from('plaza_requests')
     .insert({
-      user_id: auth.user.id,
+      user_id: user.id,
       title,
       details,
       preferred_store: store,
       budget_max,
-      status: 'approved',
+      status: 'pending',
     })
-    .select('id, title, details, budget_max, preferred_store, created_at')
+    .select('id, title, details, budget_max, preferred_store, created_at, status')
     .single();
   if (error) {
     if (isMissingTable(error.message)) {
@@ -74,5 +78,9 @@ export async function POST(request: Request) {
     console.error('[plaza/requests] POST', error.message);
     return NextResponse.json({ error: 'No se pudo publicar la solicitud.' }, { status: 500 });
   }
-  return NextResponse.json({ request: data as PlazaRequest });
+  return NextResponse.json({
+    request: data as PlazaRequest,
+    status: 'pending',
+    needsModeration: true,
+  });
 }

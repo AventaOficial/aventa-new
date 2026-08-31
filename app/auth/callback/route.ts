@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerAuthClient } from '@/lib/supabase/server-auth';
+import { resolveSafeOAuthNext } from '@/lib/auth/safeOAuthNext';
 
 // Evitar cache: el callback debe ejecutarse siempre en el servidor con las cookies de la petición
 export const dynamic = 'force-dynamic';
@@ -8,8 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') ?? '/';
-  const safeNext = next.startsWith('/') ? next : '/';
+  const safeNext = resolveSafeOAuthNext(requestUrl.searchParams.get('next'));
   const origin = requestUrl.origin;
 
   if (!code) {

@@ -1,0 +1,9 @@
+query($serviceId: String!, $environmentId: String!) {
+  serviceInstance(serviceId: $serviceId, environmentId: $environmentId) {
+    cronSchedule
+    nextCronRunAt
+    rootDirectory
+    startCommand
+    builder
+  }
+}

@@ -5,6 +5,8 @@ import type { User, Session } from '@supabase/supabase-js'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded'
 import { syncOnboardingPreferencesToProfile } from '@/lib/preferences/onboardingStorage'
+import { clearPendingLegalConsent, readPendingLegalConsent } from '@/lib/legal/pendingConsent'
+import { recordLegalConsent } from '@/lib/legal/recordConsent'
 
 type AuthContextType = {
   user: User | null
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const syncProfileDoneRef = useRef<string | null>(null)
   const syncPreferencesDoneRef = useRef<string | null>(null)
+  const legalConsentDoneRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -42,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!next?.user?.id) {
         syncProfileDoneRef.current = null
         syncPreferencesDoneRef.current = null
+        legalConsentDoneRef.current = null
       }
       setIsLoading(false)
     })
@@ -58,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!next?.user?.id) {
         syncProfileDoneRef.current = null
         syncPreferencesDoneRef.current = null
+        legalConsentDoneRef.current = null
       }
       if (!hasAuthHash) setIsLoading(false)
     })
@@ -101,6 +106,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((result) => {
         if (result.synced || result.reason === 'no_pending') {
           syncPreferencesDoneRef.current = user.id
+        }
+      })
+      .catch(() => {})
+  }, [session?.access_token, user?.id])
+
+  useEffect(() => {
+    if (!session?.access_token || !user?.id) return
+    if (legalConsentDoneRef.current === user.id) return
+    const pending = readPendingLegalConsent()
+    if (!pending) return
+
+    void recordLegalConsent(session.access_token)
+      .then((result) => {
+        if (result.ok) {
+          clearPendingLegalConsent()
+          legalConsentDoneRef.current = user.id
         }
       })
       .catch(() => {})

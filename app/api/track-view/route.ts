@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
 import { recordOfferEvent } from '@/lib/server/writeQueue';
+import { shouldSkipDuplicateOfferEvent } from '@/lib/server/offerEventDedupe';
+import { isOfferTrackable } from '@/lib/server/trackableOffer';
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -15,6 +17,10 @@ export async function POST(request: Request) {
 
     if (!offerId || !isValidUuid(offerId)) {
       return new NextResponse(null, { status: 400 });
+    }
+
+    if (!(await isOfferTrackable(offerId))) {
+      return new NextResponse(null, { status: 404 });
     }
 
     let userId: string | null = null;
@@ -32,6 +38,16 @@ export async function POST(request: Request) {
           userId = userData?.id ?? null;
         }
       }
+    }
+
+    const skip = await shouldSkipDuplicateOfferEvent({
+      offerId,
+      eventType: 'view',
+      userId,
+      ip,
+    });
+    if (skip) {
+      return new NextResponse(null, { status: 204 });
     }
 
     await recordOfferEvent({

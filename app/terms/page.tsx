@@ -2,19 +2,20 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import LegalBackLink from '@/app/components/LegalBackLink';
+import { TERMS_LAST_UPDATED } from '@/lib/legal/constants';
 import {
-  COMMISSION_DEFAULT_CREATOR_SHARE_BPS,
-  COMMISSION_MIN_PAYOUT_CENTS,
-  COMMISSION_MIN_UPVOTES_PER_OFFER,
-  COMMISSION_PAYOUT_HOLD_DAYS,
-  COMMISSION_REQUIRED_OFFERS,
-  COMMISSION_TERMS_VERSION,
-} from '@/lib/commissions/constants';
+  REWARDS_CREATOR_SHARE_BPS,
+  REWARDS_HOLD_DAYS,
+  REWARDS_MIN_PAYOUT_CENTS,
+  REWARDS_REQUIRED_APPROVED_OFFERS,
+  REWARDS_REQUIRED_POSITIVE_VOTES,
+  REWARDS_TERMS_VERSION,
+} from '@/lib/rewards/config';
 
 export const metadata: Metadata = {
   title: 'Términos y Condiciones | AVENTA',
   description:
-    'Términos de uso de AVENTA: comunidad de ofertas, afiliados, programa de comisiones a creadores y reglas de la plataforma.',
+    'Términos de uso de AVENTA: comunidad de ofertas, afiliados, Programa de Recompensas y reglas de la plataforma.',
 };
 
 function mxnFromCents(cents: number): string {
@@ -22,8 +23,8 @@ function mxnFromCents(cents: number): string {
 }
 
 export default function TermsPage() {
-  const creatorSharePct = (COMMISSION_DEFAULT_CREATOR_SHARE_BPS / 100).toFixed(0);
-  const minPayout = mxnFromCents(COMMISSION_MIN_PAYOUT_CENTS);
+  const creatorSharePct = (REWARDS_CREATOR_SHARE_BPS / 100).toFixed(0);
+  const minPayout = mxnFromCents(REWARDS_MIN_PAYOUT_CENTS);
 
   return (
     <AppShell>
@@ -38,8 +39,8 @@ export default function TermsPage() {
             Términos y Condiciones de Uso
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Última actualización: 14 de agosto de 2026 · Versión del programa de comisiones:{' '}
-            <span className="font-mono text-xs">{COMMISSION_TERMS_VERSION}</span>
+            Última actualización: {TERMS_LAST_UPDATED} · Versión del Programa de Recompensas:{' '}
+            <span className="font-mono text-xs">{REWARDS_TERMS_VERSION}</span>
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Estos Términos y Condiciones regulan el acceso y uso de la plataforma AVENTA,
@@ -50,6 +51,18 @@ export default function TermsPage() {
             Este documento tiene finalidad informativa general y no sustituye asesoría legal
             profesional. Si necesitas una opinión jurídica específica, consulta con un
             abogado en tu jurisdicción.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-500">
+            Los datos de identificación fiscal del responsable (razón social, RFC y domicilio)
+            se publicarán en esta sección cuando se formalice la operación comercial y, en su
+            caso, se active el Programa de Recompensas. Mientras tanto, el contacto oficial es{' '}
+            <a
+              href="mailto:aventasoportelegal@gmail.com"
+              className="text-violet-600 dark:text-violet-400 hover:underline"
+            >
+              aventasoportelegal@gmail.com
+            </a>
+            .
           </p>
         </header>
 
@@ -73,6 +86,7 @@ export default function TermsPage() {
             <li>
               AVENTA actúa como <span className="font-semibold">intermediario informativo</span>
               : no es parte del contrato de compraventa entre el usuario y la tienda externa.
+              Las compras se realizan directamente con el comercio correspondiente.
             </li>
             <li>
               El ranking de ofertas se basa en votos y señales de la comunidad. El ranking{' '}
@@ -95,6 +109,13 @@ export default function TermsPage() {
               actualizada.
             </li>
             <li>
+              Al registrarse, el usuario debe aceptar expresamente estos Términos y la{' '}
+              <Link href="/privacy" className="text-violet-600 dark:text-violet-400 hover:underline">
+                Política de Privacidad
+              </Link>
+              .
+            </li>
+            <li>
               El usuario es responsable de la confidencialidad de sus credenciales y del uso
               que se haga de su cuenta. Cualquier actividad realizada desde su cuenta se
               presumirá realizada por él.
@@ -102,10 +123,11 @@ export default function TermsPage() {
             <li>
               <span className="font-medium">Edad:</span> el uso general de la plataforma está
               pensado para personas con capacidad legal suficiente. Para participar en el{' '}
-              <span className="font-semibold">programa de comisiones</span> (sección 8) el
+              <span className="font-semibold">Programa de Recompensas</span> (sección 8) el
               usuario debe ser mayor de <span className="font-semibold">18 años</span> y estar
-              en condiciones de aportar datos fiscales y bancarios válidos en México (o los
-              que en el futuro se requieran en otros países).
+              en condiciones de aportar datos fiscales y bancarios válidos cuando AVENTA los
+              solicite para un pago (nombre legal, RFC y CLABE en México, u otros datos
+              equivalentes).
             </li>
             <li>
               AVENTA se reserva el derecho de suspender o cancelar cuentas que incumplan
@@ -169,8 +191,14 @@ export default function TermsPage() {
             <li>
               Los enlaces que los usuarios compartan hacia tiendas o productos externos
               pueden ser modificados o reemplazados por enlaces de afiliación o tracking
-              generados por AVENTA, siempre con el objetivo de dirigir al mismo destino o a
-              uno equivalente en la tienda de origen.
+              generados por <span className="font-semibold">AVENTA</span>, siempre con el
+              objetivo de dirigir al mismo destino o a uno equivalente en la tienda de origen.
+            </li>
+            <li>
+              El usuario que publica una oferta{' '}
+              <span className="font-semibold">no es afiliado</span> de Amazon, Mercado Libre
+              ni de las demás tiendas por el solo hecho de compartir una oferta en AVENTA.
+              AVENTA opera con sus propias relaciones y enlaces de afiliación.
             </li>
             <li>
               El uso de enlaces afiliados no modifica el precio final que el usuario paga en
@@ -183,9 +211,9 @@ export default function TermsPage() {
             </li>
             <li>
               En la interfaz se informa de esta práctica mediante avisos de transparencia
-              (por ejemplo en el pie de página y en{' '}
+              (por ejemplo en el pie de página, en el feed y en{' '}
               <Link href="/comisiones" className="text-violet-600 dark:text-violet-400 hover:underline">
-                /comisiones
+                Programa de Recompensas
               </Link>
               ). El detalle del tratamiento de datos está en la{' '}
               <Link href="/privacy" className="text-violet-600 dark:text-violet-400 hover:underline">
@@ -209,7 +237,7 @@ export default function TermsPage() {
             <li>
               No se permite publicar enlaces afiliados propios ni enlaces cuyo principal
               objetivo sea obtener beneficios económicos para el propio usuario sin
-              autorización expresa de AVENTA (salvo el programa de comisiones de la sección 8,
+              autorización expresa de AVENTA (salvo el Programa de Recompensas de la sección 8,
               operado bajo las reglas de la plataforma).
             </li>
             <li>
@@ -218,7 +246,7 @@ export default function TermsPage() {
             </li>
             <li>
               El incumplimiento puede derivar en eliminación de contenido, pérdida de
-              reputación interna, exclusión del programa de comisiones, suspensión temporal o
+              reputación interna, exclusión del Programa de Recompensas, suspensión temporal o
               definitiva de la cuenta.
             </li>
           </ul>
@@ -258,7 +286,7 @@ export default function TermsPage() {
               Esta reputación es una herramienta interna para moderación, privilegios de
               publicación y peso de voto. <span className="font-semibold">No constituye</span>{' '}
               certificación profesional, comercial ni financiera, ni determina por sí sola el
-              monto de un pago.
+              monto de una recompensa.
             </li>
             <li>
               AVENTA puede ajustar los criterios y algoritmos de reputación en cualquier
@@ -269,115 +297,120 @@ export default function TermsPage() {
 
         <section className="space-y-3" id="comisiones">
           <h2 className="text-xl font-semibold">
-            8. Programa de comisiones para creadores
+            8. Programa de Recompensas para creadores
           </h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            AVENTA puede ofrecer un programa opcional de participación económica para
-            usuarios que publican ofertas de calidad. El programa solo genera obligaciones de
-            pago cuando está{' '}
-            <span className="font-semibold">anunciado como activo</span> por canales oficiales
-            y el usuario ha aceptado expresamente esta sección en su cuenta. Mientras el
-            programa no esté activo, la plataforma puede seguir siendo gratuita para la
-            comunidad y no existe derecho a liquidación.
+            AVENTA puede ofrecer un <span className="font-semibold">Programa de Recompensas</span>{' '}
+            opcional para usuarios que publican ofertas de calidad. Es un programa interno de
+            AVENTA, distinto de cualquier programa de afiliados de tiendas externas. El
+            programa solo genera obligaciones de pago cuando está{' '}
+            <span className="font-semibold">anunciado como activo</span> por canales oficiales.
+            Mientras el programa no esté activo, la plataforma puede seguir siendo gratuita para
+            la comunidad y no existe derecho a liquidación ni recompensa monetaria.
           </p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Resumen orientativo (detalle operativo también en{' '}
             <Link href="/comisiones" className="text-violet-600 dark:text-violet-400 hover:underline">
-              /comisiones
+              Programa de Recompensas
             </Link>
             ):
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
-              <span className="font-medium">Elegibilidad (candado de calidad):</span> al menos{' '}
+              <span className="font-medium">Modelo económico:</span> cuando alguien compra en
+              una tienda externa mediante un enlace de afiliado de AVENTA, la red de afiliados
+              puede confirmar una <span className="font-semibold">comisión</span> para AVENTA.
+              AVENTA puede otorgar al creador elegible una{' '}
+              <span className="font-semibold">recompensa interna</span> equivalente aproximadamente
+              al <span className="font-semibold">{creatorSharePct}%</span> de esa comisión
+              atribuible. AVENTA conserva el resto (operación, impuestos, chargebacks y
+              producto). La recompensa <span className="font-semibold">no es</span> una comisión
+              de afiliado del creador ante la tienda.
+            </li>
+            <li>
+              <span className="font-medium">Elegibilidad (desbloqueo):</span> al menos{' '}
               <span className="font-semibold">
-                {COMMISSION_REQUIRED_OFFERS} ofertas
+                {REWARDS_REQUIRED_APPROVED_OFFERS} ofertas
               </span>{' '}
-              en estado aprobado o publicado, cada una con al menos{' '}
+              en estado aprobado o publicado, y al menos{' '}
               <span className="font-semibold">
-                {COMMISSION_MIN_UPVOTES_PER_OFFER} votos positivos
-              </span>
-              ; mayoría de edad (18+); aceptación expresa de esta versión de términos; y
-              datos fiscales/bancarios válidos cuando se solicite el pago (nombre legal, RFC y
-              CLABE en México, u otros datos equivalentes). Cumplir el umbral de votos{' '}
-              <span className="font-semibold">no genera</span> por sí solo un pago fijo ni un
-              ingreso garantizado.
-            </li>
-            <li>
-              <span className="font-medium">Base del pago:</span> cuando el programa esté
-              activo, el creador elegible podrá recibir aproximadamente el{' '}
-              <span className="font-semibold">{creatorSharePct}%</span> de las{' '}
-              <span className="font-semibold">
-                comisiones de afiliado confirmadas por la red
+                {REWARDS_REQUIRED_POSITIVE_VOTES} votos positivos acumulados
               </span>{' '}
-              (por ejemplo Amazon o Mercado Libre) que resulten{' '}
-              <span className="font-semibold">atribuibles</span> a su cuenta mediante
-              tracking tag / identificador de creador u oferta, según los reportes e
-              importaciones internas de AVENTA. No se pagan clics, votos ni estimaciones
-              aisladas.
+              (suma entre todas las ofertas del usuario). Cumplir estos umbrales{' '}
+              <span className="font-semibold">no garantiza</span> recompensa monetaria si no
+              existe comisión real atribuible.
             </li>
             <li>
-              <span className="font-medium">No atribuible:</span> las comisiones de afiliado
-              que no puedan vincularse de forma razonable a un creador (sin tag, tráfico
-              genérico de plataforma u otros casos){' '}
-              <span className="font-semibold">no generan pago individual</span> y permanecen
-              en la economía de la plataforma.
+              <span className="font-medium">Oferta de Bienvenida:</span> tras desbloquear el
+              programa, el creador elige <span className="font-semibold">una única</span> oferta
+              de sus primeras {REWARDS_REQUIRED_APPROVED_OFFERS} como Oferta de Bienvenida.
+              Solo esa oferta —y las ofertas elegibles creadas después del desbloqueo— pueden
+              participar en recompensas según las reglas operativas de AVENTA.
             </li>
             <li>
-              <span className="font-medium">Confirmado, pendiente y void:</span> “confirmado”
-              significa registrado internamente como comisión de red en estado usable para
-              reparto (p. ej. accrued/paid en el ledger). “Pendiente” es una asignación aún
-              no liquidada. “Void” es anulación total o parcial por devoluciones,
-              inconsistencias de red, fraude, error o incumplimiento. AVENTA puede auditar y
-              ajustar montos antes o después del cálculo del periodo.
+              <span className="font-medium">Base de la recompensa:</span> no se pagan clics,
+              votos ni estimaciones aisladas. La recompensa depende de una{' '}
+              <span className="font-semibold">comisión de afiliado confirmada por la red</span>{' '}
+              (por ejemplo Amazon o Mercado Libre) que resulte{' '}
+              <span className="font-semibold">atribuible</span> a la oferta del creador según
+              los reportes e importaciones internas de AVENTA.
+            </li>
+            <li>
+              <span className="font-medium">No atribuible:</span> comisiones que no puedan
+              vincularse de forma razonable a un creador u oferta{' '}
+              <span className="font-semibold">no generan recompensa individual</span>. En
+              algunas redes (p. ej. Mercado Libre) la atribución puede requerir revisión manual.
+            </li>
+            <li>
+              <span className="font-medium">Estados y validación:</span> las recompensas pueden
+              pasar por periodos de validación (p. ej. estado VALIDATING), quedar disponibles
+              (AVAILABLE), pagarse (PAID), cancelarse (CANCELLED) o revertirse (REVERSED) según
+              fraude, devoluciones, chargebacks o problemas de atribución.
             </li>
             <li>
               <span className="font-medium">Retención (hold):</span> de forma orientativa,
-              AVENTA puede retener liquidaciones alrededor de{' '}
-              <span className="font-semibold">{COMMISSION_PAYOUT_HOLD_DAYS} días</span> tras
-              el cierre del periodo relevante, para absorber cancelaciones o devoluciones de
-              las redes de afiliados. Los plazos exactos pueden ajustarse según cada red.
+              AVENTA puede retener recompensas alrededor de{' '}
+              <span className="font-semibold">{REWARDS_HOLD_DAYS} días</span> antes de marcarlas
+              como disponibles, para absorber cancelaciones o devoluciones de las redes de
+              afiliados.
             </li>
             <li>
               <span className="font-medium">Mínimo de pago:</span> salvo que se comunique otro
               umbral, el mínimo orientativo de transferencia es{' '}
-              <span className="font-semibold">{minPayout}</span>. Si el saldo a pagar no
-              alcanza el mínimo, puede acumularse para un periodo posterior o quedar pendiente
-              hasta reunir el umbral, según la operación del programa.
+              <span className="font-semibold">{minPayout}</span>. Si el saldo no alcanza el
+              mínimo, puede acumularse para un periodo posterior.
             </li>
             <li>
-              <span className="font-medium">Método de pago:</span> en la etapa actual los pagos
-              se procesan de forma <span className="font-semibold">manual</span> (p. ej. SPEI
-              a CLABE) tras revisión administrativa. No hay retiro instantáneo automático.
+              <span className="font-medium">Método de pago:</span> cuando el programa esté
+              activo, los pagos se procesan de forma{' '}
+              <span className="font-semibold">manual</span> (p. ej. SPEI) tras revisión
+              administrativa. AVENTA puede solicitar datos fiscales y bancarios antes de pagar.
             </li>
             <li>
               <span className="font-medium">Fiscalidad:</span> cualquier liquidación está
-              sujeta a la normativa fiscal aplicable, a la posible retención de impuestos y a
-              la solicitud de datos o comprobantes (incluida información para CFDI u otras
-              obligaciones). El tratamiento concreto puede requerir validación contable; el
-              usuario es responsable de sus propias obligaciones fiscales.
+              sujeta a la normativa fiscal aplicable. El tratamiento concreto puede requerir
+              validación contable; el usuario es responsable de sus propias obligaciones
+              fiscales.
             </li>
             <li>
               <span className="font-medium">Naturaleza de la relación:</span> la participación
               en el programa <span className="font-semibold">no crea</span> relación laboral,
-              de sociedad ni de mandato irrevocable. Es un programa discrecional de
-              participación en comisiones de afiliado sujetas a fondos reales, elegibilidad y
-              reglas vigentes.
+              de sociedad ni de mandato irrevocable. Es un programa discrecional sujeto a
+              fondos reales, elegibilidad y reglas vigentes.
             </li>
             <li>
               <span className="font-medium">Modificación y suspensión:</span> AVENTA puede
               modificar porcentajes, umbrales, calendarios o suspender el programa con aviso
-              razonable. Los cambios materiales de esta sección pueden exigir una nueva
-              aceptación (nueva versión). La mera publicación de ofertas o el cumplimiento de
-              umbrales numéricos <span className="font-semibold">no garantiza</span>{' '}
-              remuneración.
+              razonable. Los cambios materiales pueden exigir una nueva aceptación. La mera
+              publicación de ofertas o el cumplimiento de umbrales numéricos{' '}
+              <span className="font-semibold">no garantiza</span> remuneración.
             </li>
             <li>
               <span className="font-medium">Cumplimiento de programas de terceros:</span> el
               creador no debe realizar prácticas prohibidas por los términos de Amazon
-              Associates, Mercado Libre Afiliados u otras redes (incluyendo, sin limitar,
-              cookie stuffing, incentivos ilícitos al clic, o auto-compra destinada a
-              generarse comisión). El incumplimiento puede anular pagos y cerrar la cuenta.
+              Associates, Mercado Libre Afiliados u otras redes (incluyendo cookie stuffing,
+              incentivos ilícitos al clic o auto-compra destinada a generarse recompensa). El
+              incumplimiento puede anular recompensas y cerrar la cuenta.
             </li>
           </ul>
         </section>
@@ -396,12 +429,12 @@ export default function TermsPage() {
             </li>
             <li>
               Click fraud o cualquier práctica destinada a inflar artificialmente métricas de
-              impacto o comisiones.
+              impacto o recompensas.
             </li>
             <li>
               <span className="font-medium">Self-dealing:</span> comprar a través del propio
-              enlace afiliado / tag con el fin principal de generarse comisión a sí mismo, o
-              coordinar compras fingidas con terceros para el mismo fin.
+              enlace con el fin principal de generarse recompensa a sí mismo, o coordinar
+              compras fingidas con terceros para el mismo fin.
             </li>
             <li>
               Usar un mismo RFC en múltiples cuentas de creador para eludir controles, o
@@ -417,9 +450,9 @@ export default function TermsPage() {
             </li>
           </ul>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Ante indicios de fraude, AVENTA puede congelar saldos, marcar asignaciones como
-            void, exigir verificación adicional y/o banear la cuenta, sin perjuicio de otras
-            acciones legales.
+            Ante indicios de fraude, AVENTA puede congelar saldos, cancelar o revertir
+            recompensas, exigir verificación adicional y/o banear la cuenta, sin perjuicio de
+            otras acciones legales.
           </p>
         </section>
 
@@ -445,8 +478,8 @@ export default function TermsPage() {
               deben dirigirse al comercio correspondiente.
             </li>
             <li>
-              Los montos de comisiones dependen de reportes de redes de afiliados externas;
-              retrasos, ajustes o cancelaciones de esas redes pueden afectar liquidaciones.
+              Las recompensas dependen de reportes de redes de afiliados externas; retrasos,
+              ajustes o cancelaciones de esas redes pueden afectar liquidaciones.
             </li>
           </ul>
         </section>
@@ -454,8 +487,12 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">11. Terminación y eliminación de cuentas</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            El usuario puede dejar de usar la plataforma en cualquier momento y, cuando los
-            mecanismos lo permitan, solicitar la eliminación de su cuenta.
+            El usuario puede dejar de usar la plataforma en cualquier momento y solicitar la
+            eliminación de su cuenta desde{' '}
+            <Link href="/settings" className="text-violet-600 dark:text-violet-400 hover:underline">
+              Configuración
+            </Link>{' '}
+            o escribiendo a aventasoportelegal@gmail.com.
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
@@ -468,7 +505,7 @@ export default function TermsPage() {
               obligaciones fiscales o legales, conforme a la Política de Privacidad.
             </li>
             <li>
-              Saldos del programa de comisiones pendientes pueden revisarse, retenerse o
+              Saldos del Programa de Recompensas pendientes pueden revisarse, retenerse o
               anularse según elegibilidad, fraude y estado del programa al momento de la
               terminación.
             </li>
@@ -498,11 +535,11 @@ export default function TermsPage() {
             <span className="font-medium">https://aventaofertas.com/terms</span>.
           </p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Cuando los cambios sean relevantes —en especial los del programa de comisiones—
+            Cuando los cambios sean relevantes —en especial los del Programa de Recompensas—
             se procurará comunicarlo mediante avisos en la plataforma o por los medios de
             contacto disponibles. El uso continuado tras la publicación de cambios implica la
-            aceptación de los nuevos términos generales; la participación en el programa de
-            comisiones puede exigir aceptación expresa de la nueva versión en el perfil.
+            aceptación de los nuevos términos generales; la participación en el programa puede
+            exigir aceptación expresa de la nueva versión.
           </p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Contacto legal:{' '}

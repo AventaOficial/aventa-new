@@ -7,6 +7,7 @@ import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
 import { resolveAndNormalizeAffiliateOfferUrl, isResolvedProductOfferUrl } from '@/lib/affiliate'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
+import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -148,6 +149,9 @@ export async function POST(request: Request) {
     if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 
     if (status === 'approved' && previousStatus !== 'approved' && createdBy) {
+      maybeUnlockRewardsProgram(supabase, createdBy, auth.user.id).catch((err) =>
+        console.error('[moderate-offer] rewards unlock:', err),
+      )
       const { data: modProfile } = await supabase.from('profiles').select('display_name').eq('id', auth.user.id).single()
       const modName = (modProfile as { display_name?: string } | null)?.display_name?.trim() || 'El equipo'
       const isOwner = auth.role === 'owner'

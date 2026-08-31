@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pushClientEvent } from '@/lib/monitoring/serverClientEventStore';
 import type { ClientLogEventType } from '@/lib/monitoring/clientLogger';
+import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import { isLegitimateFeedStreakAlert } from '@/lib/server/clientEventAlerts';
 
 const ALLOWED: ClientLogEventType[] = ['view', 'vote', 'error', 'api_error'];
 
@@ -8,8 +10,12 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-async function notifyWebhookIfNeeded(metadata: Record<string, unknown> | undefined): Promise<void> {
-  if (metadata?.alert !== 'feed_streak_5') return;
+async function notifyWebhookIfNeeded(
+  type: string,
+  source: string,
+  metadata: Record<string, unknown> | undefined,
+): Promise<void> {
+  if (!isLegitimateFeedStreakAlert(type, source, metadata)) return;
   const url = process.env.MONITORING_ALERT_WEBHOOK_URL;
   if (!url?.trim()) return;
   const body = {
@@ -30,6 +36,12 @@ async function notifyWebhookIfNeeded(metadata: Record<string, unknown> | undefin
 
 /** POST: eventos de cliente para visibilidad (buffer en memoria en esta instancia). */
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const rl = await enforceRateLimitCustom(ip, 'clientEvents');
+  if (!rl.success) {
+    return NextResponse.json({ ok: false }, { status: 429 });
+  }
+
   let json: unknown;
   try {
     json = await request.json();
@@ -58,11 +70,24 @@ export async function POST(request: Request) {
     metadata = json.metadata;
   }
 
+  // Bloquea intentos de abuso del webhook con alert spoofed.
+  if (metadata?.alert === 'feed_streak_5' && !isLegitimateFeedStreakAlert(type, source, metadata)) {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
+
+  if (isLegitimateFeedStreakAlert(type, source, metadata)) {
+    const alertRl = await enforceRateLimitCustom(ip, 'clientEventAlerts');
+    if (!alertRl.success) {
+      pushClientEvent({ type, source, metadata, at: typeof json.ts === 'string' ? json.ts : undefined });
+      return NextResponse.json({ ok: true, alertSuppressed: true });
+    }
+  }
+
   const at = typeof json.ts === 'string' ? json.ts : undefined;
 
   pushClientEvent({ type, source, metadata, at });
 
-  void notifyWebhookIfNeeded(metadata);
+  void notifyWebhookIfNeeded(type, source, metadata);
 
   return NextResponse.json({ ok: true });
 }

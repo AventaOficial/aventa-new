@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
 import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { voteInputSchema } from '@/lib/contracts/votes'
 import { voteWeightPairForLevel, type VoteDirection } from '@/lib/votes/reputationWeights'
+import { isPubliclyVotableOfferStatus } from '@/lib/votes/offerVoteEligibility'
 import { buildOfferPublicPath } from '@/lib/offerPath'
+import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser'
 
 const LIKES_MILESTONE = 50
 
@@ -89,47 +94,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Solicitud inválida' }, { status: 400 })
     }
 
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.slice(7).trim()
-      : null
-    if (!token) {
-      return NextResponse.json({ ok: false, error: 'No autorizado' }, { status: 401 })
+    const authResult = await requireBearerCommunityUser(request)
+    if ('error' in authResult) {
+      const res = communityAuthFailureResponse(authResult)
+      const body = await res.json().catch(() => ({}))
+      return NextResponse.json(
+        { ok: false, error: (body as { error?: string }).error ?? authResult.error, code: authResult.code },
+        { status: authResult.status },
+      )
     }
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !anonKey) {
-      console.error('[votes] Missing Supabase URL or anon key')
-      return NextResponse.json({ ok: false, error: 'Servicio no disponible' }, { status: 503 })
-    }
-
-    const userRes = await fetch(`${url}/auth/v1/user`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: anonKey,
-      },
-    })
-    if (!userRes.ok) {
-      return NextResponse.json({ ok: false, error: 'Sesión inválida' }, { status: 401 })
-    }
-    const userData = await userRes.json().catch(() => null)
-    const userId = userData?.id ?? null
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: 'Sesión inválida' }, { status: 401 })
-    }
-
-    let supabase
-    try {
-      supabase = createServerClient()
-    } catch (e) {
-      console.error('[votes] Supabase server client:', e)
-      return NextResponse.json({ ok: false, error: 'Servicio no disponible' }, { status: 503 })
-    }
+    const { user, supabase } = authResult
+    const userId = user.id
 
     const { data: offerRow, error: offerLookupError } = await supabase
       .from('offers')
-      .select('created_by')
+      .select('created_by, status')
       .eq('id', offerId)
       .maybeSingle()
     if (offerLookupError) {
@@ -138,6 +117,13 @@ export async function POST(request: Request) {
     }
     if (!offerRow) {
       return NextResponse.json({ ok: false, error: 'Oferta no encontrada' }, { status: 404 })
+    }
+    const offerStatus = (offerRow as { status?: string | null }).status
+    if (!isPubliclyVotableOfferStatus(offerStatus)) {
+      return NextResponse.json(
+        { ok: false, error: 'Solo puedes votar ofertas publicadas' },
+        { status: 403 }
+      )
     }
     const offerOwnerId = (offerRow as { created_by?: string | null }).created_by
     if (offerOwnerId && offerOwnerId === userId) {
@@ -186,6 +172,17 @@ export async function POST(request: Request) {
           console.error('[votes] notify milestone:', e)
         )
       }
+      const { data: offerOwnerInsert } = await supabase
+        .from('offers')
+        .select('created_by')
+        .eq('id', offerId)
+        .maybeSingle()
+      const ownerInsert = (offerOwnerInsert as { created_by?: string } | null)?.created_by
+      if (ownerInsert) {
+        maybeUnlockRewardsProgram(supabase, ownerInsert, userId).catch((e) =>
+          console.error('[votes] rewards unlock:', e)
+        )
+      }
       return NextResponse.json({ ok: true }, { status: 200 })
     }
 
@@ -216,6 +213,18 @@ export async function POST(request: Request) {
     if (shouldCountAsNewUpvote(targetVal, existingVal)) {
       notifyOfferOwnerLikeMilestone(supabase, offerId, userId).catch((e) =>
         console.error('[votes] notify milestone:', e)
+      )
+    }
+
+    const { data: offerOwner } = await supabase
+      .from('offers')
+      .select('created_by')
+      .eq('id', offerId)
+      .maybeSingle()
+    const ownerId = (offerOwner as { created_by?: string } | null)?.created_by
+    if (ownerId) {
+      maybeUnlockRewardsProgram(supabase, ownerId, userId).catch((e) =>
+        console.error('[votes] rewards unlock:', e)
       )
     }
 

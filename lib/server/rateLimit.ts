@@ -101,10 +101,22 @@ export async function enforceRateLimit(identifier: string): Promise<EnforceResul
   return ok ? { success: true } : { success: false, status: 429 };
 }
 
-/** reports | comments | events | offers | parseOffer | feed (API feed público, alto por IP) */
+/** reports | comments | events | offers | parseOffer | feed | telemetryView | telemetryOutbound | clientEvents | clientEventAlerts | similarOffers | uploadImage */
 export async function enforceRateLimitCustom(
   identifier: string,
-  preset: 'reports' | 'comments' | 'events' | 'offers' | 'parseOffer' | 'feed'
+  preset:
+    | 'reports'
+    | 'comments'
+    | 'events'
+    | 'offers'
+    | 'parseOffer'
+    | 'feed'
+    | 'telemetryView'
+    | 'telemetryOutbound'
+    | 'clientEvents'
+    | 'clientEventAlerts'
+    | 'similarOffers'
+    | 'uploadImage'
 ): Promise<EnforceResult> {
   const configs: Record<string, [number, Duration, string]> = {
     reports: [10, '1 m', 'RATE_LIMIT_REPORTS_PER_MIN'],
@@ -113,6 +125,13 @@ export async function enforceRateLimitCustom(
     offers: [5, '1 m', 'RATE_LIMIT_OFFERS_PER_MIN'],
     parseOffer: [20, '1 m', 'RATE_LIMIT_PARSE_OFFER_PER_MIN'],
     feed: [120, '1 m', 'RATE_LIMIT_FEED_PER_MIN'],
+    // 1 evento por ventana: dedupe de telemetría (no es rate limit de abuso)
+    telemetryView: [1, '30 m', 'RATE_LIMIT_TELEMETRY_VIEW_PER_WINDOW'],
+    telemetryOutbound: [1, '10 m', 'RATE_LIMIT_TELEMETRY_OUTBOUND_PER_WINDOW'],
+    clientEvents: [20, '1 m', 'RATE_LIMIT_CLIENT_EVENTS_PER_MIN'],
+    clientEventAlerts: [1, '30 m', 'RATE_LIMIT_CLIENT_EVENT_ALERTS_PER_WINDOW'],
+    similarOffers: [30, '1 m', 'RATE_LIMIT_SIMILAR_OFFERS_PER_MIN'],
+    uploadImage: [15, '1 h', 'RATE_LIMIT_UPLOAD_IMAGE_PER_HOUR'],
   };
   const [baseLimit, window, envName] = configs[preset];
   const limit = applyAdaptiveMultiplier(readPositiveIntEnv(envName) ?? baseLimit);

@@ -37,11 +37,14 @@ function parseExemptConfig(raw: unknown): { ids: Set<string>; emails: Set<string
   return { ids, emails };
 }
 
+const COOLDOWN_SECONDS_DEFAULT = 15;
+const COOLDOWN_SECONDS_LEVEL_4 = 5;
+
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
   if (!token) {
-    return NextResponse.json({ exempt: false }, { status: 401 });
+    return NextResponse.json({ exempt: false, canUpload: false }, { status: 401 });
   }
 
   const supabase = createServerClient();
@@ -50,19 +53,57 @@ export async function GET(request: Request) {
     error: userErr,
   } = await supabase.auth.getUser(token);
   if (userErr || !user?.id) {
-    return NextResponse.json({ exempt: false }, { status: 401 });
+    return NextResponse.json({ exempt: false, canUpload: false }, { status: 401 });
   }
 
-  const { data } = await supabase
-    .from('app_config')
-    .select('value')
-    .eq('key', 'upload_cooldown_exempt_user_ids')
-    .maybeSingle();
+  const [{ data: configRow }, { data: profile }] = await Promise.all([
+    supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'upload_cooldown_exempt_user_ids')
+      .maybeSingle(),
+    supabase.from('profiles').select('reputation_level').eq('id', user.id).maybeSingle(),
+  ]);
 
-  const raw = (data as { value?: unknown } | null)?.value;
+  const raw = (configRow as { value?: unknown } | null)?.value;
   const { ids, emails } = parseExemptConfig(raw);
-  const exempt = ids.has(user.id.toLowerCase()) || (user.email ? emails.has(user.email.toLowerCase()) : false);
+  const exempt =
+    ids.has(user.id.toLowerCase()) || (user.email ? emails.has(user.email.toLowerCase()) : false);
 
-  return NextResponse.json({ exempt });
+  const reputationLevel = Math.max(
+    1,
+    (profile as { reputation_level?: number } | null)?.reputation_level ?? 1,
+  );
+  const cooldownSeconds = exempt
+    ? 0
+    : reputationLevel >= 4
+      ? COOLDOWN_SECONDS_LEVEL_4
+      : COOLDOWN_SECONDS_DEFAULT;
+
+  let remainingSeconds = 0;
+  if (!exempt && cooldownSeconds > 0) {
+    const { data: lastOffer } = await supabase
+      .from('offers')
+      .select('created_at')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const createdAt = (lastOffer as { created_at?: string } | null)?.created_at;
+    if (createdAt) {
+      const elapsed = (Date.now() - new Date(createdAt).getTime()) / 1000;
+      remainingSeconds = Math.max(0, Math.ceil(cooldownSeconds - elapsed));
+    }
+  }
+
+  const canUpload = exempt || remainingSeconds === 0;
+
+  return NextResponse.json({
+    exempt,
+    canUpload,
+    remainingSeconds,
+    cooldownSeconds,
+    reputationLevel,
+  });
 }
 

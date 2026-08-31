@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { isStaffPathAllowed, resolveUserStaffRole } from '@/lib/server/middlewareRoleGate';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
@@ -75,14 +76,32 @@ export async function middleware(request: NextRequest) {
   });
 
   // Session-only gate: roles are enforced in /admin and /equipo layouts (client + API).
-  const sessionResult = await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS);
-  if (sessionResult === 'timeout') {
+  const userResult = await withTimeout(supabase.auth.getUser(), AUTH_TIMEOUT_MS);
+  if (userResult === 'timeout') {
     console.error('[middleware] auth timeout on', pathname);
     return redirectHome(request);
   }
 
-  if (!sessionResult.data.session?.user) {
+  if (!userResult.data.user) {
     return redirectHome(request);
+  }
+
+  const isAdmin = pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`);
+  const isStaff =
+    pathname === STAFF_PREFIX || pathname.startsWith(`${STAFF_PREFIX}/`);
+
+  if (isAdmin || isStaff) {
+    const role = await withTimeout(
+      resolveUserStaffRole(supabase, userResult.data.user.id),
+      AUTH_TIMEOUT_MS,
+    );
+    if (role === 'timeout') {
+      console.error('[middleware] role timeout on', pathname);
+      return redirectHome(request);
+    }
+    if (!isStaffPathAllowed(pathname, role)) {
+      return redirectHome(request);
+    }
   }
 
   return response;

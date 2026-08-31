@@ -10,6 +10,22 @@ type EventPayload = {
 
 type QueueStatus = 'pending' | 'processing' | 'done' | 'failed';
 
+type WriteJobRow = {
+  id: number;
+  job_type: string;
+  payload: EventPayload;
+  attempts: number;
+};
+
+/** Solo jobs que el UPDATE reclamó (status seguía pending). Evita doble procesamiento. */
+export function claimedJobRows<T extends { id: number }>(
+  requested: T[],
+  claimed: Array<{ id: number }> | null | undefined,
+): T[] {
+  const claimedIds = new Set((claimed ?? []).map((row) => row.id));
+  return requested.filter((row) => claimedIds.has(row.id));
+}
+
 function getWriteMode(): 'direct' | 'adaptive' | 'queue' {
   const mode = (process.env.EVENT_WRITE_MODE ?? 'adaptive').trim().toLowerCase();
   if (mode === 'direct' || mode === 'queue') return mode;
@@ -76,12 +92,7 @@ export async function flushWriteQueue(batchSize = 100): Promise<{
     throw new Error(readError.message);
   }
 
-  const rows = (pendingRows ?? []) as Array<{
-    id: number;
-    job_type: string;
-    payload: EventPayload;
-    attempts: number;
-  }>;
+  const rows = (pendingRows ?? []) as WriteJobRow[];
 
   if (rows.length === 0) {
     const { count } = await supabase
@@ -92,16 +103,22 @@ export async function flushWriteQueue(batchSize = 100): Promise<{
   }
 
   const ids = rows.map((r) => r.id);
-  await supabase
+  const { data: claimedRows, error: claimError } = await supabase
     .from('write_jobs_queue')
     .update({ status: 'processing' satisfies QueueStatus, locked_at: new Date().toISOString() })
     .in('id', ids)
-    .eq('status', 'pending');
+    .eq('status', 'pending')
+    .select('id, job_type, payload, attempts');
 
+  if (claimError) {
+    throw new Error(claimError.message);
+  }
+
+  const claimed = claimedJobRows(rows, claimedRows);
   let processed = 0;
   let failed = 0;
 
-  for (const row of rows) {
+  for (const row of claimed) {
     try {
       if (row.job_type === 'offer_event') {
         const ok = await insertEventDirect(row.payload);

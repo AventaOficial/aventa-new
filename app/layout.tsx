@@ -142,7 +142,7 @@ export default async function RootLayout({
                 <ul className="mt-2 space-y-1.5">
                   <li><Link href="/privacy" className="hover:text-violet-600 dark:hover:text-violet-400">Política de privacidad</Link></li>
                   <li><Link href="/terms" className="hover:text-violet-600 dark:hover:text-violet-400">Términos y condiciones</Link></li>
-                  <li><Link href="/comisiones" className="hover:text-violet-600 dark:hover:text-violet-400">Programa de comisiones</Link></li>
+                  <li><Link href="/comisiones" className="hover:text-violet-600 dark:hover:text-violet-400">Programa de Recompensas</Link></li>
                   <li><Link href="/settings" className="hover:text-violet-600 dark:hover:text-violet-400">Configuración de cuenta</Link></li>
                 </ul>
               </div>

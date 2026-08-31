@@ -8,7 +8,7 @@ import ClientLayout from '@/app/ClientLayout';
 import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
 import ReputationBar from '@/app/components/ReputationBar';
-import CommissionProgramPanel from '@/app/me/CommissionProgramPanel';
+import RewardsProgramPanel from '@/app/me/RewardsProgramPanel';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -304,20 +304,6 @@ function MePageInner() {
     });
   };
 
-  const handleOfferManagementAction = (
-    offerId: string,
-    action: 'edit_and_resubmit' | 'republish',
-  ) => {
-    // TODO(mis-ofertas): conectar estos handlers al formulario existente cuando soporte
-    // precarga y actualización segura de una oferta, sin duplicar formularios ni crear rutas.
-    const message =
-      action === 'edit_and_resubmit'
-        ? 'La edición y reenvío estará disponible desde este botón.'
-        : 'La republicación estará disponible desde este botón.';
-    showToast(message);
-    void offerId;
-  };
-
   return (
     <ClientLayout>
       <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
@@ -415,7 +401,7 @@ function MePageInner() {
           {meView === 'hunter' ? (
             <>
               <div className="mb-8">
-                <CommissionProgramPanel />
+                <RewardsProgramPanel />
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -531,7 +517,6 @@ function MePageInner() {
                           ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
                           : undefined
                       }
-                      onManagementAction={(action) => handleOfferManagementAction(offer.id, action)}
                       onVoteChange={handleVoteChange}
                       userVote={voteMap[offer.id] ?? null}
                       userVoteStoredValue={voteValueMap[offer.id] ?? null}

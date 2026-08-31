@@ -3,6 +3,7 @@ import { ALL_CATEGORIES, getValidCategoryValuesForFeed } from '@/lib/categories'
 import { BANK_COUPON_OPTIONS } from '@/lib/bankCoupons';
 import { getHomeFeed } from '@/lib/offers/feedService';
 import { computeOfferScore } from '@/lib/offers/scoring';
+import { ALLOWED_OFFER_VOTE_VALUES } from '@/lib/votes/reputationWeights';
 
 export type SystemIntegrityCheck = {
   name: string;
@@ -104,7 +105,7 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
 
     const [totalVotesRes, validVotesRes, legacyVotesRes, nullVotesRes] = await Promise.all([
       supabase.from('offer_votes').select('id', { count: 'exact', head: true }),
-      supabase.from('offer_votes').select('id', { count: 'exact', head: true }).in('value', [-1, 2]),
+      supabase.from('offer_votes').select('id', { count: 'exact', head: true }).in('value', [...ALLOWED_OFFER_VOTE_VALUES]),
       supabase.from('offer_votes').select('id', { count: 'exact', head: true }).eq('value', 1),
       supabase.from('offer_votes').select('id', { count: 'exact', head: true }).is('value', null),
     ]);

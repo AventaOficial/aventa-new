@@ -37,6 +37,8 @@ import { publicProfilePath } from '@/lib/profileSlug';
 import type { OfferScopeUi } from '@/lib/offerScope';
 import StoreBrandMark from './StoreBrandMark';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
+import AffiliateDisclosure from './AffiliateDisclosure';
+import { resolveStoreBrand } from '@/lib/stores/storeBrand';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -106,12 +108,12 @@ const DEAL_STATUS_CONFIG: Record<DealStatus, DealStatusConfig> = {
     headerClassName: 'bg-red-50/55 dark:bg-red-950/15',
     icon: CircleX,
     summary: 'No pudimos aprobar esta publicación.',
-    behavior: 'management',
-    ctaLabel: 'Editar y reenviar',
-    message: 'Corrige los puntos indicados y vuelve a enviarla. No perderás la información de esta oferta.',
+    behavior: 'informational',
+    ctaLabel: 'Ver detalle',
+    message:
+      'Revisa el motivo indicado abajo. Si la oferta sigue vigente, puedes publicar una nueva versión desde «Cazar oferta».',
     reasonLabel: 'Motivo del rechazo',
     reasonFallback: 'Esta oferta fue rechazada por incumplir las normas de publicación.',
-    action: 'edit_and_resubmit',
   },
   expired: {
     badge: 'Expirada',
@@ -119,10 +121,10 @@ const DEAL_STATUS_CONFIG: Record<DealStatus, DealStatusConfig> = {
     headerClassName: 'bg-gray-50/80 dark:bg-[#1a1a1a]/55',
     icon: Archive,
     summary: 'Esta oferta ya no está disponible.',
-    behavior: 'management',
-    ctaLabel: 'Republicar',
-    message: 'Ya no está visible para la comunidad. Puedes volver a publicarla si sigue vigente.',
-    action: 'republish',
+    behavior: 'informational',
+    ctaLabel: 'Ver detalle',
+    message:
+      'Ya no está visible para la comunidad. Si el producto sigue disponible, publica una nueva oferta.',
   },
 };
 
@@ -397,6 +399,7 @@ export default function OfferCard({
 
   const showImage = image && !imgError;
   const storeLabel = brand || 'Tienda';
+  const isAmazonStore = resolveStoreBrand(storeLabel).name === 'Amazon';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const savingsAmount =
     originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
@@ -729,6 +732,12 @@ export default function OfferCard({
             ) : null}
             <div className="min-w-0 flex-1">
               {(!statusConfig || statusConfig.behavior === 'public') ? (
+                <>
+                  <AffiliateDisclosure
+                    variant="feed"
+                    includeAmazonEn={isAmazonStore}
+                    className="mb-1.5 px-0.5"
+                  />
                 <button
                   type="button"
                   onClick={(e) => {
@@ -757,6 +766,7 @@ export default function OfferCard({
                   {statusConfig?.ctaLabel ?? 'Ver oferta'}
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                 </button>
+                </>
               ) : null}
 
               {statusConfig?.behavior === 'informational' ? (

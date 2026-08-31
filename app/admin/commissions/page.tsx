@@ -219,6 +219,8 @@ export default function AdminCommissionsPage() {
         network: csvNetwork,
         status: ledgerStatus,
         currency: 'MXN',
+        amount_unit: 'major',
+        dedupe_strategy: 'fingerprint',
       }),
     });
     const body = await res.json().catch(() => ({}));
@@ -255,6 +257,7 @@ export default function AdminCommissionsPage() {
         tracking_tag: ledgerTag.trim() || null,
         creator_id: ledgerCreatorId.trim() || null,
         external_ref: ledgerRef.trim() || null,
+        dedupe_strategy: ledgerRef.trim() ? 'require_external_ref' : 'fingerprint',
       }),
     });
     const body = await res.json().catch(() => ({}));
@@ -423,6 +426,9 @@ export default function AdminCommissionsPage() {
                 Cuando Amazon o Mercado Libre te pagan comisión, registrás el monto. Si ese dinero salió del tag de un
                 cazador, le corresponde el <strong>{sharePercent}%</strong>. El resto se queda en AVENTA.
               </p>
+              <Link href="/admin/rewards" className="inline-block mt-2 text-sm text-violet-600 hover:underline font-medium">
+                Ver Programa de Recompensas V1 →
+              </Link>
             </div>
             <button
               type="button"

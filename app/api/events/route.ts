@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
-import { createServerClient } from '@/lib/supabase/server'
 import { recordOfferEvent } from '@/lib/server/writeQueue'
+import { shouldSkipDuplicateOfferEvent } from '@/lib/server/offerEventDedupe'
+import { isOfferTrackable } from '@/lib/server/trackableOffer'
 
 type EventType = 'view' | 'outbound' | 'share' | 'cazar_cta'
 
@@ -28,6 +29,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
     }
 
+    if (!(await isOfferTrackable(offerId))) {
+      return NextResponse.json({ error: 'Offer not trackable' }, { status: 404 })
+    }
+
     let userId: string | null = null
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
@@ -45,20 +50,14 @@ export async function POST(request: Request) {
       }
     }
 
-    const supabase = createServerClient()
-
-    // Máximo 1 outbound por (oferta, usuario) cada 10 min para no inflar clicks
-    if (eventType === 'outbound' && userId) {
-      const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString()
-      const { data: recent } = await supabase
-        .from('offer_events')
-        .select('id')
-        .eq('offer_id', offerId)
-        .eq('user_id', userId)
-        .eq('event_type', 'outbound')
-        .gte('created_at', windowStart)
-        .limit(1)
-      if (recent && recent.length > 0) {
+    if (eventType === 'outbound' || eventType === 'view') {
+      const skip = await shouldSkipDuplicateOfferEvent({
+        offerId,
+        eventType,
+        userId,
+        ip,
+      })
+      if (skip) {
         return NextResponse.json({}, { status: 200 })
       }
     }

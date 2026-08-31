@@ -23,6 +23,13 @@ describe('parseAffiliateLedgerCsv', () => {
     expect(rows[0].amount_cents).toBe(10000);
     expect(rows[0].tracking_tag).toBe('ml_user');
   });
+
+  it('1500 en amount son 1500 pesos, no 15 pesos', () => {
+    const csv = `amount,tag
+1500,ana`;
+    const { rows } = parseAffiliateLedgerCsv(csv, { network: 'amazon' });
+    expect(rows[0].amount_cents).toBe(150000);
+  });
 });
 
 describe('buildOfferUrl plataforma', () => {
@@ -32,9 +39,13 @@ describe('buildOfferUrl plataforma', () => {
     expect(url).toContain('tag=aventa_ana');
   });
 
-  it('aplica tag Amazon de plataforma', () => {
+  it('aplica ascsubtag cuando hay clickId de Rewards', () => {
     process.env.AMAZON_ASSOCIATE_TAG = 'aventa-20';
-    const url = buildOfferUrl('https://www.amazon.com.mx/dp/B000TEST123');
+    const url = buildOfferUrl('https://www.amazon.com.mx/dp/B000TEST123', {
+      offerId: 'offer-uuid',
+      clickId: 'click-uuid',
+    });
     expect(url).toContain('tag=aventa-20');
+    expect(url).toContain('ascsubtag=av1.');
   });
 });

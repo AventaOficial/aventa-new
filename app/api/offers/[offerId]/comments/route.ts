@@ -5,6 +5,11 @@ import { isValidUuid } from '@/lib/server/validateUuid';
 import { REPUTATION_LEVEL_AUTO_APPROVE_COMMENTS } from '@/lib/server/reputation';
 import { moderateCommentText } from '@/lib/moderation/commentProfanity';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser';
+import { getCommentableOffer, validateCommentParent } from '@/lib/server/commentOfferGuard';
 
 type CommentRow = {
   id: string;
@@ -22,7 +27,8 @@ type CommentRow = {
 function toComment(
   row: CommentRow,
   likeCount?: number,
-  likedByMe?: boolean
+  likedByMe?: boolean,
+  viewerUserId?: string | null,
 ) {
   const prof = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   const username = prof?.display_name?.trim() || 'Usuario';
@@ -32,7 +38,7 @@ function toComment(
     content: row.content,
     created_at: row.created_at,
     author: { username, avatar_url },
-    user_id: row.user_id ?? null,
+    is_own: viewerUserId ? row.user_id === viewerUserId : false,
     parent_id: row.parent_id ?? null,
     image_url: row.image_url ?? null,
     like_count: likeCount ?? 0,
@@ -81,6 +87,7 @@ export async function GET(
   const commentIds = list.map((c) => c.id);
   let likeCounts: Record<string, number> = {};
   let likedByMe: Record<string, boolean> = {};
+  let viewerUserId: string | null = null;
   if (commentIds.length > 0) {
     try {
       const { data: likeRows } = await supabase
@@ -103,12 +110,12 @@ export async function GET(
           });
           if (userRes.ok) {
             const userData = await userRes.json().catch(() => null);
-            const userId = userData?.id;
-            if (userId) {
+            viewerUserId = userData?.id ?? null;
+            if (viewerUserId) {
               const { data: myLikes } = await supabase
                 .from('comment_likes')
                 .select('comment_id')
-                .eq('user_id', userId)
+                .eq('user_id', viewerUserId)
                 .in('comment_id', commentIds);
               (myLikes ?? []).forEach((r: { comment_id: string }) => {
                 likedByMe[r.comment_id] = true;
@@ -123,7 +130,7 @@ export async function GET(
   }
 
   const comments = list.map((row) =>
-    toComment(row, likeCounts[row.id], likedByMe[row.id])
+    toComment(row, likeCounts[row.id], likedByMe[row.id], viewerUserId)
   );
   return NextResponse.json({ comments });
 }
@@ -143,43 +150,19 @@ export async function POST(
     return NextResponse.json({ error: 'Demasiados comentarios. Espera un momento.' }, { status: 429 });
   }
 
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const authResult = await requireBearerCommunityUser(request);
+  if ('error' in authResult) {
+    return communityAuthFailureResponse(authResult);
   }
+  const { user, supabase } = authResult;
+  const userId = user.id;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    return NextResponse.json({ error: 'Config error' }, { status: 500 });
-  }
-
-  const userRes = await fetch(`${url}/auth/v1/user`, {
-    headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-  });
-  if (!userRes.ok) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-  const userData = await userRes.json().catch(() => null);
-  const userId = userData?.id ?? null;
-  if (!userId) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const supabase = createServerClient();
-  try {
-    const { data: ban } = await supabase
-      .from('user_bans')
-      .select('id')
-      .eq('user_id', userId)
-      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-      .maybeSingle();
-    if (ban) {
-      return NextResponse.json({ error: 'No puedes comentar. Tu cuenta está restringida.' }, { status: 403 });
-    }
-  } catch {
-    // user_bans puede no existir aún
+  const offer = await getCommentableOffer(supabase, offerId);
+  if (!offer) {
+    return NextResponse.json(
+      { error: 'Esta oferta no está disponible para comentarios.' },
+      { status: 404 },
+    );
   }
 
   const body = await request.json().catch(() => ({}));
@@ -188,6 +171,13 @@ export async function POST(
     return NextResponse.json({ error: 'Contenido entre 1 y 280 caracteres' }, { status: 400 });
   }
   const parentId = typeof body?.parent_id === 'string' && isValidUuid(body.parent_id.trim()) ? body.parent_id.trim() : null;
+
+  if (parentId) {
+    const parentCheck = await validateCommentParent(supabase, offerId, parentId);
+    if (!parentCheck.ok) {
+      return NextResponse.json({ error: parentCheck.error }, { status: 400 });
+    }
+  }
 
   const imageRaw = typeof body?.image_url === 'string' ? body.image_url.trim() : '';
   const imageUrl = imageRaw
@@ -261,7 +251,7 @@ export async function POST(
         return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
       }
       return NextResponse.json({
-        comment: toComment({ ...(retry.data as CommentRow), image_url: null }),
+        comment: toComment({ ...(retry.data as CommentRow), image_url: null }, 0, false, userId),
         status: (retry.data as { status?: string })?.status ?? commentStatus,
         needsModeration: commentStatus === 'pending',
       });
@@ -277,18 +267,18 @@ export async function POST(
     .single();
 
   const fallbackName =
-    (userData?.user_metadata?.display_name?.trim() || userData?.email?.split('@')[0]) || 'Usuario';
+    (user.user_metadata?.display_name?.trim() || user.email?.split('@')[0]) || 'Usuario';
   const fallbackAvatar =
-    typeof userData?.user_metadata?.avatar_url === 'string' && userData.user_metadata.avatar_url.trim()
-      ? userData.user_metadata.avatar_url.trim()
+    typeof user.user_metadata?.avatar_url === 'string' && user.user_metadata.avatar_url.trim()
+      ? user.user_metadata.avatar_url.trim()
       : null;
 
-  const comment = withProfile ? toComment(withProfile as CommentRow, 0, false) : {
+  const comment = withProfile ? toComment(withProfile as CommentRow, 0, false, userId) : {
     id: inserted.id,
     content: inserted.content,
     created_at: inserted.created_at,
     author: { username: fallbackName, avatar_url: fallbackAvatar },
-    user_id: userId,
+    is_own: true,
     parent_id: parentId,
     image_url: (inserted as { image_url?: string | null }).image_url ?? imageUrl,
     like_count: 0,

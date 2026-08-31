@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User, Check, Lock, Mail, Smartphone, Bell, Tag, Search } from 'lucide-react';
+import { User, Check, Lock, Smartphone, Bell, Tag, Search, AlertTriangle } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import LegalBackLink from '@/app/components/LegalBackLink';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -26,7 +26,7 @@ async function clearNameSavedInAuthMetadata(supabase: ReturnType<typeof createCl
 
 function SettingsPageInner() {
   const router = useRouter();
-  const { resetPassword } = useAuth();
+  const { resetPassword, session, user } = useAuth();
   const { showToast } = useUI();
   const [displayName, setDisplayName] = useState('');
   const [displayNameUpdatedAt, setDisplayNameUpdatedAt] = useState<string | null>(null);
@@ -47,6 +47,9 @@ function SettingsPageInner() {
   const [categoriesSaving, setCategoriesSaving] = useState(false);
   const [categoriesSaved, setCategoriesSaved] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
+  const [deletionConfirm, setDeletionConfirm] = useState(false);
+  const [deletionLoading, setDeletionLoading] = useState(false);
+  const [deletionRequestedAt, setDeletionRequestedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -65,6 +68,36 @@ function SettingsPageInner() {
     if (installPrompt) await installPrompt.prompt();
   };
 
+  const handleRequestAccountDeletion = async () => {
+    if (!session?.access_token || !deletionConfirm) return;
+    setDeletionLoading(true);
+    try {
+      const res = await fetch('/api/me/request-account-deletion', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(typeof body?.error === 'string' ? body.error : 'No se pudo registrar la solicitud');
+        return;
+      }
+      const requestedAt =
+        typeof body?.requestedAt === 'string'
+          ? body.requestedAt
+          : new Date().toISOString();
+      setDeletionRequestedAt(requestedAt);
+      showToast('Solicitud de eliminación registrada. Revisa tu correo si te contactamos.');
+    } catch {
+      showToast('Error de red al solicitar eliminación');
+    } finally {
+      setDeletionLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadProfile = async () => {
       const supabase = createClient();
@@ -76,7 +109,7 @@ function SettingsPageInner() {
       setUserEmail(user.email ?? '');
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('display_name, display_name_updated_at, name_saved_in_settings_at')
+        .select('display_name, display_name_updated_at, name_saved_in_settings_at, account_deletion_requested_at')
         .eq('id', user.id)
         .maybeSingle();
       if (profileError) {
@@ -101,12 +134,14 @@ function SettingsPageInner() {
       setDisplayName(profile?.display_name ?? '');
       setDisplayNameUpdatedAt((profile as { display_name_updated_at?: string } | null)?.display_name_updated_at ?? null);
       setNameSavedInSettingsAt(nameSaved);
+      setDeletionRequestedAt(
+        (profile as { account_deletion_requested_at?: string | null } | null)?.account_deletion_requested_at ?? null,
+      );
       setLoading(false);
     };
     loadProfile();
   }, [router]);
 
-  const { session, user } = useAuth();
   useEffect(() => {
     if (!user?.id) {
       setEmailDailyDigest(false);
@@ -530,6 +565,69 @@ function SettingsPageInner() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   En el navegador, usa la opción &quot;Instalar&quot; o &quot;Añadir a la pantalla de inicio&quot; cuando aparezca.
                 </p>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-red-100 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Eliminar cuenta</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Solicitud sujeta a retenciones legales</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 md:p-6 space-y-4">
+              {deletionRequestedAt ? (
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Solicitud registrada el{' '}
+                  {new Date(deletionRequestedAt).toLocaleDateString('es-MX', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                  . Procesaremos la eliminación conforme a la{' '}
+                  <a href="/privacy" className="text-violet-600 dark:text-violet-400 hover:underline">
+                    Política de Privacidad
+                  </a>
+                  . También puedes escribir a{' '}
+                  <a href="mailto:aventasoportelegal@gmail.com" className="text-violet-600 dark:text-violet-400 hover:underline">
+                    aventasoportelegal@gmail.com
+                  </a>
+                  .
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                    Puedes solicitar la eliminación de tu cuenta. Algunos datos pueden conservarse el tiempo
+                    necesario por obligaciones legales, fiscales, prevención de fraude o resolución de disputas,
+                    según la Política de Privacidad.
+                  </p>
+                  <label className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={deletionConfirm}
+                      onChange={(e) => setDeletionConfirm(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span>
+                      Entiendo que esta acción solicita la eliminación de mi cuenta y que ciertos datos pueden
+                      conservarse cuando la ley lo exija.
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={!deletionConfirm || deletionLoading}
+                    onClick={handleRequestAccountDeletion}
+                    className="rounded-xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-6 py-3 text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors disabled:opacity-50"
+                  >
+                    {deletionLoading ? 'Enviando solicitud…' : 'Solicitar eliminación de cuenta'}
+                  </button>
+                </>
               )}
             </div>
           </section>

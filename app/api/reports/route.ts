@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser'
 
 const REPORT_TYPES = ['precio_falso', 'no_es_oferta', 'expirada', 'spam', 'afiliado_oculto', 'otro'] as const
 
@@ -13,29 +16,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Demasiados reportes. Espera un momento.' }, { status: 429 })
     }
 
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
-    if (!token) {
-      return NextResponse.json({ error: 'Inicia sesión para reportar' }, { status: 401 })
+    const authResult = await requireBearerCommunityUser(request)
+    if ('error' in authResult) {
+      return communityAuthFailureResponse(authResult)
     }
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !anonKey) {
-      return NextResponse.json({ error: 'Error de configuración' }, { status: 500 })
-    }
-
-    const userRes = await fetch(`${url}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-    })
-    if (!userRes.ok) {
-      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
-    }
-    const userData = await userRes.json().catch(() => null)
-    const reporterId = userData?.id ?? null
-    if (!reporterId) {
-      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
-    }
+    const { user, supabase } = authResult
+    const reporterId = user.id
 
     const body = await request.json().catch(() => ({}))
     const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null
@@ -50,8 +36,6 @@ export async function POST(request: Request) {
     if (!comment || comment.length < 100) {
       return NextResponse.json({ error: 'Escribe al menos 100 caracteres describiendo el problema para evitar spam.' }, { status: 400 })
     }
-
-    const supabase = createServerClient()
 
     const { data: existing } = await supabase
       .from('offer_reports')

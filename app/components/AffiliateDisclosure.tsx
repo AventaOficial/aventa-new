@@ -7,9 +7,10 @@ type AffiliateDisclosureProps = {
   /**
    * badge = una línea mínima pegada al CTA;
    * compact = párrafo de una línea;
+   * feed = disclosure mínimo en tarjetas del feed;
    * block = bloque del footer.
    */
-  variant?: 'badge' | 'compact' | 'block';
+  variant?: 'badge' | 'compact' | 'feed' | 'block';
   className?: string;
   /** Incluye la frase EN de Amazon Associates */
   includeAmazonEn?: boolean;
@@ -28,6 +29,23 @@ export default function AffiliateDisclosure({
   className = '',
   includeAmazonEn = false,
 }: AffiliateDisclosureProps) {
+  if (variant === 'feed') {
+    return (
+      <p
+        className={`text-[10px] leading-snug text-gray-400 dark:text-gray-500 ${className}`}
+        data-affiliate-disclosure="true"
+      >
+        AVENTA puede recibir una comisión si compras mediante este enlace.
+        {includeAmazonEn ? (
+          <>
+            {' '}
+            <span className="italic">{AMAZON_ASSOCIATES_DISCLOSURE}</span>
+          </>
+        ) : null}
+      </p>
+    );
+  }
+
   if (variant === 'badge') {
     return (
       <p

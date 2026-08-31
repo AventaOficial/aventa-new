@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
-import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
+import {
+  assertSafeOfferFetchUrl,
+  fetchFollowingRedirectsSafely,
+} from '@/lib/server/fetchUrlSafety';
 import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
 import {
   fetchMercadoLibrePublicOffer,
@@ -95,19 +98,20 @@ async function fetchHtml(target: string): Promise<{ html: string; pageUrl: URL }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(target, {
+    const result = await fetchFollowingRedirectsSafely(target, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      requireHttps: true,
+      requireAllowlist: true,
       signal: controller.signal,
       headers: {
         'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
       },
-      redirect: 'follow',
     });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const pageUrl = res.url ? new URL(res.url) : new URL(target);
-    return { html, pageUrl };
+    if (!result.ok || !result.response.ok) return null;
+    const html = await result.response.text();
+    return { html, pageUrl: new URL(result.finalUrl) };
   } catch {
     return null;
   } finally {
@@ -156,7 +160,8 @@ export async function POST(request: Request) {
       return NextResponse.json(emptyPayload('invalid_url'));
     }
 
-    const block = isBlockedOfferParseUrl(url);
+    const httpsUrl = url.protocol === 'http:' ? new URL(url.toString().replace(/^http:/i, 'https:')) : url;
+    const block = assertSafeOfferFetchUrl(httpsUrl, { requireHttps: true, requireAllowlist: true });
     if (block.blocked) {
       return NextResponse.json(
         { ...emptyPayload('invalid_url'), error: 'Este enlace no se puede usar. Revisa que sea una URL de tienda válida.' },
@@ -165,7 +170,7 @@ export async function POST(request: Request) {
     }
 
     // Tracking fuera; params funcionales (wid, item_id, pdp_filters) se conservan.
-    let workingHref = stripOfferTrackingParams(url.href);
+    let workingHref = stripOfferTrackingParams(httpsUrl.href);
     const wasMeliLa = isOfferMeliLaHost(url.hostname);
     const wasAmazonShort =
       isOfferAmazonHost(url.hostname) && !url.hostname.toLowerCase().includes('amazon.');

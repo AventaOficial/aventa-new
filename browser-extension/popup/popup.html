@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AVENTA — Cazar oferta</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="header">
+      <h1 class="brand">AVENTA</h1>
+      <p class="subtitle">Cazar oferta</p>
+    </div>
+
+    <div class="content">
+      <div id="state-detecting" class="state">
+        <div class="spinner"></div>
+        <p>Detectando producto…</p>
+      </div>
+
+      <div id="state-auth" class="state hidden">
+        <p>Inicia sesión para cazar ofertas en Aventa.</p>
+        <button id="btn-login" class="btn btn-primary" type="button">Iniciar sesión</button>
+      </div>
+
+      <div id="state-incompatible" class="state hidden">
+        <p>Abre una página de producto en Amazon o Mercado Libre.</p>
+      </div>
+
+      <div id="state-cooldown" class="state hidden">
+        <p id="cooldown-text">Ya cazaste una oferta recientemente.</p>
+        <p id="cooldown-timer" class="auth-email"></p>
+      </div>
+
+      <div id="state-preview" class="hidden">
+        <div class="preview-card">
+          <div class="preview-image-wrap">
+            <img id="preview-image" class="preview-image hidden" alt="" />
+            <span id="preview-no-image" class="auth-email">Sin imagen</span>
+          </div>
+          <div class="preview-body">
+            <h2 id="preview-title" class="preview-title"></h2>
+            <div class="price-row">
+              <span id="preview-price" class="price-current"></span>
+              <span id="preview-original" class="price-original hidden"></span>
+              <span id="preview-discount" class="discount-badge hidden"></span>
+            </div>
+            <p id="preview-store" class="store-label"></p>
+            <p id="preview-partial" class="partial-note hidden">
+              Algunos datos no pudieron detectarse. Aventa intentará completarlos al publicar.
+            </p>
+          </div>
+        </div>
+        <button id="btn-publish" class="btn btn-primary" type="button">Cazar oferta</button>
+        <button id="btn-logout" class="btn-link" type="button">Cerrar sesión</button>
+      </div>
+
+      <div id="state-publishing" class="state hidden">
+        <div class="spinner"></div>
+        <p>Publicando en Aventa…</p>
+      </div>
+
+      <div id="state-success" class="hidden">
+        <div class="message message-success">
+          <strong>🔥 Oferta cazada</strong><br />
+          <span id="success-detail">Tu oferta fue enviada a Aventa.</span>
+        </div>
+        <a id="success-link" class="footer-link" href="#" target="_blank" rel="noopener noreferrer">Ver oferta</a>
+        <button id="btn-close-success" class="btn btn-secondary" type="button">Cerrar</button>
+      </div>
+
+      <div id="state-error" class="hidden">
+        <div id="error-message" class="message message-error"></div>
+        <button id="btn-retry" class="btn btn-secondary" type="button">Reintentar</button>
+      </div>
+    </div>
+
+    <script type="module" src="../dist/popup/popup.js"></script>
+  </body>
+</html>

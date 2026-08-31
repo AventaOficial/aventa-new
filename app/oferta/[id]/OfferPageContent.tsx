@@ -18,6 +18,7 @@ import {
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
+import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
@@ -94,7 +95,7 @@ type CommentItem = {
   content: string;
   created_at: string;
   author: { username: string; avatar_url?: string | null };
-  user_id?: string | null;
+  is_own?: boolean;
   parent_id?: string | null;
   image_url?: string | null;
   like_count?: number;
@@ -780,17 +781,15 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     href={ctaUrl}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
                       void copyOfferCouponsToClipboard();
-                      if (offer.id) {
-                        fetch('/api/track-outbound', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-                          },
-                          body: JSON.stringify({ offerId: offer.id }),
-                        }).catch((err) => logClientError('offer-page:track-outbound', err));
+                      if (offer.id && offer.offerUrl?.trim()) {
+                        void trackAndOpenOfferUrl({
+                          offerId: offer.id,
+                          offerUrl: offer.offerUrl,
+                          accessToken: session?.access_token,
+                        });
                       }
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
@@ -895,7 +894,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             ) : (
               <div className="space-y-4 mb-6">
                 {comments.map((comment) => {
-                  const isOwn = !!session?.user?.id && comment.user_id === session.user.id;
+                  const isOwn = comment.is_own === true;
                   return (
                     <div key={comment.id} className="space-y-2">
                       <div
@@ -939,7 +938,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       {(comment.replies?.length ?? 0) > 0 && (
                         <div className="pl-4 md:pl-6 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 ml-2">
                           {comment.replies?.map((reply) => {
-                            const isOwnReply = !!session?.user?.id && reply.user_id === session.user.id;
+                            const isOwnReply = reply.is_own === true;
                             return (
                               <div
                                 key={reply.id}

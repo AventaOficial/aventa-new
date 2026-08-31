@@ -11,7 +11,7 @@ import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { formatPriceMXN } from '@/lib/formatPrice';
-import { buildOfferUrl } from '@/lib/offerUrl';
+import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
@@ -67,8 +67,8 @@ type CommentItem = {
   id: string;
   content: string;
   created_at: string;
-  author: { username: string };
-  user_id?: string | null;
+  author: { username: string; avatar_url?: string | null };
+  is_own?: boolean;
   parent_id?: string | null;
   image_url?: string | null;
   like_count?: number;
@@ -367,16 +367,12 @@ export default function OfferModal({
           () => {}
         );
       }
-      if (offerId) {
-        fetch('/api/track-outbound', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-          body: JSON.stringify({ offerId }),
-        }).catch((err) => logClientError('offer-modal:track-outbound', err));
-      }
       if (offerUrl?.trim()) {
-        const url = buildOfferUrl(offerUrl) || offerUrl.trim();
-        window.open(url, '_blank', 'noopener,noreferrer');
+        void trackAndOpenOfferUrl({
+          offerId: offerId ?? '',
+          offerUrl,
+          accessToken: session?.access_token,
+        });
       }
     } catch {
       outboundSentRef.current = false;
@@ -830,7 +826,7 @@ export default function OfferModal({
                         </p>
                       ) : (
                         comments.map((comment) => {
-                          const isOwn = !!session?.user?.id && comment.user_id === session.user.id;
+                          const isOwn = comment.is_own === true;
                           return (
                           <div key={comment.id} className="space-y-2">
                             <div className={`rounded-xl border p-4 ${
@@ -883,7 +879,7 @@ export default function OfferModal({
                             {(comment.replies?.length ?? 0) > 0 && (
                               <div className="pl-4 md:pl-6 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 ml-2">
                                 {comment.replies?.map((reply) => {
-                                  const isOwnReply = !!session?.user?.id && reply.user_id === session.user.id;
+                                  const isOwnReply = reply.is_own === true;
                                   return (
                                   <div key={reply.id} className={`rounded-lg border p-3 ${
                                     isOwnReply

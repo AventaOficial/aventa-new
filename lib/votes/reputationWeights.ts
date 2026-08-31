@@ -9,6 +9,9 @@ export const VOTE_WEIGHT_BY_LEVEL = [
   { up: 12, down: -6 },
 ] as const;
 
+/** Valores que la API puede persistir. Debe coincidir con offer_votes_value_check. */
+export const ALLOWED_OFFER_VOTE_VALUES = [2, 4, 8, 12, -1, -2, -4, -6] as const;
+
 export type VoteDirection = 'up' | 'down';
 
 export function clampReputationLevel(level: number | null | undefined): 1 | 2 | 3 | 4 {

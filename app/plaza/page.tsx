@@ -32,6 +32,7 @@ function PlazaInner() {
   const [talkTitle, setTalkTitle] = useState('');
   const [talkBody, setTalkBody] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined;
@@ -66,6 +67,7 @@ function PlazaInner() {
     if (!requireAuth()) return;
     setSaving(true);
     setError(null);
+    setSuccess(null);
     const res = await fetch('/api/plaza/requests', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -79,7 +81,11 @@ function PlazaInner() {
     }
     setTitle('');
     setDetails('');
-    load();
+    if (data.needsModeration) {
+      setSuccess('Tu solicitud fue enviada y quedará visible cuando un moderador la apruebe.');
+    } else {
+      load();
+    }
   };
 
   const submitTalk = async (e: FormEvent) => {
@@ -87,6 +93,7 @@ function PlazaInner() {
     if (!requireAuth()) return;
     setSaving(true);
     setError(null);
+    setSuccess(null);
     const res = await fetch('/api/plaza/discussions', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -100,7 +107,11 @@ function PlazaInner() {
     }
     setTalkTitle('');
     setTalkBody('');
-    load();
+    if (data.needsModeration) {
+      setSuccess('Tu conversación fue enviada y quedará visible cuando un moderador la apruebe.');
+    } else {
+      load();
+    }
   };
 
   return (
@@ -137,6 +148,7 @@ function PlazaInner() {
       </div>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+      {success ? <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-400">{success}</p> : null}
 
       {tab === 'requests' ? (
         <div className="mt-5 space-y-4">

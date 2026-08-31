@@ -49,13 +49,17 @@ export async function PATCH(request: Request) {
   const id = typeof body?.id === 'string' ? body.id.trim() : '';
   const notes = typeof body?.notes === 'string' ? body.notes.trim().slice(0, 2000) : null;
   const reviewed = body?.reviewed === true;
+  const status =
+    body?.status === 'void' || body?.status === 'reversed' ? body.status : null;
+  const statusReason =
+    typeof body?.reason === 'string' ? body.reason.trim() : 'finance_ledger_status_update';
 
   if (!id) return NextResponse.json({ error: 'id obligatorio' }, { status: 400 });
 
   const supabase = createServerClient();
   const { data: existing } = await supabase
     .from('affiliate_ledger_entries')
-    .select('notes, meta')
+    .select('notes, meta, status')
     .eq('id', id)
     .maybeSingle();
 
@@ -64,13 +68,31 @@ export async function PATCH(request: Request) {
       ? (existing.meta as Record<string, unknown>)
       : {};
 
-  const payload: { notes?: string | null; meta?: Record<string, unknown> } = {};
+  const payload: {
+    notes?: string | null;
+    meta?: Record<string, unknown>;
+    status?: string;
+    updated_at?: string;
+  } = {};
   if (notes !== null) payload.notes = notes;
   if (reviewed) {
     payload.meta = {
       ...prevMeta,
       finance_reviewed_at: new Date().toISOString(),
       finance_reviewed_by: auth.user.id,
+    };
+  }
+  if (status) {
+    payload.status = status;
+    payload.updated_at = new Date().toISOString();
+    payload.meta = {
+      ...(payload.meta ?? prevMeta),
+      finance_status_update: {
+        operator_id: auth.user.id,
+        reason: statusReason,
+        updated_at: new Date().toISOString(),
+        previous_status: (existing as { status?: string } | null)?.status ?? null,
+      },
     };
   }
 
@@ -80,6 +102,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Ledger no disponible' }, { status: 503 });
     }
     return NextResponse.json({ error: 'No se pudo actualizar' }, { status: 500 });
+  }
+
+  if (status) {
+    const { reconcileRewardsForLedgerStatus } = await import('@/lib/rewards/ledgerReconciliation');
+    const reconciliation = await reconcileRewardsForLedgerStatus(
+      supabase,
+      id,
+      auth.user.id,
+      statusReason,
+    );
+    return NextResponse.json({ ok: true, reconciliation });
   }
 
   return NextResponse.json({ ok: true });

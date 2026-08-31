@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
-import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit';
+import { getClientIp, enforceRateLimit, enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser';
 
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -18,24 +21,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    if (!token) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    const authResult = await requireBearerCommunityUser(request);
+    if ('error' in authResult) {
+      return communityAuthFailureResponse(authResult);
     }
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !anonKey) {
-      return NextResponse.json({ error: 'Configuración inválida' }, { status: 500 });
-    }
-    const userRes = await fetch(`${url}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-    });
-    if (!userRes.ok) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const { user, supabase } = authResult;
+    const userId = user.id;
 
-    const supabase = createServerClient();
+    const userRl = await enforceRateLimitCustom(`upload:${userId}`, 'uploadImage');
+    if (!userRl.success) {
+      return NextResponse.json(
+        { error: 'Has alcanzado el límite de subidas por hora. Intenta más tarde.' },
+        { status: 429 },
+      );
+    }
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

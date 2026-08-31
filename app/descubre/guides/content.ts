@@ -19,9 +19,9 @@ import {
   Smartphone,
 } from 'lucide-react';
 import {
-  COMMISSION_MIN_UPVOTES_PER_OFFER,
-  COMMISSION_REQUIRED_OFFERS,
-} from '@/lib/commissions/constants';
+  REWARDS_REQUIRED_APPROVED_OFFERS,
+  REWARDS_REQUIRED_POSITIVE_VOTES,
+} from '@/lib/rewards/config';
 
 export type GuideId = 'aventa' | 'cazador' | 'ahorrador';
 
@@ -198,8 +198,8 @@ export const GUIDES: GuideMeta[] = [
   {
     id: 'cazador',
     title: 'Guía del Cazador',
-    tagline: 'Sube, impacta y gana',
-    description: 'Cómo subir ofertas, pasar moderación, sumar reputación y participar en comisiones.',
+    tagline: 'Sube, impacta y participa',
+    description: 'Cómo subir ofertas, pasar moderación, sumar reputación y entender el Programa de Recompensas.',
     icon: Target,
     accent: 'from-orange-500 to-amber-500',
     theme: 'orange',
@@ -213,7 +213,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'hunter-intro',
         body: [
           'Un cazador encuentra precios reales — en tiendas, redes o promos — y los comparte con la comunidad.',
-          'Tu oferta ayuda a otros a ahorrar. Si genera impacto (votos, clics, compras), puedes participar en el reparto de comisiones.',
+          'Tu oferta ayuda a otros a ahorrar. Si cumples los requisitos del Programa de Recompensas y tus ofertas generan comisiones reales atribuibles, AVENTA puede otorgarte recompensas internas. No están garantizadas.',
         ],
         cta: { label: 'Subir mi primera oferta', href: '/subir' },
       },
@@ -246,16 +246,16 @@ export const GUIDES: GuideMeta[] = [
         ],
       },
       {
-        id: 'comisiones',
+        id: 'recompensas',
         icon: Coins,
-        title: 'Programa de comisiones',
-        subtitle: 'Impacto real',
+        title: 'Programa de Recompensas',
+        subtitle: 'Calidad y comisión real',
         illustration: 'commissions',
         body: [
-          `AVENTA monetiza clics afiliados legítimos. Parte se reparte entre cazadores activos que cumplen requisitos: ${COMMISSION_REQUIRED_OFFERS} ofertas aprobadas con al menos ${COMMISSION_MIN_UPVOTES_PER_OFFER} votos positivos cada una.`,
-          'Debes aceptar los términos del programa en tu perfil. Desbloqueás con calidad (ofertas × votos); cobrás el 40% de las comisiones afiliadas confirmadas atribuibles a tu tag. El pago es mensual y manual tras revisión.',
+          `AVENTA monetiza mediante enlaces de afiliado propios (no eres afiliado de Amazon ni Mercado Libre). Para desbloquear el programa necesitas ${REWARDS_REQUIRED_APPROVED_OFFERS} ofertas aprobadas y ${REWARDS_REQUIRED_POSITIVE_VOTES} votos positivos acumulados. Los votos ayudan al desbloqueo; no generan dinero por sí solos.`,
+          'Tras desbloquear, eliges una Oferta de Bienvenida única. Solo participan esa oferta y las elegibles que publiques después. Una recompensa depende de una comisión real confirmada y atribuible; en Mercado Libre puede requerir revisión manual. No todas las ofertas generan recompensa.',
         ],
-        cta: { label: 'Ver mi perfil y comisiones', href: '/me' },
+        cta: { label: 'Ver mi perfil y recompensas', href: '/me' },
       },
       {
         id: 'reputacion',

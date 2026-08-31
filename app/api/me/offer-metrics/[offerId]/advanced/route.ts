@@ -120,20 +120,16 @@ export async function GET(
       }
     }
 
-    // Progreso partner (misma regla que commission eligibility)
-    const { COMMISSION_REQUIRED_OFFERS, COMMISSION_MIN_UPVOTES_PER_OFFER } = await import(
-      '@/lib/commissions/constants'
+    // Progreso Programa de Recompensas (Rewards V1)
+    const { REWARDS_REQUIRED_APPROVED_OFFERS, REWARDS_REQUIRED_POSITIVE_VOTES } = await import(
+      '@/lib/rewards/config'
     );
-    const { data: myOffers } = await supabase
-      .from('offers')
-      .select('id, upvotes_count')
-      .eq('created_by', userId)
-      .in('status', ['approved', 'published']);
+    const { countApprovedOffers, sumAccumulatedPositiveVotes } = await import(
+      '@/lib/rewards/eligibility'
+    );
 
-    const qualifying = (myOffers ?? []).filter(
-      (o: { upvotes_count?: number | null }) =>
-        (o.upvotes_count ?? 0) >= COMMISSION_MIN_UPVOTES_PER_OFFER
-    ).length;
+    const approvedOffers = await countApprovedOffers(supabase, userId);
+    const positiveVotes = await sumAccumulatedPositiveVotes(supabase, userId);
 
     const offerRow = offer as {
       title: string;
@@ -157,15 +153,12 @@ export async function GET(
       hourly,
       peak: peakHour ? { hour: peakHour, views: peakViews } : null,
       partner: {
-        qualifyingCount: qualifying,
-        requiredOffers: COMMISSION_REQUIRED_OFFERS,
-        minUpvotesPerOffer: COMMISSION_MIN_UPVOTES_PER_OFFER,
-        thisOfferQualifies: (offerRow.upvotes_count ?? 0) >= COMMISSION_MIN_UPVOTES_PER_OFFER,
-        remainingForThisOffer: Math.max(
-          0,
-          COMMISSION_MIN_UPVOTES_PER_OFFER - (offerRow.upvotes_count ?? 0)
-        ),
-        remainingOffers: Math.max(0, COMMISSION_REQUIRED_OFFERS - qualifying),
+        approvedOffers,
+        requiredOffers: REWARDS_REQUIRED_APPROVED_OFFERS,
+        positiveVotes,
+        requiredVotes: REWARDS_REQUIRED_POSITIVE_VOTES,
+        remainingOffers: Math.max(0, REWARDS_REQUIRED_APPROVED_OFFERS - approvedOffers),
+        remainingVotes: Math.max(0, REWARDS_REQUIRED_POSITIVE_VOTES - positiveVotes),
       },
     });
   } catch (e) {

@@ -12,6 +12,8 @@
 
 import type { AffiliateLedgerNetwork } from '@/lib/commissions/affiliateLedger';
 
+export type AmountUnit = 'major' | 'cents';
+
 export type ParsedLedgerCsvRow = {
   amount_cents: number;
   tracking_tag: string | null;
@@ -19,6 +21,7 @@ export type ParsedLedgerCsvRow = {
   currency: string;
   network?: AffiliateLedgerNetwork;
   notes?: string;
+  raw_line: string;
 };
 
 function splitCsvLine(line: string): string[] {
@@ -65,20 +68,42 @@ function pickCol(headers: string[], aliases: string[]): number {
   return -1;
 }
 
-function parseAmountToCents(raw: string): number | null {
-  const s = raw.trim().replace(/[$€\s]/g, '').replace(/,/g, '');
-  if (!s) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  // Si parece ya centavos enteros grandes sin punto, y no tiene decimal…
-  if (raw.includes('.') || raw.includes(',')) {
-    return Math.round(n * 100);
+/** Normaliza 1.234,56 / 1,234.56 / 12.50 a un número JS. */
+export function normalizeAmountNumber(raw: string): number | null {
+  let s = raw.trim().replace(/[$€\s]/g, '').replace(/mxn/gi, '');
+  if (!s || !/^-?[\d.,]+$/.test(s)) return null;
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma >= 0 && lastDot >= 0) {
+    if (lastComma > lastDot) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma >= 0) {
+    const after = s.length - lastComma - 1;
+    s = after <= 2 ? s.replace(',', '.') : s.replace(/,/g, '');
+  } else if (lastDot >= 0) {
+    const after = s.length - lastDot - 1;
+    if (after === 3 && /^\d+$/.test(s.replace(/\./g, ''))) {
+      s = s.replace(/\./g, '');
+    }
   }
-  // Heurística: valores < 1000 sin decimal → pesos; si es entero grande puede ser cents
-  if (Number.isInteger(n) && Math.abs(n) >= 1000 && !raw.includes('.')) {
-    // Ambiguo: tratar como pesos si abs < 1e6, else cents
-    if (Math.abs(n) < 1_000_000) return Math.round(n * 100);
-    return Math.round(n);
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Convierte un monto CSV a centavos.
+ * `major` = pesos/unidades (12.50 → 1250). `cents` = ya son centavos (1250 → 1250).
+ * Nunca adivina la unidad por magnitud.
+ */
+export function parseAmountToCents(raw: string, unit: AmountUnit): number | null {
+  const n = normalizeAmountNumber(raw);
+  if (n == null) return null;
+  if (unit === 'cents') {
+    if (!Number.isInteger(n)) return null;
+    return n;
   }
   return Math.round(n * 100);
 }
@@ -102,7 +127,7 @@ const NETWORK_MAP: Record<string, AffiliateLedgerNetwork> = {
  */
 export function parseAffiliateLedgerCsv(
   csvText: string,
-  defaults?: { network?: AffiliateLedgerNetwork; currency?: string },
+  defaults?: { network?: AffiliateLedgerNetwork; currency?: string; amountUnit?: AmountUnit },
 ): { rows: ParsedLedgerCsvRow[]; skipped: number; error?: string } {
   const text = csvText.replace(/^\uFEFF/, '').trim();
   if (!text) return { rows: [], skipped: 0, error: 'CSV vacío' };
@@ -111,17 +136,21 @@ export function parseAffiliateLedgerCsv(
   if (lines.length < 2) return { rows: [], skipped: 0, error: 'CSV sin datos (solo header o vacío)' };
 
   const headers = splitCsvLine(lines[0]);
-  const iAmount = pickCol(headers, [
-    'amount_cents',
-    'amount',
-    'commission',
-    'comision',
-    'earnings',
-    'earning',
-    'revenue',
-    'neto',
-    'total',
-  ]);
+  const iAmountCents = pickCol(headers, ['amount_cents']);
+  const iAmount = iAmountCents >= 0
+    ? iAmountCents
+    : pickCol(headers, [
+        'amount',
+        'commission',
+        'comision',
+        'earnings',
+        'earning',
+        'revenue',
+        'neto',
+        'total',
+      ]);
+  const amountUnit: AmountUnit =
+    defaults?.amountUnit ?? (iAmountCents >= 0 ? 'cents' : 'major');
   if (iAmount < 0) {
     return {
       rows: [],
@@ -139,6 +168,8 @@ export function parseAffiliateLedgerCsv(
     'tracking',
     'associate_tag',
     'affiliate_tag',
+    'ascsubtag',
+    'sub_id',
   ]);
   const iRef = pickCol(headers, [
     'external_ref',
@@ -157,7 +188,7 @@ export function parseAffiliateLedgerCsv(
 
   for (let li = 1; li < lines.length; li++) {
     const cols = splitCsvLine(lines[li]);
-    const amountCents = parseAmountToCents(cols[iAmount] ?? '');
+    const amountCents = parseAmountToCents(cols[iAmount] ?? '', amountUnit);
     if (amountCents == null || amountCents === 0) {
       skipped++;
       continue;
@@ -183,6 +214,7 @@ export function parseAffiliateLedgerCsv(
       currency: currency.slice(0, 3) || 'MXN',
       network,
       notes: `csv_line:${li + 1}`,
+      raw_line: lines[li],
     });
   }
 

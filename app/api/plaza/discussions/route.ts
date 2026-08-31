@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser';
 
 export type PlazaDiscussion = {
   id: string;
@@ -34,13 +38,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const rl = await enforceRateLimit(`plaza-dis-w:${getClientIp(request)}`);
   if (!rl.success) return NextResponse.json({ error: 'Demasiadas solicitudes.' }, { status: 429 });
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'Inicia sesión para abrir una conversación.' }, { status: 401 });
 
-  const supabase = createServerClient();
-  const { data: auth, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !auth.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const authResult = await requireBearerCommunityUser(request);
+  if ('error' in authResult) {
+    return communityAuthFailureResponse(authResult);
+  }
+  const { user, supabase } = authResult;
 
   const body = await request.json().catch(() => ({}));
   const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 120) : '';
@@ -49,15 +52,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Escribe un título y un mensaje.' }, { status: 400 });
   }
 
+  // El servidor fija el estado; el cliente no puede enviar status para saltarse moderación.
   const { data, error } = await supabase
     .from('plaza_discussions')
     .insert({
-      user_id: auth.user.id,
+      user_id: user.id,
       title,
       body: text,
-      status: 'approved',
+      status: 'pending',
     })
-    .select('id, title, body, created_at')
+    .select('id, title, body, created_at, status')
     .single();
   if (error) {
     if (isMissingTable(error.message)) {
@@ -66,5 +70,9 @@ export async function POST(request: Request) {
     console.error('[plaza/discussions] POST', error.message);
     return NextResponse.json({ error: 'No se pudo publicar.' }, { status: 500 });
   }
-  return NextResponse.json({ discussion: data as PlazaDiscussion });
+  return NextResponse.json({
+    discussion: data as PlazaDiscussion,
+    status: 'pending',
+    needsModeration: true,
+  });
 }

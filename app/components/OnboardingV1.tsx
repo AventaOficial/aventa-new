@@ -15,6 +15,14 @@ import {
   syncOnboardingPreferencesToProfile,
   writeOnboardingSelectionsToStorage,
 } from '@/lib/preferences/onboardingStorage';
+import { writePendingLegalConsent } from '@/lib/legal/pendingConsent';
+import { recordLegalConsent } from '@/lib/legal/recordConsent';
+import {
+  isOAuthSignupDisabled,
+  isSignupSubmitDisabled,
+  validateSignupLegalConsent,
+  validateSignupLegalConsentForOAuth,
+} from '@/lib/legal/signupConsentGate';
 
 const HIGHLIGHT_CLASS = 'font-semibold text-violet-600 dark:text-violet-400';
 
@@ -43,9 +51,9 @@ const GUIDE_STEPS: {
     title: 'Cazar',
     description: (
       <>
-        Descubre y comparte las mejores ofertas y{' '}
-        <span className={HIGHLIGHT_CLASS}>gana comisiones</span>
-        {' '}por tus descubrimientos.
+        Descubre y comparte las mejores ofertas. Puedes participar en el{' '}
+        <span className={HIGHLIGHT_CLASS}>Programa de Recompensas</span>
+        {' '}de AVENTA cuando cumplas los requisitos — las recompensas no están garantizadas.
       </>
     ),
   },
@@ -534,6 +542,7 @@ function PageAuth({
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [legalConsent, setLegalConsent] = useState(false);
 
   // Si el usuario cancela Google y vuelve (atrás / bfcache), no dejar "Redirigiendo..."
   useEffect(() => {
@@ -564,13 +573,30 @@ function PageAuth({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (mode === 'signup') {
+      const consentError = validateSignupLegalConsent(legalConsent);
+      if (consentError) {
+        setError(consentError);
+        return;
+      }
+    }
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const { error: err } = await signUp(email.trim(), password, name.trim() || undefined);
+        const { error: err, needsEmailConfirmation } = await signUp(email.trim(), password, name.trim() || undefined);
         if (err) {
           setError(err.message);
           return;
+        }
+        if (!needsEmailConfirmation) {
+          const { data: { session: s } } = await createClient().auth.getSession();
+          if (s?.access_token) {
+            await recordLegalConsent(s.access_token);
+          }
+          onSuccess(s?.access_token ?? undefined);
+        } else {
+          writePendingLegalConsent();
+          onSuccess(undefined);
         }
       } else {
         const { error: err } = await signIn(email.trim(), password);
@@ -578,9 +604,9 @@ function PageAuth({
           setError(err.message);
           return;
         }
+        const { data: { session: s } } = await createClient().auth.getSession();
+        onSuccess(s?.access_token ?? undefined);
       }
-      const { data: { session: s } } = await createClient().auth.getSession();
-      onSuccess(s?.access_token ?? undefined);
     } finally {
       setLoading(false);
     }
@@ -610,11 +636,21 @@ function PageAuth({
       <div className="w-full flex flex-col gap-2 mb-4">
         <button
           type="button"
-          disabled={oauthLoading}
+          disabled={isOAuthSignupDisabled(oauthLoading, mode, legalConsent)}
           onClick={async () => {
+            if (mode === 'signup') {
+              const consentError = validateSignupLegalConsentForOAuth(legalConsent);
+              if (consentError) {
+                setError(consentError);
+                return;
+              }
+            }
             setError(null);
             setOauthLoading(true);
             try {
+              if (mode === 'signup') {
+                writePendingLegalConsent();
+              }
               const { error: err } = await signInWithOAuth('google');
               if (err) {
                 setError(err.message);
@@ -706,9 +742,30 @@ function PageAuth({
         {error && (
           <p className="text-sm text-red-500">{error}</p>
         )}
+        {mode === 'signup' && (
+          <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={legalConsent}
+              onChange={(e) => setLegalConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+            />
+            <span>
+              Acepto los{' '}
+              <Link href="/terms" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
+                Términos y Condiciones
+              </Link>{' '}
+              y la{' '}
+              <Link href="/privacy" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
+                Política de Privacidad
+              </Link>
+              .
+            </span>
+          </label>
+        )}
         <button
           type="submit"
-          disabled={loading}
+          disabled={isSignupSubmitDisabled(loading, mode, legalConsent)}
           className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-500 dark:to-violet-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 disabled:opacity-70 disabled:shadow-none transition-all"
         >
           {loading ? 'Espera...' : mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'}
@@ -758,6 +815,7 @@ const RegisterModal = ({
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [legalConsent, setLegalConsent] = useState(false);
 
   // Si el usuario cancela Google y vuelve (atrás / bfcache), no dejar "Redirigiendo..."
   useEffect(() => {
@@ -788,6 +846,10 @@ const RegisterModal = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (mode === 'signup' && !legalConsent) {
+      setError('Debes aceptar los Términos y la Política de Privacidad para crear tu cuenta.');
+      return;
+    }
     setLoading(true);
     try {
       if (mode === 'signup') {
@@ -795,6 +857,15 @@ const RegisterModal = ({
         if (err) {
           setError(err.message);
           return;
+        }
+        if (!needsEmailConfirmation) {
+          const supabase = createClient();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            await recordLegalConsent(session.access_token);
+          }
+        } else {
+          writePendingLegalConsent();
         }
         if (needsEmailConfirmation) {
           onNeedsEmailConfirmation?.();
@@ -848,11 +919,18 @@ const RegisterModal = ({
         <div className="flex flex-col gap-2 mb-4">
           <button
             type="button"
-            disabled={oauthLoading}
+            disabled={oauthLoading || (mode === 'signup' && !legalConsent)}
             onClick={async () => {
+              if (mode === 'signup' && !legalConsent) {
+                setError('Debes aceptar los Términos y la Política de Privacidad para continuar.');
+                return;
+              }
               setError(null);
               setOauthLoading(true);
               try {
+                if (mode === 'signup') {
+                  writePendingLegalConsent();
+                }
                 const { error: err } = await signInWithOAuth('google');
                 if (err) {
                   setError(err.message);
@@ -942,9 +1020,30 @@ const RegisterModal = ({
           {error && (
             <p className="text-sm text-red-500">{error}</p>
           )}
+          {mode === 'signup' && (
+            <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={legalConsent}
+                onChange={(e) => setLegalConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+              />
+              <span>
+                Acepto los{' '}
+                <Link href="/terms" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
+                  Términos y Condiciones
+                </Link>{' '}
+                y la{' '}
+                <Link href="/privacy" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
+                  Política de Privacidad
+                </Link>
+                .
+              </span>
+            </label>
+          )}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (mode === 'signup' && !legalConsent)}
             className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-6 py-3.5 font-semibold text-white shadow-lg shadow-violet-500/25 mt-2 disabled:opacity-70 hover:shadow-violet-500/40 transition-all"
           >
             {loading ? 'Espera...' : mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'}

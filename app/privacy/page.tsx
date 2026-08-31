@@ -3,10 +3,12 @@ import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import LegalBackLink from '@/app/components/LegalBackLink';
 
+import { PRIVACY_LAST_UPDATED } from '@/lib/legal/constants';
+
 export const metadata: Metadata = {
   title: 'Política de Privacidad | AVENTA',
   description:
-    'Aviso de privacidad de AVENTA: datos de cuenta, actividad, afiliados y datos fiscales del programa de comisiones (LFPDPPP).',
+    'Aviso de privacidad de AVENTA: datos de cuenta, actividad, afiliados, atribución de recompensas y derechos ARCO (LFPDPPP).',
 };
 
 export default function PrivacyPage() {
@@ -23,7 +25,7 @@ export default function PrivacyPage() {
             Política de Privacidad
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Última actualización: 14 de agosto de 2026
+            Última actualización: {PRIVACY_LAST_UPDATED}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Este documento describe cómo AVENTA recopila, usa, protege y comparte los datos
@@ -70,6 +72,18 @@ export default function PrivacyPage() {
             asesoría legal profesional. Si en el futuro AVENTA opera como persona moral
             distinta, se actualizarán razón social y domicilio fiscal en este aviso.
           </p>
+          <p className="text-xs text-gray-500 dark:text-gray-500">
+            Los datos de identificación fiscal del responsable (razón social, RFC y domicilio)
+            se actualizarán en este aviso cuando se formalice la operación comercial. Mientras
+            tanto, para ejercer derechos ARCO o consultas de privacidad usa{' '}
+            <a
+              href="mailto:aventasoportelegal@gmail.com"
+              className="text-violet-600 dark:text-violet-400 hover:underline"
+            >
+              aventasoportelegal@gmail.com
+            </a>
+            .
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -81,8 +95,9 @@ export default function PrivacyPage() {
             <li>
               <span className="font-medium">Datos de cuenta y perfil:</span> correo electrónico,
               nombre visible o display_name, avatar, ID interna de usuario, fecha de creación
-              de la cuenta, y en su caso slug público o etiquetas de liderazgo / tracking
-              asociadas al perfil.
+              de la cuenta, slug público, categorías preferidas para personalizar el feed,
+              preferencias de notificaciones por correo, fecha de aceptación de Términos y
+              Privacidad, y en su caso etiquetas de liderazgo internas.
             </li>
             <li>
               <span className="font-medium">Contenido generado por el usuario:</span> ofertas,
@@ -94,8 +109,19 @@ export default function PrivacyPage() {
               ofertas creadas, eventos de interacción (
               <span className="font-mono text-xs">view</span>,{' '}
               <span className="font-mono text-xs">outbound</span>,{' '}
-              <span className="font-mono text-xs">share</span>, etc.), métricas derivadas y
-              reputación interna.
+              <span className="font-mono text-xs">share</span>, etc.), notificaciones in-app,
+              métricas derivadas y reputación interna.
+            </li>
+            <li>
+              <span className="font-medium">Datos de atribución (Programa de Recompensas):</span>{' '}
+              cuando un usuario hace clic hacia una tienda externa, AVENTA puede registrar un{' '}
+              <span className="font-mono text-xs">click_id</span> interno, huella del producto
+              (<span className="font-mono text-xs">product_fingerprint</span>), y hashes
+              truncados de dirección IP y agente de usuario (
+              <span className="font-mono text-xs">ip_hash</span>,{' '}
+              <span className="font-mono text-xs">user_agent_hash</span>) para atribuir
+              comisiones de red a ofertas elegibles. Estos datos no se muestran en el perfil
+              público.
             </li>
             <li>
               <span className="font-medium">Datos técnicos:</span> dirección IP (seguridad y
@@ -105,7 +131,8 @@ export default function PrivacyPage() {
             </li>
             <li>
               <span className="font-medium">
-                Datos fiscales y de pago (solo si participas en el programa de comisiones):
+                Datos fiscales y de pago (solo si participas en el Programa de Recompensas y
+                se solicita un pago):
               </span>{' '}
               <span className="font-semibold">nombre legal</span>,{' '}
               <span className="font-semibold">RFC</span>,{' '}
@@ -155,7 +182,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            3.2 Finalidades adicionales / programa de comisiones
+            3.2 Finalidades adicionales / Programa de Recompensas
           </h3>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
@@ -163,20 +190,15 @@ export default function PrivacyPage() {
               tiendas, ofertas).
             </li>
             <li>
-              Enviar comunicaciones informativas o de novedades, con opción de baja cuando
-              la ley lo requiera.
+              Enviar comunicaciones informativas o de novedades (p. ej. digest diario/semanal
+              vía Resend), con opción de baja en Configuración cuando aplique.
             </li>
             <li>
-              Si participas en el programa de comisiones para creadores: validar elegibilidad
-              e identidad operativa; calcular y liquidar pagos; prevenir fraude (incluido
-              control de RFC duplicado); conservar evidencia de aceptación de términos y de
-              transferencias; y cumplir obligaciones fiscales o regulatorias aplicables. El
-              fundamento incluye tu consentimiento al activar el programa y la ejecución de
-              la relación descrita en los{' '}
-              <Link href="/terms#comisiones" className="text-violet-600 dark:text-violet-400 hover:underline">
-                Términos (sección 8)
-              </Link>
-              .
+              Si participas en el Programa de Recompensas: validar elegibilidad; registrar
+              clics salientes y atribución; calcular y, cuando el programa esté activo,
+              liquidar recompensas; prevenir fraude; conservar evidencia de aceptación de
+              términos y de transferencias; cumplir obligaciones fiscales o regulatorias
+              aplicables cuando existan pagos.
             </li>
           </ul>
           <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -219,9 +241,12 @@ export default function PrivacyPage() {
             AVENTA utiliza cookies y tecnologías similares para:
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-            <li>Mantener sesiones de usuario y preferencias (como tema claro/oscuro).</li>
+            <li>Mantener sesiones de usuario (cookies de Supabase Auth).</li>
             <li>
-              Recordar ciertos estados de la interfaz (onboarding, banners cerrados, etc.).
+              Recordar preferencias en el navegador mediante{' '}
+              <span className="font-mono text-xs">localStorage</span> o{' '}
+              <span className="font-mono text-xs">sessionStorage</span> (tema claro/oscuro,
+              onboarding, aviso de cookies, cache de nombre visible).
             </li>
             <li>
               Medir uso interno (vistas y clics) mediante eventos en la propia base de datos.
@@ -245,25 +270,44 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
               <span className="font-medium">Supabase:</span> base de datos y autenticación
-              (incluido login con Google), perfiles, ofertas, votos, comentarios, eventos y,
-              cuando aplique, datos fiscales del programa de comisiones.
+              (incluido login con Google), perfiles, ofertas, votos, comentarios, eventos,
+              atribución de recompensas y, cuando aplique, datos fiscales.
+            </li>
+            <li>
+              <span className="font-medium">Google (OAuth):</span> si eliges «Continuar con
+              Google», Supabase recibe datos básicos de tu cuenta Google (p. ej. correo, nombre
+              y foto de perfil) para crear o vincular tu cuenta en AVENTA.
             </li>
             <li>
               <span className="font-medium">Vercel:</span> hosting y despliegue de la
-              aplicación web (Next.js).
+              aplicación web (Next.js), incluidos logs de runtime.
             </li>
             <li>
               <span className="font-medium">Upstash Redis:</span> rate limiting y protección
-              frente a abuso.
+              frente a abuso (puede procesar direcciones IP de forma temporal).
             </li>
             <li>
-              <span className="font-medium">Proveedores de almacenamiento de imágenes</span>{' '}
-              u otros recursos estáticos, cuando corresponda.
+              <span className="font-medium">Resend:</span> envío de correos transaccionales o
+              digest (dirección de email y contenido del mensaje).
+            </li>
+            <li>
+              <span className="font-medium">Almacenamiento de imágenes</span> (Supabase Storage)
+              para avatares e imágenes de ofertas.
+            </li>
+            <li>
+              <span className="font-medium">Webhooks opcionales</span> (p. ej. Slack/Discord):
+              alertas operativas con mensajes de error técnicos, sin perfilar usuarios con fines
+              publicitarios.
             </li>
             <li>
               <span className="font-medium">Instituciones de pago / banca</span> (p. ej.
-              transferencias SPEI): solo los datos necesarios para ejecutar un pago a un
-              creador (CLABE, nombre, monto, referencia), cuando exista liquidación.
+              SPEI): solo cuando el Programa de Recompensas esté activo y exista liquidación
+              (CLABE, nombre, monto, referencia).
+            </li>
+            <li>
+              <span className="font-medium">Redes de afiliados</span> (Amazon, Mercado Libre,
+              etc.): al salir hacia una tienda, la red puede recibir identificadores de
+              tracking propios de AVENTA conforme a sus políticas.
             </li>
           </ul>
           <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -315,8 +359,11 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
-              El usuario puede solicitar la eliminación de su cuenta por los mecanismos
-              disponibles o escribiendo a aventasoportelegal@gmail.com.
+              El usuario puede solicitar la eliminación de su cuenta desde{' '}
+              <Link href="/settings" className="text-violet-600 dark:text-violet-400 hover:underline">
+                Configuración
+              </Link>{' '}
+              o escribiendo a aventasoportelegal@gmail.com.
             </li>
             <li>
               Tras la eliminación, ciertos datos pueden mantenerse bloqueados el tiempo
@@ -417,7 +464,7 @@ export default function PrivacyPage() {
             </Link>{' '}
             y{' '}
             <Link href="/comisiones" className="text-violet-600 dark:text-violet-400 hover:underline">
-              Programa de comisiones
+              Programa de Recompensas
             </Link>
             .
           </p>

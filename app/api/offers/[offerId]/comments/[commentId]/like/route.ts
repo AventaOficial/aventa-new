@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
 import { recalculateUserReputation } from '@/lib/server/reputation';
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser';
 
 /** POST: dar o quitar like a un comentario (toggle). Requiere auth. */
 export async function POST(
@@ -22,44 +25,39 @@ export async function POST(
     return NextResponse.json({ error: 'Demasiadas acciones. Espera un momento.' }, { status: 429 });
   }
 
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const authResult = await requireBearerCommunityUser(request);
+  if ('error' in authResult) {
+    return communityAuthFailureResponse(authResult);
+  }
+  const { user, supabase } = authResult;
+  const userId = user.id;
+
+  const { data: commentRow, error: commentErr } = await supabase
+    .from('comments')
+    .select('user_id, offer_id, status')
+    .eq('id', cId)
+    .maybeSingle();
+
+  if (commentErr || !commentRow) {
+    return NextResponse.json({ error: 'Comentario no encontrado' }, { status: 404 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    return NextResponse.json({ error: 'Config error' }, { status: 500 });
+  const row = commentRow as { user_id?: string; offer_id?: string; status?: string };
+  if (row.offer_id !== oId) {
+    return NextResponse.json({ error: 'Comentario no pertenece a esta oferta' }, { status: 404 });
+  }
+  if (row.status !== 'approved') {
+    return NextResponse.json({ error: 'Comentario no disponible' }, { status: 403 });
   }
 
-  const userRes = await fetch(`${url}/auth/v1/user`, {
-    headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-  });
-  if (!userRes.ok) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-  const userData = await userRes.json().catch(() => null);
-  const userId = userData?.id ?? null;
-  if (!userId) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
+  const commentAuthorId = row.user_id;
 
-  const supabase = createServerClient();
   const { data: existing } = await supabase
     .from('comment_likes')
     .select('id')
     .eq('comment_id', cId)
     .eq('user_id', userId)
     .maybeSingle();
-
-  const { data: commentRow } = await supabase
-    .from('comments')
-    .select('user_id')
-    .eq('id', cId)
-    .single();
-  const commentAuthorId = (commentRow as { user_id?: string } | null)?.user_id;
 
   if (existing) {
     const { error: delErr } = await supabase

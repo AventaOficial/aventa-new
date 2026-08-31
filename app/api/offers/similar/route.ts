@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 
 export type SimilarOffer = {
   id: string;
@@ -17,6 +18,12 @@ export type SimilarOffer = {
  * Excluye ofertas ya expiradas.
  */
 export async function GET(request: Request) {
+  const ip = getClientIp(request);
+  const rl = await enforceRateLimitCustom(ip, 'similarOffers');
+  if (!rl.success) {
+    return NextResponse.json({ similar: [] }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const store = searchParams.get('store')?.trim();
   const title = searchParams.get('title')?.trim();

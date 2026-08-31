@@ -1,9 +1,11 @@
 /**
- * URLs de oferta: Mercado Libre y Amazon con atribución.
- * Prioridad: tag del **creador** (si existe) → tag de plataforma (env).
- * Así el 40% atribuible se puede conciliar por tag en el ledger.
+ * URLs de oferta: tags de plataforma Aventa + sub-id Rewards cuando la red lo permite.
  */
 import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffiliateTags';
+import {
+  applyAdapterOutboundTracking,
+  type OutboundTrackingContext,
+} from '@/lib/rewards/adapters/types';
 
 const RESOLVE_TIMEOUT_MS = 12_000;
 const RESOLVE_USER_AGENT =
@@ -91,7 +93,7 @@ export function getPlatformAmazonAssociateTag(): string | null {
  * Si falla la red o no es destino ML, devuelve la URL original.
  */
 export async function resolveMercadoLibreShortlinks(url: string): Promise<string> {
-  const { isBlockedOfferParseUrl } = await import('@/lib/server/fetchUrlSafety');
+  const { fetchFollowingRedirectsSafely } = await import('@/lib/server/fetchUrlSafety');
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (!isMeliLaShortUrl(trimmed)) return trimmed;
@@ -102,22 +104,22 @@ export async function resolveMercadoLibreShortlinks(url: string): Promise<string
   } catch {
     return trimmed;
   }
-  if (isBlockedOfferParseUrl(u).blocked) return trimmed;
-
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
   try {
-    const res = await fetch(trimmed, {
+    const result = await fetchFollowingRedirectsSafely(u.toString(), {
+      timeoutMs: RESOLVE_TIMEOUT_MS,
       method: 'GET',
-      redirect: 'follow',
+      requireHttps: true,
+      requireAllowlist: true,
       signal: controller.signal,
       headers: {
         'User-Agent': RESOLVE_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
     });
-    clearTimeout(timeoutId);
-    const final = res.url;
+    if (!result.ok) return trimmed;
+    const final = result.finalUrl;
     if (!final || final === trimmed) return trimmed;
     let finalUrl: URL;
     try {
@@ -125,9 +127,7 @@ export async function resolveMercadoLibreShortlinks(url: string): Promise<string
     } catch {
       return trimmed;
     }
-    if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
-    if (!final.toLowerCase().includes('mercadolibre.')) return trimmed;
-    // meli.la puede redirigir a /social/… sin item id en la URL; igual es destino ML válido.
+    if (!isMercadoLibreOfferUrl(finalUrl.toString())) return trimmed;
     if (isMeliLaShortUrl(trimmed)) return final;
     const { extractMercadoLibreItemId } = await import('@/lib/offers/offerUrlFingerprint');
     if (!extractMercadoLibreItemId(final) && !extractMercadoLibreItemId(trimmed)) {
@@ -135,8 +135,9 @@ export async function resolveMercadoLibreShortlinks(url: string): Promise<string
     }
     return final;
   } catch {
-    clearTimeout(timeoutId);
     return trimmed;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -155,7 +156,7 @@ export function isAmazonShortUrl(url: string): boolean {
  * Si falla la red o el destino no es Amazon, devuelve la URL original.
  */
 export async function resolveAmazonShortlinks(url: string): Promise<string> {
-  const { isBlockedOfferParseUrl } = await import('@/lib/server/fetchUrlSafety');
+  const { fetchFollowingRedirectsSafely } = await import('@/lib/server/fetchUrlSafety');
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (!isAmazonShortUrl(trimmed)) return trimmed;
@@ -166,22 +167,22 @@ export async function resolveAmazonShortlinks(url: string): Promise<string> {
   } catch {
     return trimmed;
   }
-  if (isBlockedOfferParseUrl(u).blocked) return trimmed;
-
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
   try {
-    const res = await fetch(trimmed, {
+    const result = await fetchFollowingRedirectsSafely(u.toString(), {
+      timeoutMs: RESOLVE_TIMEOUT_MS,
       method: 'GET',
-      redirect: 'follow',
+      requireHttps: true,
+      requireAllowlist: true,
       signal: controller.signal,
       headers: {
         'User-Agent': RESOLVE_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
     });
-    clearTimeout(timeoutId);
-    const final = res.url;
+    if (!result.ok) return trimmed;
+    const final = result.finalUrl;
     if (!final || final === trimmed) return trimmed;
     let finalUrl: URL;
     try {
@@ -189,17 +190,16 @@ export async function resolveAmazonShortlinks(url: string): Promise<string> {
     } catch {
       return trimmed;
     }
-    if (isBlockedOfferParseUrl(finalUrl).blocked) return trimmed;
-    if (!final.toLowerCase().includes('amazon.')) return trimmed;
+    if (!isAmazonOfferUrl(finalUrl.toString())) return trimmed;
     const { extractAmazonAsin } = await import('@/lib/offers/offerUrlFingerprint');
     if (!extractAmazonAsin(final) && extractAmazonAsin(trimmed) == null) {
-      // Captcha / home de Amazon: no sustituir el shortlink por la portada.
       return trimmed;
     }
     return final;
   } catch {
-    clearTimeout(timeoutId);
     return trimmed;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -219,11 +219,17 @@ function normalizeCreatorTags(
 }
 
 /**
- * URL final al abrir CTA: siempre tags de plataforma Aventa.
- * Los tags del creador ya no sobrescriben la monetización del sitio.
+ * URL final al abrir CTA: tags de plataforma Aventa + sub-id cuando la red lo permite.
  */
-export function buildOfferUrl(offerUrl: string | null | undefined): string {
+export function buildOfferUrl(
+  offerUrl: string | null | undefined,
+  tracking?: OutboundTrackingContext,
+): string {
   const url = offerUrl?.trim();
   if (!url) return '';
-  return applyPlatformAffiliateTags(url);
+  const tagged = applyPlatformAffiliateTags(url);
+  if (tracking?.offerId && tracking?.clickId) {
+    return applyAdapterOutboundTracking(tagged, tracking);
+  }
+  return tagged;
 }

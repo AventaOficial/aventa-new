@@ -7,6 +7,7 @@ import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offer
 import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import OfferPageContent from './OfferPageContent';
+import { stringifyJsonLd } from '@/lib/seo/jsonLd';
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
@@ -215,7 +216,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     <main className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] text-[#1d1d1f] dark:text-[#fafafa]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyJsonLd(structuredData) }}
       />
       <OfferPageContent offer={offerPayload} />
     </main>

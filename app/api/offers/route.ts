@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { resolveOfferAutoApproveForUser } from '@/lib/server/offerAutoApprove';
 import { normalizeCategoryForStorage } from '@/lib/categories';
@@ -9,6 +8,11 @@ import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
+import {
+  requireBearerCommunityUser,
+  communityAuthFailureResponse,
+} from '@/lib/server/requireCommunityUser';
+import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
 
 type OfferInsertPayload = {
   title: string;
@@ -48,47 +52,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    if (!token) {
-      return NextResponse.json({ error: 'Inicia sesión para subir ofertas' }, { status: 401 });
+    const authResult = await requireBearerCommunityUser(request);
+    if ('error' in authResult) {
+      return communityAuthFailureResponse(authResult);
     }
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !anonKey) {
-      return NextResponse.json({ error: 'Config error' }, { status: 500 });
-    }
-
-    const userRes = await fetch(`${url}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-    });
-    if (!userRes.ok) {
-      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
-    }
-    const userData = await userRes.json().catch(() => null);
-    const createdBy = userData?.id ?? null;
-    if (!createdBy) {
-      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
-    }
-
-    const supabase = createServerClient();
-    try {
-      const { data: ban } = await supabase
-        .from('user_bans')
-        .select('id')
-        .eq('user_id', createdBy)
-        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-        .maybeSingle();
-      if (ban) {
-        return NextResponse.json(
-          { error: 'No puedes publicar ofertas. Tu cuenta está restringida.' },
-          { status: 403 }
-        );
-      }
-    } catch {
-      // user_bans puede no existir aún
-    }
+    const { user, supabase } = authResult;
+    const createdBy = user.id;
 
     const body = await request.json().catch(() => ({}));
     const parsed = createOfferInputSchema.safeParse(body);
@@ -169,7 +138,14 @@ export async function POST(request: Request) {
     const tags = [...new Set([...userTags, ...autogroup.tags])].slice(0, 20);
 
     const rawOfferUrl = typeof input.offer_url === 'string' ? input.offer_url.trim() : '';
-    const offerUrlNormalized = rawOfferUrl ? await resolveAndNormalizeAffiliateOfferUrl(rawOfferUrl) : '';
+    let offerUrlNormalized = '';
+    if (rawOfferUrl) {
+      const urlCheck = validatePublicOfferUrl(rawOfferUrl);
+      if (!urlCheck.ok) {
+        return NextResponse.json({ error: urlCheck.error }, { status: 400 });
+      }
+      offerUrlNormalized = await resolveAndNormalizeAffiliateOfferUrl(urlCheck.href);
+    }
 
     if (offerUrlNormalized) {
       const { findDuplicateOfferByUrl } = await import('@/lib/offers/findDuplicateOffer');
