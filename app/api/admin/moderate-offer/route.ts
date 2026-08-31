@@ -5,7 +5,13 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
-import { resolveAndNormalizeAffiliateOfferUrl, isResolvedProductOfferUrl } from '@/lib/affiliate'
+import {
+  assessOfferAffiliateLink,
+  resolveAndNormalizeAffiliateOfferUrl,
+  isResolvedProductOfferUrl,
+  validateAffiliatePaste,
+} from '@/lib/affiliate'
+import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 
@@ -55,13 +61,43 @@ export async function POST(request: Request) {
     const offerPublicPath = buildOfferPublicPath(id, offerTitle)
 
     if (status === 'approved') {
-      const { data: row } = await supabase.from('offers').select('expires_at, offer_url').eq('id', id).single()
+      const { data: row } = await supabase
+        .from('offers')
+        .select('expires_at, offer_url, link_mod_ok')
+        .eq('id', id)
+        .single()
       const rawUrl = (row as { offer_url?: string | null })?.offer_url?.trim() ?? ''
-      if (rawUrl && !batchApprove && body?.link_mod_ok !== true) {
-        return NextResponse.json(
-          { error: 'Confirma que el enlace coincide con el producto antes de aprobar.' },
-          { status: 400 }
-        )
+      const linkModOk = (row as { link_mod_ok?: boolean | null }).link_mod_ok === true
+      const originalForApproval =
+        typeof body?.original_product_url === 'string' && body.original_product_url.trim()
+          ? body.original_product_url.trim()
+          : rawUrl
+
+      const readiness = assertOfferReadyForAffiliateApproval({
+        offerUrl: rawUrl,
+        linkModOk,
+        batchApprove,
+        originalProductUrl: originalForApproval,
+      })
+      if (!readiness.ok) {
+        return NextResponse.json({ error: readiness.error }, { status: 400 })
+      }
+
+      if (rawUrl && linkModOk && !batchApprove) {
+        const pasteCheck = validateAffiliatePaste(originalForApproval, rawUrl)
+        if (!pasteCheck.valid) {
+          return NextResponse.json(
+            { error: pasteCheck.reason ?? 'El enlace no corresponde al producto' },
+            { status: 400 }
+          )
+        }
+        const live = assessOfferAffiliateLink(rawUrl)
+        if (live.needsAffiliate && !live.isTagged) {
+          return NextResponse.json(
+            { error: 'El enlace afiliado no tiene el tag de Aventa configurado.' },
+            { status: 400 }
+          )
+        }
       }
       const payload: {
         status: string
@@ -81,7 +117,7 @@ export async function POST(request: Request) {
         // el producto (link_mod_ok), no bloqueamos: guardamos lo mejor que haya.
         const normalized = await resolveAndNormalizeAffiliateOfferUrl(rawUrl)
         const isProduct = isResolvedProductOfferUrl(normalized)
-        if (!isProduct && !batchApprove && body?.link_mod_ok !== true) {
+        if (!isProduct && !batchApprove && !linkModOk) {
           return NextResponse.json(
             {
               error:

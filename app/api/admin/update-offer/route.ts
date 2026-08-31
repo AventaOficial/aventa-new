@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { requireModeration } from '@/lib/server/requireAdmin'
-import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate'
+import { resolveAndNormalizeAffiliateOfferUrl, validateAffiliatePaste } from '@/lib/affiliate'
 import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories'
 import { normalizeOfferImageUrl } from '@/lib/offerPath'
+
+function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
+  const msg = (error?.message ?? '').toLowerCase()
+  return msg.includes(columnName.toLowerCase())
+}
 
 /** PATCH: editar oferta en moderación. Campos: title, offer_url, description, image_url, category. */
 export async function PATCH(request: Request) {
@@ -22,7 +27,7 @@ export async function PATCH(request: Request) {
     const supabase = createServerClient()
     const { data: offer } = await supabase
       .from('offers')
-      .select('id, status')
+      .select('id, status, offer_url')
       .eq('id', id)
       .single()
 
@@ -31,6 +36,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Solo se pueden editar ofertas pendientes o aprobadas' }, { status: 400 })
     }
 
+    const currentOfferUrl = (offer as { offer_url?: string | null }).offer_url?.trim() ?? ''
+    const affiliatePaste = body?.affiliate_paste === true
+
     const payload: {
       title?: string
       offer_url?: string | null
@@ -38,15 +46,41 @@ export async function PATCH(request: Request) {
       image_url?: string | null
       image_urls?: string[] | null
       category?: string | null
+      link_mod_ok?: boolean | null
     } = {}
+
     if (typeof body.title === 'string') {
       const t = body.title.trim().slice(0, 500)
       if (t) payload.title = t
     }
+
     if (typeof body.offer_url === 'string') {
-      const u = body.offer_url.trim().slice(0, 2048)
-      payload.offer_url = u ? await resolveAndNormalizeAffiliateOfferUrl(u) : null
+      const pasted = body.offer_url.trim().slice(0, 2048)
+      if (!pasted) {
+        payload.offer_url = null
+        payload.link_mod_ok = null
+      } else if (affiliatePaste) {
+        const originalUrl =
+          typeof body.original_product_url === 'string' && body.original_product_url.trim()
+            ? body.original_product_url.trim().slice(0, 2048)
+            : currentOfferUrl
+        if (!originalUrl) {
+          return NextResponse.json({ error: 'La oferta no tiene enlace original' }, { status: 400 })
+        }
+        const validation = validateAffiliatePaste(originalUrl, pasted)
+        if (!validation.valid) {
+          return NextResponse.json(
+            { error: validation.reason ?? 'El enlace no corresponde al producto', validation },
+            { status: 400 }
+          )
+        }
+        payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
+        payload.link_mod_ok = true
+      } else {
+        payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
+      }
     }
+
     if (body.description !== undefined) {
       payload.description = typeof body.description === 'string' ? body.description.trim().slice(0, 2000) || null : null
     }
@@ -79,13 +113,21 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    const { error } = await supabase.from('offers').update(payload).eq('id', id)
+    let { error } = await supabase.from('offers').update(payload).eq('id', id)
+    if (error && hasMissingColumn(error, 'link_mod_ok')) {
+      delete payload.link_mod_ok
+      ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
+    }
     if (error) {
       console.error('[update-offer]', error.message)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({
+      ok: true,
+      link_mod_ok: payload.link_mod_ok === true ? true : undefined,
+      offer_url: payload.offer_url,
+    })
   } catch (e) {
     console.error('[update-offer]', e)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

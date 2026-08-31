@@ -20,6 +20,7 @@ import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/
 import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
+import { initialAffiliatePasteUi } from '@/lib/moderation/affiliatePasteUi';
 import { mergeOfferImageUrls, normalizeOfferImageUrl } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
@@ -30,6 +31,10 @@ import ModerationChecklist from './ModerationChecklist';
 import ModerationImageGallery from './ModerationImageGallery';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
+import { validateAffiliatePaste, type AffiliatePasteValidation } from '@/lib/affiliate/validateAffiliatePaste';
+import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
+import type { ModerationLevel } from '@/lib/moderation/classifyModerationLevel';
+import { MODERATION_LEVEL_LABELS } from '@/lib/moderation/classifyModerationLevel';
 
 export type ModerationDetailOffer = {
   id: string;
@@ -56,6 +61,7 @@ export type ModerationDetailOffer = {
   locked_at?: string | null;
   locked_by_name?: string | null;
   snoozed_until?: string | null;
+  link_mod_ok?: boolean | null;
 };
 
 type SimilarOffer = {
@@ -96,6 +102,12 @@ type Props = {
   onBack?: () => void;
   mode?: ModerationHubMode;
   currentUserId?: string | null;
+  /** URL original al abrir la oferta (botón Ver producto). */
+  productOriginalUrl?: string | null;
+  moderationLevel?: ModerationLevel;
+  queueLabel?: string | null;
+  onAffiliateReadyChange?: (ready: boolean) => void;
+  /** @deprecated Mobile legacy — desktop usa validación de paste */
   linkConfirmed?: boolean;
   onLinkConfirmedChange?: (confirmed: boolean) => void;
   onSnooze?: (minutes: 15 | 60 | 240) => void;
@@ -123,6 +135,10 @@ export default function ModerationOfferDetail({
   onBack,
   mode = 'admin',
   currentUserId = null,
+  productOriginalUrl = null,
+  moderationLevel = 'sprint',
+  queueLabel = null,
+  onAffiliateReadyChange,
   linkConfirmed: linkConfirmedProp,
   onLinkConfirmedChange,
   onSnooze,
@@ -158,11 +174,25 @@ export default function ModerationOfferDetail({
   const [modMessage, setModMessage] = useState('');
   const [internalLinkConfirmed, setInternalLinkConfirmed] = useState(false);
   const [snoozeLoading, setSnoozeLoading] = useState<number | null>(null);
+  const [affiliatePaste, setAffiliatePaste] = useState('');
+  const [pasteStatus, setPasteStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [pasteValidation, setPasteValidation] = useState<AffiliatePasteValidation | null>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const [showSecondary, setShowSecondary] = useState(false);
   const botImageInputRef = useRef<HTMLInputElement>(null);
   const botUrlInputRef = useRef<HTMLInputElement>(null);
   const botCategoryRef = useRef<HTMLSelectElement>(null);
+  const affiliatePasteRef = useRef<HTMLInputElement>(null);
+  const pasteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const linkConfirmed = linkConfirmedProp ?? internalLinkConfirmed;
   const setLinkConfirmed = onLinkConfirmedChange ?? setInternalLinkConfirmed;
+
+  const originalProductUrl = (productOriginalUrl ?? offer.offer_url ?? '').trim();
+  const requiresAffiliate = offerRequiresAffiliateValidation(originalProductUrl);
+  const affiliateReady =
+    offer.link_mod_ok === true ||
+    pasteStatus === 'valid' ||
+    (!requiresAffiliate && Boolean(offer.offer_url?.trim()));
 
   const readOnly = isOfferLockedByOther(
     { locked_by: offer.locked_by, locked_at: offer.locked_at },
@@ -186,7 +216,17 @@ export default function ModerationOfferDetail({
     setBotOfferUrl(offer.offer_url ?? '');
     setBotCategory(offer.category ?? '');
     setBotQuickMsg(null);
-  }, [offer.id, offer.image_url, offer.offer_url, offer.category]);
+    const pasteUi = initialAffiliatePasteUi(offer.link_mod_ok);
+    setAffiliatePaste(pasteUi.affiliatePaste);
+    setPasteStatus(pasteUi.pasteStatus);
+    setPasteValidation(pasteUi.pasteValidation);
+    setPasteError(pasteUi.pasteError);
+    setShowSecondary(moderationLevel !== 'sprint');
+  }, [offer.id, offer.image_url, offer.offer_url, offer.category, offer.link_mod_ok, moderationLevel]);
+
+  useEffect(() => {
+    onAffiliateReadyChange?.(affiliateReady);
+  }, [affiliateReady, onAffiliateReadyChange]);
 
   useEffect(() => {
     if (!requestReject || readOnly) return;
@@ -267,14 +307,6 @@ export default function ModerationOfferDetail({
     }
   };
 
-  const feedDestination = previewVital
-    ? `Día a día → ${previewCategoryLabel ?? 'Sin categoría'}`
-    : previewCategoryLabel
-      ? `Top / Recientes (${previewCategoryLabel})`
-      : suggestedCategoryLabel
-        ? `Sin categoría — sugerencia: ${suggestedCategoryLabel} → Top / Recientes`
-        : 'Sin categoría — asignar antes de aprobar';
-
   const saveBotQuickFix = async () => {
     setBotQuickSaving(true);
     setBotQuickMsg(null);
@@ -327,6 +359,82 @@ export default function ModerationOfferDetail({
   );
   const blockers = countChecklistBlockers(checklist);
 
+  const feedDestination = previewVital
+    ? `Día a día → ${previewCategoryLabel ?? 'Sin categoría'}`
+    : previewCategoryLabel
+      ? `Top / Recientes (${previewCategoryLabel})`
+      : suggestedCategoryLabel
+        ? `Sin categoría — sugerencia: ${suggestedCategoryLabel} → Top / Recientes`
+        : 'Sin categoría — asignar antes de aprobar';
+
+  const saveAffiliatePaste = useCallback(
+    async (pasted: string) => {
+      const trimmed = pasted.trim();
+      if (!trimmed || !originalProductUrl) {
+        setPasteStatus('idle');
+        setPasteValidation(null);
+        setPasteError(null);
+        return;
+      }
+      setPasteStatus('validating');
+      setPasteError(null);
+      const local = validateAffiliatePaste(originalProductUrl, trimmed);
+      if (!local.valid) {
+        setPasteStatus('invalid');
+        setPasteValidation(local);
+        setPasteError(local.reason ?? 'El enlace no corresponde al producto');
+        return;
+      }
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/admin/update-offer', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          id: offer.id,
+          offer_url: trimmed,
+          affiliate_paste: true,
+          original_product_url: originalProductUrl,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPasteStatus('invalid');
+        setPasteError(
+          typeof data?.error === 'string' ? data.error : 'El enlace no corresponde al producto'
+        );
+        setPasteValidation(
+          typeof data?.validation === 'object' ? (data.validation as AffiliatePasteValidation) : local
+        );
+        return;
+      }
+      setPasteStatus('valid');
+      setPasteValidation(local);
+      setPasteError(null);
+      onOfferUpdated?.();
+    },
+    [offer.id, originalProductUrl, onOfferUpdated, session?.access_token]
+  );
+
+  const handleAffiliatePasteChange = (value: string) => {
+    setAffiliatePaste(value.slice(0, 2048));
+    if (pasteDebounceRef.current) clearTimeout(pasteDebounceRef.current);
+    if (!value.trim()) {
+      setPasteStatus(offer.link_mod_ok === true ? 'valid' : 'idle');
+      setPasteValidation(null);
+      setPasteError(null);
+      return;
+    }
+    pasteDebounceRef.current = setTimeout(() => {
+      void saveAffiliatePaste(value);
+    }, 400);
+  };
+
+  const openOriginalProduct = () => {
+    if (!originalProductUrl) return;
+    window.open(originalProductUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const handleFix = (id: 'photo' | 'link' | 'affiliate' | 'category' | 'title') => {
     const targetId = id === 'affiliate' ? 'link' : id;
     if (id === 'title') {
@@ -349,30 +457,29 @@ export default function ModerationOfferDetail({
   };
 
   return (
-    <div className={`flex h-full max-h-[min(calc(100dvh-6rem),920px)] min-h-[min(60vh,640px)] flex-col overflow-hidden ${ui.card}`}>
-      <div className={`flex items-center justify-between gap-2 border-b px-4 py-3 ${ui.hairline}`}>
-        <div className="min-w-0">
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${ui.label}`}>Revisión</p>
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className="mt-0.5 text-sm text-emerald-700 hover:underline dark:text-violet-300 lg:hidden"
-            >
-              ← Volver a la cola
-            </button>
+    <div className={`flex h-full min-h-0 flex-col overflow-hidden ${ui.card}`}>
+      <div className={`flex items-center justify-between gap-2 border-b px-4 py-2.5 ${ui.hairline}`}>
+        <div className="flex min-w-0 items-center gap-2">
+          {queueLabel ? (
+            <span className={`text-xs tabular-nums ${ui.muted}`}>{queueLabel}</span>
           ) : null}
+          <span
+            className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              moderationLevel === 'sprint'
+                ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                : moderationLevel === 'review'
+                  ? 'bg-amber-500/15 text-amber-900 dark:text-amber-100'
+                  : 'bg-red-500/15 text-red-800 dark:text-red-200'
+            }`}
+          >
+            {MODERATION_LEVEL_LABELS[moderationLevel]}
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {isBotOffer ? (
             <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:text-sky-200">Bot</span>
           ) : null}
-          {qualityCandidate ? (
-            <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
-              Calidad
-            </span>
-          ) : null}
-          <ModerationConfidenceChip offer={offer} mode={mode} size="md" />
+          <ModerationConfidenceChip offer={offer} mode={mode} size="sm" />
         </div>
       </div>
 
@@ -385,7 +492,17 @@ export default function ModerationOfferDetail({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain border-b lg:border-b-0 lg:border-r border-white/[0.06] dark:border-white/[0.06]">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-4 pt-3 text-sm text-emerald-700 hover:underline dark:text-violet-300 lg:hidden"
+            >
+              ← Volver a la cola
+            </button>
+          ) : null}
         {heroSrc ? (
           <ModerationImageGallery
             images={allPreviewImages}
@@ -481,7 +598,7 @@ export default function ModerationOfferDetail({
             </span>
           </div>
 
-          {isBotOffer ? (
+          {showSecondary && isBotOffer ? (
             <div className={`rounded-xl border px-3 py-3 space-y-3 ${ui.border} border-sky-500/30 bg-sky-500/5`}>
               <div className="flex items-center justify-between gap-2">
                 <p className={`text-sm font-semibold ${ui.body}`}>Qué falta para publicar</p>
@@ -586,22 +703,31 @@ export default function ModerationOfferDetail({
             </div>
           ) : null}
 
-          {offer.offer_url?.trim() ? (
-            <a
-              href={offer.offer_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 dark:bg-violet-500 dark:hover:bg-violet-400"
+          {originalProductUrl ? (
+            <button
+              type="button"
+              onClick={openOriginalProduct}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600/40 bg-emerald-600/10 px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-600/20 dark:text-emerald-200"
             >
               <ExternalLink className="h-4 w-4" />
-              {storeOpenLabel(offer.store)}
-            </a>
+              Ver producto
+            </button>
           ) : (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
               Esta oferta no tiene URL de tienda.
             </p>
           )}
 
+          <button
+            type="button"
+            onClick={() => setShowSecondary((v) => !v)}
+            className={`mt-3 text-xs font-medium ${ui.muted} hover:underline`}
+          >
+            {showSecondary ? 'Ocultar detalles' : 'Más detalles (historial, duplicados, bot…)'}
+          </button>
+
+          {showSecondary ? (
+            <div className="mt-3 space-y-3 border-t pt-3 border-white/[0.06]">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -653,13 +779,59 @@ export default function ModerationOfferDetail({
               </ul>
             </div>
           ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
+        <aside className="flex min-h-0 flex-col bg-black/[0.02] dark:bg-white/[0.02]">
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            {requiresAffiliate ? (
+              <div className="space-y-2">
+                <label className={`text-[11px] font-semibold uppercase tracking-wide ${ui.label}`}>
+                  Enlace afiliado
+                </label>
+                <input
+                  id="moderation-affiliate-paste-input"
+                  ref={affiliatePasteRef}
+                  type="url"
+                  value={affiliatePaste}
+                  onChange={(e) => handleAffiliatePasteChange(e.target.value)}
+                  placeholder="Pegar enlace aquí…"
+                  disabled={readOnly}
+                  className={`w-full px-3 py-2.5 font-mono text-xs ${ui.input}`}
+                />
+                {pasteStatus === 'validating' ? (
+                  <p className={`text-xs ${ui.muted}`}>Validando…</p>
+                ) : null}
+                {pasteStatus === 'valid' || offer.link_mod_ok === true ? (
+                  <ul className={`space-y-1 text-xs text-emerald-700 dark:text-emerald-300`}>
+                    {pasteValidation?.store || offer.store ? (
+                      <li>✓ {pasteValidation?.store ?? offer.store}</li>
+                    ) : null}
+                    <li>✓ Producto coincide</li>
+                    <li>✓ Tag AVENTA</li>
+                  </ul>
+                ) : null}
+                {pasteStatus === 'invalid' && pasteError ? (
+                  <p className="text-xs text-red-600 dark:text-red-300" role="alert">
+                    ✕ {pasteError}
+                  </p>
+                ) : null}
+              </div>
+            ) : originalProductUrl ? (
+              <p className={`text-xs ${ui.muted}`}>Tienda sin programa afiliado configurado.</p>
+            ) : null}
+
+            {affiliateReady && requiresAffiliate ? (
+              <p className="text-center text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                ✓ Lista para aprobar
+              </p>
+            ) : null}
+          </div>
+
       <div
-        className={`sticky bottom-0 z-10 shrink-0 space-y-3 px-4 py-3 backdrop-blur-md ${ui.stickyBar} ${
-          ui.ws ? 'supports-[backdrop-filter]:bg-gray-50/95' : 'supports-[backdrop-filter]:bg-black/40'
-        }`}
+        className={`shrink-0 space-y-3 border-t px-4 py-3 ${ui.stickyBar}`}
       >
         {!readOnly && onSnooze ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -701,25 +873,6 @@ export default function ModerationOfferDetail({
             className={`mt-1 w-full px-3 py-2 text-sm ${ui.input}`}
           />
         </div>
-        {offer.offer_url?.trim() ? (
-          <label className={`flex cursor-pointer items-start gap-2 text-xs ${ui.soft}`}>
-            <input
-              type="checkbox"
-              checked={linkConfirmed}
-              onChange={(e) => setLinkConfirmed(e.target.checked)}
-              className="mt-0.5 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 dark:border-white/20"
-            />
-            <span>
-              Confirmé el producto en la tienda
-              <span
-                className={`ml-1 ${ui.faint}`}
-                title="Al aprobar, AVENTA aplica tracking de afiliado (ML tag/matt, Amazon, etc.) según env."
-              >
-                (?)
-              </span>
-            </span>
-          </label>
-        ) : null}
         {actionError ? (
           <div
             className="rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:text-red-200"
@@ -751,7 +904,7 @@ export default function ModerationOfferDetail({
             disabled={
               readOnly ||
               blockers > 0 ||
-              (Boolean(offer.offer_url?.trim()) && !linkConfirmed)
+              (requiresAffiliate && !affiliateReady)
             }
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -807,6 +960,8 @@ export default function ModerationOfferDetail({
             </div>
           </div>
         ) : null}
+      </div>
+        </aside>
       </div>
 
       {showHistory ? (

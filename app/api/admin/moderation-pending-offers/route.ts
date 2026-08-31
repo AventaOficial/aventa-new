@@ -17,6 +17,7 @@ const SELECT_PROFILE = 'profiles:public_profiles_view!created_by(display_name, a
 const OPTIONAL_GROUPS = [
   { probe: 'bot_meta', columns: 'bot_meta' },
   { probe: 'locked_by', columns: 'locked_by, locked_at, snoozed_until' },
+  { probe: 'link_mod_ok', columns: 'link_mod_ok' },
 ] as const;
 
 function computeIsBot(

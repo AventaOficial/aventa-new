@@ -34,7 +34,13 @@ import {
   offerMatchesVitalFilter,
   offerNeedsFixFilter,
 } from '@/lib/moderation/sortPendingOffers';
-import { isLowModerationTrust } from '@/lib/moderation/confidenceBadge';
+import { isLowModerationTrust, computeModerationTrust } from '@/lib/moderation/confidenceBadge';
+import { classifyModerationLevel } from '@/lib/moderation/classifyModerationLevel';
+import {
+  pickFirstEligibleOffer,
+  pickNextEligibleOffer,
+} from '@/lib/moderation/pickNextEligibleOffer';
+import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import {
@@ -82,6 +88,7 @@ type ModerationOffer = {
   locked_at?: string | null;
   locked_by_name?: string | null;
   snoozed_until?: string | null;
+  link_mod_ok?: boolean | null;
 };
 
 type SourceTab = 'all' | 'bot' | 'users';
@@ -205,9 +212,12 @@ export default function ModerationPendingPanel({
   const [deleteBotPhrase, setDeleteBotPhrase] = useState('');
   const [deleteBotAck, setDeleteBotAck] = useState(false);
   const [deleteBotLoading, setDeleteBotLoading] = useState(false);
-  const [linkConfirmed, setLinkConfirmed] = useState(false);
   const [requestReject, setRequestReject] = useState(false);
-  const [linkGateId, setLinkGateId] = useState<string | null>(null);
+  const [affiliateReady, setAffiliateReady] = useState(false);
+  const [mobileLinkConfirmed, setMobileLinkConfirmed] = useState(false);
+  const [sessionProcessed, setSessionProcessed] = useState(0);
+  const [sessionStartedAt] = useState(() => Date.now());
+  const originalUrlSnapshots = useRef<Map<string, string>>(new Map());
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [turnSummary, setTurnSummary] = useState<ModerationSessionSummary | null>(null);
   const [lockSupported, setLockSupported] = useState(true);
@@ -313,14 +323,30 @@ export default function ModerationPendingPanel({
       return;
     }
     if (!selectedId || !deskList.some((o) => o.id === selectedId)) {
-      setSelectedId(deskList[0].id);
+      setSelectedId(pickFirstEligibleOffer(deskList, session?.user?.id ?? null));
     }
-  }, [deskList, selectedId]);
+  }, [deskList, selectedId, session?.user?.id]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const offer = deskList.find((o) => o.id === selectedId);
+    if (!offer) return;
+    if (!originalUrlSnapshots.current.has(selectedId)) {
+      originalUrlSnapshots.current.set(selectedId, offer.offer_url?.trim() ?? '');
+    }
+  }, [selectedId, deskList]);
 
   const selectedOffer = useMemo(
     () => deskList.find((o) => o.id === selectedId) ?? null,
     [deskList, selectedId]
   );
+
+  const selectedOriginalUrl = useMemo(() => {
+    if (!selectedId) return null;
+    const snap = originalUrlSnapshots.current.get(selectedId);
+    if (snap) return snap;
+    return selectedOffer?.offer_url?.trim() ?? null;
+  }, [selectedId, selectedOffer?.offer_url]);
 
   const selectedReadOnly = useMemo(
     () =>
@@ -408,9 +434,8 @@ export default function ModerationPendingPanel({
   });
 
   useEffect(() => {
-    setLinkConfirmed(false);
-    setLinkGateId((gate) => (gate && gate === selectedId ? gate : null));
-  }, [selectedId]);
+    setAffiliateReady(selectedOffer?.link_mod_ok === true);
+  }, [selectedId, selectedOffer?.link_mod_ok]);
 
   useEffect(() => {
     if (!session?.user?.id || summaryFetchedRef.current) return;
@@ -489,9 +514,11 @@ export default function ModerationPendingPanel({
       return;
     }
     const listSnapshot = deskList;
-    const idx = listSnapshot.findIndex((o) => o.id === offerId);
-    const nextSelectedId =
-      listSnapshot[idx + 1]?.id ?? listSnapshot[idx - 1]?.id ?? null;
+    const nextSelectedId = pickNextEligibleOffer(
+      listSnapshot.filter((o) => o.id !== offerId),
+      offerId,
+      session?.user?.id ?? null
+    );
     setSelectedId(nextSelectedId);
     setMobileShowDetail((wasDetail) => wasDetail && Boolean(nextSelectedId));
     void refreshList(true);
@@ -500,8 +527,31 @@ export default function ModerationPendingPanel({
   const similarOffers = useSimilarOffers(
     selectedOffer?.store ?? null,
     selectedOffer?.title ?? '',
-    selectedOffer?.offer_url ?? null
+    selectedOriginalUrl
   );
+
+  const moderationLevel = useMemo(() => {
+    if (!selectedOffer) return 'sprint' as const;
+    const trust = computeModerationTrust({
+      risk_score: selectedOffer.risk_score,
+      moderator_comment: selectedOffer.moderator_comment,
+      image_url: selectedOffer.image_url,
+      category: selectedOffer.category,
+      original_price: selectedOffer.original_price,
+      price: selectedOffer.price,
+      is_bot: selectedOffer.is_bot,
+    });
+    return classifyModerationLevel({
+      trust,
+      similarCount: similarOffers.length,
+      blockerCount: 0,
+    });
+  }, [selectedOffer, similarOffers.length]);
+
+  const sessionPaceSeconds = useMemo(() => {
+    if (sessionProcessed <= 0) return 0;
+    return Math.max(1, Math.round((Date.now() - sessionStartedAt) / 1000 / sessionProcessed));
+  }, [sessionProcessed, sessionStartedAt]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -664,11 +714,15 @@ export default function ModerationPendingPanel({
       status: string;
       reason?: string;
       mod_message?: string;
-      link_mod_ok?: boolean;
+      original_product_url?: string;
     } = { id, status };
     if (reason) body.reason = reason;
     if (status === 'approved' && modMessage?.trim()) body.mod_message = modMessage.trim();
-    if (status === 'approved' && offerHasUrl) body.link_mod_ok = true;
+    const originalUrl =
+      originalUrlSnapshots.current.get(id) ?? offer.offer_url?.trim() ?? '';
+    if (status === 'approved' && originalUrl) {
+      body.original_product_url = originalUrl;
+    }
 
     try {
       const res = await fetch('/api/admin/moderate-offer', {
@@ -682,18 +736,21 @@ export default function ModerationPendingPanel({
       }
 
       const listSnapshot = deskList;
-      const idx = listSnapshot.findIndex((o) => o.id === id);
-      const nextSelectedId =
-        listSnapshot[idx + 1]?.id ?? listSnapshot[idx - 1]?.id ?? null;
+      const nextSelectedId = pickNextEligibleOffer(
+        listSnapshot.filter((o) => o.id !== id),
+        id,
+        session?.user?.id ?? null
+      );
 
+      originalUrlSnapshots.current.delete(id);
       setPending((prev) => prev.filter((o) => o.id !== id));
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-      setLinkGateId(null);
       setSelectedId(nextSelectedId);
+      setSessionProcessed((n) => n + 1);
       // En lista mobile: quedarse en la lista. En detalle: pasar a la siguiente.
       setMobileShowDetail((wasDetail) => wasDetail && Boolean(nextSelectedId));
 
@@ -750,8 +807,17 @@ export default function ModerationPendingPanel({
         setSelectedId(deskList[nextIdx].id);
         setMobileShowDetail(true);
       }
+      if ((e.key === 'o' || e.key === 'O') && selectedOffer && selectedOriginalUrl) {
+        e.preventDefault();
+        window.open(selectedOriginalUrl, '_blank', 'noopener,noreferrer');
+      }
+      if ((e.key === 'p' || e.key === 'P') && selectedOffer && !selectedReadOnly) {
+        e.preventDefault();
+        document.getElementById('moderation-affiliate-paste-input')?.focus();
+      }
       if ((e.key === 'a' || e.key === 'A') && selectedOffer && !selectedReadOnly) {
-        if (selectedOffer.offer_url?.trim() && !linkConfirmed) return;
+        const needsAffiliate = offerRequiresAffiliateValidation(selectedOriginalUrl);
+        if (needsAffiliate && !affiliateReady && selectedOffer.link_mod_ok !== true) return;
         e.preventDefault();
         void setStatus(
           selectedOffer.id,
@@ -769,7 +835,7 @@ export default function ModerationPendingPanel({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [queueView, deskList, selectedId, selectedOffer, selectedReadOnly, linkConfirmed]);
+  }, [queueView, deskList, selectedId, selectedOffer, selectedReadOnly, affiliateReady, selectedOriginalUrl]);
 
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
   const canAdvancedModeration = isOwner || isAdmin;
@@ -779,7 +845,6 @@ export default function ModerationPendingPanel({
 
   const selectOffer = (id: string) => {
     setSelectedId(id);
-    setLinkGateId(null);
   };
 
   const tryApproveFromList = (offer: ModerationOffer) => {
@@ -791,21 +856,17 @@ export default function ModerationPendingPanel({
     ) {
       return;
     }
-    const hasUrl = Boolean(offer.offer_url?.trim());
-    const alreadySelected = selectedId === offer.id;
-    if (!alreadySelected) setSelectedId(offer.id);
-    if (hasUrl && !(alreadySelected && linkConfirmed) && linkGateId !== offer.id) {
-      setLinkGateId(offer.id);
+    const snap = originalUrlSnapshots.current.get(offer.id) ?? offer.offer_url?.trim() ?? '';
+    const needsAffiliate = offerRequiresAffiliateValidation(snap);
+    if (selectedId !== offer.id) {
+      setSelectedId(offer.id);
       return;
     }
-    void setStatus(offer.id, 'approved', offer.created_by, undefined, undefined, hasUrl);
-    setLinkGateId(null);
-  };
-
-  const confirmLinkAndApproveFromList = (offer: ModerationOffer) => {
-    setLinkConfirmed(true);
-    setLinkGateId(null);
-    void setStatus(offer.id, 'approved', offer.created_by, undefined, undefined, true);
+    if (needsAffiliate && !affiliateReady && offer.link_mod_ok !== true) {
+      document.getElementById('moderation-affiliate-paste-input')?.focus();
+      return;
+    }
+    void setStatus(offer.id, 'approved', offer.created_by, undefined, undefined, Boolean(offer.offer_url?.trim()));
   };
 
   const tryRejectFromList = (offer: ModerationOffer) => {
@@ -818,7 +879,6 @@ export default function ModerationPendingPanel({
       return;
     }
     setSelectedId(offer.id);
-    setLinkGateId(null);
     setRequestReject(true);
   };
 
@@ -833,8 +893,8 @@ export default function ModerationPendingPanel({
           sourceTab={sourceTab}
           tabLocked={queueView !== 'split'}
           currentUserId={session?.user?.id ?? null}
-          linkConfirmed={linkConfirmed}
-          onLinkConfirmedChange={setLinkConfirmed}
+          linkConfirmed={mobileLinkConfirmed}
+          onLinkConfirmedChange={setMobileLinkConfirmed}
           actionError={actionError}
           onClearActionError={() => setActionError(null)}
           onSelect={(id) => setSelectedId(id)}
@@ -861,11 +921,17 @@ export default function ModerationPendingPanel({
           <div className="min-w-0">
             <h2 className={`text-2xl font-semibold tracking-tight ${ui.title}`}>Moderación</h2>
             <p className={`mt-1 text-sm ${ui.subtitle}`}>
-              Ofertas pendientes de revisión · {deskList.length} en vista
+              Ofertas pendientes · {deskList.length} en vista
+              {sessionProcessed > 0 ? (
+                <span className={`ml-2 tabular-nums ${ui.muted}`}>
+                  · Hoy: {sessionProcessed}/{sessionProcessed + deskList.length}
+                  {sessionPaceSeconds > 0 ? ` · Ritmo: ${sessionPaceSeconds}s` : ''}
+                </span>
+              ) : null}
             </p>
           </div>
           <p className={`hidden text-xs lg:block ${ui.muted}`}>
-            Atajos: A aprobar · R rechazar · flechas navegar
+            O producto · P pegar · A aprobar · R rechazar
           </p>
         </header>
 
@@ -1172,7 +1238,7 @@ export default function ModerationPendingPanel({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,400px)] lg:items-start lg:gap-5">
+          <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] xl:items-start xl:gap-5">
             {/* Lista decision-first (centro / izquierda) */}
             <section className="min-w-0 space-y-3">
               {!tabLocked ? (
@@ -1226,12 +1292,12 @@ export default function ModerationPendingPanel({
                         offer={offer}
                         active={offer.id === selectedId}
                         currentUserId={session?.user?.id ?? null}
-                        linkGateOpen={linkGateId === offer.id}
+                        linkGateOpen={false}
                         onSelect={() => selectOffer(offer.id)}
                         onApprove={() => tryApproveFromList(offer)}
                         onReject={() => tryRejectFromList(offer)}
-                        onConfirmLinkAndApprove={() => confirmLinkAndApproveFromList(offer)}
-                        onDismissLinkGate={() => setLinkGateId(null)}
+                        onConfirmLinkAndApprove={() => tryApproveFromList(offer)}
+                        onDismissLinkGate={() => {}}
                       />
                     </div>
                   </li>
@@ -1240,14 +1306,8 @@ export default function ModerationPendingPanel({
             </section>
 
             {/* Panel de detalle (derecha) */}
-            <aside className={`sticky top-[4.5rem] flex max-h-[calc(100dvh-5.5rem)] min-h-0 min-w-0 flex-col overflow-hidden ${ui.card}`}>
-              <div className={`flex items-center justify-between border-b px-4 py-3 ${ui.hairline}`}>
-                <h3 className={`text-sm font-semibold ${ui.title}`}>Detalles de la oferta</h3>
-                <span className={`text-xs tabular-nums ${ui.muted}`}>
-                  {deskList.findIndex((o) => o.id === selectedId) + 1}/{deskList.length}
-                </span>
-              </div>
-              <div className="flex min-h-0 flex-1 flex-col p-3">
+            <aside className={`sticky top-[4.5rem] flex max-h-[calc(100dvh-5.5rem)] min-h-[min(70vh,720px)] min-w-0 flex-col overflow-hidden`}>
+              <div className="flex min-h-0 flex-1 flex-col">
                 {selectedOffer ? (
                   <ModerationOfferDetail
                     mode={mode}
@@ -1255,8 +1315,10 @@ export default function ModerationPendingPanel({
                     similarOffers={similarOffers}
                     qualityCandidate={isQualityCandidate(selectedOffer)}
                     currentUserId={session?.user?.id ?? null}
-                    linkConfirmed={linkConfirmed}
-                    onLinkConfirmedChange={setLinkConfirmed}
+                    productOriginalUrl={selectedOriginalUrl}
+                    moderationLevel={moderationLevel}
+                    queueLabel={`${deskList.findIndex((o) => o.id === selectedId) + 1}/${deskList.length}`}
+                    onAffiliateReadyChange={setAffiliateReady}
                     actionError={actionError}
                     onClearActionError={() => setActionError(null)}
                     requestReject={requestReject}

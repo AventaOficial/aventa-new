@@ -6,3 +6,8 @@ export {
   isResolvedProductOfferUrl,
   storeHasAffiliateProgram,
 } from './assessOfferAffiliateLink';
+export {
+  detectAffiliateStoreLabel,
+  validateAffiliatePaste,
+  type AffiliatePasteValidation,
+} from './validateAffiliatePaste';
