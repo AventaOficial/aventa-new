@@ -121,10 +121,11 @@ const DEAL_STATUS_CONFIG: Record<DealStatus, DealStatusConfig> = {
     headerClassName: 'bg-gray-50/80 dark:bg-[#1a1a1a]/55',
     icon: Archive,
     summary: 'Esta oferta ya no está disponible.',
-    behavior: 'informational',
-    ctaLabel: 'Ver detalle',
+    behavior: 'management',
+    ctaLabel: 'Actualizar oferta',
+    action: 'republish',
     message:
-      'Ya no está visible para la comunidad. Si el producto sigue disponible, publica una nueva oferta.',
+      'Ya no está visible para la comunidad, pero sigue en tu historial. Si el producto sigue disponible, publica una versión actualizada.',
   },
 };
 

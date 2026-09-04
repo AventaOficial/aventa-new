@@ -13,6 +13,7 @@ import {
   communityAuthFailureResponse,
 } from '@/lib/server/requireCommunityUser';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
+import { getUploadCooldownStatus } from '@/lib/server/uploadCooldown';
 
 type OfferInsertPayload = {
   title: string;
@@ -58,6 +59,17 @@ export async function POST(request: Request) {
     }
     const { user, supabase } = authResult;
     const createdBy = user.id;
+
+    const cooldown = await getUploadCooldownStatus(supabase, user);
+    if (!cooldown.canUpload) {
+      return NextResponse.json(
+        {
+          error: `Espera ${cooldown.remainingSeconds}s antes de publicar otra oferta.`,
+          remainingSeconds: cooldown.remainingSeconds,
+        },
+        { status: 429 },
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const parsed = createOfferInputSchema.safeParse(body);

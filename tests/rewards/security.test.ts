@@ -29,6 +29,7 @@ describe('Rewards security invariants', () => {
       '/api/me/rewards/status',
       '/api/me/rewards',
       '/api/me/rewards/welcome-offer',
+      '/api/me/rewards/accept-terms',
     ];
     const adminOnlyMutations = [
       '/api/admin/rewards',

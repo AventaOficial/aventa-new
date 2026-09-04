@@ -24,6 +24,14 @@ export const REWARDS_CLICK_ATTRIBUTION_WINDOW_DAYS = 7;
 /** Versión de términos del programa (alineada con /terms cuando se active). */
 export const REWARDS_TERMS_VERSION = '2026-08-30';
 
+/**
+ * Gates de calidad opcionales (env, desactivados si ausentes):
+ * - REWARDS_MIN_APPROVAL_RATE=0.6
+ * - REWARDS_MIN_ACCOUNT_AGE_DAYS=3
+ * - REWARDS_MIN_DISTINCT_VOTERS=15
+ * Ver lib/rewards/qualitySignals.ts
+ */
+
 export type RewardStatus =
   | 'PENDING'
   | 'VALIDATING'

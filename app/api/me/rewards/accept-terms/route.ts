@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { selectWelcomeOffer } from '@/lib/rewards/unlock';
-import { isValidUuid } from '@/lib/server/validateUuid';
+import { acceptRewardsProgramTerms } from '@/lib/rewards/unlock';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
 
 /**
- * POST: elegir Oferta de Bienvenida (inmutable).
- * Requiere términos vigentes (o acceptTerms: true para aceptar en el mismo paso — legacy).
- * Fase 5 usará este endpoint tras el flujo de términos (Fase 3–4).
+ * POST: aceptar términos del Programa de Recompensas (sección 8).
+ * No confirma welcome offer ni paga nada — solo consentimiento.
+ * Requiere desbloqueo previo (servidor).
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
   if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const rl = await enforceRateLimitCustom(`rewards-welcome:${token.slice(0, 16)}`, 'reports');
+  const rl = await enforceRateLimitCustom(`rewards-accept-terms:${token.slice(0, 16)}`, 'reports');
   if (!rl.success) {
     return NextResponse.json({ error: 'Demasiados intentos' }, { status: 429 });
   }
@@ -27,23 +26,24 @@ export async function POST(request: Request) {
   if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : '';
-  const acceptTerms = body?.acceptTerms === true;
-  if (!offerId || !isValidUuid(offerId)) {
-    return NextResponse.json({ error: 'offerId inválido' }, { status: 400 });
+  if (body?.accept !== true) {
+    return NextResponse.json(
+      { error: 'Debes aceptar los Términos y Condiciones para continuar' },
+      { status: 400 },
+    );
   }
 
-  const result = await selectWelcomeOffer(supabase, user.id, offerId, {
-    acceptTerms: acceptTerms || undefined,
-  });
+  const result = await acceptRewardsProgramTerms(supabase, user.id);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
   return NextResponse.json({
     ok: true,
-    welcomeOfferId: result.welcomeOfferId,
-    selectedAt: result.selectedAt,
+    alreadyAccepted: result.alreadyAccepted,
+    acceptedAt: result.acceptedAt,
     termsVersion: result.termsVersion,
+    /** Fase 3: pendiente de elegir oferta (fase posterior). */
+    claimPhase: 'pending_selection',
   });
 }

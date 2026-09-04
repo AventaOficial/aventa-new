@@ -125,10 +125,14 @@ describe.skipIf(skip)('Staging manual QA — mkgsrpsuvedwwlzmzmzh', () => {
     expect(unlock.unlockedAt).toBeTruthy();
 
     welcomeOfferId = offerIds[0];
-    const sel = await selectWelcomeOffer(supabase, testUserId, welcomeOfferId);
+    const sel = await selectWelcomeOffer(supabase, testUserId, welcomeOfferId, {
+      acceptTerms: true,
+    });
     expect(sel.ok).toBe(true);
 
-    const second = await selectWelcomeOffer(supabase, testUserId, offerIds[1]);
+    const second = await selectWelcomeOffer(supabase, testUserId, offerIds[1], {
+      acceptTerms: true,
+    });
     expect(second.ok).toBe(false);
     if (!second.ok) expect(second.status).toBe(409);
 

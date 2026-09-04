@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   REWARDS_REQUIRED_APPROVED_OFFERS,
   REWARDS_REQUIRED_POSITIVE_VOTES,
+  REWARDS_TERMS_VERSION,
 } from '@/lib/rewards/config';
 
 export type RewardsProgress = {
@@ -19,6 +20,18 @@ export type RewardsMembership = RewardsProgress & {
   welcomeOfferId: string | null;
   welcomeOfferSelectedAt: string | null;
   needsWelcomeSelection: boolean;
+  needsTermsAcceptance: boolean;
+  rewardsTermsAcceptedAt: string | null;
+  rewardsTermsVersion: string | null;
+  termsCurrent: boolean;
+  /**
+   * Fase del claim de bienvenida (derivada en servidor).
+   * - locked: no cumple requisitos
+   * - unlocked: desbloqueó, aún no aceptó términos
+   * - pending_selection: términos OK, falta elegir oferta (fase posterior)
+   * - complete: welcome offer elegida
+   */
+  claimPhase: 'locked' | 'unlocked' | 'pending_selection' | 'complete';
 };
 
 function isMissingRewardsColumn(error: { message?: string; code?: string } | null): boolean {
@@ -27,6 +40,7 @@ function isMissingRewardsColumn(error: { message?: string; code?: string } | nul
     error?.code === 'PGRST204' ||
     msg.includes('reward_program_unlocked_at') ||
     msg.includes('welcome_offer_id') ||
+    msg.includes('rewards_terms') ||
     msg.includes('schema cache')
   );
 }
@@ -106,10 +120,14 @@ export async function getRewardsMembershipFields(
   rewardProgramUnlockedAt: string | null;
   welcomeOfferId: string | null;
   welcomeOfferSelectedAt: string | null;
+  rewardsTermsAcceptedAt: string | null;
+  rewardsTermsVersion: string | null;
 }> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('reward_program_unlocked_at, welcome_offer_id, welcome_offer_selected_at')
+    .select(
+      'reward_program_unlocked_at, welcome_offer_id, welcome_offer_selected_at, rewards_terms_accepted_at, rewards_terms_version',
+    )
     .eq('id', userId)
     .maybeSingle();
 
@@ -121,6 +139,8 @@ export async function getRewardsMembershipFields(
       rewardProgramUnlockedAt: null,
       welcomeOfferId: null,
       welcomeOfferSelectedAt: null,
+      rewardsTermsAcceptedAt: null,
+      rewardsTermsVersion: null,
     };
   }
 
@@ -128,12 +148,16 @@ export async function getRewardsMembershipFields(
     reward_program_unlocked_at?: string | null;
     welcome_offer_id?: string | null;
     welcome_offer_selected_at?: string | null;
+    rewards_terms_accepted_at?: string | null;
+    rewards_terms_version?: string | null;
   };
 
   return {
     rewardProgramUnlockedAt: row.reward_program_unlocked_at ?? null,
     welcomeOfferId: row.welcome_offer_id ?? null,
     welcomeOfferSelectedAt: row.welcome_offer_selected_at ?? null,
+    rewardsTermsAcceptedAt: row.rewards_terms_accepted_at ?? null,
+    rewardsTermsVersion: row.rewards_terms_version ?? null,
   };
 }
 
@@ -144,9 +168,25 @@ export async function getRewardsMembership(
   const progress = await getRewardsProgress(supabase, userId);
   const fields = await getRewardsMembershipFields(supabase, userId);
   const unlocked = Boolean(fields.rewardProgramUnlockedAt);
+  const termsCurrent =
+    Boolean(fields.rewardsTermsAcceptedAt) &&
+    fields.rewardsTermsVersion === REWARDS_TERMS_VERSION;
+
+  let claimPhase: RewardsMembership['claimPhase'] = 'locked';
+  if (unlocked && fields.welcomeOfferId) {
+    claimPhase = 'complete';
+  } else if (unlocked && termsCurrent) {
+    claimPhase = 'pending_selection';
+  } else if (unlocked) {
+    claimPhase = 'unlocked';
+  }
+
   return {
     ...progress,
     ...fields,
-    needsWelcomeSelection: unlocked && !fields.welcomeOfferId,
+    needsWelcomeSelection: unlocked && termsCurrent && !fields.welcomeOfferId,
+    needsTermsAcceptance: unlocked && !termsCurrent,
+    termsCurrent,
+    claimPhase,
   };
 }

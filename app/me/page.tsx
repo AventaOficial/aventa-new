@@ -9,6 +9,9 @@ import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
 import ReputationBar from '@/app/components/ReputationBar';
 import RewardsProgramPanel from '@/app/me/RewardsProgramPanel';
+import HunterActivitySummary from '@/app/me/HunterActivitySummary';
+import PublicHallazgosSection from '@/app/me/PublicHallazgosSection';
+import MyRewardsHistory from '@/app/me/MyRewardsHistory';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -256,10 +259,19 @@ function MePageInner() {
     () => (statusFilter === 'all' ? offers : offers.filter((offer) => offer.dealStatus === statusFilter)),
     [offers, statusFilter],
   );
-  const publicOffers = useMemo(
-    () => offers.filter((o) => o.dealStatus === 'approved'),
-    [offers],
-  );
+  const totalViews = useMemo(() => {
+    if (!ownerMetricsByOffer) return 0;
+    return Object.values(ownerMetricsByOffer).reduce((sum, m) => sum + (m.views ?? 0), 0);
+  }, [ownerMetricsByOffer]);
+
+  const handleRepublish = (offer: MappedOffer) => {
+    const params = new URLSearchParams({ upload: '1' });
+    if (offer.title) params.set('title', offer.title);
+    if (offer.offerUrl) params.set('offer_url', offer.offerUrl);
+    if (offer.brand) params.set('store', offer.brand);
+    if (offer.image) params.set('image', offer.image);
+    router.push(`/?${params.toString()}`);
+  };
 
   if (loading) {
     return (
@@ -404,46 +416,15 @@ function MePageInner() {
                 <RewardsProgramPanel />
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Ofertas publicadas
-                  </p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {metrics.totalOffers}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Votos positivos
-                  </p>
-                  <p className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">
-                    {metrics.positiveVotesTotal}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Comentarios
-                  </p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {metrics.commentsCount}
-                  </p>
-                  <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500 leading-snug">
-                    En tus ofertas (aprobados).
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Personas que reaccionaron
-                  </p>
-                  <p className="mt-1 text-2xl font-bold text-violet-600 dark:text-violet-400">
-                    {metrics.cazadoresAyudados}
-                  </p>
-                  <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500 leading-snug">
-                    Votos positivos o clics a tienda en tus ofertas (sin contarte a ti).
-                  </p>
-                </div>
-              </div>
+              <HunterActivitySummary
+                published={statusCounts.all}
+                approved={statusCounts.approved}
+                pending={statusCounts.pending}
+                rejected={statusCounts.rejected}
+                positiveVotes={metrics.positiveVotesTotal}
+                comments={metrics.commentsCount}
+                views={totalViews}
+              />
 
               <div className="mb-4 flex flex-col gap-3">
                 <div>
@@ -528,6 +509,11 @@ function MePageInner() {
                       offerScope={offer.offerScope ?? null}
                       dealStatus={offer.dealStatus}
                       rejectionReason={offer.rejectionReason}
+                      onManagementAction={
+                        offer.dealStatus === 'expired'
+                          ? () => handleRepublish(offer)
+                          : undefined
+                      }
                       ownerMetrics={
                         ownerMetricsByOffer
                           ? (ownerMetricsByOffer[offer.id] ?? {
@@ -542,64 +528,22 @@ function MePageInner() {
                   ))
                 )}
               </div>
+
+              <MyRewardsHistory />
             </>
           ) : (
-            <>
-              <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    Lo que ha subido
-                  </h2>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    Solo ofertas activas, como en tu perfil público.
-                  </p>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 tabular-nums">
-                  {publicOffers.length} activa{publicOffers.length === 1 ? '' : 's'}
-                </p>
-              </div>
-              <div className="space-y-4 md:space-y-6">
-                {publicOffers.length === 0 ? (
-                  <div className="py-10 text-center space-y-3">
-                    <p className="text-gray-600 dark:text-gray-300">
-                      Nada publicado. ¿Cazamos una oferta?
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Cuando aprueben una, aparecerá aquí como te ven los demás.
-                    </p>
-                  </div>
-                ) : (
-                  publicOffers.map((offer) => (
-                    <OfferCard
-                      key={offer.id}
-                      offerId={offer.id}
-                      title={offer.title}
-                      brand={offer.brand}
-                      originalPrice={offer.originalPrice}
-                      discountPrice={offer.discountPrice}
-                      discount={offer.discount}
-                      description={offer.description}
-                      image={offer.image}
-                      upvotes={offer.upvotes}
-                      downvotes={offer.downvotes}
-                      votes={offer.votes}
-                      offerUrl={offer.offerUrl}
-                      author={offer.author}
-                      onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
-                      onVoteChange={handleVoteChange}
-                      userVote={voteMap[offer.id] ?? null}
-                      userVoteStoredValue={voteValueMap[offer.id] ?? null}
-                      isLiked={!!favoriteMap[offer.id]}
-                      createdAt={offer.createdAt}
-                      msiMonths={offer.msiMonths}
-                      bankCoupon={offer.bankCoupon}
-                      coupons={offer.coupons}
-                      offerScope={offer.offerScope ?? null}
-                    />
-                  ))
-                )}
-              </div>
-            </>
+            <PublicHallazgosSection
+              offers={offers}
+              voteMap={voteMap}
+              voteValueMap={voteValueMap}
+              favoriteMap={favoriteMap}
+              onVoteChange={handleVoteChange}
+              onOfferClick={(offer) => router.push(buildOfferPublicPath(offer.id, offer.title))}
+              approvedCount={statusCounts.approved}
+              expiredCount={statusCounts.expired}
+              rejectedCount={statusCounts.rejected}
+              positiveVotesTotal={metrics.positiveVotesTotal}
+            />
           )}
 
           <div className="h-24 md:h-0" />
