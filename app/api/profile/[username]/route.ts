@@ -20,6 +20,7 @@ type OfferRow = {
   bank_coupon?: string | null;
   coupons?: string | null;
   created_at?: string | null;
+  expires_at?: string | null;
   upvotes_count?: number | null;
   downvotes_count?: number | null;
   ranking_momentum?: number | null;
@@ -80,7 +81,6 @@ export async function GET(
 
   const displayName = (profile as { display_name?: string | null }).display_name?.trim() || 'Usuario';
 
-  const nowISO = new Date().toISOString();
   const profileId = (profile as { id: string }).id;
 
   let reputation_level = 1;
@@ -102,12 +102,11 @@ export async function GET(
   const { data: rows, error: offersError } = await supabase
     .from('offers')
     .select(
-      'id, title, price, original_price, image_url, image_urls, store, offer_url, description, steps, conditions, msi_months, bank_coupon, coupons, created_at, upvotes_count, downvotes_count, ranking_momentum'
+      'id, title, price, original_price, image_url, image_urls, store, offer_url, description, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum'
     )
     .eq('created_by', profileId)
     .is('deleted_at', null)
     .or('status.eq.approved,status.eq.published')
-    .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
     .order('created_at', { ascending: false });
 
   if (offersError) {
@@ -121,6 +120,10 @@ export async function GET(
     userId: profileId,
   };
   let totalScore = 0;
+  let activeCount = 0;
+  let expiredCount = 0;
+  const nowMs = Date.now();
+
   const offers = (rows ?? []).map((row: OfferRow) => {
     const { up, down, score: fallbackScore } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
     const score =
@@ -140,6 +143,12 @@ export async function GET(
     const msiOk =
       msiMonths != null && Number.isFinite(msiMonths) && msiMonths >= 1 ? msiMonths : undefined;
     const imageUrls = Array.isArray(row.image_urls) ? row.image_urls : undefined;
+    const expired =
+      Boolean(row.expires_at) && new Date(row.expires_at as string).getTime() < nowMs;
+    const dealStatus: 'approved' | 'expired' = expired ? 'expired' : 'approved';
+    if (expired) expiredCount += 1;
+    else activeCount += 1;
+
     return {
       id: row.id,
       title: row.title,
@@ -157,6 +166,8 @@ export async function GET(
       conditions: row.conditions?.trim() || undefined,
       offerScope: parseOfferScopeFromConditions(row.conditions),
       createdAt: row.created_at ?? null,
+      expiresAt: row.expires_at ?? null,
+      dealStatus,
       msiMonths: msiOk,
       bankCoupon: row.bank_coupon?.trim() || undefined,
       coupons: row.coupons?.trim() || undefined,
@@ -173,6 +184,8 @@ export async function GET(
       reputation_score,
     },
     offersCount: offers.length,
+    activeCount,
+    expiredCount,
     totalScore,
     offers,
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { User } from 'lucide-react';
@@ -19,6 +19,34 @@ import {
 } from '@/lib/offers/batchUserData';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 
+type DealStatus = 'approved' | 'expired';
+
+type ProfileOffer = {
+  id: string;
+  title: string;
+  brand: string;
+  originalPrice: number;
+  discountPrice: number;
+  discount: number;
+  description?: string;
+  upvotes: number;
+  downvotes: number;
+  offerUrl: string;
+  image?: string;
+  createdAt?: string | null;
+  expiresAt?: string | null;
+  dealStatus?: DealStatus;
+  msiMonths?: number | null;
+  bankCoupon?: string | null;
+  coupons?: string | null;
+  steps?: string;
+  conditions?: string;
+  offerScope?: 'online' | 'in_store' | null;
+  imageUrls?: string[];
+  votes: { up: number; down: number; score: number };
+  author: { username: string; avatar_url?: string | null; userId?: string | null; slug?: string | null };
+};
+
 type ProfileData = {
   profile: {
     username: string;
@@ -27,31 +55,17 @@ type ProfileData = {
     reputation_score?: number;
   };
   offersCount: number;
+  activeCount?: number;
+  expiredCount?: number;
   totalScore: number;
-  offers: {
-    id: string;
-    title: string;
-    brand: string;
-    originalPrice: number;
-    discountPrice: number;
-    discount: number;
-    description?: string;
-    upvotes: number;
-    downvotes: number;
-    offerUrl: string;
-    image?: string;
-    createdAt?: string | null;
-    msiMonths?: number | null;
-    bankCoupon?: string | null;
-    coupons?: string | null;
-    steps?: string;
-    conditions?: string;
-    offerScope?: 'online' | 'in_store' | null;
-    imageUrls?: string[];
-    votes: { up: number; down: number; score: number };
-    author: { username: string; avatar_url?: string | null; userId?: string | null; slug?: string | null };
-  }[];
+  offers: ProfileOffer[];
 };
+
+const FILTERS: Array<{ value: 'all' | DealStatus; label: string }> = [
+  { value: 'all', label: 'Todas' },
+  { value: 'approved', label: 'Activas' },
+  { value: 'expired', label: 'Expiradas' },
+];
 
 export default function ProfilePage() {
   useTheme();
@@ -67,6 +81,8 @@ export default function ProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [data, setData] = useState<ProfileData | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | DealStatus>('all');
+
   const setOffers = useCallback(
     (updater: React.SetStateAction<ProfileData['offers']>) => {
       setData((prev) =>
@@ -129,6 +145,12 @@ export default function ProfilePage() {
         if (cancelled) return;
         setData(json);
         setNotFound(false);
+        // Si no hay activas pero sí historial, abrir en Expiradas.
+        if ((json.activeCount ?? 0) === 0 && (json.expiredCount ?? 0) > 0) {
+          setStatusFilter('expired');
+        } else {
+          setStatusFilter('all');
+        }
       } catch {
         if (cancelled) return;
         setData(null);
@@ -144,6 +166,12 @@ export default function ProfilePage() {
       cancelled = true;
     };
   }, [username]);
+
+  const filteredOffers = useMemo(() => {
+    if (!data?.offers) return [];
+    if (statusFilter === 'all') return data.offers;
+    return data.offers.filter((o) => (o.dealStatus ?? 'approved') === statusFilter);
+  }, [data?.offers, statusFilter]);
 
   if (loading) {
     return (
@@ -202,7 +230,7 @@ export default function ProfilePage() {
     );
   }
 
-  const { profile, offersCount, totalScore, offers } = data;
+  const { profile, offersCount, totalScore, offers, activeCount = 0, expiredCount = 0 } = data;
 
   const handleVoteChange = (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => {
     setVoteMap((prev) => {
@@ -246,7 +274,8 @@ export default function ProfilePage() {
                   @{profile.username}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{offersCount} ofertas publicadas</span>
+                  <span>{offersCount} hallazgos</span>
+                  <span>{activeCount} activas</span>
                   <span>Puntos: {totalScore}</span>
                 </div>
               </div>
@@ -259,63 +288,114 @@ export default function ProfilePage() {
             </div>
           </motion.div>
 
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Lo que ha subido
-            </h2>
+          <div className="mb-8 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                Sus hallazgos
+              </h2>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                Historial público. Las expiradas siguen contando como contribución.
+              </p>
+            </div>
+
+            <div
+              className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-1.5"
+              role="tablist"
+              aria-label="Filtrar hallazgos"
+            >
+              {FILTERS.map((f) => {
+                const selected = statusFilter === f.value;
+                const count =
+                  f.value === 'all'
+                    ? offersCount
+                    : f.value === 'approved'
+                      ? activeCount
+                      : expiredCount;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setStatusFilter(f.value)}
+                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                      selected
+                        ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                    }`}
+                  >
+                    {f.label}
+                    <span className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-gray-400'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: 'easeInOut' }}
               className="space-y-4 md:space-y-6"
             >
-              {offers.length === 0 ? (
+              {filteredOffers.length === 0 ? (
                 <p className="py-6 text-center text-gray-500 dark:text-gray-400">
-                  Sin ofertas publicadas aún.
+                  {offers.length === 0
+                    ? 'Sin hallazgos publicados aún.'
+                    : 'No hay ofertas en este filtro.'}
                 </p>
               ) : (
-                offers.map((offer, index) => (
-                  <motion.div
-                    key={offer.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05, ease: 'easeInOut' }}
-                    className="offer-card"
-                  >
-                    <OfferCard
-                      offerId={offer.id}
-                      title={offer.title}
-                      brand={offer.brand}
-                      originalPrice={offer.originalPrice}
-                      discountPrice={offer.discountPrice}
-                      discount={offer.discount}
-                      description={offer.description}
-                      image={offer.image}
-                      upvotes={offer.upvotes}
-                      downvotes={offer.downvotes}
-                      votes={offer.votes}
-                      offerUrl={offer.offerUrl}
-                      author={offer.author}
-                      onCardClick={() => router.push(buildOfferPublicPath(offer.id, offer.title))}
-                      onVoteChange={handleVoteChange}
-                      userVote={voteMap[offer.id] ?? null}
-                      userVoteStoredValue={voteValueMap[offer.id] ?? null}
-                      isLiked={!!favoriteMap[offer.id]}
-                      createdAt={offer.createdAt}
-                      msiMonths={offer.msiMonths}
-                      bankCoupon={offer.bankCoupon}
-                      coupons={offer.coupons}
-                      offerScope={offer.offerScope ?? null}
-                    />
-                  </motion.div>
-                ))
+                filteredOffers.map((offer, index) => {
+                  const dealStatus = offer.dealStatus ?? 'approved';
+                  return (
+                    <motion.div
+                      key={offer.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05, ease: 'easeInOut' }}
+                      className="offer-card"
+                    >
+                      <OfferCard
+                        offerId={offer.id}
+                        title={offer.title}
+                        brand={offer.brand}
+                        originalPrice={offer.originalPrice}
+                        discountPrice={offer.discountPrice}
+                        discount={offer.discount}
+                        description={offer.description}
+                        image={offer.image}
+                        upvotes={offer.upvotes}
+                        downvotes={offer.downvotes}
+                        votes={offer.votes}
+                        offerUrl={offer.offerUrl}
+                        author={offer.author}
+                        onCardClick={
+                          dealStatus === 'approved'
+                            ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
+                            : undefined
+                        }
+                        onVoteChange={handleVoteChange}
+                        userVote={voteMap[offer.id] ?? null}
+                        userVoteStoredValue={voteValueMap[offer.id] ?? null}
+                        isLiked={!!favoriteMap[offer.id]}
+                        createdAt={offer.createdAt}
+                        expiresAt={offer.expiresAt}
+                        msiMonths={offer.msiMonths}
+                        bankCoupon={offer.bankCoupon}
+                        coupons={offer.coupons}
+                        offerScope={offer.offerScope ?? null}
+                        dealStatus={dealStatus}
+                      />
+                    </motion.div>
+                  );
+                })
               )}
             </motion.div>
           </div>
 
           <div className="h-24 md:h-0" />
         </section>
-
       </div>
     </ClientLayout>
   );

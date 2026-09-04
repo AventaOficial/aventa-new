@@ -414,7 +414,22 @@ export default function OfferCard({
         : 0;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const personalCouponTrim = coupons?.trim() ?? '';
-  const statusConfig = dealStatus ? DEAL_STATUS_CONFIG[dealStatus] : null;
+  const statusConfig = dealStatus
+    ? (() => {
+        const base = DEAL_STATUS_CONFIG[dealStatus];
+        if (base.behavior === 'management' && !onManagementAction) {
+          return {
+            ...base,
+            behavior: 'informational' as const,
+            message:
+              dealStatus === 'expired'
+                ? 'Esta oferta ya no está vigente, pero forma parte del historial del cazador.'
+                : base.message,
+          };
+        }
+        return base;
+      })()
+    : null;
   const StatusIcon = statusConfig?.icon;
   const canNavigateToPublicOffer = !statusConfig || statusConfig.behavior === 'public';
 
