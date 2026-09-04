@@ -239,6 +239,8 @@ export default function OfferCard({
 
   useEffect(() => {
     if (isTesterOffer || !offerId || offerId.startsWith('tester-')) return;
+    // Solo contar vistas de ofertas públicas vigentes (no pending/rejected/expired).
+    if (dealStatus && dealStatus !== 'approved') return;
     if (!cardRef.current) return;
     if (typeof sessionStorage === 'undefined') return;
     const key = `view:${offerId}`;
@@ -282,7 +284,7 @@ export default function OfferCard({
       if (timeoutId) clearTimeout(timeoutId);
       observer.disconnect();
     };
-  }, [isTesterOffer, offerId, session?.access_token]);
+  }, [isTesterOffer, offerId, session?.access_token, dealStatus]);
 
   useEffect(() => {
     setLocalScore(baseScore);

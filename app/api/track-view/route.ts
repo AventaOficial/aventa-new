@@ -20,7 +20,8 @@ export async function POST(request: Request) {
     }
 
     if (!(await isOfferTrackable(offerId))) {
-      return new NextResponse(null, { status: 404 });
+      // No trackeable (expirada / no pública): silencio 204 para no ensuciar la consola.
+      return new NextResponse(null, { status: 204 });
     }
 
     let userId: string | null = null;
