@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { hasCurrentLegalConsent } from '@/lib/server/legalConsent';
-import { isUserBanned } from '@/lib/server/isUserBanned';
+import { lookupUserBan } from '@/lib/server/isUserBanned';
 
 export type CommunityUserOptions = {
   /** Requiere email confirmado (OAuth cuenta como verificado). Default: true */
@@ -60,10 +60,13 @@ export async function requireBearerCommunityUser(
   }
 
   if (opts.requireNotBanned) {
-    const banned = await isUserBanned(supabase, user.id);
-    if (banned) {
+    const ban = await lookupUserBan(supabase, user.id);
+    // P1-3: error de ban lookup → fail-closed (no autorizar).
+    if (!ban.ok || ban.banned) {
       return {
-        error: 'Tu cuenta está restringida.',
+        error: !ban.ok
+          ? 'No se pudo verificar el estado de la cuenta. Intenta más tarde.'
+          : 'Tu cuenta está restringida.',
         status: 403,
         code: 'user_banned',
       };

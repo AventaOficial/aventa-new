@@ -9,14 +9,19 @@ export function offerRequiresAffiliateValidation(
   return storeHasAffiliateProgram(url);
 }
 
+/**
+ * Misma barra de afiliado para approve unitario y batch (P1-1).
+ * `batchApprove` ya no bypassa link_mod_ok.
+ */
 export function assertOfferReadyForAffiliateApproval(params: {
   offerUrl: string | null | undefined;
   linkModOk: boolean | null | undefined;
-  batchApprove: boolean;
+  /** @deprecated P1-1: ignorado — batch usa las mismas reglas que single. */
+  batchApprove?: boolean;
   originalProductUrl?: string | null;
 }): { ok: true } | { ok: false; error: string } {
   const rawUrl = params.offerUrl?.trim() ?? '';
-  if (!rawUrl || params.batchApprove) return { ok: true };
+  if (!rawUrl) return { ok: true };
 
   const needsAffiliate = offerRequiresAffiliateValidation(
     params.originalProductUrl ?? params.offerUrl

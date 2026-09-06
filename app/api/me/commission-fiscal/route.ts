@@ -1,21 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import { getCommissionEligibility } from '@/lib/server/commissionEligibility';
 import { saveCommissionFiscalProfile } from '@/lib/server/commissionFiscal';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
 
 /** GET: datos fiscales del usuario para comisiones. POST/PATCH: guardar (solo si elegible o ya activo). */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const auth = await requireBearerMeUser(request);
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
   const status = await getCommissionEligibility(supabase, user.id);
   return NextResponse.json({
@@ -27,21 +20,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const auth = await requireBearerMeUser(request, { mutate: true });
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
-  const rl = await enforceRateLimitCustom(`commission-fiscal:${token.slice(0, 16)}`, 'reports');
+  const rl = await enforceRateLimitCustom(`commission-fiscal:${user.id}`, 'reports');
   if (!rl.success) {
     return NextResponse.json({ error: 'Demasiados intentos. Espera un momento.' }, { status: 429 });
   }
-
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const eligibility = await getCommissionEligibility(supabase, user.id);
   if (!eligibility.eligible && !eligibility.acceptedAt) {

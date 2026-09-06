@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 
 /**
  * GET: métricas agregadas para /me — votos positivos totales, comentarios en tus ofertas,
  * y cazadores ayudados (usuarios distintos que votaron arriba o hicieron clic "cazar" en tus ofertas).
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-  const supabase = createServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const auth = await requireBearerMeUser(request);
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
   const uid = user.id;
 

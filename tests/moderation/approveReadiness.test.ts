@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness';
 
-describe('assertOfferReadyForAffiliateApproval', () => {
+describe('assertOfferReadyForAffiliateApproval (P1-1)', () => {
   const mlUrl = 'https://articulo.mercadolibre.com.mx/MLM-1234567890-test';
   const envBackup = { ...process.env };
 
@@ -34,10 +34,20 @@ describe('assertOfferReadyForAffiliateApproval', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('batch approve mantiene bypass documentado', () => {
+  it('P1-1 — batch approve NO bypassa link_mod_ok', () => {
     const result = assertOfferReadyForAffiliateApproval({
       offerUrl: mlUrl,
       linkModOk: false,
+      batchApprove: true,
+      originalProductUrl: mlUrl,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('P1-1 — batch con link_mod_ok pasa', () => {
+    const result = assertOfferReadyForAffiliateApproval({
+      offerUrl: mlUrl,
+      linkModOk: true,
       batchApprove: true,
       originalProductUrl: mlUrl,
     });

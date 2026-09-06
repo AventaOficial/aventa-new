@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
-import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
+import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { isValidUuid } from '@/lib/server/validateUuid';
 
 export type HourlyBucket = {
@@ -26,29 +26,17 @@ export async function GET(
       return NextResponse.json({ error: 'offerId inválido' }, { status: 400 });
     }
 
-    const ip = getClientIp(request);
-    const rl = await enforceRateLimitCustom(ip, 'events');
+    const auth = await requireBearerMeUser(request);
+    if ('error' in auth) return meAuthFailureResponse(auth);
+    const { user, supabase } = auth;
+
+    const rl = await enforceRateLimitCustom(user.id, 'events');
     if (!rl.success) {
       return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 });
     }
 
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    const userId = user.id;
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !anonKey) return NextResponse.json({ error: 'Config error' }, { status: 500 });
-
-    const userRes = await fetch(`${url}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-    });
-    if (!userRes.ok) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    const userData = await userRes.json().catch(() => null);
-    const userId = userData?.id as string | undefined;
-    if (!userId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-    const supabase = createServerClient();
     const { data: offer, error: offerErr } = await supabase
       .from('offers')
       .select('id, title, created_by, upvotes_count, status, created_at, expires_at')

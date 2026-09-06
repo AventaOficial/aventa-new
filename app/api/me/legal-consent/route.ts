@@ -1,24 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import { LEGAL_CONSENT_VERSION } from '@/lib/legal/constants';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 /** POST: registrar aceptación de Términos y Privacidad (registro u OAuth). */
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
-  }
+  const auth = await requireBearerMeUser(request, { mutate: true });
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
   const rl = await enforceRateLimit(`legal-consent:${user.id}`);
   if (!rl.success) {

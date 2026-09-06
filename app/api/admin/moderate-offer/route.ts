@@ -115,7 +115,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: readiness.error }, { status: 400 })
       }
 
-      if (rawUrl && linkModOk && !batchApprove) {
+      if (rawUrl && linkModOk) {
         const pasteCheck = validateAffiliatePaste(originalForApproval, rawUrl)
         if (!pasteCheck.valid) {
           return NextResponse.json(
@@ -149,7 +149,8 @@ export async function POST(request: Request) {
         // el producto (link_mod_ok), no bloqueamos: guardamos lo mejor que haya.
         const normalized = await resolveAndNormalizeAffiliateOfferUrl(rawUrl)
         const isProduct = isResolvedProductOfferUrl(normalized)
-        if (!isProduct && !batchApprove && !linkModOk) {
+        // P1-1: misma regla product URL para single y batch (sin bypass batch).
+        if (!isProduct && !linkModOk) {
           return NextResponse.json(
             {
               error:
@@ -164,9 +165,8 @@ export async function POST(request: Request) {
           payload.offer_url = normalized
         }
       }
-      if (!batchApprove) {
-        payload.link_mod_ok = rawUrl ? true : null
-      }
+      // P1-1: batch también marca link_mod_ok tras aprobación exitosa.
+      payload.link_mod_ok = rawUrl ? true : null
       let { data: updatedRow, error: updateError } = await supabase
         .from('offers')
         .update(payload)

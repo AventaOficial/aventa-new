@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import {
   COMMISSION_DEFAULT_CREATOR_SHARE_BPS,
   COMMISSION_MIN_PAYOUT_CENTS,
@@ -10,16 +10,9 @@ import {
  * Desglose de comisiones del usuario autenticado (allocations + tags).
  */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const auth = await requireBearerMeUser(request);
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
   const { data: profile } = await supabase
     .from('profiles')

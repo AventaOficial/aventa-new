@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import { getCommissionEligibility } from '@/lib/server/commissionEligibility';
 import { isFiscalProfileComplete } from '@/lib/commissions/fiscal';
 import { getCommissionFiscalProfile } from '@/lib/server/commissionFiscal';
@@ -12,21 +12,14 @@ import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
  * Requiere: elegible + datos fiscales completos + programa activo (env).
  */
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const auth = await requireBearerMeUser(request, { mutate: true });
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
-  const rl = await enforceRateLimitCustom(`commission-accept:${token.slice(0, 16)}`, 'reports');
+  const rl = await enforceRateLimitCustom(`commission-accept:${user.id}`, 'reports');
   if (!rl.success) {
     return NextResponse.json({ error: 'Demasiados intentos. Espera un momento.' }, { status: 429 });
   }
-
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
   const accept = body?.accept === true;

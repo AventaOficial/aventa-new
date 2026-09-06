@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 
 export type OfferOwnerMetrics = {
@@ -14,7 +15,7 @@ export type OfferOwnerMetrics = {
 type RpcRow = { offer_id: string; event_type: string; ct: number | string };
 
 async function countsViaHeadQueries(
-  supabase: ReturnType<typeof createServerClient>,
+  supabase: SupabaseClient,
   offerIds: string[]
 ): Promise<Record<string, OfferOwnerMetrics>> {
   const out: Record<string, OfferOwnerMetrics> = {};
@@ -44,17 +45,9 @@ async function countsViaHeadQueries(
 
 /** GET: métricas por oferta (solo el creador); vistas, compartidos, clics en «Cazar oferta». */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const supabase = createServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user?.id) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
+  const auth = await requireBearerMeUser(request);
+  if ('error' in auth) return meAuthFailureResponse(auth);
+  const { user, supabase } = auth;
 
   const rl = await enforceRateLimit(`me-metrics:${user.id}`);
   if (!rl.success) return NextResponse.json({ error: 'Rate limit' }, { status: 429 });

@@ -4,7 +4,7 @@ import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { voteInputSchema } from '@/lib/contracts/votes'
 import { voteWeightPairForLevel, type VoteDirection } from '@/lib/votes/reputationWeights'
-import { isPubliclyVotableOfferStatus } from '@/lib/votes/offerVoteEligibility'
+import { canAcceptNewPublicVote } from '@/lib/votes/offerVoteEligibility'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 import {
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 
     const { data: offerRow, error: offerLookupError } = await supabase
       .from('offers')
-      .select('created_by, status')
+      .select('created_by, status, expires_at')
       .eq('id', offerId)
       .maybeSingle()
     if (offerLookupError) {
@@ -119,7 +119,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Oferta no encontrada' }, { status: 404 })
     }
     const offerStatus = (offerRow as { status?: string | null }).status
-    if (!isPubliclyVotableOfferStatus(offerStatus)) {
+    const expiresAt = (offerRow as { expires_at?: string | null }).expires_at
+    const voteEligibility = canAcceptNewPublicVote({ status: offerStatus, expiresAt })
+    if (!voteEligibility.ok) {
+      if (voteEligibility.reason === 'expired') {
+        return NextResponse.json(
+          { ok: false, error: 'Esta oferta ya expiró y no admite votos' },
+          { status: 403 }
+        )
+      }
       return NextResponse.json(
         { ok: false, error: 'Solo puedes votar ofertas publicadas' },
         { status: 403 }
@@ -132,7 +140,6 @@ export async function POST(request: Request) {
         { status: 403 }
       )
     }
-
     const { data: voterProfile } = await supabase
       .from('profiles')
       .select('reputation_level')

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { isPubliclyVotableOfferStatus } from '../../lib/votes/offerVoteEligibility';
+import {
+  isPubliclyVotableOfferStatus,
+  canAcceptNewPublicVote,
+  isOfferExpiredByExpiresAt,
+} from '../../lib/votes/offerVoteEligibility';
 import { ALLOWED_OFFER_VOTE_VALUES, voteWeightPairForLevel } from '../../lib/votes/reputationWeights';
 
 describe('votos — estados y pesos', () => {
@@ -9,6 +13,18 @@ describe('votos — estados y pesos', () => {
     expect(isPubliclyVotableOfferStatus('expired')).toBe(false);
     expect(isPubliclyVotableOfferStatus('approved')).toBe(true);
     expect(isPubliclyVotableOfferStatus('published')).toBe(true);
+  });
+
+  it('P1-4 — no permite votar oferta approved ya expirada', () => {
+    const now = Date.parse('2026-09-05T12:00:00.000Z');
+    expect(
+      canAcceptNewPublicVote({
+        status: 'approved',
+        expiresAt: '2026-09-01T00:00:00.000Z',
+        nowMs: now,
+      }).ok,
+    ).toBe(false);
+    expect(isOfferExpiredByExpiresAt('2026-09-01T00:00:00.000Z', now)).toBe(true);
   });
 
   it('pesa +2/−1 … +12/−6 y el CHECK los cubre', () => {

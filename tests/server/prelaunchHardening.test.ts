@@ -94,6 +94,20 @@ describe('isUserBanned', () => {
 
     await expect(isUserBanned(supabase, 'user-1')).resolves.toBe(false);
   });
+
+  it('P1-3 — error de DB → fail-closed (true)', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: { message: 'fail' } });
+    const supabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        maybeSingle,
+      }),
+    } as unknown as Parameters<typeof isUserBanned>[0];
+
+    await expect(isUserBanned(supabase, 'user-1')).resolves.toBe(true);
+  });
 });
 
 describe('commentOfferGuard', () => {
