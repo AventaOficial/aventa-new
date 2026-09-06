@@ -71,6 +71,10 @@ export type CreateRewardResult =
 /**
  * Crea recompensa desde una fila de ledger atribuida.
  * No crea si programa inactivo, atribución insuficiente, oferta no participa, o fraude evidente.
+ *
+ * `force: true` es bypass administrativo de `isRewardsProgramActive` únicamente.
+ * NO salta: MONEY_PATH_FROZEN, settlement único (P0-4), self_click, anonymous_click,
+ * participación de oferta, ni montos/void. No es ruta normal de eligibility (P0-1).
  */
 export async function createRewardFromLedgerEntry(
   supabase: SupabaseClient,

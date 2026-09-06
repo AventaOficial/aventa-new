@@ -80,8 +80,8 @@ export default function ComisionesPage() {
             <li>
               <strong className="text-gray-900 dark:text-gray-100">2. Desbloqueas el programa.</strong>{' '}
               Necesitas {REWARDS_REQUIRED_APPROVED_OFFERS} ofertas aprobadas y{' '}
-              {REWARDS_REQUIRED_POSITIVE_VOTES} votos positivos acumulados (suma entre todas tus
-              ofertas). Los votos miden calidad; no generan dinero por sí solos.
+              {REWARDS_REQUIRED_POSITIVE_VOTES} votantes positivos distintos (más antigüedad y tasa
+              de aprobación mínimas). Los votos miden calidad; no generan dinero por sí solos.
             </li>
             <li>
               <strong className="text-gray-900 dark:text-gray-100">3. Eliges tu Oferta de Bienvenida.</strong>{' '}

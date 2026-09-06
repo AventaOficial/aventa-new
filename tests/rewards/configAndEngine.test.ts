@@ -80,7 +80,7 @@ describe('createRewardFromLedgerEntry — programa inactivo', () => {
 
   beforeEach(() => {
     delete process.env.REWARDS_PROGRAM_ACTIVE;
-    process.env.COMMISSION_PROGRAM_ACTIVE = 'false';
+    process.env.COMMISSION_PROGRAM_ACTIVE = 'true'; // legacy ON no debe activar Rewards
   });
 
   afterEach(() => {
@@ -90,7 +90,7 @@ describe('createRewardFromLedgerEntry — programa inactivo', () => {
     else delete process.env.COMMISSION_PROGRAM_ACTIVE;
   });
 
-  it('no crea recompensa cuando COMMISSION_PROGRAM_ACTIVE=false', async () => {
+  it('no crea recompensa cuando REWARDS_PROGRAM_ACTIVE está ausente (aunque COMMISSION=true)', async () => {
     expect(isRewardsProgramActive()).toBe(false);
     const supabase = { from: vi.fn() } as unknown as SupabaseClient;
     const result = await createRewardFromLedgerEntry(supabase, {

@@ -252,7 +252,7 @@ export const GUIDES: GuideMeta[] = [
         subtitle: 'Calidad y comisión real',
         illustration: 'commissions',
         body: [
-          `AVENTA monetiza mediante enlaces de afiliado propios (no eres afiliado de Amazon ni Mercado Libre). Para desbloquear el programa necesitas ${REWARDS_REQUIRED_APPROVED_OFFERS} ofertas aprobadas y ${REWARDS_REQUIRED_POSITIVE_VOTES} votos positivos acumulados. Los votos ayudan al desbloqueo; no generan dinero por sí solos.`,
+          `AVENTA monetiza mediante enlaces de afiliado propios (no eres afiliado de Amazon ni Mercado Libre). Para desbloquear el programa necesitas ${REWARDS_REQUIRED_APPROVED_OFFERS} ofertas aprobadas y ${REWARDS_REQUIRED_POSITIVE_VOTES} votantes positivos distintos (más antigüedad y tasa de aprobación). Los votos ayudan al desbloqueo; no generan dinero por sí solos.`,
           'Tras desbloquear, eliges una Oferta de Bienvenida única. Solo participan esa oferta y las elegibles que publiques después. Una recompensa depende de una comisión real confirmada y atribuible; en Mercado Libre puede requerir revisión manual. No todas las ofertas generan recompensa.',
         ],
         cta: { label: 'Ver mi perfil y recompensas', href: '/me' },

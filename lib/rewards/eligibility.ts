@@ -4,10 +4,12 @@ import {
   REWARDS_REQUIRED_POSITIVE_VOTES,
   REWARDS_TERMS_VERSION,
 } from '@/lib/rewards/config';
+import { countDistinctPositiveVoters } from '@/lib/rewards/qualitySignals';
 
 export type RewardsProgress = {
   approvedOffersCount: number;
   requiredOffers: number;
+  /** Distinct positive voters (no suma de upvotes). */
   positiveVotesTotal: number;
   requiredVotes: number;
   offersProgressMet: boolean;
@@ -63,7 +65,10 @@ export async function countApprovedOffers(
   return count ?? 0;
 }
 
-/** Suma votos positivos acumulados (upvotes_count) en ofertas aprobadas del usuario. */
+/**
+ * @deprecated P0-1: el unlock usa countDistinctPositiveVoters.
+ * Conservado solo para métricas de impacto (suma de upvotes_count), no para eligibility.
+ */
 export async function sumAccumulatedPositiveVotes(
   supabase: SupabaseClient,
   userId: string,
@@ -87,14 +92,14 @@ export async function sumAccumulatedPositiveVotes(
 
 export function computeRewardsProgress(
   approvedOffersCount: number,
-  positiveVotesTotal: number,
+  distinctPositiveVoters: number,
 ): RewardsProgress {
   const offersProgressMet = approvedOffersCount >= REWARDS_REQUIRED_APPROVED_OFFERS;
-  const votesProgressMet = positiveVotesTotal >= REWARDS_REQUIRED_POSITIVE_VOTES;
+  const votesProgressMet = distinctPositiveVoters >= REWARDS_REQUIRED_POSITIVE_VOTES;
   return {
     approvedOffersCount,
     requiredOffers: REWARDS_REQUIRED_APPROVED_OFFERS,
-    positiveVotesTotal,
+    positiveVotesTotal: distinctPositiveVoters,
     requiredVotes: REWARDS_REQUIRED_POSITIVE_VOTES,
     offersProgressMet,
     votesProgressMet,
@@ -106,11 +111,15 @@ export async function getRewardsProgress(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<RewardsProgress> {
-  const [approvedOffersCount, positiveVotesTotal] = await Promise.all([
+  const [approvedOffersCount, distinctResult] = await Promise.all([
     countApprovedOffers(supabase, userId),
-    sumAccumulatedPositiveVotes(supabase, userId),
+    countDistinctPositiveVoters(supabase, userId),
   ]);
-  return computeRewardsProgress(approvedOffersCount, positiveVotesTotal);
+  if (!distinctResult.ok) {
+    // Fail-closed: sin conteo confiable no hay progreso de votos.
+    return computeRewardsProgress(approvedOffersCount, 0);
+  }
+  return computeRewardsProgress(approvedOffersCount, distinctResult.count);
 }
 
 export async function getRewardsMembershipFields(

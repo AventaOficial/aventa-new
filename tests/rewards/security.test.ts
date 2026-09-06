@@ -8,12 +8,16 @@ import { REWARDS_CREATOR_SHARE_BPS, splitCommissionCents } from '../../lib/rewar
  * Estos tests documentan invariantes server-side.
  */
 describe('Rewards security invariants', () => {
-  it('COMMISSION_PROGRAM_ACTIVE permanece false por defecto', () => {
-    const prev = process.env.COMMISSION_PROGRAM_ACTIVE;
-    delete process.env.COMMISSION_PROGRAM_ACTIVE;
+  it('REWARDS ausente → OFF; COMMISSION true no activa Rewards (P0-1)', () => {
+    const prevR = process.env.REWARDS_PROGRAM_ACTIVE;
+    const prevC = process.env.COMMISSION_PROGRAM_ACTIVE;
     delete process.env.REWARDS_PROGRAM_ACTIVE;
+    process.env.COMMISSION_PROGRAM_ACTIVE = 'true';
     expect(isRewardsProgramActive()).toBe(false);
-    if (prev !== undefined) process.env.COMMISSION_PROGRAM_ACTIVE = prev;
+    if (prevR !== undefined) process.env.REWARDS_PROGRAM_ACTIVE = prevR;
+    else delete process.env.REWARDS_PROGRAM_ACTIVE;
+    if (prevC !== undefined) process.env.COMMISSION_PROGRAM_ACTIVE = prevC;
+    else delete process.env.COMMISSION_PROGRAM_ACTIVE;
   });
 
   it('el porcentaje creador viene de config centralizada, no del cliente', () => {

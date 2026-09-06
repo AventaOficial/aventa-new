@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { REWARDS_REQUIRED_APPROVED_OFFERS, REWARDS_TERMS_VERSION } from '@/lib/rewards/config';
 import { getRewardsProgress } from '@/lib/rewards/eligibility';
 import { writeRewardAuditLog } from '@/lib/rewards/audit';
+import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
 import {
   evaluateQualityGates,
   getHunterQualitySignals,
@@ -18,8 +19,9 @@ function isMissingRewardsColumn(error: { message?: string; code?: string } | nul
 }
 
 /**
- * Desbloquea automáticamente si cumple progreso V1 + gates de calidad opcionales.
- * Idempotente: no sobrescribe unlocked_at existente.
+ * Desbloquea automáticamente si programa ON + hard gates V1 (P0-1).
+ * Idempotente: no sobrescribe unlocked_at existente (no revoca unlock histórico si programa OFF).
+ * No crea rewards monetarios — solo marca reward_program_unlocked_at.
  */
 export async function maybeUnlockRewardsProgram(
   supabase: SupabaseClient,
@@ -43,7 +45,17 @@ export async function maybeUnlockRewardsProgram(
   const existing = (profile as { reward_program_unlocked_at?: string | null } | null)
     ?.reward_program_unlocked_at;
   if (existing) {
+    // Unlock histórico se conserva aunque el programa esté OFF (no downgrade automático).
     return { unlocked: true, unlockedAt: existing };
+  }
+
+  // P0-1: nuevos unlocks requieren REWARDS_PROGRAM_ACTIVE explícito (no legacy commissions).
+  if (!isRewardsProgramActive()) {
+    return {
+      unlocked: false,
+      unlockedAt: null,
+      blockedReason: 'program_inactive',
+    };
   }
 
   const progress = await getRewardsProgress(supabase, userId);

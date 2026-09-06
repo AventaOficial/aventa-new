@@ -334,7 +334,7 @@ export default function TermsPage() {
               </span>{' '}
               en estado aprobado o publicado, y al menos{' '}
               <span className="font-semibold">
-                {REWARDS_REQUIRED_POSITIVE_VOTES} votos positivos acumulados
+                {REWARDS_REQUIRED_POSITIVE_VOTES} votantes positivos distintos
               </span>{' '}
               (suma entre todas las ofertas del usuario). Cumplir estos umbrales{' '}
               <span className="font-semibold">no garantiza</span> recompensa monetaria si no

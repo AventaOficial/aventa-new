@@ -124,12 +124,12 @@ export async function GET(
     const { REWARDS_REQUIRED_APPROVED_OFFERS, REWARDS_REQUIRED_POSITIVE_VOTES } = await import(
       '@/lib/rewards/config'
     );
-    const { countApprovedOffers, sumAccumulatedPositiveVotes } = await import(
-      '@/lib/rewards/eligibility'
-    );
+    const { countApprovedOffers } = await import('@/lib/rewards/eligibility');
+    const { countDistinctPositiveVoters } = await import('@/lib/rewards/qualitySignals');
 
     const approvedOffers = await countApprovedOffers(supabase, userId);
-    const positiveVotes = await sumAccumulatedPositiveVotes(supabase, userId);
+    const distinctVoters = await countDistinctPositiveVoters(supabase, userId);
+    const positiveVotes = distinctVoters.ok ? distinctVoters.count : 0;
 
     const offerRow = offer as {
       title: string;
