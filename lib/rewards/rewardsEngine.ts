@@ -24,12 +24,18 @@ export type FraudCheckInput = {
   creatorId: string;
   offerId: string;
   clickerUserId?: string | null;
+  /** Si la atribución se basó en un click concreto. */
+  clickId?: string | null;
 };
 
 export function basicFraudFlags(input: FraudCheckInput): string[] {
   const flags: string[] = [];
   if (input.clickerUserId && input.clickerUserId === input.creatorId) {
     flags.push('self_click');
+  }
+  // P0-2: click anónimo no es auto-rewardable (comprador legítimo puede existir; no auto-liquidar).
+  if (input.clickId && !input.clickerUserId) {
+    flags.push('anonymous_click');
   }
   return flags;
 }
@@ -172,9 +178,13 @@ export async function createRewardFromLedgerEntry(
     creatorId: match.creatorId,
     offerId: match.offerId,
     clickerUserId,
+    clickId: match.clickId,
   });
   if (fraudFlags.includes('self_click')) {
     return { created: false, reason: 'fraud_self_click' };
+  }
+  if (fraudFlags.includes('anonymous_click')) {
+    return { created: false, reason: 'anonymous_click_not_auto_rewardable' };
   }
 
   const { creatorCents, platformCents } = splitCommissionCents(

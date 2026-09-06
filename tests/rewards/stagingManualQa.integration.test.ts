@@ -165,7 +165,7 @@ describe.skipIf(skip)('Staging manual QA — mkgsrpsuvedwwlzmzmzh', () => {
 
     const click = await recordOutboundClick(supabase, {
       offerId: postUnlockOfferId,
-      offerUrl: amazonUrl,
+      clientOfferUrl: amazonUrl,
       clickerUserId: voterIds[1],
     });
     expect(click?.clickId).toBeTruthy();

@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null;
-    const offerUrl = typeof body?.offerUrl === 'string' ? body.offerUrl.trim() : null;
+    // body.offerUrl / userId / clickerUserId: NO son SoT de identidad ni de URL de atribución.
+    // offerUrl del cliente solo lo usa el frontend para abrir la pestaña.
 
     if (!offerId || !isValidUuid(offerId)) {
       return NextResponse.json({ error: 'Invalid offerId' }, { status: 400 });
@@ -58,18 +59,15 @@ export async function POST(request: Request) {
       });
     }
 
-    let clickId: string | null = null;
-    if (offerUrl) {
-      const supabase = createServerClient();
-      const click = await recordOutboundClick(supabase, {
-        offerId,
-        offerUrl,
-        clickerUserId: userId,
-        ip,
-        userAgent: request.headers.get('user-agent'),
-      });
-      clickId = click?.clickId ?? null;
-    }
+    // P0-3: click rewards siempre desde offers.offer_url (DB), no desde body.offerUrl.
+    const supabase = createServerClient();
+    const click = await recordOutboundClick(supabase, {
+      offerId,
+      clickerUserId: userId,
+      ip,
+      userAgent: request.headers.get('user-agent'),
+    });
+    const clickId = click?.clickId ?? null;
 
     return NextResponse.json({ ok: true, clickId, offerId }, { status: 200 });
   } catch (e) {
