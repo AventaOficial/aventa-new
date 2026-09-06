@@ -6,6 +6,7 @@ import {
   type RewardStatus,
 } from '@/lib/rewards/config';
 import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
+import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import { isOfferParticipatingInRewards } from '@/lib/rewards/offerParticipation';
 import {
   resolveCommissionAttribution,
@@ -254,7 +255,11 @@ export async function createRewardFromLedgerEntry(
 /** Mueve recompensas VALIDATING → AVAILABLE cuando venció el hold. */
 export async function processExpiredRewardHolds(
   supabase: SupabaseClient,
-): Promise<{ processed: number }> {
+): Promise<{ processed: number; frozen?: boolean }> {
+  if (isMoneyPathFrozen()) {
+    return { processed: 0, frozen: true };
+  }
+
   const now = new Date().toISOString();
   const { data: rows, error } = await supabase
     .from('creator_rewards')

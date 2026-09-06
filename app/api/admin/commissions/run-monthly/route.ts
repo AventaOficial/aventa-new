@@ -16,6 +16,7 @@ import {
 } from '@/lib/commissions/monthlyPayout';
 import { COMMISSION_TERMS_VERSION } from '@/lib/commissions/constants';
 import { resolveLedgerAttribution } from '@/lib/commissions/resolveAttribution';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 
 function hasMissingTable(error: { message?: string } | null, tableLike: string): boolean {
   const m = (error?.message ?? '').toLowerCase();
@@ -26,6 +27,10 @@ function hasMissingTable(error: { message?: string } | null, tableLike: string):
 export async function POST(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const period = typeof body?.period === 'string' ? body.period : '';

@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { REWARDS_MIN_PAYOUT_CENTS } from '@/lib/rewards/config';
 import { getUserRewardBalances } from '@/lib/rewards/rewardsEngine';
+import {
+  isMoneyPathFrozen,
+  MONEY_PATH_FROZEN_CODE,
+  MONEY_PATH_FROZEN_MESSAGE,
+} from '@/lib/server/moneyPathFreeze';
 
 export type CreatePayoutInput = {
   userId: string;
@@ -54,6 +59,10 @@ export async function createManualRewardPayout(
   supabase: SupabaseClient,
   input: CreatePayoutInput,
 ): Promise<CreatePayoutResult> {
+  if (isMoneyPathFrozen()) {
+    return { ok: false, error: `${MONEY_PATH_FROZEN_MESSAGE} [${MONEY_PATH_FROZEN_CODE}]`, status: 503 };
+  }
+
   const spei = input.speiReference?.trim();
   if (!spei || spei.length < 4) {
     return { ok: false, error: 'Referencia SPEI obligatoria', status: 400 };

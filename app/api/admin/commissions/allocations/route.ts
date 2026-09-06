@@ -8,6 +8,7 @@ import {
 import { evaluatePayoutReadiness, maskClabe, maskRfc } from '@/lib/commissions/fraudSignals';
 import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
 import { COMMISSION_TERMS_VERSION } from '@/lib/commissions/constants';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 
 function hasMissingTable(error: { message?: string } | null, tableLike: string): boolean {
   const m = (error?.message ?? '').toLowerCase();
@@ -129,6 +130,10 @@ export async function PATCH(request: Request) {
   }
   if (status !== 'pending' && status !== 'paid' && status !== 'void') {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
+  }
+
+  if (status === 'paid' && isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
   }
 
   const supabase = createServerClient();
