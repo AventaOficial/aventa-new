@@ -5,6 +5,7 @@ import { Heart, Flame, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
+import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import StoreBrandMark from './StoreBrandMark';
 
 const formatPrice = (value: number) =>
@@ -42,6 +43,7 @@ export default function FeaturedOfferCard({
 }: FeaturedOfferCardProps) {
   const { session } = useAuth();
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
+  const [favoritePending, setFavoritePending] = useState(false);
   const isLiked = localLiked !== null ? localLiked : isLikedProp;
   const discountPct =
     discount > 0
@@ -76,30 +78,22 @@ export default function FeaturedOfferCard({
           type="button"
           onClick={async (e) => {
             e.stopPropagation();
-            if (isTesterOffer || !offerId || !session) return;
+            if (isTesterOffer || !offerId || !session || favoritePending) return;
             const prev = isLiked;
+            setFavoritePending(true);
             setLocalLiked(!prev);
             onFavoriteChange?.(!prev);
-            const supabase = createClient();
-            if (prev) {
-              const { error } = await supabase
-                .from('offer_favorites')
-                .delete()
-                .eq('offer_id', offerId)
-                .eq('user_id', session.user.id);
-              if (error) {
-                setLocalLiked(prev);
-                onFavoriteChange?.(prev);
-              }
-            } else {
-              const { error } = await supabase.from('offer_favorites').insert({
-                user_id: session.user.id,
-                offer_id: offerId,
+            try {
+              const result = await applyFavoriteToggle({
+                client: createClient(),
+                userId: session.user.id,
+                offerId,
+                wasFavorite: prev,
               });
-              if (error) {
-                setLocalLiked(prev);
-                onFavoriteChange?.(prev);
-              }
+              setLocalLiked(result.isFavorite);
+              onFavoriteChange?.(result.isFavorite);
+            } finally {
+              setFavoritePending(false);
             }
           }}
           className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-400 dark:bg-[#141414]/90"

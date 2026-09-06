@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { claimedJobRows } from '../../lib/server/writeQueue';
+import {
+  claimedJobRows,
+  resolveFailureStatus,
+  WRITE_JOB_MAX_ATTEMPTS,
+} from '../../lib/server/writeQueue';
 
 describe('claimedJobRows', () => {
   it('solo procesa jobs realmente reclamados', () => {
@@ -12,5 +16,10 @@ describe('claimedJobRows', () => {
   it('ignora ids extra que no estaban en el lote pedido', () => {
     const requested = [{ id: 10 }];
     expect(claimedJobRows(requested, [{ id: 10 }, { id: 99 }])).toEqual([{ id: 10 }]);
+  });
+
+  it('max attempts no reabre forever', () => {
+    expect(resolveFailureStatus(WRITE_JOB_MAX_ATTEMPTS).status).toBe('failed');
+    expect(resolveFailureStatus(1).status).toBe('pending');
   });
 });

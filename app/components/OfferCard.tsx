@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
+import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -228,6 +229,7 @@ export default function OfferCard({
   const [localScore, setLocalScore] = useState(() => scoreFromFeed);
   const [imgError, setImgError] = useState(false);
   const [votePending, setVotePending] = useState(false);
+  const [favoritePending, setFavoritePending] = useState(false);
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false);
 
   const baseScore = scoreFromFeed;
@@ -297,30 +299,22 @@ export default function OfferCard({
       router.push('/');
       return;
     }
-    if (!offerId) return;
+    if (!offerId || favoritePending) return;
     const prev = isLiked;
+    setFavoritePending(true);
     setLocalLiked(!prev);
     if (onFavoriteChange) onFavoriteChange(!prev);
-    const supabase = createClient();
-    if (prev) {
-      const { error } = await supabase
-        .from('offer_favorites')
-        .delete()
-        .eq('offer_id', offerId)
-        .eq('user_id', session.user.id);
-      if (error) {
-        setLocalLiked(false);
-        if (onFavoriteChange) onFavoriteChange(false);
-      }
-    } else {
-      const { error } = await supabase.from('offer_favorites').insert({
-        user_id: session.user.id,
-        offer_id: offerId,
+    try {
+      const result = await applyFavoriteToggle({
+        client: createClient(),
+        userId: session.user.id,
+        offerId,
+        wasFavorite: prev,
       });
-      if (error) {
-        setLocalLiked(false);
-        if (onFavoriteChange) onFavoriteChange(false);
-      }
+      setLocalLiked(result.isFavorite);
+      if (onFavoriteChange) onFavoriteChange(result.isFavorite);
+    } finally {
+      setFavoritePending(false);
     }
   };
 

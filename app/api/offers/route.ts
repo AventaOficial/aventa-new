@@ -28,6 +28,7 @@ type OfferInsertPayload = {
   image_urls?: string[];
   msi_months?: number;
   offer_url?: string;
+  product_fingerprint?: string;
   description?: string;
   steps?: string;
   conditions?: string;
@@ -159,8 +160,13 @@ export async function POST(request: Request) {
       offerUrlNormalized = await resolveAndNormalizeAffiliateOfferUrl(urlCheck.href);
     }
 
+    const { findDuplicateOfferByUrl, strongProductFingerprintForUrl, isUniqueViolation } =
+      await import('@/lib/offers/findDuplicateOffer');
+    const productFingerprint = offerUrlNormalized
+      ? strongProductFingerprintForUrl(offerUrlNormalized)
+      : null;
+
     if (offerUrlNormalized) {
-      const { findDuplicateOfferByUrl } = await import('@/lib/offers/findDuplicateOffer');
       const duplicate = await findDuplicateOfferByUrl(supabase, offerUrlNormalized);
       if (duplicate) {
         return NextResponse.json(
@@ -189,6 +195,7 @@ export async function POST(request: Request) {
       ...(extraImages.length > 0 && { image_urls: extraImages }),
       ...(msiMonths != null && { msi_months: msiMonths }),
       ...(offerUrlNormalized && { offer_url: offerUrlNormalized }),
+      ...(productFingerprint ? { product_fingerprint: productFingerprint } : {}),
       ...(typeof input.description === 'string' && input.description.trim() && {
         description: input.description.trim(),
       }),
@@ -206,12 +213,30 @@ export async function POST(request: Request) {
 
     let insertPayload: OfferInsertPayload = payload;
     let { data, error } = await supabase.from('offers').insert([insertPayload]).select('id').single();
-    if (error && (hasMissingColumn(error, 'bank_coupon') || hasMissingColumn(error, 'tags'))) {
+    if (
+      error &&
+      (hasMissingColumn(error, 'bank_coupon') ||
+        hasMissingColumn(error, 'tags') ||
+        hasMissingColumn(error, 'product_fingerprint'))
+    ) {
       const fallbackPayload: OfferInsertPayload = { ...payload };
-      delete fallbackPayload.bank_coupon;
-      delete fallbackPayload.tags;
+      if (hasMissingColumn(error, 'bank_coupon')) delete fallbackPayload.bank_coupon;
+      if (hasMissingColumn(error, 'tags')) delete fallbackPayload.tags;
+      if (hasMissingColumn(error, 'product_fingerprint')) delete fallbackPayload.product_fingerprint;
       insertPayload = fallbackPayload;
       ({ data, error } = await supabase.from('offers').insert([insertPayload]).select('id').single());
+    }
+
+    if (error && isUniqueViolation(error) && offerUrlNormalized) {
+      const duplicate = await findDuplicateOfferByUrl(supabase, offerUrlNormalized);
+      return NextResponse.json(
+        {
+          error: 'Esta oferta (o la misma URL de producto) ya está en Aventa.',
+          duplicate_offer_id: duplicate?.id ?? null,
+          duplicate_status: duplicate?.status ?? null,
+        },
+        { status: 409 },
+      );
     }
 
     if (error) {

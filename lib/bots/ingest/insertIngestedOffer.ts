@@ -12,7 +12,7 @@ import { buildBotMeta } from './buildBotMeta';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 
 /** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
-const OPTIONAL_COLUMNS = ['bot_meta', 'link_mod_ok', 'moderator_comment'] as const;
+const OPTIONAL_COLUMNS = ['bot_meta', 'link_mod_ok', 'moderator_comment', 'product_fingerprint'] as const;
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -64,11 +64,16 @@ export async function insertIngestedOffer(
   const offerUrl = await resolveAndNormalizeAffiliateOfferUrl(meta.canonicalUrl);
   const supabase = createServerClient();
 
-  const { findDuplicateOfferByUrl } = await import('@/lib/offers/findDuplicateOffer');
+  const {
+    findDuplicateOfferByUrl,
+    strongProductFingerprintForUrl,
+    isUniqueViolation,
+  } = await import('@/lib/offers/findDuplicateOffer');
   const duplicate = await findDuplicateOfferByUrl(supabase, offerUrl);
   if (duplicate) {
     return { ok: false, duplicate: true };
   }
+  const productFingerprint = strongProductFingerprintForUrl(offerUrl);
 
   const categoryFromEnv =
     config.category && config.category.trim()
@@ -121,6 +126,7 @@ export async function insertIngestedOffer(
     created_by: authorId,
     image_url: imageNormalized.slice(0, 2048),
     offer_url: offerUrl,
+    ...(productFingerprint ? { product_fingerprint: productFingerprint } : {}),
     description,
     moderator_comment: moderatorComment,
     ...(botMeta ? { bot_meta: botMeta } : {}),
@@ -138,6 +144,10 @@ export async function insertIngestedOffer(
     if (!missing) break;
     delete attempt[missing];
     ({ data, error } = await supabase.from('offers').insert([attempt]).select('id').single());
+  }
+
+  if (error && isUniqueViolation(error)) {
+    return { ok: false, duplicate: true };
   }
 
   if (error) {

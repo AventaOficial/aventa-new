@@ -8,7 +8,7 @@ type EventPayload = {
   event_type: EventType;
 };
 
-type QueueStatus = 'pending' | 'processing' | 'done' | 'failed';
+export type QueueStatus = 'pending' | 'processing' | 'done' | 'failed';
 
 type WriteJobRow = {
   id: number;
@@ -17,6 +17,12 @@ type WriteJobRow = {
   attempts: number;
 };
 
+/** Intentos máximos antes de poison/dead-letter (failed permanente). */
+export const WRITE_JOB_MAX_ATTEMPTS = 5;
+
+/** Jobs en processing más viejos que esto se reclaman a pending (crash recovery). */
+export const WRITE_JOB_STALE_PROCESSING_MS = 15 * 60 * 1000;
+
 /** Solo jobs que el UPDATE reclamó (status seguía pending). Evita doble procesamiento. */
 export function claimedJobRows<T extends { id: number }>(
   requested: T[],
@@ -24,6 +30,31 @@ export function claimedJobRows<T extends { id: number }>(
 ): T[] {
   const claimedIds = new Set((claimed ?? []).map((row) => row.id));
   return requested.filter((row) => claimedIds.has(row.id));
+}
+
+/**
+ * Tras un fallo de procesamiento: reintentar (pending) o dead-letter (failed).
+ * Nunca deja un job en processing. No reabre jobs que ya estaban en failed.
+ */
+export function resolveFailureStatus(attemptsAfter: number, maxAttempts = WRITE_JOB_MAX_ATTEMPTS): {
+  status: Extract<QueueStatus, 'pending' | 'failed'>;
+  permanent: boolean;
+} {
+  if (attemptsAfter >= maxAttempts) {
+    return { status: 'failed', permanent: true };
+  }
+  return { status: 'pending', permanent: false };
+}
+
+export function isStaleProcessingLock(
+  lockedAt: string | null | undefined,
+  nowMs: number,
+  staleMs = WRITE_JOB_STALE_PROCESSING_MS,
+): boolean {
+  if (!lockedAt) return true;
+  const t = Date.parse(lockedAt);
+  if (!Number.isFinite(t)) return true;
+  return nowMs - t >= staleMs;
 }
 
 function getWriteMode(): 'direct' | 'adaptive' | 'queue' {
@@ -73,13 +104,41 @@ export async function recordOfferEvent(payload: EventPayload): Promise<void> {
   }
 }
 
+/** Reclama jobs stuck en processing (worker crash) → pending. No toca failed históricos. */
+export async function reclaimStaleProcessingJobs(
+  now = new Date(),
+  staleMs = WRITE_JOB_STALE_PROCESSING_MS,
+): Promise<number> {
+  const supabase = createServerClient();
+  const cutoff = new Date(now.getTime() - staleMs).toISOString();
+  const { data, error } = await supabase
+    .from('write_jobs_queue')
+    .update({
+      status: 'pending' satisfies QueueStatus,
+      locked_at: null,
+      error: 'reclaimed: stale processing lease',
+    })
+    .eq('status', 'processing')
+    .or(`locked_at.is.null,locked_at.lt."${cutoff}"`)
+    .select('id');
+
+  if (error) {
+    console.error('[writeQueue] reclaim stale failed:', error.message);
+    return 0;
+  }
+  return data?.length ?? 0;
+}
+
 export async function flushWriteQueue(batchSize = 100): Promise<{
   processed: number;
   failed: number;
+  retried: number;
+  reclaimed: number;
   remainingPending: number;
 }> {
   const supabase = createServerClient();
   const size = Math.max(1, Math.min(500, batchSize));
+  const reclaimed = await reclaimStaleProcessingJobs();
 
   const { data: pendingRows, error: readError } = await supabase
     .from('write_jobs_queue')
@@ -99,7 +158,7 @@ export async function flushWriteQueue(batchSize = 100): Promise<{
       .from('write_jobs_queue')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending');
-    return { processed: 0, failed: 0, remainingPending: count ?? 0 };
+    return { processed: 0, failed: 0, retried: 0, reclaimed, remainingPending: count ?? 0 };
   }
 
   const ids = rows.map((r) => r.id);
@@ -117,23 +176,44 @@ export async function flushWriteQueue(batchSize = 100): Promise<{
   const claimed = claimedJobRows(rows, claimedRows);
   let processed = 0;
   let failed = 0;
+  let retried = 0;
 
   for (const row of claimed) {
+    const attemptsAfter = (row.attempts ?? 0) + 1;
     try {
-      if (row.job_type === 'offer_event') {
-        const ok = await insertEventDirect(row.payload);
-        if (!ok) {
-          failed++;
-          await supabase
-            .from('write_jobs_queue')
-            .update({
-              status: 'failed' satisfies QueueStatus,
-              attempts: (row.attempts ?? 0) + 1,
-              error: 'offer_events insert failed',
-            })
-            .eq('id', row.id);
-          continue;
-        }
+      if (row.job_type !== 'offer_event') {
+        failed++;
+        await supabase
+          .from('write_jobs_queue')
+          .update({
+            status: 'failed' satisfies QueueStatus,
+            attempts: attemptsAfter,
+            error: `unknown job_type: ${row.job_type}`,
+            locked_at: null,
+          })
+          .eq('id', row.id)
+          .eq('status', 'processing');
+        continue;
+      }
+
+      const ok = await insertEventDirect(row.payload);
+      if (!ok) {
+        const outcome = resolveFailureStatus(attemptsAfter);
+        if (outcome.permanent) failed++;
+        else retried++;
+        await supabase
+          .from('write_jobs_queue')
+          .update({
+            status: outcome.status,
+            attempts: attemptsAfter,
+            error: outcome.permanent
+              ? `offer_events insert failed (max attempts ${WRITE_JOB_MAX_ATTEMPTS})`
+              : 'offer_events insert failed; will retry',
+            locked_at: null,
+          })
+          .eq('id', row.id)
+          .eq('status', 'processing');
+        continue;
       }
 
       processed++;
@@ -142,20 +222,26 @@ export async function flushWriteQueue(batchSize = 100): Promise<{
         .update({
           status: 'done' satisfies QueueStatus,
           processed_at: new Date().toISOString(),
-          attempts: (row.attempts ?? 0) + 1,
+          attempts: attemptsAfter,
           error: null,
+          locked_at: null,
         })
-        .eq('id', row.id);
+        .eq('id', row.id)
+        .eq('status', 'processing');
     } catch (error) {
-      failed++;
+      const outcome = resolveFailureStatus(attemptsAfter);
+      if (outcome.permanent) failed++;
+      else retried++;
       await supabase
         .from('write_jobs_queue')
         .update({
-          status: 'failed' satisfies QueueStatus,
-          attempts: (row.attempts ?? 0) + 1,
+          status: outcome.status,
+          attempts: attemptsAfter,
           error: error instanceof Error ? error.message : String(error),
+          locked_at: null,
         })
-        .eq('id', row.id);
+        .eq('id', row.id)
+        .eq('status', 'processing');
     }
   }
 
@@ -164,21 +250,23 @@ export async function flushWriteQueue(batchSize = 100): Promise<{
     .select('id', { count: 'exact', head: true })
     .eq('status', 'pending');
 
-  return { processed, failed, remainingPending: remaining ?? 0 };
+  return { processed, failed, retried, reclaimed, remainingPending: remaining ?? 0 };
 }
 
 export async function getWriteQueueBacklog(): Promise<{
   pending: number;
   failed: number;
+  processing: number;
 }> {
   const supabase = createServerClient();
-  const [pendingRes, failedRes] = await Promise.all([
+  const [pendingRes, failedRes, processingRes] = await Promise.all([
     supabase.from('write_jobs_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('write_jobs_queue').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+    supabase.from('write_jobs_queue').select('id', { count: 'exact', head: true }).eq('status', 'processing'),
   ]);
   return {
     pending: pendingRes.count ?? 0,
     failed: failedRes.count ?? 0,
+    processing: processingRes.count ?? 0,
   };
 }
-

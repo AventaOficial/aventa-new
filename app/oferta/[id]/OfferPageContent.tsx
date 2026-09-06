@@ -34,6 +34,7 @@ import StoreBrandMark from '@/app/components/StoreBrandMark';
 import OfferImageThumbs from '@/app/components/OfferImageThumbs';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 
@@ -160,6 +161,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [localDown, setLocalDown] = useState(offer.downvotes);
   const [localScore, setLocalScore] = useState(offer.votes.score);
   const [isLiked, setIsLiked] = useState(false);
+  const [favoritePending, setFavoritePending] = useState(false);
 
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -423,23 +425,20 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
   const handleFavoriteClick = async () => {
     if (!session) return;
-    if (!offer.id) return;
+    if (!offer.id || favoritePending) return;
     const prev = isLiked;
+    setFavoritePending(true);
     setIsLiked(!prev);
-    const supabase = createClient();
-    if (prev) {
-      const { error } = await supabase
-        .from('offer_favorites')
-        .delete()
-        .eq('offer_id', offer.id)
-        .eq('user_id', session.user.id);
-      if (error) setIsLiked(true);
-    } else {
-      const { error } = await supabase.from('offer_favorites').insert({
-        user_id: session.user.id,
-        offer_id: offer.id,
+    try {
+      const result = await applyFavoriteToggle({
+        client: createClient(),
+        userId: session.user.id,
+        offerId: offer.id,
+        wasFavorite: prev,
       });
-      if (error) setIsLiked(false);
+      setIsLiked(result.isFavorite);
+    } finally {
+      setFavoritePending(false);
     }
   };
 
