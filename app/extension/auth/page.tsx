@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { runExtensionAuthBridge } from '@/lib/extension/allowedExtensionIds';
 
 type BridgeState = 'loading' | 'login' | 'connecting' | 'success' | 'error';
 
@@ -33,69 +34,70 @@ export default function ExtensionAuthPage() {
     const supabase = createClient();
 
     const connect = async () => {
-      if (!extensionId) {
-        setError('Falta el identificador de la extensión. Ábrela de nuevo desde el popup.');
+      const chromeApi = window.chrome?.runtime;
+
+      const result = await runExtensionAuthBridge({
+        extensionId,
+        getSession: async () => {
+          const { data } = await supabase.auth.getSession();
+          return data.session;
+        },
+        sendMessage: (id, message) =>
+          new Promise((resolve) => {
+            if (!chromeApi?.sendMessage) {
+              resolve(null);
+              return;
+            }
+            chromeApi.sendMessage(id, message, (response) => {
+              if (chromeApi.lastError) {
+                resolve(null);
+                return;
+              }
+              resolve((response as { ok?: boolean } | undefined) ?? null);
+            });
+          }),
+        config: {
+          aventaBase:
+            process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
+            (typeof window !== 'undefined' ? window.location.origin : 'https://aventaofertas.com'),
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+          supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        },
+      });
+
+      if (result.status === 'blocked') {
+        if (result.reason === 'missing_ext') {
+          setError('Falta el identificador de la extensión. Ábrela de nuevo desde el popup.');
+        } else {
+          setError(
+            'Esta extensión no está autorizada para conectar con Aventa. Usa la extensión oficial.',
+          );
+        }
         setState('error');
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !session.refresh_token) {
+      if (result.status === 'login') {
         setState('login');
         return;
       }
 
-      setState('connecting');
+      if (result.status === 'success') {
+        setState('success');
+        return;
+      }
 
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-      const aventaBase =
-        process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
-        (typeof window !== 'undefined' ? window.location.origin : 'https://aventaofertas.com');
-
-      const expiresAt =
-        session.expires_at != null
-          ? session.expires_at * 1000
-          : Date.now() + 3600 * 1000;
-
-      const message = {
-        type: 'AVENTA_EXTENSION_SESSION',
-        session: {
-          accessToken: session.access_token,
-          refreshToken: session.refresh_token,
-          expiresAt,
-          userId: session.user?.id,
-          email: session.user?.email ?? undefined,
-        },
-        config: {
-          aventaBase,
-          supabaseUrl,
-          supabaseAnonKey,
-        },
-      };
-
-      const chromeApi = window.chrome?.runtime;
-      if (!chromeApi?.sendMessage) {
-        setError('No se detectó la extensión de Aventa. Asegúrate de tenerla instalada.');
+      if (result.status === 'no_chrome' || result.status === 'send_failed') {
+        setError('No pudimos conectar con la extensión. Revisa que esté instalada y activa.');
         setState('error');
         return;
       }
 
-      chromeApi.sendMessage(extensionId, message, (response) => {
-        if (chromeApi.lastError) {
-          setError('No pudimos conectar con la extensión. Revisa que esté instalada y activa.');
-          setState('error');
-          return;
-        }
-        if ((response as { ok?: boolean } | undefined)?.ok) {
-          setState('success');
-        } else {
-          setError('La extensión no confirmó la sesión. Intenta de nuevo.');
-          setState('error');
-        }
-      });
+      setError('La extensión no confirmó la sesión. Intenta de nuevo.');
+      setState('error');
     };
 
+    setState('connecting');
     void connect();
   }, [extensionId]);
 
