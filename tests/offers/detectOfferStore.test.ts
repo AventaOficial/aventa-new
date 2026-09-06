@@ -29,6 +29,13 @@ describe('detectOfferStore hostname-first', () => {
     expect(isOfferMercadoLibreHost('meli.la')).toBe(true);
   });
 
+  it('P1-7 — no acepta evil-amazon.com ni amazon.com.evil.com', () => {
+    expect(isOfferAmazonHost('evil-amazon.com')).toBe(false);
+    expect(isOfferAmazonHost('amazon.com.evil.com')).toBe(false);
+    expect(isOfferMercadoLibreHost('fake-mercadolibre.com')).toBe(false);
+    expect(isOfferMercadoLibreHost('mercadolibre.com.evil.com')).toBe(false);
+  });
+
   it('Amazon con MLM en el path NO es Mercado Libre (host gana)', () => {
     const amazonWithFakeMl =
       'https://www.amazon.com.mx/dp/B08N5WRWNW/ref/MLM1234567890/?th=1';

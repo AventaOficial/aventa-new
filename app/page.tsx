@@ -23,6 +23,7 @@ import {
 } from '@/lib/offers/batchUserData';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { buildOfferSearchOrFilter } from '@/lib/offers/inferOfferTags';
+import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
 import {
   mapOfferToCard,
   type CardOffer,
@@ -168,7 +169,7 @@ function HomeContent() {
       showToast('No se recibió el código de Google. Vuelve a intentar iniciar sesión.');
       router.replace(pathname, { scroll: false });
     } else if (err === 'auth' && msg) {
-      showToast(`Error al iniciar sesión: ${decodeURIComponent(msg)}`);
+      showToast(`Error al iniciar sesión: ${safeDecodeURIComponentOnce(msg)}`);
       router.replace(pathname, { scroll: false });
     } else if (err === 'config') {
       showToast('Error de configuración. Revisa las variables de entorno.');

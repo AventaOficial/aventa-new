@@ -80,7 +80,7 @@ describe('GET /api/cron/rewards-release-holds', () => {
   });
 });
 
-describe('requireCronSecret allowQuerySecret', () => {
+describe('requireCronSecret P1-2 (sin query secrets)', () => {
   const prevSecret = process.env.CRON_SECRET;
 
   beforeEach(() => {
@@ -92,8 +92,18 @@ describe('requireCronSecret allowQuerySecret', () => {
     else delete process.env.CRON_SECRET;
   });
 
-  it('legacy crons siguen aceptando query secret cuando allowQuerySecret=true', () => {
-    const req = new NextRequest('https://aventaofertas.com/api/cron/daily-digest?secret=cron-test-secret');
-    expect(requireCronSecret(req, { allowQuerySecret: true })).toBeNull();
+  it('query secret siempre rechazado', () => {
+    const req = new NextRequest(
+      'https://aventaofertas.com/api/cron/daily-digest?secret=cron-test-secret',
+    );
+    expect(requireCronSecret(req)?.status).toBe(401);
+  });
+
+  it('Bearer + query secret → rechazado', () => {
+    const req = new NextRequest(
+      'https://aventaofertas.com/api/cron/daily-digest?secret=x',
+      { headers: { Authorization: 'Bearer cron-test-secret' } },
+    );
+    expect(requireCronSecret(req)?.status).toBe(401);
   });
 });

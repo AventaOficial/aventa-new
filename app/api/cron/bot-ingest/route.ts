@@ -11,7 +11,7 @@ export const maxDuration = 300;
 
 /**
  * GET: ciclo de ingesta v3 (score, filtros ML/Amazon, auto-aprobación, tope diario).
- * Protegido con CRON_SECRET (Authorization: Bearer, x-cron-secret o ?secret=).
+ * Protegido con CRON_SECRET (Authorization: Bearer o x-cron-secret).
  *
  * Respuesta **202**: el trabajo sigue en segundo plano. El reporte completo va a logs de Vercel / panel Trabajo (POST run-now sigue devolviendo 200 con JSON).
  *

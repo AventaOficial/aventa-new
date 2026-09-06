@@ -11,7 +11,7 @@ const TZ = process.env.DIGEST_TIMEZONE || 'America/Mexico_City';
 /**
  * Cron nocturno: mejores ofertas del día civil (zona DIGEST_TIMEZONE, default México).
  * Programar ~19:00–20:00 hora local: en vercel.json 0 1 * * * ≈ 19:00 CDMX (UTC-6).
- * Secret: ?secret=, x-cron-secret o Authorization: Bearer CRON_SECRET
+ * Secret: Authorization: Bearer CRON_SECRET o header x-cron-secret (P1-2: sin query).
  */
 export async function GET(request: NextRequest) {
   const unauthorized = requireCronSecret(request);

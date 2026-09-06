@@ -22,6 +22,7 @@ import StoreBrandMark from './StoreBrandMark';
 import CatalogGapsBoard from './CatalogGapsBoard';
 import AventaIcon from './AventaIcon';
 import SidebarProgressCard from './SidebarProgressCard';
+import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
 
 function formatThousands(s: string): string {
   const digits = s.replace(/\D/g, '');
@@ -246,11 +247,11 @@ export default function ActionBar() {
     if (upload !== '1' || (!title && !image && !offer_url && !store)) return;
     setFormData((prev) => ({
       ...prev,
-      ...(title != null && { title: decodeURIComponent(title) }),
-      ...(offer_url != null && { offer_url: decodeURIComponent(offer_url) }),
-      ...(store != null && { store: decodeURIComponent(store) }),
+      ...(title != null && { title: safeDecodeURIComponentOnce(title) }),
+      ...(offer_url != null && { offer_url: safeDecodeURIComponentOnce(offer_url) }),
+      ...(store != null && { store: safeDecodeURIComponentOnce(store) }),
     }));
-    if (image != null) setImageUrl(decodeURIComponent(image));
+    if (image != null) setImageUrl(safeDecodeURIComponentOnce(image));
     setUploadLinkGatePassed(true);
     router.replace('/', { scroll: false });
   }, [showUploadModal, pathname, searchParams, router]);

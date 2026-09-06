@@ -42,6 +42,8 @@ describe('allowlist del parser', () => {
 
   it('rechaza hosts ajenos aunque no sean privados', () => {
     expect(isAllowedOfferParseHost('evil.example.com')).toBe(false);
+    expect(isAllowedOfferParseHost('evil-amazon.com')).toBe(false);
+    expect(isAllowedOfferParseHost('amazon.com.evil.com')).toBe(false);
     const gate = assertSafeOfferFetchUrl(new URL('https://evil.example.com/p'), {
       requireHttps: true,
       requireAllowlist: true,

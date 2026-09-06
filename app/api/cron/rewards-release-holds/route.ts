@@ -9,7 +9,7 @@ import { processExpiredRewardHolds } from '@/lib/rewards/rewardsEngine';
  * No acepta parámetros de negocio (userId, rewardId, montos, etc.).
  */
 export async function GET(request: NextRequest) {
-  const denied = requireCronSecret(request, { allowQuerySecret: false });
+  const denied = requireCronSecret(request);
   if (denied) return denied;
 
   const supabase = createServerClient();

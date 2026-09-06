@@ -1,7 +1,8 @@
 import {
   isOfferAmazonHost,
   isOfferMercadoLibreHost,
-} from '@/lib/offers/detectOfferStore';
+  isAllowedAffiliateNetworkHost,
+} from '@/lib/offers/commerceHostAllowlist';
 
 const BLOCKED_HOSTNAMES = new Set(
   [
@@ -103,15 +104,12 @@ export function isBlockedOfferParseUrl(url: URL): { blocked: boolean; reason?: s
   return { blocked: false };
 }
 
-/** Dominios de tienda que el parser puede fettear. */
+/** Dominios de tienda que el parser puede fettear (P1-7: sin includes parcial). */
 export function isAllowedOfferParseHost(hostname: string): boolean {
-  const d = hostname.replace(/^www\./, '').toLowerCase();
-  if (isOfferMercadoLibreHost(hostname) || isOfferAmazonHost(hostname)) return true;
   return (
-    d.includes('aliexpress.') ||
-    d.includes('temu.') ||
-    d.includes('walmart.') ||
-    d.includes('shein.')
+    isOfferMercadoLibreHost(hostname) ||
+    isOfferAmazonHost(hostname) ||
+    isAllowedAffiliateNetworkHost(hostname)
   );
 }
 

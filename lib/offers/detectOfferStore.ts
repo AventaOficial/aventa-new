@@ -1,37 +1,15 @@
 /**
  * Detección de tienda hostname-first para el parser de ofertas.
  * El item id ML nunca implica tienda si el host no es Mercado Libre.
+ * P1-7: match por dominio registrado (no includes parcial).
  */
+import {
+  isOfferAmazonHost,
+  isOfferMercadoLibreHost,
+  isOfferMeliLaHost,
+} from '@/lib/offers/commerceHostAllowlist';
 
-function getDomain(hostname: string): string {
-  return hostname.replace(/^www\./, '').toLowerCase();
-}
-
-export function isOfferMercadoLibreHost(hostname: string): boolean {
-  const d = getDomain(hostname);
-  return (
-    d.includes('mercadolibre') ||
-    d.includes('mercadolivre') ||
-    d === 'meli.la' ||
-    d.endsWith('.meli.la')
-  );
-}
-
-export function isOfferAmazonHost(hostname: string): boolean {
-  const d = getDomain(hostname);
-  return (
-    d.includes('amazon.') ||
-    d === 'amzn.to' ||
-    d === 'a.co' ||
-    d.endsWith('.amzn.to') ||
-    d.endsWith('.a.co')
-  );
-}
-
-export function isOfferMeliLaHost(hostname: string): boolean {
-  const d = getDomain(hostname);
-  return d === 'meli.la' || d.endsWith('.meli.la');
-}
+export { isOfferAmazonHost, isOfferMercadoLibreHost, isOfferMeliLaHost };
 
 export type OfferStoreFlags = { isAmazon: boolean; isMercadoLibre: boolean };
 
