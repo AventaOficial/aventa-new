@@ -340,7 +340,7 @@ export async function selectWelcomeOffer(
   const membership = await supabase
     .from('profiles')
     .select(
-      'reward_program_unlocked_at, welcome_offer_id, rewards_terms_accepted_at, rewards_terms_version',
+      'reward_program_unlocked_at, welcome_offer_id, welcome_offer_selected_at, rewards_terms_accepted_at, rewards_terms_version',
     )
     .eq('id', userId)
     .maybeSingle();
@@ -352,6 +352,7 @@ export async function selectWelcomeOffer(
   const prof = membership.data as {
     reward_program_unlocked_at?: string | null;
     welcome_offer_id?: string | null;
+    welcome_offer_selected_at?: string | null;
     rewards_terms_accepted_at?: string | null;
     rewards_terms_version?: string | null;
   };
@@ -359,7 +360,8 @@ export async function selectWelcomeOffer(
   if (!prof.reward_program_unlocked_at) {
     return { ok: false, error: 'Aún no has desbloqueado el Programa de Recompensas', status: 403 };
   }
-  if (prof.welcome_offer_id) {
+  // P1-5: claim histórico = selected_at (no se limpia si la oferta se borra y el FK pone id a NULL).
+  if (prof.welcome_offer_id || prof.welcome_offer_selected_at) {
     return { ok: false, error: 'Ya elegiste tu Oferta de Bienvenida', status: 409 };
   }
 
@@ -410,6 +412,7 @@ export async function selectWelcomeOffer(
   }
 
   const selectedAt = new Date().toISOString();
+  // CAS estructural: solo un claim gana si selected_at sigue NULL (sobrevive borrado de oferta).
   const { data: updated, error: updateErr } = await supabase
     .from('profiles')
     .update({
@@ -417,6 +420,7 @@ export async function selectWelcomeOffer(
       welcome_offer_selected_at: selectedAt,
     })
     .eq('id', userId)
+    .is('welcome_offer_selected_at', null)
     .is('welcome_offer_id', null)
     .select('welcome_offer_id, welcome_offer_selected_at')
     .maybeSingle();

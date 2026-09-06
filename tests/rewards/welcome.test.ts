@@ -10,12 +10,17 @@ const OTHER = '33333333-3333-3333-3333-333333333333';
 function mockSupabase(scenario: {
   unlocked?: boolean;
   welcomeAlready?: boolean;
+  /** P1-5: claim histórico tras borrado de oferta (id NULL, selected_at set). */
+  welcomeOrphanSelectedAt?: boolean;
   termsAccepted?: boolean;
   raceLost?: boolean;
 }): SupabaseClient {
   const profile = {
     reward_program_unlocked_at: scenario.unlocked === false ? null : '2026-01-01T00:00:00Z',
     welcome_offer_id: scenario.welcomeAlready ? OFFER : null,
+    welcome_offer_selected_at: scenario.welcomeAlready || scenario.welcomeOrphanSelectedAt
+      ? '2026-01-03T00:00:00Z'
+      : null,
     rewards_terms_accepted_at: scenario.termsAccepted ? '2026-01-02T00:00:00Z' : null,
     rewards_terms_version: scenario.termsAccepted ? REWARDS_TERMS_VERSION : null,
   };
@@ -150,6 +155,17 @@ describe('Welcome offer selection', () => {
       unlocked: true,
       termsAccepted: true,
       raceLost: true,
+    });
+    const result = await selectWelcomeOffer(supabase, USER, OFFER);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(409);
+  });
+
+  it('no puede reclamar de nuevo si la oferta welcome fue borrada (selected_at queda)', async () => {
+    const supabase = mockSupabase({
+      unlocked: true,
+      termsAccepted: true,
+      welcomeOrphanSelectedAt: true,
     });
     const result = await selectWelcomeOffer(supabase, USER, OFFER);
     expect(result.ok).toBe(false);

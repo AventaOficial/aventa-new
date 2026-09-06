@@ -180,9 +180,12 @@ export async function getRewardsMembership(
   const termsCurrent =
     Boolean(fields.rewardsTermsAcceptedAt) &&
     fields.rewardsTermsVersion === REWARDS_TERMS_VERSION;
+  // P1-5: selected_at es la marca histórica de claim (sobrevive ON DELETE SET NULL del id).
+  const welcomeClaimed =
+    Boolean(fields.welcomeOfferSelectedAt) || Boolean(fields.welcomeOfferId);
 
   let claimPhase: RewardsMembership['claimPhase'] = 'locked';
-  if (unlocked && fields.welcomeOfferId) {
+  if (unlocked && welcomeClaimed) {
     claimPhase = 'complete';
   } else if (unlocked && termsCurrent) {
     claimPhase = 'pending_selection';
@@ -193,7 +196,7 @@ export async function getRewardsMembership(
   return {
     ...progress,
     ...fields,
-    needsWelcomeSelection: unlocked && termsCurrent && !fields.welcomeOfferId,
+    needsWelcomeSelection: unlocked && termsCurrent && !welcomeClaimed,
     needsTermsAcceptance: unlocked && !termsCurrent,
     termsCurrent,
     claimPhase,
