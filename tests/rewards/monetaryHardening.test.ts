@@ -262,7 +262,8 @@ describe('Monetary hardening — VOID/REVERSED ledger', () => {
       }
       if (table === 'creator_rewards' && op === 'update') {
         updatedStatus = (filters.updatePayload as { status?: string })?.status ?? null;
-        return { data: null, error: null };
+        // P0-6 CAS: cancelReward exige fila actualizada vía .select().maybeSingle()
+        return { data: { id: REWARD }, error: null };
       }
       return { data: null, error: null };
     });

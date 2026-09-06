@@ -340,6 +340,9 @@ export async function processExpiredRewardHolds(
   return { processed };
 }
 
+/** Estados que cancelReward puede transicionar a CANCELLED (CAS en UPDATE). */
+const CANCEL_REWARD_ALLOWED_STATUSES = ['PENDING', 'VALIDATING', 'AVAILABLE'] as const;
+
 export async function cancelReward(
   supabase: SupabaseClient,
   rewardId: string,
@@ -357,12 +360,18 @@ export async function cancelReward(
     return false;
   }
 
-  const { error } = await supabase
+  // CAS: la autoridad es el UPDATE; el SELECT previo no protege concurrencia.
+  const { data: updated, error } = await supabase
     .from('creator_rewards')
     .update({ status: 'CANCELLED', cancelled_at: now, updated_at: now })
-    .eq('id', rewardId);
+    .eq('id', rewardId)
+    .in('status', [...CANCEL_REWARD_ALLOWED_STATUSES])
+    .select('id')
+    .maybeSingle();
 
-  if (error) return false;
+  if (error || !(updated as { id?: string } | null)?.id) {
+    return false;
+  }
 
   await writeRewardAuditLog(supabase, {
     eventType: 'reward_cancelled',
