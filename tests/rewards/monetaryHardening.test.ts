@@ -172,7 +172,11 @@ describe('Monetary hardening — atribución manual', () => {
     });
 
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.rewardId).toBe(REWARD);
+    if (result.ok) {
+      expect(result.rewardId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+    }
   });
 
   it('creator_id enviado que no coincide con offers.created_by → rechazo en matcher', async () => {

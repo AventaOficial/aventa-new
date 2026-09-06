@@ -8,7 +8,6 @@ import {
 import { evaluatePayoutReadiness, maskClabe, maskRfc } from '@/lib/commissions/fraudSignals';
 import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
 import { COMMISSION_TERMS_VERSION } from '@/lib/commissions/constants';
-import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 
 function hasMissingTable(error: { message?: string } | null, tableLike: string): boolean {
   const m = (error?.message ?? '').toLowerCase();
@@ -132,8 +131,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
   }
 
-  if (status === 'paid' && isMoneyPathFrozen()) {
-    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  if (status === 'paid') {
+    // P0-4: commission_allocations = legacy/reporting. Único canal pagable: creator_rewards → reward_payouts.
+    return NextResponse.json(
+      {
+        error:
+          'commission_allocations son legacy/reporting; no constituyen liquidación monetaria. Canal pagable: creator_rewards → reward_payouts.',
+        code: 'legacy_commission_not_payable',
+      },
+      { status: 403 },
+    );
   }
 
   const supabase = createServerClient();

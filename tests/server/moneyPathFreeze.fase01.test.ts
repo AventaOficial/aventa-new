@@ -203,9 +203,9 @@ describe('FASE 0.1 — mark allocation paid freeze', () => {
     vi.resetModules();
   });
 
-  it('Test 4 — mark paid bloqueado incluso con force=true', async () => {
+  it('Test 4 — mark paid bloqueado (legacy no pagable; P0-4)', async () => {
     const from = vi.fn(() => {
-      throw new Error('commission_allocations no debe actualizarse a paid bajo freeze');
+      throw new Error('commission_allocations no debe actualizarse a paid');
     });
 
     vi.doMock('@/lib/server/requireAdmin', () => ({
@@ -231,9 +231,9 @@ describe('FASE 0.1 — mark allocation paid freeze', () => {
       }),
     );
 
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(403);
     const body = await res.json();
-    expect(body.code).toBe(MONEY_PATH_FROZEN_CODE);
+    expect(body.code).toBe('legacy_commission_not_payable');
     expect(from).not.toHaveBeenCalled();
   });
 });

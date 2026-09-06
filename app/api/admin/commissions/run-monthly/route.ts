@@ -17,6 +17,7 @@ import {
 import { COMMISSION_TERMS_VERSION } from '@/lib/commissions/constants';
 import { resolveLedgerAttribution } from '@/lib/commissions/resolveAttribution';
 import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
+import { listSettledLedgerEntryIds } from '@/lib/rewards/ledgerSettlements';
 
 function hasMissingTable(error: { message?: string } | null, tableLike: string): boolean {
   const m = (error?.message ?? '').toLowerCase();
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   const { data: ledgerRows, error: ledgerError } = await supabase
     .from('affiliate_ledger_entries')
     .select(
-      'amount_cents, status, created_at, period_start, period_end, creator_id, tracking_tag, attributable',
+      'id, amount_cents, status, created_at, period_start, period_end, creator_id, tracking_tag, attributable',
     )
     .in('status', ['accrued', 'paid']);
   if (ledgerError) {
@@ -107,13 +108,24 @@ export async function POST(request: Request) {
   }
 
   /** Incluye filas del periodo del reporte; si no hay period_start, cae a created_at (legacy). */
-  const ledgerInPeriod = (ledgerRows ?? []).filter((row) => {
+  const ledgerInPeriodRaw = (ledgerRows ?? []).filter((row) => {
     const periodStart = (row as { period_start?: string | null }).period_start;
     if (periodStart) {
       return periodStart >= range.startDate && periodStart <= range.endDate;
     }
     const createdAt = String((row as { created_at?: string | null }).created_at ?? '');
     return createdAt >= range.startIso && createdAt < range.nextStartIso;
+  });
+
+  // P0-4: excluir ledgers ya liquidados por el canal único (creator_reward).
+  // commission_pools/allocations son legacy/reporting — no deben reobligar ledgers settled.
+  const periodLedgerIds = ledgerInPeriodRaw
+    .map((row) => String((row as { id?: string }).id ?? ''))
+    .filter(Boolean);
+  const settledIds = await listSettledLedgerEntryIds(supabase, periodLedgerIds);
+  const ledgerInPeriod = ledgerInPeriodRaw.filter((row) => {
+    const id = String((row as { id?: string }).id ?? '');
+    return id ? !settledIds.has(id) : true;
   });
 
   const tagsNeeded = new Set<string>();

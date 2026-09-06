@@ -14,6 +14,11 @@ import {
 } from '@/lib/rewards/attribution/matcher';
 import { writeRewardAuditLog } from '@/lib/rewards/audit';
 import { flagLedgerPendingStaffReview } from '@/lib/rewards/ledgerReconciliation';
+import {
+  claimCreatorRewardSettlement,
+  releaseCreatorRewardSettlementClaim,
+} from '@/lib/rewards/ledgerSettlements';
+import { randomUUID } from 'crypto';
 
 export type FraudCheckInput = {
   creatorId: string;
@@ -66,6 +71,11 @@ export async function createRewardFromLedgerEntry(
   ledger: LedgerAttributionInput,
   options?: { force?: boolean; manualStaffConfirmed?: boolean; actorId?: string | null },
 ): Promise<CreateRewardResult> {
+  // Freeze superior a force/programa: no nuevos settlements ni rewards monetizables.
+  if (isMoneyPathFrozen()) {
+    return { created: false, reason: 'money_path_frozen' };
+  }
+
   if (!options?.force && !isRewardsProgramActive()) {
     return { created: false, reason: 'program_inactive' };
   }
@@ -177,32 +187,55 @@ export async function createRewardFromLedgerEntry(
 
   const holdUntil = holdUntilFromNow();
   const now = new Date().toISOString();
+  // Preasignar id: settlement_ref = reward.id (claim 1:1 antes del insert monetario).
+  const rewardId = randomUUID();
 
-  const { data: inserted, error } = await supabase
-    .from('creator_rewards')
-    .insert({
-      creator_id: match.creatorId,
-      offer_id: match.offerId,
-      ledger_entry_id: ledger.id,
-      network: ledger.network,
-      gross_commission_cents: ledger.amount_cents,
-      creator_share_cents: creatorCents,
-      platform_share_cents: platformCents,
-      creator_share_bps: REWARDS_CREATOR_SHARE_BPS,
-      currency: 'MXN',
-      attribution_method: match.method,
-      attribution_confidence: match.confidence,
-      status: 'VALIDATING',
-      hold_until: holdUntil,
-      fraud_flags: fraudFlags,
-      meta: { click_id: match.clickId },
-    })
-    .select('id')
-    .single();
+  const claim = await claimCreatorRewardSettlement(supabase, {
+    ledgerEntryId: ledger.id,
+    rewardId,
+  });
+  if (!claim.ok) {
+    if (claim.reason === 'already_settled') {
+      return { created: false, reason: 'duplicate_ledger' };
+    }
+    if (claim.reason === 'schema_missing') {
+      return { created: false, reason: 'schema_missing' };
+    }
+    console.error('[rewards/create] settlement claim failed:', claim.message);
+    return { created: false, reason: 'settlement_claim_failed' };
+  }
+
+  const { error } = await supabase.from('creator_rewards').insert({
+    id: rewardId,
+    creator_id: match.creatorId,
+    offer_id: match.offerId,
+    ledger_entry_id: ledger.id,
+    network: ledger.network,
+    gross_commission_cents: ledger.amount_cents,
+    creator_share_cents: creatorCents,
+    platform_share_cents: platformCents,
+    creator_share_bps: REWARDS_CREATOR_SHARE_BPS,
+    currency: 'MXN',
+    attribution_method: match.method,
+    attribution_confidence: match.confidence,
+    status: 'VALIDATING',
+    hold_until: holdUntil,
+    fraud_flags: fraudFlags,
+    meta: { click_id: match.clickId },
+  });
 
   if (error) {
+    await releaseCreatorRewardSettlementClaim(supabase, {
+      ledgerEntryId: ledger.id,
+      rewardId,
+    });
     if (isMissingRewardsTable(error)) {
       return { created: false, reason: 'schema_missing' };
+    }
+    // UNIQUE(ledger_entry_id) en creator_rewards: carrera concurrente.
+    const msg = (error.message ?? '').toLowerCase();
+    if (error.code === '23505' || msg.includes('duplicate key') || msg.includes('unique')) {
+      return { created: false, reason: 'duplicate_ledger' };
     }
     console.error('[rewards/create]', error.message);
     return { created: false, reason: 'insert_failed' };
@@ -219,8 +252,6 @@ export async function createRewardFromLedgerEntry(
       attributable: true,
     })
     .eq('id', ledger.id);
-
-  const rewardId = (inserted as { id: string }).id;
 
   await writeRewardAuditLog(supabase, {
     eventType: 'reward_created',
