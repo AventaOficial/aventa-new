@@ -26,15 +26,19 @@ describe('Focus layout — fixed action bar', () => {
     expect(ws).toMatch(/pb-\[calc\(14rem\+env\(safe-area-inset-bottom/);
   });
 
-  it('CTA preparar enlace + panel presentes', () => {
+  it('CTA abrir + cambiar enlace siempre visibles', () => {
     expect(ws).toMatch(/FocusAffiliatePrepare/);
     expect(ws).toMatch(/prepareAffiliateLink/);
+    expect(ws).toMatch(/e\.key === 'o'/);
     const stage = readFileSync(
       join(process.cwd(), 'app/components/moderation/FocusOfferStage.tsx'),
       'utf8'
     );
+    expect(stage).toMatch(/>\s*Abrir\s*</);
+    expect(stage).toMatch(/Cambiar enlace/);
     expect(stage).toMatch(/Preparar enlace/);
     expect(stage).toMatch(/Monetización/);
+    expect(stage).not.toMatch(/\{offer\.offer_url\}/);
   });
 });
 
@@ -60,7 +64,7 @@ describe('prepareAffiliateLink / original policy', () => {
       'utf8'
     );
     expect(hook).toMatch(/prepareAffiliateLink/);
-    expect(hook).toMatch(/affiliate_paste:\s*true/);
+    expect(hook).toMatch(/affiliate_paste:\s*affiliatePaste/);
     expect(hook).not.toMatch(
       /original_product_url:\s*[^\n]*\?\?\s*offer\.offer_url/
     );

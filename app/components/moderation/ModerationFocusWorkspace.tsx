@@ -52,6 +52,15 @@ export default function ModerationFocusWorkspace({
         queue.dismissAffiliateGate();
         return;
       }
+      if (e.key === 'o' || e.key === 'O') {
+        const href = queue.offer?.offer_url?.trim();
+        if (href) {
+          e.preventDefault();
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
+        return;
+      }
+
       if (rejectOpen || whyOpen || prepareOpen || queue.acting || queue.loading) return;
 
       if (e.key === 'a' || e.key === 'A') {
@@ -167,6 +176,7 @@ export default function ModerationFocusWorkspace({
         mode={mode}
         acting={queue.acting}
         open={prepareOpen}
+        variant={monetization?.status === 'needs_attention' ? 'prepare' : 'replace'}
         onClose={() => {
           setUserPrepare(false);
           queue.dismissAffiliateGate();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ImageOff } from 'lucide-react';
+import { ExternalLink, ImageOff } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
@@ -58,8 +58,9 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
         ? 'bg-amber-400'
         : 'bg-gray-400';
 
-  const needsPrepare =
-    monetization.status === 'needs_attention' && typeof onPrepareLink === 'function';
+  const offerHref = offer.offer_url?.trim() || '';
+  const changeLabel =
+    monetization.status === 'needs_attention' ? 'Preparar enlace' : 'Cambiar enlace';
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
@@ -114,7 +115,17 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
             {pct}% OFF
           </span>
         ) : null}
-        {offer.store?.trim() ? (
+        {offer.store?.trim() && offerHref ? (
+          <a
+            href={offerHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn('inline-flex items-center gap-1 text-sm font-medium', ui.soft)}
+          >
+            · {offer.store.trim()}
+            <ExternalLink className="h-3 w-3" aria-hidden />
+          </a>
+        ) : offer.store?.trim() ? (
           <span className={cn('text-sm', ui.soft)}>· {offer.store.trim()}</span>
         ) : null}
       </div>
@@ -134,16 +145,30 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
       </div>
 
       <div className="mt-1.5 flex flex-wrap items-center justify-center gap-3">
-        {needsPrepare ? (
+        {offerHref ? (
+          <a
+            href={offerHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn('text-sm font-semibold underline-offset-4 hover:underline', ui.body)}
+          >
+            Abrir
+          </a>
+        ) : null}
+        {onPrepareLink ? (
           <button
             type="button"
             onClick={onPrepareLink}
             className={cn(
               'text-sm font-semibold underline-offset-4 hover:underline',
-              ui.ws ? 'text-amber-700 dark:text-amber-300' : 'text-amber-200'
+              monetization.status === 'needs_attention'
+                ? ui.ws
+                  ? 'text-amber-700 dark:text-amber-300'
+                  : 'text-amber-200'
+                : ui.muted
             )}
           >
-            Preparar enlace
+            {changeLabel}
           </button>
         ) : null}
         <button

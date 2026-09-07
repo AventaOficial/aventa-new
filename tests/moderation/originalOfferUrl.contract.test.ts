@@ -55,7 +55,7 @@ describe('FocusAffiliatePrepare + workspace contract', () => {
       'utf8'
     );
     expect(hook).toMatch(/prepareAffiliateLink/);
-    expect(hook).toMatch(/affiliate_paste:\s*true/);
+    expect(hook).toMatch(/affiliate_paste:\s*affiliatePaste/);
     // No fallback offer_url como original_product_url en prepare
     expect(hook).not.toMatch(
       /original_product_url:\s*originalUrlRef\.current\.get\([^)]+\)\s*\?\?\s*offer\.offer_url/

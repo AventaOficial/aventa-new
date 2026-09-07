@@ -511,7 +511,7 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
     async (pastedUrl: string): Promise<{ ok: boolean; error?: string }> => {
       if (!offer || actingRef.current) return { ok: false, error: 'No hay oferta activa' };
       const pasted = pastedUrl.trim();
-      if (!pasted) return { ok: false, error: 'Pega el enlace afiliado' };
+      if (!pasted) return { ok: false, error: 'Pega el enlace' };
 
       actingRef.current = true;
       setActing(true);
@@ -521,13 +521,14 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
           originalOfferUrl: offer.original_offer_url,
           refOriginal: originalUrlRef.current.get(offer.id),
         });
+        const affiliatePaste = offerRequiresAffiliateValidation(pasted);
         const res = await fetch('/api/admin/update-offer', {
           method: 'PATCH',
           headers: authHeaders(),
           body: JSON.stringify({
             id: offer.id,
             offer_url: pasted,
-            affiliate_paste: true,
+            affiliate_paste: affiliatePaste,
             ...(trustedOriginal ? { original_product_url: trustedOriginal } : {}),
           }),
         });
@@ -543,7 +544,8 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
           prev
             ? {
                 ...prev,
-                link_mod_ok: true,
+                link_mod_ok:
+                  data?.link_mod_ok === true || affiliatePaste ? true : prev.link_mod_ok,
                 offer_url: typeof data?.offer_url === 'string' ? data.offer_url : pasted,
               }
             : prev

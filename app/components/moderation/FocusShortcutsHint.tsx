@@ -12,6 +12,7 @@ type Props = {
 
 const ROWS = [
   { key: 'A', label: 'Aprobar' },
+  { key: 'O', label: 'Abrir enlace' },
   { key: 'R', label: 'Rechazar' },
   { key: 'S', label: 'Revisar después' },
   { key: '←', label: 'Anterior' },

@@ -9,15 +9,24 @@ type Props = {
   mode: ModerationHubMode;
   acting: boolean;
   open: boolean;
+  /** prepare = falta tag Aventa; replace = cambio de URL de producto. */
+  variant?: 'prepare' | 'replace';
   onClose: () => void;
   onSave: (pastedUrl: string) => Promise<{ ok: boolean; error?: string }>;
 };
 
 /**
- * Flujo humano para pegar el enlace afiliado de Aventa.
+ * Flujo humano para pegar/reemplazar el enlace operativo.
  * No inventa original_offer_url; el backend aplica la política existente.
  */
-export default function FocusAffiliatePrepare({ mode, acting, open, onClose, onSave }: Props) {
+export default function FocusAffiliatePrepare({
+  mode,
+  acting,
+  open,
+  variant = 'prepare',
+  onClose,
+  onSave,
+}: Props) {
   const ui = moderationUi(mode);
   const [paste, setPaste] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -36,10 +45,13 @@ export default function FocusAffiliatePrepare({ mode, acting, open, onClose, onS
       )}
       data-focus-affiliate-prepare
     >
-      <p className={cn('text-sm font-semibold', ui.body)}>Preparar enlace de Aventa</p>
+      <p className={cn('text-sm font-semibold', ui.body)}>
+        {variant === 'prepare' ? 'Preparar enlace de Aventa' : 'Cambiar enlace'}
+      </p>
       <p className={cn('mt-1 text-xs leading-relaxed', ui.muted)}>
-        Esta tienda tiene programa afiliado. Pega el enlace con el tag de Aventa y guárdalo antes de
-        aprobar.
+        {variant === 'prepare'
+          ? 'Esta tienda tiene programa afiliado. Pega el enlace con el tag de Aventa y guárdalo antes de aprobar.'
+          : 'Pega el enlace del producto. El original guardado no se inventa ni se reemplaza.'}
       </p>
       <label className="mt-3 block">
         <span className={cn('sr-only')}>Enlace afiliado</span>
