@@ -25,6 +25,42 @@ describe('FocusOfferStage monetization UI contract', () => {
     );
     expect(src).toMatch(/data-monetization-status/);
   });
+
+  it('CTA Preparar enlace cuando requiere atención', () => {
+    const src = readFileSync(
+      join(process.cwd(), 'app/components/moderation/FocusOfferStage.tsx'),
+      'utf8'
+    );
+    expect(src).toMatch(/Preparar enlace/);
+    expect(src).toMatch(/needs_attention/);
+  });
+});
+
+describe('FocusAffiliatePrepare + workspace contract', () => {
+  it('workspace usa prepare + barra fija de acciones', () => {
+    const ws = readFileSync(
+      join(process.cwd(), 'app/components/moderation/ModerationFocusWorkspace.tsx'),
+      'utf8'
+    );
+    expect(ws).toMatch(/FocusAffiliatePrepare/);
+    expect(ws).toMatch(/prepareAffiliateLink/);
+    expect(ws).toMatch(/fixed inset-x-0 bottom-0/);
+    // Evitar md:static que empuja acciones fuera del primer viewport
+    expect(ws).not.toMatch(/md:static/);
+  });
+
+  it('prepare panel no inventa original desde offer_url', () => {
+    const hook = readFileSync(
+      join(process.cwd(), 'lib/hooks/useModerationFocusQueue.ts'),
+      'utf8'
+    );
+    expect(hook).toMatch(/prepareAffiliateLink/);
+    expect(hook).toMatch(/affiliate_paste:\s*true/);
+    // No fallback offer_url como original_product_url en prepare
+    expect(hook).not.toMatch(
+      /original_product_url:\s*originalUrlRef\.current\.get\([^)]+\)\s*\?\?\s*offer\.offer_url/
+    );
+  });
 });
 
 describe('migración original_offer_url', () => {

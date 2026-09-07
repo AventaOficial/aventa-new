@@ -7,12 +7,14 @@ import type { FocusSourceTab } from '@/lib/moderation/focusTypes';
 import { useModerationFocusQueue } from '@/lib/hooks/useModerationFocusQueue';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { formatModerationRelativeTime } from '@/lib/moderation/relativeTime';
+import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
 import { cn } from '@/app/components/panel/utils';
 import FocusOfferStage from './FocusOfferStage';
 import FocusActionsBar from './FocusActionsBar';
 import FocusRejectSheet from './FocusRejectSheet';
 import FocusDetailsDrawer from './FocusDetailsDrawer';
 import FocusShortcutsHint from './FocusShortcutsHint';
+import FocusAffiliatePrepare from './FocusAffiliatePrepare';
 
 export type ModerationFocusWorkspaceProps = {
   mode?: ModerationHubMode;
@@ -28,6 +30,14 @@ export default function ModerationFocusWorkspace({
   const queue = useModerationFocusQueue({ sourceTab });
   const [rejectOpen, setRejectOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [userPrepare, setUserPrepare] = useState(false);
+  const [seenOfferId, setSeenOfferId] = useState<string | null>(null);
+  const currentOfferId = queue.offer?.id ?? null;
+  if (currentOfferId !== seenOfferId) {
+    setSeenOfferId(currentOfferId);
+    setUserPrepare(false);
+  }
+  const prepareOpen = Boolean(queue.offer) && (userPrepare || queue.needsAffiliateConfirm);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -38,9 +48,11 @@ export default function ModerationFocusWorkspace({
       if (e.key === 'Escape') {
         setRejectOpen(false);
         setWhyOpen(false);
+        setUserPrepare(false);
+        queue.dismissAffiliateGate();
         return;
       }
-      if (rejectOpen || whyOpen || queue.acting || queue.loading) return;
+      if (rejectOpen || whyOpen || prepareOpen || queue.acting || queue.loading) return;
 
       if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
@@ -61,7 +73,7 @@ export default function ModerationFocusWorkspace({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [queue, rejectOpen, whyOpen]);
+  }, [queue, rejectOpen, whyOpen, prepareOpen]);
 
   const oldestLabel = queue.oldestCreatedAt
     ? formatModerationRelativeTime(queue.oldestCreatedAt).replace(/^Hace /, '')
@@ -76,21 +88,38 @@ export default function ModerationFocusWorkspace({
     return '/admin/moderation';
   };
 
+  const monetization = queue.offer
+    ? computeMonetizationReadiness({
+        offerUrl: queue.offer.offer_url,
+        originalOfferUrl: queue.offer.original_offer_url,
+        linkModOk: queue.offer.link_mod_ok,
+      })
+    : null;
+
   return (
-    <div className="relative mx-auto flex min-h-[min(100dvh-8rem,900px)] w-full max-w-2xl flex-col px-4 pb-28 pt-2 md:pb-8">
-      <header className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h1 className={cn('text-xl font-semibold tracking-tight md:text-2xl', ui.title)}>
+    <div
+      className={cn(
+        'relative mx-auto flex w-full max-w-2xl flex-col px-4 pt-1',
+        // Espacio fijo para la action bar + safe-area (también en desktop: la barra es fixed).
+        prepareOpen
+          ? 'pb-[calc(14rem+env(safe-area-inset-bottom,0px))]'
+          : 'pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))]'
+      )}
+      data-focus-workspace
+    >
+      <header className="mb-2 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className={cn('text-lg font-semibold tracking-tight md:text-xl', ui.title)}>
             Moderación
           </h1>
-          <p className={cn('mt-1 text-sm', ui.soft)}>
+          <p className={cn('mt-0.5 text-xs md:text-sm', ui.soft)}>
             {queue.stats.globalPending > 0
               ? `${queue.stats.globalPending} por revisar`
               : queue.loading
                 ? 'Cargando…'
                 : 'Nada pendiente'}
             {oldestLabel ? (
-              <span className={cn('ml-2', ui.faint)}>· la más antigua: {oldestLabel}</span>
+              <span className={cn('ml-2', ui.faint)}>· más antigua: {oldestLabel}</span>
             ) : null}
           </p>
         </div>
@@ -98,7 +127,7 @@ export default function ModerationFocusWorkspace({
       </header>
 
       {mode === 'workspace' ? (
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           {(
             [
               { id: 'all' as const, label: 'Por revisar', href: filterHref('all') },
@@ -123,7 +152,7 @@ export default function ModerationFocusWorkspace({
       {queue.error ? (
         <p
           className={cn(
-            'mb-3 rounded-xl px-3 py-2 text-sm',
+            'mb-2 rounded-xl px-3 py-2 text-sm',
             ui.ws
               ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
               : 'bg-amber-500/15 text-amber-100'
@@ -134,60 +163,42 @@ export default function ModerationFocusWorkspace({
         </p>
       ) : null}
 
-      {queue.needsAffiliateConfirm && queue.offer ? (
-        <div
-          className={cn(
-            'mb-4 rounded-2xl border px-4 py-3 text-left',
-            ui.border,
-            ui.ws ? 'bg-amber-50/80 dark:bg-amber-950/30' : 'bg-amber-500/10'
-          )}
-        >
-          <p className={cn('text-sm font-medium', ui.body)}>Falta confirmar el enlace</p>
-          <p className={cn('mt-1 text-xs', ui.muted)}>
-            Esta tienda requiere validar el enlace afiliado antes de publicar.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={queue.acting}
-              onClick={() => void queue.confirmAffiliateAndApprove()}
-              className={cn(
-                'rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-50',
-                ui.ws ? 'bg-emerald-600' : 'bg-violet-500'
-              )}
-            >
-              Confirmar y aprobar
-            </button>
-            <button
-              type="button"
-              onClick={queue.dismissAffiliateGate}
-              className={cn('rounded-full px-3 py-2 text-sm', ui.btnGhost)}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <FocusAffiliatePrepare
+        mode={mode}
+        acting={queue.acting}
+        open={prepareOpen}
+        onClose={() => {
+          setUserPrepare(false);
+          queue.dismissAffiliateGate();
+        }}
+        onSave={async (pasted) => {
+          const result = await queue.prepareAffiliateLink(pasted);
+          if (result.ok) setUserPrepare(false);
+          return result;
+        }}
+      />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-col">
         {queue.loading && !queue.offer ? (
-          <div className={cn('flex flex-1 items-center justify-center py-24 text-sm', ui.muted)}>
+          <div className={cn('flex items-center justify-center py-16 text-sm', ui.muted)}>
             Buscando la siguiente oferta…
           </div>
         ) : !queue.offer ? (
-          <div className={cn('flex flex-1 flex-col items-center justify-center py-24', ui.emptyDash)}>
+          <div className={cn('flex flex-col items-center justify-center py-16', ui.emptyDash)}>
             <p className={cn('text-base font-medium', ui.title)}>Todo al día</p>
             <p className={cn('mt-1 text-sm', ui.muted)}>No hay ofertas por revisar ahora.</p>
           </div>
         ) : (
           <>
-            <p className={cn('mb-4 text-center text-xs tabular-nums', ui.faint)}>
+            <p className={cn('mb-2 text-center text-[11px] tabular-nums', ui.faint)}>
               Oferta {queue.position} de {queue.total}
+              {monetization ? ` · ${monetization.label}` : ''}
             </p>
             <FocusOfferStage
               offer={queue.offer}
               mode={mode}
               onOpenWhy={() => setWhyOpen(true)}
+              onPrepareLink={() => setUserPrepare(true)}
             />
           </>
         )}
@@ -196,36 +207,40 @@ export default function ModerationFocusWorkspace({
       {queue.offer ? (
         <div
           className={cn(
-            'fixed inset-x-0 bottom-0 z-30 border-t px-4 py-3 backdrop-blur-md md:static md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none',
+            'fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 backdrop-blur-md',
+            'pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]',
             ui.ws
               ? 'border-black/[0.06] bg-white/90 dark:border-white/10 dark:bg-[#0a0f0c]/90'
               : 'border-white/10 bg-[#0c0a12]/92'
           )}
+          data-focus-actions-bar
         >
-          <FocusActionsBar
-            mode={mode}
-            acting={queue.acting}
-            onReject={() => setRejectOpen(true)}
-            onApprove={() => void queue.approve()}
-            onSnooze={(m) => void queue.snooze(m)}
-          />
-          <div className="mt-3 flex items-center justify-center gap-6">
-            <button
-              type="button"
-              onClick={queue.goPrev}
-              disabled={queue.acting}
-              className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
-            >
-              <ChevronLeft className="h-4 w-4" /> anterior
-            </button>
-            <button
-              type="button"
-              onClick={() => void queue.goNext()}
-              disabled={queue.acting}
-              className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
-            >
-              siguiente <ChevronRight className="h-4 w-4" />
-            </button>
+          <div className="mx-auto w-full max-w-lg">
+            <FocusActionsBar
+              mode={mode}
+              acting={queue.acting}
+              onReject={() => setRejectOpen(true)}
+              onApprove={() => void queue.approve()}
+              onSnooze={(m) => void queue.snooze(m)}
+            />
+            <div className="mt-2 flex items-center justify-center gap-6">
+              <button
+                type="button"
+                onClick={queue.goPrev}
+                disabled={queue.acting}
+                className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
+              >
+                <ChevronLeft className="h-4 w-4" /> anterior
+              </button>
+              <button
+                type="button"
+                onClick={() => void queue.goNext()}
+                disabled={queue.acting}
+                className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
+              >
+                siguiente <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

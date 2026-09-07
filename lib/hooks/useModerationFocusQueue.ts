@@ -280,11 +280,12 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(
-          humanizeAffiliateApproveError(
-            typeof err?.error === 'string' ? err.error : 'No se pudo aprobar'
-          )
-        );
+        const raw = typeof err?.error === 'string' ? err.error : 'No se pudo aprobar';
+        const human = humanizeAffiliateApproveError(raw);
+        if (human === 'Falta preparar el enlace para Aventa.') {
+          setNeedsAffiliateConfirm(true);
+        }
+        throw new Error(human);
       }
       if (current.created_by) {
         void fetch('/api/reputation/increment-approved', {
@@ -505,6 +506,63 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
     setError(null);
   }, []);
 
+  /** Guarda enlace afiliado pegado (sin aprobar). No inventa original_offer_url. */
+  const prepareAffiliateLink = useCallback(
+    async (pastedUrl: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!offer || actingRef.current) return { ok: false, error: 'No hay oferta activa' };
+      const pasted = pastedUrl.trim();
+      if (!pasted) return { ok: false, error: 'Pega el enlace afiliado' };
+
+      actingRef.current = true;
+      setActing(true);
+      setError(null);
+      try {
+        const trustedOriginal = focusOriginalProductUrlForRequest({
+          originalOfferUrl: offer.original_offer_url,
+          refOriginal: originalUrlRef.current.get(offer.id),
+        });
+        const res = await fetch('/api/admin/update-offer', {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            id: offer.id,
+            offer_url: pasted,
+            affiliate_paste: true,
+            ...(trustedOriginal ? { original_product_url: trustedOriginal } : {}),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return {
+            ok: false,
+            error:
+              typeof data?.error === 'string' ? data.error : 'No se pudo guardar el enlace',
+          };
+        }
+        setOffer((prev) =>
+          prev
+            ? {
+                ...prev,
+                link_mod_ok: true,
+                offer_url: typeof data?.offer_url === 'string' ? data.offer_url : pasted,
+              }
+            : prev
+        );
+        setNeedsAffiliateConfirm(false);
+        return { ok: true };
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : 'No se pudo guardar el enlace',
+        };
+      } finally {
+        actingRef.current = false;
+        setActing(false);
+      }
+    },
+    [authHeaders, offer]
+  );
+
   const position = Math.max(1, sessionCursor);
   const total = Math.max(stats.globalPending, stats.availableEstimate, position);
 
@@ -529,6 +587,7 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
     goPrev,
     claimNext,
     confirmAffiliateAndApprove,
+    prepareAffiliateLink,
     dismissAffiliateGate,
     setError,
   };

@@ -29,12 +29,14 @@ import {
   extractMercadoLibreItemId,
   extractMercadoLibreStructuredPrices,
   extractOfferImages,
+  extractOfferMetaImages,
   extractSuggestedPrices,
   getById,
   getMetaContent,
   stripOfferTrackingParams,
 } from '@/lib/offers/parseOfferPageHtml';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
+import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
@@ -224,10 +226,12 @@ export async function POST(request: Request) {
       store: storeFromHost,
     };
     let htmlImages: string[] = [];
+    let trustedHtmlImages: string[] = [];
     let breadcrumbs: string[] = [];
 
     if (html) {
       htmlImages = extractOfferImages(html, base);
+      trustedHtmlImages = extractOfferMetaImages(html, base);
       breadcrumbs = extractBreadcrumbs(html);
       if (isAmazon) data = parseAmazon(html, base);
       else if (isMercadoLibre) data = parseMercadoLibre(html, base);
@@ -264,7 +268,14 @@ export async function POST(request: Request) {
         image: ml.pictures[0] || data.image,
         store: 'Mercado Libre',
       };
-      candidates = collectCandidates(ml.pictures[0] ?? data.image, [...ml.pictures, ...htmlImages]);
+      // No mezclar scrape HTML (similares/otros modelos) cuando la API ya trae galería.
+      const mergedPics = mergeMercadoLibreImageCandidates({
+        apiPictures: ml.pictures,
+        htmlImages,
+        trustedHtmlImages,
+        mlSource: ml.source,
+      });
+      candidates = collectCandidates(ml.pictures[0] ?? data.image, mergedPics);
       mlCategoryId = ml.categoryId;
       mlPathNames = ml.pathNames;
       if (ml.source === 'ml_api') {

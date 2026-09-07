@@ -357,6 +357,38 @@ function pushUnique(list: string[], url: string | null) {
   list.push(url);
 }
 
+/**
+ * Solo fuentes meta de alta confianza (og/twitter + primer Product JSON-LD).
+ * No incluye regex CDN global (similares/recomendados).
+ */
+export function extractOfferMetaImages(html: string, base: string): string[] {
+  const images: string[] = [];
+  for (const raw of getAllMetaContents(html, 'og:image')) {
+    pushUnique(images, absoluteUrl(base, raw));
+  }
+  pushUnique(images, absoluteUrl(base, getMetaContent(html, 'og:image:secure_url')));
+  pushUnique(images, absoluteUrl(base, getMetaContent(html, 'twitter:image')));
+
+  let productSeen = false;
+  for (const parsed of collectLdJson(html)) {
+    walkLd(parsed, (o, typeStr) => {
+      if (productSeen) return;
+      if (!typeStr.includes('Product')) return;
+      productSeen = true;
+      const img = o.image;
+      const add = (v: unknown) => {
+        if (typeof v === 'string') pushUnique(images, absoluteUrl(base, v));
+        else if (v && typeof v === 'object' && 'url' in (v as object)) {
+          pushUnique(images, absoluteUrl(base, String((v as { url?: unknown }).url ?? '')));
+        }
+      };
+      if (Array.isArray(img)) img.slice(0, 4).forEach(add);
+      else add(img);
+    });
+  }
+  return images;
+}
+
 function unescapeJsonUrl(raw: string): string {
   return raw.replace(/\\u002F/g, '/').replace(/\\\//g, '/').replace(/\\"/g, '"');
 }
