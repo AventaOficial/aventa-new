@@ -46,10 +46,10 @@ export const HUNTER_MODULES: HunterModule[] = [
   {
     id: 'scorer',
     emoji: '🤖',
-    name: 'Deal Scorer',
-    job: 'Aventa Score 0–100 y decisión: ignorar / cola / auto-publicar.',
+    name: 'Deal Scorer + Verifier',
+    job: 'Score 0–100 + Deal Verifier determinista: auto-approve / revisión / reject.',
     status: 'live',
-    code: 'lib/bots/ingest/scoreIngestCandidate.ts',
+    code: 'lib/verifier/evaluateDeal.ts',
   },
   {
     id: 'copy',

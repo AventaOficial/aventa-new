@@ -11,7 +11,7 @@ import { fetchParsedOfferMetadataDetailed } from './fetchParsedOfferMetadata';
 import { insertIngestedOffer } from './insertIngestedOffer';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
-import { scoreIngestCandidate, type ScoreBreakdown } from './scoreIngestCandidate';
+import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { computeSourceRotationWave, formatYmdInTz, getZonedHourMinute } from './ingestZonedTime';
 import { sleep } from './ingestHttp';
 import { recalculateUserReputation } from '@/lib/server/reputation';
@@ -19,6 +19,7 @@ import type { IngestCycleReport, IngestSingleResult, IngestProfileId, IngestSour
 import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { enrichWithPriceIntel } from './priceIntel';
+import { evaluateDealSafe } from '@/lib/verifier';
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -301,10 +302,16 @@ export async function runIngestCycleForProfile(
         continue;
       }
 
-      const scored = scoreIngestCandidate(meta, meta.signals, config);
-      if (scored.decision === 'reject') {
+      const verified = evaluateDealSafe({
+        meta,
+        config,
+        source: item.source,
+        url: item.url,
+      });
+      if (verified.decision === 'reject') {
         scoreRejected += 1;
-        const reason = `score ${scored.breakdown.total} < mínimo publicación`;
+        const reason =
+          verified.reasons[0] ?? `score ${verified.score} < mínimo publicación`;
         results.push({
           url: item.url,
           source: item.source,
@@ -318,9 +325,9 @@ export async function runIngestCycleForProfile(
       resolved.push({
         item,
         meta,
-        decision: scored.decision,
-        total: scored.breakdown.total,
-        breakdown: scored.breakdown,
+        decision: verified.ingestDecision,
+        total: verified.score,
+        breakdown: verified.breakdown,
       });
       stageCounts.resolved += 1;
     } catch (e) {

@@ -62,6 +62,14 @@ type HunterHealthPayload = {
     lastErrorCode: string | null;
   }>;
   catalog: Array<{ id: string; displayName: string }>;
+  dealVerifier?: {
+    evaluated: number;
+    autoApproved: number;
+    review: number;
+    rejected: number;
+    errors: number;
+    topReasons: Array<{ reason: string; count: number }>;
+  };
 };
 
 const MODULE_TONE: Record<HunterModuleStatus, 'ok' | 'attention' | 'neutral'> = {
@@ -214,8 +222,8 @@ export default function HunterPage() {
           AVENTA Hunter
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-white/50 leading-relaxed">
-          Pipeline multifuente: recolector → precio → score → afiliado → publicar. Un fallo de una fuente no apaga el
-          cazador.
+          Pipeline multifuente: recolector → precio → Deal Verifier → afiliado → publicar. Un fallo de una fuente no
+          apaga el cazador.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {data ? (
@@ -291,6 +299,30 @@ export default function HunterPage() {
                 </li>
               ) : null}
             </ul>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Deal Verifier"
+              subtitle="Evaluaciones en este proceso (proceso). Se reinicia al redeploy."
+            />
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiCard label="Evaluados" value={String(health?.dealVerifier?.evaluated ?? 0)} />
+              <KpiCard label="Auto-approved" value={String(health?.dealVerifier?.autoApproved ?? 0)} />
+              <KpiCard label="Review" value={String(health?.dealVerifier?.review ?? 0)} />
+              <KpiCard label="Rejected" value={String(health?.dealVerifier?.rejected ?? 0)} />
+            </div>
+            {(health?.dealVerifier?.topReasons?.length ?? 0) > 0 ? (
+              <ul className="mt-4 space-y-1.5">
+                {health!.dealVerifier!.topReasons.map((r) => (
+                  <li key={r.reason} className="text-xs text-white/50">
+                    <span className="text-white/70">×{r.count}</span> {r.reason}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Aún sin razones registradas en este proceso.</p>
+            )}
           </GlassCard>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

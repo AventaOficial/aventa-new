@@ -13,9 +13,9 @@ import type {
 import { insertIngestedOffer } from './insertIngestedOffer';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
 import { isLowQualityTitle } from './isLowQualityTitle';
-import { scoreIngestCandidate, type ScoreBreakdown } from './scoreIngestCandidate';
-import { shouldAutoApproveWorkerCandidate } from './workerAutoApprove';
+import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { enrichWithPriceIntel } from './priceIntel';
+import { evaluateDealSafe } from '@/lib/verifier';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
@@ -292,10 +292,17 @@ export async function processExternalWorkerBatch(
         continue;
       }
 
-      const scored = scoreIngestCandidate(meta, meta.signals, config);
-      if (scored.decision === 'reject') {
+      const verified = evaluateDealSafe({
+        meta,
+        config,
+        source: item.source,
+        url: item.url,
+        enableWorkerAutoApprove: true,
+      });
+      if (verified.decision === 'reject') {
         scoreRejected += 1;
-        const reason = `score ${scored.breakdown.total} < mínimo publicación`;
+        const reason =
+          verified.reasons[0] ?? `score ${verified.score} < mínimo publicación`;
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;
@@ -304,9 +311,9 @@ export async function processExternalWorkerBatch(
       resolved.push({
         item,
         meta,
-        decision: scored.decision,
-        total: scored.breakdown.total,
-        breakdown: scored.breakdown,
+        decision: verified.ingestDecision,
+        total: verified.score,
+        breakdown: verified.breakdown,
       });
       stageCounts.resolved += 1;
     } catch (error) {
@@ -341,12 +348,8 @@ export async function processExternalWorkerBatch(
   for (const row of resolved) {
     if (insertedThisRun >= maxInsertsThisBatch) break;
 
-    const allowAuto = shouldAutoApproveWorkerCandidate({
-      config,
-      decision: row.decision,
-      scoreTotal: row.total,
-      meta: row.meta,
-    });
+    // evaluateDealSafe ya aplicó shouldAutoApproveWorkerCandidate vía enableWorkerAutoApprove.
+    const allowAuto = config.autoApproveEnabled && row.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
 

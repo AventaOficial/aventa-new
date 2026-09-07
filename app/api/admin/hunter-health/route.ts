@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
 import { getHunterHealthSummary } from '@/lib/hunter/isHunting';
 import { HUNTER_SOURCES } from '@/lib/hunter/sources';
+import { getDealVerifierMetrics } from '@/lib/verifier';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
       sources: summary.sources,
       rows: summary.rows,
       catalog,
+      dealVerifier: getDealVerifierMetrics(),
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );
