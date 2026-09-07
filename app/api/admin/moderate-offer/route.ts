@@ -95,15 +95,17 @@ export async function POST(request: Request) {
     if (status === 'approved') {
       const { data: row } = await supabase
         .from('offers')
-        .select('expires_at, offer_url, link_mod_ok')
+        .select('expires_at, offer_url, link_mod_ok, original_offer_url')
         .eq('id', id)
         .single()
       const rawUrl = (row as { offer_url?: string | null })?.offer_url?.trim() ?? ''
       const linkModOk = (row as { link_mod_ok?: boolean | null }).link_mod_ok === true
+      const persistedOriginal =
+        (row as { original_offer_url?: string | null })?.original_offer_url?.trim() ?? ''
       const originalForApproval =
         typeof body?.original_product_url === 'string' && body.original_product_url.trim()
           ? body.original_product_url.trim()
-          : rawUrl
+          : persistedOriginal || rawUrl
 
       const readiness = assertOfferReadyForAffiliateApproval({
         offerUrl: rawUrl,
@@ -112,7 +114,10 @@ export async function POST(request: Request) {
         originalProductUrl: originalForApproval,
       })
       if (!readiness.ok) {
-        return NextResponse.json({ error: readiness.error }, { status: 400 })
+        return NextResponse.json(
+          { error: 'Falta preparar el enlace para Aventa.' },
+          { status: 400 }
+        )
       }
 
       if (rawUrl && linkModOk) {

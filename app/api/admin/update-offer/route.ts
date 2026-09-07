@@ -5,6 +5,10 @@ import { resolveAndNormalizeAffiliateOfferUrl, validateAffiliatePaste } from '@/
 import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories'
 import { normalizeOfferImageUrl } from '@/lib/offerPath'
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
+import {
+  affiliatePasteValidationBaseline,
+  originalOfferUrlToPersistOnAffiliatePaste,
+} from '@/lib/moderation/originalOfferUrlPolicy'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -28,7 +32,7 @@ export async function PATCH(request: Request) {
     const supabase = createServerClient()
     const { data: offer } = await supabase
       .from('offers')
-      .select('id, status, offer_url, locked_by, locked_at')
+      .select('id, status, offer_url, original_offer_url, locked_by, locked_at')
       .eq('id', id)
       .single()
 
@@ -38,6 +42,8 @@ export async function PATCH(request: Request) {
     }
 
     const currentOfferUrl = (offer as { offer_url?: string | null }).offer_url?.trim() ?? ''
+    const existingOriginal =
+      (offer as { original_offer_url?: string | null }).original_offer_url?.trim() ?? ''
     const affiliatePaste = body?.affiliate_paste === true
 
     if (offerStatus === 'pending') {
@@ -56,6 +62,7 @@ export async function PATCH(request: Request) {
     const payload: {
       title?: string
       offer_url?: string | null
+      original_offer_url?: string | null
       description?: string | null
       image_url?: string | null
       image_urls?: string[] | null
@@ -74,14 +81,20 @@ export async function PATCH(request: Request) {
         payload.offer_url = null
         payload.link_mod_ok = null
       } else if (affiliatePaste) {
-        const originalUrl =
+        const bodyOriginal =
           typeof body.original_product_url === 'string' && body.original_product_url.trim()
             ? body.original_product_url.trim().slice(0, 2048)
-            : currentOfferUrl
-        if (!originalUrl) {
+            : null
+        // En memoria: puede usar offer_url operativo. Nunca inventar original persistido.
+        const validationBaseline = affiliatePasteValidationBaseline({
+          existingOriginal,
+          bodyOriginalProductUrl: bodyOriginal,
+          currentOfferUrl,
+        })
+        if (!validationBaseline) {
           return NextResponse.json({ error: 'La oferta no tiene enlace original' }, { status: 400 })
         }
-        const validation = validateAffiliatePaste(originalUrl, pasted)
+        const validation = validateAffiliatePaste(validationBaseline, pasted)
         if (!validation.valid) {
           return NextResponse.json(
             { error: validation.reason ?? 'El enlace no corresponde al producto', validation },
@@ -90,7 +103,18 @@ export async function PATCH(request: Request) {
         }
         payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
         payload.link_mod_ok = true
+        const toPersist = originalOfferUrlToPersistOnAffiliatePaste({
+          existingOriginal,
+          bodyOriginalProductUrl: bodyOriginal,
+        })
+        if (toPersist) {
+          payload.original_offer_url = toPersist
+        }
       } else {
+        // Edición de URL de producto: capturar original solo si aún no existe.
+        if (!existingOriginal) {
+          payload.original_offer_url = pasted
+        }
         payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
       }
     }
@@ -128,8 +152,12 @@ export async function PATCH(request: Request) {
     }
 
     let { error } = await supabase.from('offers').update(payload).eq('id', id)
-    if (error && hasMissingColumn(error, 'link_mod_ok')) {
-      delete payload.link_mod_ok
+    if (
+      error &&
+      (hasMissingColumn(error, 'link_mod_ok') || hasMissingColumn(error, 'original_offer_url'))
+    ) {
+      if (hasMissingColumn(error, 'link_mod_ok')) delete payload.link_mod_ok
+      if (hasMissingColumn(error, 'original_offer_url')) delete payload.original_offer_url
       ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
     }
     if (error) {

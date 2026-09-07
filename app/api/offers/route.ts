@@ -28,6 +28,7 @@ type OfferInsertPayload = {
   image_urls?: string[];
   msi_months?: number;
   offer_url?: string;
+  original_offer_url?: string;
   product_fingerprint?: string;
   description?: string;
   steps?: string;
@@ -152,11 +153,13 @@ export async function POST(request: Request) {
 
     const rawOfferUrl = typeof input.offer_url === 'string' ? input.offer_url.trim() : '';
     let offerUrlNormalized = '';
+    let originalOfferUrl: string | null = null;
     if (rawOfferUrl) {
       const urlCheck = validatePublicOfferUrl(rawOfferUrl);
       if (!urlCheck.ok) {
         return NextResponse.json({ error: urlCheck.error }, { status: 400 });
       }
+      originalOfferUrl = urlCheck.href;
       offerUrlNormalized = await resolveAndNormalizeAffiliateOfferUrl(urlCheck.href);
     }
 
@@ -195,6 +198,7 @@ export async function POST(request: Request) {
       ...(extraImages.length > 0 && { image_urls: extraImages }),
       ...(msiMonths != null && { msi_months: msiMonths }),
       ...(offerUrlNormalized && { offer_url: offerUrlNormalized }),
+      ...(originalOfferUrl ? { original_offer_url: originalOfferUrl } : {}),
       ...(productFingerprint ? { product_fingerprint: productFingerprint } : {}),
       ...(typeof input.description === 'string' && input.description.trim() && {
         description: input.description.trim(),
@@ -217,12 +221,14 @@ export async function POST(request: Request) {
       error &&
       (hasMissingColumn(error, 'bank_coupon') ||
         hasMissingColumn(error, 'tags') ||
-        hasMissingColumn(error, 'product_fingerprint'))
+        hasMissingColumn(error, 'product_fingerprint') ||
+        hasMissingColumn(error, 'original_offer_url'))
     ) {
       const fallbackPayload: OfferInsertPayload = { ...payload };
       if (hasMissingColumn(error, 'bank_coupon')) delete fallbackPayload.bank_coupon;
       if (hasMissingColumn(error, 'tags')) delete fallbackPayload.tags;
       if (hasMissingColumn(error, 'product_fingerprint')) delete fallbackPayload.product_fingerprint;
+      if (hasMissingColumn(error, 'original_offer_url')) delete fallbackPayload.original_offer_url;
       insertPayload = fallbackPayload;
       ({ data, error } = await supabase.from('offers').insert([insertPayload]).select('id').single());
     }

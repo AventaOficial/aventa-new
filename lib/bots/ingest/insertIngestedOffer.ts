@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
-import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories';
+import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { BotIngestConfig } from './config';
@@ -12,7 +12,13 @@ import { buildBotMeta } from './buildBotMeta';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 
 /** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
-const OPTIONAL_COLUMNS = ['bot_meta', 'link_mod_ok', 'moderator_comment', 'product_fingerprint'] as const;
+const OPTIONAL_COLUMNS = [
+  'bot_meta',
+  'link_mod_ok',
+  'moderator_comment',
+  'product_fingerprint',
+  'original_offer_url',
+] as const;
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -61,7 +67,11 @@ export async function insertIngestedOffer(
     };
   }
 
-  const offerUrl = await resolveAndNormalizeAffiliateOfferUrl(meta.canonicalUrl);
+  const rawCanonical = (meta.canonicalUrl ?? '').trim();
+  const originalOfferUrl = rawCanonical || null;
+  const offerUrl = await resolveAndNormalizeAffiliateOfferUrl(
+    rawCanonical || meta.canonicalUrl
+  );
   const supabase = createServerClient();
 
   const {
@@ -126,6 +136,7 @@ export async function insertIngestedOffer(
     created_by: authorId,
     image_url: imageNormalized.slice(0, 2048),
     offer_url: offerUrl,
+    ...(originalOfferUrl ? { original_offer_url: originalOfferUrl.slice(0, 2048) } : {}),
     ...(productFingerprint ? { product_fingerprint: productFingerprint } : {}),
     description,
     moderator_comment: moderatorComment,

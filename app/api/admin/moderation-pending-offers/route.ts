@@ -18,6 +18,7 @@ const OPTIONAL_GROUPS = [
   { probe: 'bot_meta', columns: 'bot_meta' },
   { probe: 'locked_by', columns: 'locked_by, locked_at, snoozed_until' },
   { probe: 'link_mod_ok', columns: 'link_mod_ok' },
+  { probe: 'original_offer_url', columns: 'original_offer_url' },
 ] as const;
 
 function computeIsBot(

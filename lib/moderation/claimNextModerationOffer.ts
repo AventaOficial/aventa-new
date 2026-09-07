@@ -12,8 +12,15 @@ import {
   fetchPendingReportOfferIds,
 } from './moderationQueueSignals';
 
-const CLAIM_SELECT =
+const CLAIM_SELECT_CORE =
   'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, link_mod_ok, profiles:public_profiles_view!created_by(display_name, avatar_url)';
+
+const CLAIM_SELECT_WITH_ORIGINAL = `${CLAIM_SELECT_CORE}, original_offer_url, bot_meta`;
+
+function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
+  const msg = (error?.message ?? '').toLowerCase();
+  return msg.includes(columnName.toLowerCase());
+}
 
 export type ClaimSourceTab = 'all' | 'bot' | 'users';
 
@@ -69,20 +76,34 @@ export async function claimNextModerationOffer(
     await releaseModerationLockIfOwner(supabase, options.releaseOfferId, moderatorId);
   }
 
-  const { data: rows, error } = await supabase
-    .from('offers')
-    .select(CLAIM_SELECT)
-    .eq('status', 'pending');
-
-  if (error) {
-    throw new Error(error.message);
+  let rows: Record<string, unknown>[] | null = null;
+  {
+    const first = await supabase
+      .from('offers')
+      .select(CLAIM_SELECT_WITH_ORIGINAL)
+      .eq('status', 'pending');
+    if (
+      first.error &&
+      (hasMissingColumn(first.error, 'original_offer_url') || hasMissingColumn(first.error, 'bot_meta'))
+    ) {
+      const fallback = await supabase
+        .from('offers')
+        .select(CLAIM_SELECT_CORE)
+        .eq('status', 'pending');
+      if (fallback.error) throw new Error(fallback.error.message);
+      rows = (fallback.data ?? []) as Record<string, unknown>[];
+    } else if (first.error) {
+      throw new Error(first.error.message);
+    } else {
+      rows = (first.data ?? []) as Record<string, unknown>[];
+    }
   }
 
   const config = loadBotIngestConfig('standard');
   const botIds = new Set(config.botUserIdsForQuota);
 
   const normalized = (rows ?? []).map((row) => {
-    const r = row as Record<string, unknown>;
+    const r = row;
     const profiles = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
     return {
       ...r,
@@ -130,18 +151,29 @@ export async function claimNextModerationOffer(
     const acquired = await tryAcquireModerationLock(supabase, candidate.id, moderatorId);
     if (!acquired.claimed) continue;
 
-    const { data: fresh } = await supabase
+    let offerFresh: Record<string, unknown> | null = null;
+    const withExtra = await supabase
       .from('offers')
-      .select(CLAIM_SELECT)
+      .select(CLAIM_SELECT_WITH_ORIGINAL)
       .eq('id', candidate.id)
       .maybeSingle();
+    if (withExtra.error && hasMissingColumn(withExtra.error, 'original_offer_url')) {
+      const core = await supabase
+        .from('offers')
+        .select(CLAIM_SELECT_CORE)
+        .eq('id', candidate.id)
+        .maybeSingle();
+      offerFresh = (core.data as Record<string, unknown> | null) ?? null;
+    } else {
+      offerFresh = (withExtra.data as Record<string, unknown> | null) ?? null;
+    }
 
-    if (!fresh) {
+    if (!offerFresh) {
       await releaseModerationLockIfOwner(supabase, candidate.id, moderatorId);
       continue;
     }
 
-    const offerRow = fresh as Record<string, unknown>;
+    const offerRow = offerFresh;
     const profiles = Array.isArray(offerRow.profiles) ? offerRow.profiles[0] : offerRow.profiles;
     return {
       claimed: true,
@@ -149,7 +181,11 @@ export async function claimNextModerationOffer(
         ...offerRow,
         profiles,
         is_bot: computeIsBot(
-          offerRow as { created_by?: string | null; moderator_comment?: string | null; description?: string | null },
+          offerRow as {
+            created_by?: string | null;
+            moderator_comment?: string | null;
+            description?: string | null;
+          },
           botIds
         ),
       },
