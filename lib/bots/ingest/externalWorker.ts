@@ -249,7 +249,12 @@ export async function processExternalWorkerBatch(
     sourceStats[item.source].evaluated += 1;
     stageCounts.evaluated += 1;
     try {
-      const meta = item.precomputedMeta ? await enrichWithPriceIntel({ ...item.precomputedMeta }, config) : null;
+      // ml_worker: conservar discountPercent/precios de la card; intel solo en signals.
+      const meta = item.precomputedMeta
+        ? await enrichWithPriceIntel({ ...item.precomputedMeta }, config, {
+            preserveLabelDiscount: item.source === 'ml_worker',
+          })
+        : null;
       if (!meta) {
         const reason = 'sin metadatos';
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });

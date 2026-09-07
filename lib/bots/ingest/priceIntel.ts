@@ -2,11 +2,81 @@ import { extractAmazonAsin, extractMercadoLibreItemId } from '@/lib/offers/offer
 import type { BotIngestConfig } from './config';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { fetchKeepaPriceIntel } from './keepa';
-import { enrichMercadoLibrePriceIntel } from './mlPriceEngine';
+import {
+  enrichMercadoLibrePriceIntel,
+  type MlPriceIntel,
+} from './mlPriceEngine';
+import type { MlPriceQuote } from './mlPricesApi';
+
+export type EnrichPriceIntelOptions = {
+  /**
+   * Conserva discountPercent + precios de la card (p. ej. ml_worker).
+   * El intel del Price Engine queda solo en signals (scoring/diagnóstico).
+   */
+  preserveLabelDiscount?: boolean;
+};
+
+function hasPreservableCardDiscount(meta: ParsedOfferMetadata): boolean {
+  return Number.isFinite(meta.discountPercent) && meta.discountPercent > 0;
+}
+
+/**
+ * Fusiona quote/intel ML sobre meta de oferta.
+ * Exportada para tests del hard-filter vs card discount.
+ */
+export function applyMlPriceIntelToMeta(
+  meta: ParsedOfferMetadata,
+  ml: { quote: MlPriceQuote; intel: MlPriceIntel },
+  options?: EnrichPriceIntelOptions
+): ParsedOfferMetadata {
+  const current = ml.quote.current;
+  const labelOriginal = ml.quote.listPrice ?? meta.originalPrice;
+  const engineDiscount =
+    ml.intel.effectiveDiscountPercent != null
+      ? ml.intel.effectiveDiscountPercent
+      : labelOriginal != null && labelOriginal > current
+        ? Math.round((1 - current / labelOriginal) * 100)
+        : meta.discountPercent;
+
+  const signals: NonNullable<ParsedOfferMetadata['signals']> = {
+    ...(meta.signals ?? {}),
+    priceLowest30d: ml.intel.lowest30d,
+    priceLowest90d: ml.intel.lowest90d,
+    priceVsLowest90dPct: ml.intel.priceVsLowest90dPct,
+    habitual30d: ml.intel.habitual30d,
+    savingsVsHabitualPct: ml.intel.savingsVsHabitualPct,
+    effectiveDiscountPercent: ml.intel.effectiveDiscountPercent,
+    priceIntelSource: 'aventa_ml',
+    suspectedArtificialListPrice: ml.intel.suspectedArtificialListPrice,
+  };
+
+  const preserve =
+    options?.preserveLabelDiscount === true && hasPreservableCardDiscount(meta);
+
+  if (preserve) {
+    return {
+      ...meta,
+      // Card worker: no pisar % ni precios precomputados.
+      discountPrice: meta.discountPrice,
+      originalPrice: meta.originalPrice,
+      discountPercent: meta.discountPercent,
+      signals,
+    };
+  }
+
+  return {
+    ...meta,
+    discountPrice: current,
+    originalPrice: labelOriginal,
+    discountPercent: engineDiscount,
+    signals,
+  };
+}
 
 export async function enrichWithPriceIntel(
   meta: ParsedOfferMetadata,
-  config: BotIngestConfig
+  config: BotIngestConfig,
+  options?: EnrichPriceIntelOptions
 ): Promise<ParsedOfferMetadata> {
   const store = meta.store.toLowerCase();
 
@@ -18,33 +88,7 @@ export async function enrichWithPriceIntel(
       listPrice: meta.originalPrice,
     });
     if (!ml) return meta;
-
-    const current = ml.quote.current;
-    const labelOriginal = ml.quote.listPrice ?? meta.originalPrice;
-    const discountPercent =
-      ml.intel.effectiveDiscountPercent != null
-        ? ml.intel.effectiveDiscountPercent
-        : labelOriginal != null && labelOriginal > current
-          ? Math.round((1 - current / labelOriginal) * 100)
-          : meta.discountPercent;
-
-    return {
-      ...meta,
-      discountPrice: current,
-      originalPrice: labelOriginal,
-      discountPercent,
-      signals: {
-        ...(meta.signals ?? {}),
-        priceLowest30d: ml.intel.lowest30d,
-        priceLowest90d: ml.intel.lowest90d,
-        priceVsLowest90dPct: ml.intel.priceVsLowest90dPct,
-        habitual30d: ml.intel.habitual30d,
-        savingsVsHabitualPct: ml.intel.savingsVsHabitualPct,
-        effectiveDiscountPercent: ml.intel.effectiveDiscountPercent,
-        priceIntelSource: 'aventa_ml',
-        suspectedArtificialListPrice: ml.intel.suspectedArtificialListPrice,
-      },
-    };
+    return applyMlPriceIntelToMeta(meta, ml, options);
   }
 
   if (!config.keepaEnabled || !config.keepaApiKey) return meta;
