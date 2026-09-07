@@ -1,5 +1,5 @@
-import ModerationPendingPanel from '@/app/admin/moderation/panels/ModerationPendingPanel';
+import ModerationFocusWorkspace from '@/app/components/moderation/ModerationFocusWorkspace';
 
 export default function EquipoModeracionPage() {
-  return <ModerationPendingPanel mode="workspace" queueView="split" />;
+  return <ModerationFocusWorkspace mode="workspace" sourceTab="all" />;
 }
