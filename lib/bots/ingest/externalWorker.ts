@@ -18,6 +18,7 @@ import { shouldAutoApproveWorkerCandidate } from './workerAutoApprove';
 import { enrichWithPriceIntel } from './priceIntel';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
+import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
 
@@ -400,13 +401,33 @@ export async function processExternalWorkerBatch(
     stageCounts,
   };
 
+  const finishedAt = new Date().toISOString();
+  const latencyMs = Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt));
+  try {
+    await recordExternalSourceBatchHealth({
+      sourceId: 'ml_worker',
+      ok: summary.errors === 0,
+      itemsFound: rawCandidates.length,
+      itemsInserted: summary.inserted,
+      duplicates: summary.duplicate,
+      skipped: summary.skipped,
+      errors: summary.errors,
+      latencyMs: Number.isFinite(latencyMs) ? latencyMs : 0,
+      expectedIntervalMs: 30 * 60 * 1000,
+      errorCode: summary.errors > 0 ? 'batch_errors' : null,
+      errorMessageSafe: summary.errors > 0 ? `worker batch errors=${summary.errors}` : null,
+    });
+  } catch {
+    /* health no debe tumbar el batch */
+  }
+
   return {
     ok: summary.errors === 0,
     enabled: true,
     envIngestEnabled: config.enabled,
     profile,
     startedAt,
-    finishedAt: new Date().toISOString(),
+    finishedAt,
     maxPerRun: maxInsertsThisBatch,
     runMode: inMorningSustained ? 'morning_sustained' : 'normal',
     dailyInsertedApprox: countToday + summary.inserted,

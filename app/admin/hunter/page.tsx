@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { startTransition, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BowArrow, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -43,6 +43,27 @@ type HunterStatus = {
   };
 };
 
+type HunterHealthPayload = {
+  isHunting: boolean;
+  reason: string;
+  lastInsertAt: string | null;
+  rows: Array<{
+    sourceId: string;
+    displayStatus: 'healthy' | 'degraded' | 'down' | 'disabled';
+    status: string;
+    breakerState: string;
+    lastRunAt: string | null;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
+    itemsFound: number;
+    itemsInserted: number;
+    duplicates: number;
+    errors: number;
+    lastErrorCode: string | null;
+  }>;
+  catalog: Array<{ id: string; displayName: string }>;
+};
+
 const MODULE_TONE: Record<HunterModuleStatus, 'ok' | 'attention' | 'neutral'> = {
   live: 'ok',
   partial: 'attention',
@@ -55,8 +76,22 @@ const MODULE_LABEL: Record<HunterModuleStatus, string> = {
   planned: 'Siguiente',
 };
 
+function healthTone(status: string): 'ok' | 'attention' | 'neutral' {
+  if (status === 'healthy') return 'ok';
+  if (status === 'degraded' || status === 'down') return 'attention';
+  return 'neutral';
+}
+
+function healthEmoji(status: string): string {
+  if (status === 'healthy') return '🟢';
+  if (status === 'degraded') return '🟡';
+  if (status === 'down') return '🔴';
+  return '⚫';
+}
+
 export default function HunterPage() {
   const [data, setData] = useState<HunterStatus | null>(null);
+  const [health, setHealth] = useState<HunterHealthPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -72,21 +107,28 @@ export default function HunterPage() {
       setLoading(false);
       return;
     }
-    const res = await fetch('/api/admin/bot-ingest-status', {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-    if (!res.ok) {
+    const headers = { Authorization: `Bearer ${session.access_token}` };
+    const [statusRes, healthRes] = await Promise.all([
+      fetch('/api/admin/bot-ingest-status', { headers }),
+      fetch('/api/admin/hunter-health', { headers }),
+    ]);
+    if (!statusRes.ok) {
       setError('No se pudo leer el estado del cazador');
       setLoading(false);
       return;
     }
-    setData((await res.json()) as HunterStatus);
+    setData((await statusRes.json()) as HunterStatus);
+    if (healthRes.ok) {
+      setHealth((await healthRes.json()) as HunterHealthPayload);
+    }
     setError(null);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    void load();
+    startTransition(() => {
+      void load();
+    });
   }, [load]);
 
   const runNow = async () => {
@@ -146,7 +188,11 @@ export default function HunterPage() {
           `rechazadas ${body.summary?.rejected ?? 0}`,
           `dup ${body.summary?.duplicate ?? 0}.`,
           `Pool ${collected} (ML búsqueda ${mlCollected}).`,
-          topSkips ? `Top filtros: ${topSkips}` : mlCollected === 0 ? 'Sin candidatos ML: API bloqueada o sin resultados.' : '',
+          topSkips
+            ? `Top filtros: ${topSkips}`
+            : mlCollected === 0
+              ? 'Sin candidatos ML: API bloqueada o sin resultados.'
+              : '',
         ]
           .filter(Boolean)
           .join(' ')
@@ -157,13 +203,7 @@ export default function HunterPage() {
   };
 
   const runningOk = Boolean(data?.enabled && !data.paused_by_owner);
-  const sources = [
-    { name: 'Mercado Libre', on: Boolean(data?.config.discover_ml) },
-    { name: 'Amazon', on: (data?.config.amazon_asins_count ?? 0) > 0 || Boolean(data?.config.amazon_paapi_enabled) },
-    { name: 'Keepa (historial)', on: Boolean(data?.config.keepa_enabled) },
-    { name: 'URLs / feeds', on: (data?.config.urls_count ?? 0) > 0 },
-    { name: 'Worker externo', on: Boolean(data?.config.external_worker_ingest) },
-  ];
+  const nameById = new Map((health?.catalog ?? []).map((c) => [c.id, c.displayName]));
 
   return (
     <div className="space-y-6">
@@ -174,8 +214,8 @@ export default function HunterPage() {
           AVENTA Hunter
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-white/50 leading-relaxed">
-          No es una IA que recorre internet. Es el pipeline que ya tienes: recolector → precio → score → afiliado →
-          publicar. Tú ves la bandeja; el cazador trabaja con cron y APIs.
+          Pipeline multifuente: recolector → precio → score → afiliado → publicar. Un fallo de una fuente no apaga el
+          cazador.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {data ? (
@@ -210,6 +250,49 @@ export default function HunterPage() {
         </GlassCard>
       ) : data ? (
         <>
+          <GlassCard>
+            <SectionHeader title="¿Aventa está cazando?" subtitle={health?.reason ?? 'Salud multifuente'} />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <StatusBadge tone={health?.isHunting ? 'ok' : 'attention'} pulse={Boolean(health?.isHunting)}>
+                {health?.isHunting ? 'SÍ' : 'NO'}
+              </StatusBadge>
+              <p className="text-xs text-white/45">
+                Última caza con insert:{' '}
+                {health?.lastInsertAt ? new Date(health.lastInsertAt).toLocaleString('es-MX') : '—'}
+              </p>
+            </div>
+            <ul className="mt-4 space-y-2">
+              {(health?.rows ?? []).map((row) => (
+                <li
+                  key={row.sourceId}
+                  className="flex flex-col gap-1 rounded-xl bg-white/[0.03] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-white/85">
+                      {healthEmoji(row.displayStatus)} {nameById.get(row.sourceId) ?? row.sourceId}
+                    </p>
+                    <p className="text-xs text-white/40">
+                      breaker {row.breakerState}
+                      {row.lastErrorCode ? ` · err ${row.lastErrorCode}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
+                    <StatusBadge tone={healthTone(row.displayStatus)}>{row.displayStatus}</StatusBadge>
+                    <span>found {row.itemsFound}</span>
+                    <span>ins {row.itemsInserted}</span>
+                    <span>dup {row.duplicates}</span>
+                    <span>err {row.errors}</span>
+                  </div>
+                </li>
+              ))}
+              {!health?.rows?.length ? (
+                <li className="text-sm text-white/40">
+                  Aún no hay telemetría de fuentes (corre un ciclo o aplica la migración).
+                </li>
+              ) : null}
+            </ul>
+          </GlassCard>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard label="Publicadas hoy" value={String(data.capacity.inserted_today_approx ?? '—')} />
             <KpiCard label="Pendientes de revisión" value={String(data.offers.pending_count ?? '—')} />
@@ -223,33 +306,16 @@ export default function HunterPage() {
           </div>
 
           <GlassCard>
-            <SectionHeader title="Fuentes" subtitle="APIs y feeds, no scrape masivo cada 15 min" />
-            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-              {sources.map((s) => (
-                <li key={s.name} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3 py-2">
-                  <span className="text-sm text-white/80">{s.name}</span>
-                  <StatusBadge tone={s.on ? 'ok' : 'neutral'}>{s.on ? 'Activa' : 'Off'}</StatusBadge>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-xs text-white/35">Cron objetivo: {data.cron.schedule}. {data.cron.deployment_note}</p>
-            {data.config.discover_ml && !data.config.external_worker_ingest ? (
-              <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">
-                La API pública de Mercado Libre suele responder 403 desde Vercel. Si Explorar ahora deja el pool en 0,
-                reactiva el worker Playwright (Railway) o alimenta URLs; el cron de cron-job.org solo despierta el mismo
-                camino.
-              </p>
-            ) : null}
-          </GlassCard>
-
-          <GlassCard>
             <SectionHeader title="Últimos hallazgos" subtitle="Lo que el publisher acaba de insertar" />
             {data.offers.recent.length === 0 ? (
               <p className="mt-4 text-sm text-white/40">Aún no hay ofertas del cazador.</p>
             ) : (
               <ul className="mt-4 space-y-2">
                 {data.offers.recent.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5">
+                  <li
+                    key={o.id}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5"
+                  >
                     <div className="min-w-0">
                       <p className="truncate text-sm text-white/85">{o.title}</p>
                       <p className="text-xs text-white/40">
