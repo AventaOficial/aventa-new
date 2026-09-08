@@ -28,6 +28,10 @@ vi.mock('@/lib/hunter/engine', () => ({
   recordExternalSourceBatchHealth: vi.fn(async () => undefined),
 }));
 
+vi.mock('@/lib/hunter/healthStore', () => ({
+  getHunterHealth: vi.fn(async () => []),
+}));
+
 vi.mock('@/lib/bots/ingest/priceIntel', () => ({
   enrichWithPriceIntel: vi.fn(async (meta: unknown) => meta),
 }));
@@ -78,6 +82,37 @@ import { processExternalWorkerBatch } from '@/lib/bots/ingest/externalWorker';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 import { enrichParsedOfferMetadata } from '@/lib/hunter/enrichment';
 import { getBotIngestPausedFromDb } from '@/lib/bots/ingest/botIngestPaused';
+import { getHunterHealth } from '@/lib/hunter/healthStore';
+import { getShadowCycleReport } from '@/lib/autonomous';
+import type { HunterHealthStatus, HunterSourceHealth } from '@/lib/hunter/types';
+
+function healthRow(status: HunterHealthStatus): HunterSourceHealth {
+  return {
+    sourceId: 'ml_worker',
+    enabled: true,
+    status,
+    breakerState: 'closed',
+    lastRunAt: null,
+    lastSuccessAt: null,
+    lastFailureAt: null,
+    consecutiveFailures: 0,
+    itemsFound: 0,
+    itemsInserted: 0,
+    duplicates: 0,
+    skipped: 0,
+    errors: 0,
+    latencyMs: null,
+    lastErrorCode: null,
+    lastErrorMessageSafe: null,
+    updatedAt: '2026-09-08T20:00:00.000Z',
+    cooldownUntil: null,
+    expectedIntervalMs: 1_800_000,
+  };
+}
+
+function shadowReasonCodes(): string[] {
+  return getShadowCycleReport().topReasons.map((r) => r.code);
+}
 
 function cfg(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
   return {
@@ -221,6 +256,34 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     vi.mocked(evaluateDealSafe).mockClear();
     vi.mocked(enrichParsedOfferMetadata).mockClear();
     vi.mocked(getBotIngestPausedFromDb).mockResolvedValue(false);
+    vi.mocked(getHunterHealth).mockResolvedValue([healthRow('healthy')]);
+  });
+
+  it('K. la salud de la fuente se lee de DB, no de la memoria de este isolate', async () => {
+    await processExternalWorkerBatch({ candidates: [candidate()] });
+
+    // El hunter corrió en el runner de GitHub: sin esta lectura la memoria del
+    // isolate está vacía y el 100% de los candidatos saldría degradado.
+    expect(vi.mocked(getHunterHealth)).toHaveBeenCalledWith(['ml_worker']);
+    expect(shadowReasonCodes()).not.toContain('source_degraded');
+  });
+
+  it('K2. una fuente realmente degradada sí marca source_degraded', async () => {
+    vi.mocked(getHunterHealth).mockResolvedValue([healthRow('down')]);
+
+    await processExternalWorkerBatch({ candidates: [candidate()] });
+
+    expect(shadowReasonCodes()).toContain('source_degraded');
+  });
+
+  it('K3. si la lectura de salud falla el ciclo sigue y no auto-aprueba', async () => {
+    vi.mocked(getHunterHealth).mockRejectedValue(new Error('db caida'));
+
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+
+    expect(report.ok).toBe(true);
+    expect(getAutonomousDecisionMetrics().autoApprove).toBe(0);
+    expect(shadowReasonCodes()).toContain('source_degraded');
   });
 
   it('A. candidato ml_worker llega a enrichment + shadow cuando corresponde', async () => {

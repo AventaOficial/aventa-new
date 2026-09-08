@@ -15,7 +15,7 @@ import {
 import { recordAutonomousDecision } from './metrics';
 import type { AutonomousDecisionInput, AutonomousDecisionResult } from './types';
 
-function hunterSourceForIngest(source: string): HunterSourceId | null {
+export function hunterSourceForIngest(source: string): HunterSourceId | null {
   if (source === 'ml_api') return 'ml_api_legacy';
   if (source === 'ml_worker') return 'ml_worker';
   if (source === 'amazon_asin') return 'amazon_asin';

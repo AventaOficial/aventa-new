@@ -2,6 +2,7 @@ export { AUTONOMOUS_DECISION_POLICY_V1, AUTONOMOUS_POLICY_V1 } from './policy';
 export { decideAutonomous } from './decide';
 export {
   buildAutonomousInput,
+  hunterSourceForIngest,
   observeAutonomousDecision,
   observeIngestShadow,
 } from './observe';

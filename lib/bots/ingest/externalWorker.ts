@@ -21,9 +21,12 @@ import { evaluateDealSafe } from '@/lib/verifier';
 import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
+  hunterSourceForIngest,
   observeIngestShadow,
   persistShadowCycleSnapshot,
 } from '@/lib/autonomous';
+import { getHunterHealth } from '@/lib/hunter/healthStore';
+import type { HunterHealthStatus, HunterSourceId } from '@/lib/hunter/types';
 import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
 import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
@@ -31,6 +34,42 @@ import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
+
+/**
+ * Salud real de las fuentes del lote, leída de DB una sola vez por ciclo.
+ *
+ * `buildAutonomousInput` cae por defecto a la memoria del proceso, que en este
+ * endpoint siempre está vacía porque el hunter corrió en el runner de GitHub y no
+ * en este isolate. Sin esto, el 100% de los candidatos sale como `source_degraded`
+ * y ninguno podría llegar nunca a AUTO_APPROVE.
+ *
+ * Solo alimenta la observación shadow. Si la lectura falla la fuente queda como
+ * desconocida o degradada, que es el valor fail-closed que ya asumía el motor:
+ * nunca convierte un fallo de lectura en permiso para auto-aprobar.
+ */
+async function readShadowSourceHealth(
+  items: readonly IngestItem[]
+): Promise<Map<IngestSourceId, HunterHealthStatus | null>> {
+  const out = new Map<IngestSourceId, HunterHealthStatus | null>();
+  const wanted = new Map<HunterSourceId, IngestSourceId[]>();
+  for (const item of items) {
+    out.set(item.source, null);
+    const hunterId = hunterSourceForIngest(item.source);
+    if (!hunterId) continue;
+    wanted.set(hunterId, [...(wanted.get(hunterId) ?? []), item.source]);
+  }
+  if (wanted.size === 0) return out;
+
+  try {
+    const rows = await getHunterHealth([...wanted.keys()]);
+    for (const row of rows) {
+      for (const ingestId of wanted.get(row.sourceId) ?? []) out.set(ingestId, row.status);
+    }
+  } catch {
+    // Observabilidad degradada, nunca un ciclo caído.
+  }
+  return out;
+}
 
 type ExternalCandidateSignals = NonNullable<ParsedOfferMetadata['signals']>;
 
@@ -285,6 +324,9 @@ export async function processExternalWorkerBatch(
   let scoreRejected = 0;
   const shadowDup = createDuplicateShadowContext();
   beginAutonomousShadowCycle();
+  // El worker externo corre en OTRO isolate: la salud en memoria llega vacía y todo
+  // candidato saldría como `source_degraded`. Se lee de DB una vez por ciclo.
+  const shadowSourceHealth = await readShadowSourceHealth(slice);
   const enrichCache = new Map<string, ParsedOfferMetadata>();
 
   for (const item of slice) {
@@ -362,6 +404,7 @@ export async function processExternalWorkerBatch(
         config,
         supabase: shadowDup.supabase,
         duplicateCache: shadowDup.cache,
+        sourceHealth: shadowSourceHealth.get(item.source) ?? null,
       });
       if (verified.decision === 'reject') {
         scoreRejected += 1;
