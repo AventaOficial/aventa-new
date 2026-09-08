@@ -164,7 +164,12 @@ export async function GET(request: Request) {
       daily_max: cfg.dailyMaxOffers,
       candidate_pool_max: cfg.candidatePoolMax,
       min_discount_percent: cfg.minDiscountPercent,
-      auto_approve_enabled: cfg.autoApproveEnabled,
+      // El panel histórico lee esta clave. Es el permiso de ESCRITURA, no la
+      // política que evalúa el shadow: si el bot no puede publicar, el operador
+      // tiene que ver Off.
+      auto_approve_enabled: cfg.legacyAutoApproveWriteEnabled,
+      auto_approve_policy_enabled: cfg.autoApproveEnabled,
+      legacy_auto_approve_write_enabled: cfg.legacyAutoApproveWriteEnabled,
       auto_approve_min_score: cfg.autoApproveMinScore,
       auto_approve_worker_min_score: cfg.autoApproveWorkerMinScore,
       auto_approve_worker_min_discount: cfg.autoApproveWorkerMinDiscountPercent,

@@ -533,8 +533,9 @@ export async function processExternalWorkerBatch(
   for (const row of resolved) {
     if (insertedThisRun >= maxInsertsThisBatch) break;
 
-    // evaluateDealSafe ya aplicó shouldAutoApproveWorkerCandidate vía enableWorkerAutoApprove.
-    const allowAuto = config.autoApproveEnabled && row.decision === 'auto_approve';
+    // Camino legacy: apagado en producción. El verifier puede seguir concluyendo
+    // 'auto_approve' (y el shadow registrarlo), pero el bot no escribe 'approved'.
+    const allowAuto = config.legacyAutoApproveWriteEnabled && row.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
 

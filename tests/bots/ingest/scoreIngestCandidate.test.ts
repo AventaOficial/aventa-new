@@ -55,6 +55,7 @@ function baseConfig(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
     keepaApiKey: null,
     keepaDomainId: 11,
     autoApproveEnabled: true,
+    legacyAutoApproveWriteEnabled: false,
     autoApproveMinScore: 78,
     autoApproveWorkerMinScore: 55,
     autoApproveWorkerMinDiscountPercent: 28,

@@ -109,8 +109,27 @@ export type BotIngestConfig = {
   keepaApiKey: string | null;
   keepaDomainId: number;
 
-  /** Si false, nunca status approved por score; todo pasa a moderación (pending). */
+  /**
+   * POLÍTICA de auto-aprobación que evalúan el Deal Verifier y el shadow.
+   *
+   * NO es permiso para escribir en la base de datos. Que esto sea true solo
+   * significa que el motor puede llegar a la conclusión "esto se auto-aprobaría";
+   * seguir o no esa conclusión lo decide `legacyAutoApproveWriteEnabled`.
+   *
+   * Se mantiene encendida a propósito para que el motor autónomo siga midiendo
+   * en shadow. Si se apagara aquí, el shadow nunca volvería a producir un
+   * AUTO_APPROVE y perderíamos justo la evidencia que estamos recogiendo.
+   */
   autoApproveEnabled: boolean;
+
+  /**
+   * Permiso REAL del camino legacy para insertar ofertas del bot como
+   * 'approved', saltándose la revisión humana.
+   *
+   * Fail-closed y apagado en producción de forma incondicional. La ausencia de
+   * configuración nunca lo enciende.
+   */
+  legacyAutoApproveWriteEnabled: boolean;
   autoApproveMinScore: number;
   /**
    * Umbral más bajo para auto-aprobar candidatos del worker Playwright (card-only),
@@ -369,9 +388,23 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
   const keepaDomainRaw = Number.parseInt(process.env.BOT_INGEST_KEEPA_DOMAIN_ID ?? '11', 10);
   const keepaDomainId = Number.isFinite(keepaDomainRaw) ? Math.max(1, keepaDomainRaw) : 11;
 
+  // POLÍTICA, no permiso de escritura. Alimenta al Deal Verifier y al motor
+  // autónomo en shadow para que puedan seguir respondiendo "qué haríamos".
+  // Quien decide si el bot puede escribir 'approved' es
+  // legacyAutoApproveWriteEnabled, justo debajo.
   const autoApproveEnabled =
     process.env.BOT_INGEST_AUTO_APPROVE !== '0' &&
     process.env.BOT_INGEST_AUTO_APPROVE !== 'false';
+
+  // Producción NUNCA, ni con la variable puesta a 1. El opt-in existe solo para
+  // que los tests puedan ejercitar el camino legacy; no es un interruptor de
+  // operación. Para reactivarlo en producción habría que cambiar código, que es
+  // exactamente la fricción que queremos.
+  const isProductionRuntime =
+    process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  const legacyAutoApproveOptIn =
+    process.env.BOT_INGEST_AUTO_APPROVE === '1' || process.env.BOT_INGEST_AUTO_APPROVE === 'true';
+  const legacyAutoApproveWriteEnabled = legacyAutoApproveOptIn && !isProductionRuntime;
 
   const autoApproveRaw = Number.parseInt(process.env.BOT_INGEST_AUTO_APPROVE_MIN_SCORE ?? '78', 10);
   const autoApproveMinScore = Number.isFinite(autoApproveRaw)
@@ -474,6 +507,7 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     keepaApiKey,
     keepaDomainId,
     autoApproveEnabled,
+    legacyAutoApproveWriteEnabled,
     autoApproveMinScore,
     autoApproveWorkerMinScore,
     autoApproveWorkerMinDiscountPercent,

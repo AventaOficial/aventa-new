@@ -386,8 +386,9 @@ export async function runIngestCycleForProfile(
     if (insertedThisRun >= targetMax) break;
     stageCounts.insertedAttempted += 1;
 
+    // Camino legacy: apagado en producción. Ver legacyAutoApproveWriteEnabled.
     const allowAuto =
-      config.autoApproveEnabled && r.decision === 'auto_approve';
+      config.legacyAutoApproveWriteEnabled && r.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(r.meta);
 

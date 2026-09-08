@@ -167,6 +167,7 @@ function cfg(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
     keepaApiKey: null,
     keepaDomainId: 11,
     autoApproveEnabled: true,
+    legacyAutoApproveWriteEnabled: false,
     autoApproveMinScore: 78,
     autoApproveWorkerMinScore: 55,
     autoApproveWorkerMinDiscountPercent: 28,
@@ -257,6 +258,64 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     vi.mocked(enrichParsedOfferMetadata).mockClear();
     vi.mocked(getBotIngestPausedFromDb).mockResolvedValue(false);
     vi.mocked(getHunterHealth).mockResolvedValue([healthRow('healthy')]);
+  });
+
+  it('M. con el camino legacy apagado el candidato entra como pending, no approved', async () => {
+    vi.mocked(evaluateDealSafe).mockReturnValue(
+      verifier({ decision: 'auto_approve', score: 95, ingestDecision: 'auto_approve' })
+    );
+    vi.mocked(loadBotIngestConfig).mockReturnValue(
+      cfg({ autoApproveEnabled: true, legacyAutoApproveWriteEnabled: false })
+    );
+
+    await processExternalWorkerBatch({ candidates: [candidate()] });
+
+    // Aunque el verifier diga auto_approve, el bot no puede publicar.
+    expect(vi.mocked(insertIngestedOffer)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ status: 'pending' })
+    );
+  });
+
+  it('M2. el shadow SIGUE observando AUTO_APPROVE aunque el bot no pueda publicar', async () => {
+    // Es la mitad que se puede romper sin darse cuenta: apagar la escritura no
+    // debe dejar ciego al motor autónomo, porque entonces dejaríamos de recoger
+    // la evidencia que justifica tenerlo en shadow.
+    vi.mocked(evaluateDealSafe).mockReturnValue(
+      verifier({ decision: 'auto_approve', score: 95, ingestDecision: 'auto_approve' })
+    );
+    vi.mocked(loadBotIngestConfig).mockReturnValue(
+      cfg({ autoApproveEnabled: true, legacyAutoApproveWriteEnabled: false })
+    );
+
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+
+    const shadow = getAutonomousDecisionMetrics();
+    // El motor autónomo SÍ evaluó. Que no llegue a AUTO_APPROVE shadow
+    // (afiliado, seller, etc.) no importa: lo que no puede pasar es que
+    // deje de observar o que el bot publique.
+    expect(shadow.evaluated).toBeGreaterThan(0);
+    expect(shadow.verifier.autoApprove).toBeGreaterThan(0);
+    expect(report.summary.autoApproved).toBe(0);
+  });
+
+  it('M3. ni siquiera un verifier perfecto abre un camino a approved', async () => {
+    vi.mocked(evaluateDealSafe).mockReturnValue(
+      verifier({ decision: 'auto_approve', score: 100, ingestDecision: 'auto_approve' })
+    );
+    vi.mocked(loadBotIngestConfig).mockReturnValue(
+      cfg({ autoApproveEnabled: true, legacyAutoApproveWriteEnabled: false })
+    );
+
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+
+    expect(report.summary.autoApproved).toBe(0);
+    expect(vi.mocked(insertIngestedOffer)).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ status: 'approved' })
+    );
   });
 
   it('L. las estadísticas de descubrimiento del worker llegan al resumen del ciclo', async () => {
