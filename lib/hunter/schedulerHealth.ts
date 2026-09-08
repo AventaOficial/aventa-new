@@ -61,7 +61,8 @@ export function classifySchedulerHealth(
   row: Pick<
     HunterSourceHealth,
     'sourceId' | 'enabled' | 'lastRunAt' | 'expectedIntervalMs' | 'consecutiveFailures'
-  >,
+  > &
+    Partial<Pick<HunterSourceHealth, 'lastErrorCode'>>,
   now: Date = new Date()
 ): SchedulerHealth {
   const intervalMs =
@@ -85,8 +86,15 @@ export function classifySchedulerHealth(
     expectedRunsPerDay,
   };
 
-  if (!row.enabled) {
-    return { ...base, state: 'disabled', reason: 'Fuente desactivada a propósito' };
+  if (!row.enabled || row.lastErrorCode === 'not_configured') {
+    return {
+      ...base,
+      state: 'disabled',
+      reason:
+        row.lastErrorCode === 'not_configured'
+          ? 'Fuente sin método de discovery (not_configured)'
+          : 'Fuente desactivada a propósito',
+    };
   }
   if (!Number.isFinite(lastRunMs)) {
     return { ...base, state: 'down', reason: 'Sin registro de ninguna corrida' };
@@ -126,10 +134,13 @@ export type SchedulerHealthSummary = {
 };
 
 export function summarizeSchedulerHealth(
-  rows: readonly Pick<
-    HunterSourceHealth,
-    'sourceId' | 'enabled' | 'lastRunAt' | 'expectedIntervalMs' | 'consecutiveFailures'
-  >[],
+  rows: ReadonlyArray<
+    Pick<
+      HunterSourceHealth,
+      'sourceId' | 'enabled' | 'lastRunAt' | 'expectedIntervalMs' | 'consecutiveFailures'
+    > &
+      Partial<Pick<HunterSourceHealth, 'lastErrorCode'>>
+  >,
   now: Date = new Date()
 ): SchedulerHealthSummary {
   const sources = rows

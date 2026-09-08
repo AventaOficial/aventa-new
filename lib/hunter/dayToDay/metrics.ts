@@ -86,9 +86,11 @@ export function summarizeDayToDaySupply(
   const sourcesNotConfigured = sources.filter((s) => s.configuration === 'not_configured').length;
   const sourcesConfigured = sources.filter((s) => s.configuration === 'configured').length;
   const sourcesDisabled = sources.filter((s) => s.configuration === 'disabled').length;
-  const sourcesHealthy = sources.filter((s) => s.healthStatus === 'healthy').length;
-  const sourcesDegraded = sources.filter((s) => s.healthStatus === 'degraded').length;
-  const sourcesDown = sources.filter((s) => s.healthStatus === 'down').length;
+  // healthy/degraded/down solo para fuentes que participan en discovery.
+  const participating = sources.filter((s) => s.configuration === 'configured');
+  const sourcesHealthy = participating.filter((s) => s.healthStatus === 'healthy').length;
+  const sourcesDegraded = participating.filter((s) => s.healthStatus === 'degraded').length;
+  const sourcesDown = participating.filter((s) => s.healthStatus === 'down').length;
 
   const candidates = sources.reduce((n, s) => n + s.itemsFound, 0);
   const inserted = sources.reduce((n, s) => n + s.itemsInserted, 0);

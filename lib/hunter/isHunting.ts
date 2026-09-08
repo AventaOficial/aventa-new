@@ -67,7 +67,9 @@ export function evaluateIsHunting(
     return nowMs - new Date(t).getTime() <= SIX_HOURS_MS;
   });
 
-  const insertedRecently = mapped.some((s) => {
+  // Solo fuentes que participan en discovery (healthy/degraded).
+  // disabled / not_configured no pueden sostener isHunting con inserts viejos.
+  const insertedRecently = active.some((s) => {
     if (s.itemsInserted <= 0) return false;
     const t = s.lastSuccessAt;
     if (!t) return false;
