@@ -22,21 +22,28 @@ describe('Focus layout — fixed action bar', () => {
   });
 
   it('padding inferior suficiente para no tapar contenido', () => {
-    expect(ws).toMatch(/pb-\[calc\(8\.5rem\+env\(safe-area-inset-bottom/);
-    expect(ws).toMatch(/pb-\[calc\(14rem\+env\(safe-area-inset-bottom/);
+    expect(ws).toMatch(/pb-\[calc\(11rem\+env\(safe-area-inset-bottom/);
+    expect(ws).toMatch(/pb-\[calc\(16\.5rem\+env\(safe-area-inset-bottom/);
   });
 
-  it('CTA abrir + cambiar enlace siempre visibles', () => {
+  it('Abrir y cambiar enlace viven en la barra de decisión', () => {
     expect(ws).toMatch(/FocusAffiliatePrepare/);
     expect(ws).toMatch(/prepareAffiliateLink/);
     expect(ws).toMatch(/e\.key === 'o'/);
+    expect(ws).toMatch(/onChangeLink/);
+    expect(ws).toMatch(/offerHref/);
+    const bar = readFileSync(
+      join(process.cwd(), 'app/components/moderation/FocusActionsBar.tsx'),
+      'utf8'
+    );
+    expect(bar).toMatch(/>\s*Abrir\s*</);
+    expect(bar).toMatch(/Cambiar enlace/);
+    expect(bar).toMatch(/Preparar enlace/);
     const stage = readFileSync(
       join(process.cwd(), 'app/components/moderation/FocusOfferStage.tsx'),
       'utf8'
     );
-    expect(stage).toMatch(/>\s*Abrir\s*</);
-    expect(stage).toMatch(/Cambiar enlace/);
-    expect(stage).toMatch(/Preparar enlace/);
+    expect(stage).toMatch(/Fotos de la oferta/);
     expect(stage).toMatch(/Monetización/);
     expect(stage).not.toMatch(/\{offer\.offer_url\}/);
   });

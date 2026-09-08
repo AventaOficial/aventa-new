@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { cn } from '@/app/components/panel/utils';
@@ -9,6 +10,9 @@ type Props = {
   mode: ModerationHubMode;
   acting: boolean;
   disabled?: boolean;
+  offerHref?: string | null;
+  changeLabel?: string;
+  onChangeLink?: () => void;
   onReject: () => void;
   onApprove: () => void;
   onSnooze: (minutes: 15 | 60 | 240) => void;
@@ -18,6 +22,9 @@ export default function FocusActionsBar({
   mode,
   acting,
   disabled,
+  offerHref,
+  changeLabel = 'Cambiar enlace',
+  onChangeLink,
   onReject,
   onApprove,
   onSnooze,
@@ -25,9 +32,48 @@ export default function FocusActionsBar({
   const ui = moderationUi(mode);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const busy = acting || disabled;
+  const href = offerHref?.trim() || '';
 
   return (
     <div className="mx-auto w-full max-w-lg">
+      <div className="mb-2.5 flex gap-2">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              'inline-flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2.5 text-sm font-semibold',
+              ui.ws
+                ? 'border-black/10 bg-white text-gray-900 hover:bg-black/[0.03] dark:border-white/15 dark:bg-white/[0.04] dark:text-gray-100'
+                : 'border-white/15 bg-white/[0.06] text-white hover:bg-white/10'
+            )}
+          >
+            Abrir
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          </a>
+        ) : null}
+        {onChangeLink ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onChangeLink}
+            className={cn(
+              'flex-1 rounded-2xl border px-3 py-2.5 text-sm font-semibold disabled:opacity-50',
+              changeLabel === 'Preparar enlace'
+                ? ui.ws
+                  ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-200'
+                  : 'border-amber-400/40 bg-amber-500/15 text-amber-100'
+                : ui.ws
+                  ? 'border-black/10 bg-white text-gray-900 dark:border-white/15 dark:bg-white/[0.04] dark:text-gray-100'
+                  : 'border-white/15 bg-white/[0.06] text-white'
+            )}
+          >
+            {changeLabel}
+          </button>
+        ) : null}
+      </div>
+
       <div className="flex gap-3">
         <button
           type="button"

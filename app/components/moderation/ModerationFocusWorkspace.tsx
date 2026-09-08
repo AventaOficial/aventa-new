@@ -111,8 +111,8 @@ export default function ModerationFocusWorkspace({
         'relative mx-auto flex w-full max-w-2xl flex-col px-4 pt-1',
         // Espacio fijo para la action bar + safe-area (también en desktop: la barra es fixed).
         prepareOpen
-          ? 'pb-[calc(14rem+env(safe-area-inset-bottom,0px))]'
-          : 'pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))]'
+          ? 'pb-[calc(16.5rem+env(safe-area-inset-bottom,0px))]'
+          : 'pb-[calc(11rem+env(safe-area-inset-bottom,0px))]'
       )}
       data-focus-workspace
     >
@@ -205,10 +205,10 @@ export default function ModerationFocusWorkspace({
               {monetization ? ` · ${monetization.label}` : ''}
             </p>
             <FocusOfferStage
+              key={queue.offer.id}
               offer={queue.offer}
               mode={mode}
               onOpenWhy={() => setWhyOpen(true)}
-              onPrepareLink={() => setUserPrepare(true)}
             />
           </>
         )}
@@ -229,6 +229,11 @@ export default function ModerationFocusWorkspace({
             <FocusActionsBar
               mode={mode}
               acting={queue.acting}
+              offerHref={queue.offer.offer_url}
+              changeLabel={
+                monetization?.status === 'needs_attention' ? 'Preparar enlace' : 'Cambiar enlace'
+              }
+              onChangeLink={() => setUserPrepare(true)}
               onReject={() => setRejectOpen(true)}
               onApprove={() => void queue.approve()}
               onSnooze={(m) => void queue.snooze(m)}

@@ -27,11 +27,15 @@ describe('FocusOfferStage monetization UI contract', () => {
   });
 
   it('CTA Preparar enlace cuando requiere atención', () => {
+    const bar = readFileSync(
+      join(process.cwd(), 'app/components/moderation/FocusActionsBar.tsx'),
+      'utf8'
+    );
+    expect(bar).toMatch(/Preparar enlace/);
     const src = readFileSync(
       join(process.cwd(), 'app/components/moderation/FocusOfferStage.tsx'),
       'utf8'
     );
-    expect(src).toMatch(/Preparar enlace/);
     expect(src).toMatch(/needs_attention/);
   });
 });

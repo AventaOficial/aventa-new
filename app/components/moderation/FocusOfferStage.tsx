@@ -15,15 +15,15 @@ type Props = {
   offer: FocusModerationOffer;
   mode: ModerationHubMode;
   onOpenWhy: () => void;
-  onPrepareLink?: () => void;
 };
 
-export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink }: Props) {
+export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
   const ui = moderationUi(mode);
+  const gallery = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null);
+  const [activeIdx, setActiveIdx] = useState(0);
   const [imgBroken, setImgBroken] = useState(false);
-  const thumb = !imgBroken
-    ? mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null)[0] ?? null
-    : null;
+  const safeIdx = Math.min(activeIdx, Math.max(0, gallery.length - 1));
+  const thumb = !imgBroken ? gallery[safeIdx] ?? null : null;
   const pct = getOfferDiscountPercent(offer.price, offer.original_price);
   const hasOriginal =
     offer.original_price != null && Number(offer.original_price) > Number(offer.price);
@@ -59,8 +59,6 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
         : 'bg-gray-400';
 
   const offerHref = offer.offer_url?.trim() || '';
-  const changeLabel =
-    monetization.status === 'needs_attention' ? 'Preparar enlace' : 'Cambiar enlace';
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
@@ -77,7 +75,14 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
             src={thumb}
             alt=""
             className="h-full w-full object-contain"
-            onError={() => setImgBroken(true)}
+            onError={() => {
+              if (safeIdx < gallery.length - 1) {
+                setActiveIdx(safeIdx + 1);
+                setImgBroken(false);
+              } else {
+                setImgBroken(true);
+              }
+            }}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4">
@@ -86,6 +91,35 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
           </div>
         )}
       </div>
+
+      {gallery.length > 1 ? (
+        <div
+          className="mt-2 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-0.5"
+          aria-label="Fotos de la oferta"
+        >
+          {gallery.slice(0, 8).map((src, i) => (
+            <button
+              key={`${src}-${i}`}
+              type="button"
+              onClick={() => {
+                setActiveIdx(i);
+                setImgBroken(false);
+              }}
+              className={cn(
+                'h-11 w-11 shrink-0 overflow-hidden rounded-lg border-2',
+                i === safeIdx
+                  ? ui.ws
+                    ? 'border-emerald-500'
+                    : 'border-violet-400'
+                  : 'border-transparent opacity-70 hover:opacity-100'
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <h2
         className={cn(
@@ -144,33 +178,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onPrepareLink 
         </p>
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-3">
-        {offerHref ? (
-          <a
-            href={offerHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn('text-sm font-semibold underline-offset-4 hover:underline', ui.body)}
-          >
-            Abrir
-          </a>
-        ) : null}
-        {onPrepareLink ? (
-          <button
-            type="button"
-            onClick={onPrepareLink}
-            className={cn(
-              'text-sm font-semibold underline-offset-4 hover:underline',
-              monetization.status === 'needs_attention'
-                ? ui.ws
-                  ? 'text-amber-700 dark:text-amber-300'
-                  : 'text-amber-200'
-                : ui.muted
-            )}
-          >
-            {changeLabel}
-          </button>
-        ) : null}
+      <div className="mt-1.5">
         <button
           type="button"
           onClick={onOpenWhy}
