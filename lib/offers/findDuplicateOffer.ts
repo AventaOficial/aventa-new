@@ -18,6 +18,29 @@ export function strongProductFingerprintForUrl(normalizedOfferUrl: string): stri
   return isStrongProductFingerprint(fp) ? fp : null;
 }
 
+/**
+ * pending/approved/published sin borrar y sin caducar.
+ * Caducadas (expires_at < now) no bloquean al hunter; pending sin expiry sí.
+ */
+export function offerRowBlocksHunterDuplicate(
+  row: {
+    status?: string | null;
+    deleted_at?: string | null;
+    expires_at?: string | null;
+  },
+  now: Date = new Date()
+): boolean {
+  if (row.deleted_at) return false;
+  const status = row.status ?? '';
+  if (status !== 'pending' && status !== 'approved' && status !== 'published') return false;
+  const exp = row.expires_at;
+  if (typeof exp === 'string' && exp.trim()) {
+    const ts = Date.parse(exp);
+    if (Number.isFinite(ts) && ts < now.getTime()) return false;
+  }
+  return true;
+}
+
 function hasMissingColumn(error: { message?: string; code?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
   return msg.includes(columnName.toLowerCase()) || msg.includes('does not exist');
@@ -38,33 +61,37 @@ export async function findDuplicateOfferByUrl(
 
   const { data: byFp, error: fpError } = await supabase
     .from('offers')
-    .select('id, status, deleted_at')
+    .select('id, status, deleted_at, expires_at')
     .eq('product_fingerprint', fingerprint)
     .in('status', ['pending', 'approved', 'published'])
     .is('deleted_at', null)
-    .limit(1)
-    .maybeSingle();
+    .limit(5);
 
-  if (!fpError && byFp?.id) {
-    return { id: byFp.id as string, status: (byFp as { status?: string | null }).status ?? null };
+  if (!fpError && Array.isArray(byFp)) {
+    const hit = byFp.find((row) => offerRowBlocksHunterDuplicate(row as Record<string, unknown>));
+    if (hit?.id) {
+      return { id: hit.id as string, status: (hit as { status?: string | null }).status ?? null };
+    }
   }
 
-  const { data: exact } = await supabase
+  const { data: exactRows } = await supabase
     .from('offers')
-    .select('id, status, deleted_at')
+    .select('id, status, deleted_at, expires_at')
     .eq('offer_url', normalizedOfferUrl)
     .in('status', ['pending', 'approved', 'published'])
     .is('deleted_at', null)
-    .limit(1)
-    .maybeSingle();
+    .limit(5);
 
+  const exact = (exactRows ?? []).find((row) =>
+    offerRowBlocksHunterDuplicate(row as Record<string, unknown>)
+  );
   if (exact?.id) {
     return { id: exact.id as string, status: (exact as { status?: string | null }).status ?? null };
   }
 
   const { data: candidates, error } = await supabase
     .from('offers')
-    .select('id, status, offer_url, deleted_at')
+    .select('id, status, offer_url, deleted_at, expires_at')
     .in('status', ['pending', 'approved', 'published'])
     .is('deleted_at', null)
     .not('offer_url', 'is', null)
@@ -76,6 +103,7 @@ export async function findDuplicateOfferByUrl(
   for (const row of candidates) {
     const url = (row as { offer_url?: string | null }).offer_url;
     if (!url) continue;
+    if (!offerRowBlocksHunterDuplicate(row as Record<string, unknown>)) continue;
     if (offerUrlsAreSameProduct(normalizedOfferUrl, url)) {
       return {
         id: (row as { id: string }).id,
@@ -93,6 +121,42 @@ export function isUniqueViolation(error: { code?: string; message?: string } | n
   if (error.code === '23505') return true;
   const msg = (error.message ?? '').toLowerCase();
   return msg.includes('duplicate key') || msg.includes('unique constraint');
+}
+
+/**
+ * Libera el UNIQUE de un fingerprint solo si la fila activa ya caducó.
+ * No toca pending vivos. No borra filas.
+ */
+export async function releaseExpiredFingerprintSlot(
+  supabase: SupabaseClient,
+  fingerprint: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  if (!fingerprint) return false;
+  const { data, error } = await supabase
+    .from('offers')
+    .select('id, status, expires_at, deleted_at')
+    .eq('product_fingerprint', fingerprint)
+    .in('status', ['pending', 'approved', 'published'])
+    .is('deleted_at', null)
+    .limit(5);
+  if (error || !data?.length) return false;
+
+  const expired = data.filter((row) => !offerRowBlocksHunterDuplicate(row as Record<string, unknown>, now));
+  if (expired.length === 0) return false;
+
+  let released = false;
+  for (const row of expired) {
+    const id = (row as { id?: string }).id;
+    if (!id) continue;
+    const { error: updError } = await supabase
+      .from('offers')
+      .update({ status: 'expired' })
+      .eq('id', id)
+      .in('status', ['approved', 'published']);
+    if (!updError) released = true;
+  }
+  return released;
 }
 
 export function isProductFingerprintColumnMissing(

@@ -1,5 +1,6 @@
 import { loadBotIngestConfig } from './config';
 import { getBotIngestPausedFromDb } from './botIngestPaused';
+import { ingestRunBlockFromConfig } from './ingestRunGate';
 import {
   countBotOffersCreatedSinceMulti,
   getBotOfferCountStartUtc,
@@ -96,7 +97,8 @@ export async function runIngestCycleForProfile(
   };
 
   const pausedByOwner = await getBotIngestPausedFromDb();
-  if (pausedByOwner) {
+  const block = ingestRunBlockFromConfig(config, pausedByOwner);
+  if (block === 'paused') {
     return {
       ok: true,
       enabled: false,
@@ -115,7 +117,7 @@ export async function runIngestCycleForProfile(
     };
   }
 
-  if (!config.enabled) {
+  if (block === 'disabled') {
     return {
       ok: true,
       enabled: false,
@@ -132,7 +134,7 @@ export async function runIngestCycleForProfile(
     };
   }
 
-  if (config.botUserIdsForQuota.length === 0) {
+  if (block === 'missing_bot_user') {
     return {
       ok: false,
       enabled: true,

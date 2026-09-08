@@ -1,4 +1,11 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+
+function cronSecretsEqual(provided: string, expected: string): boolean {
+  const left = createHash('sha256').update(provided).digest();
+  const right = createHash('sha256').update(expected).digest();
+  return timingSafeEqual(left, right);
+}
 
 /**
  * Protege rutas de cron (Vercel Cron u otros schedulers).
@@ -23,7 +30,7 @@ export function requireCronSecret(request: NextRequest): NextResponse | null {
     authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 
   const secret = fromBearer || fromHeader;
-  if (!secret || secret !== expected) {
+  if (!secret || !cronSecretsEqual(secret, expected)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

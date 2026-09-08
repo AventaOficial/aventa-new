@@ -10,6 +10,7 @@ import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { buildBotOfferDescription } from './buildBotOfferDescription';
 import { buildBotMeta } from './buildBotMeta';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
+import { resolveBotInsertPublication } from './resolveBotInsertPublication';
 
 /** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
 const OPTIONAL_COLUMNS = [
@@ -78,6 +79,7 @@ export async function insertIngestedOffer(
     findDuplicateOfferByUrl,
     strongProductFingerprintForUrl,
     isUniqueViolation,
+    releaseExpiredFingerprintSlot,
   } = await import('@/lib/offers/findDuplicateOffer');
   const duplicate = await findDuplicateOfferByUrl(supabase, offerUrl);
   if (duplicate) {
@@ -92,7 +94,12 @@ export async function insertIngestedOffer(
   const categoryInferred = classifyBotCategoryForStorage(meta, config.techCategoryIdSet);
   const categoryBase = categoryFromEnv ?? categoryInferred;
   const hasOriginal = meta.originalPrice != null && meta.originalPrice > meta.discountPrice;
-  const status = opts?.status ?? 'pending';
+  const requestedStatus = opts?.status ?? 'pending';
+  const publication = resolveBotInsertPublication({
+    requestedStatus,
+    offerUrl,
+  });
+  const status = publication.status;
   const title = (opts?.titleOverride ?? meta.title).slice(0, 500);
   const description = buildBotOfferDescription(meta, categoryBase).slice(0, 2000);
   const autogroup = inferOfferAutogroup({
@@ -142,7 +149,7 @@ export async function insertIngestedOffer(
     moderator_comment: moderatorComment,
     ...(botMeta ? { bot_meta: botMeta } : {}),
     ...(expiresAt ? { expires_at: expiresAt } : {}),
-    ...(status === 'approved' ? { link_mod_ok: true } : {}),
+    ...(publication.linkModOk ? { link_mod_ok: true } : {}),
   };
 
   const attempt: Record<string, unknown> = { ...payload };
@@ -158,7 +165,15 @@ export async function insertIngestedOffer(
   }
 
   if (error && isUniqueViolation(error)) {
-    return { ok: false, duplicate: true };
+    if (productFingerprint) {
+      const released = await releaseExpiredFingerprintSlot(supabase, productFingerprint);
+      if (released) {
+        ({ data, error } = await supabase.from('offers').insert([attempt]).select('id').single());
+      }
+    }
+    if (error && isUniqueViolation(error)) {
+      return { ok: false, duplicate: true };
+    }
   }
 
   if (error) {

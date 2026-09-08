@@ -15,6 +15,10 @@ vi.mock('@/lib/supabase/server', () => ({
   },
 }));
 
+vi.mock('@/lib/bots/ingest/botIngestPaused', () => ({
+  getBotIngestPausedFromDb: vi.fn(async () => false),
+}));
+
 vi.mock('@/lib/bots/ingest/botIngestDailyState', () => ({
   getBotOfferCountStartUtc: () => new Date('2026-09-08T06:00:00.000Z'),
   countBotOffersCreatedSinceMulti: vi.fn(async () => 0),
@@ -73,6 +77,7 @@ import { evaluateDealSafe } from '@/lib/verifier';
 import { processExternalWorkerBatch } from '@/lib/bots/ingest/externalWorker';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 import { enrichParsedOfferMetadata } from '@/lib/hunter/enrichment';
+import { getBotIngestPausedFromDb } from '@/lib/bots/ingest/botIngestPaused';
 
 function cfg(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
   return {
@@ -215,6 +220,7 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     vi.mocked(insertIngestedOffer).mockClear();
     vi.mocked(evaluateDealSafe).mockClear();
     vi.mocked(enrichParsedOfferMetadata).mockClear();
+    vi.mocked(getBotIngestPausedFromDb).mockResolvedValue(false);
   });
 
   it('A. candidato ml_worker llega a enrichment + shadow cuando corresponde', async () => {
@@ -309,5 +315,15 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     expect(verified.ingestDecision).toBe('pending');
     expect(vi.mocked(insertIngestedOffer)).not.toHaveBeenCalled();
     expect(getAutonomousDecisionMetrics().evaluated).toBe(0);
+  });
+
+  it('kill-switch: paused no inserta ni observa', async () => {
+    vi.mocked(getBotIngestPausedFromDb).mockResolvedValue(true);
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+    expect(report.pausedByOwner).toBe(true);
+    expect(report.summary.inserted).toBe(0);
+    expect(vi.mocked(insertIngestedOffer)).not.toHaveBeenCalled();
+    expect(getAutonomousDecisionMetrics().evaluated).toBe(0);
+    expect(vi.mocked(recordExternalSourceBatchHealth)).not.toHaveBeenCalled();
   });
 });

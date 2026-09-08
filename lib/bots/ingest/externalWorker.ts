@@ -1,5 +1,7 @@
 import { countBotOffersCreatedSinceMulti, getBotOfferCountStartUtc } from './botIngestDailyState';
 import { loadBotIngestConfig, type BotIngestConfig } from './config';
+import { getBotIngestPausedFromDb } from './botIngestPaused';
+import { ingestRunBlockFromConfig } from './ingestRunGate';
 import { getZonedHourMinute } from './ingestZonedTime';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type {
@@ -204,6 +206,34 @@ export async function processExternalWorkerBatch(
   const startedAt = new Date().toISOString();
   const profile: IngestProfileId = payload.profile === 'mega' ? 'mega' : 'standard';
   const config = loadBotIngestConfig(profile);
+  const pausedByOwner = await getBotIngestPausedFromDb();
+  const block = ingestRunBlockFromConfig(config, pausedByOwner);
+  if (block) {
+    return {
+      ok: block !== 'missing_bot_user',
+      enabled: block !== 'disabled' && block !== 'paused',
+      pausedByOwner: block === 'paused',
+      envIngestEnabled: config.enabled,
+      profile,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      maxPerRun: 0,
+      runMode: block === 'paused' ? 'skipped' : block === 'disabled' ? 'off' : 'error',
+      dailyInsertedApprox: null,
+      dailyCap: config.dailyMaxOffers,
+      rotationWave: null,
+      results: [],
+      summary: {
+        inserted: 0,
+        duplicate: 0,
+        skipped: 0,
+        errors: block === 'missing_bot_user' ? 1 : 0,
+        rejected: 0,
+        autoApproved: 0,
+      },
+    };
+  }
+
   const sourceStats = emptySourceStats();
   const results: IngestSingleResult[] = [];
   const stageCounts = {

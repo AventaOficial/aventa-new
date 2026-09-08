@@ -376,3 +376,12 @@ describe('isHunting', () => {
     );
   });
 });
+
+describe('ml_api_legacy partial HTTP fail', () => {
+  it('403 sin candidatos → fail-closed; 403 con hits → no tira yield', async () => {
+    const { mlApiLegacyFailClosed } = await import('@/lib/hunter/sources/mlApiLegacy');
+    expect(mlApiLegacyFailClosed(true, 0)).toBe(true);
+    expect(mlApiLegacyFailClosed(true, 4)).toBe(false);
+    expect(mlApiLegacyFailClosed(false, 0)).toBe(false);
+  });
+});

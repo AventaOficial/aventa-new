@@ -2,7 +2,7 @@ import { discoverMercadoLibreIngestItems } from '@/lib/bots/ingest/discoverMerca
 import type { HunterCollectContext, HunterCollectResult, HunterSource } from '../types';
 import { ingestItemToCandidate } from '../normalize';
 
-function extractHttpStatusFromSkipReasons(
+export function extractHttpStatusFromSkipReasons(
   skipReasonCounts: Record<string, number> | undefined
 ): string | null {
   if (!skipReasonCounts) return null;
@@ -11,6 +11,10 @@ function extractHttpStatusFromSkipReasons(
     if (m) return m[1];
   }
   return null;
+}
+
+export function mlApiLegacyFailClosed(httpFail: boolean, candidateCount: number): boolean {
+  return httpFail && candidateCount <= 0;
 }
 
 export const mlApiLegacySource: HunterSource = {
@@ -39,7 +43,7 @@ export const mlApiLegacySource: HunterSource = {
       httpStatus === '429' ||
       (httpStatus != null && /^5\d\d$/.test(httpStatus));
 
-    if (httpFail) {
+    if (mlApiLegacyFailClosed(httpFail, candidates.length)) {
       return {
         ok: false,
         candidates: [],
