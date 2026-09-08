@@ -18,6 +18,8 @@ import type {
 
 export type UseModerationFocusQueueOptions = {
   sourceTab: FocusSourceTab;
+  /** Deep-link: oferta a atender primero. Se consume una sola vez, en el claim inicial. */
+  preferOfferId?: string | null;
 };
 
 function mapOffer(row: Record<string, unknown>): FocusModerationOffer {
@@ -30,7 +32,10 @@ function mapOffer(row: Record<string, unknown>): FocusModerationOffer {
   };
 }
 
-export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOptions) {
+export function useModerationFocusQueue({
+  sourceTab,
+  preferOfferId = null,
+}: UseModerationFocusQueueOptions) {
   const { session } = useAuth();
   const [offer, setOffer] = useState<FocusModerationOffer | null>(null);
   const [history, setHistory] = useState<FocusModerationOffer[]>([]);
@@ -51,6 +56,7 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
   const lockSupportedRef = useRef(true);
   const originalUrlRef = useRef<Map<string, string>>(new Map());
   const excludeRef = useRef<string[]>([]);
+  const preferOfferIdRef = useRef<string | null>(preferOfferId);
 
   const authHeaders = useCallback((): HeadersInit => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -115,6 +121,9 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
         const exclude = [
           ...new Set([...(options?.excludeOfferIds ?? []), ...excludeRef.current]),
         ].slice(-40);
+        // Se consume una vez: tras el primer claim la cola vuelve a su orden normal.
+        const prefer = preferOfferIdRef.current;
+        preferOfferIdRef.current = null;
         const res = await fetch('/api/admin/moderation/claim-next', {
           method: 'POST',
           headers: authHeaders(),
@@ -122,6 +131,7 @@ export function useModerationFocusQueue({ sourceTab }: UseModerationFocusQueueOp
             releaseOfferId: options?.releaseOfferId ?? heldLockIdRef.current,
             excludeOfferIds: exclude.filter((id) => id !== '__retry__'),
             sourceTab,
+            ...(prefer ? { preferOfferId: prefer } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));

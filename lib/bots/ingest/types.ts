@@ -1,4 +1,5 @@
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
+import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 
 export type IngestSourceId = 'env_urls' | 'rss' | 'ml_api' | 'amazon_asin' | 'ml_worker';
 export type IngestProfileId = 'standard' | 'mega';
@@ -23,7 +24,13 @@ export type IngestItem = {
 
 export type IngestSingleResult =
   | { url: string; source?: IngestSourceId; status: 'inserted'; offerId: string }
-  | { url: string; source?: IngestSourceId; status: 'duplicate' }
+  | {
+      url: string;
+      source?: IngestSourceId;
+      status: 'duplicate';
+      duplicateKind?: DuplicateOfferKind;
+      supplyOpportunity?: boolean;
+    }
   | { url: string; source?: IngestSourceId; status: 'skipped'; reason: string }
   | { url: string; source?: IngestSourceId; status: 'error'; message: string };
 
@@ -61,6 +68,10 @@ export type IngestCycleReport = {
     autoApproved: number;
     /** Conteos por `reason` cuando status === skipped (diagnóstico en panel / logs). */
     skipReasonCounts?: Record<string, number>;
+    /** Duplicados desglosados: `pending_stale` alto = cola sin drenar, no hunter roto. */
+    duplicateKindCounts?: Partial<Record<DuplicateOfferKind, number>>;
+    /** Duplicados que venían más baratos que la oferta viva. Métrica, no acción. */
+    supplyOpportunities?: number;
     /** Telemetría por fuente para ver salud y rendimiento del bot. */
     sourceStats?: Partial<Record<IngestSourceId, IngestSourceStats>>;
     /** Conteos de etapas principales dentro de la corrida. */

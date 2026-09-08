@@ -22,7 +22,9 @@ import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
   observeIngestShadow,
+  persistShadowCycleSnapshot,
 } from '@/lib/autonomous';
+import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
 import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
@@ -445,7 +447,13 @@ export async function processExternalWorkerBatch(
         sourceStats[row.item.source].inserted += 1;
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
-        results.push({ url: row.item.url, source: row.item.source, status: 'duplicate' });
+        results.push({
+          url: row.item.url,
+          source: row.item.source,
+          status: 'duplicate',
+          duplicateKind: ins.duplicateKind,
+          supplyOpportunity: ins.supplyOpportunity,
+        });
         sourceStats[row.item.source].duplicate += 1;
       } else if ('error' in ins) {
         results.push({ url: row.item.url, source: row.item.source, status: 'error', message: ins.error });
@@ -459,6 +467,8 @@ export async function processExternalWorkerBatch(
   }
 
   const skipReasonCounts = buildSkipSummary(results, sourceStats);
+  const duplicateKindCounts = countDuplicateKinds(results);
+  const supplyOpportunities = countSupplyOpportunities(results);
   const summary = {
     inserted: results.filter((r) => r.status === 'inserted').length,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
@@ -467,11 +477,15 @@ export async function processExternalWorkerBatch(
     rejected: scoreRejected,
     autoApproved,
     ...(Object.keys(skipReasonCounts).length > 0 ? { skipReasonCounts } : {}),
+    ...(Object.keys(duplicateKindCounts).length > 0 ? { duplicateKindCounts } : {}),
+    ...(supplyOpportunities > 0 ? { supplyOpportunities } : {}),
     sourceStats,
     stageCounts,
   };
 
   const finishedAt = new Date().toISOString();
+  // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
+  await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
   const latencyMs = Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt));
   try {
     await recordExternalSourceBatchHealth({

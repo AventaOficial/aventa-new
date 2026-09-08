@@ -4,7 +4,70 @@ import { offerUrlFingerprint, offerUrlsAreSameProduct } from '@/lib/offers/offer
 export type DuplicateOfferMatch = {
   id: string;
   status: string | null;
+  /** Por qué el duplicado bloquea. Diagnóstico de cola: no cambia la decisión de insert. */
+  kind: DuplicateOfferKind;
+  ageHours: number | null;
+  /** Precio de la fila que bloquea. Solo para medir supply desperdiciada. */
+  price: number | null;
 };
+
+/**
+ * Un duplicado no es un solo caso. Separarlos para saber si la cola pending
+ * está drenando o el hunter reencuentra siempre lo mismo.
+ *
+ * - `pending_fresh`: pending reciente, moderación aún no lo ha visto.
+ * - `pending_stale`: pending sin moderar más allá del cooldown → cola atascada.
+ * - `live`: approved/published vigente. Reencontrarlo es esperado.
+ * - `expired`: el UNIQUE lo retenía una fila ya caducada.
+ * - `unknown`: sin created_at utilizable, o carrera TOCTOU.
+ *
+ * No existe `rejected`: desde FASE 4 las rechazadas no bloquean, así que un candidato
+ * nunca choca contra ellas. Un contador `duplicateRejected` sería siempre 0.
+ */
+export type DuplicateOfferKind = 'pending_fresh' | 'pending_stale' | 'live' | 'expired' | 'unknown';
+
+/** Un pending del bot sin moderar en 3 días es cola atascada, no descubrimiento nuevo. */
+export const PENDING_STALE_AFTER_HOURS = 72;
+
+export function duplicateRowAgeHours(
+  row: { created_at?: string | null },
+  now: Date = new Date()
+): number | null {
+  const created = row.created_at;
+  if (typeof created !== 'string' || !created.trim()) return null;
+  const ts = Date.parse(created);
+  if (!Number.isFinite(ts)) return null;
+  return Math.max(0, Math.round(((now.getTime() - ts) / 3_600_000) * 10) / 10);
+}
+
+/**
+ * Clasifica el duplicado que bloquea el insert. Solo lectura: no borra ni
+ * modifica la oferta viva. `pending_stale` es una señal de drenaje, no una acción.
+ */
+export function classifyDuplicateOfferRow(
+  row: { status?: string | null; created_at?: string | null },
+  now: Date = new Date()
+): DuplicateOfferKind {
+  const status = row.status ?? '';
+  if (status !== 'pending') return 'live';
+  const ageHours = duplicateRowAgeHours(row, now);
+  if (ageHours == null) return 'unknown';
+  return ageHours >= PENDING_STALE_AFTER_HOURS ? 'pending_stale' : 'pending_fresh';
+}
+
+function toMatch(
+  row: { id?: unknown; status?: string | null; created_at?: string | null; price?: unknown },
+  now: Date = new Date()
+): DuplicateOfferMatch {
+  const price = typeof row.price === 'number' && Number.isFinite(row.price) ? row.price : null;
+  return {
+    id: row.id as string,
+    status: row.status ?? null,
+    kind: classifyDuplicateOfferRow(row, now),
+    ageHours: duplicateRowAgeHours(row, now),
+    price,
+  };
+}
 
 /** Solo ASIN / item id. `url:` y `meli.la:` colapsan homes y shortlinks distintos. */
 export function isStrongProductFingerprint(fp: string | null | undefined): fp is string {
@@ -59,39 +122,37 @@ export async function findDuplicateOfferByUrl(
   const fingerprint = strongProductFingerprintForUrl(normalizedOfferUrl);
   if (!fingerprint) return null;
 
+  const now = new Date();
+
   const { data: byFp, error: fpError } = await supabase
     .from('offers')
-    .select('id, status, deleted_at, expires_at')
+    .select('id, status, deleted_at, expires_at, created_at, price')
     .eq('product_fingerprint', fingerprint)
     .in('status', ['pending', 'approved', 'published'])
     .is('deleted_at', null)
     .limit(5);
 
   if (!fpError && Array.isArray(byFp)) {
-    const hit = byFp.find((row) => offerRowBlocksHunterDuplicate(row as Record<string, unknown>));
-    if (hit?.id) {
-      return { id: hit.id as string, status: (hit as { status?: string | null }).status ?? null };
-    }
+    const hit = byFp.find((row) => offerRowBlocksHunterDuplicate(row as Record<string, unknown>, now));
+    if (hit?.id) return toMatch(hit as Record<string, unknown>, now);
   }
 
   const { data: exactRows } = await supabase
     .from('offers')
-    .select('id, status, deleted_at, expires_at')
+    .select('id, status, deleted_at, expires_at, created_at, price')
     .eq('offer_url', normalizedOfferUrl)
     .in('status', ['pending', 'approved', 'published'])
     .is('deleted_at', null)
     .limit(5);
 
   const exact = (exactRows ?? []).find((row) =>
-    offerRowBlocksHunterDuplicate(row as Record<string, unknown>)
+    offerRowBlocksHunterDuplicate(row as Record<string, unknown>, now)
   );
-  if (exact?.id) {
-    return { id: exact.id as string, status: (exact as { status?: string | null }).status ?? null };
-  }
+  if (exact?.id) return toMatch(exact as Record<string, unknown>, now);
 
   const { data: candidates, error } = await supabase
     .from('offers')
-    .select('id, status, offer_url, deleted_at, expires_at')
+    .select('id, status, offer_url, deleted_at, expires_at, created_at, price')
     .in('status', ['pending', 'approved', 'published'])
     .is('deleted_at', null)
     .not('offer_url', 'is', null)
@@ -103,12 +164,9 @@ export async function findDuplicateOfferByUrl(
   for (const row of candidates) {
     const url = (row as { offer_url?: string | null }).offer_url;
     if (!url) continue;
-    if (!offerRowBlocksHunterDuplicate(row as Record<string, unknown>)) continue;
+    if (!offerRowBlocksHunterDuplicate(row as Record<string, unknown>, now)) continue;
     if (offerUrlsAreSameProduct(normalizedOfferUrl, url)) {
-      return {
-        id: (row as { id: string }).id,
-        status: (row as { status?: string | null }).status ?? null,
-      };
+      return toMatch(row as Record<string, unknown>, now);
     }
   }
 

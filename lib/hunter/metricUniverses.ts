@@ -25,6 +25,11 @@ export const HUNTER_METRIC_UNIVERSES = {
     evaluated:
       'observeIngestShadow tras evaluateDealSafe en ESTE isolate. No incluye payload inválido, dedupe intra-lote, ni skips de quality gates anteriores al verifier.',
   },
+  autonomousShadowCycle: {
+    persistence: 'supabase_hunter_shadow_cycles',
+    evaluated:
+      'Mismo universo que autonomousShadow, pero con alcance de UN ciclo y escrito al cerrarlo. Es lo único que el panel admin puede leer del isolate del worker. No es realtime.',
+  },
 } as const;
 
 export type HunterMetricUniverses = typeof HUNTER_METRIC_UNIVERSES;

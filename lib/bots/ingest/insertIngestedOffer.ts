@@ -11,6 +11,8 @@ import { buildBotOfferDescription } from './buildBotOfferDescription';
 import { buildBotMeta } from './buildBotMeta';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import { resolveBotInsertPublication } from './resolveBotInsertPublication';
+import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
+import { isSupplyOpportunity } from '@/lib/offers/supplyOpportunity';
 
 /** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
 const OPTIONAL_COLUMNS = [
@@ -39,7 +41,13 @@ export type InsertIngestOptions = {
 
 export type InsertIngestResult =
   | { ok: true; offerId: string }
-  | { ok: false; duplicate: true }
+  | {
+      ok: false;
+      duplicate: true;
+      duplicateKind: DuplicateOfferKind;
+      /** El candidato descartado venía más barato que la oferta que bloquea. Solo métrica. */
+      supplyOpportunity?: boolean;
+    }
   | { ok: false; error: string };
 
 function buildModeratorComment(opts: InsertIngestOptions | undefined): string {
@@ -83,7 +91,16 @@ export async function insertIngestedOffer(
   } = await import('@/lib/offers/findDuplicateOffer');
   const duplicate = await findDuplicateOfferByUrl(supabase, offerUrl);
   if (duplicate) {
-    return { ok: false, duplicate: true };
+    return {
+      ok: false,
+      duplicate: true,
+      duplicateKind: duplicate.kind,
+      // Se descarta igual: medir no es actuar. Ver lib/offers/supplyOpportunity.ts.
+      supplyOpportunity: isSupplyOpportunity({
+        candidatePrice: meta.discountPrice,
+        existingPrice: duplicate.price,
+      }),
+    };
   }
   const productFingerprint = strongProductFingerprintForUrl(offerUrl);
 
@@ -165,14 +182,21 @@ export async function insertIngestedOffer(
   }
 
   if (error && isUniqueViolation(error)) {
+    let releasedExpired = false;
     if (productFingerprint) {
-      const released = await releaseExpiredFingerprintSlot(supabase, productFingerprint);
-      if (released) {
+      releasedExpired = await releaseExpiredFingerprintSlot(supabase, productFingerprint);
+      if (releasedExpired) {
         ({ data, error } = await supabase.from('offers').insert([attempt]).select('id').single());
       }
     }
     if (error && isUniqueViolation(error)) {
-      return { ok: false, duplicate: true };
+      // Liberamos una caducada y aun así choca → el bloqueo venía de una fila caducada.
+      // Si no liberamos nada es una carrera TOCTOU: la fila ganadora no se leyó.
+      return {
+        ok: false,
+        duplicate: true,
+        duplicateKind: releasedExpired ? 'expired' : 'unknown',
+      };
     }
   }
 

@@ -15,7 +15,7 @@ function parseSourceTab(value: unknown): ClaimSourceTab {
 
 /**
  * POST — reclama atómicamente la siguiente oferta elegible para el moderador.
- * Body opcional: { releaseOfferId?, excludeOfferIds?, sourceTab? }
+ * Body opcional: { releaseOfferId?, excludeOfferIds?, sourceTab?, preferOfferId? }
  */
 export async function POST(request: Request) {
   const auth = await requireModeration(request);
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     ? body.excludeOfferIds.filter((id: unknown): id is string => typeof id === 'string')
     : undefined;
   const sourceTab = parseSourceTab(body?.sourceTab);
+  const preferOfferId = typeof body?.preferOfferId === 'string' ? body.preferOfferId : null;
   const maxLevel = moderationMaxLevelForRole(auth.role);
 
   const started = Date.now();
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
       excludeOfferIds,
       sourceTab,
       maxLevel,
+      preferOfferId,
     });
 
     const claimLatencyMs = Date.now() - started;

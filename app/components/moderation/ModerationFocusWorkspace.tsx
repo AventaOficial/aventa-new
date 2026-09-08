@@ -27,7 +27,12 @@ export default function ModerationFocusWorkspace({
   sourceTab = 'all',
 }: ModerationFocusWorkspaceProps) {
   const ui = moderationUi(mode);
-  const queue = useModerationFocusQueue({ sourceTab });
+  // ?focus=<offerId> desde Pending health. Solo reordena la cola; el claim sigue igual.
+  // Se lee de window para no forzar un Suspense boundary en páginas prerenderizadas.
+  const [preferOfferId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('focus')
+  );
+  const queue = useModerationFocusQueue({ sourceTab, preferOfferId });
   const [rejectOpen, setRejectOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [userPrepare, setUserPrepare] = useState(false);

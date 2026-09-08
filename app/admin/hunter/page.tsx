@@ -79,6 +79,52 @@ type HunterHealthPayload = {
     errors: number;
     topReasons: Array<{ reason: string; count: number }>;
   };
+  pendingHealth?: {
+    total: number;
+    fresh: number;
+    stale: number;
+    expiring: number;
+    expired: number;
+    highQualityStale: number;
+    lowQualityStale: number;
+    duplicate: number;
+    snoozed: number;
+    needsAttention: number;
+    oldestPendingHours: number | null;
+    byAction: Record<'KEEP' | 'PRIORITIZE' | 'SNOOZE' | 'REVIEW' | 'REJECT', number>;
+    topAttention: Array<{
+      offerId: string;
+      state: string;
+      action: string;
+      ageHours: number | null;
+      score: number | null;
+      reasons: string[];
+    }>;
+  };
+  shadowCycles?: Array<{
+    cycleId: string;
+    startedAt: string;
+    finishedAt: string;
+    evaluated: number;
+    autoApprove: number;
+    humanReview: number;
+    autoReject: number;
+    autoApprovePct: number;
+    humanReviewPct: number;
+    autoRejectPct: number;
+    autonomousPct: number;
+    avgConfidence: number;
+    avgScore: number | null;
+    duplicatePass: number;
+    duplicateFail: number;
+    duplicateUnknown: number;
+    imageFound: number;
+    imageMissing: number;
+    topReasons: Array<{ code: string; label?: string; count: number }>;
+    bySource: Record<string, { evaluated: number; autoApprove: number; humanReview: number; autoReject: number }>;
+    policyVersion: string;
+    schemaVersion: number;
+  }>;
   autonomousDecision?: {
     evaluated: number;
     autoApprove: number;
@@ -215,6 +261,11 @@ export default function HunterPage() {
       void load();
     });
   }, [load]);
+
+  // Persistido en DB (otro isolate), no las métricas en memoria de este proceso.
+  const lastShadowCycle = health?.shadowCycles?.[0] ?? null;
+  const prevShadowCycle = health?.shadowCycles?.[1] ?? null;
+  const pending = health?.pendingHealth ?? null;
 
   const runNow = async () => {
     setRunning(true);
@@ -368,7 +419,118 @@ export default function HunterPage() {
 
           <GlassCard>
             <SectionHeader
-              title="Shadow Autonomy"
+              title="Pending health"
+              subtitle="Clasificación derivada de la cola pending. Recomendación, no acción: nada se ejecuta solo."
+            />
+            {pending ? (
+              <>
+                <p className="mt-3 text-sm text-white/80">
+                  {pending.needsAttention === 0
+                    ? `Todo bien. ${pending.total} pending en cola, ninguna requiere atención.`
+                    : `Revisar ${pending.needsAttention} ${pending.needsAttention === 1 ? 'oferta' : 'ofertas'} de ${pending.total} pending.`}
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+                  <KpiCard label="Total pending" value={String(pending.total)} />
+                  <KpiCard label="Fresh" value={String(pending.fresh)} />
+                  <KpiCard label="Stale" value={String(pending.stale)} />
+                  <KpiCard label="Por caducar" value={String(pending.expiring)} />
+                  <KpiCard label="Caducadas" value={String(pending.expired)} />
+                  <KpiCard label="Duplicadas" value={String(pending.duplicate)} />
+                  <KpiCard label="Pospuestas" value={String(pending.snoozed)} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <KpiCard label="Stale buenas" value={String(pending.highQualityStale)} />
+                  <KpiCard label="Stale flojas" value={String(pending.lowQualityStale)} />
+                  <KpiCard label="Priorizar" value={String(pending.byAction?.PRIORITIZE ?? 0)} />
+                  <KpiCard label="Revisar" value={String(pending.byAction?.REVIEW ?? 0)} />
+                </div>
+                {pending.topAttention.length > 0 ? (
+                  <ul className="mt-4 space-y-1.5 border-t border-white/[0.06] pt-3">
+                    {pending.topAttention.map((row) => (
+                      <li key={row.offerId} className="text-xs text-white/50">
+                        <a
+                          href={`/admin/moderation?focus=${row.offerId}`}
+                          className="text-white/80 underline decoration-white/20 underline-offset-2 hover:text-white"
+                        >
+                          {row.action}
+                        </a>{' '}
+                        <span className="font-mono text-white/65">{row.state}</span>
+                        {row.ageHours != null ? ` · ${row.ageHours} h` : ''}
+                        {row.score != null ? ` · score ${row.score}` : ''}
+                        {row.reasons.length > 0 ? (
+                          <span className="text-white/35"> — {row.reasons.join(' · ')}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <p className="mt-3 text-xs text-white/35">
+                  La más antigua lleva{' '}
+                  {pending.oldestPendingHours == null ? '—' : `${pending.oldestPendingHours} h`} en cola.
+                  Stale = {'>'} 72 h sin moderar. Abre cualquiera en Focus con el enlace de su acción.
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Sin datos de cola pending.</p>
+            )}
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Shadow cycle (persistido)"
+              subtitle="Último ciclo del worker guardado en hunter_shadow_cycles. NO es realtime: es una foto del ciclo ya cerrado."
+            />
+            {lastShadowCycle ? (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                  <KpiCard label="Evaluados" value={String(lastShadowCycle.evaluated)} />
+                  <KpiCard label="Auto approve %" value={`${lastShadowCycle.autoApprovePct}%`} />
+                  <KpiCard label="Human review %" value={`${lastShadowCycle.humanReviewPct}%`} />
+                  <KpiCard label="Auto reject %" value={`${lastShadowCycle.autoRejectPct}%`} />
+                  <KpiCard label="Autonomous %" value={`${lastShadowCycle.autonomousPct}%`} />
+                  <KpiCard
+                    label="Score promedio"
+                    value={lastShadowCycle.avgScore == null ? '—' : String(lastShadowCycle.avgScore)}
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+                  <KpiCard label="dup pass" value={String(lastShadowCycle.duplicatePass)} />
+                  <KpiCard label="dup fail" value={String(lastShadowCycle.duplicateFail)} />
+                  <KpiCard label="dup unknown" value={String(lastShadowCycle.duplicateUnknown)} />
+                  <KpiCard label="imagen ok" value={String(lastShadowCycle.imageFound)} />
+                  <KpiCard label="imagen missing" value={String(lastShadowCycle.imageMissing)} />
+                </div>
+                <p className="mt-3 text-xs text-white/35">
+                  Cerrado:{' '}
+                  {lastShadowCycle.finishedAt
+                    ? new Date(lastShadowCycle.finishedAt).toLocaleString('es-MX')
+                    : '—'}
+                  {' · policy '}
+                  <span className="font-mono">{lastShadowCycle.policyVersion}</span>
+                  {' · schema v'}
+                  {lastShadowCycle.schemaVersion}
+                </p>
+                <p className="mt-1 text-xs text-white/35">
+                  {prevShadowCycle
+                    ? `Ciclo previo: ${prevShadowCycle.evaluated} eval, autónomo ${prevShadowCycle.autonomousPct}% (${
+                        prevShadowCycle.finishedAt
+                          ? new Date(prevShadowCycle.finishedAt).toLocaleString('es-MX')
+                          : '—'
+                      })`
+                    : 'Ciclo previo: aún no hay un segundo ciclo persistido.'}
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">
+                Sin ciclos persistidos. Se escribe uno al cerrar cada corrida con candidatos evaluados;
+                si la tabla hunter_shadow_cycles no existe todavía, aplica la migración.
+              </p>
+            )}
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Shadow Autonomy (este isolate)"
               subtitle="AUTO_APPROVE = podrían publicarse solos. Autonomous % = AUTO_APPROVE + AUTO_REJECT. No publica. Memoria de ESTE isolate — en Vercel no es el batch de ml_worker (eso vive en hunter_source_health)."
             />
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">

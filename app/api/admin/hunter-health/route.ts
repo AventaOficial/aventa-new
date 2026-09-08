@@ -3,9 +3,11 @@ import { requireUsersLogs } from '@/lib/server/requireAdmin';
 import { getHunterHealthSummary } from '@/lib/hunter/isHunting';
 import { HUNTER_SOURCES } from '@/lib/hunter/sources';
 import { getDealVerifierMetrics } from '@/lib/verifier';
-import { getAutonomousDecisionMetrics } from '@/lib/autonomous';
+import { getAutonomousDecisionMetrics, readRecentShadowCycles } from '@/lib/autonomous';
 import { getHunterEnrichmentMetrics } from '@/lib/hunter/enrichment';
 import { HUNTER_METRIC_UNIVERSES } from '@/lib/hunter/metricUniverses';
+import { createServerClient } from '@/lib/supabase/server';
+import { getPendingHealth } from '@/lib/moderation/pendingHealth';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -14,6 +16,18 @@ export async function GET(request: Request) {
   }
 
   const summary = await getHunterHealthSummary();
+  const supabase = (() => {
+    try {
+      return createServerClient();
+    } catch {
+      return null;
+    }
+  })();
+  // Los ciclos shadow persistidos son de OTRO isolate (el worker). Este panel solo lee.
+  const [shadowCycles, pendingHealth] = await Promise.all([
+    readRecentShadowCycles(supabase, 2),
+    getPendingHealth(supabase),
+  ]);
   const catalog = HUNTER_SOURCES.map((s) => ({
     id: s.id,
     displayName: s.displayName,
@@ -33,6 +47,8 @@ export async function GET(request: Request) {
       catalog,
       dealVerifier: getDealVerifierMetrics(),
       autonomousDecision: getAutonomousDecisionMetrics(),
+      shadowCycles,
+      pendingHealth,
       hunterEnrichment: getHunterEnrichmentMetrics(),
       metricUniverses: HUNTER_METRIC_UNIVERSES,
     },

@@ -1,5 +1,6 @@
-import { AUTONOMOUS_POLICY_V1 } from './policy';
+import { AUTONOMOUS_DECISION_POLICY_V1, AUTONOMOUS_POLICY_V1 } from './policy';
 import { classifyShadowReasons, SHADOW_REASON_LABELS, type ShadowReasonCode } from './reasonCodes';
+import { SHADOW_CYCLE_SCHEMA_VERSION, type ShadowCycleReport } from './shadowCycle';
 import type { AutonomousDecision, AutonomousDecisionResult } from './types';
 import type { DealCheckStatus, DealVerifierDecision } from '@/lib/verifier/types';
 
@@ -116,6 +117,36 @@ let currentCycle = emptyCounters();
 let currentCycleStartedAt: string | null = null;
 let lastCycle: AutonomousCycleSnapshot = emptyCycleSnapshot();
 
+/**
+ * Agregados con alcance de ciclo (no de proceso). Necesarios para persistir un
+ * snapshot honesto: `topReasons`/`bySource` de proceso mezclarían ciclos previos.
+ */
+type CycleScoped = {
+  id: string;
+  reasons: Map<string, number>;
+  bySource: Map<string, AutonomousSourceMetrics>;
+  scoreSum: number;
+  scoreCount: number;
+};
+
+function emptyCycleScoped(): CycleScoped {
+  return { id: newCycleId(), reasons: new Map(), bySource: new Map(), scoreSum: 0, scoreCount: 0 };
+}
+
+/** uuid v4: la columna cycle_id es uuid, el fallback también debe serlo. */
+function newCycleId(): string {
+  try {
+    return globalThis.crypto.randomUUID();
+  } catch {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+      const r = (Math.random() * 16) | 0;
+      return (ch === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
+  }
+}
+
+let cycleScoped = emptyCycleScoped();
+
 function emptyCycleSnapshot(): AutonomousCycleSnapshot {
   return {
     evaluated: 0,
@@ -173,22 +204,22 @@ export function canonicalShadowSource(source: string, sourceDetail?: string | nu
   return s;
 }
 
-function bumpReason(code: ShadowReasonCode) {
-  reasonCounts.set(code, (reasonCounts.get(code) ?? 0) + 1);
-  if (reasonCounts.size > MAX_REASON_KEYS) {
-    const sorted = [...reasonCounts.entries()].sort((a, b) => a[1] - b[1]);
+function bumpReason(target: Map<string, number>, code: ShadowReasonCode) {
+  target.set(code, (target.get(code) ?? 0) + 1);
+  if (target.size > MAX_REASON_KEYS) {
+    const sorted = [...target.entries()].sort((a, b) => a[1] - b[1]);
     for (let i = 0; i < Math.min(5, sorted.length); i++) {
-      reasonCounts.delete(sorted[i]![0]);
+      target.delete(sorted[i]![0]);
     }
   }
 }
 
-function sourceBucket(source: string, sourceDetail?: string | null) {
+function sourceBucket(target: Map<string, AutonomousSourceMetrics>, source: string, sourceDetail?: string | null) {
   const key = canonicalShadowSource(source, sourceDetail);
-  let row = bySource.get(key);
+  let row = target.get(key);
   if (!row) {
     row = { evaluated: 0, autoApprove: 0, humanReview: 0, autoReject: 0 };
-    bySource.set(key, row);
+    target.set(key, row);
   }
   return row;
 }
@@ -232,6 +263,7 @@ export function beginAutonomousShadowCycle(now: Date = new Date()) {
   }
   currentCycle = emptyCounters();
   currentCycleStartedAt = now.toISOString();
+  cycleScoped = emptyCycleScoped();
 }
 
 export function recordAutonomousDecision(
@@ -260,15 +292,22 @@ export function recordAutonomousDecision(
   if (Number.isFinite(result.score)) {
     scoreSum += result.score as number;
     scoreCount += 1;
+    cycleScoped.scoreSum += result.score as number;
+    cycleScoped.scoreCount += 1;
   }
 
-  const row = sourceBucket(source, meta.sourceDetail);
-  bumpDecision(row, result.decision);
-  row.evaluated += 1;
+  for (const bucket of [bySource, cycleScoped.bySource]) {
+    const row = sourceBucket(bucket, source, meta.sourceDetail);
+    bumpDecision(row, result.decision);
+    row.evaluated += 1;
+  }
 
   const codes = classifyShadowReasons(result);
   if (result.decision === 'HUMAN_REVIEW') {
-    for (const code of codes) bumpReason(code);
+    for (const code of codes) {
+      bumpReason(reasonCounts, code);
+      bumpReason(cycleScoped.reasons, code);
+    }
   }
 
   recent.push({
@@ -282,8 +321,8 @@ export function recordAutonomousDecision(
   if (recent.length > MAX_RECENT) recent.splice(0, recent.length - MAX_RECENT);
 }
 
-export function getAutonomousDecisionMetrics(): AutonomousDecisionMetricsSnapshot {
-  const topReasons = [...reasonCounts.entries()]
+function topReasonsFrom(source: Map<string, number>) {
+  return [...source.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, 8)
     .map(([code, count]) => ({
@@ -292,6 +331,49 @@ export function getAutonomousDecisionMetrics(): AutonomousDecisionMetricsSnapsho
       label: SHADOW_REASON_LABELS[code as ShadowReasonCode],
       count,
     }));
+}
+
+/**
+ * Snapshot persistible del ciclo en curso. Llamar al cerrar el ciclo de ingest.
+ * Lectura pura: no muta contadores ni cierra el ciclo.
+ */
+export function getShadowCycleReport(now: Date = new Date()): ShadowCycleReport {
+  const c = currentCycle;
+  return {
+    cycleId: cycleScoped.id,
+    startedAt: currentCycleStartedAt ?? now.toISOString(),
+    finishedAt: now.toISOString(),
+    evaluated: c.evaluated,
+    autoApprove: c.autoApprove,
+    humanReview: c.humanReview,
+    autoReject: c.autoReject,
+    autoApprovePct: pct(c.autoApprove, c.evaluated),
+    humanReviewPct: pct(c.humanReview, c.evaluated),
+    autoRejectPct: pct(c.autoReject, c.evaluated),
+    autonomousPct: pct(c.autoApprove + c.autoReject, c.evaluated),
+    avgConfidence: avgConfidence(c.confidenceSum, c.evaluated),
+    avgScore:
+      cycleScoped.scoreCount > 0
+        ? Math.round((cycleScoped.scoreSum / cycleScoped.scoreCount) * 10) / 10
+        : null,
+    duplicatePass: c.duplicatePass,
+    duplicateFail: c.duplicateFail,
+    duplicateUnknown: c.duplicateUnknown,
+    imageFound: c.imageFound,
+    imageMissing: c.imageMissing,
+    topReasons: topReasonsFrom(cycleScoped.reasons).map(({ code, label, count }) => ({
+      code,
+      label,
+      count,
+    })),
+    bySource: Object.fromEntries(cycleScoped.bySource.entries()),
+    policyVersion: AUTONOMOUS_DECISION_POLICY_V1,
+    schemaVersion: SHADOW_CYCLE_SCHEMA_VERSION,
+  };
+}
+
+export function getAutonomousDecisionMetrics(): AutonomousDecisionMetricsSnapshot {
+  const topReasons = topReasonsFrom(reasonCounts);
 
   return {
     evaluated: counters.evaluated,
@@ -335,6 +417,7 @@ export function resetAutonomousDecisionMetrics() {
   currentCycle = emptyCounters();
   currentCycleStartedAt = null;
   lastCycle = emptyCycleSnapshot();
+  cycleScoped = emptyCycleScoped();
   recent.length = 0;
   scoreSum = 0;
   scoreCount = 0;

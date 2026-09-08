@@ -13,14 +13,30 @@ export {
 } from './duplicateLookup';
 export {
   getAutonomousDecisionMetrics,
+  getShadowCycleReport,
   recordAutonomousDecision,
   resetAutonomousDecisionMetrics,
   beginAutonomousShadowCycle,
   canonicalShadowSource,
   type AutonomousDecisionMetricsSnapshot,
   type AutonomousCycleSnapshot,
+  type AutonomousSourceMetrics,
   type ShadowObservationSample,
 } from './metrics';
+export {
+  buildShadowCycleRow,
+  shadowCycleRowToReport,
+  SHADOW_CYCLE_SCHEMA_VERSION,
+  SHADOW_CYCLE_TABLE,
+  type ShadowCycleReport,
+  type ShadowCycleRow,
+  type ShadowCycleTopReason,
+} from './shadowCycle';
+export {
+  persistShadowCycleSnapshot,
+  readRecentShadowCycles,
+  type PersistShadowCycleOutcome,
+} from './shadowCyclePersistence';
 export {
   classifyShadowReasons,
   SHADOW_REASON_CODES,

@@ -25,7 +25,9 @@ import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
   observeIngestShadow,
+  persistShadowCycleSnapshot,
 } from '@/lib/autonomous';
+import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
 import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
 
 function emptySummary() {
@@ -405,7 +407,13 @@ export async function runIngestCycleForProfile(
         sourceStats[r.item.source].inserted += 1;
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
-        results.push({ url: r.item.url, source: r.item.source, status: 'duplicate' });
+        results.push({
+          url: r.item.url,
+          source: r.item.source,
+          status: 'duplicate',
+          duplicateKind: ins.duplicateKind,
+          supplyOpportunity: ins.supplyOpportunity,
+        });
         sourceStats[r.item.source].duplicate += 1;
       } else if ('error' in ins) {
         results.push({ url: r.item.url, source: r.item.source, status: 'error', message: ins.error });
@@ -443,6 +451,8 @@ export async function runIngestCycleForProfile(
     }
   }
 
+  const duplicateKindCounts = countDuplicateKinds(results);
+  const supplyOpportunities = countSupplyOpportunities(results);
   const summary = {
     inserted: results.filter((r) => r.status === 'inserted').length,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
@@ -451,9 +461,14 @@ export async function runIngestCycleForProfile(
     rejected: scoreRejected,
     autoApproved,
     ...(Object.keys(skipReasonCounts).length > 0 ? { skipReasonCounts } : {}),
+    ...(Object.keys(duplicateKindCounts).length > 0 ? { duplicateKindCounts } : {}),
+    ...(supplyOpportunities > 0 ? { supplyOpportunities } : {}),
     sourceStats,
     stageCounts,
   };
+
+  // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
+  await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
 
   return {
     ok: summary.errors === 0,

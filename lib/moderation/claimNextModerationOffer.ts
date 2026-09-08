@@ -47,6 +47,21 @@ function filterBySourceTab<T extends ModerationQueueOffer & { is_bot?: boolean }
   return offers;
 }
 
+/**
+ * Mueve al frente la oferta pedida por deep-link, conservando el orden editorial
+ * del resto. Preferencia, no bypass: si no está en la lista de elegibles
+ * (no pending, snoozed, con lock ajeno, fuera de nivel) el orden no cambia.
+ */
+export function preferOfferFirst<T extends { id: string }>(
+  sorted: readonly T[],
+  preferOfferId: string | null
+): T[] {
+  if (!preferOfferId) return [...sorted];
+  const preferred = sorted.filter((o) => o.id === preferOfferId);
+  if (preferred.length === 0) return [...sorted];
+  return [...preferred, ...sorted.filter((o) => o.id !== preferOfferId)];
+}
+
 export type ClaimNextResult = {
   claimed: boolean;
   offer: Record<string, unknown> | null;
@@ -65,6 +80,12 @@ export async function claimNextModerationOffer(
     sourceTab?: ClaimSourceTab;
     maxAttempts?: number;
     maxLevel?: ModerationLevel;
+    /**
+     * Oferta que el moderador quiere atender primero (deep-link desde otro panel).
+     * Es una PREFERENCIA de orden, no un bypass: si no está pending, no es elegible
+     * o ya tiene lock ajeno, se sigue con la cola normal sin error.
+     */
+    preferOfferId?: string | null;
   }
 ): Promise<ClaimNextResult> {
   const sourceTab = options?.sourceTab ?? 'all';
@@ -147,7 +168,9 @@ export async function claimNextModerationOffer(
     return moderationLevelWithinMax(level, maxLevel);
   });
 
-  for (const candidate of sorted.slice(0, maxAttempts)) {
+  const ordered = preferOfferFirst(sorted, options?.preferOfferId ?? null);
+
+  for (const candidate of ordered.slice(0, maxAttempts)) {
     const acquired = await tryAcquireModerationLock(supabase, candidate.id, moderatorId);
     if (!acquired.claimed) continue;
 

@@ -246,7 +246,11 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
 
     resetAutonomousDecisionMetrics();
     resetHunterEnrichmentMetrics();
-    vi.mocked(insertIngestedOffer).mockResolvedValueOnce({ ok: false, duplicate: true });
+    vi.mocked(insertIngestedOffer).mockResolvedValueOnce({
+      ok: false,
+      duplicate: true,
+      duplicateKind: 'pending_fresh',
+    });
     const insertDup = await processExternalWorkerBatch({
       candidates: [candidate({ url: 'https://articulo.mercadolibre.com.mx/MLM-777888999-monitor-gamer-27' })],
     });
@@ -315,6 +319,36 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     expect(verified.ingestDecision).toBe('pending');
     expect(vi.mocked(insertIngestedOffer)).not.toHaveBeenCalled();
     expect(getAutonomousDecisionMetrics().evaluated).toBe(0);
+  });
+
+  it('H. duplicados se desglosan por tipo en el summary del ciclo', async () => {
+    vi.mocked(insertIngestedOffer).mockResolvedValue({
+      ok: false,
+      duplicate: true,
+      duplicateKind: 'pending_stale',
+    });
+    const report = await processExternalWorkerBatch({
+      candidates: [
+        candidate({ url: 'https://articulo.mercadolibre.com.mx/MLM-111222333-teclado-mecanico' }),
+        candidate({ url: 'https://articulo.mercadolibre.com.mx/MLM-444555666-mouse-inalambrico' }),
+      ],
+    });
+    expect(report.summary.duplicate).toBe(2);
+    expect(report.summary.duplicateKindCounts).toEqual({ pending_stale: 2 });
+    expect(report.summary.inserted).toBe(0);
+  });
+
+  it('I. sin duplicados el summary no emite duplicateKindCounts', async () => {
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+    expect(report.summary.inserted).toBe(1);
+    expect(report.summary.duplicateKindCounts).toBeUndefined();
+  });
+
+  it('J. persistencia shadow no rompe el ciclo cuando no hay cliente supabase', async () => {
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+    expect(report.ok).toBe(true);
+    expect(report.summary.inserted).toBe(1);
+    expect(getAutonomousDecisionMetrics().evaluated).toBe(1);
   });
 
   it('kill-switch: paused no inserta ni observa', async () => {
