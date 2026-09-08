@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import { discoverMercadoLibreCandidates } from './ml.mjs';
+import { cycleIndexFor, resolveSeeds, SEED_ROTATION_INTERVAL_MS } from './seeds.mjs';
 
 function getEnv(name, fallback = '') {
   const value = process.env[name];
@@ -44,15 +45,22 @@ async function main() {
   const minDiscountPercent = Number.parseInt(getEnv('WORKER_MIN_DISCOUNT_PERCENT', '15'), 10) || 15;
   const timeoutMs = Number.parseInt(getEnv('WORKER_TIMEOUT_MS', '45000'), 10) || 45000;
   const dryRun = process.argv.includes('--dry-run');
-  const seeds = parseSeeds(getEnv('WORKER_ML_SEEDS'));
+  const perSeedMax = Number.parseInt(getEnv('WORKER_MAX_PER_SEED', ''), 10) || null;
+  const rotationIntervalMs =
+    Number.parseInt(getEnv('WORKER_ROTATION_INTERVAL_MS', ''), 10) || SEED_ROTATION_INTERVAL_MS;
+  // El orden depende del reloj, no de un contador guardado: dos runners del mismo
+  // ciclo eligen las mismas seeds sin compartir estado.
+  const cycleIndex = cycleIndexFor(Date.now(), rotationIntervalMs);
+  const seeds = resolveSeeds({ override: parseSeeds(getEnv('WORKER_ML_SEEDS')), cycleIndex });
 
   if (!endpoint) throw new Error('Falta AVENTA_INGEST_ENDPOINT');
   if (!secret) throw new Error('Falta AVENTA_CRON_SECRET');
-  if (seeds.length === 0) throw new Error('Falta WORKER_ML_SEEDS');
+  if (seeds.length === 0) throw new Error('El registro de seeds quedó vacío');
 
   console.log(
-    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} seeds=${seeds.length}`
+    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} seeds=${seeds.length} cycleIndex=${cycleIndex}`
   );
+  console.log(`[worker] seed_order=${seeds.map((s) => s.id).join(',')}`);
 
   const browser = await chromium.launch({ headless });
   try {
@@ -63,10 +71,11 @@ async function main() {
     });
     page.setDefaultTimeout(timeoutMs);
 
-    const candidates = await discoverMercadoLibreCandidates(page, {
+    const { candidates, discovery } = await discoverMercadoLibreCandidates(page, {
       seeds,
       maxItems,
       minDiscountPercent,
+      perSeedMax,
     });
 
     console.log(`[worker] discovered_candidates=${candidates.length}`);
@@ -80,6 +89,7 @@ async function main() {
       profile,
       dryRun,
       candidates,
+      discovery: { ...discovery, cycleIndex },
     };
     const response = await postCandidates(endpoint, secret, payload);
     console.log('[worker] candidatos enviados:', candidates.length);

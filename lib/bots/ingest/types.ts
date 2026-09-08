@@ -14,6 +14,29 @@ export type IngestSourceStats = {
   skipReasonCounts?: Record<string, number>;
 };
 
+/** Resultado de UNA superficie de descubrimiento del worker externo. */
+export type WorkerSeedStat = {
+  id: string;
+  /** `zero_results` NO es un fallo: la superficie respondió y no traía ofertas. */
+  status: 'ok' | 'zero_results' | 'failed';
+  rawLinks: number;
+  accepted: number;
+};
+
+/**
+ * Diversidad de supply de un ciclo del worker. Universo de DESCUBRIMIENTO:
+ * anterior a normalización, dedupe y verifier. No se mezcla con `stageCounts`.
+ */
+export type WorkerDiscoveryStats = {
+  cycleIndex: number;
+  seedsAvailable: number;
+  seedsAttempted: number;
+  seedsSuccessful: number;
+  seedsZeroResults: number;
+  seedsFailed: number;
+  bySeed: WorkerSeedStat[];
+};
+
 export type IngestItem = {
   url: string;
   source: IngestSourceId;
@@ -72,6 +95,8 @@ export type IngestCycleReport = {
     duplicateKindCounts?: Partial<Record<DuplicateOfferKind, number>>;
     /** Duplicados que venían más baratos que la oferta viva. Métrica, no acción. */
     supplyOpportunities?: number;
+    /** Superficies visitadas por el worker externo. Solo en el camino ml_worker. */
+    discovery?: WorkerDiscoveryStats;
     /** Telemetría por fuente para ver salud y rendimiento del bot. */
     sourceStats?: Partial<Record<IngestSourceId, IngestSourceStats>>;
     /** Conteos de etapas principales dentro de la corrida. */

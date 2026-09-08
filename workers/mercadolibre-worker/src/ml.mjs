@@ -417,47 +417,102 @@ async function enrichCandidate(page, candidate) {
   };
 }
 
+/**
+ * Cupo por seed. Preferimos amplitud sobre profundidad: con un cupo bajo el
+ * ciclo alcanza a visitar muchas más superficies antes de llenar `maxItems`,
+ * que es de donde sale la supply nueva. Un cupo alto agota la cuota en las dos
+ * primeras seeds y el resto del registro no se visita nunca.
+ */
+export function perSeedCap({ maxItems, seedCount, explicitCap = null }) {
+  if (Number.isFinite(explicitCap) && explicitCap > 0) return Math.trunc(explicitCap);
+  const seeds = Math.max(1, seedCount);
+  return Math.max(2, Math.ceil(maxItems / seeds));
+}
+
+/**
+ * Resultado de UNA seed. `zero_results` no es un fallo: una superficie puede
+ * existir y no tener ofertas con descuento suficiente en este momento.
+ */
+function emptySeedStat(seed) {
+  return {
+    id: seed.id,
+    group: seed.group ?? null,
+    category: seed.category ?? null,
+    status: 'ok',
+    rawLinks: 0,
+    accepted: 0,
+    errorKind: null,
+  };
+}
+
 export async function discoverMercadoLibreCandidates(page, options) {
-  const { seeds, maxItems, minDiscountPercent } = options;
+  const { seeds, maxItems, minDiscountPercent, perSeedMax = null } = options;
   const out = [];
   const seen = new Set();
-  // Reparte cupo entre seeds para no llenar solo con el hub genérico.
-  const perSeedSoftCap = Math.max(4, Math.ceil(maxItems / Math.max(1, seeds.length)) + 2);
+  const seedStats = [];
+  const softCap = perSeedCap({ maxItems, seedCount: seeds.length, explicitCap: perSeedMax });
 
   // GitHub Actions / datacenter: ML redirige PDP a account-verification.
   // Usamos solo datos de la card en /ofertas (URL + precios), sin abrir el producto.
   for (const seed of seeds) {
     if (out.length >= maxItems) break;
+    const stat = emptySeedStat(seed);
+    seedStats.push(stat);
     let acceptedFromSeed = 0;
-    await page.goto(seed, { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForTimeout(1500).catch(() => {});
-    await page.mouse.wheel(0, 2500).catch(() => {});
-    await page.waitForTimeout(1200).catch(() => {});
-    await page.mouse.wheel(0, 2500).catch(() => {});
-    await page.waitForTimeout(800).catch(() => {});
 
-    const cards = (await extractCards(page)).filter((card) => isProductLikeUrl(card.href));
-    console.log(`[worker] seed=${seed} raw_links=${cards.length} mode=card_only`);
+    // Una seed rota no puede matar el ciclo: las sanas deben seguir produciendo.
+    try {
+      await page.goto(seed.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForTimeout(1500).catch(() => {});
+      await page.mouse.wheel(0, 2500).catch(() => {});
+      await page.waitForTimeout(1200).catch(() => {});
+      await page.mouse.wheel(0, 2500).catch(() => {});
+      await page.waitForTimeout(800).catch(() => {});
 
-    for (const card of cards) {
-      if (out.length >= maxItems || acceptedFromSeed >= perSeedSoftCap) break;
-      const dedupeKey = canonicalizeUrl(card.href);
-      if (!card.href || seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
+      const cards = (await extractCards(page)).filter((card) => isProductLikeUrl(card.href));
+      stat.rawLinks = cards.length;
+      console.log(`[worker] seed=${seed.id} raw_links=${cards.length} mode=card_only`);
 
-      const parsed = candidateFromCard(card, minDiscountPercent);
-      if (!parsed.ok) {
-        console.log(`[worker] skipped=${card.href} reason=${parsed.reason}`);
-        continue;
+      for (const card of cards) {
+        if (out.length >= maxItems || acceptedFromSeed >= softCap) break;
+        const dedupeKey = canonicalizeUrl(card.href);
+        if (!card.href || seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+
+        const parsed = candidateFromCard(card, minDiscountPercent);
+        if (!parsed.ok) {
+          console.log(`[worker] skipped=${card.href} reason=${parsed.reason}`);
+          continue;
+        }
+        out.push({ ...parsed.candidate, seedId: seed.id });
+        acceptedFromSeed += 1;
+        console.log(
+          `[worker] accepted=${parsed.candidate.canonicalUrl} discount=${parsed.candidate.discountPercent}% seed=${seed.id}`
+        );
       }
-      out.push(parsed.candidate);
-      acceptedFromSeed += 1;
-      console.log(
-        `[worker] accepted=${parsed.candidate.canonicalUrl} discount=${parsed.candidate.discountPercent}% mode=card`
-      );
+
+      stat.accepted = acceptedFromSeed;
+      if (cards.length === 0) stat.status = 'zero_results';
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      stat.status = 'failed';
+      stat.errorKind = /timeout/i.test(message) ? 'timeout' : 'navigation';
+      console.log(`[worker] seed=${seed.id} status=failed kind=${stat.errorKind}`);
     }
   }
 
+  const discovery = {
+    seedsAttempted: seedStats.length,
+    seedsSuccessful: seedStats.filter((s) => s.status === 'ok').length,
+    seedsZeroResults: seedStats.filter((s) => s.status === 'zero_results').length,
+    seedsFailed: seedStats.filter((s) => s.status === 'failed').length,
+    seedsAvailable: seeds.length,
+    uniqueCandidates: out.length,
+    perSeedCap: softCap,
+    bySeed: seedStats,
+  };
+
   console.log(`[worker] usable_candidates=${out.length}`);
-  return out;
+  console.log(`[worker] discovery=${JSON.stringify(discovery)}`);
+  return { candidates: out, discovery };
 }

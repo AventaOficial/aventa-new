@@ -8,6 +8,7 @@ import { getHunterEnrichmentMetrics } from '@/lib/hunter/enrichment';
 import { HUNTER_METRIC_UNIVERSES } from '@/lib/hunter/metricUniverses';
 import { createServerClient } from '@/lib/supabase/server';
 import { getPendingHealth } from '@/lib/moderation/pendingHealth';
+import { summarizeSchedulerHealth } from '@/lib/hunter/schedulerHealth';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -49,6 +50,8 @@ export async function GET(request: Request) {
       autonomousDecision: getAutonomousDecisionMetrics(),
       shadowCycles,
       pendingHealth,
+      // Salud de la fuente y salud de quien la dispara son preguntas distintas.
+      schedulerHealth: summarizeSchedulerHealth(summary.rows),
       hunterEnrichment: getHunterEnrichmentMetrics(),
       metricUniverses: HUNTER_METRIC_UNIVERSES,
     },

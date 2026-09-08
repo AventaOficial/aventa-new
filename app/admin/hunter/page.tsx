@@ -51,6 +51,14 @@ const SOURCE_HEALTH_ORDER = [
   'env_urls',
 ] as const;
 
+const SCHEDULER_STATE_COPY: Record<string, string> = {
+  healthy: 'El hunter se está disparando dentro del intervalo esperado.',
+  degraded: 'El hunter llega tarde, pero sigue llegando. Vigilar.',
+  stale: 'El hunter lleva demasiado sin dispararse. Está entrando poca supply nueva.',
+  down: 'El hunter no se está disparando. No está entrando supply nueva.',
+  disabled: 'Todas las fuentes están desactivadas a propósito.',
+};
+
 type HunterHealthPayload = {
   isHunting: boolean;
   huntingLevel?: 'healthy' | 'degraded' | 'down';
@@ -78,6 +86,19 @@ type HunterHealthPayload = {
     rejected: number;
     errors: number;
     topReasons: Array<{ reason: string; count: number }>;
+  };
+  schedulerHealth?: {
+    worstState: 'healthy' | 'degraded' | 'stale' | 'down' | 'disabled';
+    needsAttention: boolean;
+    sources: Array<{
+      sourceId: string;
+      state: 'healthy' | 'degraded' | 'stale' | 'down' | 'disabled';
+      lastRunAt: string | null;
+      hoursSinceLastRun: number | null;
+      expectedIntervalMinutes: number;
+      expectedRunsPerDay: number;
+      reason: string;
+    }>;
   };
   pendingHealth?: {
     total: number;
@@ -266,6 +287,7 @@ export default function HunterPage() {
   const lastShadowCycle = health?.shadowCycles?.[0] ?? null;
   const prevShadowCycle = health?.shadowCycles?.[1] ?? null;
   const pending = health?.pendingHealth ?? null;
+  const scheduler = health?.schedulerHealth ?? null;
 
   const runNow = async () => {
     setRunning(true);
@@ -415,6 +437,54 @@ export default function HunterPage() {
                 {health?.lastInsertAt ? new Date(health.lastInsertAt).toLocaleString('es-MX') : '—'}
               </p>
             </div>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Scheduler health"
+              subtitle="¿Se está disparando el hunter? Es otra pregunta que si la fuente respondió bien la última vez."
+            />
+            {scheduler ? (
+              <>
+                <p className="mt-3 text-sm text-white/80">
+                  {SCHEDULER_STATE_COPY[scheduler.worstState]}
+                </p>
+                <ul className="mt-4 space-y-1.5 border-t border-white/[0.06] pt-3">
+                  {scheduler.sources.map((row) => (
+                    <li key={row.sourceId} className="text-xs text-white/50">
+                      <span className="font-mono text-white/80">{row.sourceId}</span>{' '}
+                      <span
+                        className={
+                          row.state === 'healthy'
+                            ? 'text-emerald-300/80'
+                            : row.state === 'disabled'
+                              ? 'text-white/35'
+                              : row.state === 'degraded'
+                                ? 'text-amber-300/80'
+                                : 'text-rose-300/80'
+                        }
+                      >
+                        {row.state}
+                      </span>
+                      {row.hoursSinceLastRun == null
+                        ? ' · nunca corrió'
+                        : ` · hace ${row.hoursSinceLastRun} h`}
+                      <span className="text-white/35">
+                        {' '}
+                        — {row.reason} (esperado cada {row.expectedIntervalMinutes} min ≈{' '}
+                        {row.expectedRunsPerDay}/día)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-white/35">
+                  Las tolerancias son múltiplos del intervalo que promete cada fuente, no minutos
+                  fijos. Un cron puede llegar tarde; lo que importa es que deje de llegar.
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Sin datos de scheduler.</p>
+            )}
           </GlassCard>
 
           <GlassCard>

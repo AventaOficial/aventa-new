@@ -259,6 +259,62 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     vi.mocked(getHunterHealth).mockResolvedValue([healthRow('healthy')]);
   });
 
+  it('L. las estadísticas de descubrimiento del worker llegan al resumen del ciclo', async () => {
+    const report = await processExternalWorkerBatch({
+      candidates: [candidate()],
+      discovery: {
+        cycleIndex: 42,
+        seedsAvailable: 14,
+        seedsAttempted: 12,
+        seedsSuccessful: 10,
+        seedsZeroResults: 1,
+        seedsFailed: 1,
+        bySeed: [
+          { id: 'ofertas_hub', status: 'ok', rawLinks: 40, accepted: 3 },
+          { id: 'cat_MLM1000', status: 'zero_results', rawLinks: 0, accepted: 0 },
+        ],
+      },
+    });
+
+    expect(report.summary.discovery?.seedsAttempted).toBe(12);
+    expect(report.summary.discovery?.seedsFailed).toBe(1);
+    expect(report.summary.discovery?.bySeed).toHaveLength(2);
+    // El universo de descubrimiento no se mezcla con el de evaluación.
+    expect(report.summary.stageCounts?.evaluated).toBe(1);
+  });
+
+  it('L2. un payload de discovery corrupto se sanea en vez de propagarse', async () => {
+    const report = await processExternalWorkerBatch({
+      candidates: [candidate()],
+      discovery: {
+        cycleIndex: -5,
+        seedsAttempted: Number.NaN,
+        seedsFailed: 'muchas',
+        bySeed: [
+          { id: 'ok_seed', status: 'ok', rawLinks: 3, accepted: 1 },
+          { id: '', status: 'ok', rawLinks: 1, accepted: 1 },
+          { status: 'ok' },
+          'basura',
+          { id: 'raro', status: 'inventado', rawLinks: -9, accepted: 2 },
+        ],
+      } as never,
+    });
+
+    const d = report.summary.discovery!;
+    expect(d.cycleIndex).toBe(0);
+    expect(d.seedsAttempted).toBe(0);
+    expect(d.seedsFailed).toBe(0);
+    // Solo sobreviven las entradas con id usable, y sin números negativos.
+    expect(d.bySeed.map((s) => s.id)).toEqual(['ok_seed', 'raro']);
+    expect(d.bySeed[1]!.status).toBe('ok');
+    expect(d.bySeed[1]!.rawLinks).toBe(0);
+  });
+
+  it('L3. sin discovery el resumen no inventa el campo', async () => {
+    const report = await processExternalWorkerBatch({ candidates: [candidate()] });
+    expect(report.summary.discovery).toBeUndefined();
+  });
+
   it('K. la salud de la fuente se lee de DB, no de la memoria de este isolate', async () => {
     await processExternalWorkerBatch({ candidates: [candidate()] });
 

@@ -1,17 +1,28 @@
 # Playwright worker: scrape ML ofertas and POST to Aventa ingest.
-# Schedule every 30m (not 15m) to reduce runner load and cron drift.
 # Public repo → Actions minutes are free on standard GitHub-hosted runners.
+#
+# Observado en produccion: con '*/30' este workflow corria cada 2-5 h, no cada
+# 30 min. Dos causas y sus mitigaciones:
+#
+# 1. Los minutos redondos ('*/30' = :00 y :30) son la franja mas disputada de
+#    GitHub Actions y las ejecuciones programadas se encolan detras de todo el
+#    mundo. Usamos minutos primos fuera de esa franja.
+# 2. 'cancel-in-progress: true' hacia que, cuando GitHub liberaba varias
+#    ejecuciones retrasadas de golpe, unas mataran a otras y solo sobreviviera
+#    la ultima. Ahora se encolan; el ciclo dura ~90 s, asi que no se acumulan.
+#
+# GitHub no garantiza puntualidad en ningun caso. El panel /admin/hunter mide el
+# intervalo REAL con Scheduler health en vez de confiar en este cron.
 name: Mercado Libre Worker
 
 on:
   schedule:
-    # Every 30 minutes. GitHub may delay cron by several minutes.
-    - cron: '*/30 * * * *'
+    - cron: '7,37 * * * *'
   workflow_dispatch:
 
 concurrency:
   group: mercadolibre-worker
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scrape-and-ingest:
@@ -26,23 +37,15 @@ jobs:
       AVENTA_CRON_SECRET: ${{ secrets.AVENTA_CRON_SECRET }}
       WORKER_PROFILE: standard
       WORKER_HEADLESS: '1'
-      WORKER_MAX_ITEMS: '28'
+      # Amplitud sobre profundidad: pocas cards por superficie y muchas superficies.
+      # Con 3 por seed el ciclo alcanza a visitar 12 de las 14 del registro.
+      WORKER_MAX_ITEMS: '36'
+      WORKER_MAX_PER_SEED: '3'
       WORKER_MIN_DISCOUNT_PERCENT: '18'
       WORKER_TIMEOUT_MS: '45000'
-      # Más hubs = más variedad día a día (tech, hogar, belleza, deporte, supermercado, moda).
-      WORKER_ML_SEEDS: >-
-        https://www.mercadolibre.com.mx/ofertas,
-        https://www.mercadolibre.com.mx/ofertas?container_id=MLM779363-1&promotion_type=lightning,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1000,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1648,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1574,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1144,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1246,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1430,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1276,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1747,
-        https://www.mercadolibre.com.mx/ofertas?category=MLM1168,
-        https://www.mercadolibre.com.mx/ofertas?deal_ids=MLM779363-1
+      # Las seeds viven en workers/mercadolibre-worker/src/seeds.mjs, no aqui:
+      # agregar una superficie no deberia obligar a editar la definicion del cron.
+      # WORKER_ML_SEEDS sigue existiendo como override manual de emergencia.
 
     steps:
       - name: Checkout

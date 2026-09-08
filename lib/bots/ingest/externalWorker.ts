@@ -11,6 +11,8 @@ import type {
   IngestSingleResult,
   IngestSourceId,
   IngestSourceStats,
+  WorkerDiscoveryStats,
+  WorkerSeedStat,
 } from './types';
 import { insertIngestedOffer } from './insertIngestedOffer';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
@@ -25,6 +27,7 @@ import {
   observeIngestShadow,
   persistShadowCycleSnapshot,
 } from '@/lib/autonomous';
+import { acquireIngestCycleLock, releaseIngestCycleLock } from './ingestCycleLock';
 import { getHunterHealth } from '@/lib/hunter/healthStore';
 import type { HunterHealthStatus, HunterSourceId } from '@/lib/hunter/types';
 import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
@@ -34,6 +37,9 @@ import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
+
+/** Un solo ciclo de lote externo a la vez, sea cual sea el isolate que lo atienda. */
+const EXTERNAL_WORKER_LOCK_KEY = 'ingest:ml_worker';
 
 /**
  * Salud real de las fuentes del lote, leída de DB una sola vez por ciclo.
@@ -90,7 +96,47 @@ export type ExternalWorkerBatchPayload = {
   profile?: IngestProfileId;
   dryRun?: boolean;
   candidates: ExternalWorkerCandidate[];
+  /** Qué superficies visitó el worker. Diagnóstico de supply: no altera el ciclo. */
+  discovery?: WorkerDiscoveryStats | null;
 };
+
+/**
+ * Normaliza lo que reporta el worker. Viene de un proceso externo, así que se
+ * valida como entrada no confiable: campos raros se descartan en vez de
+ * propagarse al resumen.
+ */
+function toDiscoveryStats(raw: unknown): WorkerDiscoveryStats | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const int = (v: unknown) => (Number.isFinite(Number(v)) ? Math.max(0, Math.trunc(Number(v))) : 0);
+  const bySeed = Array.isArray(r.bySeed)
+    ? r.bySeed.slice(0, 40).flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') return [];
+        const e = entry as Record<string, unknown>;
+        const id = typeof e.id === 'string' ? e.id.slice(0, 60) : '';
+        if (!id) return [];
+        const status = e.status === 'failed' || e.status === 'zero_results' ? e.status : 'ok';
+        return [
+          {
+            id,
+            status: status as WorkerSeedStat['status'],
+            rawLinks: int(e.rawLinks),
+            accepted: int(e.accepted),
+          },
+        ];
+      })
+    : [];
+
+  return {
+    cycleIndex: int(r.cycleIndex),
+    seedsAvailable: int(r.seedsAvailable),
+    seedsAttempted: int(r.seedsAttempted),
+    seedsSuccessful: int(r.seedsSuccessful),
+    seedsZeroResults: int(r.seedsZeroResults),
+    seedsFailed: int(r.seedsFailed),
+    bySeed,
+  };
+}
 
 function randomIntInclusive(lo: number, hi: number): number {
   return lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -275,6 +321,37 @@ export async function processExternalWorkerBatch(
     };
   }
 
+  // El worker externo puede mandar dos lotes seguidos si el scheduler libera de
+  // golpe ejecuciones retrasadas. Procesarlos a la vez duplica trabajo y puede
+  // pasarse del tope diario. Ver ingestCycleLock: falla abierto a propósito.
+  const lock = await acquireIngestCycleLock({ lockKey: EXTERNAL_WORKER_LOCK_KEY });
+  if (!lock.acquired) {
+    return {
+      ok: true,
+      enabled: true,
+      pausedByOwner: false,
+      envIngestEnabled: config.enabled,
+      profile,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      maxPerRun: 0,
+      runMode: 'skipped',
+      dailyInsertedApprox: null,
+      dailyCap: config.dailyMaxOffers,
+      rotationWave: null,
+      results: [],
+      summary: {
+        inserted: 0,
+        duplicate: 0,
+        skipped: 0,
+        errors: 0,
+        rejected: 0,
+        autoApproved: 0,
+        skipReasonCounts: { concurrent_cycle_in_progress: 1 },
+      },
+    };
+  }
+
   const sourceStats = emptySourceStats();
   const results: IngestSingleResult[] = [];
   const stageCounts = {
@@ -285,6 +362,7 @@ export async function processExternalWorkerBatch(
   };
 
   const rawCandidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+  const discovery = toDiscoveryStats(payload.discovery);
   sourceStats.ml_worker.collected = rawCandidates.length;
 
   const seen = new Set<string>();
@@ -522,6 +600,7 @@ export async function processExternalWorkerBatch(
     ...(Object.keys(skipReasonCounts).length > 0 ? { skipReasonCounts } : {}),
     ...(Object.keys(duplicateKindCounts).length > 0 ? { duplicateKindCounts } : {}),
     ...(supplyOpportunities > 0 ? { supplyOpportunities } : {}),
+    ...(discovery ? { discovery } : {}),
     sourceStats,
     stageCounts,
   };
@@ -547,6 +626,9 @@ export async function processExternalWorkerBatch(
   } catch {
     /* health no debe tumbar el batch */
   }
+
+  // Se suelta al terminar. Si este isolate muriera antes, el TTL lo libera igual.
+  await releaseIngestCycleLock({ lockKey: EXTERNAL_WORKER_LOCK_KEY, holder: lock.holder });
 
   return {
     ok: summary.errors === 0,
