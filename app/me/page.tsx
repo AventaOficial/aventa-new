@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, User } from 'lucide-react';
+import { ExternalLink, Plus, Sparkles, User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
@@ -46,7 +46,7 @@ type OfferOwnerMetrics = { storeClicks?: number; cazarClicks: number; views: num
 
 function MePageInner() {
   useTheme();
-  const { showToast } = useUI();
+  const { showToast, openUploadModal } = useUI();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
@@ -316,71 +316,153 @@ function MePageInner() {
     });
   };
 
+  const repLevel = profile?.reputation_level ?? 1;
+  const isHunter = meView === 'hunter';
+
   return (
     <ClientLayout>
-      <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
+      <div
+        className={`min-h-screen text-gray-900 dark:text-gray-100 ${
+          isHunter
+            ? /* Fuerza variantes dark: de OfferCard y controles aunque el tema global sea light */
+              'dark bg-[#050506] text-zinc-100'
+            : 'bg-transparent'
+        }`}
+      >
         <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
-          <div className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-6">
-            <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 overflow-hidden">
-                  {profile?.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt=""
-                      className="h-full w-full object-cover"
+          {isHunter ? (
+            <div className="mb-6 overflow-hidden rounded-3xl border border-zinc-800/90 bg-gradient-to-br from-[#16161a] via-[#101014] to-[#0c0c0e] p-5 shadow-[0_0_40px_-16px_rgba(139,92,246,0.25)] sm:p-6">
+              <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                  <div className="flex shrink-0 flex-col items-center gap-2">
+                    <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-violet-500 to-purple-700 ring-2 ring-violet-500/40 ring-offset-2 ring-offset-[#101014]">
+                      {profile?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-10 w-10 text-white" />
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      className="sr-only"
+                      aria-label="Elegir foto de perfil"
+                      onChange={handleAvatarChange}
                     />
-                  ) : (
-                    <User className="h-10 w-10 text-white" />
-                  )}
+                    <button
+                      type="button"
+                      disabled={avatarUploading}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs font-medium text-violet-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                    >
+                      {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
+                    </button>
+                  </div>
+                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                    <h1 className="truncate text-2xl font-bold text-white sm:text-3xl">
+                      {displayName}
+                    </h1>
+                    <p className="mt-1.5 inline-flex flex-wrap items-center justify-center gap-1.5 text-sm text-violet-300 sm:justify-start">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span className="font-medium">Cazador de Ofertas</span>
+                      <span className="text-zinc-600">•</span>
+                      <span className="text-zinc-400">
+                        Nivel {repLevel}
+                      </span>
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-400">
+                      Encuentra. Comparte. Ayuda a otros a ahorrar.
+                    </p>
+                    {publicHref ? (
+                      <Link
+                        href={publicHref}
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-400 hover:text-violet-300 hover:underline"
+                      >
+                        Ver perfil público
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  className="sr-only"
-                  aria-label="Elegir foto de perfil"
-                  onChange={handleAvatarChange}
+                <blockquote className="hidden max-w-xs rounded-2xl border border-violet-500/20 bg-violet-950/30 px-4 py-3 text-sm leading-relaxed text-zinc-200 lg:block">
+                  <p>
+                    &ldquo;Las mejores oportunidades siempre están un paso adelante. Para eso
+                    estamos aquí.&rdquo;
+                  </p>
+                  <footer className="mt-3 border-t border-violet-500/30 pt-2 text-[11px] font-semibold tracking-widest text-violet-400">
+                    AVENTA
+                  </footer>
+                </blockquote>
+              </div>
+              <div className="mt-5">
+                <ReputationBar
+                  variant="hunter"
+                  level={repLevel}
+                  score={profile?.reputation_score ?? 0}
                 />
-                <button
-                  type="button"
-                  disabled={avatarUploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline disabled:opacity-50 disabled:no-underline"
-                >
-                  {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
-                </button>
               </div>
-              <div className="text-center sm:text-left min-w-0 flex-1">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                  {displayName}
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {meView === 'public'
-                    ? 'Así te ven los demás en AVENTA'
-                    : 'Tu panel de cazador'}
-                </p>
-                {publicHref ? (
-                  <Link
-                    href={publicHref}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline"
+            </div>
+          ) : (
+            <div className="mb-6 rounded-3xl bg-white p-6 shadow-lg dark:bg-[#141414]">
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-violet-500 to-purple-600">
+                    {profile?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-10 w-10 text-white" />
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    className="sr-only"
+                    aria-label="Elegir foto de perfil"
+                    onChange={handleAvatarChange}
+                  />
+                  <button
+                    type="button"
+                    disabled={avatarUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs font-medium text-violet-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-violet-400"
                   >
-                    Ver perfil público
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                ) : null}
+                    {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
+                  </button>
+                </div>
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    {displayName}
+                  </h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Así te ven los demás en AVENTA
+                  </p>
+                  {publicHref ? (
+                    <Link
+                      href={publicHref}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
+                    >
+                      Ver perfil público
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+              <div className="mt-4">
+                <ReputationBar level={repLevel} score={profile?.reputation_score ?? 0} />
               </div>
             </div>
-            <div className="mt-4">
-              <ReputationBar
-                level={profile?.reputation_level ?? 1}
-                score={profile?.reputation_score ?? 0}
-              />
-            </div>
-          </div>
+          )}
 
           <div
-            className="mb-8 flex max-w-md gap-1 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-1.5"
+            className={`mb-8 flex max-w-md gap-1 rounded-2xl p-1.5 ${
+              isHunter
+                ? 'border border-zinc-800 bg-[#121214]'
+                : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#141414]'
+            }`}
             role="tablist"
             aria-label="Vista de perfil"
           >
@@ -398,10 +480,14 @@ function MePageInner() {
                   role="tab"
                   aria-selected={selected}
                   onClick={() => setMeView(tab.id)}
-                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                     selected
-                      ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                      ? isHunter
+                        ? 'bg-white text-[#1d1d1f] shadow-sm focus-visible:ring-offset-[#121214]'
+                        : 'bg-[#1d1d1f] text-white focus-visible:ring-offset-white dark:bg-white dark:text-[#1d1d1f] dark:focus-visible:ring-offset-[#141414]'
+                      : isHunter
+                        ? 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 focus-visible:ring-offset-[#121214]'
+                        : 'text-gray-600 hover:bg-gray-100 focus-visible:ring-offset-white dark:text-gray-400 dark:hover:bg-[#1a1a1a] dark:focus-visible:ring-offset-[#141414]'
                   }`}
                 >
                   {tab.label}
@@ -410,7 +496,7 @@ function MePageInner() {
             })}
           </div>
 
-          {meView === 'hunter' ? (
+          {isHunter ? (
             <>
               <div className="mb-8">
                 <RewardsProgramPanel />
@@ -428,13 +514,13 @@ function MePageInner() {
 
               <div className="mb-4 flex flex-col gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Mis ofertas</h2>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  <h2 className="text-lg font-semibold text-white">Mis ofertas</h2>
+                  <p className="mt-0.5 text-xs text-zinc-500">
                     Consulta el estado, la actividad y la siguiente acción de cada publicación.
                   </p>
                 </div>
                 <div
-                  className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-1.5"
+                  className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-[#121214] p-1.5"
                   role="tablist"
                   aria-label="Filtrar ofertas por estado"
                 >
@@ -447,14 +533,16 @@ function MePageInner() {
                         role="tab"
                         aria-selected={selected}
                         onClick={() => setStatusFilter(filter.value)}
-                        className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                        className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121214] ${
                           selected
-                            ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                            ? 'bg-white text-[#1d1d1f]'
+                            : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
                         }`}
                       >
                         {filter.label}
-                        <span className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-gray-400 dark:text-gray-500'}`}>
+                        <span
+                          className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-zinc-600'}`}
+                        >
                           {statusCounts[filter.value]}
                         </span>
                       </button>
@@ -464,72 +552,98 @@ function MePageInner() {
               </div>
               <div className="space-y-4 md:space-y-6">
                 {filteredOffers.length === 0 ? (
-                  <div className="py-10 text-center space-y-3">
-                    <p className="text-gray-600 dark:text-gray-300">
+                  <div className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121214] py-10 text-center">
+                    <p className="text-zinc-300">
                       {offers.length === 0
                         ? 'Nada publicado. ¿Cazamos una oferta?'
                         : 'No tienes ofertas en este estado.'}
                     </p>
                     {offers.length === 0 ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Usa el botón de subir en la barra inferior cuando veas un precio raro.
+                      <p className="text-sm text-zinc-500">
+                        Usa el botón de subir cuando veas un precio que valga la pena.
                       </p>
                     ) : null}
                   </div>
                 ) : (
                   filteredOffers.map((offer) => (
-                    <OfferCard
+                    <div
                       key={offer.id}
-                      offerId={offer.id}
-                      title={offer.title}
-                      brand={offer.brand}
-                      originalPrice={offer.originalPrice}
-                      discountPrice={offer.discountPrice}
-                      discount={offer.discount}
-                      description={offer.description}
-                      image={offer.image}
-                      upvotes={offer.upvotes}
-                      downvotes={offer.downvotes}
-                      votes={offer.votes}
-                      offerUrl={offer.offerUrl}
-                      author={offer.author}
-                      onCardClick={
-                        offer.dealStatus === 'approved'
-                          ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
-                          : undefined
-                      }
-                      onVoteChange={handleVoteChange}
-                      userVote={voteMap[offer.id] ?? null}
-                      userVoteStoredValue={voteValueMap[offer.id] ?? null}
-                      isLiked={!!favoriteMap[offer.id]}
-                      createdAt={offer.createdAt}
-                      msiMonths={offer.msiMonths}
-                      bankCoupon={offer.bankCoupon}
-                      coupons={offer.coupons}
-                      offerScope={offer.offerScope ?? null}
-                      dealStatus={offer.dealStatus}
-                      rejectionReason={offer.rejectionReason}
-                      onManagementAction={
-                        offer.dealStatus === 'expired'
-                          ? () => handleRepublish(offer)
-                          : undefined
-                      }
-                      ownerMetrics={
-                        ownerMetricsByOffer
-                          ? (ownerMetricsByOffer[offer.id] ?? {
-                              storeClicks: 0,
-                              cazarClicks: 0,
-                              views: 0,
-                              shares: 0,
-                            })
-                          : null
-                      }
-                    />
+                      className="overflow-hidden rounded-2xl ring-1 ring-zinc-800/80 transition hover:ring-violet-500/30"
+                    >
+                      <OfferCard
+                        offerId={offer.id}
+                        title={offer.title}
+                        brand={offer.brand}
+                        originalPrice={offer.originalPrice}
+                        discountPrice={offer.discountPrice}
+                        discount={offer.discount}
+                        description={offer.description}
+                        image={offer.image}
+                        upvotes={offer.upvotes}
+                        downvotes={offer.downvotes}
+                        votes={offer.votes}
+                        offerUrl={offer.offerUrl}
+                        author={offer.author}
+                        onCardClick={
+                          offer.dealStatus === 'approved'
+                            ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
+                            : undefined
+                        }
+                        onVoteChange={handleVoteChange}
+                        userVote={voteMap[offer.id] ?? null}
+                        userVoteStoredValue={voteValueMap[offer.id] ?? null}
+                        isLiked={!!favoriteMap[offer.id]}
+                        createdAt={offer.createdAt}
+                        msiMonths={offer.msiMonths}
+                        bankCoupon={offer.bankCoupon}
+                        coupons={offer.coupons}
+                        offerScope={offer.offerScope ?? null}
+                        dealStatus={offer.dealStatus}
+                        rejectionReason={offer.rejectionReason}
+                        onManagementAction={
+                          offer.dealStatus === 'expired'
+                            ? () => handleRepublish(offer)
+                            : undefined
+                        }
+                        ownerMetrics={
+                          ownerMetricsByOffer
+                            ? (ownerMetricsByOffer[offer.id] ?? {
+                                storeClicks: 0,
+                                cazarClicks: 0,
+                                views: 0,
+                                shares: 0,
+                              })
+                            : null
+                        }
+                      />
+                    </div>
                   ))
                 )}
               </div>
 
-              <MyRewardsHistory />
+              <div className="mt-10">
+                <MyRewardsHistory />
+              </div>
+
+              <div className="mt-8 flex flex-col items-stretch gap-4 rounded-2xl border border-zinc-800 bg-[#121214] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                  </span>
+                  <p className="text-sm leading-relaxed text-zinc-400">
+                    Cada oferta que compartes puede ayudar a alguien a encontrar una gran
+                    oportunidad. Gracias por ser parte de AVENTA.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openUploadModal()}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_20px_-4px_rgba(139,92,246,0.5)] transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121214]"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Subir nueva oferta
+                </button>
+              </div>
             </>
           ) : (
             <PublicHallazgosSection

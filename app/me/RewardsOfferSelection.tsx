@@ -57,27 +57,25 @@ export default function RewardsOfferSelection({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-gradient-to-b from-violet-50 to-white dark:from-violet-950/40 dark:to-[#141414] p-5 space-y-2 text-center">
-        <p className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-          ¡Felicidades, cazador!
-        </p>
-        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+      <div className="space-y-2 rounded-2xl border border-violet-500/25 bg-violet-950/30 p-5 text-center">
+        <p className="text-lg font-semibold text-white">¡Felicidades, cazador!</p>
+        <p className="text-sm leading-relaxed text-zinc-400">
           Acabas de desbloquear una recompensa.
         </p>
-        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+        <p className="text-sm leading-relaxed text-zinc-400">
           Ahora elige una de tus ofertas elegibles.
         </p>
       </div>
 
       <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-violet-600 dark:text-violet-400">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-violet-400">
           Tu recompensa
         </p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Elige uno de tus hallazgos.</p>
+        <p className="text-sm text-zinc-400">Elige uno de tus hallazgos.</p>
       </div>
 
       {choices.length === 0 ? (
-        <p className="text-sm text-amber-700 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/20 p-4">
+        <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-300">
           No hay ofertas elegibles ahora. Si crees que es un error, recarga o contacta soporte.
         </p>
       ) : (
@@ -88,14 +86,14 @@ export default function RewardsOfferSelection({
             return (
               <li key={offer.id}>
                 <div
-                  className={`rounded-2xl border overflow-hidden transition-colors ${
+                  className={`overflow-hidden rounded-2xl border transition-colors ${
                     active
-                      ? 'border-violet-500 ring-2 ring-violet-500/25 bg-violet-50/50 dark:bg-violet-950/30'
-                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414]'
+                      ? 'border-violet-500 bg-violet-950/40 ring-2 ring-violet-500/25'
+                      : 'border-zinc-800 bg-[#0e0e10]'
                   }`}
                 >
                   <div className="flex gap-3 p-3">
-                    <div className="h-20 w-20 shrink-0 rounded-xl bg-gray-100 dark:bg-[#1a1a1a] overflow-hidden">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
                       {offer.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -104,29 +102,27 @@ export default function RewardsOfferSelection({
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center text-[10px] text-gray-400">
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-500">
                           Sin foto
                         </div>
                       )}
                     </div>
                     <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate">
+                      <p className="truncate text-[11px] font-medium text-zinc-500">
                         {offer.store?.trim() || 'Tienda'}
                       </p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                      <p className="line-clamp-2 text-sm font-semibold text-zinc-100">
                         {offer.title}
                       </p>
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                        <span className="text-sm font-bold tabular-nums text-white">
                           {formatMx(offer.price)}
                         </span>
                         {disc != null ? (
-                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            -{disc}%
-                          </span>
+                          <span className="text-xs font-semibold text-emerald-400">-{disc}%</span>
                         ) : null}
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
                         <span className="inline-flex items-center gap-1">
                           <Heart className="h-3 w-3" aria-hidden />
                           {offer.upvotes_count} votos
@@ -137,14 +133,12 @@ export default function RewardsOfferSelection({
                         </span>
                         <span
                           className={
-                            offer.dealStatus === 'expired'
-                              ? 'text-gray-500'
-                              : 'text-emerald-600 dark:text-emerald-400'
+                            offer.dealStatus === 'expired' ? 'text-zinc-500' : 'text-emerald-400'
                           }
                         >
                           {offer.dealStatus === 'expired' ? 'Expirada' : 'Activa'}
                         </span>
-                        <span className="inline-flex items-center gap-0.5 text-violet-600 dark:text-violet-400 font-medium">
+                        <span className="inline-flex items-center gap-0.5 font-medium text-violet-400">
                           <Check className="h-3 w-3" aria-hidden />
                           Elegible
                         </span>
@@ -159,7 +153,7 @@ export default function RewardsOfferSelection({
                       className={`w-full rounded-xl py-2.5 text-sm font-semibold transition-colors ${
                         active
                           ? 'bg-violet-600 text-white'
-                          : 'bg-[#1d1d1f] dark:bg-white text-white dark:text-[#1d1d1f] hover:opacity-90'
+                          : 'bg-white text-[#1d1d1f] hover:opacity-90'
                       } disabled:opacity-50`}
                     >
                       {active ? 'Seleccionada' : 'Elegir esta oferta'}
@@ -177,14 +171,14 @@ export default function RewardsOfferSelection({
           type="button"
           disabled={confirming}
           onClick={openConfirm}
-          className="w-full rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3.5 text-sm disabled:opacity-50"
+          className="w-full rounded-2xl bg-violet-600 py-3.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
         >
           Continuar con la selección
         </button>
       ) : null}
 
       {error ? (
-        <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+        <p className="text-xs text-red-400" role="alert">
           {error}
         </p>
       ) : null}

@@ -53,20 +53,19 @@ function formatDate(iso: string | null | undefined): string {
 
 function OfferMini({ offer }: { offer: OfferSnippet }) {
   return (
-    <div className="flex gap-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-[#1a1a1a] p-2.5">
-      <div className="h-14 w-14 shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
+    <div className="flex gap-3 rounded-xl border border-zinc-800 bg-[#0e0e10] p-2.5">
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
         {offer.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={offer.image_url} alt="" className="h-full w-full object-cover" />
         ) : null}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2">
-          {offer.title}
-        </p>
-        <p className="text-[11px] text-gray-500 mt-0.5">
-          {[offer.store?.trim(), formatMx(offer.price)].filter(Boolean).join(' · ')}
-        </p>
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-sm font-medium text-zinc-100">{offer.title}</p>
+        {offer.store ? <p className="text-xs text-zinc-500">{offer.store}</p> : null}
+        {offer.price != null ? (
+          <p className="text-xs font-semibold text-violet-300">{formatMx(offer.price)}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -130,18 +129,18 @@ export default function MyRewardsHistory() {
 
   if (loading) {
     return (
-      <section className="mt-10 mb-4" aria-label="Mis recompensas">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Mis recompensas</h2>
-        <div className="mt-3 h-28 rounded-2xl bg-gray-100 dark:bg-[#1a1a1a] animate-pulse" />
+      <section className="mb-4" aria-label="Mis recompensas">
+        <h2 className="text-lg font-semibold text-white">Mis recompensas</h2>
+        <div className="mt-3 h-28 animate-pulse rounded-2xl bg-zinc-900" />
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="mt-10 mb-4" aria-label="Mis recompensas">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Mis recompensas</h2>
-        <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+      <section className="mb-4" aria-label="Mis recompensas">
+        <h2 className="text-lg font-semibold text-white">Mis recompensas</h2>
+        <p className="mt-3 text-sm text-red-400">{error}</p>
       </section>
     );
   }
@@ -154,26 +153,24 @@ export default function MyRewardsHistory() {
   const isEmpty = !hasWelcomePending && !hasWelcomeComplete && commissionRewards.length === 0;
 
   return (
-    <section className="mt-10 mb-4 space-y-3" aria-label="Mis recompensas">
+    <section className="mb-4 space-y-3" aria-label="Mis recompensas">
       <div>
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-violet-600 dark:text-violet-400" aria-hidden />
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+          <Trophy className="h-5 w-5 text-violet-400" aria-hidden />
           Mis recompensas
         </h2>
-        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-0.5 text-xs text-zinc-500">
           Reconocimientos por aportar valor a la comunidad.
         </p>
       </div>
 
       {isEmpty ? (
-        <div className="rounded-2xl border border-dashed border-violet-200/80 dark:border-violet-800/50 bg-gradient-to-br from-violet-50/40 to-white dark:from-violet-950/15 dark:to-[#141414] p-6 text-center space-y-2">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+        <div className="space-y-2 rounded-2xl border border-dashed border-violet-500/30 bg-violet-950/20 p-6 text-center">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-500/15 text-violet-300">
             <Gift className="h-5 w-5" aria-hidden />
           </div>
-          <p className="font-medium text-gray-900 dark:text-gray-100">
-            Todavía no tienes recompensas.
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-sm mx-auto leading-relaxed">
+          <p className="font-medium text-zinc-100">Todavía no tienes recompensas.</p>
+          <p className="mx-auto max-w-sm text-sm leading-relaxed text-zinc-400">
             Continúa cazando ofertas de calidad. Tu próximo reconocimiento podría estar más cerca
             de lo que crees.
           </p>
@@ -181,17 +178,17 @@ export default function MyRewardsHistory() {
       ) : null}
 
       {hasWelcomePending ? (
-        <div className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/25 p-4 space-y-3">
+        <div className="space-y-3 rounded-2xl border border-violet-500/30 bg-violet-950/25 p-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600/10 text-violet-700 dark:text-violet-300">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-300">
               <Gift className="h-5 w-5" aria-hidden />
             </div>
             <div className="min-w-0 space-y-1">
-              <p className="font-semibold text-gray-900 dark:text-gray-100">Recompensa pendiente</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              <p className="font-semibold text-zinc-100">Recompensa pendiente</p>
+              <p className="text-sm leading-relaxed text-zinc-400">
                 Ya desbloqueaste una recompensa.
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              <p className="text-sm leading-relaxed text-zinc-400">
                 Elige una de tus ofertas elegibles para continuar.
               </p>
             </div>
@@ -199,7 +196,7 @@ export default function MyRewardsHistory() {
           <button
             type="button"
             onClick={scrollToProgram}
-            className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2.5 text-sm transition-colors"
+            className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500"
           >
             Elegir mi oferta
           </button>
@@ -207,25 +204,26 @@ export default function MyRewardsHistory() {
       ) : null}
 
       {hasWelcomeComplete ? (
-        <article className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow-sm space-y-3">
+        <article className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121214] p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+              <Trophy className="h-4 w-4 text-violet-400" aria-hidden />
+              <h3 className="font-semibold text-zinc-100">
                 Recompensa #{String(welcome?.displayNumber ?? 1).padStart(3, '0')}
               </h3>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-2.5 py-0.5 text-[11px] font-semibold">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
               <CheckCircle2 className="h-3 w-3" aria-hidden />
               Activada
             </span>
           </div>
-          <p className="text-xs text-gray-500">
-            Fecha: <span className="font-medium text-gray-700 dark:text-gray-300">{formatDate(welcome?.selectedAt)}</span>
+          <p className="text-xs text-zinc-500">
+            Fecha:{' '}
+            <span className="font-medium text-zinc-300">{formatDate(welcome?.selectedAt)}</span>
           </p>
           {welcome?.offer ? (
             <div className="space-y-1.5">
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Oferta seleccionada</p>
+              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Oferta seleccionada</p>
               <OfferMini offer={welcome.offer} />
             </div>
           ) : null}
@@ -242,20 +240,20 @@ export default function MyRewardsHistory() {
               : Clock;
         const badgeClass =
           r.uiStatus === 'delivered'
-            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+            ? 'bg-emerald-500/15 text-emerald-400'
             : r.uiStatus === 'cancelled'
-              ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
-              : 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300';
+              ? 'bg-red-500/15 text-red-400'
+              : 'bg-amber-500/15 text-amber-300';
 
         return (
           <article
             key={r.id}
-            className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow-sm space-y-3"
+            className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121214] p-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden />
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                <Trophy className="h-4 w-4 text-violet-400" aria-hidden />
+                <h3 className="font-semibold text-zinc-100">
                   Recompensa #{String(num).padStart(3, '0')}
                 </h3>
               </div>
@@ -266,19 +264,21 @@ export default function MyRewardsHistory() {
                 {r.statusLabel}
               </span>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-zinc-500">
               Fecha:{' '}
-              <span className="font-medium text-gray-700 dark:text-gray-300">
+              <span className="font-medium text-zinc-300">
                 {formatDate(r.paidAt ?? r.createdAt)}
               </span>
             </p>
             {r.offer ? (
               <div className="space-y-1.5">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">Oferta asociada</p>
+                <p className="text-[11px] uppercase tracking-wide text-zinc-500">Oferta asociada</p>
                 <OfferMini offer={r.offer} />
               </div>
             ) : (
-              <p className="text-xs text-gray-500">Reconocimiento vinculado a una comisión atribuida.</p>
+              <p className="text-xs text-zinc-500">
+                Reconocimiento vinculado a una comisión atribuida.
+              </p>
             )}
           </article>
         );
