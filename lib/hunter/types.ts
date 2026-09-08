@@ -7,7 +7,41 @@ export type HunterSourceId =
   | 'ml_worker'
   | 'amazon_paapi'
   | 'amazon_asin'
-  | 'env_urls';
+  | 'env_urls'
+  | 'walmart_mx'
+  | 'bodega_aurrera_mx'
+  | 'chedraui_mx';
+
+/** Familia de supply. No mezcla salud de fuente con métricas shadow. */
+export type HunterSourceFamily = 'core' | 'day_to_day';
+
+export type HunterSourceCapabilities = {
+  discovery: boolean;
+  productLookup: boolean;
+  images: boolean;
+  price: boolean;
+};
+
+export type HunterDiscoveryMethod =
+  | 'official_api'
+  | 'rss'
+  | 'sitemap'
+  | 'public_page'
+  | 'external_worker'
+  | 'not_available';
+
+/** Monetización de la FUENTE, no de una oferta concreta. */
+export type HunterAffiliateAvailability = 'available' | 'unavailable' | 'unknown';
+
+export type HunterSourceConfigState = 'configured' | 'not_configured' | 'disabled';
+
+export type HunterSourceRatePolicy = {
+  maxPages: number;
+  maxItems: number;
+  timeoutMs: number;
+  concurrency: number;
+  requestsPerCycle: number;
+};
 
 export type HunterHealthStatus = 'healthy' | 'degraded' | 'down' | 'disabled';
 export type HunterBreakerState = 'closed' | 'open' | 'half_open';
@@ -81,8 +115,19 @@ export type HunterSource = {
   isEnabled: (ctx: HunterCollectContext) => boolean;
   /** Si false, no se intenta collect (p. ej. sin credenciales). */
   isAvailable: (ctx: HunterCollectContext) => boolean;
+  /**
+   * ¿Hay un método de discovery usable? Distinto de enabled.
+   * Default: isAvailable. Day-to-Day lo declara en falso hasta tener API/feed.
+   */
+  isConfigured?: (ctx: HunterCollectContext) => boolean;
   /** true = collect lo hace un proceso externo (Playwright). */
   external?: boolean;
+  family?: HunterSourceFamily;
+  country?: string;
+  capabilities?: HunterSourceCapabilities;
+  discoveryMethod?: HunterDiscoveryMethod;
+  affiliateStatus?: HunterAffiliateAvailability;
+  ratePolicy?: HunterSourceRatePolicy;
   collect: (ctx: HunterCollectContext) => Promise<HunterCollectResult>;
 };
 

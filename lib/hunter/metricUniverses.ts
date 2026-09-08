@@ -25,6 +25,12 @@ export const HUNTER_METRIC_UNIVERSES = {
     evaluated:
       'observeIngestShadow tras evaluateDealSafe en ESTE isolate. No incluye payload inválido, dedupe intra-lote, ni skips de quality gates anteriores al verifier.',
   },
+  dayToDaySupply: {
+    persistence: 'catalog_plus_hunter_source_health',
+    note: 'Universo separado. No mezclar con autonomousPct ni autoApprovePct.',
+    candidates: 'Suma de items_found de fuentes family=day_to_day. Cero si not_configured.',
+    inserted: 'Suma de items_inserted de esas fuentes. No es shadow.',
+  },
   autonomousShadowCycle: {
     persistence: 'supabase_hunter_shadow_cycles',
     evaluated:

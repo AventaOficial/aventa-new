@@ -79,6 +79,35 @@ type HunterHealthPayload = {
     lastErrorCode: string | null;
   }>;
   catalog: Array<{ id: string; displayName: string }>;
+  dayToDay?: {
+    recommendation: string;
+    sourcesHealthy: number;
+    sourcesDegraded: number;
+    sourcesDown: number;
+    sourcesNotConfigured: number;
+    sourcesConfigured: number;
+    candidates: number;
+    inserted: number;
+    duplicates: number;
+    skipped: number;
+    errors: number;
+    sources: Array<{
+      id: string;
+      displayName: string;
+      configuration: 'configured' | 'not_configured' | 'disabled';
+      affiliateStatus: string;
+      healthStatus: string | null;
+      breakerState: string | null;
+      lastRunAt: string | null;
+      itemsFound: number;
+      itemsInserted: number;
+      duplicates: number;
+      skipped: number;
+      errors: number;
+      latencyMs: number | null;
+      lastErrorCode: string | null;
+    }>;
+  };
   dealVerifier?: {
     evaluated: number;
     autoApproved: number;
@@ -288,6 +317,7 @@ export default function HunterPage() {
   const prevShadowCycle = health?.shadowCycles?.[1] ?? null;
   const pending = health?.pendingHealth ?? null;
   const scheduler = health?.schedulerHealth ?? null;
+  const dayToDay = health?.dayToDay ?? null;
 
   const runNow = async () => {
     setRunning(true);
@@ -773,6 +803,60 @@ export default function HunterPage() {
                 );
               })}
             </ul>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Day-to-Day supply"
+              subtitle="Retailers sin afiliado requerido. Not configured no es DOWN: no hay método de discovery usable todavía."
+            />
+            {dayToDay ? (
+              <>
+                <p className="mt-3 text-sm text-white/80">{dayToDay.recommendation}</p>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/45">
+                  <span>candidatos {dayToDay.candidates}</span>
+                  <span>nuevas {dayToDay.inserted}</span>
+                  <span>dup {dayToDay.duplicates}</span>
+                  <span>skip {dayToDay.skipped}</span>
+                  <span>err {dayToDay.errors}</span>
+                  <span>sin config {dayToDay.sourcesNotConfigured}</span>
+                </div>
+                <ul className="mt-4 space-y-2">
+                  {dayToDay.sources.map((src) => (
+                    <li
+                      key={src.id}
+                      className="flex flex-col gap-1 rounded-xl bg-white/[0.03] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="text-sm text-white/85">{src.displayName}</p>
+                        <p className="text-xs text-white/40">
+                          {src.id}
+                          {src.breakerState ? ` · breaker ${src.breakerState}` : ''}
+                          {src.lastErrorCode ? ` · ${src.lastErrorCode}` : ''}
+                          {src.lastRunAt
+                            ? ` · última ${new Date(src.lastRunAt).toLocaleString('es-MX')}`
+                            : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
+                        <StatusBadge
+                          tone={src.configuration === 'not_configured' ? 'neutral' : 'attention'}
+                        >
+                          {src.configuration === 'not_configured'
+                            ? 'NOT CONFIGURED'
+                            : src.configuration.toUpperCase()}
+                        </StatusBadge>
+                        <span>monetización {src.affiliateStatus}</span>
+                        <span>found {src.itemsFound}</span>
+                        <span>ins {src.itemsInserted}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Sin datos Day-to-Day.</p>
+            )}
           </GlassCard>
 
           <GlassCard>

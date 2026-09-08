@@ -5,6 +5,7 @@ import {
 } from '@/lib/offers/offerUrlFingerprint';
 import { isStrongProductFingerprint } from '@/lib/offers/findDuplicateOffer';
 import type { IngestItem } from '@/lib/bots/ingest/types';
+import { classifyOfferMonetization } from './dayToDay/monetization';
 import type { HunterCandidate, HunterSourceId } from './types';
 
 function canonicalUrlKey(url: string): string {
@@ -53,6 +54,8 @@ export function ingestItemToCandidate(
     rawMetadata: {
       sourceDetail: item.sourceDetail ?? null,
       ingestSource: item.source,
+      hunterSource: source,
+      monetizationStatus: classifyOfferMonetization(url),
     },
     fingerprint: fp,
     ingestItem: item,

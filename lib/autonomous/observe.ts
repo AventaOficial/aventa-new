@@ -21,6 +21,9 @@ export function hunterSourceForIngest(source: string): HunterSourceId | null {
   if (source === 'amazon_asin') return 'amazon_asin';
   if (source === 'amazon_paapi') return 'amazon_paapi';
   if (source === 'env_urls') return 'env_urls';
+  if (source === 'walmart_mx') return 'walmart_mx';
+  if (source === 'bodega_aurrera_mx') return 'bodega_aurrera_mx';
+  if (source === 'chedraui_mx') return 'chedraui_mx';
   return null;
 }
 

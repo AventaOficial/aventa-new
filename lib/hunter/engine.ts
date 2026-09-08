@@ -41,6 +41,11 @@ function rotateItems(
   const ml = bySource.ml_api_legacy ?? [];
   const amazon = [...(bySource.amazon_paapi ?? []), ...(bySource.amazon_asin ?? [])];
   const env = bySource.env_urls ?? [];
+  const dayToDay = [
+    ...(bySource.walmart_mx ?? []),
+    ...(bySource.bodega_aurrera_mx ?? []),
+    ...(bySource.chedraui_mx ?? []),
+  ];
   const w = ((rotationWave % 3) + 3) % 3;
   const segments: IngestItem[][] =
     config.amazonSource === 'scrape'
@@ -52,6 +57,8 @@ function rotateItems(
           : [ml, env, amazon];
   const items: IngestItem[] = [];
   for (const seg of segments) items.push(...seg);
+  // Day-to-Day al final: no desplaza el supply core mientras esté vacío.
+  items.push(...dayToDay);
   return items;
 }
 
@@ -102,6 +109,7 @@ export async function runHunterCollect(
     let health = healthMap.get(source.id) ?? defaultHealthRow(source.id);
 
     if (!enabled || !available) {
+      const configured = source.isConfigured ? source.isConfigured(ctx) : available;
       const disabledRow: HunterSourceHealth = {
         ...health,
         enabled: false,
@@ -109,8 +117,16 @@ export async function runHunterCollect(
         breakerState: 'closed',
         consecutiveFailures: 0,
         cooldownUntil: null,
-        lastErrorCode: available ? null : 'missing_credentials_or_config',
-        lastErrorMessageSafe: available ? null : 'Fuente sin credenciales o config requerida',
+        lastErrorCode: configured
+          ? null
+          : source.family === 'day_to_day'
+            ? 'not_configured'
+            : 'missing_credentials_or_config',
+        lastErrorMessageSafe: configured
+          ? null
+          : source.family === 'day_to_day'
+            ? 'Fuente Day-to-Day sin método de discovery'
+            : 'Fuente sin credenciales o config requerida',
         expectedIntervalMs: source.expectedIntervalMs,
         updatedAt: now.toISOString(),
       };

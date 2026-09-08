@@ -1,7 +1,16 @@
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 
-export type IngestSourceId = 'env_urls' | 'rss' | 'ml_api' | 'amazon_asin' | 'ml_worker';
+export type IngestSourceId =
+  | 'env_urls'
+  | 'rss'
+  | 'ml_api'
+  | 'amazon_asin'
+  | 'ml_worker'
+  | 'walmart_mx'
+  | 'bodega_aurrera_mx'
+  | 'chedraui_mx';
+
 export type IngestProfileId = 'standard' | 'mega';
 
 export type IngestSourceStats = {
@@ -13,6 +22,29 @@ export type IngestSourceStats = {
   errors: number;
   skipReasonCounts?: Record<string, number>;
 };
+
+const ZERO_STATS = (): IngestSourceStats => ({
+  collected: 0,
+  evaluated: 0,
+  inserted: 0,
+  duplicate: 0,
+  skipped: 0,
+  errors: 0,
+});
+
+/** Conteos por fuente en cero. Una clave nueva aquí evita olvidarla en dos sitios. */
+export function emptyIngestSourceStats(): Record<IngestSourceId, IngestSourceStats> {
+  return {
+    env_urls: ZERO_STATS(),
+    rss: ZERO_STATS(),
+    ml_api: ZERO_STATS(),
+    amazon_asin: ZERO_STATS(),
+    ml_worker: ZERO_STATS(),
+    walmart_mx: ZERO_STATS(),
+    bodega_aurrera_mx: ZERO_STATS(),
+    chedraui_mx: ZERO_STATS(),
+  };
+}
 
 /** Resultado de UNA superficie de descubrimiento del worker externo. */
 export type WorkerSeedStat = {

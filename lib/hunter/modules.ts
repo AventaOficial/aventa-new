@@ -15,9 +15,17 @@ export const HUNTER_MODULES: HunterModule[] = [
     id: 'collector',
     emoji: '🔎',
     name: 'Recolector',
-    job: 'APIs y feeds → candidatos. ML search, Amazon ASINs/PA-API, URLs y worker.',
+    job: 'APIs y feeds → candidatos. ML, Amazon, URLs, worker y registro Day-to-Day.',
     status: 'live',
     code: 'lib/bots/ingest/collectIngestItems.ts',
+  },
+  {
+    id: 'day_to_day',
+    emoji: '🛒',
+    name: 'Day-to-Day Sources',
+    job: 'Walmart, Bodega, Chedraui: adapters listos, not_configured hasta tener método oficial.',
+    status: 'partial',
+    code: 'lib/hunter/dayToDay/registry.ts',
   },
   {
     id: 'price',

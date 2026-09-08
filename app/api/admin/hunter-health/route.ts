@@ -9,6 +9,7 @@ import { HUNTER_METRIC_UNIVERSES } from '@/lib/hunter/metricUniverses';
 import { createServerClient } from '@/lib/supabase/server';
 import { getPendingHealth } from '@/lib/moderation/pendingHealth';
 import { summarizeSchedulerHealth } from '@/lib/hunter/schedulerHealth';
+import { summarizeDayToDaySupply } from '@/lib/hunter/dayToDay';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -35,6 +36,11 @@ export async function GET(request: Request) {
     priority: s.priority,
     external: Boolean(s.external),
     expectedIntervalMs: s.expectedIntervalMs,
+    family: s.family ?? 'core',
+    country: s.country ?? null,
+    affiliateStatus: s.affiliateStatus ?? null,
+    discoveryMethod: s.discoveryMethod ?? null,
+    capabilities: s.capabilities ?? null,
   }));
 
   return NextResponse.json(
@@ -52,6 +58,7 @@ export async function GET(request: Request) {
       pendingHealth,
       // Salud de la fuente y salud de quien la dispara son preguntas distintas.
       schedulerHealth: summarizeSchedulerHealth(summary.rows),
+      dayToDay: summarizeDayToDaySupply(summary.rows),
       hunterEnrichment: getHunterEnrichmentMetrics(),
       metricUniverses: HUNTER_METRIC_UNIVERSES,
     },

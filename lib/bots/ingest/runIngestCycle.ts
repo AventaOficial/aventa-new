@@ -16,8 +16,8 @@ import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { computeSourceRotationWave, formatYmdInTz, getZonedHourMinute } from './ingestZonedTime';
 import { sleep } from './ingestHttp';
 import { recalculateUserReputation } from '@/lib/server/reputation';
-import type { IngestCycleReport, IngestSingleResult, IngestProfileId, IngestSourceId, IngestSourceStats } from './types';
-import type { IngestItem } from './types';
+import type { IngestCycleReport, IngestSingleResult, IngestProfileId, IngestSourceId, IngestSourceStats, IngestItem } from './types';
+import { emptyIngestSourceStats } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { enrichWithPriceIntel } from './priceIntel';
 import { evaluateDealSafe } from '@/lib/verifier';
@@ -64,13 +64,7 @@ export async function runIngestCycle(): Promise<IngestCycleReport> {
 }
 
 function emptySourceStats(): Record<IngestSourceId, IngestSourceStats> {
-  return {
-    env_urls: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
-    rss: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
-    ml_api: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
-    amazon_asin: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
-    ml_worker: { collected: 0, evaluated: 0, inserted: 0, duplicate: 0, skipped: 0, errors: 0 },
-  };
+  return emptyIngestSourceStats();
 }
 
 function markSourceSkip(
