@@ -5,6 +5,7 @@ import { HUNTER_SOURCES } from '@/lib/hunter/sources';
 import { getDealVerifierMetrics } from '@/lib/verifier';
 import { getAutonomousDecisionMetrics } from '@/lib/autonomous';
 import { getHunterEnrichmentMetrics } from '@/lib/hunter/enrichment';
+import { HUNTER_METRIC_UNIVERSES } from '@/lib/hunter/metricUniverses';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
       dealVerifier: getDealVerifierMetrics(),
       autonomousDecision: getAutonomousDecisionMetrics(),
       hunterEnrichment: getHunterEnrichmentMetrics(),
+      metricUniverses: HUNTER_METRIC_UNIVERSES,
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );

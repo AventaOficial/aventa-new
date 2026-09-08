@@ -26,5 +26,7 @@ export {
   cooldownMsForErrorCode,
   HUNTER_FAILURE_THRESHOLD,
 } from './circuitBreaker';
+export { HUNTER_METRIC_UNIVERSES } from './metricUniverses';
+export type { HunterMetricUniverses } from './metricUniverses';
 export { HUNTER_MODULES } from './modules';
 export type { HunterModule, HunterModuleStatus } from './modules';

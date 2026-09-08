@@ -292,6 +292,7 @@ export async function runIngestCycleForProfile(
         continue;
       }
 
+      // Quality gates: NO observe (mismo contrato que processExternalWorkerBatch).
       if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) {
         const reason =
           parseAttempt.diagnostic === 'missing_original_price'
@@ -331,6 +332,7 @@ export async function runIngestCycleForProfile(
         source: item.source,
         url: item.url,
       });
+      // Duplicado de insert (más abajo) sí se observó. Skips de quality, no.
       await observeIngestShadow({
         verifier: verified,
         meta,

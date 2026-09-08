@@ -238,6 +238,7 @@ export async function processExternalWorkerBatch(
     });
   }
 
+  // itemsFound (health DB) = rawCandidates.length. Shadow/enrichment NO usan ese universo.
   const slice = items.slice(0, config.candidatePoolMax);
   stageCounts.collected = slice.length;
 
@@ -281,6 +282,7 @@ export async function processExternalWorkerBatch(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
+      // Quality gates: NO observe. Shadow evaluated ≠ hunter found. Decisión documentada.
       if (isBlockedWorkerUrl(meta.canonicalUrl) || isBlockedWorkerUrl(item.url)) {
         const reason = 'url no producto (login/verificación/listado)';
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
@@ -319,6 +321,7 @@ export async function processExternalWorkerBatch(
         url: item.url,
         enableWorkerAutoApprove: true,
       });
+      // Insert-time duplicate SÍ se observa (ya pasó gates + verifier). Dedupe intra-lote no.
       await observeIngestShadow({
         verifier: verified,
         meta,

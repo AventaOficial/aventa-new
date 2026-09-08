@@ -21,6 +21,7 @@ export type HunterEnrichmentMetricsSnapshot = {
       enrichmentFailed: number;
     }
   >;
+  persistence: 'process_memory';
 };
 
 const emptySource = () => ({
@@ -117,6 +118,7 @@ export function getHunterEnrichmentMetrics(): HunterEnrichmentMetricsSnapshot {
     completePct,
     fullyCompletePct,
     bySource: Object.fromEntries(bySource.entries()),
+    persistence: 'process_memory',
   };
 }
 

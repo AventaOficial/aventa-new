@@ -139,6 +139,13 @@ type HunterHealthPayload = {
     completePct: number;
     fullyComplete?: number;
     fullyCompletePct?: number;
+    persistence?: 'process_memory';
+  };
+  metricUniverses?: {
+    sourceHealth: { persistence: string; itemsFound: string };
+    hunterEnrichment: { persistence: string };
+    dealVerifier: { persistence: string };
+    autonomousShadow: { persistence: string };
   };
 };
 
@@ -362,7 +369,7 @@ export default function HunterPage() {
           <GlassCard>
             <SectionHeader
               title="Shadow Autonomy"
-              subtitle="AUTO_APPROVE = podrían publicarse solos. Autonomous % = AUTO_APPROVE + AUTO_REJECT. No publica. Memoria de proceso."
+              subtitle="AUTO_APPROVE = podrían publicarse solos. Autonomous % = AUTO_APPROVE + AUTO_REJECT. No publica. Memoria de ESTE isolate — en Vercel no es el batch de ml_worker (eso vive en hunter_source_health)."
             />
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <KpiCard label="Evaluados" value={String(health?.autonomousDecision?.evaluated ?? 0)} />
@@ -426,7 +433,8 @@ export default function HunterPage() {
               <KpiCard label="imagen missing" value={String(health?.autonomousDecision?.imageMissing ?? 0)} />
             </div>
             <p className="mt-3 text-xs text-white/35">
-              Autonomous % = AUTO_APPROVE + AUTO_REJECT (no necesitan humano). Primera/última decisión:{' '}
+              Found (DB) ≠ Evaluados shadow (este isolate). Autonomous % = AUTO_APPROVE + AUTO_REJECT.
+              Primera/última decisión:{' '}
               {health?.autonomousDecision?.firstAt
                 ? new Date(health.autonomousDecision.firstAt).toLocaleString('es-MX')
                 : '—'}
@@ -502,7 +510,7 @@ export default function HunterPage() {
           </GlassCard>
 
           <GlassCard>
-            <SectionHeader title="Source Health" subtitle="Estado por fuente Hunter" />
+            <SectionHeader title="Source Health" subtitle="Último batch persistido en hunter_source_health. found = payload crudo, no Shadow evaluated." />
             <ul className="mt-4 space-y-2">
               {SOURCE_HEALTH_ORDER.map((sourceId) => {
                 const row = (health?.rows ?? []).find((r) => r.sourceId === sourceId);
@@ -538,7 +546,7 @@ export default function HunterPage() {
           <GlassCard>
             <SectionHeader
               title="Enrichment"
-              subtitle="Completitud del snapshot. Memoria de proceso — se reinicia al redeploy."
+              subtitle="Completitud del snapshot. Mismo isolate que ingest — 0 en este panel es esperado si ml_worker corrió en otra función serverless."
             />
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <KpiCard label="Candidatos" value={String(health?.hunterEnrichment?.candidatesFound ?? 0)} />
