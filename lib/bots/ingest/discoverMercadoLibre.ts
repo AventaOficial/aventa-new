@@ -1,13 +1,15 @@
 import { DEFAULT_ML_DISCOVERY_QUERIES } from './config';
 import type { BotIngestConfig } from './config';
+import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { fetchMercadoLibreItemsMulti, mlItemBodyToSignals, type MlItemApiBody } from './mlItemDetails';
 import { attachMlRatingsToMap, type MlRatingSummary } from './mlReviews';
 import { BOT_INGEST_USER_AGENT, sleep } from './ingestHttp';
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import type { OfferQualitySignals } from './offerQualitySignals';
-import type { IngestItem } from './types';
+import { firstValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 
 const ML_SITE = 'MLM';
 const SEARCH_BASE = `https://api.mercadolibre.com/sites/${ML_SITE}/search`;
@@ -94,9 +96,10 @@ function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | 
 
   if (originalPrice == null) return { meta: null, reason: 'ml discovery: sin precio original verificable' };
 
-  const pic = body.pictures?.[0];
-  const thumb = pic?.secure_url || pic?.url || '';
-  const imageUrl = thumb.replace(/^http:\/\//i, 'https://').trim() || '/placeholder.png';
+  const pics = (body.pictures ?? [])
+    .map((p) => (p.secure_url || p.url || '').replace(/^http:\/\//i, 'https://').trim())
+    .filter(Boolean);
+  const imageUrl = firstValidOfferImage(pics) ?? '';
 
   const discountPercent = Math.round((1 - price / originalPrice) * 100);
 
@@ -188,9 +191,10 @@ export async function discoverMercadoLibreIngestItems(
     await sleep(ML_FETCH_DELAY_MS);
     let res: Response;
     try {
-      res = await fetch(url.href, {
+      res = await fetchWithTimeout(url.href, {
         headers: { Accept: 'application/json', 'User-Agent': BOT_INGEST_USER_AGENT },
         cache: 'no-store',
+        timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
       });
     } catch {
       bumpReason(skipReasonCounts, 'ml discovery: error de red en búsqueda');

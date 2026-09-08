@@ -1,3 +1,5 @@
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
+
 type KeepaProduct = {
   stats?: {
     current?: number[];
@@ -36,7 +38,7 @@ export async function fetchKeepaPriceIntel(args: {
 
   let res: Response;
   try {
-    res = await fetch(url.href, { cache: 'no-store' });
+    res = await fetchWithTimeout(url.href, { cache: 'no-store', timeoutMs: HUNTER_HTTP_TIMEOUT_MS });
   } catch {
     return null;
   }

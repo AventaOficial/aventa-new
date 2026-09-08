@@ -1,5 +1,6 @@
 import type { OfferQualitySignals } from './offerQualitySignals';
 import { BOT_INGEST_USER_AGENT, sleep } from './ingestHttp';
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 
 const ML_MULTIGET_MAX = 20;
 const BETWEEN_CHUNK_MS = 320;
@@ -31,9 +32,10 @@ export async function fetchMercadoLibreItemsMulti(ids: string[]): Promise<Map<st
     const url = `https://api.mercadolibre.com/items?ids=${encodeURIComponent(chunk.join(','))}`;
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await fetchWithTimeout(url, {
         headers: { Accept: 'application/json', 'User-Agent': BOT_INGEST_USER_AGENT },
         cache: 'no-store',
+        timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
       });
     } catch {
       continue;

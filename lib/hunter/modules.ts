@@ -9,7 +9,7 @@ export type HunterModule = {
   code: string;
 };
 
-/** Los 8 sistemas del Cazador. No es una IA monolítica: cada uno ya existe o se enchufa aquí. */
+/** Sistemas del Cazador. No es una IA monolítica: cada uno ya existe o se enchufa aquí. */
 export const HUNTER_MODULES: HunterModule[] = [
   {
     id: 'collector',
@@ -44,12 +44,28 @@ export const HUNTER_MODULES: HunterModule[] = [
     code: 'lib/bankCoupons.ts',
   },
   {
+    id: 'enrichment',
+    emoji: '🖼️',
+    name: 'Enrichment Engine',
+    job: 'Completa imagen/título/precio con extractores existentes. No inventa fotos.',
+    status: 'live',
+    code: 'lib/hunter/enrichment/enrichParsedOffer.ts',
+  },
+  {
     id: 'scorer',
     emoji: '🤖',
     name: 'Deal Scorer + Verifier',
     job: 'Score 0–100 + Deal Verifier determinista: auto-approve / revisión / reject.',
     status: 'live',
     code: 'lib/verifier/evaluateDeal.ts',
+  },
+  {
+    id: 'decision',
+    emoji: '⚖️',
+    name: 'Autonomous Decision Engine',
+    job: 'Shadow: AUTO_APPROVE / HUMAN_REVIEW / AUTO_REJECT. No publica ni rechaza.',
+    status: 'partial',
+    code: 'lib/autonomous/decide.ts',
   },
   {
     id: 'copy',

@@ -15,6 +15,13 @@ export function resetHunterHealthMemoryForTests(): void {
   memoryStore.clear();
 }
 
+/** Lectura síncrona de memoria de proceso. No toca DB. */
+export function peekHunterHealthMemory(
+  sourceId: HunterSourceId
+): HunterSourceHealth | undefined {
+  return memoryStore.get(sourceId);
+}
+
 export function defaultHealthRow(
   sourceId: HunterSourceId,
   opts?: Partial<HunterSourceHealth>

@@ -6,7 +6,7 @@ import {
   HUNTER_FAILURE_THRESHOLD,
 } from '@/lib/hunter/circuitBreaker';
 import { defaultHealthRow, resetHunterHealthMemoryForTests } from '@/lib/hunter/healthStore';
-import { evaluateIsHunting } from '@/lib/hunter/isHunting';
+import { deriveHuntingLevel, evaluateIsHunting } from '@/lib/hunter/isHunting';
 import { dedupeHunterCandidates, ingestItemToCandidate } from '@/lib/hunter/normalize';
 import { runHunterCollect } from '@/lib/hunter/engine';
 import type { BotIngestConfig } from '@/lib/bots/ingest/config';
@@ -365,5 +365,14 @@ describe('isHunting', () => {
       now
     );
     expect(result.isHunting).toBe(false);
+  });
+
+  it('huntingLevel: healthy / degraded / down', () => {
+    expect(deriveHuntingLevel([{ displayStatus: 'healthy' }], true)).toBe('healthy');
+    expect(deriveHuntingLevel([{ displayStatus: 'healthy' }], false)).toBe('degraded');
+    expect(deriveHuntingLevel([{ displayStatus: 'degraded' }], true)).toBe('degraded');
+    expect(deriveHuntingLevel([{ displayStatus: 'down' }, { displayStatus: 'disabled' }], false)).toBe(
+      'down'
+    );
   });
 });

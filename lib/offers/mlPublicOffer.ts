@@ -2,7 +2,7 @@ import {
   extractMercadoLibreItemId,
   extractMercadoLibreItemIdFromHtml,
 } from '@/lib/offers/parseOfferPageHtml';
-import { fetchMlApi } from '@/lib/integrations/mercadolibre/apiClient';
+import { fetchMlApi, type FetchMlApiResult } from '@/lib/integrations/mercadolibre/apiClient';
 
 export type MercadoLibreOfferSource = 'ml_api' | 'anonymous';
 
@@ -43,11 +43,21 @@ function finitePrice(n: unknown): number | null {
   return n;
 }
 
+function unwrapMlApi(result: FetchMlApiResult): { data: unknown | null; authenticated: boolean } {
+  if (result.ok) return { data: result.data, authenticated: result.authenticated };
+  if (result.timedOut) {
+    const err = new Error('ml_api_timeout');
+    err.name = 'AbortError';
+    throw err;
+  }
+  return { data: null, authenticated: result.authenticated };
+}
+
 async function fetchItemPrices(
   itemId: string,
 ): Promise<{ price: number | null; originalPrice: number | null; authenticated: boolean }> {
-  const result = await fetchMlApi(`/items/${encodeURIComponent(itemId)}/prices`);
-  if (!result.ok || !result.data) {
+  const result = unwrapMlApi(await fetchMlApi(`/items/${encodeURIComponent(itemId)}/prices`));
+  if (!result.data) {
     return { price: null, originalPrice: null, authenticated: result.authenticated };
   }
   const body = result.data as { prices?: MlPriceRow[] };
@@ -62,9 +72,7 @@ async function fetchItemPrices(
 }
 
 async function fetchJson(path: string): Promise<{ data: unknown | null; authenticated: boolean }> {
-  const result = await fetchMlApi(path);
-  if (!result.ok) return { data: null, authenticated: result.authenticated };
-  return { data: result.data, authenticated: result.authenticated };
+  return unwrapMlApi(await fetchMlApi(path));
 }
 
 function httpsUrl(raw: string | undefined | null): string | null {

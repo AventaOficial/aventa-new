@@ -2,8 +2,10 @@ import { createHash, createHmac } from 'node:crypto';
 import type { BotIngestConfig } from './config';
 import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
+import { firstValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 
-type PaapiItem = {
+export type PaapiItem = {
   ASIN?: string;
   DetailPageURL?: string;
   ItemInfo?: {
@@ -96,13 +98,14 @@ function signPaapiRequest(
   };
 }
 
-function normalizePaapiItem(item: PaapiItem): ParsedOfferMetadata | null {
+export function normalizePaapiItem(item: PaapiItem): ParsedOfferMetadata | null {
   const title = item.ItemInfo?.Title?.DisplayValue?.trim();
   const canonicalUrl = item.DetailPageURL?.trim();
   const imageUrl =
-    item.Images?.Primary?.Large?.URL?.trim() ||
-    item.Images?.Primary?.Medium?.URL?.trim() ||
-    '';
+    firstValidOfferImage([
+      item.Images?.Primary?.Large?.URL,
+      item.Images?.Primary?.Medium?.URL,
+    ]) ?? '';
   const listing = item.Offers?.Listings?.[0];
   const discountPrice = listing?.Price?.Amount ?? null;
   const savingsAmount = listing?.Price?.Savings?.Amount ?? null;
@@ -110,7 +113,7 @@ function normalizePaapiItem(item: PaapiItem): ParsedOfferMetadata | null {
     discountPrice != null && savingsAmount != null && savingsAmount > 0
       ? discountPrice + savingsAmount
       : null;
-  if (!title || !canonicalUrl || !imageUrl || discountPrice == null || discountPrice <= 0) return null;
+  if (!title || !canonicalUrl || discountPrice == null || discountPrice <= 0) return null;
   const discountPercent =
     originalPrice && originalPrice > 0
       ? Math.round((1 - discountPrice / originalPrice) * 100)
@@ -173,11 +176,12 @@ export async function discoverAmazonPaapiIngestItems(config: BotIngestConfig): P
 
   let res: Response;
   try {
-    res = await fetch(`https://${config.amazonPaapiHost}/paapi5/getitems`, {
+    res = await fetchWithTimeout(`https://${config.amazonPaapiHost}/paapi5/getitems`, {
       method: 'POST',
       headers,
       body,
       cache: 'no-store',
+      timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
     });
   } catch {
     return [];

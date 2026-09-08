@@ -1,4 +1,5 @@
 import { BOT_INGEST_USER_AGENT } from './ingestHttp';
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 
 export type MlPriceQuote = {
   current: number;
@@ -42,9 +43,10 @@ export async function fetchMlItemPriceQuote(
   const url = `https://api.mercadolibre.com/items/${encodeURIComponent(itemId)}/prices`;
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetchWithTimeout(url, {
       headers: { Accept: 'application/json', 'User-Agent': BOT_INGEST_USER_AGENT },
       cache: 'no-store',
+      timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
     });
   } catch {
     return safeFallback;

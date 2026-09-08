@@ -51,10 +51,10 @@ function bump(status: MonetizationReadinessStatus) {
 }
 
 /**
- * Estado humano de preparación de monetización.
- * No inventa programas: reutiliza storeHasAffiliateProgram / assessOfferAffiliateLink.
+ * Evaluación pura (sin métricas). Misma regla que computeMonetizationReadiness.
+ * El Decision Engine la usa en shadow para no contaminar contadores de Focus.
  */
-export function computeMonetizationReadiness(
+export function evaluateMonetizationReadiness(
   input: MonetizationReadinessInput
 ): MonetizationReadinessResult {
   const offerUrl = (input.offerUrl ?? '').trim();
@@ -62,45 +62,49 @@ export function computeMonetizationReadiness(
   const probe = offerUrl || original;
 
   if (!probe) {
-    const result: MonetizationReadinessResult = {
+    return {
       status: 'unknown',
       label: 'No disponible',
       detail: 'No hay información suficiente.',
     };
-    bump('unknown');
-    return result;
   }
 
   const hasProgram = storeHasAffiliateProgram(probe);
   if (!hasProgram) {
-    const result: MonetizationReadinessResult = {
+    return {
       status: 'no_program',
       label: 'Sin programa',
       detail: 'Esta tienda no tiene programa afiliado configurado.',
     };
-    bump('no_program');
-    return result;
   }
 
   const assessment = assessOfferAffiliateLink(offerUrl || probe);
   const prepared = input.linkModOk === true || assessment.isTagged;
 
   if (prepared) {
-    const result: MonetizationReadinessResult = {
+    return {
       status: 'ready',
       label: 'Lista',
       detail: 'Aventa puede monetizar este enlace.',
     };
-    bump('ready');
-    return result;
   }
 
-  const result: MonetizationReadinessResult = {
+  return {
     status: 'needs_attention',
     label: 'Requiere atención',
     detail: 'No se pudo preparar el enlace monetizado.',
   };
-  bump('needs_attention');
+}
+
+/**
+ * Estado humano de preparación de monetización.
+ * No inventa programas: reutiliza storeHasAffiliateProgram / assessOfferAffiliateLink.
+ */
+export function computeMonetizationReadiness(
+  input: MonetizationReadinessInput
+): MonetizationReadinessResult {
+  const result = evaluateMonetizationReadiness(input);
+  bump(result.status);
   return result;
 }
 

@@ -16,6 +16,12 @@ import { isLowQualityTitle } from './isLowQualityTitle';
 import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { enrichWithPriceIntel } from './priceIntel';
 import { evaluateDealSafe } from '@/lib/verifier';
+import {
+  beginAutonomousShadowCycle,
+  createDuplicateShadowContext,
+  observeIngestShadow,
+} from '@/lib/autonomous';
+import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
@@ -244,16 +250,30 @@ export async function processExternalWorkerBatch(
   };
   const resolved: Resolved[] = [];
   let scoreRejected = 0;
+  const shadowDup = createDuplicateShadowContext();
+  beginAutonomousShadowCycle();
+  const enrichCache = new Map<string, ParsedOfferMetadata>();
 
   for (const item of slice) {
     sourceStats[item.source].evaluated += 1;
     stageCounts.evaluated += 1;
     try {
       // ml_worker: conservar discountPercent/precios de la card; intel solo en signals.
-      const meta = item.precomputedMeta
-        ? await enrichWithPriceIntel({ ...item.precomputedMeta }, config, {
-            preserveLabelDiscount: item.source === 'ml_worker',
-          })
+      const precomputed = item.precomputedMeta;
+      const meta = precomputed
+        ? await (async () => {
+            const priced = await enrichWithPriceIntel({ ...precomputed }, config, {
+              preserveLabelDiscount: item.source === 'ml_worker',
+            });
+            return (
+              await enrichParsedOfferMetadata(priced, {
+                source: item.source,
+                sourceDetail: item.sourceDetail,
+                skipHtml: isValidOfferImage(priced.imageUrl),
+                cache: enrichCache,
+              })
+            ).meta;
+          })()
         : null;
       if (!meta) {
         const reason = 'sin metadatos';
@@ -298,6 +318,15 @@ export async function processExternalWorkerBatch(
         source: item.source,
         url: item.url,
         enableWorkerAutoApprove: true,
+      });
+      await observeIngestShadow({
+        verifier: verified,
+        meta,
+        source: item.source,
+        sourceDetail: item.sourceDetail,
+        config,
+        supabase: shadowDup.supabase,
+        duplicateCache: shadowDup.cache,
       });
       if (verified.decision === 'reject') {
         scoreRejected += 1;

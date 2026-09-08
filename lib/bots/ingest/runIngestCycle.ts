@@ -20,6 +20,12 @@ import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { enrichWithPriceIntel } from './priceIntel';
 import { evaluateDealSafe } from '@/lib/verifier';
+import {
+  beginAutonomousShadowCycle,
+  createDuplicateShadowContext,
+  observeIngestShadow,
+} from '@/lib/autonomous';
+import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -243,6 +249,9 @@ export async function runIngestCycleForProfile(
 
   const resolved: Resolved[] = [];
   let scoreRejected = 0;
+  const shadowDup = createDuplicateShadowContext();
+  beginAutonomousShadowCycle();
+  const enrichCache = new Map<string, ParsedOfferMetadata>();
 
   for (const item of slice) {
     sourceStats[item.source].evaluated += 1;
@@ -251,7 +260,21 @@ export async function runIngestCycleForProfile(
       const parseAttempt = item.precomputedMeta
         ? { meta: { ...item.precomputedMeta }, diagnostic: 'ok' as const }
         : await fetchParsedOfferMetadataDetailed(item.url);
-      const meta = parseAttempt.meta ? await enrichWithPriceIntel({ ...parseAttempt.meta }, config) : null;
+      const meta = parseAttempt.meta
+        ? (
+            await enrichParsedOfferMetadata(
+              await enrichWithPriceIntel({ ...parseAttempt.meta }, config),
+              {
+                source: item.source,
+                sourceDetail: item.sourceDetail,
+                skipHtml:
+                  !item.precomputedMeta ||
+                  isValidOfferImage(parseAttempt.meta.imageUrl),
+                cache: enrichCache,
+              }
+            )
+          ).meta
+        : null;
       if (!meta) {
         const reason =
           parseAttempt.diagnostic === 'timeout'
@@ -307,6 +330,15 @@ export async function runIngestCycleForProfile(
         config,
         source: item.source,
         url: item.url,
+      });
+      await observeIngestShadow({
+        verifier: verified,
+        meta,
+        source: item.source,
+        sourceDetail: item.sourceDetail,
+        config,
+        supabase: shadowDup.supabase,
+        duplicateCache: shadowDup.cache,
       });
       if (verified.decision === 'reject') {
         scoreRejected += 1;

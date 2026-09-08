@@ -7,8 +7,14 @@ import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import type { OfferQualitySignals } from './offerQualitySignals';
 import { BOT_INGEST_USER_AGENT } from './ingestHttp';
-
-const FETCH_TIMEOUT_MS = 12_000;
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
+import {
+  extractOfferImages,
+  extractOfferMetaImages,
+} from '@/lib/offers/parseOfferPageHtml';
+import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
+import { selectOfferImages } from '@/lib/offers/selectOfferImages';
+import { firstValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
@@ -373,13 +379,10 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
   const block = isBlockedOfferParseUrl(url);
   if (block.blocked) return { meta: null, diagnostic: 'blocked_url' };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
   let res: Response;
   try {
-    res = await fetch(url.href, {
-      signal: controller.signal,
+    res = await fetchWithTimeout(url.href, {
+      timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
       headers: {
         'User-Agent': BOT_INGEST_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -387,14 +390,12 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
       redirect: 'follow',
     });
   } catch (error) {
-    clearTimeout(timeoutId);
     const message = error instanceof Error ? error.name : String(error);
     return {
       meta: null,
       diagnostic: /abort/i.test(message) ? 'timeout' : 'network_error',
     };
   }
-  clearTimeout(timeoutId);
 
   if (!res.ok) return { meta: null, diagnostic: 'http_error', httpStatus: res.status };
 
@@ -435,7 +436,16 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
     inferStoreFromHostname(finalUrl.hostname) ||
     'Tienda';
 
-  const imageUrl = data.image || '/placeholder.png';
+  const trusted = extractOfferMetaImages(html, base);
+  const amazonOrGeneric = isAmazon || !isMercadoLibre ? extractOfferImages(html, base) : [];
+  const mergedImages = isMercadoLibre
+    ? mergeMercadoLibreImageCandidates({
+        apiPictures: [],
+        htmlImages: [],
+        trustedHtmlImages: trusted,
+      })
+    : selectOfferImages([data.image, ...trusted, ...amazonOrGeneric].filter((u): u is string => Boolean(u)));
+  const imageUrl = firstValidOfferImage(mergedImages) ?? '';
 
   const discount = prices.discount;
   const original = prices.original;

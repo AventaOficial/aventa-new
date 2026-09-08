@@ -1,5 +1,6 @@
 import { isMlOAuthEnabled } from '@/lib/integrations/mercadolibre/oauth';
 import { getValidAccessToken, refreshMercadoLibreAccessToken } from '@/lib/integrations/mercadolibre/tokenRefresh';
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS, isTimeoutAbortError } from '@/lib/server/fetchWithTimeout';
 
 const ML_API_BASE = (process.env.ML_OAUTH_API_BASE?.trim() || 'https://api.mercadolibre.com').replace(
   /\/+$/,
@@ -11,7 +12,7 @@ const UA =
 
 export type FetchMlApiResult =
   | { ok: true; data: unknown; authenticated: boolean; status: number }
-  | { ok: false; status: number; authenticated: boolean };
+  | { ok: false; status: number; authenticated: boolean; timedOut?: boolean };
 
 function buildUrl(path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`;
@@ -30,13 +31,17 @@ async function fetchWithToken(
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-  const res = await fetch(url, { headers, cache: 'no-store' });
+  const res = await fetchWithTimeout(url, {
+    headers,
+    cache: 'no-store',
+    timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
+  });
   return { res, authenticated: Boolean(accessToken) };
 }
 
 /**
  * GET autenticado a la API ML. Si OAuth está activo usa Bearer + refresh lazy.
- * 401 → un refresh + un retry. Sin loops.
+ * 401 → un refresh + un retry. Sin loops. Cada hop tiene timeout (no queda colgado).
  */
 export async function fetchMlApi(path: string): Promise<FetchMlApiResult> {
   const url = buildUrl(path);
@@ -63,9 +68,14 @@ export async function fetchMlApi(path: string): Promise<FetchMlApiResult> {
 
     const data = await res.json();
     return { ok: true, data, authenticated, status: res.status };
-  } catch {
-    return { ok: false, status: 0, authenticated: Boolean(accessToken) };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      authenticated: Boolean(accessToken),
+      timedOut: isTimeoutAbortError(error),
+    };
   }
 }
 
-export { ML_API_BASE };
+export { ML_API_BASE, HUNTER_HTTP_TIMEOUT_MS };

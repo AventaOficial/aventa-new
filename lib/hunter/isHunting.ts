@@ -109,14 +109,28 @@ export async function isHunterHealthy(now = new Date()): Promise<IsHuntingResult
 }
 
 /** Alias de dominio pedido en el diseño. */
+export type HuntingLevel = 'healthy' | 'degraded' | 'down';
+
+export function deriveHuntingLevel(
+  rows: Array<{ displayStatus: string }>,
+  isHunting: boolean
+): HuntingLevel {
+  const statuses = rows.map((r) => r.displayStatus);
+  if (statuses.some((s) => s === 'healthy') && isHunting) return 'healthy';
+  if (statuses.some((s) => s === 'healthy' || s === 'degraded')) return 'degraded';
+  return 'down';
+}
+
 export async function getHunterHealthSummary(now = new Date()) {
   const rows = await getHunterHealth();
   const hunting = evaluateIsHunting(rows, now);
+  const withDisplay = rows.map((r) => ({
+    ...r,
+    displayStatus: deriveDisplayStatus(r, now),
+  }));
   return {
     ...hunting,
-    rows: rows.map((r) => ({
-      ...r,
-      displayStatus: deriveDisplayStatus(r, now),
-    })),
+    huntingLevel: deriveHuntingLevel(withDisplay, hunting.isHunting),
+    rows: withDisplay,
   };
 }

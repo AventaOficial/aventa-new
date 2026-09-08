@@ -1,4 +1,5 @@
 import { BOT_INGEST_USER_AGENT, sleep } from './ingestHttp';
+import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 
 export type MlRatingSummary = { average: number; total: number };
 
@@ -13,9 +14,10 @@ export async function fetchMlItemRatingSummary(itemId: string): Promise<MlRating
   const url = `https://api.mercadolibre.com/reviews/item/${encodeURIComponent(itemId)}?limit=1`;
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetchWithTimeout(url, {
       headers: { Accept: 'application/json', 'User-Agent': BOT_INGEST_USER_AGENT },
       cache: 'no-store',
+      timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
     });
   } catch {
     return null;

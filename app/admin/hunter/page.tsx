@@ -43,8 +43,17 @@ type HunterStatus = {
   };
 };
 
+const SOURCE_HEALTH_ORDER = [
+  'ml_worker',
+  'ml_api_legacy',
+  'amazon_asin',
+  'amazon_paapi',
+  'env_urls',
+] as const;
+
 type HunterHealthPayload = {
   isHunting: boolean;
+  huntingLevel?: 'healthy' | 'degraded' | 'down';
   reason: string;
   lastInsertAt: string | null;
   rows: Array<{
@@ -69,6 +78,67 @@ type HunterHealthPayload = {
     rejected: number;
     errors: number;
     topReasons: Array<{ reason: string; count: number }>;
+  };
+  autonomousDecision?: {
+    evaluated: number;
+    autoApprove: number;
+    humanReview: number;
+    autoReject: number;
+    autonomousPct: number;
+    autoApprovePct?: number;
+    humanReviewPct?: number;
+    autoRejectPct?: number;
+    avgConfidence?: number;
+    duplicatePass?: number;
+    duplicateFail?: number;
+    duplicateUnknown?: number;
+    imageFound?: number;
+    imageMissing?: number;
+    verifier?: { autoApprove: number; review: number; reject: number };
+    topReasons: Array<{ reason: string; code?: string; label?: string; count: number }>;
+    recent?: Array<{
+      source: string;
+      decision: string;
+      confidence: number;
+      score: number | null;
+      reasons: string[];
+      at: string;
+    }>;
+    avgScore?: number | null;
+    bySource: Record<string, { evaluated: number; autoApprove: number; humanReview: number; autoReject: number }>;
+    firstAt?: string | null;
+    lastAt?: string | null;
+    currentCycle?: {
+      evaluated: number;
+      autoApprovePct: number;
+      humanReviewPct: number;
+      autoRejectPct: number;
+      autonomousPct: number;
+      startedAt: string | null;
+      endedAt: string | null;
+    };
+    lastCycle?: {
+      evaluated: number;
+      autoApprovePct: number;
+      humanReviewPct: number;
+      autoRejectPct: number;
+      autonomousPct: number;
+      startedAt: string | null;
+      endedAt: string | null;
+    };
+    persistence?: 'process_memory';
+  };
+  hunterEnrichment?: {
+    candidatesFound: number;
+    enriched: number;
+    imageFound: number;
+    imageMissing: number;
+    titleFound: number;
+    priceFound: number;
+    enrichmentFailed: number;
+    completePct: number;
+    fullyComplete?: number;
+    fullyCompletePct?: number;
   };
 };
 
@@ -222,8 +292,7 @@ export default function HunterPage() {
           AVENTA Hunter
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-white/50 leading-relaxed">
-          Pipeline multifuente: recolector → precio → Deal Verifier → afiliado → publicar. Un fallo de una fuente no
-          apaga el cazador.
+          Pipeline multifuente + medición shadow de autonomía. El motor observa; no publica ni rechaza.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {data ? (
@@ -259,52 +328,240 @@ export default function HunterPage() {
       ) : data ? (
         <>
           <GlassCard>
-            <SectionHeader title="¿Aventa está cazando?" subtitle={health?.reason ?? 'Salud multifuente'} />
+            <SectionHeader
+              title="Hunting"
+              subtitle={health?.reason ?? 'Salud agregada de las fuentes del cazador'}
+            />
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <StatusBadge tone={health?.isHunting ? 'ok' : 'attention'} pulse={Boolean(health?.isHunting)}>
-                {health?.isHunting ? 'SÍ' : 'NO'}
+              <StatusBadge
+                tone={
+                  health?.huntingLevel === 'healthy'
+                    ? 'ok'
+                    : health?.huntingLevel === 'degraded'
+                      ? 'attention'
+                      : 'attention'
+                }
+                pulse={health?.huntingLevel === 'healthy'}
+              >
+                {health?.huntingLevel === 'healthy'
+                  ? 'Healthy'
+                  : health?.huntingLevel === 'degraded'
+                    ? 'Degraded'
+                    : 'Down'}
+              </StatusBadge>
+              <StatusBadge tone={health?.isHunting ? 'ok' : 'neutral'}>
+                {health?.isHunting ? 'Cazando' : 'Sin yield reciente'}
               </StatusBadge>
               <p className="text-xs text-white/45">
-                Última caza con insert:{' '}
+                Último insert:{' '}
                 {health?.lastInsertAt ? new Date(health.lastInsertAt).toLocaleString('es-MX') : '—'}
               </p>
             </div>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Shadow Autonomy"
+              subtitle="AUTO_APPROVE = podrían publicarse solos. Autonomous % = AUTO_APPROVE + AUTO_REJECT. No publica. Memoria de proceso."
+            />
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <KpiCard label="Evaluados" value={String(health?.autonomousDecision?.evaluated ?? 0)} />
+              <KpiCard
+                label="Auto approve %"
+                value={`${health?.autonomousDecision?.autoApprovePct ?? 0}%`}
+              />
+              <KpiCard
+                label="Human review %"
+                value={`${health?.autonomousDecision?.humanReviewPct ?? 0}%`}
+              />
+              <KpiCard
+                label="Auto reject %"
+                value={`${health?.autonomousDecision?.autoRejectPct ?? 0}%`}
+              />
+              <KpiCard
+                label="Autonomous %"
+                value={`${health?.autonomousDecision?.autonomousPct ?? 0}%`}
+              />
+              <KpiCard
+                label="Confidence promedio"
+                value={String(health?.autonomousDecision?.avgConfidence ?? 0)}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiCard
+                label="Score promedio"
+                value={
+                  health?.autonomousDecision?.avgScore == null
+                    ? '—'
+                    : String(health.autonomousDecision.avgScore)
+                }
+              />
+              <KpiCard
+                label="Ciclo actual eval"
+                value={String(health?.autonomousDecision?.currentCycle?.evaluated ?? 0)}
+              />
+              <KpiCard
+                label="Ciclo actual autónomo"
+                value={`${health?.autonomousDecision?.currentCycle?.autonomousPct ?? 0}%`}
+              />
+              <KpiCard
+                label="Ciclo previo autónomo"
+                value={`${health?.autonomousDecision?.lastCycle?.autonomousPct ?? 0}%`}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiCard label="AUTO_APPROVE" value={String(health?.autonomousDecision?.autoApprove ?? 0)} />
+              <KpiCard label="HUMAN_REVIEW" value={String(health?.autonomousDecision?.humanReview ?? 0)} />
+              <KpiCard label="AUTO_REJECT" value={String(health?.autonomousDecision?.autoReject ?? 0)} />
+              <KpiCard
+                label="Verifier auto"
+                value={String(health?.autonomousDecision?.verifier?.autoApprove ?? health?.dealVerifier?.autoApproved ?? 0)}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+              <KpiCard label="dup pass" value={String(health?.autonomousDecision?.duplicatePass ?? 0)} />
+              <KpiCard label="dup fail" value={String(health?.autonomousDecision?.duplicateFail ?? 0)} />
+              <KpiCard label="dup unknown" value={String(health?.autonomousDecision?.duplicateUnknown ?? 0)} />
+              <KpiCard label="imagen ok" value={String(health?.autonomousDecision?.imageFound ?? 0)} />
+              <KpiCard label="imagen missing" value={String(health?.autonomousDecision?.imageMissing ?? 0)} />
+            </div>
+            <p className="mt-3 text-xs text-white/35">
+              Autonomous % = AUTO_APPROVE + AUTO_REJECT (no necesitan humano). Primera/última decisión:{' '}
+              {health?.autonomousDecision?.firstAt
+                ? new Date(health.autonomousDecision.firstAt).toLocaleString('es-MX')
+                : '—'}
+              {' → '}
+              {health?.autonomousDecision?.lastAt
+                ? new Date(health.autonomousDecision.lastAt).toLocaleString('es-MX')
+                : '—'}
+              {health?.autonomousDecision?.currentCycle?.evaluated
+                ? ` · Ciclo actual: ${health.autonomousDecision.currentCycle.evaluated} eval, autónomo ${health.autonomousDecision.currentCycle.autonomousPct}%`
+                : ''}
+              {health?.autonomousDecision?.lastCycle?.evaluated
+                ? ` · Ciclo previo: ${health.autonomousDecision.lastCycle.evaluated} eval, autónomo ${health.autonomousDecision.lastCycle.autonomousPct}%`
+                : ''}
+            </p>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Bottlenecks"
+              subtitle="Causas agrupadas de HUMAN_REVIEW. Códigos estables. No cambia publicación."
+            />
+            {(health?.autonomousDecision?.topReasons?.length ?? 0) > 0 ? (
+              <ul className="mt-4 space-y-1.5">
+                {health!.autonomousDecision!.topReasons.map((r) => (
+                  <li key={r.code ?? r.reason} className="text-xs text-white/50">
+                    <span className="text-white/70">×{r.count}</span>{' '}
+                    <span className="font-mono text-white/65">{r.code ?? r.reason}</span>
+                    {r.label ? <span className="text-white/40"> — {r.label}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">
+                Aún sin HUMAN_REVIEW en este proceso. Corre un ciclo para observar.
+              </p>
+            )}
+            {(health?.autonomousDecision?.recent?.length ?? 0) > 0 ? (
+              <ul className="mt-4 space-y-1.5 border-t border-white/[0.06] pt-3">
+                {health!.autonomousDecision!.recent!.slice(-8).reverse().map((row, i) => (
+                  <li key={`${row.at}-${i}`} className="text-xs text-white/45">
+                    <span className="text-white/70">{row.decision}</span>
+                    {' · '}
+                    {row.source}
+                    {' · c '}
+                    {row.confidence}
+                    {row.score != null ? ` · s ${row.score}` : ''}
+                    {row.reasons.length > 0 ? ` · ${row.reasons.join(', ')}` : ''}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader title="Shadow by source" subtitle="Decisiones shadow agrupadas por fuente Hunter" />
             <ul className="mt-4 space-y-2">
-              {(health?.rows ?? []).map((row) => (
-                <li
-                  key={row.sourceId}
-                  className="flex flex-col gap-1 rounded-xl bg-white/[0.03] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm text-white/85">
-                      {healthEmoji(row.displayStatus)} {nameById.get(row.sourceId) ?? row.sourceId}
-                    </p>
-                    <p className="text-xs text-white/40">
-                      breaker {row.breakerState}
-                      {row.lastErrorCode ? ` · err ${row.lastErrorCode}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
-                    <StatusBadge tone={healthTone(row.displayStatus)}>{row.displayStatus}</StatusBadge>
-                    <span>found {row.itemsFound}</span>
-                    <span>ins {row.itemsInserted}</span>
-                    <span>dup {row.duplicates}</span>
-                    <span>err {row.errors}</span>
-                  </div>
-                </li>
-              ))}
-              {!health?.rows?.length ? (
-                <li className="text-sm text-white/40">
-                  Aún no hay telemetría de fuentes (corre un ciclo o aplica la migración).
-                </li>
-              ) : null}
+              {SOURCE_HEALTH_ORDER.map((sourceId) => {
+                const row = health?.autonomousDecision?.bySource?.[sourceId];
+                return (
+                  <li
+                    key={sourceId}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/[0.03] px-3 py-2 text-xs text-white/50"
+                  >
+                    <span className="text-white/80">{nameById.get(sourceId) ?? sourceId}</span>
+                    <span>
+                      eval {row?.evaluated ?? 0} · AA {row?.autoApprove ?? 0} · HR {row?.humanReview ?? 0} · AR{' '}
+                      {row?.autoReject ?? 0}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader title="Source Health" subtitle="Estado por fuente Hunter" />
+            <ul className="mt-4 space-y-2">
+              {SOURCE_HEALTH_ORDER.map((sourceId) => {
+                const row = (health?.rows ?? []).find((r) => r.sourceId === sourceId);
+                const status = row?.displayStatus ?? 'disabled';
+                return (
+                  <li
+                    key={sourceId}
+                    className="flex flex-col gap-1 rounded-xl bg-white/[0.03] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-white/85">
+                        {healthEmoji(status)} {nameById.get(sourceId) ?? sourceId}
+                      </p>
+                      <p className="text-xs text-white/40">
+                        {sourceId}
+                        {row ? ` · breaker ${row.breakerState}` : ' · sin telemetría'}
+                        {row?.lastErrorCode ? ` · err ${row.lastErrorCode}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
+                      <StatusBadge tone={healthTone(status)}>{status}</StatusBadge>
+                      <span>found {row?.itemsFound ?? 0}</span>
+                      <span>ins {row?.itemsInserted ?? 0}</span>
+                      <span>dup {row?.duplicates ?? 0}</span>
+                      <span>err {row?.errors ?? 0}</span>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </GlassCard>
 
           <GlassCard>
             <SectionHeader
+              title="Enrichment"
+              subtitle="Completitud del snapshot. Memoria de proceso — se reinicia al redeploy."
+            />
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiCard label="Candidatos" value={String(health?.hunterEnrichment?.candidatesFound ?? 0)} />
+              <KpiCard label="Con imagen" value={String(health?.hunterEnrichment?.imageFound ?? 0)} />
+              <KpiCard label="Sin imagen" value={String(health?.hunterEnrichment?.imageMissing ?? 0)} />
+              <KpiCard
+                label="% imagen"
+                value={`${health?.hunterEnrichment?.completePct ?? 0}%`}
+              />
+              <KpiCard label="Enriquecidos" value={String(health?.hunterEnrichment?.enriched ?? 0)} />
+              <KpiCard label="Fallos" value={String(health?.hunterEnrichment?.enrichmentFailed ?? 0)} />
+              <KpiCard
+                label="% completos"
+                value={`${health?.hunterEnrichment?.fullyCompletePct ?? 0}%`}
+              />
+              <KpiCard label="Con título" value={String(health?.hunterEnrichment?.titleFound ?? 0)} />
+            </div>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
               title="Deal Verifier"
-              subtitle="Evaluaciones en este proceso (proceso). Se reinicia al redeploy."
+              subtitle="Decisión productiva del verifier (no es el motor shadow). Memoria de proceso."
             />
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <KpiCard label="Evaluados" value={String(health?.dealVerifier?.evaluated ?? 0)} />
@@ -312,17 +569,6 @@ export default function HunterPage() {
               <KpiCard label="Review" value={String(health?.dealVerifier?.review ?? 0)} />
               <KpiCard label="Rejected" value={String(health?.dealVerifier?.rejected ?? 0)} />
             </div>
-            {(health?.dealVerifier?.topReasons?.length ?? 0) > 0 ? (
-              <ul className="mt-4 space-y-1.5">
-                {health!.dealVerifier!.topReasons.map((r) => (
-                  <li key={r.reason} className="text-xs text-white/50">
-                    <span className="text-white/70">×{r.count}</span> {r.reason}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-xs text-white/40">Aún sin razones registradas en este proceso.</p>
-            )}
           </GlassCard>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
