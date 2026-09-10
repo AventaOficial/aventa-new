@@ -6,6 +6,7 @@ import {
   applyAdapterOutboundTracking,
   type OutboundTrackingContext,
 } from '@/lib/rewards/adapters/types';
+import { normalizeMercadoLibreInputUrl } from '@/lib/offers/resolveMercadoLibreItem';
 
 const RESOLVE_TIMEOUT_MS = 12_000;
 const RESOLVE_USER_AGENT =
@@ -16,14 +17,9 @@ export type OfferCreatorAffiliateTags = {
   amazonTag?: string | null;
 };
 
-/** Normaliza URLs pegadas desde apps móviles (sin https, espacios, caracteres invisibles). */
+/** Normaliza URLs pegadas desde apps móviles (sin https, espacios, saltos de línea, caracteres invisibles). */
 export function normalizePastedOfferUrl(raw: string): string {
-  let s = raw.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
-  if (!s) return '';
-  if (!/^https?:\/\//i.test(s)) {
-    s = `https://${s.replace(/^\/\//, '')}`;
-  }
-  return s;
+  return normalizeMercadoLibreInputUrl(raw);
 }
 
 /** Enlaces cortos del programa de colaboradores (redirigen a articulo.mercadolibre…). */

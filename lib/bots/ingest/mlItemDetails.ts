@@ -1,6 +1,6 @@
 import type { OfferQualitySignals } from './offerQualitySignals';
-import { BOT_INGEST_USER_AGENT, sleep } from './ingestHttp';
-import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
+import { sleep } from './ingestHttp';
+import { fetchMlApi } from '@/lib/integrations/mercadolibre/apiClient';
 
 const ML_MULTIGET_MAX = 20;
 const BETWEEN_CHUNK_MS = 320;
@@ -15,13 +15,43 @@ export type MlItemApiBody = {
   condition?: string;
   category_id?: string;
   listing_type_id?: string;
-  pictures?: Array<{ secure_url?: string; url?: string }>;
+  pictures?: Array<{ id?: string; secure_url?: string; url?: string }>;
 };
 
 type MlMultiEntry = { code?: number; body?: MlItemApiBody };
 
+function parseMultiResponse(rows: unknown): MlMultiEntry[] {
+  if (!Array.isArray(rows)) return [];
+  return rows as MlMultiEntry[];
+}
+
+async function fetchItemsChunk(chunk: string[]): Promise<Map<string, MlItemApiBody>> {
+  const out = new Map<string, MlItemApiBody>();
+  const encoded = encodeURIComponent(chunk.join(','));
+
+  const bulk = await fetchMlApi(`/items/bulk?ids=${encoded}`);
+  if (bulk.ok) {
+    for (const row of parseMultiResponse(bulk.data)) {
+      if (row?.code !== 200 || !row.body?.id) continue;
+      out.set(row.body.id, row.body);
+    }
+    if (out.size > 0) return out;
+  }
+
+  const legacy = await fetchMlApi(`/items?ids=${encoded}`);
+  if (legacy.ok) {
+    for (const row of parseMultiResponse(legacy.data)) {
+      if (row?.code !== 200 || !row.body?.id) continue;
+      out.set(row.body.id, row.body);
+    }
+  }
+
+  return out;
+}
+
 /**
- * GET /items?ids= — hasta 20 IDs por request (API Mercado Libre).
+ * GET /items/bulk?ids= (preferido) con fallback a /items?ids=.
+ * Usa OAuth cuando está disponible.
  */
 export async function fetchMercadoLibreItemsMulti(ids: string[]): Promise<Map<string, MlItemApiBody>> {
   const out = new Map<string, MlItemApiBody>();
@@ -29,28 +59,9 @@ export async function fetchMercadoLibreItemsMulti(ids: string[]): Promise<Map<st
   for (let i = 0; i < unique.length; i += ML_MULTIGET_MAX) {
     if (i > 0) await sleep(BETWEEN_CHUNK_MS);
     const chunk = unique.slice(i, i + ML_MULTIGET_MAX);
-    const url = `https://api.mercadolibre.com/items?ids=${encodeURIComponent(chunk.join(','))}`;
-    let res: Response;
-    try {
-      res = await fetchWithTimeout(url, {
-        headers: { Accept: 'application/json', 'User-Agent': BOT_INGEST_USER_AGENT },
-        cache: 'no-store',
-        timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
-      });
-    } catch {
-      continue;
-    }
-    if (!res.ok) continue;
-    let rows: unknown;
-    try {
-      rows = await res.json();
-    } catch {
-      continue;
-    }
-    if (!Array.isArray(rows)) continue;
-    for (const row of rows as MlMultiEntry[]) {
-      if (row?.code !== 200 || !row.body?.id) continue;
-      out.set(row.body.id, row.body);
+    const chunkMap = await fetchItemsChunk(chunk);
+    for (const [id, body] of chunkMap) {
+      out.set(id, body);
     }
   }
   return out;

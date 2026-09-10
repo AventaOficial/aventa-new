@@ -1,3 +1,8 @@
+import {
+  mergeMlImageCandidates,
+  type MlImageCandidate,
+  type MlImageProvenanceSource,
+} from '@/lib/offers/mlImageProvenance';
 import { mercadoLibreImageResourceId } from '@/lib/offers/selectOfferImages';
 
 function isHttpUrl(u: string): boolean {
@@ -26,6 +31,20 @@ function sameMlProductResource(a: string, b: string): boolean {
   return false;
 }
 
+function toCandidates(
+  urls: string[],
+  source: MlImageProvenanceSource,
+  sourceItemId: string | null,
+): MlImageCandidate[] {
+  return normalizeList(urls).map((url, index) => ({
+    url,
+    source,
+    sourceItemId,
+    pictureId: null,
+    isPrimary: index === 0,
+  }));
+}
+
 /**
  * Ensambla candidatas de imagen para Mercado Libre.
  *
@@ -43,23 +62,57 @@ export function mergeMercadoLibreImageCandidates(params: {
   mlSource?: string | null;
   /** Mínimo de fotos API para descartar HTML por completo. Default 2. */
   minApiPicturesToSkipHtml?: number;
+  sourceItemId?: string | null;
 }): string[] {
   const api = normalizeList(params.apiPictures ?? []);
   const html = normalizeList(params.htmlImages ?? []);
   const trusted = normalizeList(params.trustedHtmlImages ?? []);
   const minApi = params.minApiPicturesToSkipHtml ?? 2;
+  const itemId = params.sourceItemId ?? null;
 
   if (api.length >= minApi) {
-    return api;
+    return mergeMlImageCandidates(
+      [toCandidates(api, params.mlSource === 'ml_api' ? 'ml_api' : 'ml_api', itemId)],
+      { minApiToSkipFallback: minApi, sourceItemId: itemId },
+    ).map((c) => c.url);
   }
 
   if (api.length === 1) {
     const cover = api[0];
     const sameResourceVariants = html.filter((h) => sameMlProductResource(cover, h));
-    return normalizeList([cover, ...sameResourceVariants]);
+    return mergeMlImageCandidates(
+      [
+        toCandidates(api, 'ml_api', itemId),
+        toCandidates(sameResourceVariants, 'same_resource', itemId),
+      ],
+      { minApiToSkipFallback: minApi, sourceItemId: itemId },
+    ).map((c) => c.url);
   }
 
-  // Sin galería API: solo meta confiable (nunca CDN global de similares).
-  if (trusted.length > 0) return trusted;
+  if (trusted.length > 0) {
+    return mergeMlImageCandidates([toCandidates(trusted, 'og', itemId)], {
+      minApiToSkipFallback: minApi,
+      sourceItemId: itemId,
+    }).map((c) => c.url);
+  }
   return [];
+}
+
+export function mergeMercadoLibreImageCandidatesDetailed(params: {
+  apiPictures: string[];
+  htmlImages?: string[];
+  trustedHtmlImages?: string[];
+  mlSource?: string | null;
+  minApiPicturesToSkipHtml?: number;
+  sourceItemId?: string | null;
+}): MlImageCandidate[] {
+  const urls = mergeMercadoLibreImageCandidates(params);
+  const source = params.mlSource === 'ml_api' ? 'ml_api' : 'og';
+  return urls.map((url, index) => ({
+    url,
+    source: index === 0 && params.apiPictures.length > 0 ? 'ml_api' : source,
+    sourceItemId: params.sourceItemId ?? null,
+    pictureId: null,
+    isPrimary: index === 0,
+  }));
 }

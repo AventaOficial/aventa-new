@@ -1,12 +1,27 @@
+import { normalizePastedOfferUrl } from '@/lib/offerUrl';
+
 const BLOCKED_SCHEMES = new Set(['javascript:', 'data:', 'file:', 'vbscript:', 'about:']);
 
 /**
  * Valida URLs de oferta enviadas por usuarios (creación/edición).
  * Solo HTTPS; bloquea esquemas peligrosos y URLs malformadas.
- * La normalización afiliada y SSRF del parser usan otras rutas.
+ * Canonicaliza pegados móviles (espacios, saltos de línea, https implícito)
+ * con la misma función compartida que el parser.
  */
 export function validatePublicOfferUrl(raw: string): { ok: true; href: string } | { ok: false; error: string } {
-  const trimmed = raw.trim();
+  const preliminary = typeof raw === 'string' ? raw.trim() : '';
+  if (!preliminary) {
+    return { ok: false, error: 'URL de oferta vacía' };
+  }
+
+  const lowerRaw = preliminary.toLowerCase();
+  for (const scheme of BLOCKED_SCHEMES) {
+    if (lowerRaw.startsWith(scheme)) {
+      return { ok: false, error: 'URL de oferta no permitida' };
+    }
+  }
+
+  const trimmed = normalizePastedOfferUrl(preliminary);
   if (!trimmed) {
     return { ok: false, error: 'URL de oferta vacía' };
   }
@@ -29,7 +44,7 @@ export function validatePublicOfferUrl(raw: string): { ok: true; href: string } 
     return { ok: false, error: 'La URL de la oferta debe usar HTTPS' };
   }
 
-  if (!url.hostname || url.username || url.password) {
+  if (!url.hostname || url.username || url.password || !url.hostname.includes('.')) {
     return { ok: false, error: 'URL de oferta inválida' };
   }
 

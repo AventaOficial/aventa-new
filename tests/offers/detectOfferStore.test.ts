@@ -39,8 +39,8 @@ describe('detectOfferStore hostname-first', () => {
   it('Amazon con MLM en el path NO es Mercado Libre (host gana)', () => {
     const amazonWithFakeMl =
       'https://www.amazon.com.mx/dp/B08N5WRWNW/ref/MLM1234567890/?th=1';
-    // El extractor de id puede ver MLM en el path, pero la tienda NO se decide por eso.
-    expect(extractMercadoLibreItemId(amazonWithFakeMl)).toBe('MLM1234567890');
+    // El resolver central exige host ML: no inventa item_id desde paths Amazon.
+    expect(extractMercadoLibreItemId(amazonWithFakeMl)).toBeNull();
     const flags = resolveOfferStoreFlags('www.amazon.com.mx', 'www.amazon.com.mx');
     expect(flags.isAmazon).toBe(true);
     expect(flags.isMercadoLibre).toBe(false);

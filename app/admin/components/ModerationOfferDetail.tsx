@@ -708,7 +708,10 @@ export default function ModerationOfferDetail({
                 </label>
                 <input
                   ref={botUrlInputRef}
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   value={botOfferUrl}
                   onChange={(e) => setBotOfferUrl(e.target.value.slice(0, 2048))}
                   placeholder="https://articulo.mercadolibre.com.mx/…"
@@ -839,7 +842,10 @@ export default function ModerationOfferDetail({
                 <input
                   id="moderation-affiliate-paste-input"
                   ref={affiliatePasteRef}
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   value={affiliatePaste}
                   onChange={(e) => handleAffiliatePasteChange(e.target.value)}
                   placeholder="Pegar enlace aquí…"
@@ -1094,7 +1100,10 @@ export default function ModerationOfferDetail({
               <div>
                 <label className={`mb-1 block text-sm ${ui.soft}`}>URL</label>
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   value={editOfferUrl}
                   onChange={(e) => setEditOfferUrl(e.target.value.slice(0, 2048))}
                   className={`w-full px-3 py-2 font-mono text-sm ${ui.input}`}

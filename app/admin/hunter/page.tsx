@@ -108,6 +108,25 @@ type HunterHealthPayload = {
       lastErrorCode: string | null;
     }>;
   };
+  mercadoLibreQuality?: {
+    apiHealth: 'healthy' | 'degraded' | 'down';
+    imageQualityPct: number;
+    averageValidImages: number;
+    affiliateReadinessPct: number;
+    urlResolutionPct: number;
+    urlsReceived: number;
+    urlsResolved: number;
+    apiSuccess: number;
+    api401: number;
+    api403: number;
+    apiTimeout: number;
+    htmlFallback: number;
+    imagesApi: number;
+    imagesFallback: number;
+    imagesRejected: number;
+    affiliateReady: number;
+    affiliateMissing: number;
+  };
   dealVerifier?: {
     evaluated: number;
     autoApproved: number;
@@ -318,6 +337,7 @@ export default function HunterPage() {
   const pending = health?.pendingHealth ?? null;
   const scheduler = health?.schedulerHealth ?? null;
   const dayToDay = health?.dayToDay ?? null;
+  const mlQuality = health?.mercadoLibreQuality ?? null;
 
   const runNow = async () => {
     setRunning(true);
@@ -803,6 +823,38 @@ export default function HunterPage() {
                 );
               })}
             </ul>
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Mercado Libre quality"
+              subtitle="Resolución de URL, API como fuente principal e imágenes oficiales del item. Universo separado de shadow."
+            />
+            {mlQuality ? (
+              <>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <KpiCard label="API" value={mlQuality.apiHealth.toUpperCase()} />
+                  <KpiCard label="Imágenes válidas" value={`${mlQuality.imageQualityPct}%`} />
+                  <KpiCard label="Prom. fotos" value={String(mlQuality.averageValidImages)} />
+                  <KpiCard label="Affiliate ready" value={`${mlQuality.affiliateReadinessPct}%`} />
+                  <KpiCard label="URL resueltas" value={`${mlQuality.urlResolutionPct}%`} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/45">
+                  <span>urls {mlQuality.urlsReceived}</span>
+                  <span>resolved {mlQuality.urlsResolved}</span>
+                  <span>api ok {mlQuality.apiSuccess}</span>
+                  <span>401 {mlQuality.api401}</span>
+                  <span>403 {mlQuality.api403}</span>
+                  <span>timeout {mlQuality.apiTimeout}</span>
+                  <span>html fb {mlQuality.htmlFallback}</span>
+                  <span>img api {mlQuality.imagesApi}</span>
+                  <span>img fb {mlQuality.imagesFallback}</span>
+                  <span>rejected {mlQuality.imagesRejected}</span>
+                </div>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Sin datos ML quality en este isolate.</p>
+            )}
           </GlassCard>
 
           <GlassCard>

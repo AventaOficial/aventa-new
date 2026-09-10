@@ -505,27 +505,8 @@ export function extractBreadcrumbs(html: string): string[] {
   return crumbs.slice(0, 8);
 }
 
-function normalizeMlId(raw: string): string {
-  return raw.replace(/-/g, '').toUpperCase();
-}
-
-export function extractMercadoLibreItemId(rawUrl: string): string | null {
-  try {
-    const url = new URL(rawUrl);
-    const directId =
-      url.searchParams.get('wid') || url.searchParams.get('item_id') || url.searchParams.get('itemId');
-    if (directId && /^ML[A-Z]{0,3}-?\d+$/i.test(directId.trim())) return normalizeMlId(directId.trim());
-
-    const pdpFilters = url.searchParams.get('pdp_filters');
-    const fromFilters = pdpFilters?.match(/item_id:(ML[A-Z]{0,3}-?\d+)/i)?.[1];
-    if (fromFilters) return normalizeMlId(fromFilters);
-
-    const fromPath = url.pathname.match(/\/((?:ML[A-Z]{1,3})-?\d{6,})(?:[/?#-]|$)/i)?.[1];
-    return fromPath ? normalizeMlId(fromPath) : null;
-  } catch {
-    return null;
-  }
-}
+export { extractMercadoLibreItemId, resolveMercadoLibreItem } from '@/lib/offers/resolveMercadoLibreItem';
+import { extractMercadoLibreItemId } from '@/lib/offers/resolveMercadoLibreItem';
 
 export function extractMercadoLibreItemIdFromHtml(html: string): string | null {
   const canonical =
@@ -538,7 +519,7 @@ export function extractMercadoLibreItemIdFromHtml(html: string): string | null {
   const fromJson =
     html.match(/["'](?:item_id|itemId|catalog_product_id)["']\s*:\s*["'](ML[A-Z]{0,3}-?\d+)["']/i)?.[1] ??
     html.match(/\/((?:ML[A-Z]{1,3})-?\d{6,})/i)?.[1];
-  return fromJson ? normalizeMlId(fromJson) : null;
+  return fromJson ? fromJson.replace(/-/g, '').toUpperCase() : null;
 }
 
 /** Precios visibles en el HTML de Mercado Libre (fracción + precio tachado). */

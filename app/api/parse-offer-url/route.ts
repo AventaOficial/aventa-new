@@ -26,7 +26,6 @@ import {
 import {
   absoluteUrl,
   extractBreadcrumbs,
-  extractMercadoLibreItemId,
   extractMercadoLibreStructuredPrices,
   extractOfferImages,
   extractOfferMetaImages,
@@ -35,6 +34,16 @@ import {
   getMetaContent,
   stripOfferTrackingParams,
 } from '@/lib/offers/parseOfferPageHtml';
+import {
+  extractMercadoLibreItemId,
+  resolveMercadoLibreItem,
+} from '@/lib/offers/resolveMercadoLibreItem';
+import {
+  isPlatformAffiliateTagged,
+  storeHasAffiliateProgram,
+} from '@/lib/affiliate/assessOfferAffiliateLink';
+import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffiliateTags';
+import { recordMlQuality } from '@/lib/hunter/mlQuality/metrics';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
 
@@ -152,6 +161,8 @@ export async function POST(request: Request) {
     const rawUrl = normalizePastedOfferUrl(typeof body?.url === 'string' ? body.url : '');
     if (!rawUrl) return NextResponse.json(emptyPayload('invalid_url'));
 
+    recordMlQuality({ urlReceived: true });
+
     let url: URL;
     try {
       url = new URL(rawUrl);
@@ -192,9 +203,12 @@ export async function POST(request: Request) {
       workingHref = url.href;
     }
 
-    // Hostname-first: NO usar extractMercadoLibreItemId en hosts no-ML.
     const inputIsMl = isOfferMercadoLibreHost(url.hostname) || isOfferMercadoLibreHost(workingUrl.hostname);
-    const mlIdOnMlHost = inputIsMl ? extractMercadoLibreItemId(workingHref) : null;
+    const mlResolution = inputIsMl ? resolveMercadoLibreItem(workingHref) ?? resolveMercadoLibreItem(rawUrl) : null;
+    const mlIdOnMlHost = mlResolution?.itemId ?? (inputIsMl ? extractMercadoLibreItemId(workingHref) : null);
+    if (mlResolution?.itemId) {
+      recordMlQuality({ resolved: true });
+    }
 
     const htmlPromise = fetchHtml(workingHref);
     const mlPromise =
@@ -274,8 +288,20 @@ export async function POST(request: Request) {
         htmlImages,
         trustedHtmlImages,
         mlSource: ml.source,
+        sourceItemId: ml.itemId ?? mlIdOnMlHost,
       });
       candidates = collectCandidates(ml.pictures[0] ?? data.image, mergedPics);
+      // workingHref puede haber perdido matt_* por strip de tracking; medir readiness
+      // sobre la URL canónica + tags de plataforma (lo que persistirá offer_url).
+      const affiliateProbe = applyPlatformAffiliateTags(ml.canonicalUrl || workingHref || rawUrl);
+      recordMlQuality({
+        apiStatus: ml.source === 'ml_api' ? 'success' : 'other',
+        imagesFromApi: ml.pictures.length,
+        imagesFromFallback: mergedPics.length > ml.pictures.length ? mergedPics.length - ml.pictures.length : 0,
+        affiliateReady: storeHasAffiliateProgram(affiliateProbe)
+          ? isPlatformAffiliateTagged(affiliateProbe)
+          : false,
+      });
       mlCategoryId = ml.categoryId;
       mlPathNames = ml.pathNames;
       if (ml.source === 'ml_api') {
@@ -289,6 +315,9 @@ export async function POST(request: Request) {
     }
 
     if (isMercadoLibre && html && (suggestedDiscount == null || suggestedOriginal == null)) {
+      if (!ml) {
+        recordMlQuality({ usedHtmlFallback: true, imagesFromFallback: trustedHtmlImages.length });
+      }
       const structured = extractMercadoLibreStructuredPrices(html);
       if (suggestedDiscount == null) {
         suggestedDiscount =

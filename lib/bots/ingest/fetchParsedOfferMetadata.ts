@@ -15,6 +15,10 @@ import {
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { firstValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
+import {
+  extractMercadoLibreItemId,
+  resolveMercadoLibreItem,
+} from '@/lib/offers/resolveMercadoLibreItem';
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
@@ -147,27 +151,9 @@ function extractJsonLikeNumber(html: string, field: string): number | null {
   return parsePositiveLocalizedNumber(match);
 }
 
-function extractMercadoLibreItemId(rawUrl: string): string | null {
-  try {
-    const url = new URL(rawUrl);
-    const directId =
-      url.searchParams.get('wid') ||
-      url.searchParams.get('item_id') ||
-      url.searchParams.get('itemId');
-    if (directId && /^ML[A-Z]{0,3}\d+$/i.test(directId.trim())) return directId.trim().toUpperCase();
-
-    const pdpFilters = url.searchParams.get('pdp_filters');
-    const fromFilters = pdpFilters?.match(/item_id:([A-Z]{2,6}\d+)/i)?.[1];
-    if (fromFilters) return fromFilters.toUpperCase();
-
-    const fromPath = url.pathname.match(/\/((?:ML|M[A-Z]{1,5})\d+)(?:[/?#-]|$)/i)?.[1];
-    return fromPath ? fromPath.toUpperCase() : null;
-  } catch {
-    return null;
-  }
-}
-
 function buildMercadoLibreCanonicalUrl(finalUrl: URL, rawUrl: string): string {
+  const resolved = resolveMercadoLibreItem(rawUrl) ?? resolveMercadoLibreItem(finalUrl.href);
+  if (resolved?.canonicalUrl) return resolved.canonicalUrl;
   const canonical = new URL(finalUrl.origin + finalUrl.pathname);
   const itemId = extractMercadoLibreItemId(rawUrl) ?? extractMercadoLibreItemId(finalUrl.href);
   if (itemId) canonical.searchParams.set('wid', itemId);
@@ -443,6 +429,7 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
         apiPictures: [],
         htmlImages: [],
         trustedHtmlImages: trusted,
+        sourceItemId: extractMercadoLibreItemId(rawUrl) ?? extractMercadoLibreItemId(finalUrl.href),
       })
     : selectOfferImages([data.image, ...trusted, ...amazonOrGeneric].filter((u): u is string => Boolean(u)));
   const imageUrl = firstValidOfferImage(mergedImages) ?? '';

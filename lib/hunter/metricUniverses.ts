@@ -31,6 +31,12 @@ export const HUNTER_METRIC_UNIVERSES = {
     candidates: 'Suma de items_found de fuentes family=day_to_day. Cero si not_configured.',
     inserted: 'Suma de items_inserted de esas fuentes. No es shadow.',
   },
+  mercadoLibreQuality: {
+    persistence: 'process_memory',
+    note: 'Parse-offer-url y enrichment ML en ESTE isolate. No mezclar con shadow ni day-to-day.',
+    urlsResolved: 'URLs ML con item_id resuelto (query, hash o pdp_filters).',
+    imagesApi: 'Fotos tomadas de API oficial del item consultado.',
+  },
   autonomousShadowCycle: {
     persistence: 'supabase_hunter_shadow_cycles',
     evaluated:

@@ -292,7 +292,7 @@ export default function ModerationFixSheet({
             <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Enlace de la tienda</label>
             <input
               ref={linkRef}
-              type="url"
+              type="text"
               inputMode="url"
               autoCapitalize="off"
               spellCheck={false}

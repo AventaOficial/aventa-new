@@ -237,6 +237,7 @@ export async function enrichParsedOfferMetadata(
           htmlImages: [],
           trustedHtmlImages: [],
           mlSource: ml.source,
+          sourceItemId: ml.itemId ?? extractMercadoLibreItemId(url),
         });
         const cover = firstValidOfferImage(mergedPics);
         next = mergeTrusted(next, {
@@ -275,6 +276,7 @@ export async function enrichParsedOfferMetadata(
           apiPictures: isValidOfferImage(next.imageUrl) ? [next.imageUrl] : [],
           htmlImages: [],
           trustedHtmlImages: trusted,
+          sourceItemId: extractMercadoLibreItemId(url),
         });
         next = mergeTrusted(next, { imageUrl: firstValidOfferImage(merged) ?? '' });
       } else {

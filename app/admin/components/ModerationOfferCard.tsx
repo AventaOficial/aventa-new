@@ -724,7 +724,10 @@ export default function ModerationOfferCard({
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL del enlace</label>
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   value={editOfferUrl}
                   onChange={(e) => setEditOfferUrl(e.target.value.slice(0, 2048))}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 font-mono"

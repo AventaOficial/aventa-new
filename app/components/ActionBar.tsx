@@ -583,7 +583,9 @@ export default function ActionBar() {
       image_url: firstImage,
       ...(extraImages.length > 0 && { image_urls: extraImages }),
       ...(msiMonths != null && msiMonths >= 1 && msiMonths <= 24 && { msi_months: msiMonths }),
-      ...(formData.offer_url.trim() && { offer_url: formData.offer_url.trim() }),
+      ...(formData.offer_url.trim() && {
+        offer_url: normalizePastedOfferUrl(formData.offer_url) || formData.offer_url.trim(),
+      }),
       ...(formData.description.trim() && { description: formData.description.trim() }),
       ...(stepsList.filter((s) => s.trim()).length > 0 && {
         steps: JSON.stringify(stepsList.map((s) => s.trim()).filter(Boolean)),
@@ -908,13 +910,14 @@ export default function ActionBar() {
                         </label>
                         <input
                           id="upload-offer-url-gate"
-                          type="url"
+                          type="text"
                           value={formData.offer_url}
                           onChange={(e) => handleInputChange('offer_url', e.target.value)}
                           placeholder="https://…"
                           className="w-full rounded-2xl border-2 border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-[#1a1a1a]/50 px-4 py-4 text-[16px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                           autoComplete="url"
                           inputMode="url"
+                          spellCheck={false}
                         />
                       </div>
                       {urlParseStatus ? (
@@ -1032,9 +1035,12 @@ export default function ActionBar() {
                     <div className="relative">
                       <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <input
-                        type="url"
+                        type="text"
                         value={formData.offer_url}
                         onChange={(e) => handleInputChange('offer_url', e.target.value)}
+                        inputMode="url"
+                        spellCheck={false}
+                        autoComplete="url"
                         placeholder="https://…"
                         className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 pl-10 pr-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 break-all"
                       />

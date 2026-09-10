@@ -1,8 +1,16 @@
 import {
   extractMercadoLibreItemId,
-  extractMercadoLibreItemIdFromHtml,
-} from '@/lib/offers/parseOfferPageHtml';
+  resolveMercadoLibreItem,
+} from '@/lib/offers/resolveMercadoLibreItem';
 import { fetchMlApi, type FetchMlApiResult } from '@/lib/integrations/mercadolibre/apiClient';
+import {
+  mergeMlImageCandidates,
+  mlImageCandidatesToUrls,
+  picturesFromMlApiBody,
+  picturesFromMlVariations,
+  type MlImageCandidate,
+} from '@/lib/offers/mlImageProvenance';
+import { extractMercadoLibreItemIdFromHtml } from '@/lib/offers/parseOfferPageHtml';
 
 export type MercadoLibreOfferSource = 'ml_api' | 'anonymous';
 
@@ -11,8 +19,12 @@ export type MercadoLibrePublicOffer = {
   price: number | null;
   originalPrice: number | null;
   pictures: string[];
+  pictureCandidates: MlImageCandidate[];
   categoryId: string | null;
   pathNames: string[];
+  permalink: string | null;
+  canonicalUrl: string | null;
+  itemId: string | null;
   source: MercadoLibreOfferSource;
 };
 
@@ -21,8 +33,10 @@ type MlItemBody = {
   title?: string;
   price?: number;
   original_price?: number;
+  permalink?: string;
   category_id?: string;
   pictures?: Array<{ id?: string; secure_url?: string; url?: string }>;
+  variations?: Array<{ picture_ids?: string[] }>;
 };
 
 type MlProductBody = {
@@ -75,77 +89,68 @@ async function fetchJson(path: string): Promise<{ data: unknown | null; authenti
   return unwrapMlApi(await fetchMlApi(path));
 }
 
-function httpsUrl(raw: string | undefined | null): string | null {
-  if (!raw || !/^https?:\/\//i.test(raw)) return null;
-  return raw.replace(/^http:\/\//i, 'https://');
+function isUsableItem(item: MlItemBody | null): item is MlItemBody {
+  return Boolean(item && !item.error && (item.title || (item.price && item.price > 0) || item.pictures?.length));
 }
 
-function picturesFrom(
-  body: { pictures?: Array<{ id?: string; secure_url?: string; url?: string }> } | null | undefined,
-): string[] {
-  if (!body?.pictures?.length) return [];
-  const out: string[] = [];
-  for (const p of body.pictures) {
-    // Preferir tamaño grande (como scrapers tipo PD): -O / 2X antes que thumbnails.
-    const direct = httpsUrl(p.secure_url || p.url);
-    if (direct) {
-      const upsized = direct
-        .replace(/-I\.(jpg|webp|jpeg|png)/i, '-O.$1')
-        .replace(/D_Q_NP_/i, 'D_NQ_NP_2X_');
-      out.push(upsized);
-    } else if (p.id) {
-      out.push(`https://http2.mlstatic.com/D_NQ_NP_2X_${p.id}-F.webp`);
-    }
-    if (out.length >= 24) break;
-  }
-  return out;
-}
-
-function mergePictures(...lists: string[][]): string[] {
-  const out: string[] = [];
-  for (const list of lists) {
-    for (const u of list) {
-      const key = u.split('?')[0];
-      if (out.some((x) => x.split('?')[0] === key)) continue;
-      out.push(u);
-      if (out.length >= 24) return out;
-    }
-  }
-  return out;
-}
-
-/** Combina dos respuestas ML (API + HTML) sin perder fotos únicas. */
+/** Combina dos respuestas ML (API + HTML) sin perder fotos únicas del mismo item. */
 export function mergeMercadoLibrePublicOffers(
   a: MercadoLibrePublicOffer,
   b: MercadoLibrePublicOffer,
 ): MercadoLibrePublicOffer {
+  const toCandidates = (offer: MercadoLibrePublicOffer): MlImageCandidate[] => {
+    if (offer.pictureCandidates?.length) return offer.pictureCandidates;
+    const source = offer.source === 'ml_api' ? 'ml_api' : 'og';
+    return (offer.pictures ?? []).map((url, index) => ({
+      url,
+      source,
+      sourceItemId: offer.itemId,
+      pictureId: null,
+      isPrimary: index === 0,
+    }));
+  };
+  const itemId = a.itemId ?? b.itemId;
+  // Una sola lista: dedupe por recurso; no aplicar el gate API-vs-scrape entre dos mitades válidas.
+  const mergedCandidates = mergeMlImageCandidates([[...toCandidates(a), ...toCandidates(b)]], {
+    sourceItemId: itemId,
+    minApiToSkipFallback: 1,
+  });
   return {
     title: a.title || b.title,
     price: a.price ?? b.price,
     originalPrice: a.originalPrice ?? b.originalPrice,
-    pictures: mergePictures(a.pictures, b.pictures),
+    pictures: mlImageCandidatesToUrls(mergedCandidates),
+    pictureCandidates: mergedCandidates,
     categoryId: a.categoryId || b.categoryId,
     pathNames: a.pathNames.length >= b.pathNames.length ? a.pathNames : b.pathNames,
+    permalink: a.permalink || b.permalink,
+    canonicalUrl: a.canonicalUrl || b.canonicalUrl,
+    itemId,
     source: a.source === 'ml_api' || b.source === 'ml_api' ? 'ml_api' : 'anonymous',
   };
-}
-
-function isUsableItem(item: MlItemBody | null): item is MlItemBody {
-  return Boolean(item && !item.error && (item.title || (item.price && item.price > 0) || item.pictures?.length));
 }
 
 export async function fetchMercadoLibrePublicOffer(
   rawUrl: string,
   html?: string | null,
 ): Promise<MercadoLibrePublicOffer | null> {
-  const id =
-    extractMercadoLibreItemId(rawUrl) || (html ? extractMercadoLibreItemIdFromHtml(html) : null);
+  const resolved =
+    resolveMercadoLibreItem(rawUrl) ??
+    (html
+      ? (() => {
+          const fromHtml = extractMercadoLibreItemIdFromHtml(html);
+          return fromHtml ? resolveMercadoLibreItem(`https://mercadolibre.com.mx/${fromHtml}`) : null;
+        })()
+      : null);
+
+  const id = resolved?.itemId ?? extractMercadoLibreItemId(rawUrl) ?? (html ? extractMercadoLibreItemIdFromHtml(html) : null);
   if (!id) return null;
 
   let usedAuthenticatedApi = false;
+  const pictureCandidates: MlImageCandidate[] = [];
 
   const itemPath = `/items/${encodeURIComponent(id)}`;
-  const productPath = `/products/${encodeURIComponent(id)}`;
+  const productPath = `/products/${encodeURIComponent(resolved?.catalogProductId ?? id)}`;
 
   const [itemFetch, productFetch] = await Promise.all([fetchJson(itemPath), fetchJson(productPath)]);
   if (itemFetch.authenticated || productFetch.authenticated) usedAuthenticatedApi = true;
@@ -156,8 +161,8 @@ export async function fetchMercadoLibrePublicOffer(
   let title: string | null = null;
   let price: number | null = null;
   let originalPrice: number | null = null;
-  let pictures: string[] = [];
   let categoryId: string | null = null;
+  let permalink: string | null = null;
   let priceItemId: string | null = isUsableItem(item) ? id : null;
 
   if (isUsableItem(item)) {
@@ -165,8 +170,10 @@ export async function fetchMercadoLibrePublicOffer(
     price = typeof item.price === 'number' && item.price > 0 ? item.price : null;
     originalPrice =
       typeof item.original_price === 'number' && item.original_price > 0 ? item.original_price : null;
-    pictures = picturesFrom(item);
+    pictureCandidates.push(...picturesFromMlApiBody(item, id));
+    pictureCandidates.push(...picturesFromMlVariations(item, id));
     categoryId = typeof item.category_id === 'string' ? item.category_id : null;
+    permalink = typeof item.permalink === 'string' ? item.permalink : null;
   }
 
   if (product && !product.error) {
@@ -180,7 +187,7 @@ export async function fetchMercadoLibrePublicOffer(
     ) {
       originalPrice = originalPrice ?? product.buy_box_winner.original_price;
     }
-    pictures = mergePictures(pictures, picturesFrom(product));
+    pictureCandidates.push(...picturesFromMlApiBody(product, id));
 
     const winnerId = product.buy_box_winner?.item_id;
     if (winnerId && winnerId !== id) {
@@ -188,6 +195,7 @@ export async function fetchMercadoLibrePublicOffer(
       if (winnerFetch.authenticated) usedAuthenticatedApi = true;
       const winner = winnerFetch.data as MlItemBody | null;
       if (isUsableItem(winner)) {
+        // Precio/título del buy-box OK; fotos de OTRO item_id no se mezclan.
         priceItemId = winnerId;
         title = title || (typeof winner.title === 'string' ? winner.title : null);
         if (typeof winner.price === 'number' && winner.price > 0) price = price ?? winner.price;
@@ -195,7 +203,7 @@ export async function fetchMercadoLibrePublicOffer(
           originalPrice = originalPrice ?? winner.original_price;
         }
         categoryId = categoryId || (typeof winner.category_id === 'string' ? winner.category_id : null);
-        pictures = mergePictures(pictures, picturesFrom(winner));
+        permalink = permalink || (typeof winner.permalink === 'string' ? winner.permalink : null);
       }
     } else if (product.buy_box_winner?.item_id) {
       priceItemId = product.buy_box_winner.item_id;
@@ -221,14 +229,28 @@ export async function fetchMercadoLibrePublicOffer(
     }
   }
 
+  const mergedCandidates = mergeMlImageCandidates([pictureCandidates], { sourceItemId: id });
+  const pictures = mlImageCandidatesToUrls(mergedCandidates);
+
+  const canonicalUrl =
+    permalink ||
+    resolved?.canonicalUrl ||
+    (resolved?.catalogProductId
+      ? `https://www.mercadolibre.com.mx/p/${resolved.catalogProductId}?wid=${id}`
+      : null);
+
   if (!title && !price && pictures.length === 0) return null;
   return {
     title,
     price,
     originalPrice,
     pictures,
+    pictureCandidates: mergedCandidates,
     categoryId,
     pathNames,
+    permalink,
+    canonicalUrl,
+    itemId: id,
     source: usedAuthenticatedApi ? 'ml_api' : 'anonymous',
   };
 }
