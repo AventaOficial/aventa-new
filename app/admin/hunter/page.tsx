@@ -114,6 +114,7 @@ type HunterHealthPayload = {
     averageValidImages: number;
     affiliateReadinessPct: number;
     urlResolutionPct: number;
+    priceResolutionPct: number;
     urlsReceived: number;
     urlsResolved: number;
     apiSuccess: number;
@@ -126,6 +127,16 @@ type HunterHealthPayload = {
     imagesRejected: number;
     affiliateReady: number;
     affiliateMissing: number;
+    mlPriceRequests: number;
+    mlPriceResolved: number;
+    mlPriceUnavailable: number;
+    mlPrice401: number;
+    mlPrice403: number;
+    mlPrice404: number;
+    mlPrice429: number;
+    mlPriceTimeout: number;
+    mlPriceFallback: number;
+    mlPriceSourceBreakdown: Record<string, number>;
   };
   dealVerifier?: {
     evaluated: number;
@@ -834,10 +845,11 @@ export default function HunterPage() {
               <>
                 <div className="mt-3 flex flex-wrap gap-3">
                   <KpiCard label="API" value={mlQuality.apiHealth.toUpperCase()} />
-                  <KpiCard label="Imágenes válidas" value={`${mlQuality.imageQualityPct}%`} />
-                  <KpiCard label="Prom. fotos" value={String(mlQuality.averageValidImages)} />
-                  <KpiCard label="Affiliate ready" value={`${mlQuality.affiliateReadinessPct}%`} />
                   <KpiCard label="URL resueltas" value={`${mlQuality.urlResolutionPct}%`} />
+                  <KpiCard label="Imágenes" value={`${mlQuality.imageQualityPct}%`} />
+                  <KpiCard label="Precio" value={`${mlQuality.priceResolutionPct}%`} />
+                  <KpiCard label="Affiliate ready" value={`${mlQuality.affiliateReadinessPct}%`} />
+                  <KpiCard label="Prom. fotos" value={String(mlQuality.averageValidImages)} />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/45">
                   <span>urls {mlQuality.urlsReceived}</span>
@@ -850,6 +862,18 @@ export default function HunterPage() {
                   <span>img api {mlQuality.imagesApi}</span>
                   <span>img fb {mlQuality.imagesFallback}</span>
                   <span>rejected {mlQuality.imagesRejected}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-white/45">
+                  <span>price req {mlQuality.mlPriceRequests}</span>
+                  <span>price ok {mlQuality.mlPriceResolved}</span>
+                  <span>price miss {mlQuality.mlPriceUnavailable}</span>
+                  <span>price 403 {mlQuality.mlPrice403}</span>
+                  <span>price fb {mlQuality.mlPriceFallback}</span>
+                  {Object.entries(mlQuality.mlPriceSourceBreakdown ?? {}).map(([src, n]) => (
+                    <span key={src}>
+                      {src} {n}
+                    </span>
+                  ))}
                 </div>
               </>
             ) : (

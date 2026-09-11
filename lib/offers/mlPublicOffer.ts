@@ -11,6 +11,7 @@ import {
   type MlImageCandidate,
 } from '@/lib/offers/mlImageProvenance';
 import { extractMercadoLibreItemIdFromHtml } from '@/lib/offers/parseOfferPageHtml';
+import { resolveMercadoLibrePrice } from '@/lib/offers/resolveMercadoLibrePrice';
 
 export type MercadoLibreOfferSource = 'ml_api' | 'anonymous';
 
@@ -18,6 +19,8 @@ export type MercadoLibrePublicOffer = {
   title: string | null;
   price: number | null;
   originalPrice: number | null;
+  currency: string | null;
+  priceSource: string | null;
   pictures: string[];
   pictureCandidates: MlImageCandidate[];
   categoryId: string | null;
@@ -25,6 +28,7 @@ export type MercadoLibrePublicOffer = {
   permalink: string | null;
   canonicalUrl: string | null;
   itemId: string | null;
+  catalogProductId: string | null;
   source: MercadoLibreOfferSource;
 };
 
@@ -42,20 +46,10 @@ type MlItemBody = {
 type MlProductBody = {
   error?: string;
   name?: string;
+  permalink?: string;
   pictures?: Array<{ id?: string; url?: string }>;
   buy_box_winner?: { price?: number; original_price?: number; item_id?: string };
 };
-
-type MlPriceRow = {
-  type?: string;
-  amount?: number;
-  regular_amount?: number | null;
-};
-
-function finitePrice(n: unknown): number | null {
-  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return null;
-  return n;
-}
 
 function unwrapMlApi(result: FetchMlApiResult): { data: unknown | null; authenticated: boolean } {
   if (result.ok) return { data: result.data, authenticated: result.authenticated };
@@ -67,30 +61,12 @@ function unwrapMlApi(result: FetchMlApiResult): { data: unknown | null; authenti
   return { data: null, authenticated: result.authenticated };
 }
 
-async function fetchItemPrices(
-  itemId: string,
-): Promise<{ price: number | null; originalPrice: number | null; authenticated: boolean }> {
-  const result = unwrapMlApi(await fetchMlApi(`/items/${encodeURIComponent(itemId)}/prices`));
-  if (!result.data) {
-    return { price: null, originalPrice: null, authenticated: result.authenticated };
-  }
-  const body = result.data as { prices?: MlPriceRow[] };
-  const rows = body.prices ?? [];
-  const promo = rows.find((p) => (p.type ?? '').toLowerCase() === 'promotion');
-  const standard = rows.find((p) => (p.type ?? '').toLowerCase() === 'standard');
-  const price = finitePrice(promo?.amount) ?? finitePrice(standard?.amount);
-  const originalPrice =
-    finitePrice(promo?.regular_amount) ??
-    (price != null && finitePrice(standard?.amount) !== price ? finitePrice(standard?.amount) : null);
-  return { price, originalPrice, authenticated: result.authenticated };
-}
-
 async function fetchJson(path: string): Promise<{ data: unknown | null; authenticated: boolean }> {
   return unwrapMlApi(await fetchMlApi(path));
 }
 
 function isUsableItem(item: MlItemBody | null): item is MlItemBody {
-  return Boolean(item && !item.error && (item.title || (item.price && item.price > 0) || item.pictures?.length));
+  return Boolean(item && !item.error && (item.title || item.pictures?.length));
 }
 
 /** Combina dos respuestas ML (API + HTML) sin perder fotos únicas del mismo item. */
@@ -110,7 +86,6 @@ export function mergeMercadoLibrePublicOffers(
     }));
   };
   const itemId = a.itemId ?? b.itemId;
-  // Una sola lista: dedupe por recurso; no aplicar el gate API-vs-scrape entre dos mitades válidas.
   const mergedCandidates = mergeMlImageCandidates([[...toCandidates(a), ...toCandidates(b)]], {
     sourceItemId: itemId,
     minApiToSkipFallback: 1,
@@ -119,6 +94,8 @@ export function mergeMercadoLibrePublicOffers(
     title: a.title || b.title,
     price: a.price ?? b.price,
     originalPrice: a.originalPrice ?? b.originalPrice,
+    currency: a.currency || b.currency,
+    priceSource: a.priceSource || b.priceSource,
     pictures: mlImageCandidatesToUrls(mergedCandidates),
     pictureCandidates: mergedCandidates,
     categoryId: a.categoryId || b.categoryId,
@@ -126,6 +103,7 @@ export function mergeMercadoLibrePublicOffers(
     permalink: a.permalink || b.permalink,
     canonicalUrl: a.canonicalUrl || b.canonicalUrl,
     itemId,
+    catalogProductId: a.catalogProductId || b.catalogProductId,
     source: a.source === 'ml_api' || b.source === 'ml_api' ? 'ml_api' : 'anonymous',
   };
 }
@@ -143,14 +121,18 @@ export async function fetchMercadoLibrePublicOffer(
         })()
       : null);
 
-  const id = resolved?.itemId ?? extractMercadoLibreItemId(rawUrl) ?? (html ? extractMercadoLibreItemIdFromHtml(html) : null);
+  const id =
+    resolved?.itemId ??
+    extractMercadoLibreItemId(rawUrl) ??
+    (html ? extractMercadoLibreItemIdFromHtml(html) : null);
   if (!id) return null;
 
+  const catalogProductId = resolved?.catalogProductId ?? null;
   let usedAuthenticatedApi = false;
   const pictureCandidates: MlImageCandidate[] = [];
 
   const itemPath = `/items/${encodeURIComponent(id)}`;
-  const productPath = `/products/${encodeURIComponent(resolved?.catalogProductId ?? id)}`;
+  const productPath = `/products/${encodeURIComponent(catalogProductId ?? id)}`;
 
   const [itemFetch, productFetch] = await Promise.all([fetchJson(itemPath), fetchJson(productPath)]);
   if (itemFetch.authenticated || productFetch.authenticated) usedAuthenticatedApi = true;
@@ -159,17 +141,11 @@ export async function fetchMercadoLibrePublicOffer(
   const product = productFetch.data as MlProductBody | null;
 
   let title: string | null = null;
-  let price: number | null = null;
-  let originalPrice: number | null = null;
   let categoryId: string | null = null;
   let permalink: string | null = null;
-  let priceItemId: string | null = isUsableItem(item) ? id : null;
 
   if (isUsableItem(item)) {
     title = typeof item.title === 'string' ? item.title : null;
-    price = typeof item.price === 'number' && item.price > 0 ? item.price : null;
-    originalPrice =
-      typeof item.original_price === 'number' && item.original_price > 0 ? item.original_price : null;
     pictureCandidates.push(...picturesFromMlApiBody(item, id));
     pictureCandidates.push(...picturesFromMlVariations(item, id));
     categoryId = typeof item.category_id === 'string' ? item.category_id : null;
@@ -178,44 +154,21 @@ export async function fetchMercadoLibrePublicOffer(
 
   if (product && !product.error) {
     title = title || (typeof product.name === 'string' ? product.name : null);
-    if (typeof product.buy_box_winner?.price === 'number' && product.buy_box_winner.price > 0) {
-      price = price ?? product.buy_box_winner.price;
-    }
-    if (
-      typeof product.buy_box_winner?.original_price === 'number' &&
-      product.buy_box_winner.original_price > 0
-    ) {
-      originalPrice = originalPrice ?? product.buy_box_winner.original_price;
-    }
+    permalink = permalink || (typeof product.permalink === 'string' ? product.permalink : null);
     pictureCandidates.push(...picturesFromMlApiBody(product, id));
-
-    const winnerId = product.buy_box_winner?.item_id;
-    if (winnerId && winnerId !== id) {
-      const winnerFetch = await fetchJson(`/items/${encodeURIComponent(winnerId)}`);
-      if (winnerFetch.authenticated) usedAuthenticatedApi = true;
-      const winner = winnerFetch.data as MlItemBody | null;
-      if (isUsableItem(winner)) {
-        // Precio/título del buy-box OK; fotos de OTRO item_id no se mezclan.
-        priceItemId = winnerId;
-        title = title || (typeof winner.title === 'string' ? winner.title : null);
-        if (typeof winner.price === 'number' && winner.price > 0) price = price ?? winner.price;
-        if (typeof winner.original_price === 'number' && winner.original_price > 0) {
-          originalPrice = originalPrice ?? winner.original_price;
-        }
-        categoryId = categoryId || (typeof winner.category_id === 'string' ? winner.category_id : null);
-        permalink = permalink || (typeof winner.permalink === 'string' ? winner.permalink : null);
-      }
-    } else if (product.buy_box_winner?.item_id) {
-      priceItemId = product.buy_box_winner.item_id;
-    }
   }
 
-  if (priceItemId) {
-    const quote = await fetchItemPrices(priceItemId);
-    if (quote.authenticated) usedAuthenticatedApi = true;
-    if (quote.price != null) price = quote.price;
-    if (quote.originalPrice != null) originalPrice = quote.originalPrice;
-  }
+  // Precio: resolver oficial único (prices → sale_price → products/items exact match).
+  // No usar price/original_price deprecados de /items como fuente primaria.
+  const priceResolution = await resolveMercadoLibrePrice({
+    itemId: id,
+    siteId: resolved?.siteId,
+    catalogProductId,
+  });
+  if (priceResolution.status === 'resolved') usedAuthenticatedApi = true;
+
+  const price = priceResolution.price;
+  const originalPrice = priceResolution.originalPrice;
 
   const pathNames: string[] = [];
   if (categoryId) {
@@ -235,8 +188,8 @@ export async function fetchMercadoLibrePublicOffer(
   const canonicalUrl =
     permalink ||
     resolved?.canonicalUrl ||
-    (resolved?.catalogProductId
-      ? `https://www.mercadolibre.com.mx/p/${resolved.catalogProductId}?wid=${id}`
+    (catalogProductId
+      ? `https://www.mercadolibre.com.mx/p/${catalogProductId}?wid=${id}`
       : null);
 
   if (!title && !price && pictures.length === 0) return null;
@@ -244,6 +197,8 @@ export async function fetchMercadoLibrePublicOffer(
     title,
     price,
     originalPrice,
+    currency: priceResolution.currency,
+    priceSource: priceResolution.resolvedBy,
     pictures,
     pictureCandidates: mergedCandidates,
     categoryId,
@@ -251,6 +206,7 @@ export async function fetchMercadoLibrePublicOffer(
     permalink,
     canonicalUrl,
     itemId: id,
+    catalogProductId,
     source: usedAuthenticatedApi ? 'ml_api' : 'anonymous',
   };
 }

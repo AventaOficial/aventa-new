@@ -288,10 +288,14 @@ export async function enrichMercadoLibrePriceIntel(args: {
   const productId = normalizeMlProductId(args.itemId) ?? normalizeMlProductId(args.url);
   if (!productId || !Number.isFinite(args.current) || args.current <= 0) return null;
 
-  const quote = await fetchMlItemPriceQuote(productId, {
-    current: args.current,
-    listPrice: args.listPrice,
-  });
+  const quote = await fetchMlItemPriceQuote(
+    productId,
+    {
+      current: args.current,
+      listPrice: args.listPrice,
+    },
+    { url: args.url, catalogProductId: null },
+  );
 
   await recordMlDailySnapshots([
     {

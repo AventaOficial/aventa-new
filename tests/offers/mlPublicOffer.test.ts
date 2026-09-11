@@ -18,6 +18,20 @@ describe('fetchMercadoLibrePublicOffer', () => {
   it('marca source ml_api cuando la API autenticada responde', async () => {
     fetchMlApiMock.mockImplementation(async (path: string) => {
       if (path.startsWith('/items/') && path.endsWith('/prices')) {
+        return {
+          ok: true,
+          authenticated: true,
+          status: 200,
+          data: {
+            currency_id: 'MXN',
+            prices: [
+              { type: 'promotion', amount: 9999, regular_amount: 12999 },
+              { type: 'standard', amount: 12999 },
+            ],
+          },
+        };
+      }
+      if (path.includes('/sale_price')) {
         return { ok: false, status: 404, authenticated: true };
       }
       if (path.startsWith('/items/')) {
@@ -27,8 +41,6 @@ describe('fetchMercadoLibrePublicOffer', () => {
           status: 200,
           data: {
             title: 'Laptop Gamer',
-            price: 9999,
-            original_price: 12999,
             category_id: 'MLM1144',
             pictures: [
               { secure_url: 'https://http2.mlstatic.com/D_NQ_NP_2X_111-I.webp' },
@@ -59,6 +71,8 @@ describe('fetchMercadoLibrePublicOffer', () => {
     expect(result?.source).toBe('ml_api');
     expect(result?.price).toBe(9999);
     expect(result?.originalPrice).toBe(12999);
+    expect(result?.currency).toBe('MXN');
+    expect(result?.priceSource).toBe('items_prices');
     expect(result?.pictures.length).toBeGreaterThanOrEqual(2);
     expect(result?.categoryId).toBe('MLM1144');
     expect(result?.pathNames).toContain('Videojuegos');
@@ -67,6 +81,17 @@ describe('fetchMercadoLibrePublicOffer', () => {
   it('no inventa original_price cuando falta en API', async () => {
     fetchMlApiMock.mockImplementation(async (path: string) => {
       if (path.startsWith('/items/') && path.endsWith('/prices')) {
+        return {
+          ok: true,
+          authenticated: true,
+          status: 200,
+          data: {
+            currency_id: 'MXN',
+            prices: [{ type: 'standard', amount: 500 }],
+          },
+        };
+      }
+      if (path.includes('/sale_price')) {
         return { ok: false, status: 404, authenticated: true };
       }
       if (path.startsWith('/items/')) {
@@ -76,7 +101,6 @@ describe('fetchMercadoLibrePublicOffer', () => {
           status: 200,
           data: {
             title: 'Producto',
-            price: 500,
             pictures: [{ secure_url: 'https://http2.mlstatic.com/D_NQ_NP_2X_333-I.webp' }],
           },
         };
@@ -100,6 +124,8 @@ describe('fetchMercadoLibrePublicOffer', () => {
         title: 'A',
         price: 100,
         originalPrice: null,
+        currency: 'MXN',
+        priceSource: 'items_prices',
         pictures: [
           'https://http2.mlstatic.com/D_NQ_NP_2X_111-I.webp',
           'https://http2.mlstatic.com/D_NQ_NP_2X_222-I.webp',
@@ -125,12 +151,15 @@ describe('fetchMercadoLibrePublicOffer', () => {
         permalink: null,
         canonicalUrl: null,
         itemId: 'MLM1',
+        catalogProductId: null,
         source: 'ml_api',
       },
       {
         title: null,
         price: null,
         originalPrice: null,
+        currency: null,
+        priceSource: null,
         pictures: [
           'https://http2.mlstatic.com/D_NQ_NP_2X_222-I.webp',
           'https://http2.mlstatic.com/D_NQ_NP_2X_333-I.webp',
@@ -156,6 +185,7 @@ describe('fetchMercadoLibrePublicOffer', () => {
         permalink: null,
         canonicalUrl: null,
         itemId: 'MLM1',
+        catalogProductId: null,
         source: 'anonymous',
       },
     );

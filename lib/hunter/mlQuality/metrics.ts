@@ -3,6 +3,8 @@
  * Persistencia: memoria del proceso (mismo patrón que enrichment).
  */
 
+export type MlPriceSourceKey = 'items_prices' | 'items_sale_price' | 'products_items';
+
 export type MlQualityMetricsSnapshot = {
   urlsReceived: number;
   urlsResolved: number;
@@ -18,11 +20,23 @@ export type MlQualityMetricsSnapshot = {
   imageCountSamples: number;
   affiliateReady: number;
   affiliateMissing: number;
+  mlPriceRequests: number;
+  mlPriceResolved: number;
+  mlPriceUnavailable: number;
+  mlPrice401: number;
+  mlPrice403: number;
+  mlPrice404: number;
+  mlPrice429: number;
+  mlPriceTimeout: number;
+  mlPriceFallback: number;
+  mlPriceCacheHits: number;
+  mlPriceSourceBreakdown: Record<MlPriceSourceKey, number>;
   apiHealth: 'healthy' | 'degraded' | 'down';
   imageQualityPct: number;
   averageValidImages: number;
   affiliateReadinessPct: number;
   urlResolutionPct: number;
+  priceResolutionPct: number;
   persistence: 'process_memory';
 };
 
@@ -41,6 +55,21 @@ const totals = {
   imageCountSamples: 0,
   affiliateReady: 0,
   affiliateMissing: 0,
+  mlPriceRequests: 0,
+  mlPriceResolved: 0,
+  mlPriceUnavailable: 0,
+  mlPrice401: 0,
+  mlPrice403: 0,
+  mlPrice404: 0,
+  mlPrice429: 0,
+  mlPriceTimeout: 0,
+  mlPriceFallback: 0,
+  mlPriceCacheHits: 0,
+  mlPriceSourceBreakdown: {
+    items_prices: 0,
+    items_sale_price: 0,
+    products_items: 0,
+  } as Record<MlPriceSourceKey, number>,
 };
 
 export type RecordMlQualityEvent = {
@@ -52,6 +81,20 @@ export type RecordMlQualityEvent = {
   imagesFromFallback?: number;
   imagesRejected?: number;
   affiliateReady?: boolean;
+};
+
+export type RecordMlPriceQualityEvent = {
+  request?: boolean;
+  resolved?: boolean;
+  unavailable?: boolean;
+  status401?: boolean;
+  status403?: boolean;
+  status404?: boolean;
+  status429?: boolean;
+  timeout?: boolean;
+  fallback?: boolean;
+  cacheHit?: boolean;
+  source?: MlPriceSourceKey;
 };
 
 export function recordMlQuality(event: RecordMlQualityEvent) {
@@ -72,6 +115,20 @@ export function recordMlQuality(event: RecordMlQualityEvent) {
   }
   if (event.affiliateReady === true) totals.affiliateReady += 1;
   if (event.affiliateReady === false) totals.affiliateMissing += 1;
+}
+
+export function recordMlPriceQuality(event: RecordMlPriceQualityEvent) {
+  if (event.request) totals.mlPriceRequests += 1;
+  if (event.resolved) totals.mlPriceResolved += 1;
+  if (event.unavailable) totals.mlPriceUnavailable += 1;
+  if (event.status401) totals.mlPrice401 += 1;
+  if (event.status403) totals.mlPrice403 += 1;
+  if (event.status404) totals.mlPrice404 += 1;
+  if (event.status429) totals.mlPrice429 += 1;
+  if (event.timeout) totals.mlPriceTimeout += 1;
+  if (event.fallback) totals.mlPriceFallback += 1;
+  if (event.cacheHit) totals.mlPriceCacheHits += 1;
+  if (event.source) totals.mlPriceSourceBreakdown[event.source] += 1;
 }
 
 function pct(num: number, den: number): number {
@@ -95,13 +152,16 @@ export function getMlQualityMetrics(): MlQualityMetricsSnapshot {
       ? Math.round((totals.imageCountSum / totals.imageCountSamples) * 10) / 10
       : 0;
   const affiliateTotal = totals.affiliateReady + totals.affiliateMissing;
+  const priceAttempts = totals.mlPriceResolved + totals.mlPriceUnavailable;
   return {
     ...totals,
+    mlPriceSourceBreakdown: { ...totals.mlPriceSourceBreakdown },
     apiHealth: classifyApiHealth(),
     imageQualityPct: pct(totals.imagesApi, totals.imagesApi + totals.imagesFallback + totals.imagesRejected),
     averageValidImages: avgImages,
     affiliateReadinessPct: pct(totals.affiliateReady, affiliateTotal),
     urlResolutionPct: pct(totals.urlsResolved, totals.urlsReceived),
+    priceResolutionPct: pct(totals.mlPriceResolved, priceAttempts),
     persistence: 'process_memory',
   };
 }
@@ -121,4 +181,19 @@ export function resetMlQualityMetrics() {
   totals.imageCountSamples = 0;
   totals.affiliateReady = 0;
   totals.affiliateMissing = 0;
+  totals.mlPriceRequests = 0;
+  totals.mlPriceResolved = 0;
+  totals.mlPriceUnavailable = 0;
+  totals.mlPrice401 = 0;
+  totals.mlPrice403 = 0;
+  totals.mlPrice404 = 0;
+  totals.mlPrice429 = 0;
+  totals.mlPriceTimeout = 0;
+  totals.mlPriceFallback = 0;
+  totals.mlPriceCacheHits = 0;
+  totals.mlPriceSourceBreakdown = {
+    items_prices: 0,
+    items_sale_price: 0,
+    products_items: 0,
+  };
 }
