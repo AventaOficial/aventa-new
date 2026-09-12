@@ -26,8 +26,11 @@ import {
   createDuplicateShadowContext,
   hunterSourceForIngest,
   observeIngestShadow,
+  peekCurrentShadowCycleId,
   persistShadowCycleSnapshot,
+  recordShadowOutcomeFromAutonomous,
 } from '@/lib/autonomous';
+import type { AutonomousDecisionResult } from '@/lib/autonomous/types';
 import { acquireIngestCycleLock, releaseIngestCycleLock } from './ingestCycleLock';
 import { getHunterHealth } from '@/lib/hunter/healthStore';
 import type { HunterHealthStatus, HunterSourceId } from '@/lib/hunter/types';
@@ -392,6 +395,7 @@ export async function processExternalWorkerBatch(
     decision: 'auto_approve' | 'pending' | 'reject';
     total: number;
     breakdown: ScoreBreakdown;
+    autonomous: AutonomousDecisionResult | null;
   };
   const resolved: Resolved[] = [];
   let scoreRejected = 0;
@@ -469,7 +473,7 @@ export async function processExternalWorkerBatch(
         enableWorkerAutoApprove: true,
       });
       // Insert-time duplicate SÍ se observa (ya pasó gates + verifier). Dedupe intra-lote no.
-      await observeIngestShadow({
+      const autonomous = await observeIngestShadow({
         verifier: verified,
         meta,
         source: item.source,
@@ -494,6 +498,7 @@ export async function processExternalWorkerBatch(
         decision: verified.ingestDecision,
         total: verified.score,
         breakdown: verified.breakdown,
+        autonomous,
       });
       stageCounts.resolved += 1;
     } catch (error) {
@@ -560,6 +565,13 @@ export async function processExternalWorkerBatch(
       });
       if (ins.ok) {
         insertedThisRun += 1;
+        void recordShadowOutcomeFromAutonomous({
+          offerId: ins.offerId,
+          result: row.autonomous,
+          sourceId: row.item.source,
+          sourceDetail: row.item.sourceDetail,
+          shadowCycleId: peekCurrentShadowCycleId(),
+        });
         results.push({ url: row.item.url, source: row.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[row.item.source].inserted += 1;
         if (status === 'approved') autoApproved += 1;

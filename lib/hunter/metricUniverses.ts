@@ -42,6 +42,15 @@ export const HUNTER_METRIC_UNIVERSES = {
     evaluated:
       'Mismo universo que autonomousShadow, pero con alcance de UN ciclo y escrito al cerrarlo. Es lo único que el panel admin puede leer del isolate del worker. No es realtime.',
   },
+  autonomousCalibration: {
+    persistence: 'supabase_hunter_shadow_outcomes',
+    note: 'FASE 11. Correlación shadow decision ↔ human outcome por offer_id. No mezclar con hunter_shadow_cycles ni offers.status. UNKNOWN si la identidad no es fiable.',
+    shadowEvaluated: 'Filas persistidas tras insert con decisión Autonomous. No incluye candidatos nunca insertados.',
+    shadowMatched: 'HUMAN_APPROVED + HUMAN_REJECTED desde moderation_logs / acciones staff. No bot-approved.',
+    autoApprovePrecision: 'HUMAN_APPROVED / (HUMAN_APPROVED + HUMAN_REJECTED) entre AUTO_APPROVE. UNKNOWN no cuenta.',
+    collection:
+      'FASE 11.1 volumen de recolección. matchRate = matched / offersWithShadow. Awaiting = HUMAN_PENDING, no reject. Expire automático = UNKNOWN + system_lifecycle, no HUMAN_EXPIRED.',
+  },
 } as const;
 
 export type HunterMetricUniverses = typeof HUNTER_METRIC_UNIVERSES;

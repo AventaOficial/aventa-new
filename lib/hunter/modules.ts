@@ -76,6 +76,14 @@ export const HUNTER_MODULES: HunterModule[] = [
     code: 'lib/autonomous/decide.ts',
   },
   {
+    id: 'calibration',
+    emoji: '🎯',
+    name: 'Autonomous Calibration',
+    job: 'Mide si Shadow coincide con el humano. No cambia status, policy ni thresholds.',
+    status: 'live',
+    code: 'lib/autonomous/calibration/getCalibration.ts',
+  },
+  {
     id: 'copy',
     emoji: '✍️',
     name: 'Copy Agent',

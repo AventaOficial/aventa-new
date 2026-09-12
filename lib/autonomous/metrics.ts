@@ -257,6 +257,11 @@ export type RecordAutonomousMeta = {
  * Marca el inicio de un ciclo real de ingest/worker.
  * El ciclo anterior queda en lastCycle. Totales de proceso se conservan.
  */
+export function peekCurrentShadowCycleId(): string | null {
+  const id = cycleScoped.id?.trim() ?? '';
+  return id || null;
+}
+
 export function beginAutonomousShadowCycle(now: Date = new Date()) {
   if (currentCycle.evaluated > 0) {
     lastCycle = cycleFrom(currentCycle, currentCycleStartedAt, lastAt);

@@ -18,6 +18,7 @@ export {
   recordAutonomousDecision,
   resetAutonomousDecisionMetrics,
   beginAutonomousShadowCycle,
+  peekCurrentShadowCycleId,
   canonicalShadowSource,
   type AutonomousDecisionMetricsSnapshot,
   type AutonomousCycleSnapshot,
@@ -44,6 +45,15 @@ export {
   SHADOW_REASON_LABELS,
   type ShadowReasonCode,
 } from './reasonCodes';
+export {
+  captureAutomaticExpireOutcome,
+  captureHumanModerationOutcome,
+  getShadowCalibration,
+  recordHumanOutcome,
+  recordShadowOutcome,
+  recordShadowOutcomeFromAutonomous,
+} from './calibration';
+export type { CalibrationSnapshot, HumanOutcome } from './calibration';
 export type {
   AutonomousDecision,
   AutonomousDecisionChecks,

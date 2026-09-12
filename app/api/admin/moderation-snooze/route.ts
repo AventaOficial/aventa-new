@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock';
+import { captureHumanModerationOutcome } from '@/lib/autonomous';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  void captureHumanModerationOutcome(offerId, 'snoozed');
 
   return NextResponse.json({ ok: true, snoozedUntil: until, minutes });
 }

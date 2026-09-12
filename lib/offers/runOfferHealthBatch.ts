@@ -5,6 +5,7 @@ import {
   getOfferAutoApproveExpiryIso,
   OFFER_AUTO_APPROVE_TTL_MS,
 } from '@/lib/server/offerAutoApprove';
+import { captureAutomaticExpireOutcome } from '@/lib/autonomous';
 
 const BATCH_LIMIT = 25;
 const DELAY_MS = 800;
@@ -215,7 +216,10 @@ export async function runOfferHealthBatch(opts?: {
             .update({ expires_at: now })
             .eq('id', row.id)
             .or(`expires_at.is.null,expires_at.gt.${now}`);
-          if (!expErr) result.expired += 1;
+          if (!expErr) {
+            result.expired += 1;
+            void captureAutomaticExpireOutcome(row.id);
+          }
         } else if (
           evaluation.status === 'available' &&
           (outboundMap.get(row.id) ?? 0) >= EXTEND_MIN_OUTBOUND_7D

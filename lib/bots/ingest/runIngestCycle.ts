@@ -25,8 +25,11 @@ import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
   observeIngestShadow,
+  peekCurrentShadowCycleId,
   persistShadowCycleSnapshot,
+  recordShadowOutcomeFromAutonomous,
 } from '@/lib/autonomous';
+import type { AutonomousDecisionResult } from '@/lib/autonomous/types';
 import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
 import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
 
@@ -243,6 +246,7 @@ export async function runIngestCycleForProfile(
     decision: 'auto_approve' | 'pending' | 'reject';
     total: number;
     breakdown: ScoreBreakdown;
+    autonomous: AutonomousDecisionResult | null;
   };
 
   const resolved: Resolved[] = [];
@@ -331,7 +335,7 @@ export async function runIngestCycleForProfile(
         url: item.url,
       });
       // Duplicado de insert (más abajo) sí se observó. Skips de quality, no.
-      await observeIngestShadow({
+      const autonomous = await observeIngestShadow({
         verifier: verified,
         meta,
         source: item.source,
@@ -360,6 +364,7 @@ export async function runIngestCycleForProfile(
         decision: verified.ingestDecision,
         total: verified.score,
         breakdown: verified.breakdown,
+        autonomous,
       });
       stageCounts.resolved += 1;
     } catch (e) {
@@ -398,6 +403,13 @@ export async function runIngestCycleForProfile(
       });
       if (ins.ok) {
         insertedThisRun += 1;
+        void recordShadowOutcomeFromAutonomous({
+          offerId: ins.offerId,
+          result: r.autonomous,
+          sourceId: r.item.source,
+          sourceDetail: r.item.sourceDetail,
+          shadowCycleId: peekCurrentShadowCycleId(),
+        });
         results.push({ url: r.item.url, source: r.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[r.item.source].inserted += 1;
         if (status === 'approved') autoApproved += 1;

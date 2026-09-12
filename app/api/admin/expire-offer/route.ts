@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess';
 import { isValidUuid } from '@/lib/server/validateUuid';
+import { captureHumanModerationOutcome } from '@/lib/autonomous';
 
 /** POST: marca una oferta como expirada (expires_at = ahora). Solo mods. */
 export async function POST(request: Request) {
@@ -61,6 +62,8 @@ export async function POST(request: Request) {
   } catch {
     // tabla puede no existir o no tener action 'expired'
   }
+
+  void captureHumanModerationOutcome(offerId, 'expired');
 
   return NextResponse.json({ ok: true });
 }

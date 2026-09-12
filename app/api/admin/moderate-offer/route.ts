@@ -16,6 +16,7 @@ import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess'
+import { captureHumanModerationOutcome } from '@/lib/autonomous'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -254,6 +255,8 @@ export async function POST(request: Request) {
       reason: reason ?? null,
     })
     if (logError) console.error('[moderate-offer] log insert failed:', logError.message)
+
+    void captureHumanModerationOutcome(id, status)
 
     if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 

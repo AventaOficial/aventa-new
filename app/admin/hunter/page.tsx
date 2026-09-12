@@ -254,6 +254,67 @@ type HunterHealthPayload = {
     };
     persistence?: 'process_memory';
   };
+  autonomousCalibration?: {
+    recommendedAction: string;
+    policyVersion: string;
+    counts: {
+      shadowEvaluated: number;
+      shadowMatched: number;
+      shadowUnknown: number;
+      autoApprove: number;
+      autoReject: number;
+      humanReview: number;
+      agreement: number;
+      disagreement: number;
+    };
+    agreementRate: { display: string; sufficiency: string; sampleSize: number };
+    autoApprovePrecision: { display: string; sufficiency: string; sampleSize: number };
+    autoRejectPrecision: { display: string; sufficiency: string; sampleSize: number };
+    reviewApprovalRate: { display: string; sufficiency: string; sampleSize: number };
+    reviewRejectRate: { display: string; sufficiency: string; sampleSize: number };
+    disagreementRate: { display: string; sufficiency: string; sampleSize: number };
+    collection?: {
+      status: string;
+      shadowSnapshots: number;
+      matched: number;
+      awaitingOutcomes: number;
+      unknown: number;
+      approvedOutcomes: number;
+      rejectedOutcomes: number;
+      snoozedOutcomes: number;
+      expiredOutcomes: number;
+      matchRate: { display: string; sufficiency: string };
+      lastShadowSnapshotAt: string | null;
+      lastHumanOutcomeAt: string | null;
+      sufficiency: string;
+      byDecision: Array<{
+        decision: string;
+        snapshots: number;
+        matched: number;
+        approved: number;
+        rejected: number;
+        pending: number;
+        unknown: number;
+      }>;
+      bySource: Array<{
+        sourceId: string;
+        sourceFamily: string;
+        sourceLane: string;
+        snapshots: number;
+        matched: number;
+        approved: number;
+        rejected: number;
+        pending: number;
+        matchRate: { display: string };
+      }>;
+      alerts: {
+        noNewShadowSnapshots: boolean;
+        noHumanOutcomes: boolean;
+        matchRateCollapse: boolean;
+        dbWriteFailures: boolean;
+      };
+    };
+  };
   hunterEnrichment?: {
     candidatesFound: number;
     enriched: number;
@@ -349,6 +410,7 @@ export default function HunterPage() {
   const scheduler = health?.schedulerHealth ?? null;
   const dayToDay = health?.dayToDay ?? null;
   const mlQuality = health?.mercadoLibreQuality ?? null;
+  const calibration = health?.autonomousCalibration ?? null;
 
   const runNow = async () => {
     setRunning(true);
@@ -778,6 +840,109 @@ export default function HunterPage() {
                   </li>
                 ))}
               </ul>
+            ) : null}
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Calibration Data"
+              subtitle="Recolección real shadow → offer → human. No backfill. No cambia policy. Pending no es reject."
+            />
+            {calibration?.collection ? (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <KpiCard label="Shadow snapshots" value={String(calibration.collection.shadowSnapshots)} />
+                  <KpiCard
+                    label="Human outcomes"
+                    value={String(
+                      calibration.collection.approvedOutcomes +
+                        calibration.collection.rejectedOutcomes +
+                        calibration.collection.snoozedOutcomes +
+                        calibration.collection.expiredOutcomes,
+                    )}
+                  />
+                  <KpiCard label="Matched" value={String(calibration.collection.matched)} />
+                  <KpiCard label="Match rate" value={calibration.collection.matchRate.display} />
+                  <KpiCard label="Awaiting" value={String(calibration.collection.awaitingOutcomes)} />
+                  <KpiCard label="Unknown" value={String(calibration.collection.unknown)} />
+                  <KpiCard
+                    label="Last snapshot"
+                    value={
+                      calibration.collection.lastShadowSnapshotAt
+                        ? new Date(calibration.collection.lastShadowSnapshotAt).toLocaleString('es-MX')
+                        : '—'
+                    }
+                  />
+                  <KpiCard
+                    label="Last human"
+                    value={
+                      calibration.collection.lastHumanOutcomeAt
+                        ? new Date(calibration.collection.lastHumanOutcomeAt).toLocaleString('es-MX')
+                        : '—'
+                    }
+                  />
+                </div>
+                <p className="mt-3 text-sm text-white/80">
+                  Data collection status:{' '}
+                  <span className="font-mono text-white">{calibration.collection.status}</span>
+                  {' · sufficiency '}
+                  {calibration.collection.sufficiency.toUpperCase()}
+                </p>
+                {calibration.collection.byDecision.length > 0 ? (
+                  <ul className="mt-3 space-y-1 text-xs text-white/45">
+                    {calibration.collection.byDecision.map((row) => (
+                      <li key={row.decision}>
+                        {row.decision}: snap {row.snapshots} · matched {row.matched} · +{row.approved} −
+                        {row.rejected} · pending {row.pending} · unk {row.unknown}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-xs text-white/40">
+                    Sin snapshots todavía. Los ciclos históricos no se correlacionan.
+                  </p>
+                )}
+                {(calibration.collection.alerts.noNewShadowSnapshots ||
+                  calibration.collection.alerts.noHumanOutcomes ||
+                  calibration.collection.alerts.dbWriteFailures) && (
+                  <p className="mt-3 text-xs text-amber-200/80">
+                    Alert-ready:{' '}
+                    {[
+                      calibration.collection.alerts.noNewShadowSnapshots ? 'no_new_shadow_snapshots' : null,
+                      calibration.collection.alerts.noHumanOutcomes ? 'no_human_outcomes' : null,
+                      calibration.collection.alerts.dbWriteFailures ? 'db_write_failures' : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Sin recolección persistida.</p>
+            )}
+          </GlassCard>
+
+          <GlassCard>
+            <SectionHeader
+              title="Autonomous Calibration"
+              subtitle="¿Cuando Shadow dice AUTO_APPROVE, el humano aprueba? Persistido en hunter_shadow_outcomes."
+            />
+            {calibration ? (
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <KpiCard label="Shadow evaluados" value={String(calibration.counts.shadowEvaluated)} />
+                <KpiCard label="Matched humano" value={String(calibration.counts.shadowMatched)} />
+                <KpiCard label="Agreement" value={calibration.agreementRate.display} />
+                <KpiCard label="AUTO_APPROVE precision" value={calibration.autoApprovePrecision.display} />
+                <KpiCard label="AUTO_REJECT precision" value={calibration.autoRejectPrecision.display} />
+                <KpiCard label="Review → approve" value={calibration.reviewApprovalRate.display} />
+                <KpiCard label="Review → reject" value={calibration.reviewRejectRate.display} />
+                <KpiCard label="Policy" value={calibration.policyVersion} />
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-white/40">Sin calibración persistida.</p>
+            )}
+            {calibration?.recommendedAction ? (
+              <p className="mt-3 text-sm text-white/80">{calibration.recommendedAction}</p>
             ) : null}
           </GlassCard>
 
