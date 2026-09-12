@@ -20,6 +20,22 @@ export const HUNTER_MODULES: HunterModule[] = [
     code: 'lib/hunter/supply/router.ts',
   },
   {
+    id: 'community_quality',
+    emoji: '🧑‍🤝‍🧑',
+    name: 'Community Quality Pipeline',
+    job: 'POST /api/offers usa el mismo quality contract. Siempre pending. Reputación no bypasea verifier.',
+    status: 'live',
+    code: 'lib/hunter/supply/communityPipeline.ts',
+  },
+  {
+    id: 'supply_truth',
+    emoji: '📡',
+    name: 'Supply Truth',
+    job: 'Snapshots persistidos por corrida/source. El CEO ve verified contribution aunque el isolate muera.',
+    status: 'live',
+    code: 'lib/hunter/supply/getSupplyTruth.ts',
+  },
+  {
     id: 'collector',
     emoji: '🔎',
     name: 'Recolector',

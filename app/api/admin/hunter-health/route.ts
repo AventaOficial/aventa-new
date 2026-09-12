@@ -13,7 +13,7 @@ import { getSurfaceDiscoveryMetrics, summarizeDayToDaySupply } from '@/lib/hunte
 import { summarizeRetailerDiscoveryMatrix } from '@/lib/hunter/retailerDiscovery';
 import { getDealQualificationMetrics } from '@/lib/hunter/dealQualification';
 import { getMlQualityMetrics } from '@/lib/hunter/mlQuality/metrics';
-import { summarizeSupplyBoard } from '@/lib/hunter/supply';
+import { getCommunityQualityMetrics, getSupplyTruth, summarizeSupplyBoard } from '@/lib/hunter/supply';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -73,6 +73,8 @@ export async function GET(request: Request) {
         hunterRows: summary.rows,
         pendingCount: pendingHealth.total ?? null,
       }),
+      communityQuality: getCommunityQualityMetrics(),
+      supplyTruth: await getSupplyTruth(supabase, { hunterRows: summary.rows }),
       autonomousCalibration,
       metricUniverses: HUNTER_METRIC_UNIVERSES,
     },

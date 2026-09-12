@@ -39,6 +39,12 @@ import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enric
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
+import { qualifyParsedOfferMetadata } from '@/lib/hunter/dealQualification';
+import {
+  persistIngestSupplyRuns,
+  trackIngestQualification,
+  type QualificationCounts,
+} from '@/lib/hunter/supply/persistSnapshots';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
 
@@ -401,6 +407,10 @@ export async function processExternalWorkerBatch(
   let scoreRejected = 0;
   const shadowDup = createDuplicateShadowContext();
   beginAutonomousShadowCycle();
+  const supplyRunId = crypto.randomUUID();
+  const qualificationBySource: Partial<Record<IngestSourceId, QualificationCounts>> = {};
+  const rejectedBySource: Partial<Record<IngestSourceId, number>> = {};
+  const pendingBySource: Partial<Record<IngestSourceId, number>> = {};
   // El worker externo corre en OTRO isolate: la salud en memoria llega vacía y todo
   // candidato saldría como `source_degraded`. Se lee de DB una vez por ciclo.
   const shadowSourceHealth = await readShadowSourceHealth(slice);
@@ -433,6 +443,8 @@ export async function processExternalWorkerBatch(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
+      const qualification = item.qualification ?? qualifyParsedOfferMetadata(meta);
+      trackIngestQualification(qualificationBySource, item.source, qualification.qualification);
       // Quality gates: NO observe. Shadow evaluated ≠ hunter found. Decisión documentada.
       if (isBlockedWorkerUrl(meta.canonicalUrl) || isBlockedWorkerUrl(item.url)) {
         const reason = 'url no producto (login/verificación/listado)';
@@ -484,6 +496,7 @@ export async function processExternalWorkerBatch(
         sourceHealth: shadowSourceHealth.get(item.source) ?? null,
       });
       if (verified.decision === 'reject') {
+        rejectedBySource[item.source] = (rejectedBySource[item.source] ?? 0) + 1;
         scoreRejected += 1;
         const reason =
           verified.reasons[0] ?? `score ${verified.score} < mínimo publicación`;
@@ -548,6 +561,8 @@ export async function processExternalWorkerBatch(
         offerId: `dry-run-${insertedThisRun}`,
       });
       sourceStats[row.item.source].inserted += 1;
+      pendingBySource[row.item.source] =
+        (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
       if (status === 'approved') autoApproved += 1;
       continue;
     }
@@ -574,6 +589,8 @@ export async function processExternalWorkerBatch(
         });
         results.push({ url: row.item.url, source: row.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[row.item.source].inserted += 1;
+        pendingBySource[row.item.source] =
+          (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
         results.push({
@@ -615,7 +632,18 @@ export async function processExternalWorkerBatch(
 
   const finishedAt = new Date().toISOString();
   // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
-  await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
+  const shadow = await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
+  await persistIngestSupplyRuns({
+    runId: supplyRunId,
+    startedAt,
+    finishedAt,
+    sourceStats,
+    qualificationBySource,
+    rejectedBySource,
+    pendingBySource,
+    shadowCycleId: shadow.persisted ? shadow.cycleId : null,
+    supabase: shadowDup.supabase ?? undefined,
+  });
   const latencyMs = Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt));
   try {
     await recordExternalSourceBatchHealth({

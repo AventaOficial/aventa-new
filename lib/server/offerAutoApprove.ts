@@ -21,7 +21,12 @@ type ProfileAutoApproveRow = {
   owner_auto_approve_offers?: boolean | null;
 };
 
-/** Reglas de negocio: owner whitelist OR reputación nivel ≥ 3. */
+/**
+ * Decisión histórica de reputación / whitelist.
+ * FASE 10.1: POST /api/offers YA NO usa esto para status.
+ * Quality gate > reputation. La oferta community queda pending.
+ * Se conserva para telemetría y tests del helper.
+ */
 export function resolveOfferAutoApproveFromProfile(
   profile: ProfileAutoApproveRow | null | undefined,
 ): OfferAutoApproveDecision {

@@ -45,3 +45,48 @@ export {
   contributionRows,
 } from './metrics';
 export { summarizeSupplyBoard } from './board';
+export { evaluateCommunitySubmission, communityPersistStatus } from './communityPipeline';
+export type { CommunitySubmissionInput, CommunityQualityEvaluation } from './communityPipeline';
+export {
+  getCommunityQualityMetrics,
+  resetCommunityQualityMetrics,
+  recordCommunityQuality,
+  recordCommunityDuplicateOnly,
+  recordCommunityInvalidUrl,
+} from './communityQualityMetrics';
+export type { CommunityQualitySnapshot } from './communityQualityMetrics';
+export {
+  recordSupplyRun,
+  recordSupplyRuns,
+  clampSupplyCounter,
+  normalizeSupplyRunInput,
+  inferSupplyRunStatus,
+  supplyLaneForFamily,
+} from './recordSupplyRun';
+export {
+  persistSupplyRouterReport,
+  persistIngestSupplyRuns,
+  persistCommunitySupplyRun,
+  bumpQualificationCounts,
+  emptyQualificationCounts,
+  trackIngestQualification,
+} from './persistSnapshots';
+export {
+  getSupplyTruth,
+  mapAggregateRows,
+  summarizeWindow,
+  computePersistedGlobalHealth,
+  recommendedSupplyTruthAction,
+  buildSupplyAlerts,
+  windowSince,
+} from './getSupplyTruth';
+export type {
+  SupplyTruthSnapshot,
+  SupplyTruthWindow,
+  SupplyTruthWindowId,
+  SupplyRunInput,
+  SupplyRunRow,
+  RecordSupplyRunOutcome,
+  SupplyTruthAlertConditions,
+} from './truthTypes';
+export { SUPPLY_RUN_TABLE, SUPPLY_TRUTH_SCHEMA_VERSION } from './truthTypes';

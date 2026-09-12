@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { resolveOfferAutoApproveForUser } from '@/lib/server/offerAutoApprove';
+import {
+  communityPersistStatus,
+  evaluateCommunitySubmission,
+  persistCommunitySupplyRun,
+  recordCommunityDuplicateOnly,
+  recordCommunityInvalidUrl,
+  type CommunityQualityEvaluation,
+} from '@/lib/hunter/supply';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { createOfferInputSchema, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
-import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import {
   requireBearerCommunityUser,
@@ -46,6 +53,8 @@ function hasMissingColumn(error: { message?: string } | null, columnName: string
 
 export async function POST(request: Request) {
   try {
+    // FASE 10.1: mismo quality contract que machine (qualify → verifier → shadow).
+    // Status productivo: siempre pending. Reputación no aprueba. No auto-publish.
     const ip = getClientIp(request);
     const rl = await enforceRateLimitCustom(ip, 'offers');
     if (!rl.success) {
@@ -118,16 +127,11 @@ export async function POST(request: Request) {
     const extraImages = extras.slice(0, Math.max(0, OFFER_MAX_IMAGES - (firstImage === '/placeholder.png' ? 0 : 1)));
     const msiMonths = input.msi_months ?? null;
 
-    let offerStatus: 'pending' | 'approved' = 'pending';
-    let expiresAt: string | undefined;
+    let reputation = null;
     try {
-      const auto = await resolveOfferAutoApproveForUser(supabase, createdBy);
-      if (auto.approved) {
-        offerStatus = 'approved';
-        expiresAt = auto.expiresAt;
-      }
+      reputation = await resolveOfferAutoApproveForUser(supabase, createdBy);
     } catch {
-      // mantener pending si falla lectura de perfil
+      reputation = null;
     }
 
     const categoryRaw = typeof input.category === 'string' ? input.category : null;
@@ -157,6 +161,7 @@ export async function POST(request: Request) {
     if (rawOfferUrl) {
       const urlCheck = validatePublicOfferUrl(rawOfferUrl);
       if (!urlCheck.ok) {
+        recordCommunityInvalidUrl();
         return NextResponse.json({ error: urlCheck.error }, { status: 400 });
       }
       originalOfferUrl = urlCheck.href;
@@ -169,9 +174,37 @@ export async function POST(request: Request) {
       ? strongProductFingerprintForUrl(offerUrlNormalized)
       : null;
 
+    const communityStartedAt = new Date().toISOString();
+    let quality: CommunityQualityEvaluation | null = null;
+    try {
+      quality = evaluateCommunitySubmission(
+        {
+          title,
+          store,
+          price,
+          originalPrice: hasDiscount && originalPrice != null ? originalPrice : null,
+          imageUrl: firstImage === '/placeholder.png' ? null : firstImage,
+          offerUrl: originalOfferUrl ?? offerUrlNormalized ?? null,
+          description: typeof input.description === 'string' ? input.description : null,
+          coupons: typeof input.coupons === 'string' ? input.coupons : null,
+        },
+        { reputation },
+      );
+    } catch {
+      quality = null;
+    }
+    const offerStatus = quality ? communityPersistStatus(quality) : 'pending';
+
     if (offerUrlNormalized) {
       const duplicate = await findDuplicateOfferByUrl(supabase, offerUrlNormalized);
       if (duplicate) {
+        recordCommunityDuplicateOnly();
+        void persistCommunitySupplyRun({
+          runId: `community:dup:${productFingerprint ?? offerUrlNormalized}`,
+          startedAt: communityStartedAt,
+          evaluation: quality,
+          duplicate: true,
+        });
         return NextResponse.json(
           {
             error: 'Esta oferta (o la misma URL de producto) ya está en Aventa.',
@@ -193,7 +226,6 @@ export async function POST(request: Request) {
       ...(category ? { category } : { category: 'other' }),
       status: offerStatus,
       created_by: createdBy,
-      ...(expiresAt && { expires_at: expiresAt }),
       image_url: firstImage,
       ...(extraImages.length > 0 && { image_urls: extraImages }),
       ...(msiMonths != null && { msi_months: msiMonths }),
@@ -234,6 +266,13 @@ export async function POST(request: Request) {
     }
 
     if (error && isUniqueViolation(error) && offerUrlNormalized) {
+      recordCommunityDuplicateOnly();
+      void persistCommunitySupplyRun({
+        runId: `community:dup:${productFingerprint ?? offerUrlNormalized}`,
+        startedAt: communityStartedAt,
+        evaluation: quality,
+        duplicate: true,
+      });
       const duplicate = await findDuplicateOfferByUrl(supabase, offerUrlNormalized);
       return NextResponse.json(
         {
@@ -255,6 +294,12 @@ export async function POST(request: Request) {
     }
 
     const newOfferId = (data as { id?: string } | null)?.id;
+    void persistCommunitySupplyRun({
+      runId: `community:${newOfferId ?? crypto.randomUUID()}`,
+      startedAt: communityStartedAt,
+      evaluation: quality,
+      insertedPending: offerStatus === 'pending',
+    });
     if (newOfferId) {
       const { recordOfferPriceSnapshot } = await import('@/lib/offers/priceHistory');
       void recordOfferPriceSnapshot(supabase, {
@@ -268,10 +313,6 @@ export async function POST(request: Request) {
     try {
       await supabase.rpc('increment_offers_submitted_count', { uuid: createdBy });
     } catch {}
-
-    if (offerStatus === 'approved') {
-      await invalidateHomeFeedCache();
-    }
 
     return NextResponse.json({ id: data?.id, ok: true, status: offerStatus });
   } catch (e) {

@@ -51,5 +51,11 @@ export {
   runSupplyRouter,
   summarizeSupplyBoard,
   resetSupplyOrchestrationMetrics,
+  evaluateCommunitySubmission,
+  communityPersistStatus,
+  getCommunityQualityMetrics,
+  resetCommunityQualityMetrics,
+  getSupplyTruth,
+  recordSupplyRun,
 } from './supply';
-export type { SupplyBoardSnapshot, SupplyRouterReport, SupplySourceId } from './supply';
+export type { SupplyBoardSnapshot, SupplyRouterReport, SupplySourceId, SupplyTruthSnapshot } from './supply';

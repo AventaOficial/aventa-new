@@ -37,6 +37,11 @@ import {
   qualifyParsedOfferMetadata,
   recordDealQualification,
 } from '@/lib/hunter/dealQualification';
+import {
+  persistIngestSupplyRuns,
+  trackIngestQualification,
+  type QualificationCounts,
+} from '@/lib/hunter/supply/persistSnapshots';
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -259,6 +264,10 @@ export async function runIngestCycleForProfile(
   const shadowDup = createDuplicateShadowContext();
   beginAutonomousShadowCycle();
   const enrichCache = new Map<string, ParsedOfferMetadata>();
+  const supplyRunId = crypto.randomUUID();
+  const qualificationBySource: Partial<Record<IngestSourceId, QualificationCounts>> = {};
+  const rejectedBySource: Partial<Record<IngestSourceId, number>> = {};
+  const pendingBySource: Partial<Record<IngestSourceId, number>> = {};
 
   for (const item of slice) {
     sourceStats[item.source].evaluated += 1;
@@ -301,6 +310,7 @@ export async function runIngestCycleForProfile(
 
       // Quality gates: NO observe (mismo contrato que processExternalWorkerBatch).
       const qualification = item.qualification ?? qualifyParsedOfferMetadata(meta);
+      trackIngestQualification(qualificationBySource, item.source, qualification.qualification);
       if (isDayToDaySourceId(item.source)) {
         if (!item.qualification) {
           recordDealQualification(item.source, qualification);
@@ -363,6 +373,7 @@ export async function runIngestCycleForProfile(
         duplicateCache: shadowDup.cache,
       });
       if (verified.decision === 'reject') {
+        rejectedBySource[item.source] = (rejectedBySource[item.source] ?? 0) + 1;
         scoreRejected += 1;
         const reason =
           verified.reasons[0] ?? `score ${verified.score} < mínimo publicación`;
@@ -430,6 +441,8 @@ export async function runIngestCycleForProfile(
         });
         results.push({ url: r.item.url, source: r.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[r.item.source].inserted += 1;
+        pendingBySource[r.item.source] =
+          (pendingBySource[r.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
         results.push({
@@ -493,14 +506,26 @@ export async function runIngestCycleForProfile(
   };
 
   // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
-  await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
+  const shadow = await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
+  const finishedAt = new Date().toISOString();
+  await persistIngestSupplyRuns({
+    runId: supplyRunId,
+    startedAt,
+    finishedAt,
+    sourceStats,
+    qualificationBySource,
+    rejectedBySource,
+    pendingBySource,
+    shadowCycleId: shadow.persisted ? shadow.cycleId : null,
+    supabase: shadowDup.supabase ?? undefined,
+  });
 
   return {
     ok: summary.errors === 0,
     enabled: true,
     profile,
     startedAt,
-    finishedAt: new Date().toISOString(),
+    finishedAt,
     maxPerRun: targetMax,
     runMode: inMorningSustained ? 'morning_sustained' : inLegacyBoost ? 'boost' : 'normal',
     dailyInsertedApprox: countToday + summary.inserted,

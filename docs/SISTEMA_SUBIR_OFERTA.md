@@ -11,7 +11,7 @@ Documento de referencia: flujo completo, componentes, API, base de datos y consi
 3. Opcionalmente sube imágenes vía **POST /api/upload-offer-image** (bucket Supabase `offer-images`).
 4. Al enviar, el front hace **POST /api/offers** con el payload en JSON.
 5. La API valida sesión, rate limit, bans, datos y escribe en la tabla **`offers`**.
-6. Si el usuario tiene **reputación nivel ≥ 3** o está en la **whitelist owner** (`owner_auto_approve_offers`), la oferta se crea con `status: 'approved'` y `expires_at` 7 días; si no, `status: 'pending'` (moderación).
+6. La oferta se crea siempre con `status: 'pending'` (moderación). FASE 10.1: el POST corre el quality contract canónico (qualification → verifier → Autonomous shadow). Reputación / whitelist **no** aprueban ni publican.
 7. Se llama al RPC **`increment_offers_submitted_count`** para el perfil del usuario.
 8. El modal se cierra, se muestra mensaje de éxito y un **cooldown** antes de poder subir otra: 15 s por defecto; 5 s si el usuario tiene reputación nivel ≥ 4.
 
@@ -87,17 +87,18 @@ Documento de referencia: flujo completo, componentes, API, base de datos y consi
 
 ### Lógica de estado al crear
 
-- Se consulta el perfil en `lib/server/offerAutoApprove.ts` (`reputation_level` + `owner_auto_approve_offers`).
-- Si **`owner_auto_approve_offers === true`** (lista del owner en `/admin/owner`) **o** **`reputation_level >= REPUTATION_LEVEL_AUTO_APPROVE_OFFERS`** (3):  
-  `status = 'approved'`, `expires_at = now + 7 días`.
-- Si no:  
-  `status = 'pending'` (queda en cola de moderación).
+- `evaluateCommunitySubmission` corre Deal Qualification + Deal Verifier + Autonomous shadow.
+- **Status productivo: siempre `pending`.** Quality gate > reputation > automation.
+- `lib/server/offerAutoApprove.ts` se lee solo para telemetría (`reputationWouldApprove`). Ya no setea `approved` ni `expires_at`.
+- Precios del usuario quedan con provenance `user_declared`. No se elevan a evidencia de fuente.
+- Duplicado por URL/fingerprint → 409 (mecanismo existente).
+- Affiliate no es requisito de insert. Publisher gate sigue fail-closed en moderación.
 
 ### Inserción y post-inserción
 
 - **Tabla:** `offers`.
 - Tras insert correcto se llama **`supabase.rpc('increment_offers_submitted_count', { uuid: createdBy })`** (el RPC incrementa `profiles.offers_submitted_count`; si el RPC o la columna no existen, el error se ignora).
-- Respuesta éxito: `{ id: string, ok: true }`.
+- Respuesta éxito: `{ id: string, ok: true, status: 'pending' }`.
 
 ---
 
@@ -141,10 +142,10 @@ Columnas usadas por "subir oferta" (según migraciones y vista):
 | `image_url` | text | URL principal; por defecto `/placeholder.png` si no hay. |
 | `image_urls` | array/text | Según esquema; array de URLs. |
 | `msi_months` | int | Nullable; 1–24. |
-| `status` | text | `'pending'` o `'approved'` al crear (según reputación). Luego moderación puede poner `'rejected'` o `'published'`. |
+| `status` | text | `'pending'` al crear. Luego moderación puede poner `'rejected'`, `'approved'` o `'published'`. |
 | `created_by` | uuid | FK a usuario que crea la oferta. |
 | `created_at` | timestamptz | Automático. |
-| `expires_at` | timestamptz | Nullable; se setea en aprobación automática (7 días). |
+| `expires_at` | timestamptz | Nullable; ya no se setea en el POST. Moderación / publicación posterior pueden usarlo. |
 | `upvotes_count`, `downvotes_count`, `reputation_weighted_score`, `ranking_momentum` | etc. | Actualizados por triggers/vistas; no los setea el POST. |
 
 La vista **`ofertas_ranked_general`** expone estas columnas (y otras calculadas) para el feed; debe incluir `category` para que el filtro "Día a día" funcione.
@@ -186,11 +187,12 @@ Recomendación: mapear en **POST /api/offers** de macro a un valor de BD antes d
 | Archivo | Uso |
 |---------|-----|
 | `app/components/ActionBar.tsx` | Modal, formulario, validación, payload, POST /api/offers, vista previa, subida de imágenes. |
-| `app/api/offers/route.ts` | POST: auth, rate limit, bans, validación, estado (pending/approved), insert en `offers`, RPC `increment_offers_submitted_count`. |
+| `app/api/offers/route.ts` | POST: auth, rate limit, bans, validación, quality pipeline, `pending`, insert en `offers`, RPC `increment_offers_submitted_count`. |
 | `app/api/upload-offer-image/route.ts` | POST: auth, validación de tipo/tamaño, upload a bucket `offer-images`, devuelve URL. |
 | `lib/categories.ts` | `ALL_CATEGORIES`, `MACRO_TO_DB_CATEGORIES`, `DB_CATEGORY_WHITELIST`, `VITAL_FILTER_VALUES`. |
 | `lib/server/reputation.ts` | `REPUTATION_LEVEL_AUTO_APPROVE_OFFERS` (3). |
-| `lib/server/offerAutoApprove.ts` | Reglas unificadas: whitelist owner OR reputación ≥ 3. |
+| `lib/server/offerAutoApprove.ts` | Helper histórico (telemetría). POST ya no lo usa para status. |
+| `lib/hunter/supply/communityPipeline.ts` | Quality contract community → qualify / verifier / shadow. Siempre pending. |
 | `app/api/admin/trusted-hunters/route.ts` | CRUD whitelist (solo owner). |
 
 ---

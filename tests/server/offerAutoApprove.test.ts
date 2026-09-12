@@ -5,6 +5,7 @@ import {
   resolveOfferAutoApproveFromProfile,
 } from '../../lib/server/offerAutoApprove';
 import { REPUTATION_LEVEL_AUTO_APPROVE_OFFERS } from '../../lib/server/reputation';
+import { communityPersistStatus } from '../../lib/hunter/supply';
 
 describe('offerAutoApprove', () => {
   it('whitelist owner tiene prioridad sobre reputación baja', () => {
@@ -33,6 +34,23 @@ describe('offerAutoApprove', () => {
     });
     expect(decision.approved).toBe(false);
     expect(decision.source).toBeUndefined();
+  });
+
+  it('FASE 10.1: helper histórico no decide status de community', () => {
+    const wouldApprove = resolveOfferAutoApproveFromProfile({
+      owner_auto_approve_offers: true,
+      reputation_level: REPUTATION_LEVEL_AUTO_APPROVE_OFFERS,
+    });
+    expect(wouldApprove.approved).toBe(true);
+    expect(
+      communityPersistStatus({
+        persistStatus: 'pending',
+        published: false,
+        rewardsTouched: false,
+        verifierBypassed: false,
+        reputationWouldApprove: wouldApprove.approved,
+      } as Parameters<typeof communityPersistStatus>[0]),
+    ).toBe('pending');
   });
 
   it('getOfferAutoApproveExpiryIso suma TTL de 7 días', () => {

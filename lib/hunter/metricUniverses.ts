@@ -57,6 +57,19 @@ export const HUNTER_METRIC_UNIVERSES = {
     pdpInspected: 'PDPs fetchados. No insertados.',
     evidenceYield: 'VERIFIED_DEAL+PROMOTION / pdpInspected.',
   },
+  communityQuality: {
+    persistence: 'process_memory',
+    note: 'FASE 10.1 quality de POST /api/offers. No mezclar con supplyOrchestration, qualification, autonomousPct ni source health.',
+    communitySubmissions: 'Submissions evaluadas en ESTE isolate.',
+    verified: 'VERIFIED_DEAL con evidencia source, no user_declared.',
+  },
+  supplyTruth: {
+    persistence: 'supabase_hunter_supply_runs',
+    note: 'FASE 10.2 verdad operacional persistida. Append-only por (run_id, source_id). No mezclar con source health, qualification, autonomousPct ni communityQuality isolate.',
+    verifiedDeals: 'Suma SQL de VERIFIED_DEAL por ventana. Métrica principal de contribution.',
+    candidatesDiscovered: 'Suma SQL de candidatos. No es la métrica principal.',
+    lastActivity: 'hunter_supply_activity(). Independiente del isolate que corrió.',
+  },
   supplyOrchestration: {
     persistence: 'process_memory',
     note: 'FASE 10. Agregado multi-fuente. No mezclar con source health, qualification ni autonomousPct. Métrica principal: verified deal contribution, no raw candidates.',
