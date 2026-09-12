@@ -12,6 +12,14 @@ export type HunterModule = {
 /** Sistemas del Cazador. No es una IA monolítica: cada uno ya existe o se enchufa aquí. */
 export const HUNTER_MODULES: HunterModule[] = [
   {
+    id: 'supply',
+    emoji: '🕸️',
+    name: 'Supply Orchestration',
+    job: 'Muchas sources → un IngestItem → un pipeline. Community first-class. No publica ni salta verifier.',
+    status: 'live',
+    code: 'lib/hunter/supply/router.ts',
+  },
+  {
     id: 'collector',
     emoji: '🔎',
     name: 'Recolector',

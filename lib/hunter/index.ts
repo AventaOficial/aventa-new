@@ -46,3 +46,10 @@ export {
   RETAILER_DISCOVERY_PROFILES,
 } from './retailerDiscovery';
 export type { RetailerDiscoveryMatrixRow } from './retailerDiscovery';
+export {
+  SUPPLY_SOURCES,
+  runSupplyRouter,
+  summarizeSupplyBoard,
+  resetSupplyOrchestrationMetrics,
+} from './supply';
+export type { SupplyBoardSnapshot, SupplyRouterReport, SupplySourceId } from './supply';

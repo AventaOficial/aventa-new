@@ -57,6 +57,13 @@ export const HUNTER_METRIC_UNIVERSES = {
     pdpInspected: 'PDPs fetchados. No insertados.',
     evidenceYield: 'VERIFIED_DEAL+PROMOTION / pdpInspected.',
   },
+  supplyOrchestration: {
+    persistence: 'process_memory',
+    note: 'FASE 10. Agregado multi-fuente. No mezclar con source health, qualification ni autonomousPct. Métrica principal: verified deal contribution, no raw candidates.',
+    candidatesDiscovered: 'Candidatos tras collect+budget en ESTE isolate (runSupplyRouter).',
+    verifiedDeals: 'Contribution de evidencia VERIFIED_DEAL por source. No es AUTO_APPROVE.',
+    communityShare: 'Share de unique community vs machine. Community no se penaliza.',
+  },
   mercadoLibreQuality: {
     persistence: 'process_memory',
     note: 'Parse-offer-url y enrichment ML en ESTE isolate. No mezclar con shadow ni day-to-day.',
