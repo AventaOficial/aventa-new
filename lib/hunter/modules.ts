@@ -23,7 +23,7 @@ export const HUNTER_MODULES: HunterModule[] = [
     id: 'day_to_day',
     emoji: '🛒',
     name: 'Day-to-Day Sources',
-    job: 'Walmart, Bodega, Chedraui: adapters listos, not_configured hasta tener método oficial.',
+    job: 'Retailers Day-to-Day. Flags OFF. Qualification filtra catálogo. Adapters en registry.',
     status: 'partial',
     code: 'lib/hunter/dayToDay/registry.ts',
   },
@@ -58,6 +58,14 @@ export const HUNTER_MODULES: HunterModule[] = [
     job: 'Completa imagen/título/precio con extractores existentes. No inventa fotos.',
     status: 'live',
     code: 'lib/hunter/enrichment/enrichParsedOffer.ts',
+  },
+  {
+    id: 'qualification',
+    emoji: '🏷️',
+    name: 'Deal Qualification',
+    job: 'Evidencia de oferta vs catálogo. No puntúa y no publica. Verifier sigue siendo la autoridad.',
+    status: 'live',
+    code: 'lib/hunter/dealQualification/qualifyCandidate.ts',
   },
   {
     id: 'scorer',

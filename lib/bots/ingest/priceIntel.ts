@@ -56,7 +56,6 @@ export function applyMlPriceIntelToMeta(
   if (preserve) {
     return {
       ...meta,
-      // Card worker: no pisar % ni precios precomputados.
       discountPrice: meta.discountPrice,
       originalPrice: meta.originalPrice,
       discountPercent: meta.discountPercent,
@@ -69,7 +68,12 @@ export function applyMlPriceIntelToMeta(
     discountPrice: current,
     originalPrice: labelOriginal,
     discountPercent: engineDiscount,
-    signals,
+    signals: {
+      ...signals,
+      currentPriceProvenance: 'price_intel_derivation',
+      originalPriceProvenance: 'price_intel_derivation',
+      discountPercentProvenance: 'price_intel_derivation',
+    },
   };
 }
 

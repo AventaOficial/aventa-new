@@ -37,9 +37,14 @@ export function ingestItemToCandidate(
   const meta = item.precomputedMeta;
   const url = meta?.canonicalUrl?.trim() || item.url;
   const fp = fingerprintForUrl(url);
+  const retailId =
+    typeof meta?.signals?.listingTypeId === 'string' &&
+    meta.signals.listingTypeId.startsWith('retail:')
+      ? meta.signals.listingTypeId.slice('retail:'.length)
+      : null;
   return {
     source,
-    externalId: externalIdFromUrl(url),
+    externalId: externalIdFromUrl(url) ?? retailId,
     url,
     title: meta?.title ?? null,
     price: meta?.discountPrice ?? null,

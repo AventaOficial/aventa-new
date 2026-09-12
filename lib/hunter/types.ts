@@ -75,6 +75,15 @@ export type HunterCollectResult = {
   errorMessageSafe?: string | null;
   skipReasonCounts?: Record<string, number>;
   collectedCount?: number;
+  /** Muestra de qualification (incluye catálogo). No entra al ingest. */
+  qualificationSamples?: Array<{
+    title: string | null;
+    url: string;
+    price: number | null;
+    originalPrice: number | null;
+    qualification: string;
+    reasons: string[];
+  }>;
 };
 
 export type HunterSourceHealth = {

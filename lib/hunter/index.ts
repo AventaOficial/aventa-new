@@ -28,6 +28,10 @@ export {
 } from './circuitBreaker';
 export { HUNTER_METRIC_UNIVERSES } from './metricUniverses';
 export type { HunterMetricUniverses } from './metricUniverses';
+export {
+  qualifyCandidate,
+  getDealQualificationMetrics,
+} from './dealQualification';
 export { HUNTER_MODULES } from './modules';
 export type { HunterModule, HunterModuleStatus } from './modules';
 export {

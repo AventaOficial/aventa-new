@@ -1,0 +1,28 @@
+{
+  "products": [
+    {
+      "url": "https://www.walmart.com.mx/ip/papel-higienico-ejemplo/00700000000011",
+      "title": "Papel Higiénico 12 Rollos Ejemplo",
+      "price": 89,
+      "originalPrice": 119,
+      "currency": "MXN",
+      "image": "https://i5-mx.walmartimages.com/fixture-walmart-tp.jpg",
+      "productId": "00700000000011",
+      "brand": "Walmart",
+      "availability": "http://schema.org/InStock",
+      "category": "Hogar"
+    },
+    {
+      "url": "https://www.walmart.com.mx/ip/cafe-ejemplo/00700000000012",
+      "title": "Café Molido 400g Ejemplo",
+      "price": 95,
+      "originalPrice": 125,
+      "currency": "MXN",
+      "image": "https://i5-mx.walmartimages.com/fixture-walmart-coffee.jpg",
+      "productId": "00700000000012",
+      "brand": "Walmart",
+      "availability": "http://schema.org/InStock",
+      "category": "Despensa"
+    }
+  ]
+}

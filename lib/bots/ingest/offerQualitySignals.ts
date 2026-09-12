@@ -17,4 +17,27 @@ export type OfferQualitySignals = {
   effectiveDiscountPercent?: number | null;
   suspectedArtificialListPrice?: boolean | null;
   priceIntelSource?: 'keepa' | 'aventa_ml' | 'other' | null;
+  currentPriceProvenance?:
+    | 'source_explicit'
+    | 'trusted_enrichment'
+    | 'price_intel_derivation'
+    | 'user_declared'
+    | 'unknown';
+  originalPriceProvenance?:
+    | 'source_explicit'
+    | 'trusted_enrichment'
+    | 'price_intel_derivation'
+    | 'user_declared'
+    | 'unknown';
+  discountPercentProvenance?:
+    | 'source_explicit'
+    | 'derived'
+    | 'price_intel_derivation'
+    | 'user_declared'
+    | 'unknown';
+  explicitDiscountPercent?: number | null;
+  explicitSavings?: number | null;
+  promotionType?: string | null;
+  promotionBoundToProduct?: boolean | null;
+  unboundPromotionMention?: boolean | null;
 };

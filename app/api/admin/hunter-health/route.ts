@@ -9,7 +9,8 @@ import { HUNTER_METRIC_UNIVERSES } from '@/lib/hunter/metricUniverses';
 import { createServerClient } from '@/lib/supabase/server';
 import { getPendingHealth } from '@/lib/moderation/pendingHealth';
 import { summarizeSchedulerHealth } from '@/lib/hunter/schedulerHealth';
-import { summarizeDayToDaySupply } from '@/lib/hunter/dayToDay';
+import { getSurfaceDiscoveryMetrics, summarizeDayToDaySupply } from '@/lib/hunter/dayToDay';
+import { getDealQualificationMetrics } from '@/lib/hunter/dealQualification';
 import { getMlQualityMetrics } from '@/lib/hunter/mlQuality/metrics';
 
 export async function GET(request: Request) {
@@ -61,6 +62,8 @@ export async function GET(request: Request) {
       // Salud de la fuente y salud de quien la dispara son preguntas distintas.
       schedulerHealth: summarizeSchedulerHealth(summary.rows),
       dayToDay: summarizeDayToDaySupply(summary.rows),
+      dealQualification: getDealQualificationMetrics(),
+      surfaceDiscovery: getSurfaceDiscoveryMetrics(),
       mercadoLibreQuality: getMlQualityMetrics(),
       hunterEnrichment: getHunterEnrichmentMetrics(),
       autonomousCalibration,

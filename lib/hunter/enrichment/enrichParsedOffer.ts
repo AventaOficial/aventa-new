@@ -88,6 +88,13 @@ function mergeTrusted(
       ? current.discountPercent
       : recomputeDiscount(price, original ?? null) || current.discountPercent;
 
+  const filledOriginal = !hasOriginal(current) && original != null && original > price;
+  const filledDiscount =
+    !(hasOriginal(current) && hasPrice(current)) &&
+    original != null &&
+    original > price &&
+    recomputeDiscount(price, original) > 0;
+
   return {
     ...current,
     title: hasTitle(current) ? current.title : (patch.title?.trim() || current.title),
@@ -97,7 +104,16 @@ function mergeTrusted(
     discountPrice: price,
     originalPrice: original ?? null,
     discountPercent: discount,
-    signals: current.signals ?? patch.signals,
+    signals: {
+      ...(patch.signals ?? {}),
+      ...(current.signals ?? {}),
+      ...(filledOriginal
+        ? { originalPriceProvenance: 'trusted_enrichment' as const }
+        : {}),
+      ...(filledDiscount && current.signals?.discountPercentProvenance !== 'source_explicit'
+        ? { discountPercentProvenance: 'derived' as const }
+        : {}),
+    },
   };
 }
 

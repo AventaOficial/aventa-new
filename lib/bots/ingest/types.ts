@@ -1,5 +1,6 @@
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
+import type { DealQualificationResult } from '@/lib/hunter/dealQualification/types';
 
 export type IngestSourceId =
   | 'env_urls'
@@ -75,6 +76,8 @@ export type IngestItem = {
   /** Metadatos ya resueltos (p. ej. API de Mercado Libre); evita fetch HTML. */
   precomputedMeta?: ParsedOfferMetadata;
   sourceDetail?: string | null;
+  /** Evidencia de oferta (Day-to-Day). No sustituye al Deal Verifier. */
+  qualification?: DealQualificationResult;
 };
 
 export type IngestSingleResult =

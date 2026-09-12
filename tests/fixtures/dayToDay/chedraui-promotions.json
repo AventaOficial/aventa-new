@@ -1,0 +1,42 @@
+{
+  "products": [
+    {
+      "url": "https://www.chedraui.com.mx/aceite-vegetal-ejemplo-3100001/p",
+      "title": "Aceite Vegetal 1L Ejemplo Chedraui",
+      "price": 39.9,
+      "originalPrice": 49.9,
+      "currency": "MXN",
+      "image": "https://chedrauimx.vtexassets.com/arquivos/ids/fixture-chedraui-oil.jpg",
+      "productId": "3100001",
+      "brand": "Chedraui",
+      "availability": "http://schema.org/InStock",
+      "category": "Despensa"
+    },
+    {
+      "url": "https://www.chedraui.com.mx/pan-blanco-ejemplo-3100003/p",
+      "title": "Pan Blanco 680g Ejemplo Catálogo",
+      "price": 32,
+      "originalPrice": null,
+      "currency": "MXN",
+      "image": "https://chedrauimx.vtexassets.com/arquivos/ids/fixture-chedraui-bread.jpg",
+      "productId": "3100003",
+      "brand": "Chedraui",
+      "availability": "http://schema.org/InStock",
+      "category": "Despensa"
+    },
+    {
+      "url": "https://www.chedraui.com.mx/leche-ejemplo-2x1-3100004/p",
+      "title": "Leche Entera 1L 2x1 Ejemplo",
+      "price": 22,
+      "originalPrice": null,
+      "currency": "MXN",
+      "image": "https://chedrauimx.vtexassets.com/arquivos/ids/fixture-chedraui-milk.jpg",
+      "productId": "3100004",
+      "brand": "Chedraui",
+      "availability": "http://schema.org/InStock",
+      "category": "Despensa",
+      "promotionType": "2x1",
+      "promotionBoundToProduct": true
+    }
+  ]
+}

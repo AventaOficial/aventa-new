@@ -1,0 +1,28 @@
+{
+  "products": [
+    {
+      "url": "https://www.bodegaaurrera.com.mx/ip/arroz-ejemplo/00700000000001",
+      "title": "Arroz 1kg Ejemplo Bodega",
+      "price": 28,
+      "originalPrice": 35,
+      "currency": "MXN",
+      "image": "https://i5-mx.walmartimages.com/fixture-bodega-rice.jpg",
+      "productId": "00700000000001",
+      "brand": "Bodega",
+      "availability": "http://schema.org/InStock",
+      "category": "Despensa"
+    },
+    {
+      "url": "https://www.bodegaaurrera.com.mx/ip/jabon-ejemplo/00700000000002",
+      "title": "Jabón en Barra Ejemplo",
+      "price": 18.5,
+      "originalPrice": 24,
+      "currency": "MXN",
+      "image": "https://i5-mx.walmartimages.com/fixture-bodega-soap.jpg",
+      "productId": "00700000000002",
+      "brand": "Bodega",
+      "availability": "http://schema.org/InStock",
+      "category": "Higiene"
+    }
+  ]
+}

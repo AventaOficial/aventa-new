@@ -1,4 +1,5 @@
 import type { HunterSourceHealth } from '../types';
+import { capabilityFor } from './capabilityMatrix';
 import { DAY_TO_DAY_SOURCES, configurationStateFor, isDayToDaySourceId } from './registry';
 
 /**
@@ -100,11 +101,25 @@ export function summarizeDayToDaySupply(
 
   let recommendation: string;
   if (sourcesConfigured === 0) {
-    recommendation = 'Day-to-Day supply blocked: no configured sources.';
-  } else if (sourcesHealthy >= 2 && candidates > 0) {
-    recommendation = `Day-to-Day supply healthy: ${sourcesHealthy} sources producing candidates.`;
+    const degraded = DAY_TO_DAY_SOURCES.filter((s) => {
+      const cap = capabilityFor(s.id);
+      return cap?.complianceStatus === 'DEGRADED' || cap?.complianceStatus === 'BLOCKED';
+    });
+    if (degraded.length > 0) {
+      recommendation = `Day-to-Day supply blocked: no configured sources. Top bottleneck: ${degraded[0]!.displayName} ${capabilityFor(degraded[0]!.id)?.complianceStatus ?? 'DEGRADED'} (anti-bot/SPA).`;
+    } else {
+      recommendation = 'Day-to-Day supply blocked: no configured sources.';
+    }
+  } else if (sourcesHealthy >= 1 && candidates > 0) {
+    const top = sources.find((s) => s.itemsFound > 0);
+    recommendation = top
+      ? `${top.displayName} healthy: ${top.itemsFound} candidates / ${top.itemsInserted} new.`
+      : `Day-to-Day supply healthy: ${sourcesHealthy} sources producing candidates.`;
   } else if (sourcesDown > 0 && sourcesHealthy === 0) {
-    recommendation = 'Day-to-Day supply down: configured sources are not producing.';
+    const down = sources.find((s) => s.healthStatus === 'down');
+    recommendation = down?.lastErrorCode
+      ? `${down.displayName} down: ${down.lastErrorCode}.`
+      : 'Day-to-Day supply down: configured sources are not producing.';
   } else {
     recommendation = 'Day-to-Day supply idle: sources exist but have no recent yield.';
   }

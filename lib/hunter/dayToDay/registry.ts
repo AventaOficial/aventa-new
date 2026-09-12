@@ -1,37 +1,11 @@
 import type { HunterSource, HunterSourceConfigState, HunterSourceId } from '../types';
-import { DAY_TO_DAY_ENV } from './config';
-import { createUnconfiguredRetailerSource } from './unconfiguredRetailer';
+import { chedrauiSource, bodegaSource, walmartSource } from './adapters';
 
 /**
- * Registro Day-to-Day. Agregar una fuente = un adapter + una entrada aquí.
- * No se copia el pipeline.
- *
- * Ninguna está configurada: no hay API oficial, feed ni sitemap usable
- * sin evadir controles. Eso no es una avería.
+ * Registro Day-to-Day. Adapters reales con discovery OFF por defecto
+ * (NOT_CONFIGURED hasta DAY_TO_DAY_*_DISCOVERY=1).
  */
-export const DAY_TO_DAY_SOURCES: HunterSource[] = [
-  createUnconfiguredRetailerSource({
-    id: 'walmart_mx',
-    displayName: 'Walmart México',
-    country: 'MX',
-    priority: 80,
-    enabledEnv: DAY_TO_DAY_ENV.walmart_mx,
-  }),
-  createUnconfiguredRetailerSource({
-    id: 'bodega_aurrera_mx',
-    displayName: 'Bodega Aurrera',
-    country: 'MX',
-    priority: 81,
-    enabledEnv: DAY_TO_DAY_ENV.bodega_aurrera_mx,
-  }),
-  createUnconfiguredRetailerSource({
-    id: 'chedraui_mx',
-    displayName: 'Chedraui',
-    country: 'MX',
-    priority: 82,
-    enabledEnv: DAY_TO_DAY_ENV.chedraui_mx,
-  }),
-];
+export const DAY_TO_DAY_SOURCES: HunterSource[] = [walmartSource, bodegaSource, chedrauiSource];
 
 export const DAY_TO_DAY_SOURCE_IDS: HunterSourceId[] = DAY_TO_DAY_SOURCES.map((s) => s.id);
 

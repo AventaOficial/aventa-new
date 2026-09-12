@@ -32,6 +32,11 @@ import {
 import type { AutonomousDecisionResult } from '@/lib/autonomous/types';
 import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
 import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
+import { isDayToDaySourceId } from '@/lib/hunter/dayToDay';
+import {
+  qualifyParsedOfferMetadata,
+  recordDealQualification,
+} from '@/lib/hunter/dealQualification';
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -295,6 +300,19 @@ export async function runIngestCycleForProfile(
       }
 
       // Quality gates: NO observe (mismo contrato que processExternalWorkerBatch).
+      const qualification = item.qualification ?? qualifyParsedOfferMetadata(meta);
+      if (isDayToDaySourceId(item.source)) {
+        if (!item.qualification) {
+          recordDealQualification(item.source, qualification);
+        }
+        if (!qualification.continueToPipeline) {
+          const reason = qualification.primaryReason;
+          results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+          markSourceSkip(sourceStats, item.source, reason);
+          continue;
+        }
+      }
+
       if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) {
         const reason =
           parseAttempt.diagnostic === 'missing_original_price'

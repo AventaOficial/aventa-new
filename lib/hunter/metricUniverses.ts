@@ -31,6 +31,19 @@ export const HUNTER_METRIC_UNIVERSES = {
     candidates: 'Suma de items_found de fuentes family=day_to_day. Cero si not_configured.',
     inserted: 'Suma de items_inserted de esas fuentes. No es shadow.',
   },
+  dealQualification: {
+    persistence: 'process_memory',
+    note: 'Universo de supply: ¿hay evidencia de oferta? Distinto de Autonomous y de Deal Verifier. NO_VERIFIED_DEAL no es AUTO_REJECT.',
+    candidatesEvaluated: 'Candidatos Day-to-Day evaluados en ESTE isolate (collect).',
+    verifiedDeals: 'Evidencia explícita de precio anterior / descuento / ahorro.',
+    noVerifiedDeals: 'Catálogo sin evidencia. Skip; no entra a shadow.',
+  },
+  surfaceDiscovery: {
+    persistence: 'process_memory',
+    note: 'Universo de superficies públicas Day-to-Day. No mezclar con source health ni autonomousPct.',
+    products: 'Productos parseados por superficie en ESTE isolate.',
+    verifiedDeals: 'Evidencia de oferta en esa superficie, no decisión Autonomous.',
+  },
   mercadoLibreQuality: {
     persistence: 'process_memory',
     note: 'Parse-offer-url y enrichment ML en ESTE isolate. No mezclar con shadow ni day-to-day.',
