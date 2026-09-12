@@ -23,9 +23,9 @@ export const HUNTER_MODULES: HunterModule[] = [
     id: 'day_to_day',
     emoji: '🛒',
     name: 'Day-to-Day Sources',
-    job: 'Retailers Day-to-Day. Flags OFF. Qualification filtra catálogo. Adapters en registry.',
+    job: 'Retailers Day-to-Day + framework de discovery. Flags OFF. Qualification filtra catálogo.',
     status: 'partial',
-    code: 'lib/hunter/dayToDay/registry.ts',
+    code: 'lib/hunter/retailerDiscovery/discoverSurface.ts',
   },
   {
     id: 'price',

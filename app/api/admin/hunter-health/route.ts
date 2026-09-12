@@ -10,6 +10,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getPendingHealth } from '@/lib/moderation/pendingHealth';
 import { summarizeSchedulerHealth } from '@/lib/hunter/schedulerHealth';
 import { getSurfaceDiscoveryMetrics, summarizeDayToDaySupply } from '@/lib/hunter/dayToDay';
+import { summarizeRetailerDiscoveryMatrix } from '@/lib/hunter/retailerDiscovery';
 import { getDealQualificationMetrics } from '@/lib/hunter/dealQualification';
 import { getMlQualityMetrics } from '@/lib/hunter/mlQuality/metrics';
 
@@ -64,6 +65,7 @@ export async function GET(request: Request) {
       dayToDay: summarizeDayToDaySupply(summary.rows),
       dealQualification: getDealQualificationMetrics(),
       surfaceDiscovery: getSurfaceDiscoveryMetrics(),
+      retailerDiscovery: summarizeRetailerDiscoveryMatrix(),
       mercadoLibreQuality: getMlQualityMetrics(),
       hunterEnrichment: getHunterEnrichmentMetrics(),
       autonomousCalibration,

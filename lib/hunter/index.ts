@@ -41,3 +41,8 @@ export {
   isDayToDaySourceId,
 } from './dayToDay';
 export type { DayToDaySupplySnapshot, OfferMonetizationStatus } from './dayToDay';
+export {
+  summarizeRetailerDiscoveryMatrix,
+  RETAILER_DISCOVERY_PROFILES,
+} from './retailerDiscovery';
+export type { RetailerDiscoveryMatrixRow } from './retailerDiscovery';

@@ -44,6 +44,19 @@ export const HUNTER_METRIC_UNIVERSES = {
     products: 'Productos parseados por superficie en ESTE isolate.',
     verifiedDeals: 'Evidencia de oferta en esa superficie, no decisión Autonomous.',
   },
+  retailerDiscovery: {
+    persistence: 'process_memory',
+    note: 'Universo de evaluación de retailers (FASE 9). No inserta. No mezclar con source health, qualification ni autonomousPct.',
+    evidenceYield: 'offerEvidenceCount / candidateCount. No optimizar por volumen de catálogo.',
+    candidates: 'Candidatos parseados en ESTE isolate durante discoverRetailer.',
+  },
+  sitemapChannelDiscovery: {
+    persistence: 'process_memory_report',
+    note: 'FASE 9.1 canal sitemap→PDP. Report del script, no source health ni autonomousPct ni qualification counters.',
+    sitemapsInspected: 'Child sitemaps leídos en ESTE isolate (budget).',
+    pdpInspected: 'PDPs fetchados. No insertados.',
+    evidenceYield: 'VERIFIED_DEAL+PROMOTION / pdpInspected.',
+  },
   mercadoLibreQuality: {
     persistence: 'process_memory',
     note: 'Parse-offer-url y enrichment ML en ESTE isolate. No mezclar con shadow ni day-to-day.',
