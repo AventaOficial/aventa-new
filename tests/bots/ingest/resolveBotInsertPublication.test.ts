@@ -1,21 +1,36 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resolveBotInsertPublication } from '@/lib/bots/ingest/resolveBotInsertPublication';
 
 describe('resolveBotInsertPublication', () => {
-  const prevAmazon = process.env.AMAZON_ASSOCIATE_TAG;
-
   afterEach(() => {
-    if (prevAmazon === undefined) delete process.env.AMAZON_ASSOCIATE_TAG;
-    else process.env.AMAZON_ASSOCIATE_TAG = prevAmazon;
+    vi.unstubAllEnvs();
   });
 
-  it('pending pedido se queda pending', () => {
+  it('pending pedido se queda pending (URL sin programa afiliado → no marca link_mod_ok)', () => {
     expect(
       resolveBotInsertPublication({
         requestedStatus: 'pending',
         offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
       })
     ).toEqual({ status: 'pending', linkModOk: false, demoted: false });
+  });
+
+  it('pending + URL afiliada válida → link_mod_ok=true y sigue pending', () => {
+    vi.stubEnv('AMAZON_ASSOCIATE_TAG', 'aventa-20');
+    const r = resolveBotInsertPublication({
+      requestedStatus: 'pending',
+      offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1?tag=aventa-20',
+    });
+    expect(r).toEqual({ status: 'pending', linkModOk: true, demoted: false });
+  });
+
+  it('pending + URL de tienda afiliada sin tag → no marca link_mod_ok', () => {
+    vi.stubEnv('AMAZON_ASSOCIATE_TAG', 'aventa-20');
+    const r = resolveBotInsertPublication({
+      requestedStatus: 'pending',
+      offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
+    });
+    expect(r).toEqual({ status: 'pending', linkModOk: false, demoted: false });
   });
 
   it('approved sin URL → pending fail-closed', () => {
@@ -33,8 +48,8 @@ describe('resolveBotInsertPublication', () => {
     expect(r).toEqual({ status: 'approved', linkModOk: true, demoted: false });
   });
 
-  it('approved Amazon sin tag → pending, no link_mod_ok', () => {
-    process.env.AMAZON_ASSOCIATE_TAG = 'aventa-20';
+  it('approved Amazon sin tag → pending, no link_mod_ok (publisher fail-closed)', () => {
+    vi.stubEnv('AMAZON_ASSOCIATE_TAG', 'aventa-20');
     const r = resolveBotInsertPublication({
       requestedStatus: 'approved',
       offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',

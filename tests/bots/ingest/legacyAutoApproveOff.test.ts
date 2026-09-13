@@ -88,13 +88,23 @@ describe('camino legacy de auto-approve del bot', () => {
     expect(sinTag.demoted).toBe(true);
   });
 
-  it('H. pedir pending nunca se convierte en approved', () => {
-    const out = resolveBotInsertPublication({
+  it('H. pedir pending nunca se convierte en approved (sí puede marcar link_mod_ok si ya está taggeada)', () => {
+    vi.stubEnv('ML_AFFILIATE_TAG', 'aventa');
+    vi.stubEnv('ML_MATT_TOOL', '17030900');
+    const tagged = resolveBotInsertPublication({
       requestedStatus: 'pending',
-      offerUrl: 'https://www.mercadolibre.com.mx/p/MLM123?matt_tool=TEST',
+      offerUrl:
+        'https://www.mercadolibre.com.mx/p/MLM123?tag=aventa&matt_tool=17030900',
     });
-    expect(out.status).toBe('pending');
-    expect(out.linkModOk).toBe(false);
+    expect(tagged.status).toBe('pending');
+    expect(tagged.linkModOk).toBe(true);
+
+    const untagged = resolveBotInsertPublication({
+      requestedStatus: 'pending',
+      offerUrl: 'https://www.mercadolibre.com.mx/p/MLM123',
+    });
+    expect(untagged.status).toBe('pending');
+    expect(untagged.linkModOk).toBe(false);
   });
 
   it('H2. una URL vacía degrada a pending en vez de publicarse', () => {
