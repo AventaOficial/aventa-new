@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getAffiliateProgramsRuntimeStatus } from '@/lib/affiliate/programCatalog';
 import { getWriteQueueBacklog } from '@/lib/server/writeQueue';
 import { buildEstimatedEconomy, filterProductionLedgerRows, sumLedgerCentsInRange, type EstimatedEconomy } from '@/lib/owner/estimatedEconomy';
-import { isSyntheticFinancialRecord } from '@/lib/finance/financialRecordClass';
+import { isProductionFinancialRecord, isSyntheticFinancialRecord } from '@/lib/finance/financialRecordClass';
 import {
   daysAgoUtc,
   monthYmdRange,
@@ -406,13 +406,47 @@ async function sumProductionUserLiabilityCents(): Promise<number> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from('creator_rewards')
-    .select('creator_share_cents, status, meta')
+    .select('creator_share_cents, status, meta, ledger_entry_id')
     .in('status', ['PENDING', 'VALIDATING', 'AVAILABLE', 'PAID']);
   if (error) return 0;
+  const ledgerIds = [
+    ...new Set(
+      (data ?? [])
+        .map((r) => (r as { ledger_entry_id?: string | null }).ledger_entry_id)
+        .filter((id): id is string => typeof id === 'string' && Boolean(id)),
+    ),
+  ];
+  const ledgerById = new Map<string, { external_ref?: string | null; meta?: unknown }>();
+  if (ledgerIds.length > 0) {
+    const { data: ledgers } = await supabase
+      .from('affiliate_ledger_entries')
+      .select('id, external_ref, meta')
+      .in('id', ledgerIds);
+    for (const L of ledgers ?? []) {
+      const row = L as { id: string; external_ref?: string | null; meta?: unknown };
+      ledgerById.set(row.id, row);
+    }
+  }
   let sum = 0;
   for (const row of data ?? []) {
-    const r = row as { creator_share_cents?: number; meta?: unknown };
-    if (isSyntheticFinancialRecord({ meta: r.meta })) continue;
+    const r = row as {
+      creator_share_cents?: number;
+      meta?: unknown;
+      ledger_entry_id?: string | null;
+    };
+    const ledger = r.ledger_entry_id ? ledgerById.get(r.ledger_entry_id) : undefined;
+    if (
+      isSyntheticFinancialRecord({
+        meta: r.meta ?? ledger?.meta,
+        externalRef: ledger?.external_ref,
+      })
+    ) {
+      continue;
+    }
+    // Sin ledger productivo atribuible → no contar como liability confirmada.
+    if (!ledger || !isProductionFinancialRecord({ externalRef: ledger.external_ref, meta: ledger.meta ?? r.meta })) {
+      continue;
+    }
     sum += Number(r.creator_share_cents) || 0;
   }
   return sum;

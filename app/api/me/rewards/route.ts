@@ -6,7 +6,6 @@ import type { RewardStatus } from '@/lib/rewards/config';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import {
   classifyFinancialRecord,
-  isSyntheticFinancialRecord,
 } from '@/lib/finance/financialRecordClass';
 
 type OfferSnippet = {
@@ -92,7 +91,7 @@ export async function GET(request: Request) {
   const { data: rewardRows, error } = await supabase
     .from('creator_rewards')
     .select(
-      'id, offer_id, network, status, hold_until, available_at, paid_at, created_at, meta',
+      'id, offer_id, network, status, hold_until, available_at, paid_at, created_at, meta, ledger_entry_id',
     )
     .eq('creator_id', user.id)
     .order('created_at', { ascending: false })
@@ -103,6 +102,32 @@ export async function GET(request: Request) {
   }
 
   const rows = rewardRows ?? [];
+  const ledgerIds = [
+    ...new Set(
+      rows
+        .map((r: { ledger_entry_id?: string | null }) => r.ledger_entry_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    ),
+  ];
+  const ledgerById: Record<string, { external_ref?: string | null; source?: string | null; notes?: string | null; meta?: unknown; tracking_tag?: string | null }> = {};
+  if (ledgerIds.length > 0) {
+    const { data: ledgers } = await supabase
+      .from('affiliate_ledger_entries')
+      .select('id, external_ref, source, notes, meta, tracking_tag')
+      .in('id', ledgerIds);
+    for (const L of ledgers ?? []) {
+      const row = L as {
+        id: string;
+        external_ref?: string | null;
+        source?: string | null;
+        notes?: string | null;
+        meta?: unknown;
+        tracking_tag?: string | null;
+      };
+      ledgerById[row.id] = row;
+    }
+  }
+
   const offerIds = [
     ...new Set(
       rows
@@ -147,9 +172,17 @@ export async function GET(request: Request) {
       paid_at?: string | null;
       created_at: string;
       meta?: unknown;
+      ledger_entry_id?: string | null;
     }) => {
-      const recordClass = classifyFinancialRecord({ meta: r.meta });
-      const synthetic = isSyntheticFinancialRecord({ meta: r.meta });
+      const ledger = r.ledger_entry_id ? ledgerById[r.ledger_entry_id] : null;
+      const recordClass = classifyFinancialRecord({
+        meta: r.meta ?? ledger?.meta,
+        externalRef: ledger?.external_ref,
+        source: ledger?.source,
+        notes: ledger?.notes,
+        trackingTag: ledger?.tracking_tag,
+      });
+      const synthetic = recordClass === 'SYNTHETIC_QA';
       const mapped = mapCreatorStatus(r.status, synthetic);
       return {
         id: r.id,
