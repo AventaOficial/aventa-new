@@ -28,7 +28,8 @@ describe('offerRowBlocksHunterDuplicate', () => {
     ).toBe(true);
   });
 
-  it('rejected / deleted no bloquean', () => {
+  it('rejected / deleted no bloquean vía offerRowBlocksHunterDuplicate', () => {
+    // El cooldown de auto_rejected_timeout vive en offerRowBlocksHunterTimeoutCooldown.
     expect(offerRowBlocksHunterDuplicate({ status: 'rejected', expires_at: null }, now)).toBe(false);
     expect(
       offerRowBlocksHunterDuplicate(

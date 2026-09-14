@@ -1,6 +1,7 @@
 import {
   extractMercadoLibreItemId,
   resolveMercadoLibreItem,
+  isMercadoLibreApiItemId,
 } from '@/lib/offers/resolveMercadoLibreItem';
 import { fetchMlApi, type FetchMlApiResult } from '@/lib/integrations/mercadolibre/apiClient';
 import {
@@ -121,13 +122,26 @@ export async function fetchMercadoLibrePublicOffer(
         })()
       : null);
 
-  const id =
+  const idRaw =
     resolved?.itemId ??
     extractMercadoLibreItemId(rawUrl) ??
     (html ? extractMercadoLibreItemIdFromHtml(html) : null);
+  // Nunca llamar /items/{MLMU…}: no es item_id. Si el HTML trae un MLM real, úsalo.
+  const id =
+    idRaw && isMercadoLibreApiItemId(idRaw)
+      ? idRaw
+      : html
+        ? (() => {
+            const fromHtml = extractMercadoLibreItemIdFromHtml(html);
+            return fromHtml && isMercadoLibreApiItemId(fromHtml) ? fromHtml : null;
+          })()
+        : null;
   if (!id) return null;
 
-  const catalogProductId = resolved?.catalogProductId ?? null;
+  const catalogProductId =
+    resolved?.catalogProductId && isMercadoLibreApiItemId(resolved.catalogProductId)
+      ? resolved.catalogProductId
+      : null;
   let usedAuthenticatedApi = false;
   const pictureCandidates: MlImageCandidate[] = [];
 

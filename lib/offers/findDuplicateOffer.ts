@@ -19,15 +19,34 @@ export type DuplicateOfferMatch = {
  * - `pending_stale`: pending sin moderar más allá del cooldown → cola atascada.
  * - `live`: approved/published vigente. Reencontrarlo es esperado.
  * - `expired`: el UNIQUE lo retenía una fila ya caducada.
+ * - `timeout_cooldown`: rejected por `auto_rejected_timeout` aún dentro del cooldown.
  * - `unknown`: sin created_at utilizable, o carrera TOCTOU.
  *
- * No existe `rejected`: desde FASE 4 las rechazadas no bloquean, así que un candidato
- * nunca choca contra ellas. Un contador `duplicateRejected` sería siempre 0.
+ * Rechazos humanos / otros motivos NO bloquean. Solo el timeout automático
+ * recircula el mismo fingerprint; por eso tiene cooldown.
  */
-export type DuplicateOfferKind = 'pending_fresh' | 'pending_stale' | 'live' | 'expired' | 'unknown';
+export type DuplicateOfferKind =
+  | 'pending_fresh'
+  | 'pending_stale'
+  | 'live'
+  | 'expired'
+  | 'timeout_cooldown'
+  | 'unknown';
 
 /** Un pending del bot sin moderar en 3 días es cola atascada, no descubrimiento nuevo. */
 export const PENDING_STALE_AFTER_HOURS = 72;
+
+/**
+ * Motivo que escribe `process_offers_lifecycle` al rechazar pending > 3 días.
+ * Persistencia del cooldown: la propia fila rejected (no hace falta tabla nueva).
+ */
+export const AUTO_REJECTED_TIMEOUT_REASON = 'auto_rejected_timeout';
+
+/**
+ * Ventana tras un auto_rejected_timeout en la que el hunter no reinserta el mismo
+ * fingerprint. Alineada con PENDING_STALE_AFTER_HOURS (72h).
+ */
+export const TIMEOUT_REJECT_COOLDOWN_HOURS = PENDING_STALE_AFTER_HOURS;
 
 export function duplicateRowAgeHours(
   row: { created_at?: string | null },
@@ -84,6 +103,7 @@ export function strongProductFingerprintForUrl(normalizedOfferUrl: string): stri
 /**
  * pending/approved/published sin borrar y sin caducar.
  * Caducadas (expires_at < now) no bloquean al hunter; pending sin expiry sí.
+ * Rejected no entra aquí: ver `offerRowBlocksHunterTimeoutCooldown`.
  */
 export function offerRowBlocksHunterDuplicate(
   row: {
@@ -104,15 +124,66 @@ export function offerRowBlocksHunterDuplicate(
   return true;
 }
 
+/**
+ * Bloquea reingesta inmediata tras rechazo por timeout de cola.
+ * Ancla temporal: `updated_at` (cuando lifecycle pasó a rejected); fallback `created_at`.
+ * Sin timestamp usable → fail-closed (bloquea) para no recirculares a ciegas.
+ */
+export function offerRowBlocksHunterTimeoutCooldown(
+  row: {
+    status?: string | null;
+    rejection_reason?: string | null;
+    deleted_at?: string | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+  },
+  now: Date = new Date()
+): boolean {
+  if (row.deleted_at) return false;
+  if ((row.status ?? '') !== 'rejected') return false;
+  if ((row.rejection_reason ?? '') !== AUTO_REJECTED_TIMEOUT_REASON) return false;
+  const anchor =
+    typeof row.updated_at === 'string' && row.updated_at.trim()
+      ? row.updated_at
+      : typeof row.created_at === 'string' && row.created_at.trim()
+        ? row.created_at
+        : null;
+  if (!anchor) return true;
+  const ageHours = duplicateRowAgeHours({ created_at: anchor }, now);
+  if (ageHours == null) return true;
+  return ageHours <= TIMEOUT_REJECT_COOLDOWN_HOURS;
+}
+
+function toTimeoutCooldownMatch(
+  row: {
+    id?: unknown;
+    status?: string | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+    price?: unknown;
+  },
+  now: Date = new Date()
+): DuplicateOfferMatch {
+  const price = typeof row.price === 'number' && Number.isFinite(row.price) ? row.price : null;
+  const anchor = row.updated_at ?? row.created_at ?? null;
+  return {
+    id: row.id as string,
+    status: row.status ?? null,
+    kind: 'timeout_cooldown',
+    ageHours: duplicateRowAgeHours({ created_at: anchor }, now),
+    price,
+  };
+}
+
 function hasMissingColumn(error: { message?: string; code?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
   return msg.includes(columnName.toLowerCase()) || msg.includes('does not exist');
 }
 
 /**
- * Busca una oferta activa/pending que ya apunte al mismo producto (fingerprint).
- * No considera rejected ni soft-deleted.
- * URLs débiles (home de tienda, búsquedas) no se tratan como duplicado.
+ * Busca una oferta que bloquee insert del mismo producto (fingerprint).
+ * Orden: pending/approved/published vivos → cooldown por auto_rejected_timeout.
+ * Soft-deleted y rechazos humanos no bloquean. URLs débiles → null.
  */
 export async function findDuplicateOfferByUrl(
   supabase: SupabaseClient,
@@ -159,15 +230,38 @@ export async function findDuplicateOfferByUrl(
     .order('created_at', { ascending: false })
     .limit(400);
 
-  if (error || !candidates?.length) return null;
-
-  for (const row of candidates) {
-    const url = (row as { offer_url?: string | null }).offer_url;
-    if (!url) continue;
-    if (!offerRowBlocksHunterDuplicate(row as Record<string, unknown>, now)) continue;
-    if (offerUrlsAreSameProduct(normalizedOfferUrl, url)) {
-      return toMatch(row as Record<string, unknown>, now);
+  if (!error && candidates?.length) {
+    for (const row of candidates) {
+      const url = (row as { offer_url?: string | null }).offer_url;
+      if (!url) continue;
+      if (!offerRowBlocksHunterDuplicate(row as Record<string, unknown>, now)) continue;
+      if (offerUrlsAreSameProduct(normalizedOfferUrl, url)) {
+        return toMatch(row as Record<string, unknown>, now);
+      }
     }
+  }
+
+  // Anti-recirculación: misma huella tras auto_rejected_timeout dentro del cooldown.
+  // Persistencia = filas offers existentes (status/rejection_reason/updated_at).
+  const cooldownCutoff = new Date(
+    now.getTime() - TIMEOUT_REJECT_COOLDOWN_HOURS * 3_600_000
+  ).toISOString();
+  const { data: timeoutRows, error: timeoutError } = await supabase
+    .from('offers')
+    .select('id, status, rejection_reason, deleted_at, updated_at, created_at, price')
+    .eq('product_fingerprint', fingerprint)
+    .eq('status', 'rejected')
+    .eq('rejection_reason', AUTO_REJECTED_TIMEOUT_REASON)
+    .is('deleted_at', null)
+    .gte('updated_at', cooldownCutoff)
+    .order('updated_at', { ascending: false })
+    .limit(5);
+
+  if (!timeoutError && Array.isArray(timeoutRows)) {
+    const hit = timeoutRows.find((row) =>
+      offerRowBlocksHunterTimeoutCooldown(row as Record<string, unknown>, now)
+    );
+    if (hit?.id) return toTimeoutCooldownMatch(hit as Record<string, unknown>, now);
   }
 
   return null;

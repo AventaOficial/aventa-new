@@ -52,6 +52,34 @@ function isMlId(raw: string | null | undefined): raw is string {
   return Boolean(raw && ML_ID_RE.test(raw.trim()));
 }
 
+/**
+ * IDs de `/up/MLMU…` (user product). Parecen ML* pero NO sirven en `/items/{id}` (404).
+ * Distinto de items Uruguay `MLU`+dígitos: aquí el prefijo tiene letra de sitio + `U`
+ * (p.ej. `MLMU123`, `MLAU123`).
+ */
+export function isMercadoLibreUserProductId(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  return /^ML[A-Z]U\d+$/i.test(normalizeMlId(raw));
+}
+
+/** True si el id puede consultarse en `/items/{id}` sin inventar. */
+export function isMercadoLibreApiItemId(raw: string | null | undefined): boolean {
+  if (!isMlId(raw)) return false;
+  return !isMercadoLibreUserProductId(raw);
+}
+
+/** ID estable de `/up/MLMU…` para fingerprint/dedupe; no es item API. */
+export function extractMercadoLibreUserProductId(rawUrl: string): string | null {
+  try {
+    const url = new URL(normalizeMercadoLibreInputUrl(rawUrl));
+    if (!isMercadoLibreHost(url.hostname)) return null;
+    const m = url.pathname.match(/\/up\/((?:ML[A-Z]U)-?\d+)/i);
+    return m?.[1] ? normalizeMlId(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 function siteFromItemId(itemId: string): string | null {
   const m = itemId.match(/^(ML[A-Z]{0,3})\d+$/i);
   return m ? m[1].toUpperCase() : null;
@@ -150,42 +178,52 @@ export function resolveMercadoLibreItem(rawUrl: string): MercadoLibreItemResolut
   type Signal = { itemId: string; method: MercadoLibreResolutionMethod; confidence: MercadoLibreResolutionConfidence };
   const signals: Signal[] = [];
 
+  const pushSignal = (
+    itemId: string,
+    method: MercadoLibreResolutionMethod,
+    confidence: MercadoLibreResolutionConfidence
+  ) => {
+    // Nunca promover MLMU/user-product a item_id de API.
+    if (!isMercadoLibreApiItemId(itemId)) return;
+    signals.push({ itemId, method, confidence });
+  };
+
   const queryWid = url.searchParams.get('wid');
   if (isMlId(queryWid)) {
-    signals.push({ itemId: normalizeMlId(queryWid), method: 'query_wid', confidence: 'high' });
+    pushSignal(normalizeMlId(queryWid), 'query_wid', 'high');
   }
 
   for (const key of ['item_id', 'itemId'] as const) {
     const v = url.searchParams.get(key);
     if (isMlId(v)) {
-      signals.push({ itemId: normalizeMlId(v), method: 'query_item_id', confidence: 'high' });
+      pushSignal(normalizeMlId(v), 'query_item_id', 'high');
     }
   }
 
   const fromPdp = itemIdFromPdpFilters(url.searchParams.get('pdp_filters'));
   if (fromPdp) {
-    signals.push({ itemId: fromPdp, method: 'query_pdp_filters', confidence: 'high' });
+    pushSignal(fromPdp, 'query_pdp_filters', 'high');
   }
 
   const hashWid = hashParams.get('wid');
   if (isMlId(hashWid)) {
-    signals.push({ itemId: normalizeMlId(hashWid), method: 'hash_wid', confidence: 'high' });
+    pushSignal(normalizeMlId(hashWid), 'hash_wid', 'high');
   }
 
   for (const key of ['item_id', 'itemId'] as const) {
     const v = hashParams.get(key);
     if (isMlId(v)) {
-      signals.push({ itemId: normalizeMlId(v), method: 'hash_item_id', confidence: 'high' });
+      pushSignal(normalizeMlId(v), 'hash_item_id', 'high');
     }
   }
 
   if (pathItem && !catalogProductId) {
-    signals.push({ itemId: pathItem, method: 'path_item', confidence: 'medium' });
+    pushSignal(pathItem, 'path_item', 'medium');
   } else if (pathItem && catalogProductId && pathItem !== catalogProductId) {
-    signals.push({ itemId: pathItem, method: 'path_item', confidence: 'low' });
+    pushSignal(pathItem, 'path_item', 'low');
   }
 
-  if (catalogProductId && signals.length === 0) {
+  if (catalogProductId && signals.length === 0 && isMercadoLibreApiItemId(catalogProductId)) {
     signals.push({
       itemId: catalogProductId,
       method: 'path_catalog',

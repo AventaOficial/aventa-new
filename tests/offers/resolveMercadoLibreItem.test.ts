@@ -73,6 +73,24 @@ describe('resolveMercadoLibreItem', () => {
     expect(r?.confidence).toBe('low');
   });
 
+  it('8b. /up/MLMU no se trata como item_id de /items', () => {
+    const r = resolveMercadoLibreItem(
+      'https://www.mercadolibre.com.mx/producto/up/MLMU2916452044?wid=MLMU2916452044',
+    );
+    expect(r?.itemId).toBeNull();
+    expect(extractMercadoLibreItemId(
+      'https://www.mercadolibre.com.mx/producto/up/MLMU2916452044?wid=MLMU2916452044',
+    )).toBeNull();
+  });
+
+  it('8c. /up/MLMU + wid MLM real → item resoluble', () => {
+    const r = resolveMercadoLibreItem(
+      'https://www.mercadolibre.com.mx/producto/up/MLMU2916452044?wid=MLM1413356802',
+    );
+    expect(r?.itemId).toBe('MLM1413356802');
+    expect(r?.confidence).toBe('high');
+  });
+
   it('9. malformed URL → null', () => {
     expect(resolveMercadoLibreItem('not-a-url')).toBeNull();
   });

@@ -27,7 +27,10 @@ const AFFILIATE_QUERY_KEYS = new Set([
 ]);
 
 export { extractMercadoLibreItemId, resolveMercadoLibreItem } from '@/lib/offers/resolveMercadoLibreItem';
-import { extractMercadoLibreItemId } from '@/lib/offers/resolveMercadoLibreItem';
+import {
+  extractMercadoLibreItemId,
+  extractMercadoLibreUserProductId,
+} from '@/lib/offers/resolveMercadoLibreItem';
 
 export function extractAmazonAsin(rawUrl: string): string | null {
   try {
@@ -90,6 +93,9 @@ export function offerUrlFingerprint(rawUrl: string): string | null {
     if (isMercadoLibreHost(u.hostname)) {
       const itemId = extractMercadoLibreItemId(trimmed);
       if (itemId) return `ml:${itemId}`;
+      // /up/MLMU… no es item API, pero sí huella estable para dedupe.
+      const userProductId = extractMercadoLibreUserProductId(trimmed);
+      if (userProductId) return `ml:${userProductId}`;
       if (host === 'meli.la' || host.endsWith('.meli.la')) {
         const shortId = u.pathname.replace(/^\//, '').split('/')[0];
         if (shortId) return `meli.la:${shortId.toLowerCase()}`;
