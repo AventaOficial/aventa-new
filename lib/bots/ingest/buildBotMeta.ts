@@ -1,3 +1,4 @@
+import type { DealQualityTelemetry } from '@/lib/hunter/dealQuality';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { ScoreBreakdown, ScoreDecision } from './scoreIngestCandidate';
 
@@ -9,6 +10,8 @@ type BuildInput = {
   ingestSource?: string;
   ingestSourceDetail?: string;
   decision?: ScoreDecision;
+  /** Telemetría Deal Quality Engine V1 (no cambia status). */
+  dealQuality?: DealQualityTelemetry | null;
 };
 
 function compact<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
@@ -32,6 +35,7 @@ export function buildBotMeta({
   ingestSource,
   ingestSourceDetail,
   decision,
+  dealQuality: dealQualityInput,
 }: BuildInput): Record<string, unknown> | null {
   const s = meta.signals;
 
@@ -68,7 +72,9 @@ export function buildBotMeta({
 
   const hasSignals = Object.keys(signals).length > 0;
   const hasScore = Object.keys(score).length > 0;
-  if (!hasSignals && !hasScore && !ingestSource) return null;
+  const dealQuality = dealQualitySnapshot(dealQualityInput);
+  const hasQuality = dealQuality != null;
+  if (!hasSignals && !hasScore && !ingestSource && !hasQuality) return null;
 
   return compact({
     v: BOT_META_VERSION,
@@ -79,5 +85,24 @@ export function buildBotMeta({
     imageFromSource: meta.imageUrl?.trim() ? true : false,
     ...(hasScore ? { score } : {}),
     ...(hasSignals ? { signals } : {}),
+    ...(hasQuality ? { dealQuality } : {}),
+  });
+}
+
+function dealQualitySnapshot(
+  raw: DealQualityTelemetry | null | undefined,
+): Record<string, unknown> | null {
+  if (!raw) return null;
+  return compact({
+    decision: raw.decision,
+    confidence: raw.confidence,
+    recommendedAction: raw.recommendedAction,
+    qualification: raw.qualification,
+    policyVersion: raw.policyVersion,
+    at: raw.at,
+    reasons: raw.reasons.slice(0, 8),
+    positiveSignals: raw.positiveSignals.slice(0, 12),
+    negativeSignals: raw.negativeSignals.slice(0, 12),
+    missingEvidence: raw.missingEvidence.slice(0, 8),
   });
 }

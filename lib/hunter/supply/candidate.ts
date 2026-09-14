@@ -78,6 +78,7 @@ export function toSupplyCandidate(opts: {
     duplicateSource: null,
     verifierDecision: null,
     autonomousDecision: null,
+    qualityDecision: null,
   };
 }
 

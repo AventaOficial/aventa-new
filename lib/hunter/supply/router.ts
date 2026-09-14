@@ -9,6 +9,10 @@ import { shouldAttemptCollect } from '@/lib/hunter/circuitBreaker';
 import type { HunterSourceHealth } from '@/lib/hunter/types';
 import { HUNTER_SOURCES } from '@/lib/hunter/sources';
 import { evaluateDealSafe } from '@/lib/verifier/evaluateDeal';
+import {
+  evaluateDealQualityFromParsedMeta,
+  recordDealQualityDecision,
+} from '@/lib/hunter/dealQuality';
 import { allocateSourceSlots, mergeSupplyPriorityPolicy, sortSupplySources } from './priority';
 import { assertSupplyInvariants, SUPPLY_SOURCES } from './registry';
 import { dedupeSupplyCandidates } from './candidate';
@@ -85,10 +89,26 @@ function applyQualityPipeline(
       sourceHealth: null,
     }),
   );
+  const quality = evaluateDealQualityFromParsedMeta(meta, {
+    source: candidate.ingestItem.source,
+    productId: candidate.productId,
+    productFingerprint: candidate.hunterCandidate.fingerprint,
+    qualification: candidate.ingestItem.qualification ?? null,
+    duplicate:
+      candidate.duplicateOf != null
+        ? {
+            isDuplicate: true,
+            kind: candidate.duplicateReason,
+            detail: candidate.duplicateOf,
+          }
+        : null,
+  });
+  recordDealQualityDecision(quality);
   return {
     ...candidate,
     verifierDecision: verifier.decision,
     autonomousDecision: auto.decision,
+    qualityDecision: quality,
   };
 }
 

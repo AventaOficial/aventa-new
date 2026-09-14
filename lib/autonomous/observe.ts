@@ -13,6 +13,10 @@ import {
   type ShadowDuplicateLookup,
 } from './duplicateLookup';
 import { recordAutonomousDecision } from './metrics';
+import {
+  evaluateDealQualityFromParsedMeta,
+  recordDealQualityDecision,
+} from '@/lib/hunter/dealQuality';
 import type { AutonomousDecisionInput, AutonomousDecisionResult } from './types';
 
 export function hunterSourceForIngest(source: string): HunterSourceId | null {
@@ -77,7 +81,11 @@ export function buildAutonomousInput(opts: {
  */
 export function observeAutonomousDecision(
   input: AutonomousDecisionInput,
-  extras?: { sourceDetail?: string | null }
+  extras?: {
+    sourceDetail?: string | null;
+    /** Meta opcional para telemetría Deal Quality (shadow only). */
+    meta?: ParsedOfferMetadata | null;
+  }
 ): AutonomousDecisionResult | null {
   try {
     const result = decideAutonomous(input);
@@ -86,6 +94,24 @@ export function observeAutonomousDecision(
       imageUrl: input.imageUrl,
       verifierDecision: input.verifier.decision,
     });
+    if (extras?.meta) {
+      try {
+        const quality = evaluateDealQualityFromParsedMeta(extras.meta, {
+          source: input.source,
+          duplicate:
+            input.shadowDuplicate?.status === 'fail'
+              ? {
+                  isDuplicate: true,
+                  detail: input.shadowDuplicate.detail,
+                  matchId: input.shadowDuplicate.matchId ?? null,
+                }
+              : null,
+        });
+        recordDealQualityDecision(quality);
+      } catch {
+        // Telemetría quality no tumba shadow.
+      }
+    }
     return result;
   } catch {
     return null;
@@ -118,7 +144,7 @@ export async function observeIngestShadow(opts: {
         shadowDuplicate,
         sourceHealth: opts.sourceHealth,
       }),
-      { sourceDetail: opts.sourceDetail }
+      { sourceDetail: opts.sourceDetail, meta: opts.meta }
     );
   } catch {
     return observeAutonomousDecision(
@@ -133,7 +159,7 @@ export async function observeIngestShadow(opts: {
           matchId: null,
         },
       }),
-      { sourceDetail: opts.sourceDetail }
+      { sourceDetail: opts.sourceDetail, meta: opts.meta }
     );
   }
 }

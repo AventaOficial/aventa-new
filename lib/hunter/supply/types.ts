@@ -3,6 +3,7 @@ import type { OfferMonetizationStatus } from '@/lib/hunter/dayToDay/monetization
 import type { DealQualification, DealQualificationReasonCode, PriceProvenance } from '@/lib/hunter/dealQualification/types';
 import type { HunterCandidate, HunterHealthStatus, HunterSource, HunterSourceId } from '@/lib/hunter/types';
 import type { AutonomousDecision } from '@/lib/autonomous/types';
+import type { DealQualityDecision } from '@/lib/hunter/dealQuality';
 import type { DealVerifierDecision } from '@/lib/verifier/types';
 
 /**
@@ -114,6 +115,8 @@ export type SupplyCandidate = {
   duplicateSource: SupplySourceId | null;
   verifierDecision: DealVerifierDecision | null;
   autonomousDecision: AutonomousDecision | null;
+  /** Deal Quality Engine V1 — telemetría; no publica. */
+  qualityDecision: DealQualityDecision | null;
 };
 
 export type SupplyCollectResult = {

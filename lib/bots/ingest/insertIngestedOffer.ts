@@ -9,6 +9,11 @@ import { resolveBotAuthorUserId } from './resolveBotAuthorUserId';
 import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { buildBotOfferDescription } from './buildBotOfferDescription';
 import { buildBotMeta } from './buildBotMeta';
+import {
+  evaluateDealQualityFromParsedMeta,
+  recordDealQualityDecision,
+  toDealQualityTelemetry,
+} from '@/lib/hunter/dealQuality';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import { resolveBotInsertPublication } from './resolveBotInsertPublication';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
@@ -141,12 +146,19 @@ export async function insertIngestedOffer(
     moderatorNote: `${opts?.moderatorNote ?? ''}${catNote}`.trim() || undefined,
   });
 
+  const botQuality = evaluateDealQualityFromParsedMeta(meta, {
+    source: opts?.ingestSource ?? null,
+    productFingerprint: productFingerprint ?? null,
+  });
+  recordDealQualityDecision(botQuality);
+
   const botMeta = buildBotMeta({
     meta,
     scoreBreakdown: opts?.scoreBreakdown,
     ingestSource: opts?.ingestSource,
     ingestSourceDetail: opts?.ingestSourceDetail,
     decision: opts?.decision,
+    dealQuality: toDealQualityTelemetry(botQuality),
   });
 
   const payload: Record<string, unknown> = {

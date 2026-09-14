@@ -32,6 +32,13 @@ export {
   qualifyCandidate,
   getDealQualificationMetrics,
 } from './dealQualification';
+export {
+  evaluateDealQuality,
+  evaluateDealQualityFromParsedMeta,
+  evaluateExistingOfferQuality,
+  getDealQualityMetrics,
+} from './dealQuality';
+export type { DealQualityDecision } from './dealQuality';
 export { HUNTER_MODULES } from './modules';
 export type { HunterModule, HunterModuleStatus } from './modules';
 export {

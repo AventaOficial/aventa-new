@@ -92,6 +92,14 @@ export const HUNTER_MODULES: HunterModule[] = [
     code: 'lib/hunter/dealQualification/qualifyCandidate.ts',
   },
   {
+    id: 'deal_quality',
+    emoji: '🧭',
+    name: 'Deal Quality Engine',
+    job: 'Orquesta qualification + Price Memory + dedupe + imagen → decisión explicable. No publica.',
+    status: 'live',
+    code: 'lib/hunter/dealQuality/evaluateDealQuality.ts',
+  },
+  {
     id: 'scorer',
     emoji: '🤖',
     name: 'Deal Scorer + Verifier',
