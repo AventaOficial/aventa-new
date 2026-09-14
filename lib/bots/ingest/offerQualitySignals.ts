@@ -22,12 +22,14 @@ export type OfferQualitySignals = {
     | 'trusted_enrichment'
     | 'price_intel_derivation'
     | 'user_declared'
+    | 'listing_card'
     | 'unknown';
   originalPriceProvenance?:
     | 'source_explicit'
     | 'trusted_enrichment'
     | 'price_intel_derivation'
     | 'user_declared'
+    | 'listing_card'
     | 'unknown';
   discountPercentProvenance?:
     | 'source_explicit'
@@ -40,4 +42,8 @@ export type OfferQualitySignals = {
   promotionType?: string | null;
   promotionBoundToProduct?: boolean | null;
   unboundPromotionMention?: boolean | null;
+  /** Origen del precio original en cards del ml_worker (V2 quality gate). */
+  cardDiscountSource?: 'badge_reconstructed' | 'card_strikethrough' | 'pdp' | 'unknown' | null;
+  /** Badge % de la card: señal de discovery, no prueba de deal. */
+  cardBadgePercent?: number | null;
 };

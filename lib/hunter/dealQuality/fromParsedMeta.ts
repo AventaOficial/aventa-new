@@ -68,6 +68,7 @@ export function dealQualityInputFromParsedMeta(
     priceMemory: priceMemoryFromParsedMeta(meta),
     duplicate: opts?.duplicate ?? null,
     hardRejectReasons: opts?.hardRejectReasons ?? null,
+    cardDiscountSource: meta.signals?.cardDiscountSource ?? null,
   };
 }
 

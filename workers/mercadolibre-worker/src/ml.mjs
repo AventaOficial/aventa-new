@@ -231,6 +231,11 @@ function normalizeAbsoluteImageUrl(raw) {
   return null;
 }
 
+/**
+ * Shortlist desde card. El badge es DISCOVERY SIGNAL, no DEAL PROOF.
+ * Si el original se reconstruye solo desde badge %, se marca `badge_reconstructed`
+ * y NO debe bastar para pending sin PDP / Quality Engine.
+ */
 function candidateFromCard(card, minDiscountPercent) {
   if (isBlockedNonProductPath(card.href)) {
     return { ok: false, reason: 'url_no_producto' };
@@ -253,21 +258,33 @@ function candidateFromCard(card, minDiscountPercent) {
     return { ok: false, reason: 'sin_discount_price' };
   }
 
-  let originalPrice = parseLocalizedNumber(card.originalText);
+  const strikethroughOriginal = parseLocalizedNumber(card.originalText);
   const badgePercent = parseDiscountBadgePercent(card.discountBadge);
 
-  // Si no hay tachado pero sí badge % creíble, reconstruir original.
-  if ((originalPrice == null || originalPrice <= discountPrice) && badgePercent >= minDiscountPercent) {
+  let originalPrice = null;
+  let cardDiscountSource = 'unknown';
+  let originalFromBadgeOnly = false;
+
+  if (strikethroughOriginal != null && strikethroughOriginal > discountPrice) {
+    originalPrice = strikethroughOriginal;
+    cardDiscountSource = 'card_strikethrough';
+  } else if (badgePercent >= minDiscountPercent) {
+    // Reconstrucción solo para PRIORIZAR shortlist — no es evidencia fuerte.
     originalPrice = Number((discountPrice / (1 - badgePercent / 100)).toFixed(2));
+    cardDiscountSource = 'badge_reconstructed';
+    originalFromBadgeOnly = true;
   }
 
-  if (originalPrice == null || originalPrice <= discountPrice) {
-    return { ok: false, reason: 'sin_original_price' };
-  }
+  const nominalDiscountPercent =
+    originalPrice != null && originalPrice > discountPrice
+      ? clampDiscountPercent((1 - discountPrice / originalPrice) * 100)
+      : badgePercent > 0
+        ? badgePercent
+        : 0;
 
-  const discountPercent = clampDiscountPercent((1 - discountPrice / originalPrice) * 100);
-  if (discountPercent < minDiscountPercent) {
-    return { ok: false, reason: `discount_bajo_${discountPercent}` };
+  // Shortlist: hace falta alguna señal de descuento (badge o tachado), no prueba.
+  if (nominalDiscountPercent < minDiscountPercent && badgePercent < minDiscountPercent) {
+    return { ok: false, reason: `discount_bajo_${nominalDiscountPercent}` };
   }
 
   const canonicalUrl = canonicalizeUrl(card.href);
@@ -276,21 +293,119 @@ function candidateFromCard(card, minDiscountPercent) {
     candidate: {
       url: canonicalUrl,
       canonicalUrl,
+      href: card.href,
       title,
       store: 'Mercado Libre',
       imageUrl: normalizeAbsoluteImageUrl(card.image),
       discountPrice,
       originalPrice,
-      discountPercent,
+      discountPercent: nominalDiscountPercent,
+      nominalDiscountPercent,
+      cardDiscountSource,
+      originalFromBadgeOnly,
+      cardBadgePercent: badgePercent > 0 ? badgePercent : null,
       sourceDetail: 'worker:playwright:card',
       signals: {
         soldQuantity: null,
         condition: 'new',
         listingTypeId: 'worker_card',
         categoryId: null,
+        cardDiscountSource,
+        cardBadgePercent: badgePercent > 0 ? badgePercent : null,
+        currentPriceProvenance: 'source_explicit',
+        // Tachado de card = listing_card (WEAK). Nunca source_explicit (STRONG).
+        originalPriceProvenance:
+          cardDiscountSource === 'card_strikethrough' ? 'listing_card' : 'unknown',
+        discountPercentProvenance:
+          cardDiscountSource === 'card_strikethrough' ? 'derived' : 'unknown',
       },
     },
   };
+}
+
+/** Score de shortlist: nominal alto primero; tachado real gana a badge. */
+export function scoreShortlistCandidate(candidate) {
+  const nominal = Number(candidate.nominalDiscountPercent ?? candidate.discountPercent ?? 0) || 0;
+  const evidenceBonus =
+    candidate.cardDiscountSource === 'card_strikethrough'
+      ? 20
+      : candidate.cardDiscountSource === 'badge_reconstructed'
+        ? 0
+        : 5;
+  const price = Number(candidate.discountPrice) || 0;
+  const midPriceBonus = price >= 100 && price <= 15000 ? 5 : 0;
+  return nominal + evidenceBonus + midPriceBonus;
+}
+
+export function selectShortlist(candidates, limit) {
+  const cap = Math.max(1, Math.trunc(limit) || 1);
+  return [...candidates]
+    .sort((a, b) => scoreShortlistCandidate(b) - scoreShortlistCandidate(a))
+    .slice(0, cap);
+}
+
+/**
+ * ¿El original del candidato es solo reconstrucción de badge?
+ * Exportada para tests del gate V2.
+ */
+function isBadgeReconstructedOriginal(candidate) {
+  return (
+    candidate?.originalFromBadgeOnly === true ||
+    candidate?.cardDiscountSource === 'badge_reconstructed' ||
+    candidate?.signals?.cardDiscountSource === 'badge_reconstructed'
+  );
+}
+
+/**
+ * Gate local: badge solo no es elegible para ingest sin evidencia PDP (u otra).
+ */
+function workerCandidateEligibleForIngest(candidate) {
+  if (!candidate || !(Number(candidate.discountPrice) > 0)) {
+    return { ok: false, reason: 'sin_discount_price' };
+  }
+  const evidence = candidate.evidenceSource ?? null;
+  if (evidence === 'pdp') {
+    if (
+      candidate.originalPrice != null &&
+      Number(candidate.originalPrice) > Number(candidate.discountPrice)
+    ) {
+      return { ok: true, reason: 'pdp_original' };
+    }
+    // PDP confirmó current; original puede venir después vía Price Memory en server.
+    // No fabricamos original. Enviamos solo si hay original PDP o tachado de card.
+    if (candidate.cardDiscountSource === 'card_strikethrough' && candidate.originalPrice != null) {
+      return { ok: true, reason: 'pdp_current_card_strikethrough' };
+    }
+    return { ok: false, reason: 'pdp_insufficient_original' };
+  }
+  if (evidence === 'card_strikethrough' || candidate.cardDiscountSource === 'card_strikethrough') {
+    if (
+      candidate.originalPrice != null &&
+      Number(candidate.originalPrice) > Number(candidate.discountPrice) &&
+      !isBadgeReconstructedOriginal(candidate)
+    ) {
+      return { ok: true, reason: 'card_strikethrough' };
+    }
+  }
+  if (isBadgeReconstructedOriginal(candidate)) {
+    return { ok: false, reason: 'badge_nominal_insufficient' };
+  }
+  return { ok: false, reason: 'insufficient_evidence' };
+}
+
+function isPdpBlockedPath(pathnameOrUrl) {
+  const raw = typeof pathnameOrUrl === 'string' ? pathnameOrUrl : '';
+  try {
+    const path = raw.includes('://') ? new URL(raw).pathname : raw;
+    return (
+      /account-verification/i.test(path) ||
+      /\/login/i.test(path) ||
+      /\/registration/i.test(path) ||
+      /\/gz\//i.test(path)
+    );
+  } catch {
+    return true;
+  }
 }
 
 async function hydrateCardImages(page) {
@@ -585,26 +700,52 @@ function emptySeedStat(seed) {
     status: 'ok',
     rawLinks: 0,
     accepted: 0,
+    shortlisted: 0,
     errorKind: null,
   };
 }
 
+function emptyQualityGateTelemetry() {
+  return {
+    cardsDiscovered: 0,
+    shortlistSize: 0,
+    pdpAttempts: 0,
+    pdpSuccess: 0,
+    pdpBlocked: 0,
+    pdpFailed: 0,
+    rejectedBadgeOnly: 0,
+    rejectedInsufficientEvidence: 0,
+    acceptedForIngest: 0,
+  };
+}
+
+/**
+ * Discovery V2:
+ * cards → shortlist (badge = señal) → PDP limitado → gate evidencia → candidatos ingest.
+ * El badge nominal YA NO basta para pending.
+ */
 export async function discoverMercadoLibreCandidates(page, options) {
-  const { seeds, maxItems, minDiscountPercent, perSeedMax = null } = options;
-  const out = [];
+  const {
+    seeds,
+    maxItems,
+    minDiscountPercent,
+    perSeedMax = null,
+    pdpMax = null,
+    shortlistMax = null,
+  } = options;
   const seen = new Set();
   const seedStats = [];
   const softCap = perSeedCap({ maxItems, seedCount: seeds.length, explicitCap: perSeedMax });
+  const qualityGate = emptyQualityGateTelemetry();
+  const cardPool = [];
 
-  // GitHub Actions / datacenter: ML redirige PDP a account-verification.
-  // Usamos solo datos de la card en /ofertas (URL + precios), sin abrir el producto.
+  // Fase 1: card discovery (barato). Badge solo shortlist.
   for (const seed of seeds) {
-    if (out.length >= maxItems) break;
+    if (cardPool.length >= Math.max(maxItems * 4, 40)) break;
     const stat = emptySeedStat(seed);
     seedStats.push(stat);
-    let acceptedFromSeed = 0;
+    let shortlistedFromSeed = 0;
 
-    // Una seed rota no puede matar el ciclo: las sanas deben seguir produciendo.
     try {
       await page.goto(seed.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForTimeout(1500).catch(() => {});
@@ -616,27 +757,28 @@ export async function discoverMercadoLibreCandidates(page, options) {
 
       const cards = (await extractCards(page)).filter((card) => isProductLikeUrl(card.href));
       stat.rawLinks = cards.length;
-      console.log(`[worker] seed=${seed.id} raw_links=${cards.length} mode=card_only`);
+      qualityGate.cardsDiscovered += cards.length;
+      console.log(`[worker] seed=${seed.id} raw_links=${cards.length} mode=card_shortlist`);
 
       for (const card of cards) {
-        if (out.length >= maxItems || acceptedFromSeed >= softCap) break;
+        if (shortlistedFromSeed >= softCap) break;
         const dedupeKey = canonicalizeUrl(card.href);
         if (!card.href || seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 
         const parsed = candidateFromCard(card, minDiscountPercent);
         if (!parsed.ok) {
-          console.log(`[worker] skipped=${card.href} reason=${parsed.reason}`);
+          console.log(`[worker] shortlist_skip=${card.href} reason=${parsed.reason}`);
           continue;
         }
-        out.push({ ...parsed.candidate, seedId: seed.id });
-        acceptedFromSeed += 1;
+        cardPool.push({ ...parsed.candidate, seedId: seed.id });
+        shortlistedFromSeed += 1;
         console.log(
-          `[worker] accepted=${parsed.candidate.canonicalUrl} discount=${parsed.candidate.discountPercent}% seed=${seed.id}`
+          `[worker] shortlisted=${parsed.candidate.canonicalUrl} nominal=${parsed.candidate.nominalDiscountPercent}% source=${parsed.candidate.cardDiscountSource} seed=${seed.id}`
         );
       }
 
-      stat.accepted = acceptedFromSeed;
+      stat.shortlisted = shortlistedFromSeed;
       if (cards.length === 0) stat.status = 'zero_results';
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -644,6 +786,159 @@ export async function discoverMercadoLibreCandidates(page, options) {
       stat.errorKind = /timeout/i.test(message) ? 'timeout' : 'navigation';
       console.log(`[worker] seed=${seed.id} status=failed kind=${stat.errorKind}`);
     }
+  }
+
+  const shortlistCap =
+    Number.isFinite(shortlistMax) && shortlistMax > 0
+      ? Math.trunc(shortlistMax)
+      : Math.max(maxItems * 2, maxItems);
+  const shortlist = selectShortlist(cardPool, shortlistCap);
+  qualityGate.shortlistSize = shortlist.length;
+
+  const pdpBudget =
+    Number.isFinite(pdpMax) && pdpMax > 0
+      ? Math.trunc(pdpMax)
+      : Math.min(Math.max(maxItems, 1), Math.max(shortlist.length, 1));
+
+  const out = [];
+
+  // Fase 2–3: PDP enrichment limitado + gate de evidencia.
+  for (const cardCandidate of shortlist) {
+    if (out.length >= maxItems) break;
+
+    let working = { ...cardCandidate };
+    let pdpOk = false;
+
+    if (qualityGate.pdpAttempts < pdpBudget) {
+      qualityGate.pdpAttempts += 1;
+      try {
+        const enriched = await enrichCandidate(page, {
+          href: cardCandidate.href || cardCandidate.canonicalUrl || cardCandidate.url,
+          title: cardCandidate.title,
+          image: cardCandidate.imageUrl,
+          priceText: String(cardCandidate.discountPrice ?? ''),
+          originalText:
+            cardCandidate.cardDiscountSource === 'card_strikethrough'
+              ? String(cardCandidate.originalPrice ?? '')
+              : '',
+        });
+
+        if (isPdpBlockedPath(enriched.pathname) || isPdpBlockedPath(enriched.url)) {
+          qualityGate.pdpBlocked += 1;
+          console.log(`[worker] pdp_blocked=${cardCandidate.canonicalUrl}`);
+        } else if (!(enriched.discountPrice > 0)) {
+          qualityGate.pdpFailed += 1;
+          console.log(`[worker] pdp_no_price=${cardCandidate.canonicalUrl}`);
+        } else {
+          pdpOk = true;
+          qualityGate.pdpSuccess += 1;
+          const pdpOriginal =
+            enriched.originalPrice != null &&
+            enriched.originalPrice > enriched.discountPrice
+              ? enriched.originalPrice
+              : null;
+
+          working = {
+            ...working,
+            url: enriched.canonicalUrl || working.canonicalUrl,
+            canonicalUrl: enriched.canonicalUrl || working.canonicalUrl,
+            title: enriched.title || working.title,
+            imageUrl: enriched.imageUrl || working.imageUrl,
+            discountPrice: enriched.discountPrice,
+            evidenceSource: 'pdp',
+            sourceDetail: 'worker:playwright:pdp',
+          };
+
+          if (pdpOriginal != null) {
+            working.originalPrice = pdpOriginal;
+            working.discountPercent = clampDiscountPercent(
+              (1 - enriched.discountPrice / pdpOriginal) * 100
+            );
+            working.cardDiscountSource = 'pdp';
+            working.originalFromBadgeOnly = false;
+            working.signals = {
+              ...working.signals,
+              cardDiscountSource: 'pdp',
+              currentPriceProvenance: 'source_explicit',
+              originalPriceProvenance: 'source_explicit',
+              discountPercentProvenance: 'derived',
+            };
+          } else if (working.cardDiscountSource === 'card_strikethrough') {
+            // Conserva tachado de card; no inventa original desde badge.
+            working.evidenceSource = 'pdp';
+            working.signals = {
+              ...working.signals,
+              currentPriceProvenance: 'source_explicit',
+            };
+          } else {
+            // PDP sin original y card era badge → no fabricar original.
+            working.originalPrice = null;
+            working.discountPercent = 0;
+            working.originalFromBadgeOnly = true;
+            working.cardDiscountSource = 'badge_reconstructed';
+            working.signals = {
+              ...working.signals,
+              cardDiscountSource: 'badge_reconstructed',
+              originalPriceProvenance: 'unknown',
+              discountPercentProvenance: 'unknown',
+            };
+          }
+        }
+      } catch (error) {
+        qualityGate.pdpFailed += 1;
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(`[worker] pdp_error=${cardCandidate.canonicalUrl} msg=${message.slice(0, 120)}`);
+      }
+    }
+
+    // Sin PDP: tachado de card puede seguir; badge solo no.
+    if (!pdpOk) {
+      if (working.cardDiscountSource === 'card_strikethrough') {
+        working.evidenceSource = 'card_strikethrough';
+      } else if (isBadgeReconstructedOriginal(working)) {
+        qualityGate.rejectedBadgeOnly += 1;
+        console.log(`[worker] reject_badge_only=${working.canonicalUrl}`);
+        continue;
+      } else {
+        qualityGate.rejectedInsufficientEvidence += 1;
+        continue;
+      }
+    }
+
+    const gate = workerCandidateEligibleForIngest(working);
+    if (!gate.ok) {
+      if (gate.reason === 'badge_nominal_insufficient') qualityGate.rejectedBadgeOnly += 1;
+      else qualityGate.rejectedInsufficientEvidence += 1;
+      console.log(`[worker] reject_evidence=${working.canonicalUrl} reason=${gate.reason}`);
+      continue;
+    }
+
+    // Payload limpio hacia Aventa (sin campos internos de shortlist).
+    const rest = { ...working };
+    delete rest.href;
+    delete rest.originalFromBadgeOnly;
+    delete rest.nominalDiscountPercent;
+    delete rest.evidenceSource;
+
+    out.push({
+      ...rest,
+      seedId: working.seedId,
+      sourceDetail: working.sourceDetail || 'worker:playwright:card',
+      signals: {
+        ...(working.signals || {}),
+        listingTypeId: 'worker_card',
+        cardDiscountSource: working.cardDiscountSource,
+        cardBadgePercent: working.cardBadgePercent ?? null,
+      },
+    });
+    qualityGate.acceptedForIngest += 1;
+
+    const seedStat = seedStats.find((s) => s.id === working.seedId);
+    if (seedStat) seedStat.accepted += 1;
+
+    console.log(
+      `[worker] accepted_ingest=${working.canonicalUrl} evidence=${gate.reason} discount=${working.discountPercent}% source=${working.cardDiscountSource}`
+    );
   }
 
   const discovery = {
@@ -655,6 +950,9 @@ export async function discoverMercadoLibreCandidates(page, options) {
     uniqueCandidates: out.length,
     perSeedCap: softCap,
     bySeed: seedStats,
+    qualityGate,
+    pdpBudget,
+    shortlistCap,
   };
 
   console.log(`[worker] usable_candidates=${out.length}`);
@@ -669,4 +967,6 @@ export {
   candidateFromCard,
   isProductLikeUrl,
   enrichCandidate,
+  workerCandidateEligibleForIngest,
+  isBadgeReconstructedOriginal,
 };

@@ -58,7 +58,7 @@ describe('Deal Quality Engine V1', () => {
     assertExplanation(d);
   });
 
-  it('3. strong historical price evidence → POTENTIAL (upgrade from catalog)', () => {
+  it('3. strong historical price evidence → VERIFIED (Evidence Contract STRONG rescue)', () => {
     const q = qualifyCandidate({
       currentPrice: 800,
       originalPrice: null,
@@ -83,11 +83,11 @@ describe('Deal Quality Engine V1', () => {
         lowest90d: 790,
       },
     });
-    expect(d.decision).toBe('POTENTIAL_DEAL');
+    expect(d.decision).toBe('VERIFIED_DEAL');
     expect(d.qualification).toBe('NO_VERIFIED_DEAL');
     expect(d.positiveSignals).toContain('price_below_habitual');
-    expect(d.positiveSignals).toContain('upgraded_by_price_memory');
-    expect(d.recommendedAction).toBe('HUMAN_REVIEW');
+    expect(d.positiveSignals).toContain('verified_by_price_memory');
+    expect(d.recommendedAction).toBe('PUBLISH_CANDIDATE');
     assertExplanation(d);
   });
 

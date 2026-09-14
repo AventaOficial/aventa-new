@@ -4,6 +4,11 @@ import type {
   DealQualificationInput,
   DealQualificationResult,
 } from '@/lib/hunter/dealQualification/types';
+import {
+  hasStrongIndependentEvidence,
+  isWeakListingCardSource,
+  reconcileVerifiedWithEvidenceContract,
+} from '@/lib/hunter/dealEvidence/contract';
 import { isValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { DEAL_QUALITY_POLICY_V1, DEAL_QUALITY_RULES_V1 } from './thresholds';
 import type {
@@ -388,8 +393,35 @@ export function evaluateDealQuality(input: DealQualityInput): DealQualityDecisio
     pushUnique(positiveSignals, 'qualification_potential');
   }
 
-  // H. Upgrade NO_VERIFIED → POTENTIAL con historial positivo real (no inventa VERIFIED)
+  // H. Upgrade con Price Memory real
+  // - NO_VERIFIED → POTENTIAL con historial positivo
+  // - → VERIFIED solo si hay STRONG rescue (historial + effective > 0 + no artificial)
+  const effectiveDiscount =
+    typeof input.priceMemory?.effectiveDiscountPercent === 'number' &&
+    Number.isFinite(input.priceMemory.effectiveDiscountPercent)
+      ? input.priceMemory.effectiveDiscountPercent
+      : null;
+
+  const pmStrongRescue =
+    pmResult.historyReady &&
+    pmResult.strongPositiveHistory &&
+    !pmResult.artificial &&
+    effectiveDiscount != null &&
+    effectiveDiscount > 0;
+
   if (
+    (q.qualification === 'NO_VERIFIED_DEAL' || q.qualification === 'POTENTIAL_DEAL') &&
+    pmStrongRescue
+  ) {
+    decision = 'VERIFIED_DEAL';
+    reasons.push(
+      'Evidence Contract: Price Memory STRONG (historial + ahorro efectivo > 0, no artificial) → VERIFIED_DEAL',
+    );
+    pushUnique(positiveSignals, 'verified_by_price_memory');
+    pushUnique(positiveSignals, 'upgraded_by_price_memory');
+    const idx = negativeSignals.indexOf('catalog_only');
+    if (idx >= 0) negativeSignals.splice(idx, 1);
+  } else if (
     q.qualification === 'NO_VERIFIED_DEAL' &&
     pmResult.strongPositiveHistory &&
     !pmResult.artificial
@@ -399,15 +431,65 @@ export function evaluateDealQuality(input: DealQualityInput): DealQualityDecisio
       'Price Memory aporta evidencia positiva insuficiente para VERIFIED pero suficiente para POTENTIAL_DEAL',
     );
     pushUnique(positiveSignals, 'upgraded_by_price_memory');
-    // Quitar tono de catalog-only absoluto
     const idx = negativeSignals.indexOf('catalog_only');
     if (idx >= 0) negativeSignals.splice(idx, 1);
     pushUnique(negativeSignals, 'not_verified_still');
   }
 
-  // Artificial fuerte sobre potential/verified → no subir; baja confianza vía mapConfidence
+  // Evidence Contract: WEAK listing nunca permanece VERIFIED sin STRONG independiente.
+  const cardSource = input.cardDiscountSource ?? null;
+  const reconciled = reconcileVerifiedWithEvidenceContract({
+    decision,
+    cardDiscountSource: cardSource,
+    originalPriceProvenance: q.originalPriceProvenance,
+    artificial: pmResult.artificial,
+    effectiveDiscountPercent: effectiveDiscount,
+    priceMemoryStrongRescue: pmStrongRescue,
+    boundPromotion: q.qualification === 'PROMOTION',
+  });
+  if (reconciled.demoted) {
+    decision = reconciled.decision;
+    if (reconciled.reason) reasons.push(reconciled.reason);
+    pushUnique(negativeSignals, 'weak_listing_evidence');
+    pushUnique(missingEvidence, 'strong_deal_evidence');
+  } else if (
+    isWeakListingCardSource(cardSource) &&
+    decision === 'VERIFIED_DEAL' &&
+    hasStrongIndependentEvidence({
+      cardDiscountSource: cardSource,
+      originalPriceProvenance: q.originalPriceProvenance,
+      boundPromotion: q.qualification === 'PROMOTION',
+      priceMemory: {
+        historyReady: pmResult.historyReady,
+        suspectedArtificialListPrice: pmResult.artificial,
+        effectiveDiscountPercent: effectiveDiscount,
+        strongPositiveHistory: pmResult.strongPositiveHistory,
+      },
+    })
+  ) {
+    reasons.push('Evidence Contract: listing WEAK rescatado por evidencia STRONG');
+    pushUnique(positiveSignals, 'strong_evidence_rescue');
+  }
+
+  // WEAK listing + artificial + sin ahorro efectivo → no pending digno (ni POTENTIAL).
+  if (
+    isWeakListingCardSource(cardSource) &&
+    pmResult.artificial &&
+    (effectiveDiscount == null || effectiveDiscount <= 0) &&
+    !pmStrongRescue &&
+    (decision === 'POTENTIAL_DEAL' || decision === 'VERIFIED_DEAL')
+  ) {
+    decision = 'NO_VERIFIED_DEAL';
+    reasons.push(
+      'Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL',
+    );
+    pushUnique(negativeSignals, 'weak_listing_evidence');
+    pushUnique(negativeSignals, 'artificial_list_price');
+  }
+
+  // Artificial + VERIFIED solo si quedó VERIFIED con evidencia STRONG no-listing
   if (pmResult.artificial && decision === 'VERIFIED_DEAL') {
-    reasons.push('Se mantiene VERIFIED por qualification, pero lista artificial exige revisión humana');
+    reasons.push('Se mantiene VERIFIED por evidencia STRONG, pero lista artificial exige revisión humana');
   }
 
   const confidence = mapConfidence({

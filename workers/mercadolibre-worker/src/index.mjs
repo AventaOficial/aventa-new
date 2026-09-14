@@ -41,11 +41,13 @@ async function main() {
   const secret = getEnv('AVENTA_CRON_SECRET');
   const profile = getEnv('WORKER_PROFILE', 'standard') === 'mega' ? 'mega' : 'standard';
   const headless = getEnv('WORKER_HEADLESS', '1') !== '0';
-  const maxItems = Number.parseInt(getEnv('WORKER_MAX_ITEMS', '12'), 10) || 12;
+    const maxItems = Number.parseInt(getEnv('WORKER_MAX_ITEMS', '12'), 10) || 12;
   const minDiscountPercent = Number.parseInt(getEnv('WORKER_MIN_DISCOUNT_PERCENT', '15'), 10) || 15;
   const timeoutMs = Number.parseInt(getEnv('WORKER_TIMEOUT_MS', '45000'), 10) || 45000;
   const dryRun = process.argv.includes('--dry-run');
   const perSeedMax = Number.parseInt(getEnv('WORKER_MAX_PER_SEED', ''), 10) || null;
+  const pdpMax = Number.parseInt(getEnv('WORKER_PDP_MAX', ''), 10) || null;
+  const shortlistMax = Number.parseInt(getEnv('WORKER_SHORTLIST_MAX', ''), 10) || null;
   const rotationIntervalMs =
     Number.parseInt(getEnv('WORKER_ROTATION_INTERVAL_MS', ''), 10) || SEED_ROTATION_INTERVAL_MS;
   // El orden depende del reloj, no de un contador guardado: dos runners del mismo
@@ -58,7 +60,7 @@ async function main() {
   if (seeds.length === 0) throw new Error('El registro de seeds quedó vacío');
 
   console.log(
-    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} seeds=${seeds.length} cycleIndex=${cycleIndex}`
+    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} pdpMax=${pdpMax ?? 'auto'} shortlistMax=${shortlistMax ?? 'auto'} seeds=${seeds.length} cycleIndex=${cycleIndex}`
   );
   console.log(`[worker] seed_order=${seeds.map((s) => s.id).join(',')}`);
 
@@ -76,6 +78,8 @@ async function main() {
       maxItems,
       minDiscountPercent,
       perSeedMax,
+      pdpMax,
+      shortlistMax,
     });
 
     console.log(`[worker] discovered_candidates=${candidates.length}`);

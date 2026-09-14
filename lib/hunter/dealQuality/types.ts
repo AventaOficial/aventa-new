@@ -63,6 +63,11 @@ export type DealQualityInput = {
   duplicate?: DealQualityDuplicateInput | null;
   /** Motivos duros ya conocidos (spam/fraude/URL bloqueada). */
   hardRejectReasons?: string[] | null;
+  /**
+   * Origen del descuento en cards ml_worker (Evidence Contract).
+   * Ausente en community/manual → no se aplica democión WEAK listing.
+   */
+  cardDiscountSource?: string | null;
 };
 
 export type DealQualityDecision = {

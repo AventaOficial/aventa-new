@@ -16,6 +16,8 @@ export type PriceProvenance =
   | 'trusted_enrichment'
   | 'price_intel_derivation'
   | 'user_declared'
+  /** Original/tachado solo visto en card/listing — WEAK, no equivale a PDP/API. */
+  | 'listing_card'
   | 'unknown';
 
 export type DiscountProvenance =
@@ -50,6 +52,8 @@ export const DEAL_QUALIFICATION_REASON_CODES = [
   'inconsistent_discount',
   'price_intel_only',
   'user_declared_price',
+  /** Precio tachado en card/listing; discovery signal, no VERIFIED. */
+  'listing_card_original',
 ] as const;
 
 export type DealQualificationReasonCode = (typeof DEAL_QUALIFICATION_REASON_CODES)[number];

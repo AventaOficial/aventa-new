@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+# Worker packages install locally (GHA/CI also npm install); never commit them.
+workers/**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*

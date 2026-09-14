@@ -370,6 +370,38 @@ export function qualifyCandidate(input: DealQualificationInput): DealQualificati
     });
   }
 
+  // Tachado/listado de card: útil para discovery, NUNCA VERIFIED_DEAL.
+  const listingCardPair =
+    current != null &&
+    original != null &&
+    original > current &&
+    originalPriceProvenance === 'listing_card';
+
+  if (listingCardPair && !strongOriginal && !explicitDiscountOk && !explicitSavingsOk) {
+    const listingDerived = derivedPercent(current as number, original as number);
+    return result({
+      qualification: 'POTENTIAL_DEAL',
+      reasons: ['listing_card_original', 'missing_discount_evidence'],
+      signals: buildSignals({
+        hasExplicitDiscount: false,
+        hasOriginalPrice: true,
+        promotionKind: promoKind,
+        promotionBound: boundPromo,
+        hasSavings: false,
+        priceEvidence: 'derived',
+        promotionEvidence: boundPromo ? 'explicit' : 'none',
+        quality: 'low',
+      }),
+      currentPrice: current,
+      originalPrice: original,
+      derivedDiscountPercent: listingDerived,
+      currentPriceProvenance,
+      originalPriceProvenance: 'listing_card',
+      discountPercentProvenance:
+        discountPercentProvenance === 'unknown' ? 'derived' : discountPercentProvenance,
+    });
+  }
+
   if (input.unboundPromotionMention) {
     return result({
       qualification: 'POTENTIAL_DEAL',

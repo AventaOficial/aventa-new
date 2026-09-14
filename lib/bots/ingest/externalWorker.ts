@@ -41,6 +41,11 @@ import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 import { qualifyParsedOfferMetadata } from '@/lib/hunter/dealQualification';
 import {
+  evaluateDealQualityFromParsedMeta,
+  recordDealQualityDecision,
+} from '@/lib/hunter/dealQuality';
+import { mlWorkerMayInsertPending } from '@/lib/bots/ingest/mlWorkerPendingGate';
+import {
   persistIngestSupplyRuns,
   trackIngestQualification,
   type QualificationCounts,
@@ -208,6 +213,41 @@ function normalizeSignals(
   }
   if (typeof signals.listingTypeId === 'string' && signals.listingTypeId.trim()) {
     out.listingTypeId = signals.listingTypeId.trim();
+  }
+
+  const prov = (v: unknown) =>
+    typeof v === 'string' &&
+    [
+      'source_explicit',
+      'trusted_enrichment',
+      'price_intel_derivation',
+      'user_declared',
+      'listing_card',
+      'unknown',
+    ].includes(v)
+      ? (v as NonNullable<ExternalCandidateSignals['currentPriceProvenance']>)
+      : null;
+  const currentProv = prov(signals.currentPriceProvenance);
+  const originalProv = prov(signals.originalPriceProvenance);
+  const discountProv =
+    typeof signals.discountPercentProvenance === 'string' &&
+    ['source_explicit', 'derived', 'price_intel_derivation', 'user_declared', 'unknown'].includes(
+      signals.discountPercentProvenance,
+    )
+      ? signals.discountPercentProvenance
+      : null;
+  if (currentProv) out.currentPriceProvenance = currentProv;
+  if (originalProv) out.originalPriceProvenance = originalProv;
+  if (discountProv) out.discountPercentProvenance = discountProv;
+
+  if (
+    typeof signals.cardDiscountSource === 'string' &&
+    ['badge_reconstructed', 'card_strikethrough', 'pdp', 'unknown'].includes(signals.cardDiscountSource)
+  ) {
+    out.cardDiscountSource = signals.cardDiscountSource;
+  }
+  if (typeof signals.cardBadgePercent === 'number' && Number.isFinite(signals.cardBadgePercent)) {
+    out.cardBadgePercent = signals.cardBadgePercent;
   }
 
   return Object.keys(out).length > 0 ? out : undefined;
@@ -477,6 +517,26 @@ export async function processExternalWorkerBatch(
         continue;
       }
 
+      // V2: ml_worker — Quality Engine decide si merece pending (badge ≠ prueba).
+      if (item.source === 'ml_worker') {
+        const quality = evaluateDealQualityFromParsedMeta(meta, {
+          source: item.source,
+          qualification,
+        });
+        recordDealQualityDecision(quality);
+        const pendingGate = mlWorkerMayInsertPending({
+          qualityDecision: quality.decision,
+          recommendedAction: quality.recommendedAction,
+          cardDiscountSource: meta.signals?.cardDiscountSource ?? null,
+        });
+        if (!pendingGate.allow) {
+          const reason = `quality_gate:${pendingGate.reason}`;
+          results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+          markSourceSkip(sourceStats, item.source, reason);
+          continue;
+        }
+      }
+
       const verified = evaluateDealSafe({
         meta,
         config,
@@ -560,12 +620,12 @@ export async function processExternalWorkerBatch(
         status: 'inserted',
         offerId: `dry-run-${insertedThisRun}`,
       });
-      sourceStats[row.item.source].inserted += 1;
-      pendingBySource[row.item.source] =
-        (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
-      if (status === 'approved') autoApproved += 1;
-      continue;
-    }
+        sourceStats[row.item.source].inserted += 1;
+        pendingBySource[row.item.source] =
+          (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
+        if (status === 'approved') autoApproved += 1;
+        continue;
+      }
 
     stageCounts.insertedAttempted += 1;
     try {
@@ -586,6 +646,7 @@ export async function processExternalWorkerBatch(
           sourceId: row.item.source,
           sourceDetail: row.item.sourceDetail,
           shadowCycleId: peekCurrentShadowCycleId(),
+          qualification: row.item.qualification?.qualification ?? null,
         });
         results.push({ url: row.item.url, source: row.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[row.item.source].inserted += 1;
