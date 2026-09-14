@@ -35,6 +35,7 @@ export function resolveCommunityUrl(raw: string): CommunityUrlResolution {
   if (ml?.itemId || extractMercadoLibreItemId(parsed.href)) {
     return {
       ok: true,
+      // Preferir canonical navegable; si null, conservar href de entrada (fail-closed).
       url: ml?.canonicalUrl ?? parsed.href,
       ingestSourceId: 'ml_api',
       hunterSourceId: 'ml_api_legacy',

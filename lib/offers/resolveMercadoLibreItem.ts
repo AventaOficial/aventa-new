@@ -2,6 +2,10 @@
  * Resolución central de URLs Mercado Libre → siteId + itemId.
  * Prioriza señales explícitas de item sobre IDs de catálogo en /p/.
  * Lee query y hash (URLSearchParams no incluye el fragment).
+ *
+ * CONTRATO canonicalUrl:
+ * - Es un permalink navegable real (conserva pathname), o null.
+ * - NUNCA inventa `origin/{ITEM_ID}` (bare-ID). item_id ≠ public URL.
  */
 
 export type MercadoLibreResolutionMethod =
@@ -21,6 +25,7 @@ export type MercadoLibreItemResolution = {
   itemId: string | null;
   catalogProductId: string | null;
   permalink: string | null;
+  /** Permalink navegable, o null si no se puede sin inventar. */
   canonicalUrl: string | null;
   source: 'url';
   confidence: MercadoLibreResolutionConfidence;
@@ -28,6 +33,26 @@ export type MercadoLibreItemResolution = {
 };
 
 const ML_ID_RE = /^ML[A-Z]{0,3}-?\d+$/i;
+
+/** Query keys de tracking/afiliado que no definen identidad de producto. */
+const DROP_QUERY_KEYS = new Set([
+  'tag',
+  'matt_tool',
+  'matt_word',
+  'matt_source',
+  'matt_medium',
+  'matt_campaign',
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  'origin',
+  'sid',
+  'action',
+  'ref',
+  'ref_',
+]);
 
 const HOST_SITE: Record<string, string> = {
   'mercadolibre.com.mx': 'MLM',
@@ -116,19 +141,91 @@ function pathItemId(pathname: string): string | null {
   return m?.[1] ? normalizeMlId(m[1]) : null;
 }
 
+/**
+ * Pathname de producto navegable en ML (no bare `/{ITEM_ID}`).
+ * - `/p/MLM…` o `/slug/p/MLM…`
+ * - `articulo…/MLM-123456-_JM…`
+ * - `/up/MLMU…` (user product page)
+ */
+export function isMercadoLibreNavigableProductPath(pathname: string): boolean {
+  const p = pathname || '';
+  if (/\/p\/(?:ML[A-Z]{0,3})-?\d+/i.test(p)) return true;
+  // articulo…/MLM-123… (guion obligatorio — distinto de bare /MLM123)
+  if (/\/(?:ML[A-Z]{1,3})-\d+/i.test(p)) return true;
+  if (/\/up\/(?:ML[A-Z]U)-?\d+/i.test(p)) return true;
+  return false;
+}
+
+/** True si la URL es bare-ID: `https://host/MLM123456` (± query). */
+export function isMercadoLibreBareItemPathUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(normalizeMercadoLibreInputUrl(rawUrl));
+    if (!isMercadoLibreHost(url.hostname)) return false;
+    if (isMercadoLibreNavigableProductPath(url.pathname)) return false;
+    const p = url.pathname.replace(/\/+$/, '') || '/';
+    return /^\/(?:ML[A-Z]{0,3})-?\d{6,}$/i.test(p);
+  } catch {
+    return false;
+  }
+}
+
+/** Permalink ML navegable (host ML + path de producto real). */
+export function isMercadoLibreNavigableProductUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(normalizeMercadoLibreInputUrl(rawUrl));
+    if (!isMercadoLibreHost(url.hostname)) return false;
+    if (url.hostname.toLowerCase() === 'meli.la' || url.hostname.toLowerCase().endsWith('.meli.la')) {
+      // Shortlinks: navegables hasta expandir; no son bare-ID.
+      return url.pathname.replace(/\/+$/, '').length > 1;
+    }
+    return isMercadoLibreNavigableProductPath(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function stripTrackingQuery(url: URL): URL {
+  const out = new URL(url.href);
+  out.hash = '';
+  for (const key of [...out.searchParams.keys()]) {
+    if (DROP_QUERY_KEYS.has(key.toLowerCase())) {
+      out.searchParams.delete(key);
+    }
+  }
+  return out;
+}
+
+/**
+ * Construye canonical navegable o null.
+ * NUNCA retorna `origin/{itemId}`.
+ */
 function buildCanonicalUrl(params: {
-  origin: string;
+  inputUrl: URL;
   itemId: string;
   catalogProductId: string | null;
   permalink: string | null;
-}): string {
+}): string | null {
   if (params.permalink?.trim()) return params.permalink.trim();
-  if (params.catalogProductId) {
-    const u = new URL(`${params.origin.replace(/\/+$/, '')}/p/${params.catalogProductId}`);
+
+  // A) Preservar pathname real si ya es permalink navegable.
+  if (isMercadoLibreNavigableProductPath(params.inputUrl.pathname)) {
+    const u = stripTrackingQuery(params.inputUrl);
+    if (/\/p\//i.test(u.pathname) && params.itemId && !u.searchParams.get('wid')) {
+      u.searchParams.set('wid', params.itemId);
+    }
+    return u.toString();
+  }
+
+  // B) Reconstrucción segura SOLO como /p/{catalog}?wid={item} (forma pública conocida).
+  // Incluye catalog === item: /p/MLM123?wid=MLM123 — válido; /MLM123 — no.
+  if (params.catalogProductId && isMercadoLibreApiItemId(params.catalogProductId)) {
+    const u = new URL(`${params.inputUrl.origin.replace(/\/+$/, '')}/p/${params.catalogProductId}`);
     u.searchParams.set('wid', params.itemId);
     return u.toString();
   }
-  return `${params.origin.replace(/\/+$/, '')}/${params.itemId}`;
+
+  // C) Solo item_id / bare path → fail-closed.
+  return null;
 }
 
 /**
@@ -175,13 +272,17 @@ export function resolveMercadoLibreItem(rawUrl: string): MercadoLibreItemResolut
   const catalogProductId = pathCatalogId(url.pathname);
   const pathItem = pathItemId(url.pathname);
 
-  type Signal = { itemId: string; method: MercadoLibreResolutionMethod; confidence: MercadoLibreResolutionConfidence };
+  type Signal = {
+    itemId: string;
+    method: MercadoLibreResolutionMethod;
+    confidence: MercadoLibreResolutionConfidence;
+  };
   const signals: Signal[] = [];
 
   const pushSignal = (
     itemId: string,
     method: MercadoLibreResolutionMethod,
-    confidence: MercadoLibreResolutionConfidence
+    confidence: MercadoLibreResolutionConfidence,
   ) => {
     // Nunca promover MLMU/user-product a item_id de API.
     if (!isMercadoLibreApiItemId(itemId)) return;
@@ -217,9 +318,16 @@ export function resolveMercadoLibreItem(rawUrl: string): MercadoLibreItemResolut
     }
   }
 
-  if (pathItem && !catalogProductId) {
-    pushSignal(pathItem, 'path_item', 'medium');
-  } else if (pathItem && catalogProductId && pathItem !== catalogProductId) {
+  // Bare `/{ITEM_ID}` no es path de producto: no usarlo como señal path_item.
+  const barePath = isMercadoLibreBareItemPathUrl(url.href);
+  if (!barePath) {
+    if (pathItem && !catalogProductId) {
+      pushSignal(pathItem, 'path_item', 'medium');
+    } else if (pathItem && catalogProductId && pathItem !== catalogProductId) {
+      pushSignal(pathItem, 'path_item', 'low');
+    }
+  } else if (pathItem && isMercadoLibreApiItemId(pathItem)) {
+    // Identidad sí; canonical no.
     pushSignal(pathItem, 'path_item', 'low');
   }
 
@@ -247,10 +355,11 @@ export function resolveMercadoLibreItem(rawUrl: string): MercadoLibreItemResolut
 
   const itemId = winner.itemId;
   const siteId = siteFromItemId(itemId) ?? siteFromHostname(url.hostname);
+  // Conservar catalog aunque catalog === item: permite /p/{id}?wid={id}.
   const canonicalUrl = buildCanonicalUrl({
-    origin: url.origin,
+    inputUrl: url,
     itemId,
-    catalogProductId: catalogProductId && catalogProductId !== itemId ? catalogProductId : null,
+    catalogProductId,
     permalink: null,
   });
 

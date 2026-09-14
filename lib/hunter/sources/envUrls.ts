@@ -19,6 +19,7 @@ function isMercadoLibreProductUrl(rawUrl: string): boolean {
 function normalizeMercadoLibreProductUrl(rawUrl: string): string {
   const resolved = resolveMercadoLibreItem(rawUrl);
   if (resolved?.canonicalUrl) return resolved.canonicalUrl;
+  // Fail-closed: no sustituir por bare-ID inventado.
   return rawUrl;
 }
 

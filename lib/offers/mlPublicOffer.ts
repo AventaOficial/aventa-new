@@ -118,7 +118,10 @@ export async function fetchMercadoLibrePublicOffer(
     (html
       ? (() => {
           const fromHtml = extractMercadoLibreItemIdFromHtml(html);
-          return fromHtml ? resolveMercadoLibreItem(`https://mercadolibre.com.mx/${fromHtml}`) : null;
+          // Usar /p/{id} para resolución de identidad — nunca bare /{id}.
+          return fromHtml
+            ? resolveMercadoLibreItem(`https://www.mercadolibre.com.mx/p/${fromHtml}`)
+            : null;
         })()
       : null);
 

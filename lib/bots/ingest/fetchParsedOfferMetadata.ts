@@ -154,9 +154,12 @@ function extractJsonLikeNumber(html: string, field: string): number | null {
 function buildMercadoLibreCanonicalUrl(finalUrl: URL, rawUrl: string): string {
   const resolved = resolveMercadoLibreItem(rawUrl) ?? resolveMercadoLibreItem(finalUrl.href);
   if (resolved?.canonicalUrl) return resolved.canonicalUrl;
+  // Preservar pathname de la respuesta; no inventar /{itemId}.
   const canonical = new URL(finalUrl.origin + finalUrl.pathname);
   const itemId = extractMercadoLibreItemId(rawUrl) ?? extractMercadoLibreItemId(finalUrl.href);
-  if (itemId) canonical.searchParams.set('wid', itemId);
+  if (itemId && /\/p\//i.test(canonical.pathname)) {
+    canonical.searchParams.set('wid', itemId);
+  }
   return canonical.toString();
 }
 

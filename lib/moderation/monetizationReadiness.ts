@@ -2,6 +2,11 @@ import {
   assessOfferAffiliateLink,
   storeHasAffiliateProgram,
 } from '@/lib/affiliate/assessOfferAffiliateLink';
+import {
+  isMercadoLibreBareItemPathUrl,
+  isMercadoLibreHost,
+  isMercadoLibreNavigableProductUrl,
+} from '@/lib/offers/resolveMercadoLibreItem';
 
 export type MonetizationReadinessStatus =
   | 'ready'
@@ -50,9 +55,22 @@ function bump(status: MonetizationReadinessStatus) {
   counters[status] += 1;
 }
 
+function isMl(url: string): boolean {
+  try {
+    return isMercadoLibreHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Evaluación pura (sin métricas). Misma regla que computeMonetizationReadiness.
  * El Decision Engine la usa en shadow para no contaminar contadores de Focus.
+ *
+ * Contratos:
+ * - canonical_url_valid: permalink ML navegable (no bare-ID)
+ * - affiliate_url_ready / link_mod_ok: tags / confirmación de paste
+ * link_mod_ok solo NO implica ready si la canonical está rota.
  */
 export function evaluateMonetizationReadiness(
   input: MonetizationReadinessInput
@@ -78,6 +96,22 @@ export function evaluateMonetizationReadiness(
     };
   }
 
+  if (isMl(probe)) {
+    const navigableOffer = offerUrl ? isMercadoLibreNavigableProductUrl(offerUrl) : false;
+    const navigableOriginal = original ? isMercadoLibreNavigableProductUrl(original) : false;
+    const bare =
+      (offerUrl && isMercadoLibreBareItemPathUrl(offerUrl)) ||
+      (!offerUrl && original && isMercadoLibreBareItemPathUrl(original));
+    if (bare || (!navigableOffer && !navigableOriginal)) {
+      return {
+        status: 'needs_attention',
+        label: 'Requiere atención',
+        detail:
+          'El enlace de Mercado Libre no es un permalink navegable. Abre / prepara la URL original del producto.',
+      };
+    }
+  }
+
   const assessment = assessOfferAffiliateLink(offerUrl || probe);
   const prepared = input.linkModOk === true || assessment.isTagged;
 
@@ -98,7 +132,6 @@ export function evaluateMonetizationReadiness(
 
 /**
  * Estado humano de preparación de monetización.
- * No inventa programas: reutiliza storeHasAffiliateProgram / assessOfferAffiliateLink.
  */
 export function computeMonetizationReadiness(
   input: MonetizationReadinessInput
@@ -116,6 +149,8 @@ export function humanizeAffiliateApproveError(raw: string | null | undefined): s
     msg.includes('link_mod') ||
     msg.includes('valida y guarda') ||
     msg.includes('tag de aventa') ||
+    msg.includes('permalink') ||
+    msg.includes('navegable') ||
     msg.includes('enlace')
   ) {
     return 'Falta preparar el enlace para Aventa.';
