@@ -1,110 +1,87 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import GlassCard from '@/app/components/panel/GlassCard';
 import SectionHeader from '@/app/components/panel/SectionHeader';
-import Sparkline from '@/app/components/panel/Sparkline';
 import { formatMoneyCents, formatNum } from '@/app/components/panel/utils';
+import { moneyProvenanceLabel } from '@/lib/finance/financialRecordClass';
 import type { OwnerDashboardPayload } from '@/lib/owner/buildOwnerDashboard';
-import { cn } from '@/app/components/panel/utils';
-
-type Period = '7d' | '30d' | '90d' | '12m';
-
-const PERIOD_LABELS: Record<Period, string> = {
-  '7d': '7 días',
-  '30d': '30 días',
-  '90d': '90 días',
-  '12m': '12 meses',
-};
 
 export default function RevenueSection({ data }: { data: OwnerDashboardPayload }) {
-  const [period, setPeriod] = useState<Period>('30d');
-
-  const rows = {
-    '7d': data.economy.week,
-    '30d': data.economy.month,
-    '90d': data.economy.month,
-    '12m': data.economy.month,
-  }[period];
-
-  const chartPoints = [
-    data.economy.day.estimatedCents ?? data.economy.day.realCents ?? 0,
-    data.economy.week.estimatedCents ?? data.economy.week.realCents ?? 0,
-    data.economy.month.estimatedCents ?? data.economy.month.realCents ?? 0,
-  ].filter((v) => v > 0);
-
-  const aventaShare = data.economy.month.realCents;
+  const confirmed = data.economy.month.realCents ?? 0;
   const estimated = data.economy.month.estimatedCents;
-  const pending = data.economy.ledgerAvailable ? null : data.economy.month.estimatedCents;
+  const outbound = data.economy.month.outbound;
 
   return (
     <GlassCard variant="dark" padding="lg" className="mb-6">
       <SectionHeader
-        title="Revenue"
-        subtitle="Economía del negocio · ledger real vs estimado por clics"
+        title="Money truth"
+        subtitle="Confirmed production ≠ estimated opportunity"
         variant="dark"
         action={
-          <Link href="/admin/commissions" className="text-xs text-violet-400 hover:text-violet-300 font-medium">
-            Ver comisiones →
+          <Link href="/admin/commissions" className="text-xs font-medium text-violet-400 hover:text-violet-300">
+            Ledger →
           </Link>
         }
       />
 
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setPeriod(p)}
-            className={cn(
-              'rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all duration-200',
-              period === p
-                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                : 'text-white/40 hover:text-white/60 border border-transparent'
-            )}
-          >
-            {PERIOD_LABELS[p]}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-5 grid md:grid-cols-2 gap-6">
-        <div>
-          <p className="text-3xl font-semibold tabular-nums text-white tracking-tight">
-            {formatMoneyCents(rows.estimatedCents ?? rows.realCents)}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/70">
+            Revenue confirmed
           </p>
-          <p className="mt-1 text-xs text-white/40">{PERIOD_LABELS[period]} · confianza {data.economy.confidence}</p>
-          {chartPoints.length >= 2 ? (
-            <div className="mt-4">
-              <Sparkline data={chartPoints} variant="dark" width={200} height={48} />
-            </div>
-          ) : null}
+          <p className="mt-1 text-3xl font-semibold tabular-nums text-white">
+            {formatMoneyCents(confirmed)}
+          </p>
+          <p className="mt-2 text-xs text-white/50">
+            {confirmed > 0
+              ? 'Comisiones productivas del mes (QA excluido).'
+              : 'No confirmed production sales yet.'}
+          </p>
+          <p className="mt-2 text-[10px] text-white/30">
+            {moneyProvenanceLabel(data.economy.confirmedProvenance)}
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">Aventa (real)</p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-white">
-              {formatMoneyCents(aventaShare)}
-            </p>
-          </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">Estimado</p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-white">{formatMoneyCents(estimated)}</p>
-          </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">Clics</p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-white">{formatNum(rows.outbound)}</p>
-          </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">Pendiente ledger</p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-white">
-              {pending != null ? formatMoneyCents(pending) : data.economy.ledgerAvailable ? 'Al día' : 'Sin registrar'}
-            </p>
-          </div>
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-200/70">
+            Estimated opportunity
+          </p>
+          <p className="mt-1 text-3xl font-semibold tabular-nums text-white">
+            {estimated != null ? formatMoneyCents(estimated) : 'NO_DATA'}
+          </p>
+          <p className="mt-2 text-xs text-white/50">
+            {estimated != null
+              ? `Clics (${formatNum(outbound)}) × EPC productivo · ${data.economy.epcWindowLabel}`
+              : 'EPC = NO_DATA. No se inventa estimación con datos QA.'}
+          </p>
+          <p className="mt-2 text-[10px] text-white/30">
+            {moneyProvenanceLabel(data.economy.estimatedProvenance)}
+          </p>
         </div>
       </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+          <p className="text-[10px] uppercase tracking-wide text-white/35">EPC</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-white">
+            {data.economy.epcStatus === 'READY' && data.economy.epcCents != null
+              ? formatMoneyCents(data.economy.epcCents)
+              : 'NO_DATA'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+          <p className="text-[10px] uppercase tracking-wide text-white/35">Confianza</p>
+          <p className="mt-1 text-lg font-semibold text-white capitalize">{data.economy.confidence}</p>
+        </div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 col-span-2 md:col-span-1">
+          <p className="text-[10px] uppercase tracking-wide text-white/35">QA excluidas</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-white">
+            {data.economy.syntheticLedgerRowsExcluded}
+          </p>
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-white/40">{data.economy.confidenceReason}</p>
     </GlassCard>
   );
 }

@@ -24,12 +24,19 @@ type HistoryPayload = {
     offer: OfferSnippet | null;
     needsSelection: boolean;
   };
+  moneyTruth?: {
+    hasProductionPaid: boolean;
+    productionRewardCount: number;
+    syntheticRewardCount: number;
+    emptyProductionMessage: string | null;
+  };
   rewards: Array<{
     id: string;
     kind: 'commission';
     status: string;
-    uiStatus: 'validating' | 'available' | 'delivered' | 'cancelled';
+    uiStatus: 'validating' | 'available' | 'delivered' | 'cancelled' | 'synthetic';
     statusLabel: string;
+    isSynthetic?: boolean;
     network: string | null;
     createdAt: string;
     paidAt: string | null;
@@ -230,12 +237,23 @@ export default function MyRewardsHistory() {
         </article>
       ) : null}
 
+      {commissionRewards.length > 0 && data?.moneyTruth?.emptyProductionMessage ? (
+        <div className="rounded-2xl border border-dashed border-amber-500/30 bg-amber-950/20 p-4 text-center">
+          <p className="text-sm font-medium text-amber-100">
+            {data.moneyTruth.emptyProductionMessage}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Los registros de prueba no representan pagos reales.
+          </p>
+        </div>
+      ) : null}
+
       {commissionRewards.map((r, index) => {
         const num = (hasWelcomeComplete ? 2 : 1) + index;
         const Icon =
           r.uiStatus === 'delivered'
             ? CheckCircle2
-            : r.uiStatus === 'cancelled'
+            : r.uiStatus === 'cancelled' || r.uiStatus === 'synthetic'
               ? XCircle
               : Clock;
         const badgeClass =
@@ -243,12 +261,18 @@ export default function MyRewardsHistory() {
             ? 'bg-emerald-500/15 text-emerald-400'
             : r.uiStatus === 'cancelled'
               ? 'bg-red-500/15 text-red-400'
-              : 'bg-amber-500/15 text-amber-300';
+              : r.uiStatus === 'synthetic'
+                ? 'bg-zinc-500/20 text-zinc-300'
+                : 'bg-amber-500/15 text-amber-300';
 
         return (
           <article
             key={r.id}
-            className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121214] p-4"
+            className={`space-y-3 rounded-2xl border p-4 ${
+              r.isSynthetic || r.uiStatus === 'synthetic'
+                ? 'border-zinc-700/80 bg-[#101012] opacity-90'
+                : 'border-zinc-800 bg-[#121214]'
+            }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">

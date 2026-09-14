@@ -1,7 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { getAffiliateProgramsRuntimeStatus } from '@/lib/affiliate/programCatalog';
 import { getWriteQueueBacklog } from '@/lib/server/writeQueue';
-import { buildEstimatedEconomy, type EstimatedEconomy } from '@/lib/owner/estimatedEconomy';
+import { buildEstimatedEconomy, filterProductionLedgerRows, sumLedgerCentsInRange, type EstimatedEconomy } from '@/lib/owner/estimatedEconomy';
+import { isSyntheticFinancialRecord } from '@/lib/finance/financialRecordClass';
 import {
   daysAgoUtc,
   monthYmdRange,
@@ -90,6 +91,10 @@ export type OwnerDashboardPayload = {
     slaOk: boolean | null;
     slaNote: string | null;
   };
+  /** Ofertas approved/published no expiradas (feed-eligible). */
+  liveDeals: number | null;
+  /** Liability productiva (excluye QA). */
+  userLiabilityConfirmedCents: number;
   affiliation: {
     programsActive: number;
     programsTotal: number;
@@ -341,33 +346,76 @@ async function ledgerGrossMonthCents(): Promise<{ cents: number | null; availabl
   const { ymdStart, ymdEnd, startIso, endIso } = monthYmdRange();
   const { data, error } = await supabase
     .from('affiliate_ledger_entries')
-    .select('amount_cents, period_start, period_end, status, created_at')
+    .select(
+      'amount_cents, period_start, period_end, status, created_at, external_ref, source, notes, meta, tracking_tag',
+    )
     .in('status', ['accrued', 'paid', 'pending']);
 
   if (error) {
     const msg = (error.message ?? '').toLowerCase();
+    if (msg.includes('column') || msg.includes('does not exist')) {
+      const fallback = await supabase
+        .from('affiliate_ledger_entries')
+        .select('amount_cents, period_start, period_end, status, created_at, external_ref')
+        .in('status', ['accrued', 'paid', 'pending']);
+      if (fallback.error) {
+        if ((fallback.error.message ?? '').toLowerCase().includes('affiliate_ledger')) {
+          return { cents: null, available: false, note: 'Tabla affiliate_ledger_entries no migrada' };
+        }
+        return { cents: null, available: false, note: fallback.error.message };
+      }
+      const { production } = filterProductionLedgerRows(
+        (fallback.data ?? []) as Parameters<typeof filterProductionLedgerRows>[0],
+      );
+      return {
+        cents: sumLedgerCentsInRange(production, ymdStart, ymdEnd, startIso, endIso),
+        available: true,
+        note: null,
+      };
+    }
     if (msg.includes('affiliate_ledger') || msg.includes('does not exist')) {
       return { cents: null, available: false, note: 'Tabla affiliate_ledger_entries no migrada' };
     }
     return { cents: null, available: false, note: error.message };
   }
 
+  const { production } = filterProductionLedgerRows(
+    (data ?? []) as Parameters<typeof filterProductionLedgerRows>[0],
+  );
+  return {
+    cents: sumLedgerCentsInRange(production, ymdStart, ymdEnd, startIso, endIso),
+    available: true,
+    note: null,
+  };
+}
+
+async function countLiveFeedOffers(): Promise<number | null> {
+  const supabase = createServerClient();
+  const nowISO = new Date().toISOString();
+  const { count, error } = await supabase
+    .from('offers')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
+    .in('status', ['approved', 'published'])
+    .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
+  if (error) return null;
+  return count ?? 0;
+}
+
+async function sumProductionUserLiabilityCents(): Promise<number> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from('creator_rewards')
+    .select('creator_share_cents, status, meta')
+    .in('status', ['PENDING', 'VALIDATING', 'AVAILABLE', 'PAID']);
+  if (error) return 0;
   let sum = 0;
   for (const row of data ?? []) {
-    const r = row as {
-      amount_cents: number;
-      period_start: string | null;
-      period_end: string | null;
-      created_at: string;
-    };
-    const ps = r.period_start;
-    const pe = r.period_end;
-    const inPeriod =
-      (ps && ps <= ymdEnd && (!pe || pe >= ymdStart)) ||
-      (!ps && r.created_at >= startIso && r.created_at < endIso);
-    if (inPeriod) sum += Number(r.amount_cents) || 0;
+    const r = row as { creator_share_cents?: number; meta?: unknown };
+    if (isSyntheticFinancialRecord({ meta: r.meta })) continue;
+    sum += Number(r.creator_share_cents) || 0;
   }
-  return { cents: sum, available: true, note: null };
+  return sum;
 }
 
 async function outboundByStoreWeek(): Promise<{ store: string; outbound: number }[]> {
@@ -512,6 +560,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     programs,
     economyResult,
     offerHealthResult,
+    liveDealsResult,
+    liabilityResult,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -528,6 +578,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     Promise.resolve(getAffiliateProgramsRuntimeStatus()),
     buildEstimatedEconomy(now),
     fetchOfferHealthSummary(),
+    countLiveFeedOffers(),
+    sumProductionUserLiabilityCents(),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -561,7 +613,12 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
   if (today.activeUsers == null) dataGaps.push('user_activity no disponible — DAU aproximado omitido');
   if (!ledger.available) dataGaps.push('Ledger de afiliados no migrado o inaccesible');
   if (ledger.available && (ledger.cents ?? 0) === 0) {
-    dataGaps.push('Ingreso bruto del mes en ledger: $0 registrado (puede ser normal si aún no importas)');
+    dataGaps.push('Ingreso bruto del mes en ledger productivo: $0 (QA excluido)');
+  }
+  if (economy.syntheticLedgerRowsExcluded > 0) {
+    dataGaps.push(
+      `${economy.syntheticLedgerRowsExcluded} fila(s) ledger QA/synthetic excluidas de revenue/EPC`,
+    );
   }
   dataGaps.push('Clics “sin tag” no medibles en BD — solo cobertura de programas por env');
   dataGaps.push('Atribución venta → oferta: no existe en producto');
@@ -569,6 +626,14 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
   const alerts: OwnerAlert[] = [];
   const SLA_HOURS = 24;
 
+  if (economy.syntheticLedgerRowsExcluded > 0 && (economy.month.realCents ?? 0) === 0) {
+    alerts.push({
+      id: 'synthetic_ledger_excluded',
+      severity: 'yellow',
+      title: 'Datos QA excluidos del revenue',
+      detail: `${economy.syntheticLedgerRowsExcluded} fila(s) synthetic/QA no cuentan como economía de producción.`,
+    });
+  }
   if (pending >= 10) {
     alerts.push({
       id: 'moderation_queue',
@@ -669,6 +734,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       slaOk,
       slaNote: approvalSla.note,
     },
+    liveDeals: liveDealsResult,
+    userLiabilityConfirmedCents: liabilityResult,
     affiliation: {
       programsActive,
       programsTotal: programs.length,

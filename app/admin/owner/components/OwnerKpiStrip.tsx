@@ -6,22 +6,21 @@ import { formatDiff } from '@/lib/owner/buildOwnerDashboard';
 import type { OwnerDashboardPayload } from '@/lib/owner/buildOwnerDashboard';
 import { listConfiguredMarkets } from '@/lib/markets';
 
+/** KPI strip secundario — nunca mezcla estimated como Revenue. */
 export default function OwnerKpiStrip({ data }: { data: OwnerDashboardPayload }) {
-  const revenue = data.economy.ledgerAvailable
-    ? data.economy.month.realCents
-    : data.economy.month.estimatedCents;
+  const confirmed = data.economy.month.realCents ?? 0;
 
-  const revenueDiff = data.economy.week.estimatedCents != null && data.economy.day.estimatedCents != null
-    ? formatDiff(data.economy.week.estimatedCents, data.economy.day.estimatedCents * 7)
-    : null;
-
-  const clicksDiff = formatDiff(data.week.outbound, data.today.outbound != null ? data.today.outbound * 7 : null);
-  const usersDiff = formatDiff(data.week.newUsers, data.today.newUsers != null ? data.today.newUsers * 7 : null);
+  const clicksDiff = formatDiff(
+    data.week.outbound,
+    data.today.outbound != null ? data.today.outbound * 7 : null,
+  );
+  const usersDiff = formatDiff(
+    data.week.newUsers,
+    data.today.newUsers != null ? data.today.newUsers * 7 : null,
+  );
 
   const approvedEstimate =
-    data.week.offersApproved != null
-      ? data.week.offersApproved
-      : data.today.offersApproved;
+    data.week.offersApproved != null ? data.week.offersApproved : data.today.offersApproved;
 
   const markets = listConfiguredMarkets();
   const activeMarkets = markets.length;
@@ -32,12 +31,11 @@ export default function OwnerKpiStrip({ data }: { data: OwnerDashboardPayload })
     .slice(0, 3);
 
   return (
-    <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
+    <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
       <KpiCard
-        label="Revenue"
-        value={formatMoneyCents(revenue)}
-        delta={revenueDiff?.delta}
-        deltaLabel={revenueDiff?.label ?? undefined}
+        label="Revenue confirmed"
+        value={formatMoneyCents(confirmed)}
+        deltaLabel="production · QA excluded"
         variant="dark"
       />
       <KpiCard

@@ -10,6 +10,7 @@ import {
   type StaffWorkBoard,
 } from '@/lib/staff/workBoard';
 import { canFinanceWrite } from '@/lib/staff/requireFinanceStaff';
+import { isProductionFinancialRecord } from '@/lib/finance/financialRecordClass';
 
 export type FinanceLedgerRow = {
   id: string;
@@ -95,7 +96,7 @@ export async function buildFinancePayload(role: Role, displayName: string | null
   const [ledgerRes, pendingRes, poolsRes, recentRes] = await Promise.all([
     supabase
       .from('affiliate_ledger_entries')
-      .select('amount_cents, status, created_at')
+      .select('amount_cents, status, created_at, external_ref, source, notes, meta, tracking_tag')
       .gte('created_at', since),
     supabase
       .from('commission_allocations')
@@ -111,7 +112,7 @@ export async function buildFinancePayload(role: Role, displayName: string | null
     supabase
       .from('affiliate_ledger_entries')
       .select(
-        'id, network, amount_cents, status, tracking_tag, external_ref, notes, attributable, created_at, period_start, period_end'
+        'id, network, amount_cents, status, tracking_tag, external_ref, notes, attributable, created_at, period_start, period_end, source, meta'
       )
       .order('created_at', { ascending: false })
       .limit(25),
@@ -121,8 +122,28 @@ export async function buildFinancePayload(role: Role, displayName: string | null
   let ledgerAccruedCents = 0;
   let paidMonthCents = 0;
   for (const row of ledgerRes.data ?? []) {
-    const cents = Number((row as { amount_cents?: number }).amount_cents) || 0;
-    const st = String((row as { status?: string }).status ?? '');
+    const r = row as {
+      amount_cents?: number;
+      status?: string;
+      external_ref?: string | null;
+      source?: string | null;
+      notes?: string | null;
+      meta?: unknown;
+      tracking_tag?: string | null;
+    };
+    if (
+      !isProductionFinancialRecord({
+        externalRef: r.external_ref,
+        source: r.source,
+        notes: r.notes,
+        meta: r.meta,
+        trackingTag: r.tracking_tag,
+      })
+    ) {
+      continue;
+    }
+    const cents = Number(r.amount_cents) || 0;
+    const st = String(r.status ?? '');
     ledgerMonthCents += cents;
     if (st === 'accrued') ledgerAccruedCents += cents;
     if (st === 'paid') paidMonthCents += cents;

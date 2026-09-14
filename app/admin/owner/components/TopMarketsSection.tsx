@@ -29,9 +29,9 @@ export default function TopMarketsSection({ data }: { data: OwnerDashboardPayloa
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div>
-              <p className="text-[10px] text-white/35 uppercase">Revenue</p>
+              <p className="text-[10px] text-white/35 uppercase">Confirmed</p>
               <p className="text-xs font-semibold text-white mt-0.5 tabular-nums">
-                {formatMoneyCents(data.economy.month.estimatedCents ?? data.economy.month.realCents)}
+                {formatMoneyCents(data.economy.month.realCents ?? 0)}
               </p>
             </div>
             <div>

@@ -211,15 +211,16 @@ export default function FounderModeGrid({ data }: { data: OwnerDashboardPayload 
           </p>
         </FounderCard>
 
-        <FounderCard title="Ingresos" icon={CircleDollarSign} tone={revTone as TrafficLight} href="/admin/commissions" footer="Economía ↓">
+        <FounderCard title="Ingresos" icon={CircleDollarSign} tone={revTone as TrafficLight} href="/admin/commissions" footer="Money truth →">
           <p className="font-semibold text-white">
-            {data.economy.month.estimatedCents != null
-              ? formatMoneyCents(data.economy.month.estimatedCents)
-              : 'Sin estimar'}
+            Confirmed {formatMoneyCents(data.economy.month.realCents ?? 0)}
           </p>
           <p className="text-xs text-gray-400">
-            Real {data.economy.ledgerAvailable ? formatMoneyCents(data.economy.month.realCents) : '—'} · conf.{' '}
-            {data.economy.confidence}
+            Est.{' '}
+            {data.economy.month.estimatedCents != null
+              ? formatMoneyCents(data.economy.month.estimatedCents)
+              : 'NO_DATA'}{' '}
+            · conf. {data.economy.confidence}
           </p>
         </FounderCard>
 

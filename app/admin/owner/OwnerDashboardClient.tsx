@@ -7,6 +7,7 @@ import LoadingState from '@/app/components/panel/LoadingState';
 import type { OwnerDashboardPayload } from '@/lib/owner/buildOwnerDashboard';
 import { buildIntelligenceFromData } from '@/lib/owner/buildIntelligence';
 import OwnerHero from './components/OwnerHero';
+import CeoControlCenter from './components/CeoControlCenter';
 import OwnerKpiStrip from './components/OwnerKpiStrip';
 import RevenueSection from './components/RevenueSection';
 import OwnerHealthCard from './components/OwnerHealthCard';
@@ -109,6 +110,7 @@ export default function OwnerDashboardClient() {
       </div>
 
       <OwnerHero data={data} displayName={displayName} />
+      <CeoControlCenter data={data} />
       <OwnerKpiStrip data={data} />
 
       <div className="grid lg:grid-cols-3 gap-6 mb-6">

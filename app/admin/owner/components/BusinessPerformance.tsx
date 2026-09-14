@@ -22,9 +22,9 @@ export default function BusinessPerformance({ data }: { data: OwnerDashboardPayl
 
       <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2">
         {[
-          { label: 'Revenue', value: data.economy.month.estimatedCents != null ? `$${Math.round(data.economy.month.estimatedCents / 100).toLocaleString('es-MX')}` : '—' },
+          { label: 'Revenue confirmed', value: data.economy.month.realCents != null ? `$${Math.round((data.economy.month.realCents ?? 0) / 100).toLocaleString('es-MX')}` : '—' },
+          { label: 'Est. opportunity', value: data.economy.month.estimatedCents != null ? `$${Math.round(data.economy.month.estimatedCents / 100).toLocaleString('es-MX')}` : 'NO_DATA' },
           { label: 'Clicks', value: formatNum(data.week.outbound) },
-          { label: 'CTR', value: data.week.ctr != null ? `${data.week.ctr}%` : '—' },
           { label: 'Offers', value: formatNum(data.week.offersApproved) },
           { label: 'Users', value: formatNum(data.week.newUsers) },
         ].map((m) => (

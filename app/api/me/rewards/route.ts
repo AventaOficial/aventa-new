@@ -4,6 +4,10 @@ import { getRewardsMembership } from '@/lib/rewards/eligibility';
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock';
 import type { RewardStatus } from '@/lib/rewards/config';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import {
+  classifyFinancialRecord,
+  isSyntheticFinancialRecord,
+} from '@/lib/finance/financialRecordClass';
 
 type OfferSnippet = {
   id: string;
@@ -13,10 +17,19 @@ type OfferSnippet = {
   price: number | null;
 };
 
-function mapCreatorStatus(status: string): {
-  uiStatus: 'validating' | 'available' | 'delivered' | 'cancelled';
+function mapCreatorStatus(
+  status: string,
+  synthetic: boolean,
+): {
+  uiStatus: 'validating' | 'available' | 'delivered' | 'cancelled' | 'synthetic';
   label: string;
 } {
+  if (synthetic) {
+    if (status === 'PAID') {
+      return { uiStatus: 'synthetic', label: 'Prueba QA (no es pago real)' };
+    }
+    return { uiStatus: 'synthetic', label: 'Registro de prueba' };
+  }
   switch (status as RewardStatus) {
     case 'PAID':
       return { uiStatus: 'delivered', label: 'Entregada' };
@@ -79,7 +92,7 @@ export async function GET(request: Request) {
   const { data: rewardRows, error } = await supabase
     .from('creator_rewards')
     .select(
-      'id, offer_id, network, status, hold_until, available_at, paid_at, created_at',
+      'id, offer_id, network, status, hold_until, available_at, paid_at, created_at, meta',
     )
     .eq('creator_id', user.id)
     .order('created_at', { ascending: false })
@@ -133,14 +146,19 @@ export async function GET(request: Request) {
       available_at?: string | null;
       paid_at?: string | null;
       created_at: string;
+      meta?: unknown;
     }) => {
-      const mapped = mapCreatorStatus(r.status);
+      const recordClass = classifyFinancialRecord({ meta: r.meta });
+      const synthetic = isSyntheticFinancialRecord({ meta: r.meta });
+      const mapped = mapCreatorStatus(r.status, synthetic);
       return {
         id: r.id,
         kind: 'commission' as const,
         status: r.status,
         uiStatus: mapped.uiStatus,
         statusLabel: mapped.label,
+        recordClass,
+        isSynthetic: synthetic,
         network: r.network ?? null,
         createdAt: r.created_at,
         paidAt: r.paid_at ?? null,
@@ -148,6 +166,9 @@ export async function GET(request: Request) {
       };
     },
   );
+
+  const productionRewards = rewards.filter((r) => !r.isSynthetic);
+  const hasProductionPaid = productionRewards.some((r) => r.status === 'PAID');
 
   return NextResponse.json({
     welcome: {
@@ -158,6 +179,13 @@ export async function GET(request: Request) {
       selectedAt: membership.welcomeOfferSelectedAt,
       offer: welcomeOffer,
       needsSelection: membership.needsWelcomeSelection,
+    },
+    moneyTruth: {
+      hasProductionPaid,
+      productionRewardCount: productionRewards.length,
+      syntheticRewardCount: rewards.length - productionRewards.length,
+      emptyProductionMessage:
+        productionRewards.length === 0 ? 'Sin pagos reales' : null,
     },
     rewards,
   });

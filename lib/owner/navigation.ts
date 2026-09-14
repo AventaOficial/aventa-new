@@ -6,13 +6,13 @@ import {
   BowArrow,
   CircleDollarSign,
   Cog,
-  Globe2,
   Heart,
   LayoutDashboard,
   Map,
   Network,
   Rocket,
   Server,
+  Shield,
   Users,
   Zap,
 } from 'lucide-react';
@@ -27,56 +27,52 @@ export type OwnerNavItem = {
 export type OwnerNavSection = {
   id: string;
   title: string;
+  /** CEO | OPERATIONS | TECHNICAL */
+  audience: 'CEO' | 'OPERATIONS' | 'TECHNICAL';
   items: OwnerNavItem[];
 };
 
-/** Sidebar agrupado por decisiones — no por implementación técnica */
+/**
+ * Navegación por audiencia de decisión.
+ * Legacy/technical permanece accesible, no domina.
+ */
 export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
   {
-    id: 'command',
-    title: 'Command',
+    id: 'ceo',
+    title: 'CEO',
+    audience: 'CEO',
     items: [
-      { href: '/admin/owner', label: 'Overview', icon: LayoutDashboard, exact: true },
-      { href: '/admin/metrics', label: 'Live Metrics', icon: BarChart3 },
-      { href: '/admin/logs', label: 'Activity', icon: Activity },
-    ],
-  },
-  {
-    id: 'business',
-    title: 'Business',
-    items: [
-      { href: '/admin/owner/crecimiento', label: 'Growth', icon: Rocket },
-      { href: '/admin/commissions', label: 'Revenue', icon: CircleDollarSign },
-      { href: '/admin/metrics', label: 'Markets', icon: Globe2 },
-    ],
-  },
-  {
-    id: 'people',
-    title: 'People',
-    items: [
-      { href: '/admin/team', label: 'Team', icon: Users },
+      { href: '/admin/owner', label: 'Control Center', icon: LayoutDashboard, exact: true },
+      { href: '/admin/moderation', label: 'Moderation', icon: Shield },
+      { href: '/admin/hunter', label: 'Supply', icon: BowArrow },
+      { href: '/admin/commissions', label: 'Money', icon: CircleDollarSign },
       { href: '/admin/users', label: 'Users', icon: Users },
-      { href: '/equipo/gerencia', label: 'Workspace', icon: Users },
+      { href: '/admin/health', label: 'Health', icon: Heart },
     ],
   },
   {
     id: 'operations',
     title: 'Operations',
+    audience: 'OPERATIONS',
     items: [
-      { href: '/admin/health', label: 'Health', icon: Heart },
+      { href: '/admin/metrics', label: 'Live Metrics', icon: BarChart3 },
+      { href: '/admin/owner/crecimiento', label: 'Growth', icon: Rocket },
+      { href: '/admin/rewards', label: 'Rewards ops', icon: CircleDollarSign },
       { href: '/admin/operaciones', label: 'Alerts', icon: AlertTriangle },
       { href: '/admin/operaciones/trabajo', label: 'Automations', icon: Zap },
-      { href: '/admin/hunter', label: 'Hunter', icon: BowArrow },
+      { href: '/admin/logs', label: 'Activity', icon: Activity },
     ],
   },
   {
-    id: 'system',
-    title: 'System',
+    id: 'technical',
+    title: 'Technical',
+    audience: 'TECHNICAL',
     items: [
       { href: '/admin/infraestructura', label: 'Infrastructure', icon: Server },
       { href: '/admin/sistemas/mapa', label: 'Systems Map', icon: Map },
       { href: '/admin/contexto', label: 'Configuration', icon: Cog },
       { href: '/admin/technical', label: 'Technical', icon: Network },
+      { href: '/admin/team', label: 'Team', icon: Users },
     ],
   },
 ];
@@ -84,13 +80,12 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
 /** Items para command palette (búsqueda global) */
 export const OWNER_COMMAND_ITEMS: { href: string; label: string; group: string }[] = [
   ...OWNER_NAV_SECTIONS.flatMap((s) =>
-    s.items.map((i) => ({ href: i.href, label: i.label, group: s.title }))
+    s.items.map((i) => ({ href: i.href, label: i.label, group: s.title })),
   ),
-  { href: '/admin/moderation', label: 'Moderación', group: 'Admin' },
-  { href: '/admin/announcements', label: 'Anuncios', group: 'Admin' },
-  { href: '/admin/creator-tags', label: 'Creator Tags', group: 'Admin' },
-  { href: '/admin/owner/cazadores', label: 'Cazadores', group: 'Admin' },
-  { href: '/admin/hunter', label: 'Hunter', group: 'Operations' },
-  { href: '/equipo', label: 'Team Hub', group: 'Workspace' },
-  { href: '/admin/mantenimiento', label: 'Mantenimiento', group: 'System' },
+  { href: '/admin/announcements', label: 'Anuncios', group: 'Operations' },
+  { href: '/admin/creator-tags', label: 'Creator Tags', group: 'Operations' },
+  { href: '/admin/owner/cazadores', label: 'Cazadores', group: 'CEO' },
+  { href: '/equipo', label: 'Team Hub', group: 'Operations' },
+  { href: '/admin/mantenimiento', label: 'Mantenimiento', group: 'Technical' },
+  { href: '/equipo/contabilidad', label: 'Contabilidad', group: 'CEO' },
 ];

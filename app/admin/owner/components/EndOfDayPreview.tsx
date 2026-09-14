@@ -21,11 +21,17 @@ export default function EndOfDayPreview({ data }: { data: OwnerDashboardPayload 
         variant="dark"
       />
       <p className="mt-3 text-sm text-white/60">
-        Hoy AVENTA generó{' '}
+        Hoy AVENTA registró{' '}
         <span className="text-white font-medium">
-          {formatMoneyCents(data.economy.day.estimatedCents ?? data.economy.day.realCents)}
+          {formatMoneyCents(data.economy.day.realCents ?? 0)}
         </span>{' '}
-        estimado ·{' '}
+        confirmed ·{' '}
+        <span className="text-white font-medium">
+          {data.economy.day.estimatedCents != null
+            ? formatMoneyCents(data.economy.day.estimatedCents)
+            : 'NO_DATA'}
+        </span>{' '}
+        estimated ·{' '}
         <span className="text-white font-medium">{formatNum(data.today.outbound)}</span> clics ·{' '}
         <span className="text-white font-medium">{formatNum(data.today.newUsers)}</span> usuarios nuevos.
       </p>
