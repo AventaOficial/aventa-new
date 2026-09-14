@@ -4,6 +4,10 @@ import Link from 'next/link';
 import type { OwnerDashboardPayload } from '@/lib/owner/buildOwnerDashboard';
 import { moneyProvenanceLabel } from '@/lib/finance/financialRecordClass';
 import { formatMoneyCents, formatNum, cn } from '@/app/components/panel/utils';
+import {
+  formatMedianDecisionTime,
+  formatPendingToLivePct,
+} from '@/lib/moderation/outcomes';
 
 function toneClass(tone: 'green' | 'yellow' | 'red' | 'gray') {
   if (tone === 'green') return 'border-emerald-500/30 bg-emerald-500/[0.08]';
@@ -91,6 +95,28 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
       value: String(critical),
       meaning: critical > 0 ? 'Alertas rojas activas' : 'Sin alertas críticas',
       tone: critical > 0 ? 'red' : 'green',
+    },
+    {
+      label: 'Pending → Live',
+      value: formatPendingToLivePct(data.moderation.pendingToLivePct),
+      meaning:
+        data.moderation.pendingToLivePct != null
+          ? 'Conversión de decisiones humanas a ofertas live (7d)'
+          : 'Sin decisiones suficientes en outcomes (7d)',
+      tone:
+        data.moderation.pendingToLivePct == null
+          ? 'gray'
+          : data.moderation.pendingToLivePct >= 20
+            ? 'green'
+            : data.moderation.pendingToLivePct > 0
+              ? 'yellow'
+              : 'gray',
+    },
+    {
+      label: 'Median decision',
+      value: formatMedianDecisionTime(data.moderation.medianDecisionMinutes),
+      meaning: 'Mediana pending → approve/reject (7d)',
+      tone: data.moderation.medianDecisionMinutes != null ? 'yellow' : 'gray',
     },
   ];
 

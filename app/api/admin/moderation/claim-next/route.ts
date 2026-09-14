@@ -7,6 +7,7 @@ import {
 } from '@/lib/moderation/claimNextModerationOffer';
 import { moderationMaxLevelForRole } from '@/lib/moderation/moderationMaxLevelForRole';
 import { recordClaimLatencyMs } from '@/lib/moderation/claimLatencyTracker';
+import { recordModerationOutcomeFireAndForget } from '@/lib/moderation/outcomes';
 
 function parseSourceTab(value: unknown): ClaimSourceTab {
   if (value === 'bot' || value === 'users' || value === 'all') return value;
@@ -47,6 +48,30 @@ export async function POST(request: Request) {
 
     const claimLatencyMs = Date.now() - started;
     recordClaimLatencyMs(claimLatencyMs);
+
+    if (result.claimed && result.offer && typeof result.offer.id === 'string') {
+      const o = result.offer;
+      recordModerationOutcomeFireAndForget(
+        {
+          offer: {
+            id: o.id as string,
+            created_at: (o.created_at as string | null | undefined) ?? null,
+            image_url: (o.image_url as string | null | undefined) ?? null,
+            price: typeof o.price === 'number' ? o.price : null,
+            original_price: typeof o.original_price === 'number' ? o.original_price : null,
+            offer_url: (o.offer_url as string | null | undefined) ?? null,
+            link_mod_ok: (o.link_mod_ok as boolean | null | undefined) ?? null,
+            is_bot: o.is_bot === true,
+            moderator_comment: (o.moderator_comment as string | null | undefined) ?? null,
+            description: (o.description as string | null | undefined) ?? null,
+            bot_meta: o.bot_meta,
+          },
+          decision: 'claim',
+          moderatorId: auth.user.id,
+        },
+        { supabase },
+      );
+    }
 
     return NextResponse.json({
       ok: true,

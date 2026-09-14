@@ -3,6 +3,10 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock';
 import { captureHumanModerationOutcome } from '@/lib/autonomous';
+import {
+  loadOfferSnapshotForOutcome,
+  recordModerationOutcomeFireAndForget,
+} from '@/lib/moderation/outcomes';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -75,6 +79,19 @@ export async function POST(request: Request) {
   }
 
   void captureHumanModerationOutcome(offerId, 'snoozed');
+
+  void loadOfferSnapshotForOutcome(supabase, offerId).then((snap) => {
+    if (!snap) return;
+    recordModerationOutcomeFireAndForget(
+      {
+        offer: snap,
+        decision: 'snooze',
+        moderatorId: auth.user.id,
+        snoozeMinutes: minutes,
+      },
+      { supabase },
+    );
+  });
 
   return NextResponse.json({ ok: true, snoozedUntil: until, minutes });
 }

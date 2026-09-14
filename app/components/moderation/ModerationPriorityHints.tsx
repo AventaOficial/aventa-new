@@ -1,6 +1,7 @@
 'use client';
 
 import { evaluateModerationPriority } from '@/lib/moderation/moderationPriority';
+import { parseBotMeta } from '@/lib/moderation/botFacts';
 import { cn } from '@/app/components/panel/utils';
 
 type Props = {
@@ -24,6 +25,16 @@ const TONE: Record<string, string> = {
     'bg-amber-500/15 text-amber-900 dark:text-amber-300 ring-amber-500/30',
   P4_LOW_VALUE: 'bg-rose-500/10 text-rose-800 dark:text-rose-300 ring-rose-500/25',
 };
+
+function pendingAgeLabel(createdAt: string | null | undefined): string | null {
+  if (!createdAt) return null;
+  const t = Date.parse(createdAt);
+  if (!Number.isFinite(t)) return null;
+  const hours = Math.max(0, (Date.now() - t) / 3_600_000);
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m en cola`;
+  if (hours < 48) return `${Math.round(hours)}h en cola`;
+  return `${Math.round(hours / 24)}d en cola`;
+}
 
 /**
  * Chip + razones compactas para la cola de moderación.
@@ -50,17 +61,25 @@ export default function ModerationPriorityHints({
   });
   const maxReasons = density === 'compact' ? 2 : 4;
   const reasons = result.reasons.slice(0, maxReasons);
+  const source = parseBotMeta(botMeta)?.source?.trim() || (isBot ? 'bot' : 'comunidad');
+  const age = pendingAgeLabel(createdAt);
 
   return (
     <div className={cn('space-y-1', className)} data-moderation-priority={result.priority}>
-      <span
-        className={cn(
-          'inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset',
-          TONE[result.priority]
-        )}
-      >
-        {result.shortLabel}
-      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          className={cn(
+            'inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset',
+            TONE[result.priority],
+          )}
+        >
+          {result.shortLabel}
+        </span>
+        <span className={cn('text-[10px] font-medium uppercase tracking-wide', mutedClassName)}>
+          {source}
+        </span>
+        {age ? <span className={cn('text-[10px]', mutedClassName)}>{age}</span> : null}
+      </div>
       {reasons.length > 0 ? (
         <ul className={cn('space-y-0.5 text-left text-[11px] leading-snug', mutedClassName)}>
           {reasons.map((r) => (

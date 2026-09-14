@@ -18,6 +18,11 @@ import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess'
 import { captureHumanModerationOutcome } from '@/lib/autonomous'
 import { expiresAtOnApprove, createdAtOnApprove } from '@/lib/moderation/moderationPriority'
+import {
+  loadOfferSnapshotForOutcome,
+  recordModerationOutcomeFireAndForget,
+  type ModerationOutcomeOfferSnapshot,
+} from '@/lib/moderation/outcomes'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -93,6 +98,10 @@ export async function POST(request: Request) {
         ? String((offer as { title: string }).title).trim() || 'Tu oferta'
         : 'Tu oferta'
     const offerPublicPath = buildOfferPublicPath(id, offerTitle)
+
+    // Snapshot BEFORE approve mutates created_at (go-live).
+    const outcomeSnapshot: ModerationOutcomeOfferSnapshot | null =
+      await loadOfferSnapshotForOutcome(supabase, id)
 
     if (status === 'approved') {
       const { data: row } = await supabase
@@ -261,6 +270,28 @@ export async function POST(request: Request) {
     if (logError) console.error('[moderate-offer] log insert failed:', logError.message)
 
     void captureHumanModerationOutcome(id, status)
+
+    // Outcome observability: snapshot PRE-update preserved in outcomeSnapshot (submitted_at).
+    // Fail-soft — never blocks moderation response.
+    void (async () => {
+      try {
+        const snap: ModerationOutcomeOfferSnapshot | null =
+          outcomeSnapshot ??
+          (await loadOfferSnapshotForOutcome(supabase, id))
+        if (!snap) return
+        recordModerationOutcomeFireAndForget(
+          {
+            offer: snap,
+            decision: status === 'approved' ? 'approve' : 'reject',
+            moderatorId: auth.user.id,
+            rejectionReason: reason,
+          },
+          { supabase },
+        )
+      } catch (err) {
+        console.error('[moderate-offer] outcome record failed:', err)
+      }
+    })()
 
     if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 

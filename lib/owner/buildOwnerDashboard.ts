@@ -12,6 +12,7 @@ import {
   windowYesterday,
 } from '@/lib/owner/mxTime';
 import { fetchOfferHealthSummary, type OfferHealthSummary } from '@/lib/offers/offerHealthSummary';
+import { buildSupplyFunnelSnapshot } from '@/lib/moderation/outcomes';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -90,6 +91,11 @@ export type OwnerDashboardPayload = {
     slaHoursTarget: number;
     slaOk: boolean | null;
     slaNote: string | null;
+    /** Pending→Live conversion (7d outcomes), 0–100 or null. */
+    pendingToLivePct: number | null;
+    /** Median pending→decision minutes (7d), or null. */
+    medianDecisionMinutes: number | null;
+    funnelNote: string | null;
   };
   /** Ofertas approved/published no expiradas (feed-eligible). */
   liveDeals: number | null;
@@ -596,6 +602,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     offerHealthResult,
     liveDealsResult,
     liabilityResult,
+    funnelSnapshot,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -614,6 +621,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     fetchOfferHealthSummary(),
     countLiveFeedOffers(),
     sumProductionUserLiabilityCents(),
+    buildSupplyFunnelSnapshot({ windowDays: 7 }),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -767,6 +775,9 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       slaHoursTarget: SLA_HOURS,
       slaOk,
       slaNote: approvalSla.note,
+      pendingToLivePct: funnelSnapshot.pendingToLivePct,
+      medianDecisionMinutes: funnelSnapshot.medianDecisionMinutes,
+      funnelNote: funnelSnapshot.note,
     },
     liveDeals: liveDealsResult,
     userLiabilityConfirmedCents: liabilityResult,

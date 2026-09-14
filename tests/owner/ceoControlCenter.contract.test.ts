@@ -44,6 +44,8 @@ describe('CEO Control Center contracts', () => {
     expect(ceo).toMatch(/User liability/);
     expect(ceo).toMatch(/Live deals/);
     expect(ceo).toMatch(/Needs review/);
+    expect(ceo).toMatch(/Pending → Live/);
+    expect(ceo).toMatch(/Median decision/);
     expect(ceo).toMatch(/NO_DATA/);
   });
 
