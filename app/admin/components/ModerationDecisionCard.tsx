@@ -11,6 +11,7 @@ import {
 } from '@/lib/moderation/relativeTime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import { moderationUi } from '../moderation/moderationUi';
+import ModerationPriorityHints from '@/app/components/moderation/ModerationPriorityHints';
 
 export type DecisionCardOffer = {
   id: string;
@@ -23,6 +24,7 @@ export type DecisionCardOffer = {
   offer_url: string | null;
   created_at: string;
   is_bot?: boolean;
+  bot_meta?: unknown;
   locked_by?: string | null;
   locked_at?: string | null;
   locked_by_name?: string | null;
@@ -157,6 +159,17 @@ export default function ModerationDecisionCard({
                 </>
               ) : null}
             </p>
+            <ModerationPriorityHints
+              price={offer.price}
+              originalPrice={offer.original_price}
+              imageUrl={offer.image_url}
+              isBot={offer.is_bot}
+              createdAt={offer.created_at}
+              botMeta={offer.bot_meta}
+              density="compact"
+              className="mt-1.5"
+              mutedClassName={ui.muted}
+            />
           </div>
         </button>
 

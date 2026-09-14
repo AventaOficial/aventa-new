@@ -17,6 +17,7 @@ import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess'
 import { captureHumanModerationOutcome } from '@/lib/autonomous'
+import { expiresAtOnApprove, createdAtOnApprove } from '@/lib/moderation/moderationPriority'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -140,15 +141,18 @@ export async function POST(request: Request) {
       const payload: {
         status: string
         expires_at?: string
+        created_at?: string
         offer_url?: string
         link_mod_ok?: boolean | null
         locked_by?: null
         locked_at?: null
         snoozed_until?: null
       } = { status: 'approved', ...LOCK_CLEAR }
-      if (row?.expires_at == null) {
-        payload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      }
+      // Liquidez: pending sin expiry → +7d; si ya expiró → refrescar +7d.
+      // No acortar un expires_at futuro ya fijado.
+      payload.expires_at = expiresAtOnApprove(row?.expires_at ?? null)
+      // Home period=day filtra por created_at: go-live al aprobar.
+      payload.created_at = createdAtOnApprove()
       if (rawUrl) {
         // Al aprobar: intenta expandir acortadores y aplicar tags. Si ML/Amazon
         // bloquean el fetch (p. ej. 403 desde Vercel) y el moderador ya confirmó

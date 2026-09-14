@@ -3,6 +3,7 @@ import {
   normalizeCategoryForStorage,
   type CategoryId,
 } from '@/lib/categories';
+import { evaluateModerationPriority } from './moderationPriority';
 
 /** Prioridad de categorías vitales en cola (Día a día primero). */
 const VITAL_CATEGORY_ORDER: CategoryId[] = [
@@ -25,6 +26,7 @@ export type ModerationSortableOffer = {
   moderator_comment?: string | null;
   description?: string | null;
   snoozed_until?: string | null;
+  bot_meta?: unknown;
 };
 
 function isSnoozedActive(o: ModerationSortableOffer, nowMs = Date.now()): boolean {
@@ -67,8 +69,20 @@ function needsModerationFix(o: ModerationSortableOffer): boolean {
   return noImage || noCategory;
 }
 
+function priorityRankForOffer(o: ModerationSortableOffer): number {
+  return evaluateModerationPriority({
+    price: o.price,
+    originalPrice: o.original_price,
+    imageUrl: o.image_url,
+    isBot: isBotOffer(o),
+    createdAt: o.created_at,
+    botMeta: o.bot_meta,
+  }).rank;
+}
+
 /**
- * Orden de cola: vitales primero, sin foto/categoría arriba, luego mayor descuento.
+ * Orden de cola: snooze → prioridad económica de revisión → editorial.
+ * La prioridad NO cambia calidad; solo el orden humano.
  */
 export function sortPendingOffersForModeration<T extends ModerationSortableOffer>(
   offers: T[]
@@ -77,6 +91,10 @@ export function sortPendingOffersForModeration<T extends ModerationSortableOffer
     const aSnooze = isSnoozedActive(a) ? 1 : 0;
     const bSnooze = isSnoozedActive(b) ? 1 : 0;
     if (aSnooze !== bSnooze) return aSnooze - bSnooze;
+
+    const aPri = priorityRankForOffer(a);
+    const bPri = priorityRankForOffer(b);
+    if (aPri !== bPri) return aPri - bPri;
 
     const aFix = needsModerationFix(a) ? 0 : 1;
     const bFix = needsModerationFix(b) ? 0 : 1;

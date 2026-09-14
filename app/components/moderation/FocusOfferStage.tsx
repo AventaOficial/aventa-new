@@ -10,6 +10,7 @@ import { buildHumanVerdict } from '@/lib/moderation/humanVerdict';
 import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
 import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
+import ModerationPriorityHints from './ModerationPriorityHints';
 
 type Props = {
   offer: FocusModerationOffer;
@@ -162,6 +163,20 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
         ) : offer.store?.trim() ? (
           <span className={cn('text-sm', ui.soft)}>· {offer.store.trim()}</span>
         ) : null}
+      </div>
+
+      <div className="mt-3 w-full max-w-sm">
+        <ModerationPriorityHints
+          price={offer.price}
+          originalPrice={offer.original_price}
+          imageUrl={offer.image_url}
+          isBot={offer.is_bot}
+          createdAt={offer.created_at}
+          botMeta={offer.bot_meta}
+          density="full"
+          className="rounded-xl px-3 py-2 text-left"
+          mutedClassName={ui.soft}
+        />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
