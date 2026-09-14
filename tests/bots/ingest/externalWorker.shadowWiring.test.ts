@@ -240,8 +240,34 @@ function candidate(over: Partial<ExternalWorkerCandidate> = {}): ExternalWorkerC
     originalPrice: 999,
     discountPercent: 50,
     sourceDetail: 'worker:ml',
+    // Evidence Contract: el camino insert/pending exige evidencia review-worthy.
+    // Sin esto el gate bloquea pending (correcto) y los tests de wiring de insert
+    // no ejercitan el contrato FASE 4.5.1 de observabilidad+persistencia.
+    signals: {
+      cardDiscountSource: 'pdp',
+      currentPriceProvenance: 'source_explicit',
+      originalPriceProvenance: 'source_explicit',
+      effectiveDiscountPercent: 50,
+      suspectedArtificialListPrice: false,
+      habitual30d: 900,
+    },
     ...over,
   };
+}
+
+/** Candidato listing-only: QE/gate deben bloquear pending, shadow debe seguir viendo. */
+function candidateInsufficientEvidence(
+  over: Partial<ExternalWorkerCandidate> = {},
+): ExternalWorkerCandidate {
+  return candidate({
+    ...over,
+    signals: {
+      cardDiscountSource: 'badge_reconstructed',
+      cardBadgePercent: 50,
+      listingTypeId: 'worker_card',
+      ...(over.signals ?? {}),
+    },
+  });
 }
 
 describe('FASE 4.5.1 ml_worker shadow wiring', () => {
@@ -527,6 +553,56 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
     expect(report.ok).toBe(true);
     expect(report.summary.inserted).toBe(1);
     expect(getAutonomousDecisionMetrics().evaluated).toBe(1);
+  });
+
+  it('N. Quality Gate bloquea pending/publish pero NO silencia shadow', async () => {
+    vi.mocked(evaluateDealSafe).mockReturnValue(
+      verifier({ decision: 'auto_approve', score: 95, ingestDecision: 'auto_approve' })
+    );
+    vi.mocked(loadBotIngestConfig).mockReturnValue(
+      cfg({ autoApproveEnabled: true, legacyAutoApproveWriteEnabled: false })
+    );
+
+    const report = await processExternalWorkerBatch({
+      candidates: [candidateInsufficientEvidence()],
+    });
+
+    const shadow = getAutonomousDecisionMetrics();
+    expect(shadow.evaluated).toBe(1);
+    expect(shadow.verifier.autoApprove).toBeGreaterThan(0);
+    expect(vi.mocked(evaluateDealSafe)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(insertIngestedOffer)).not.toHaveBeenCalled();
+    expect(report.summary.inserted).toBe(0);
+    expect(report.summary.autoApproved).toBe(0);
+    expect(
+      report.results.some(
+        (r) =>
+          r.status === 'skipped' &&
+          'reason' in r &&
+          String(r.reason).startsWith('quality_gate:'),
+      ),
+    ).toBe(true);
+  });
+
+  it('N2. WEAK badge no abre pending aunque el verifier diga auto_approve', async () => {
+    vi.mocked(evaluateDealSafe).mockReturnValue(
+      verifier({ decision: 'auto_approve', score: 99, ingestDecision: 'auto_approve' })
+    );
+    const report = await processExternalWorkerBatch({
+      candidates: [
+        candidateInsufficientEvidence({
+          signals: {
+            cardDiscountSource: 'badge_reconstructed',
+            cardBadgePercent: 40,
+            listingTypeId: 'worker_card',
+          },
+        }),
+      ],
+    });
+    expect(report.summary.inserted).toBe(0);
+    expect(report.summary.autoApproved).toBe(0);
+    expect(getAutonomousDecisionMetrics().evaluated).toBe(1);
+    expect(vi.mocked(insertIngestedOffer)).not.toHaveBeenCalled();
   });
 
   it('kill-switch: paused no inserta ni observa', async () => {

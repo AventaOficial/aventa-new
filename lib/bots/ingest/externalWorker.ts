@@ -517,24 +517,15 @@ export async function processExternalWorkerBatch(
         continue;
       }
 
-      // V2: ml_worker — Quality Engine decide si merece pending (badge ≠ prueba).
+      // QE decide coherencia (Evidence Contract). Se registra siempre.
+      // El gate de pending NO puede silenciar shadow: observa → luego gate.
+      let mlQuality: ReturnType<typeof evaluateDealQualityFromParsedMeta> | null = null;
       if (item.source === 'ml_worker') {
-        const quality = evaluateDealQualityFromParsedMeta(meta, {
+        mlQuality = evaluateDealQualityFromParsedMeta(meta, {
           source: item.source,
           qualification,
         });
-        recordDealQualityDecision(quality);
-        const pendingGate = mlWorkerMayInsertPending({
-          qualityDecision: quality.decision,
-          recommendedAction: quality.recommendedAction,
-          cardDiscountSource: meta.signals?.cardDiscountSource ?? null,
-        });
-        if (!pendingGate.allow) {
-          const reason = `quality_gate:${pendingGate.reason}`;
-          results.push({ url: item.url, source: item.source, status: 'skipped', reason });
-          markSourceSkip(sourceStats, item.source, reason);
-          continue;
-        }
+        recordDealQualityDecision(mlQuality);
       }
 
       const verified = evaluateDealSafe({
@@ -544,7 +535,7 @@ export async function processExternalWorkerBatch(
         url: item.url,
         enableWorkerAutoApprove: true,
       });
-      // Insert-time duplicate SÍ se observa (ya pasó gates + verifier). Dedupe intra-lote no.
+      // Insert-time duplicate SÍ se observa (ya pasó gates duros + verifier). Dedupe intra-lote no.
       const autonomous = await observeIngestShadow({
         verifier: verified,
         meta,
@@ -563,6 +554,21 @@ export async function processExternalWorkerBatch(
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;
+      }
+
+      // V2 pending gate: bloquea insert/pending, no la observabilidad shadow.
+      if (item.source === 'ml_worker' && mlQuality) {
+        const pendingGate = mlWorkerMayInsertPending({
+          qualityDecision: mlQuality.decision,
+          recommendedAction: mlQuality.recommendedAction,
+          cardDiscountSource: meta.signals?.cardDiscountSource ?? null,
+        });
+        if (!pendingGate.allow) {
+          const reason = `quality_gate:${pendingGate.reason}`;
+          results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+          markSourceSkip(sourceStats, item.source, reason);
+          continue;
+        }
       }
 
       resolved.push({
