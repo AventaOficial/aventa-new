@@ -236,9 +236,12 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
           </div>
         </div>
         <p className="mt-2 text-xs text-white/55">
-          Sticky {formatNum(data.supply.stickyObserved)} obs · PDP{' '}
-          {formatNum(data.supply.stickyPdpSuccess ?? null)} · rich{' '}
-          {formatNum(data.supply.stickyEvidenceRich ?? null)} ·{' '}
+          Sticky {formatNum(data.supply.stickyObserved)} obs · API{' '}
+          {formatNum(data.supply.stickyApiSuccess ?? data.supply.stickyPdpSuccess ?? null)} · rich{' '}
+          {formatNum(data.supply.stickyEvidenceRich ?? null)} · hist{' '}
+          {formatNum(data.supply.stickyHistoryReady ?? null)} · drop{' '}
+          {formatNum(data.supply.stickyPriceDrop ?? null)} · low{' '}
+          {formatNum(data.supply.stickyHistoricalLow ?? null)} ·{' '}
           {formatNum(data.supply.stickyVerified)} ver ·{' '}
           {formatNum(data.supply.stickyApprovalReady)} ready
           {' · '}

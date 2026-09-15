@@ -134,8 +134,13 @@ export type OwnerDashboardPayload = {
     stickyObserved: number | null;
     freshDiscovered: number | null;
     stickyPdpSuccess: number | null;
+    stickyApiSuccess: number | null;
+    stickyApiBlocked: number | null;
     stickyEvidenceRich: number | null;
     stickyVerified: number | null;
+    stickyHistoryReady: number | null;
+    stickyPriceDrop: number | null;
+    stickyHistoricalLow: number | null;
     stickyApprovalReady: number | null;
     freshVerified: number | null;
     freshApprovalReady: number | null;
@@ -969,9 +974,14 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       pendingModeration: supplyToday.pendingModeration,
       stickyObserved: supplyToday.stickyObserved,
       freshDiscovered: supplyToday.freshDiscovered,
-      stickyPdpSuccess: supplyToday.stickyPdpSuccess ?? null,
+      stickyPdpSuccess: supplyToday.stickyPdpSuccess ?? supplyToday.stickyApiSuccess ?? null,
+      stickyApiSuccess: supplyToday.stickyApiSuccess ?? supplyToday.stickyPdpSuccess ?? null,
+      stickyApiBlocked: supplyToday.stickyApiBlocked ?? null,
       stickyEvidenceRich: supplyToday.stickyEvidenceRich ?? null,
       stickyVerified: supplyToday.stickyVerified,
+      stickyHistoryReady: supplyToday.stickyHistoryReady ?? null,
+      stickyPriceDrop: supplyToday.stickyPriceDrop ?? null,
+      stickyHistoricalLow: supplyToday.stickyHistoricalLow ?? null,
       stickyApprovalReady: supplyToday.stickyApprovalReady,
       freshVerified: supplyToday.freshVerified,
       freshApprovalReady: supplyToday.freshApprovalReady,

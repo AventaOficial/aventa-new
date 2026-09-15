@@ -171,7 +171,14 @@ export async function selectStickySkuTargets(
       a.productId.localeCompare(b.productId)
     );
   });
-  return out.slice(0, Math.max(0, cfg.maxTargets));
+
+  // Diversidad: rotar por día UTC para no re-observar siempre el mismo top-N.
+  const cap = Math.max(0, cfg.maxTargets);
+  if (out.length <= cap) return out;
+  const dayIndex = Math.floor(now.getTime() / 86_400_000);
+  const start = dayIndex % out.length;
+  const rotated = [...out.slice(start), ...out.slice(0, start)];
+  return rotated.slice(0, cap);
 }
 
 /** Pura: aplica cooldown sobre lista ya agregada (tests). */

@@ -3,8 +3,9 @@ import { requireCronSecret } from '@/lib/server/cronAuth';
 import { selectStickySkuTargets } from '@/lib/hunter/supply/stickySku';
 
 /**
- * Lista de SKUs sticky para ml_worker (discovery-only seeds).
- * Auth: cron secret. No escribe ofertas.
+ * Inventario de SKUs sticky (Price Memory) — SOLO lectura.
+ * Sticky observation canónica: Supply Engine → observeStickySkus (server/API).
+ * NO usar este endpoint para Playwright PDP (ML account-verification).
  */
 export const maxDuration = 30;
 
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
       ok: true,
       count: seeds.length,
       seeds,
-      note: 'Usar con WORKER_DISCOVERY_ONLY=1. Solo discovery; dryRun en ingest.',
+      observationChannel: 'supply_engine_server_api',
+      note: 'Inventario sticky. Observar con runSupplyEngine/observeStickySkus (WRITE=0). No Playwright PDP.',
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

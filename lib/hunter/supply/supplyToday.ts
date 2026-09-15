@@ -23,8 +23,13 @@ export type SupplyTodaySnapshot = {
   stickyObserved: number | null;
   freshDiscovered: number | null;
   stickyPdpSuccess: number | null;
+  stickyApiSuccess: number | null;
+  stickyApiBlocked: number | null;
   stickyEvidenceRich: number | null;
   stickyVerified: number | null;
+  stickyHistoryReady: number | null;
+  stickyPriceDrop: number | null;
+  stickyHistoricalLow: number | null;
   stickyApprovalReady: number | null;
   freshVerified: number | null;
   freshApprovalReady: number | null;
@@ -148,8 +153,13 @@ export async function buildSupplyToday(
     stickyObserved,
     freshDiscovered,
     stickyPdpSuccess: null,
+    stickyApiSuccess: null,
+    stickyApiBlocked: null,
     stickyEvidenceRich: null,
     stickyVerified: null,
+    stickyHistoryReady: null,
+    stickyPriceDrop: null,
+    stickyHistoricalLow: null,
     stickyApprovalReady: null,
     freshVerified: verified,
     freshApprovalReady: null,

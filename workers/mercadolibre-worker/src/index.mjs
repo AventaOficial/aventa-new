@@ -58,34 +58,10 @@ async function main() {
   const cycleIndex = cycleIndexFor(Date.now(), rotationIntervalMs);
   let seeds = resolveSeeds({ override: parseSeeds(getEnv('WORKER_ML_SEEDS')), cycleIndex });
 
-  // Sticky seeds from Aventa Price Memory (optional, discovery-only).
-  const stickyEndpoint = getEnv('AVENTA_STICKY_SEEDS_ENDPOINT');
-  if (stickyEndpoint && secret) {
-    try {
-      const stickyRes = await fetch(stickyEndpoint, {
-        headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
-      });
-      if (stickyRes.ok) {
-        const stickyJson = await stickyRes.json();
-        const stickySeeds = Array.isArray(stickyJson?.seeds) ? stickyJson.seeds : [];
-        const mapped = stickySeeds
-          .filter((s) => s && typeof s.url === 'string')
-          .map((s) => ({
-            id: String(s.id || `sticky_${s.productId || 'x'}`),
-            url: String(s.url),
-            group: 'sticky',
-            category: null,
-            enabled: true,
-          }));
-        if (mapped.length > 0) {
-          // Sticky PDPs first, then fresh surfaces — budget shared via maxItems.
-          seeds = [...mapped, ...seeds];
-          console.log(`[worker] sticky_seeds=${mapped.length}`);
-        }
-      }
-    } catch (e) {
-      console.warn('[worker] sticky seeds fetch failed', e instanceof Error ? e.message : e);
-    }
+  // Sticky observation is Supply Engine server/API only (observeStickySkus).
+  // Playwright PDP against articulo… hits ML account-verification — do not fetch sticky seeds.
+  if (getEnv('AVENTA_STICKY_SEEDS_ENDPOINT')) {
+    console.log('[worker] sticky_seeds_skipped=server_api_path_only');
   }
 
   if (!endpoint) throw new Error('Falta AVENTA_INGEST_ENDPOINT');

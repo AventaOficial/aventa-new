@@ -93,14 +93,22 @@ export type SupplyEngineMetrics = {
   stickyCandidates: number;
   stickyObserved: number;
   stickyFailed: number;
+  /** @deprecated alias stickyApiAttempted */
   stickyPdpAttempted: number;
+  /** @deprecated alias stickyApiSuccess */
   stickyPdpSuccess: number;
+  stickyApiAttempted: number;
+  stickyApiSuccess: number;
+  stickyApiBlocked: number;
+  stickyNotFound: number;
+  stickyPriceVerified: number;
   stickyEvidenceRich: number;
   stickySnapshotOnly: number;
   stickyVerified: number;
   stickyApprovalReady: number;
   stickyHistoryReady: number;
   stickyHistoricalLow: number;
+  stickyPriceDrop: number;
   freshCandidates: number;
   freshVerified: number;
   freshApprovalReady: number;
@@ -166,12 +174,18 @@ function emptyMetrics(latencyMs = 0): SupplyEngineMetrics {
     stickyFailed: 0,
     stickyPdpAttempted: 0,
     stickyPdpSuccess: 0,
+    stickyApiAttempted: 0,
+    stickyApiSuccess: 0,
+    stickyApiBlocked: 0,
+    stickyNotFound: 0,
+    stickyPriceVerified: 0,
     stickyEvidenceRich: 0,
     stickySnapshotOnly: 0,
     stickyVerified: 0,
     stickyApprovalReady: 0,
     stickyHistoryReady: 0,
     stickyHistoricalLow: 0,
+    stickyPriceDrop: 0,
     freshCandidates: 0,
     freshVerified: 0,
     freshApprovalReady: 0,
@@ -328,17 +342,25 @@ function buildMetrics(
     nicheFilteredOut: filteredOut,
     topDealsLane: views.filter((v) => v.deal.laneHint === 'top_deals').length,
     dayToDayLane: views.filter((v) => v.deal.laneHint === 'day_to_day').length,
-    stickyCandidates: sticky?.stickyCandidates ?? 0,
+    stickyCandidates: sticky?.stickyCandidates ?? sticky?.stickyDiscovered ?? 0,
     stickyObserved: sticky?.stickyObserved ?? 0,
     stickyFailed: sticky?.stickyFailed ?? 0,
-    stickyPdpAttempted: sticky?.pdpAttempted ?? 0,
-    stickyPdpSuccess: sticky?.pdpSuccess ?? 0,
-    stickyEvidenceRich: sticky?.evidenceRich ?? 0,
+    stickyPdpAttempted: sticky?.stickyApiAttempted ?? sticky?.pdpAttempted ?? 0,
+    stickyPdpSuccess: sticky?.stickyApiSuccess ?? sticky?.pdpSuccess ?? 0,
+    stickyApiAttempted: sticky?.stickyApiAttempted ?? sticky?.pdpAttempted ?? 0,
+    stickyApiSuccess: sticky?.stickyApiSuccess ?? sticky?.pdpSuccess ?? 0,
+    stickyApiBlocked: sticky?.stickyApiBlocked ?? 0,
+    stickyNotFound: sticky?.stickyNotFound ?? 0,
+    stickyPriceVerified: sticky?.stickyPriceVerified ?? 0,
+    stickyEvidenceRich: sticky?.stickyEvidenceRich ?? sticky?.evidenceRich ?? 0,
     stickySnapshotOnly: sticky?.snapshotOnly ?? 0,
     stickyVerified,
     stickyApprovalReady,
     stickyHistoryReady: stickyViews.filter((v) => v.deal.historyReady).length,
     stickyHistoricalLow: stickyViews.filter((v) => v.deal.priceClass === 'historical_low').length,
+    stickyPriceDrop: stickyViews.filter(
+      (v) => v.deal.priceClass === 'recent_drop' || v.deal.priceClass === 'near_historical_low',
+    ).length,
     freshCandidates: router.candidatesDiscovered,
     freshVerified,
     freshApprovalReady,
@@ -409,29 +431,45 @@ export async function runSupplyEngine(
     } catch {
       sticky = {
         stickyCandidates: 0,
+        stickyDiscovered: 0,
         stickyObserved: 0,
         stickyFailed: 1,
         stickySkippedCooldown: 0,
         pdpAttempted: 0,
         pdpSuccess: 0,
+        stickyApiAttempted: 0,
+        stickyApiSuccess: 0,
+        stickyApiBlocked: 0,
+        stickyNotFound: 0,
+        stickyPriceVerified: 0,
+        stickyEvidenceRich: 0,
         evidenceRich: 0,
         snapshotOnly: 0,
         candidates: [],
         targets: [],
+        observations: [],
       };
     }
   } else {
     sticky = {
       stickyCandidates: 0,
+      stickyDiscovered: 0,
       stickyObserved: 0,
       stickyFailed: 0,
       stickySkippedCooldown: 0,
       pdpAttempted: 0,
       pdpSuccess: 0,
+      stickyApiAttempted: 0,
+      stickyApiSuccess: 0,
+      stickyApiBlocked: 0,
+      stickyNotFound: 0,
+      stickyPriceVerified: 0,
+      stickyEvidenceRich: 0,
       evidenceRich: 0,
       snapshotOnly: 0,
       candidates: [],
       targets: [],
+      observations: [],
     };
   }
 
@@ -504,25 +542,32 @@ export function summarizeSupplyEngineReport(report: SupplyEngineReport) {
     metrics: m,
     stickyVsFresh: {
       stickyObserved: m.stickyObserved,
-      stickyPdpSuccess: m.stickyPdpSuccess,
+      stickyApiAttempted: m.stickyApiAttempted,
+      stickyApiSuccess: m.stickyApiSuccess,
+      stickyApiBlocked: m.stickyApiBlocked,
+      stickyPriceVerified: m.stickyPriceVerified,
+      stickyPdpSuccess: m.stickyApiSuccess,
       stickyEvidenceRich: m.stickyEvidenceRich,
       stickyVerified: m.stickyVerified,
       stickyHistoryReady: m.stickyHistoryReady,
       stickyHistoricalLow: m.stickyHistoricalLow,
+      stickyPriceDrop: m.stickyPriceDrop,
       stickyApprovalReady: m.stickyApprovalReady,
       freshDiscovered: m.freshCandidates,
       freshVerified: m.freshVerified,
       freshApprovalReady: m.freshApprovalReady,
       bottleneck:
-        m.stickyObserved > 0 && m.stickyEvidenceRich === 0
-          ? 'sticky_evidence_rich'
-          : m.stickyEvidenceRich > 0 && m.stickyApprovalReady === 0
-            ? 'sticky_quality_gates'
-            : m.freshCandidates > 0 && m.freshApprovalReady === 0
-              ? 'fresh_history_cold'
-              : m.approvalReady > 0
-                ? 'none'
-                : 'discovery',
+        m.stickyApiBlocked > 0 && m.stickyApiSuccess === 0
+          ? 'sticky_api_blocked'
+          : m.stickyObserved > 0 && m.stickyEvidenceRich === 0
+            ? 'sticky_evidence_rich'
+            : m.stickyEvidenceRich > 0 && m.stickyApprovalReady === 0
+              ? 'sticky_quality_gates'
+              : m.freshCandidates > 0 && m.freshApprovalReady === 0
+                ? 'fresh_history_cold'
+                : m.approvalReady > 0
+                  ? 'none'
+                  : 'discovery',
       approvalReadyRateSticky:
         m.stickyObserved > 0
           ? Math.round((m.stickyApprovalReady / m.stickyObserved) * 1000) / 10

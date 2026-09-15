@@ -80,8 +80,19 @@ export type {
 } from './engine';
 export { selectStickySkuTargets, filterStickyByCooldown, DEFAULT_STICKY_SKU_CONFIG } from './stickySku';
 export type { StickySkuTarget, StickySkuSelectConfig } from './stickySku';
-export { observeStickySkus, isStickyEvidenceRich, permalinkFromMlItemId } from './observeStickySkus';
-export type { StickyObserveReport, StickyFunnelCounters } from './observeStickySkus';
+export {
+  observeStickySkus,
+  observeStickySkuViaServer,
+  resolveStickyViaProductsApi,
+  isStickyEvidenceRich,
+  permalinkFromMlItemId,
+} from './observeStickySkus';
+export type {
+  StickyObserveReport,
+  StickyFunnelCounters,
+  StickyServerObservation,
+  StickyObservationStatus,
+} from './observeStickySkus';
 export { applySupplyQualityPipeline } from './router';
 export {
   computeGlobalSupplyStatus,

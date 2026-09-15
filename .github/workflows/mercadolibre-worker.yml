@@ -34,7 +34,7 @@ jobs:
 
     env:
       AVENTA_INGEST_ENDPOINT: https://aventaofertas.com/api/cron/bot-ingest-candidates
-      AVENTA_STICKY_SEEDS_ENDPOINT: https://aventaofertas.com/api/cron/sticky-sku-seeds?limit=12
+      # Sticky = Supply Engine server/API (observeStickySkus). No Playwright PDP seeds.
       AVENTA_CRON_SECRET: ${{ secrets.AVENTA_CRON_SECRET }}
       WORKER_PROFILE: standard
       WORKER_HEADLESS: '1'
