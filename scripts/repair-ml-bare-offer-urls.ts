@@ -232,6 +232,8 @@ async function classifyRow(row: OfferRow): Promise<DryRow> {
     const canPath = new URL(canonical).pathname;
     const origHasP = /\/p\//i.test(origPath);
     const canHasP = /\/p\//i.test(canPath);
+    const origHasUp = /\/up\//i.test(origPath);
+    const canHasUp = /\/up\//i.test(canPath);
     const origArticulo = /\/ML[A-Z]{1,3}-\d+/i.test(origPath);
     const canArticulo = /\/ML[A-Z]{1,3}-\d+/i.test(canPath);
     if (origHasP && !canHasP) {
@@ -244,6 +246,18 @@ async function classifyRow(row: OfferRow): Promise<DryRow> {
         resolved_affiliate_url: null,
         classification: 'SKIP_RESOLUTION_FAILURE',
         reason: 'pathname_p_not_preserved',
+      };
+    }
+    if (origHasUp && !canHasUp) {
+      return {
+        offer_id: row.id,
+        status: row.status,
+        current_offer_url: current,
+        original_offer_url: original,
+        resolved_canonical_url: canonical,
+        resolved_affiliate_url: null,
+        classification: 'SKIP_RESOLUTION_FAILURE',
+        reason: 'pathname_up_not_preserved',
       };
     }
     if (origArticulo && !canArticulo && !canHasP) {

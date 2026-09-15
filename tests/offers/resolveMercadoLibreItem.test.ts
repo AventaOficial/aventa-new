@@ -78,6 +78,8 @@ describe('resolveMercadoLibreItem', () => {
       'https://www.mercadolibre.com.mx/producto/up/MLMU2916452044?wid=MLMU2916452044',
     );
     expect(r?.itemId).toBeNull();
+    expect(r?.canonicalUrl).toMatch(/\/up\/MLMU2916452044/i);
+    expect(r?.resolutionMethod).toBe('path_user_product');
     expect(extractMercadoLibreItemId(
       'https://www.mercadolibre.com.mx/producto/up/MLMU2916452044?wid=MLMU2916452044',
     )).toBeNull();

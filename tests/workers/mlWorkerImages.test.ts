@@ -57,10 +57,12 @@ describe('/up/MLMU resolución (sin falso item_id)', () => {
     expect(workerIsApiItemId('MLMU2916452044')).toBe(false);
   });
 
-  it('URL /up/MLMU sin item real → no inventa item_id', () => {
+  it('URL /up/MLMU sin item real → no inventa item_id; preserva UPP', () => {
     const r = resolveMercadoLibreItem(UP_ONLY);
     expect(r?.itemId).toBeNull();
-    expect(r?.resolutionMethod).toBe('unresolved');
+    expect(r?.resolutionMethod).toBe('path_user_product');
+    expect(r?.canonicalUrl).toMatch(/\/up\/MLMU2916452044/i);
+    expect(r?.canonicalUrl).not.toMatch(/mercadolibre\.com\.mx\/MLMU2916452044(\?|$)/i);
     expect(extractMercadoLibreItemId(UP_ONLY)).toBeNull();
     expect(inferItemId(UP_ONLY)).toBeNull();
     expect(extractMercadoLibreUserProductId(UP_ONLY)).toBe('MLMU2916452044');

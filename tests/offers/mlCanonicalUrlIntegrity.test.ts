@@ -171,4 +171,65 @@ describe('P0 ML canonical URL integrity', () => {
     // No debe producir un "canonical" distinto inventado; fail-closed mantiene bare
     expect(isMercadoLibreBareItemPathUrl(out) || out === bare).toBe(true);
   });
+
+  it('11. UPP válido conserva /up/ (nunca bare MLMU)', () => {
+    const input =
+      'https://www.mercadolibre.com.mx/tenis-adidas-hombre-terrex-anylander-mid/up/MLMU2916452044?wid=MLMU2916452044';
+    const r = resolveMercadoLibreItem(input);
+    expect(r?.canonicalUrl).toMatch(/\/up\/MLMU2916452044/i);
+    expect(r?.canonicalUrl).not.toMatch(/mercadolibre\.com\.mx\/MLMU2916452044(\?|$)/i);
+    expect(r?.itemId).toBeNull();
+    expect(isMercadoLibreBareItemPathUrl(r!.canonicalUrl!)).toBe(false);
+    expect(isMercadoLibreNavigableProductUrl(r!.canonicalUrl!)).toBe(true);
+  });
+
+  it('12. UPP + affiliate tags conserva pathname /up/', async () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa';
+    process.env.ML_MATT_TOOL = '97583635';
+    process.env.ML_MATT_WORD = 'aventa';
+    const source =
+      'https://www.mercadolibre.com.mx/perfume-dior-sauvage-edp-100ml-hombre/up/MLMU5134390460?wid=MLMU5134390460';
+    const tagged = applyPlatformAffiliateTags(source);
+    expect(tagged).toMatch(/\/up\/MLMU5134390460/i);
+    expect(tagged).toContain('tag=aventa');
+    expect(tagged).toContain('matt_tool=97583635');
+    expect(isMercadoLibreBareItemPathUrl(tagged)).toBe(false);
+
+    const normalized = await resolveAndNormalizeAffiliateOfferUrl(source);
+    expect(normalized).toMatch(/\/up\/MLMU5134390460/i);
+    expect(normalized).not.toMatch(/\/shopping\/up\//i);
+    expect(isMercadoLibreBareItemPathUrl(normalized)).toBe(false);
+  });
+
+  it('13. bare MLMU → canonical null (fail-closed)', () => {
+    const bare = 'https://www.mercadolibre.com.mx/MLMU2916452044';
+    const r = resolveMercadoLibreItem(bare);
+    expect(r?.canonicalUrl).toBeNull();
+    expect(isMercadoLibreBareItemPathUrl(bare)).toBe(true);
+  });
+
+  it('14. original UPP recupera offer_url navegable (no bare)', async () => {
+    process.env.ML_AFFILIATE_TAG = 'aventa';
+    process.env.ML_MATT_TOOL = '97583635';
+    process.env.ML_MATT_WORD = 'aventa';
+    const original =
+      'https://www.mercadolibre.com.mx/ck-one-one-edt-100ml-unisex/up/MLMU5093334519?wid=MLMU5093334519';
+    const canonical = resolveMercadoLibreItem(original)?.canonicalUrl;
+    expect(canonical).toMatch(/\/up\/MLMU5093334519/i);
+    const affiliate = await resolveAndNormalizeAffiliateOfferUrl(original);
+    expect(affiliate).toMatch(/\/up\/MLMU5093334519/i);
+    expect(affiliate).toContain('tag=aventa');
+    expect(isMercadoLibreBareItemPathUrl(affiliate)).toBe(false);
+    // UI / outbound reciben URL ya canonicalizada (pathname UPP)
+    expect(isMercadoLibreNavigableProductUrl(affiliate)).toBe(true);
+  });
+
+  it('15. MLMU no se convierte en bare path ni en /shopping/up/', () => {
+    const input =
+      'https://www.mercadolibre.com.mx/bolsa-tote/up/MLMU4885777572?wid=MLMU4885777572&utm_source=x';
+    const canonical = resolveMercadoLibreItem(input)?.canonicalUrl ?? '';
+    expect(canonical).toMatch(/\/up\/MLMU4885777572/i);
+    expect(canonical).not.toMatch(/\/shopping\/up\//i);
+    expect(canonical).not.toMatch(/mercadolibre\.com\.mx\/MLMU4885777572(\?|$)/i);
+  });
 });

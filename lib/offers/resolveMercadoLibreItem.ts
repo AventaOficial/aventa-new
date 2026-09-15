@@ -5,7 +5,9 @@
  *
  * CONTRATO canonicalUrl:
  * - Es un permalink navegable real (conserva pathname), o null.
- * - NUNCA inventa `origin/{ITEM_ID}` (bare-ID). item_id ≠ public URL.
+ * - NUNCA inventa `origin/{ITEM_ID}` ni `origin/{MLMU}` (bare-ID).
+ * - UPP `/{slug}/up/{MLMU…}` se preserva; MLMU ≠ item_id de /items.
+ * - item_id ≠ public URL; user_product_id ≠ bare path.
  */
 
 export type MercadoLibreResolutionMethod =
@@ -16,6 +18,7 @@ export type MercadoLibreResolutionMethod =
   | 'hash_item_id'
   | 'path_item'
   | 'path_catalog'
+  | 'path_user_product'
   | 'unresolved';
 
 export type MercadoLibreResolutionConfidence = 'high' | 'medium' | 'low';
@@ -196,8 +199,17 @@ function stripTrackingQuery(url: URL): URL {
 }
 
 /**
+ * Preserva un permalink ya navegable (incl. UPP `/{slug}/up/MLMU…`).
+ * Nunca inventa `/{MLMU}` ni `/shopping/up/…`.
+ */
+function preserveNavigablePermalink(inputUrl: URL): string | null {
+  if (!isMercadoLibreNavigableProductPath(inputUrl.pathname)) return null;
+  return stripTrackingQuery(inputUrl).toString();
+}
+
+/**
  * Construye canonical navegable o null.
- * NUNCA retorna `origin/{itemId}`.
+ * NUNCA retorna `origin/{itemId}` ni `origin/{MLMU}`.
  */
 function buildCanonicalUrl(params: {
   inputUrl: URL;
@@ -207,7 +219,7 @@ function buildCanonicalUrl(params: {
 }): string | null {
   if (params.permalink?.trim()) return params.permalink.trim();
 
-  // A) Preservar pathname real si ya es permalink navegable.
+  // A) Preservar pathname real si ya es permalink navegable (/p/, articulo, /up/).
   if (isMercadoLibreNavigableProductPath(params.inputUrl.pathname)) {
     const u = stripTrackingQuery(params.inputUrl);
     if (/\/p\//i.test(u.pathname) && params.itemId && !u.searchParams.get('wid')) {
@@ -218,6 +230,7 @@ function buildCanonicalUrl(params: {
 
   // B) Reconstrucción segura SOLO como /p/{catalog}?wid={item} (forma pública conocida).
   // Incluye catalog === item: /p/MLM123?wid=MLM123 — válido; /MLM123 — no.
+  // Nunca reconstruye User Product como bare /{MLMU} ni /shopping/up/{MLMU}.
   if (params.catalogProductId && isMercadoLibreApiItemId(params.catalogProductId)) {
     const u = new URL(`${params.inputUrl.origin.replace(/\/+$/, '')}/p/${params.catalogProductId}`);
     u.searchParams.set('wid', params.itemId);
@@ -341,15 +354,22 @@ export function resolveMercadoLibreItem(rawUrl: string): MercadoLibreItemResolut
 
   const winner = signals.find((s) => s.confidence === 'high') ?? signals[0];
   if (!winner) {
+    // UPP / articulo / /p/ sin item API: preservar permalink navegable; bare → null.
+    const preserved = preserveNavigablePermalink(url);
+    const userProductId = extractMercadoLibreUserProductId(url.href);
     return {
       siteId: siteFromHostname(url.hostname),
       itemId: null,
       catalogProductId,
       permalink: null,
-      canonicalUrl: null,
+      canonicalUrl: preserved,
       source: 'url',
-      confidence: 'low',
-      resolutionMethod: 'unresolved',
+      confidence: preserved ? 'medium' : 'low',
+      resolutionMethod: preserved
+        ? userProductId
+          ? 'path_user_product'
+          : 'path_item'
+        : 'unresolved',
     };
   }
 
