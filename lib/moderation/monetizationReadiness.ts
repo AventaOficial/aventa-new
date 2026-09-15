@@ -1,12 +1,7 @@
 import {
-  assessOfferAffiliateLink,
-  storeHasAffiliateProgram,
-} from '@/lib/affiliate/assessOfferAffiliateLink';
-import {
-  isMercadoLibreBareItemPathUrl,
-  isMercadoLibreHost,
-  isMercadoLibreNavigableProductUrl,
-} from '@/lib/offers/resolveMercadoLibreItem';
+  evaluateAffiliateReadiness,
+  type AffiliateReadinessResult,
+} from '@/lib/moderation/affiliateReadinessContract';
 
 export type MonetizationReadinessStatus =
   | 'ready'
@@ -20,6 +15,8 @@ export type MonetizationReadinessResult = {
   label: string;
   /** Frase humana de apoyo. */
   detail: string;
+  /** Motivo canónico (misma autoridad que approve). */
+  readiness?: AffiliateReadinessResult;
 };
 
 export type MonetizationReadinessInput = {
@@ -55,78 +52,33 @@ function bump(status: MonetizationReadinessStatus) {
   counters[status] += 1;
 }
 
-function isMl(url: string): boolean {
-  try {
-    return isMercadoLibreHost(new URL(url).hostname);
-  } catch {
-    return false;
+function toUiStatus(r: AffiliateReadinessResult): MonetizationReadinessStatus {
+  if (r.source === 'empty_url' && !r.offerUrl && r.reason === 'ready_empty_url') {
+    // Sin URLs: UI histórica "unknown"
+    return 'unknown';
   }
+  if (r.source === 'no_program') return 'no_program';
+  if (r.ready) return 'ready';
+  return 'needs_attention';
 }
 
 /**
- * Evaluación pura (sin métricas). Misma regla que computeMonetizationReadiness.
- * El Decision Engine la usa en shadow para no contaminar contadores de Focus.
- *
- * Contratos:
- * - canonical_url_valid: permalink ML navegable (no bare-ID)
- * - affiliate_url_ready / link_mod_ok: tags / confirmación de paste
- * link_mod_ok solo NO implica ready si la canonical está rota.
+ * Evaluación pura (sin métricas). Misma autoridad que approve.
  */
 export function evaluateMonetizationReadiness(
   input: MonetizationReadinessInput
 ): MonetizationReadinessResult {
-  const offerUrl = (input.offerUrl ?? '').trim();
-  const original = (input.originalOfferUrl ?? '').trim();
-  const probe = offerUrl || original;
-
-  if (!probe) {
-    return {
-      status: 'unknown',
-      label: 'No disponible',
-      detail: 'No hay información suficiente.',
-    };
-  }
-
-  const hasProgram = storeHasAffiliateProgram(probe);
-  if (!hasProgram) {
-    return {
-      status: 'no_program',
-      label: 'Sin programa',
-      detail: 'Esta tienda no tiene programa afiliado configurado.',
-    };
-  }
-
-  if (isMl(probe)) {
-    const navigableOffer = offerUrl ? isMercadoLibreNavigableProductUrl(offerUrl) : false;
-    const navigableOriginal = original ? isMercadoLibreNavigableProductUrl(original) : false;
-    const bare =
-      (offerUrl && isMercadoLibreBareItemPathUrl(offerUrl)) ||
-      (!offerUrl && original && isMercadoLibreBareItemPathUrl(original));
-    if (bare || (!navigableOffer && !navigableOriginal)) {
-      return {
-        status: 'needs_attention',
-        label: 'Requiere atención',
-        detail:
-          'El enlace de Mercado Libre no es un permalink navegable. Abre / prepara la URL original del producto.',
-      };
-    }
-  }
-
-  const assessment = assessOfferAffiliateLink(offerUrl || probe);
-  const prepared = input.linkModOk === true || assessment.isTagged;
-
-  if (prepared) {
-    return {
-      status: 'ready',
-      label: 'Lista',
-      detail: 'Aventa puede monetizar este enlace.',
-    };
-  }
-
+  const readiness = evaluateAffiliateReadiness({
+    offerUrl: input.offerUrl,
+    originalOfferUrl: input.originalOfferUrl,
+    linkModOk: input.linkModOk,
+  });
+  const status = toUiStatus(readiness);
   return {
-    status: 'needs_attention',
-    label: 'Requiere atención',
-    detail: 'No se pudo preparar el enlace monetizado.',
+    status,
+    label: readiness.label,
+    detail: readiness.detail,
+    readiness,
   };
 }
 

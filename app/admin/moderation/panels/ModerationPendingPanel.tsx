@@ -37,6 +37,7 @@ import {
 import { isLowModerationTrust } from '@/lib/moderation/confidenceBadge';
 import { classifyOfferModerationLevel } from '@/lib/moderation/classifyOfferModerationLevel';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
+import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import {
@@ -209,7 +210,10 @@ export default function ModerationPendingPanel({
   const [deleteBotAck, setDeleteBotAck] = useState(false);
   const [deleteBotLoading, setDeleteBotLoading] = useState(false);
   const [requestReject, setRequestReject] = useState(false);
-  const [affiliateReady, setAffiliateReady] = useState(false);
+  const [affiliateReadyOverride, setAffiliateReadyOverride] = useState<{
+    id: string;
+    ready: boolean;
+  } | null>(null);
   const [mobileLinkConfirmed, setMobileLinkConfirmed] = useState(false);
   const [sessionProcessed, setSessionProcessed] = useState(0);
   const [sessionStartedAt] = useState(() => Date.now());
@@ -503,9 +507,19 @@ export default function ModerationPendingPanel({
     },
   });
 
-  useEffect(() => {
-    setAffiliateReady(selectedOffer?.link_mod_ok === true);
-  }, [selectedId, selectedOffer?.link_mod_ok]);
+  const selectedContractReady = selectedOffer
+    ? evaluateAffiliateReadiness({
+        offerUrl: selectedOffer.offer_url,
+        originalOfferUrl:
+          originalUrlSnapshots.current.get(selectedOffer.id) ??
+          selectedOffer.offer_url?.trim() ??
+          null,
+        linkModOk: selectedOffer.link_mod_ok,
+      }).ready
+    : false;
+  const affiliateReady =
+    selectedContractReady ||
+    (affiliateReadyOverride?.id === selectedId && affiliateReadyOverride.ready);
 
   useEffect(() => {
     if (!session?.user?.id || summaryFetchedRef.current) return;
@@ -901,7 +915,7 @@ export default function ModerationPendingPanel({
       }
       if ((e.key === 'a' || e.key === 'A') && selectedOffer && !selectedReadOnly) {
         const needsAffiliate = offerRequiresAffiliateValidation(selectedOriginalUrl);
-        if (needsAffiliate && !affiliateReady && selectedOffer.link_mod_ok !== true) return;
+        if (needsAffiliate && !affiliateReady) return;
         e.preventDefault();
         void setStatus(
           selectedOffer.id,
@@ -962,7 +976,12 @@ export default function ModerationPendingPanel({
       setSelectedId(offer.id);
       return;
     }
-    if (needsAffiliate && !affiliateReady && offer.link_mod_ok !== true) {
+    const readiness = evaluateAffiliateReadiness({
+      offerUrl: offer.offer_url,
+      originalOfferUrl: snap || offer.offer_url,
+      linkModOk: offer.link_mod_ok,
+    });
+    if (needsAffiliate && !readiness.ready && !affiliateReady) {
       document.getElementById('moderation-affiliate-paste-input')?.focus();
       return;
     }
@@ -1449,7 +1468,9 @@ export default function ModerationPendingPanel({
                     hasPendingReport={offerSignals.hasPendingReport}
                     moderationReasons={moderationMeta.reasons}
                     queueLabel={`${Math.max(1, globalPendingCount - availableCount + 1)}/${globalPendingCount}`}
-                    onAffiliateReadyChange={setAffiliateReady}
+                    onAffiliateReadyChange={(ready) => {
+                      if (selectedId) setAffiliateReadyOverride({ id: selectedId, ready });
+                    }}
                     actionError={actionError}
                     onClearActionError={() => setActionError(null)}
                     requestReject={requestReject}

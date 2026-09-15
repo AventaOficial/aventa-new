@@ -8,13 +8,17 @@ describe('assertOfferReadyForAffiliateApproval (P1-1)', () => {
   beforeEach(() => {
     process.env.ML_AFFILIATE_TAG = 'aventa_test_tag';
     process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG = 'aventa_test_tag';
+    delete process.env.ML_MATT_TOOL;
+    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+    delete process.env.ML_MATT_WORD;
+    delete process.env.NEXT_PUBLIC_ML_MATT_WORD;
   });
 
   afterEach(() => {
     process.env = { ...envBackup };
   });
 
-  it('rechaza approve sin link_mod_ok cuando requiere afiliado', () => {
+  it('rechaza approve sin tag ni link_mod_ok cuando requiere afiliado', () => {
     const result = assertOfferReadyForAffiliateApproval({
       offerUrl: mlUrl,
       linkModOk: false,
@@ -24,7 +28,17 @@ describe('assertOfferReadyForAffiliateApproval (P1-1)', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('permite approve después de validación', () => {
+  it('permite approve con URL tagged aunque link_mod_ok sea null', () => {
+    const result = assertOfferReadyForAffiliateApproval({
+      offerUrl: `${mlUrl}?tag=aventa_test_tag`,
+      linkModOk: null,
+      batchApprove: false,
+      originalProductUrl: mlUrl,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('permite approve después de validación (link_mod_ok)', () => {
     const result = assertOfferReadyForAffiliateApproval({
       offerUrl: `${mlUrl}?tag=aventa_test_tag`,
       linkModOk: true,
@@ -34,7 +48,7 @@ describe('assertOfferReadyForAffiliateApproval (P1-1)', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('P1-1 — batch approve NO bypassa link_mod_ok', () => {
+  it('P1-1 — batch approve NO bypassa readiness (untagged)', () => {
     const result = assertOfferReadyForAffiliateApproval({
       offerUrl: mlUrl,
       linkModOk: false,

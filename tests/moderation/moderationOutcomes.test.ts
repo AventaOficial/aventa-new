@@ -23,7 +23,8 @@ function botOffer(over: Record<string, unknown> = {}) {
     image_url: IMG,
     price: 585,
     original_price: 849,
-    offer_url: 'https://www.mercadolibre.com.mx/MLM62559998?tag=aventa',
+    offer_url:
+      'https://articulo.mercadolibre.com.mx/MLM-62559998-test-product?tag=aventa',
     link_mod_ok: true,
     is_bot: true,
     moderator_comment: '[bot-ingest]',
@@ -63,17 +64,33 @@ describe('moderation outcome contract', () => {
   });
 
   it('reject genera outcome con rejection_reason', () => {
-    const row = buildModerationOutcome({
-      offer: botOffer({ link_mod_ok: false }),
-      decision: 'reject',
-      moderatorId: MOD_ID,
-      decisionAt: DECIDED,
-      rejectionReason: 'Precio engañoso',
-    });
-    expect(row.decision).toBe('reject');
-    expect(row.rejection_reason).toBe('Precio engañoso');
-    expect(row.affiliate_ready).toBe(false);
-    expect(row.idempotency_key).toBe(`reject:${OFFER_ID}`);
+    const prevTag = process.env.ML_AFFILIATE_TAG;
+    const prevPub = process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
+    process.env.ML_AFFILIATE_TAG = 'aventa';
+    process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG = 'aventa';
+    delete process.env.ML_MATT_TOOL;
+    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+    try {
+      const row = buildModerationOutcome({
+        offer: botOffer({
+          link_mod_ok: false,
+          offer_url: 'https://articulo.mercadolibre.com.mx/MLM-62559998-test-product',
+        }),
+        decision: 'reject',
+        moderatorId: MOD_ID,
+        decisionAt: DECIDED,
+        rejectionReason: 'Precio engañoso',
+      });
+      expect(row.decision).toBe('reject');
+      expect(row.rejection_reason).toBe('Precio engañoso');
+      expect(row.affiliate_ready).toBe(false);
+      expect(row.idempotency_key).toBe(`reject:${OFFER_ID}`);
+    } finally {
+      if (prevTag === undefined) delete process.env.ML_AFFILIATE_TAG;
+      else process.env.ML_AFFILIATE_TAG = prevTag;
+      if (prevPub === undefined) delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
+      else process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG = prevPub;
+    }
   });
 
   it('snooze genera outcome con snooze_minutes', () => {

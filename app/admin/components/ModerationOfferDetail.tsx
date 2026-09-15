@@ -33,6 +33,7 @@ import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
 import { validateAffiliatePaste, type AffiliatePasteValidation } from '@/lib/affiliate/validateAffiliatePaste';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
+import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 import type { ModerationLevel } from '@/lib/moderation/classifyModerationLevel';
 import { MODERATION_LEVEL_LABELS } from '@/lib/moderation/classifyModerationLevel';
 
@@ -195,8 +196,13 @@ export default function ModerationOfferDetail({
 
   const originalProductUrl = (productOriginalUrl ?? offer.offer_url ?? '').trim();
   const requiresAffiliate = offerRequiresAffiliateValidation(originalProductUrl);
+  const affiliateReadiness = evaluateAffiliateReadiness({
+    offerUrl: offer.offer_url,
+    originalOfferUrl: originalProductUrl || null,
+    linkModOk: offer.link_mod_ok,
+  });
   const affiliateReady =
-    offer.link_mod_ok === true ||
+    affiliateReadiness.ready ||
     pasteStatus === 'valid' ||
     (!requiresAffiliate && Boolean(offer.offer_url?.trim()));
 

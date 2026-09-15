@@ -5,6 +5,7 @@
 
 import { evaluateModerationPriority, type ModerationReviewPriority } from '@/lib/moderation/moderationPriority';
 import { parseBotMeta } from '@/lib/moderation/botFacts';
+import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 
 export const MODERATION_OUTCOME_DECISIONS = ['claim', 'approve', 'reject', 'snooze'] as const;
 export type ModerationOutcomeDecision = (typeof MODERATION_OUTCOME_DECISIONS)[number];
@@ -178,7 +179,14 @@ export function buildModerationOutcome(input: BuildModerationOutcomeInput): Mode
   });
 
   const hasUrl = Boolean(input.offer.offer_url?.trim());
-  const affiliateReady = !hasUrl ? null : input.offer.link_mod_ok === true;
+  const readiness = hasUrl
+    ? evaluateAffiliateReadiness({
+        offerUrl: input.offer.offer_url,
+        originalOfferUrl: null,
+        linkModOk: input.offer.link_mod_ok,
+      })
+    : null;
+  const affiliateReady = readiness == null ? null : readiness.ready;
 
   const snoozeMinutes =
     input.decision === 'snooze' &&

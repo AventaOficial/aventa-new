@@ -5,6 +5,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
 import { humanizeAffiliateApproveError } from '@/lib/moderation/monetizationReadiness';
+import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 import {
   focusClaimOriginalRefValue,
   focusOriginalProductUrlForRequest,
@@ -244,14 +245,17 @@ export function useModerationFocusQueue({
 
   const approve = useCallback(async () => {
     if (!offer || actingRef.current) return { ok: false as const };
-    // Gate UI: usa URL operativa en memoria; no inventa original persistido.
-    const needs = offerRequiresAffiliateValidation(
-      focusOriginalProductUrlForRequest({
-        originalOfferUrl: offer.original_offer_url,
-        refOriginal: originalUrlRef.current.get(offer.id),
-      }) ?? offer.offer_url
-    );
-    if (needs && offer.link_mod_ok !== true) {
+    // Gate UI: misma autoridad que approve (contrato canónico).
+    const originalUrl = focusOriginalProductUrlForRequest({
+      originalOfferUrl: offer.original_offer_url,
+      refOriginal: originalUrlRef.current.get(offer.id),
+    });
+    const readiness = evaluateAffiliateReadiness({
+      offerUrl: offer.offer_url,
+      originalOfferUrl: originalUrl ?? offer.original_offer_url,
+      linkModOk: offer.link_mod_ok,
+    });
+    if (!readiness.ready && readiness.programRequired) {
       setNeedsAffiliateConfirm(true);
       setError('Falta confirmar el enlace antes de aprobar.');
       return { ok: false as const, needsAffiliate: true as const };
@@ -266,11 +270,11 @@ export function useModerationFocusQueue({
         id: current.id,
         status: 'approved',
       };
-      const originalUrl = focusOriginalProductUrlForRequest({
+      const originalForBody = focusOriginalProductUrlForRequest({
         originalOfferUrl: current.original_offer_url,
         refOriginal: originalUrlRef.current.get(current.id),
       });
-      if (originalUrl) body.original_product_url = originalUrl;
+      if (originalForBody) body.original_product_url = originalForBody;
 
       const res = await fetch('/api/admin/moderate-offer', {
         method: 'POST',

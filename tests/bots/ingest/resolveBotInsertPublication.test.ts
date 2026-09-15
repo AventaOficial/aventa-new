@@ -6,13 +6,13 @@ describe('resolveBotInsertPublication', () => {
     vi.unstubAllEnvs();
   });
 
-  it('pending pedido se queda pending (URL sin programa afiliado → no marca link_mod_ok)', () => {
+  it('pending + tienda sin programa afiliado → pending y link_mod_ok=true (no_program)', () => {
     expect(
       resolveBotInsertPublication({
         requestedStatus: 'pending',
         offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
       })
-    ).toEqual({ status: 'pending', linkModOk: false, demoted: false });
+    ).toEqual({ status: 'pending', linkModOk: true, demoted: false });
   });
 
   it('pending + URL afiliada válida → link_mod_ok=true y sigue pending', () => {

@@ -9,6 +9,7 @@ import {
   affiliatePasteValidationBaseline,
   originalOfferUrlToPersistOnAffiliatePaste,
 } from '@/lib/moderation/originalOfferUrlPolicy'
+import { shouldPersistLinkModOk } from '@/lib/moderation/affiliateReadinessContract'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -102,7 +103,6 @@ export async function PATCH(request: Request) {
           )
         }
         payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
-        payload.link_mod_ok = true
         const toPersist = originalOfferUrlToPersistOnAffiliatePaste({
           existingOriginal,
           bodyOriginalProductUrl: bodyOriginal,
@@ -110,12 +110,43 @@ export async function PATCH(request: Request) {
         if (toPersist) {
           payload.original_offer_url = toPersist
         }
+        const originalForContract = (toPersist ?? existingOriginal) || validationBaseline
+        // Contrato: tagged + canónica vía isPlatformAffiliateTagged (no solo substring tag=).
+        if (
+          !shouldPersistLinkModOk({
+            offerUrl: payload.offer_url,
+            originalOfferUrl: originalForContract,
+            linkModOk: false,
+          })
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                'El enlace afiliado no quedó en un permalink navegable/taggeado. Usa la URL original del producto.',
+            },
+            { status: 400 }
+          )
+        }
+        payload.link_mod_ok = true
       } else {
         // Edición de URL de producto: capturar original solo si aún no existe.
         if (!existingOriginal) {
           payload.original_offer_url = pasted
         }
         payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
+        const origForReady =
+          (typeof payload.original_offer_url === 'string' && payload.original_offer_url) ||
+          existingOriginal ||
+          null
+        if (
+          shouldPersistLinkModOk({
+            offerUrl: payload.offer_url,
+            originalOfferUrl: origForReady,
+            linkModOk: false,
+          })
+        ) {
+          payload.link_mod_ok = true
+        }
       }
     }
 
