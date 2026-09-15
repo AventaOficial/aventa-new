@@ -563,7 +563,7 @@ export default function OfferCard({
                 alt=""
                 fill
                 sizes="(max-width: 400px) 90px, (max-width: 768px) 38vw, 220px"
-                className="object-contain md:object-cover object-center"
+                className="object-contain object-center p-1 md:p-1.5"
                 onError={() => setImgError(true)}
                 unoptimized={image.startsWith('/') || image.includes('placehold.co')}
               />

@@ -11,11 +11,15 @@ import { MODERATION_TITLE_MAX } from '@/lib/moderation/botFacts';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
 
-export type FixField = 'photo' | 'link' | 'category' | 'title';
+export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description';
 
 export type FixableOffer = {
   id: string;
   title: string;
+  price?: number | null;
+  original_price?: number | null;
+  description?: string | null;
+  coupons?: string | null;
   image_url: string | null;
   image_urls?: string[] | null;
   offer_url: string | null;
@@ -27,7 +31,7 @@ type Props = {
   offer: FixableOffer;
   focusField?: FixField | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (result?: Record<string, unknown>) => void;
 };
 
 /**
@@ -49,6 +53,16 @@ export default function ModerationFixSheet({
   const [offerUrl, setOfferUrl] = useState(offer.offer_url ?? '');
   const [category, setCategory] = useState(offer.category ?? '');
   const [title, setTitle] = useState(offer.title ?? '');
+  const [price, setPrice] = useState(
+    offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : ''
+  );
+  const [originalPrice, setOriginalPrice] = useState(
+    offer.original_price != null && Number.isFinite(offer.original_price)
+      ? String(offer.original_price)
+      : ''
+  );
+  const [description, setDescription] = useState(offer.description ?? '');
+  const [coupons, setCoupons] = useState(offer.coupons ?? '');
   const [saving, setSaving] = useState(false);
   const [fetchingPhotos, setFetchingPhotos] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -58,6 +72,8 @@ export default function ModerationFixSheet({
   const linkRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const target =
@@ -69,7 +85,11 @@ export default function ModerationFixSheet({
             ? categoryRef.current
             : focusField === 'title'
               ? titleRef.current
-              : null;
+              : focusField === 'price'
+                ? priceRef.current
+                : focusField === 'description'
+                  ? descriptionRef.current
+                  : null;
     target?.focus();
   }, [focusField]);
 
@@ -154,6 +174,28 @@ export default function ModerationFixSheet({
     const prevCategory = normalizeCategoryForStorage(offer.category ?? null);
     if (nextCategory !== prevCategory) body.category = nextCategory ?? '';
 
+    const prevPrice =
+      offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '';
+    if (price.trim() !== prevPrice) {
+      if (!price.trim()) {
+        setSaving(false);
+        setMessage('El precio actual es obligatorio');
+        return;
+      }
+      body.price = price.trim();
+    }
+    const prevOriginal =
+      offer.original_price != null && Number.isFinite(offer.original_price)
+        ? String(offer.original_price)
+        : '';
+    if (originalPrice.trim() !== prevOriginal) {
+      body.original_price = originalPrice.trim() === '' ? null : originalPrice.trim();
+    }
+    const prevDesc = (offer.description ?? '').trim();
+    if (description.trim() !== prevDesc) body.description = description.trim();
+    const prevCoupons = (offer.coupons ?? '').trim();
+    if (coupons.trim() !== prevCoupons) body.coupons = coupons.trim();
+
     if (Object.keys(body).length <= 1) {
       setSaving(false);
       setMessage('No cambiaste nada');
@@ -175,7 +217,8 @@ export default function ModerationFixSheet({
       setMessage(typeof err?.error === 'string' ? err.error : 'No se pudo guardar');
       return;
     }
-    onSaved();
+    const data = await res.json().catch(() => ({}));
+    onSaved(typeof data === 'object' && data ? (data as Record<string, unknown>) : undefined);
     onClose();
   };
 
@@ -314,6 +357,43 @@ export default function ModerationFixSheet({
             </p>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio actual</label>
+              <input
+                ref={priceRef}
+                type="text"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value.slice(0, 20))}
+                placeholder="0"
+                className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
+              />
+            </div>
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio referencia</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={originalPrice}
+                onChange={(e) => setOriginalPrice(e.target.value.slice(0, 20))}
+                placeholder="Opcional"
+                className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Cupón</label>
+            <input
+              type="text"
+              value={coupons}
+              onChange={(e) => setCoupons(e.target.value.slice(0, 200))}
+              placeholder="Código o nota de cupón (opcional)"
+              className={`w-full min-h-12 px-3 text-sm ${ui.input}`}
+            />
+          </div>
+
           <div>
             <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Categoría</label>
             <select
@@ -360,6 +440,23 @@ export default function ModerationFixSheet({
                 Quitar el «Ahorra ~%» del bot
               </button>
             ) : null}
+          </div>
+
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label className={`text-sm font-medium ${ui.body}`}>Descripción</label>
+              <span className={`text-[11px] tabular-nums ${ui.muted}`}>
+                {description.trim().length}/2000
+              </span>
+            </div>
+            <textarea
+              ref={descriptionRef}
+              value={description}
+              onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
+              rows={4}
+              placeholder="Texto corto para el feed (sin HTML)"
+              className={`w-full px-3 py-2 text-sm ${ui.input}`}
+            />
           </div>
         </div>
 

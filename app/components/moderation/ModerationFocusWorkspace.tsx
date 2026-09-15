@@ -15,7 +15,9 @@ import FocusRejectSheet from './FocusRejectSheet';
 import FocusDetailsDrawer from './FocusDetailsDrawer';
 import FocusShortcutsHint from './FocusShortcutsHint';
 import FocusAffiliatePrepare from './FocusAffiliatePrepare';
+import FocusDesktopContext from './FocusDesktopContext';
 import ModerationWorkspaceStats from '@/app/admin/moderation/ModerationWorkspaceStats';
+import ModerationFixSheet from '@/app/admin/components/ModerationFixSheet';
 
 export type ModerationFocusWorkspaceProps = {
   mode?: ModerationHubMode;
@@ -36,12 +38,14 @@ export default function ModerationFocusWorkspace({
   const queue = useModerationFocusQueue({ sourceTab, preferOfferId });
   const [rejectOpen, setRejectOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [userPrepare, setUserPrepare] = useState(false);
   const [seenOfferId, setSeenOfferId] = useState<string | null>(null);
   const currentOfferId = queue.offer?.id ?? null;
   if (currentOfferId !== seenOfferId) {
     setSeenOfferId(currentOfferId);
     setUserPrepare(false);
+    setEditOpen(false);
   }
   const prepareOpen = Boolean(queue.offer) && (userPrepare || queue.needsAffiliateConfirm);
 
@@ -54,6 +58,7 @@ export default function ModerationFocusWorkspace({
       if (e.key === 'Escape') {
         setRejectOpen(false);
         setWhyOpen(false);
+        setEditOpen(false);
         setUserPrepare(false);
         queue.dismissAffiliateGate();
         return;
@@ -67,7 +72,7 @@ export default function ModerationFocusWorkspace({
         return;
       }
 
-      if (rejectOpen || whyOpen || prepareOpen || queue.acting || queue.loading) return;
+      if (rejectOpen || whyOpen || editOpen || prepareOpen || queue.acting || queue.loading) return;
 
       if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
@@ -88,7 +93,7 @@ export default function ModerationFocusWorkspace({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [queue, rejectOpen, whyOpen, prepareOpen]);
+  }, [queue, rejectOpen, whyOpen, editOpen, prepareOpen]);
 
   const oldestLabel = queue.oldestCreatedAt
     ? formatModerationRelativeTime(queue.oldestCreatedAt).replace(/^Hace /, '')
@@ -114,7 +119,7 @@ export default function ModerationFocusWorkspace({
   return (
     <div
       className={cn(
-        'relative mx-auto flex w-full max-w-2xl flex-col px-4 pt-1',
+        'relative mx-auto flex w-full max-w-2xl flex-col px-4 pt-1 md:max-w-5xl',
         // Espacio fijo para la action bar + safe-area (también en desktop: la barra es fixed).
         prepareOpen
           ? 'pb-[calc(16.5rem+env(safe-area-inset-bottom,0px))]'
@@ -208,16 +213,26 @@ export default function ModerationFocusWorkspace({
           </div>
         ) : (
           <>
-            <p className={cn('mb-2 text-center text-[11px] tabular-nums', ui.faint)}>
+            <p className={cn('mb-2 text-center text-[11px] tabular-nums md:text-left', ui.faint)}>
               Oferta {queue.position} de {queue.total}
               {monetization ? ` · ${monetization.label}` : ''}
             </p>
-            <FocusOfferStage
-              key={queue.offer.id}
-              offer={queue.offer}
-              mode={mode}
-              onOpenWhy={() => setWhyOpen(true)}
-            />
+            <div className="flex flex-col gap-4 md:flex-row md:items-start">
+              <div className="min-w-0 flex-1">
+                <FocusOfferStage
+                  key={queue.offer.id}
+                  offer={queue.offer}
+                  mode={mode}
+                  onOpenWhy={() => setWhyOpen(true)}
+                />
+              </div>
+              <FocusDesktopContext
+                offer={queue.offer}
+                mode={mode}
+                onEdit={() => setEditOpen(true)}
+                onOpenWhy={() => setWhyOpen(true)}
+              />
+            </div>
           </>
         )}
       </div>
@@ -284,8 +299,32 @@ export default function ModerationFocusWorkspace({
           open={whyOpen}
           offer={queue.offer}
           mode={mode}
-          canEdit={queue.canAdvanced}
+          canEdit
           onClose={() => setWhyOpen(false)}
+          onEdit={() => setEditOpen(true)}
+        />
+      ) : null}
+
+      {queue.offer && editOpen ? (
+        <ModerationFixSheet
+          mode={mode}
+          offer={{
+            id: queue.offer.id,
+            title: queue.offer.title,
+            price: queue.offer.price,
+            original_price: queue.offer.original_price,
+            description: queue.offer.description,
+            coupons: queue.offer.coupons,
+            image_url: queue.offer.image_url,
+            image_urls: queue.offer.image_urls,
+            offer_url: queue.offer.offer_url,
+            category: queue.offer.category,
+          }}
+          onClose={() => setEditOpen(false)}
+          onSaved={(result) => {
+            setEditOpen(false);
+            queue.applyOfferEditResult(result);
+          }}
         />
       ) : null}
     </div>

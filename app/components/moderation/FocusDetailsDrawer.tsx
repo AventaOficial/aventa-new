@@ -16,9 +16,10 @@ type Props = {
   mode: ModerationHubMode;
   canEdit?: boolean;
   onClose: () => void;
+  onEdit?: () => void;
 };
 
-export default function FocusDetailsDrawer({ open, offer, mode, canEdit, onClose }: Props) {
+export default function FocusDetailsDrawer({ open, offer, mode, canEdit, onClose, onEdit }: Props) {
   const ui = moderationUi(mode);
   if (!open) return null;
 
@@ -118,11 +119,23 @@ export default function FocusDetailsDrawer({ open, offer, mode, canEdit, onClose
             ) : (
               <p className={cn('text-[11px]', ui.faint)}>Original no disponible (histórico)</p>
             )}
-            {canEdit ? (
-              <p className={cn('text-xs', ui.faint)}>
-                Edición avanzada: usa el panel de actualización de oferta desde Admin si necesitas
-                corregir foto o categoría.
-              </p>
+            {canEdit && onEdit ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit();
+                }}
+                className={cn(
+                  'mt-2 w-full rounded-xl px-3 py-2.5 text-sm font-semibold',
+                  ui.ws
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-violet-500 text-white'
+                )}
+                data-focus-edit-from-drawer
+              >
+                Editar oferta
+              </button>
             ) : null}
           </section>
 

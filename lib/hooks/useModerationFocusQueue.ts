@@ -600,6 +600,48 @@ export function useModerationFocusQueue({
     [applyOfferUrlWrite, authHeaders, offer]
   );
 
+  /** Aplica respuesta de update-offer (edición completa) al offer + history. */
+  const applyOfferEditResult = useCallback(
+    (data: Record<string, unknown> | undefined) => {
+      if (!data || !offer) return;
+      const patch: Partial<FocusModerationOffer> = {};
+      if (typeof data.title === 'string') patch.title = data.title;
+      if (typeof data.price === 'number') patch.price = data.price;
+      if (data.original_price === null) patch.original_price = null;
+      else if (typeof data.original_price === 'number') patch.original_price = data.original_price;
+      if (data.description === null) patch.description = null;
+      else if (typeof data.description === 'string') patch.description = data.description;
+      if (data.category === null) patch.category = null;
+      else if (typeof data.category === 'string') patch.category = data.category;
+      if (data.image_url === null) patch.image_url = null;
+      else if (typeof data.image_url === 'string') patch.image_url = data.image_url;
+      if (Array.isArray(data.image_urls)) {
+        patch.image_urls = data.image_urls.filter(
+          (u): u is string => typeof u === 'string'
+        );
+      } else if (data.image_urls === null) {
+        patch.image_urls = null;
+      }
+      if (typeof data.offer_url === 'string') patch.offer_url = data.offer_url;
+      else if (data.offer_url === null) patch.offer_url = null;
+      if (data.coupons === null) patch.coupons = null;
+      else if (typeof data.coupons === 'string') patch.coupons = data.coupons;
+      if (data.link_mod_ok === true) patch.link_mod_ok = true;
+      else if (data.link_mod_ok === false) patch.link_mod_ok = false;
+
+      if (Object.keys(patch).length === 0) return;
+
+      setOffer((prev) => (prev ? { ...prev, ...patch } : prev));
+      setHistory((prev) =>
+        prev.map((o) => (o.id === offer.id ? { ...o, ...patch } : o))
+      );
+      if (data.demoted === true) {
+        setError('La oferta live volvió a pending por un cambio material. Revísala de nuevo.');
+      }
+    },
+    [offer]
+  );
+
   const position = Math.max(1, sessionCursor);
   const total = Math.max(stats.globalPending, stats.availableEstimate, position);
 
@@ -625,6 +667,7 @@ export function useModerationFocusQueue({
     claimNext,
     confirmAffiliateAndApprove,
     prepareAffiliateLink,
+    applyOfferEditResult,
     dismissAffiliateGate,
     setError,
   };

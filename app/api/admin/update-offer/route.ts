@@ -10,13 +10,24 @@ import {
   originalOfferUrlToPersistOnAffiliatePaste,
 } from '@/lib/moderation/originalOfferUrlPolicy'
 import { shouldPersistLinkModOk } from '@/lib/moderation/affiliateReadinessContract'
+import {
+  buildOfferEditDiff,
+  isMaterialOfferEdit,
+  parseOfferEditMoney,
+  sanitizeOfferEditCoupons,
+  sanitizeOfferEditDescription,
+} from '@/lib/moderation/offerEditContract'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
   return msg.includes(columnName.toLowerCase())
 }
 
-/** PATCH: editar oferta en moderación. Campos: title, offer_url, description, image_url, category. */
+/**
+ * PATCH: edición canónica de oferta en moderación.
+ * No aprueba. Pending permanece pending.
+ * Approved + cambio material (precio/URL/imagen) → demote a pending (revalidación humana).
+ */
 export async function PATCH(request: Request) {
   const auth = await requireModeration(request)
   if ('error' in auth) {
@@ -33,7 +44,9 @@ export async function PATCH(request: Request) {
     const supabase = createServerClient()
     const { data: offer } = await supabase
       .from('offers')
-      .select('id, status, offer_url, original_offer_url, locked_by, locked_at')
+      .select(
+        'id, status, title, price, original_price, description, category, image_url, image_urls, offer_url, original_offer_url, coupons, locked_by, locked_at, link_mod_ok'
+      )
       .eq('id', id)
       .single()
 
@@ -62,18 +75,75 @@ export async function PATCH(request: Request) {
 
     const payload: {
       title?: string
+      price?: number
+      original_price?: number | null
       offer_url?: string | null
       original_offer_url?: string | null
       description?: string | null
       image_url?: string | null
       image_urls?: string[] | null
       category?: string | null
+      coupons?: string | null
       link_mod_ok?: boolean | null
+      status?: string
+      locked_by?: null
+      locked_at?: null
+      snoozed_until?: null
     } = {}
+
+    const afterSnapshot: Record<string, unknown> = {}
 
     if (typeof body.title === 'string') {
       const t = body.title.trim().slice(0, 500)
-      if (t) payload.title = t
+      if (t) {
+        payload.title = t
+        afterSnapshot.title = t
+      }
+    }
+
+    if (body.price !== undefined) {
+      const parsed = parseOfferEditMoney(body.price)
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 })
+      }
+      payload.price = parsed.value
+      afterSnapshot.price = parsed.value
+    }
+
+    if (body.original_price !== undefined) {
+      if (body.original_price === null || body.original_price === '') {
+        payload.original_price = null
+        afterSnapshot.original_price = null
+      } else {
+        const parsed = parseOfferEditMoney(body.original_price)
+        if (!parsed.ok) {
+          return NextResponse.json({ error: `Precio original: ${parsed.error}` }, { status: 400 })
+        }
+        payload.original_price = parsed.value
+        afterSnapshot.original_price = parsed.value
+      }
+    }
+
+    if (
+      typeof payload.price === 'number' &&
+      typeof payload.original_price === 'number' &&
+      payload.original_price < payload.price
+    ) {
+      return NextResponse.json(
+        { error: 'El precio original no puede ser menor que el precio actual' },
+        { status: 400 }
+      )
+    }
+    if (
+      typeof payload.price === 'number' &&
+      payload.original_price === undefined &&
+      typeof (offer as { original_price?: number | null }).original_price === 'number' &&
+      (offer as { original_price: number }).original_price < payload.price
+    ) {
+      return NextResponse.json(
+        { error: 'El precio actual no puede superar el precio original guardado' },
+        { status: 400 }
+      )
     }
 
     if (typeof body.offer_url === 'string') {
@@ -81,12 +151,12 @@ export async function PATCH(request: Request) {
       if (!pasted) {
         payload.offer_url = null
         payload.link_mod_ok = null
+        afterSnapshot.offer_url = null
       } else if (affiliatePaste) {
         const bodyOriginal =
           typeof body.original_product_url === 'string' && body.original_product_url.trim()
             ? body.original_product_url.trim().slice(0, 2048)
             : null
-        // En memoria: puede usar offer_url operativo. Nunca inventar original persistido.
         const validationBaseline = affiliatePasteValidationBaseline({
           existingOriginal,
           bodyOriginalProductUrl: bodyOriginal,
@@ -111,7 +181,6 @@ export async function PATCH(request: Request) {
           payload.original_offer_url = toPersist
         }
         const originalForContract = (toPersist ?? existingOriginal) || validationBaseline
-        // Contrato: tagged + canónica vía isPlatformAffiliateTagged (no solo substring tag=).
         if (
           !shouldPersistLinkModOk({
             offerUrl: payload.offer_url,
@@ -128,8 +197,8 @@ export async function PATCH(request: Request) {
           )
         }
         payload.link_mod_ok = true
+        afterSnapshot.offer_url = payload.offer_url
       } else {
-        // Edición de URL de producto: capturar original solo si aún no existe.
         if (!existingOriginal) {
           payload.original_offer_url = pasted
         }
@@ -147,15 +216,22 @@ export async function PATCH(request: Request) {
         ) {
           payload.link_mod_ok = true
         }
+        afterSnapshot.offer_url = payload.offer_url
       }
     }
 
     if (body.description !== undefined) {
-      payload.description = typeof body.description === 'string' ? body.description.trim().slice(0, 2000) || null : null
+      payload.description = sanitizeOfferEditDescription(body.description)
+      afterSnapshot.description = payload.description
+    }
+    if (body.coupons !== undefined) {
+      payload.coupons = sanitizeOfferEditCoupons(body.coupons)
+      afterSnapshot.coupons = payload.coupons
     }
     if (body.image_url !== undefined) {
       const raw = typeof body.image_url === 'string' ? body.image_url.trim() : ''
       payload.image_url = raw ? (normalizeOfferImageUrl(raw) ?? raw).slice(0, 2048) : null
+      afterSnapshot.image_url = payload.image_url
     }
     if (body.image_urls !== undefined) {
       const rawList = Array.isArray(body.image_urls) ? body.image_urls : []
@@ -169,26 +245,63 @@ export async function PATCH(request: Request) {
     if (body.category !== undefined) {
       if (body.category === null || body.category === '') {
         payload.category = null
+        afterSnapshot.category = null
       } else if (typeof body.category === 'string') {
         const norm = normalizeCategoryForStorage(body.category.trim())
         if (!norm || !isValidCategoryId(norm)) {
           return NextResponse.json({ error: 'Categoría inválida' }, { status: 400 })
         }
         payload.category = norm
+        afterSnapshot.category = norm
       }
     }
 
+    const { fields, changes } = buildOfferEditDiff(
+      {
+        title: (offer as { title?: string | null }).title,
+        price: (offer as { price?: number | null }).price,
+        original_price: (offer as { original_price?: number | null }).original_price,
+        description: (offer as { description?: string | null }).description,
+        category: (offer as { category?: string | null }).category,
+        image_url: (offer as { image_url?: string | null }).image_url,
+        offer_url: (offer as { offer_url?: string | null }).offer_url,
+        coupons: (offer as { coupons?: string | null }).coupons,
+      },
+      afterSnapshot
+    )
+
+    // image_urls no entra en el diff tipado; si solo cambian extras, aún persistimos.
+    const hasImageUrlsWrite = body.image_urls !== undefined
+    if (fields.length === 0 && !hasImageUrlsWrite && Object.keys(payload).length === 0) {
+      return NextResponse.json({ ok: true, unchanged: true })
+    }
+
+    let demoted = false
+    if (offerStatus === 'approved' && isMaterialOfferEdit(fields)) {
+      // Cambio material en live → vuelve a pending para revalidación humana.
+      payload.status = 'pending'
+      payload.locked_by = null
+      payload.locked_at = null
+      payload.snoozed_until = null
+      demoted = true
+    }
+
     if (Object.keys(payload).length === 0) {
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({ ok: true, unchanged: true })
     }
 
     let { error } = await supabase.from('offers').update(payload).eq('id', id)
     if (
       error &&
-      (hasMissingColumn(error, 'link_mod_ok') || hasMissingColumn(error, 'original_offer_url'))
+      (hasMissingColumn(error, 'link_mod_ok') ||
+        hasMissingColumn(error, 'original_offer_url') ||
+        hasMissingColumn(error, 'coupons') ||
+        hasMissingColumn(error, 'snoozed_until'))
     ) {
       if (hasMissingColumn(error, 'link_mod_ok')) delete payload.link_mod_ok
       if (hasMissingColumn(error, 'original_offer_url')) delete payload.original_offer_url
+      if (hasMissingColumn(error, 'coupons')) delete payload.coupons
+      if (hasMissingColumn(error, 'snoozed_until')) delete payload.snoozed_until
       ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
     }
     if (error) {
@@ -196,12 +309,41 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Audit trail en moderation_logs existente (action libre + metadata jsonb).
+    if (fields.length > 0 || demoted || hasImageUrlsWrite) {
+      const { error: logError } = await supabase.from('moderation_logs').insert({
+        offer_id: id,
+        user_id: auth.user.id,
+        action: 'edited',
+        previous_status: offerStatus,
+        new_status: demoted ? 'pending' : offerStatus,
+        reason: demoted ? 'edit_material_demote' : null,
+        metadata: {
+          fields: hasImageUrlsWrite && !fields.includes('image_urls')
+            ? [...fields, 'image_urls']
+            : fields,
+          changes,
+          demoted,
+        },
+      })
+      if (logError) console.error('[update-offer] audit log:', logError.message)
+    }
+
     return NextResponse.json({
       ok: true,
-      // Contrato de respuesta: el cliente debe poder refrescar readiness sin refetch.
-      // Si no tocamos link_mod_ok en este write, no inventamos el valor.
+      demoted,
+      fields,
       link_mod_ok: payload.link_mod_ok === true ? true : payload.link_mod_ok === false ? false : undefined,
       offer_url: payload.offer_url,
+      title: payload.title,
+      price: payload.price,
+      original_price: payload.original_price,
+      description: payload.description,
+      category: payload.category,
+      image_url: payload.image_url,
+      image_urls: payload.image_urls,
+      coupons: payload.coupons,
+      status: demoted ? 'pending' : offerStatus,
     })
   } catch (e) {
     console.error('[update-offer]', e)

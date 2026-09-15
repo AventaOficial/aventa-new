@@ -5,20 +5,22 @@ function fmt(n: number): string {
   return Number(n).toLocaleString('es-MX', { maximumFractionDigits: 0 });
 }
 
-function categoryLabel(cat: CategoryId | null): string {
-  if (!cat) return 'esta categoría';
-  return ALL_CATEGORIES.find((c) => c.value === cat)?.label.toLowerCase() ?? cat;
+function categoryLabel(cat: CategoryId | null): string | null {
+  if (!cat) return null;
+  return ALL_CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
 }
 
 /**
- * Descripción legible para el feed (sin IA). Plantilla por macro categoría.
+ * Descripción determinística para ofertas bot (sin IA).
+ * Solo usa datos estructurados verificados en meta/categoría.
+ * Nunca inventa specs, disponibilidad, garantía ni claims del vendedor.
  */
 export function buildBotOfferDescription(
   meta: ParsedOfferMetadata,
   category: string | null
 ): string {
   const norm = normalizeCategoryForStorage(category) as CategoryId | null;
-  const store = meta.store.trim() || 'la tienda';
+  const store = meta.store.trim() || null;
   const title = meta.title.replace(/\s+/g, ' ').trim().slice(0, 120);
   const price = fmt(meta.discountPrice);
   const hasOriginal =
@@ -26,33 +28,26 @@ export function buildBotOfferDescription(
   const original = hasOriginal ? fmt(meta.originalPrice!) : null;
   const pct = hasOriginal
     ? Math.round((1 - meta.discountPrice / meta.originalPrice!) * 100)
-    : Math.max(0, Math.round(meta.discountPercent ?? 0));
+    : null;
 
-  const priceLine = original
-    ? `Precio publicado: $${price} (antes $${original}${pct > 0 ? `, ~${pct}% menos` : ''}).`
-    : `Precio publicado: $${price}.`;
-
-  const verify =
-    'Revisa disponibilidad, envío y condiciones en el enlace antes de comprar.';
-
-  switch (norm) {
-    case 'supermercado':
-      return `${title} — oferta en ${store}. ${priceLine} Ideal para despensa y consumo del día a día. ${verify}`;
-    case 'hogar':
-      return `${title} — producto para el hogar en ${store}. ${priceLine} Verifica presentación y compatibilidad en la ficha. ${verify}`;
-    case 'belleza':
-      return `${title} — cuidado personal en ${store}. ${priceLine} Confirma talla/volumen en la tienda. ${verify}`;
-    case 'moda':
-      return `${title} — moda en ${store}. ${priceLine} Revisa tallas, color y política de cambios. ${verify}`;
-    case 'servicios':
-      return `${title} — promoción en ${store}. ${priceLine} Aplica términos del servicio (vigencia, cobertura, app). ${verify}`;
-    case 'viajes':
-      return `${title} — viaje en ${store}. ${priceLine} Confirma fechas, destino y cargos extra. ${verify}`;
-    case 'gaming':
-      return `${title} — gaming en ${store}. ${priceLine} Verifica región, edición y compatibilidad. ${verify}`;
-    case 'tecnologia':
-      return `${title} — tecnología en ${store}. ${priceLine} Revisa specs y garantía en la ficha oficial. ${verify}`;
-    default:
-      return `${title} — oferta en ${store} (${categoryLabel(norm)}). ${priceLine} ${verify}`;
+  const parts: string[] = [];
+  if (title) {
+    if (store) parts.push(`${title} disponible en ${store} por $${price}.`);
+    else parts.push(`${title} por $${price}.`);
+  } else if (store) {
+    parts.push(`Oferta en ${store} por $${price}.`);
+  } else {
+    parts.push(`Oferta por $${price}.`);
   }
+
+  if (original) {
+    const saveBit = pct != null && pct > 0 ? ` (ahorro aprox. ${pct}%)` : '';
+    parts.push(`Precio de referencia $${original}${saveBit}.`);
+  }
+
+  const cat = categoryLabel(norm);
+  if (cat) parts.push(`Categoría: ${cat}.`);
+
+  parts.push('Revisa disponibilidad, envío y condiciones en el enlace antes de comprar.');
+  return parts.join(' ').slice(0, 2000);
 }
