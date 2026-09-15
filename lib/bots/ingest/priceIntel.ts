@@ -48,6 +48,7 @@ export function applyMlPriceIntelToMeta(
     effectiveDiscountPercent: ml.intel.effectiveDiscountPercent,
     priceIntelSource: 'aventa_ml',
     suspectedArtificialListPrice: ml.intel.suspectedArtificialListPrice,
+    historyReady: ml.intel.historyReady,
   };
 
   const preserve =

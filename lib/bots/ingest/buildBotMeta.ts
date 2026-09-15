@@ -55,6 +55,13 @@ export function buildBotMeta({
         effectiveDiscountPercent: s.effectiveDiscountPercent,
         suspectedArtificialListPrice: s.suspectedArtificialListPrice,
         priceIntelSource: s.priceIntelSource,
+        historyReady: s.historyReady,
+        cardDiscountSource: s.cardDiscountSource,
+        cardBadgePercent: s.cardBadgePercent,
+        currentPriceProvenance: s.currentPriceProvenance,
+        originalPriceProvenance: s.originalPriceProvenance,
+        discountPercentProvenance: s.discountPercentProvenance,
+        promotionBoundToProduct: s.promotionBoundToProduct,
       })
     : {};
 

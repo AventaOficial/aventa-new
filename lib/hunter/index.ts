@@ -56,6 +56,8 @@ export type { RetailerDiscoveryMatrixRow } from './retailerDiscovery';
 export {
   SUPPLY_SOURCES,
   runSupplyRouter,
+  runSupplyEngine,
+  summarizeSupplyEngineReport,
   summarizeSupplyBoard,
   resetSupplyOrchestrationMetrics,
   evaluateCommunitySubmission,
@@ -64,5 +66,16 @@ export {
   resetCommunityQualityMetrics,
   getSupplyTruth,
   recordSupplyRun,
+  NICHE_HUNTER_PROFILES,
+  enabledNicheProfiles,
+  parseSupplyEngineMode,
 } from './supply';
-export type { SupplyBoardSnapshot, SupplyRouterReport, SupplySourceId, SupplyTruthSnapshot } from './supply';
+export type {
+  SupplyBoardSnapshot,
+  SupplyRouterReport,
+  SupplySourceId,
+  SupplyTruthSnapshot,
+  SupplyEngineReport,
+  NicheHunterProfile,
+  SupplyEngineMode,
+} from './supply';

@@ -16,6 +16,8 @@ export type OfferQualitySignals = {
   savingsVsHabitualPct?: number | null;
   effectiveDiscountPercent?: number | null;
   suspectedArtificialListPrice?: boolean | null;
+  /** True cuando Price Memory tiene días suficientes (mlPriceEngine). */
+  historyReady?: boolean | null;
   priceIntelSource?: 'keepa' | 'aventa_ml' | 'other' | null;
   currentPriceProvenance?:
     | 'source_explicit'

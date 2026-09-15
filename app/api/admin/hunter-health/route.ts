@@ -11,9 +11,9 @@ import { getPendingHealth } from '@/lib/moderation/pendingHealth';
 import { summarizeSchedulerHealth } from '@/lib/hunter/schedulerHealth';
 import { getSurfaceDiscoveryMetrics, summarizeDayToDaySupply } from '@/lib/hunter/dayToDay';
 import { summarizeRetailerDiscoveryMatrix } from '@/lib/hunter/retailerDiscovery';
-import { getDealQualificationMetrics } from '@/lib/hunter/dealQualification';
 import { getMlQualityMetrics } from '@/lib/hunter/mlQuality/metrics';
-import { getCommunityQualityMetrics, getSupplyTruth, summarizeSupplyBoard } from '@/lib/hunter/supply';
+import { getDealQualificationMetrics } from '@/lib/hunter/dealQualification';
+import { getCommunityQualityMetrics, getSupplyTruth, summarizeSupplyBoard, enabledNicheProfiles, parseSupplyEngineMode } from '@/lib/hunter/supply';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -75,6 +75,22 @@ export async function GET(request: Request) {
       }),
       communityQuality: getCommunityQualityMetrics(),
       supplyTruth: await getSupplyTruth(supabase, { hunterRows: summary.rows }),
+      supplyEngine: {
+        mode: parseSupplyEngineMode(process.env.SUPPLY_ENGINE_MODE),
+        writeEnabled:
+          (process.env.SUPPLY_ENGINE_WRITE ?? '').trim() === '1' ||
+          (process.env.SUPPLY_ENGINE_WRITE ?? '').trim().toLowerCase() === 'true',
+        niches: enabledNicheProfiles().map((p) => ({
+          id: p.id,
+          name: p.name,
+          lane: p.lane,
+          priority: p.priority,
+          candidateBudget: p.candidateBudget,
+          insertBudget: p.insertBudget,
+        })),
+        cronPath: '/api/cron/supply-engine',
+        runNowPath: '/api/admin/supply-engine-run-now',
+      },
       autonomousCalibration,
       metricUniverses: HUNTER_METRIC_UNIVERSES,
     },

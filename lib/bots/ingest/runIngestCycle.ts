@@ -93,9 +93,10 @@ function markSourceSkip(
 
 export async function runIngestCycleForProfile(
   profile: IngestProfileId = 'standard',
-  startedAt = new Date().toISOString()
+  startedAt = new Date().toISOString(),
+  opts?: { config?: ReturnType<typeof loadBotIngestConfig> }
 ): Promise<IngestCycleReport> {
-  const config = loadBotIngestConfig(profile);
+  const config = opts?.config ?? loadBotIngestConfig(profile);
   const results: IngestSingleResult[] = [];
   const sourceStats = emptySourceStats();
   const stageCounts = {
@@ -438,11 +439,11 @@ export async function runIngestCycleForProfile(
           sourceId: r.item.source,
           sourceDetail: r.item.sourceDetail,
           shadowCycleId: peekCurrentShadowCycleId(),
+          qualification: r.item.qualification?.qualification ?? null,
         });
         results.push({ url: r.item.url, source: r.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[r.item.source].inserted += 1;
-        pendingBySource[r.item.source] =
-          (pendingBySource[r.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
+        pendingBySource[r.item.source] = (pendingBySource[r.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
         results.push({

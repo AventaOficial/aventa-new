@@ -32,6 +32,30 @@ export {
 export { runSupplyRouter } from './router';
 export type { RunSupplyRouterOptions } from './router';
 export {
+  NICHE_HUNTER_PROFILES,
+  NICHE_BEAUTY,
+  NICHE_ELECTRONICS,
+  NICHE_DAY_TO_DAY,
+  nicheProfileById,
+  enabledNicheProfiles,
+  pickNicheForWave,
+  parseSupplyEngineMode,
+} from './nicheProfiles';
+export type { NicheHunterProfile, SupplyEngineMode, SupplyNicheLane } from './nicheProfiles';
+export { applyNicheProfileToIngestConfig, candidateMatchesNiche } from './applyNicheProfile';
+export {
+  computeDealSignals,
+  moderationPriorityFromDealSignals,
+} from './dealSignals';
+export type { DealSignals, DealPriceClass, DealLaneHint } from './dealSignals';
+export { runSupplyEngine, summarizeSupplyEngineReport } from './engine';
+export type {
+  RunSupplyEngineOptions,
+  SupplyEngineReport,
+  SupplyEngineMetrics,
+  SupplyEngineCandidateView,
+} from './engine';
+export {
   computeGlobalSupplyStatus,
   mapHunterStatus,
   runtimeStatusForSource,
