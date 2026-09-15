@@ -56,13 +56,28 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
       label: 'Live deals',
       value: formatNum(data.liveDeals),
       meaning: 'Ofertas approved/published no expiradas',
-      tone: (data.liveDeals ?? 0) > 0 ? 'green' : 'gray',
+      tone: (data.liveDeals ?? 0) >= 3 ? 'green' : (data.liveDeals ?? 0) > 0 ? 'yellow' : 'red',
     },
     {
       label: 'Needs review',
       value: formatNum(pending),
-      meaning: pending > 0 ? 'Pendientes en cola de moderación' : 'Cola limpia',
+      meaning:
+        data.moderation.pendingGt24h > 0
+          ? `${data.moderation.pendingGt24h} >24h · más vieja ${
+              data.moderation.oldestPendingHours != null
+                ? `${data.moderation.oldestPendingHours}h`
+                : 'n/d'
+            }`
+          : pending > 0
+            ? 'Pendientes en cola de moderación'
+            : 'Cola limpia',
       tone: reviewTone,
+    },
+    {
+      label: 'Outbound 7d',
+      value: formatNum(data.week.outbound),
+      meaning: 'Clicks reales a tienda (offer_events)',
+      tone: (data.week.outbound ?? 0) > 0 ? 'green' : 'gray',
     },
     {
       label: 'Revenue confirmed',
@@ -120,6 +135,8 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
     },
   ];
 
+  const bn = data.circuitBottleneck;
+
   return (
     <section
       className="mb-6 rounded-3xl border border-violet-500/25 bg-gradient-to-br from-[#0f0f12] via-[#16121f] to-[#0d0d10] p-5 md:p-6 shadow-[0_12px_40px_rgba(88,28,135,0.18)]"
@@ -147,7 +164,29 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-4">
+      <div
+        className={cn('mb-4 rounded-2xl border p-4', toneClass(bn.severity))}
+        data-circuit-bottleneck={bn.id}
+      >
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
+          Bottleneck · {bn.id}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-white">{bn.problem}</p>
+        <p className="mt-1 text-xs text-white/50">
+          <span className="text-white/35">Impacto:</span> {bn.impact}
+        </p>
+        <p className="mt-1 text-xs text-white/70">
+          <span className="text-white/35">Acción:</span> {bn.recommendedAction}
+        </p>
+        <Link
+          href={bn.href}
+          className="mt-2 inline-flex text-xs font-semibold text-violet-300 hover:text-violet-200"
+        >
+          Ir al cuello de botella →
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
         {kpis.map((k) => (
           <div
             key={k.label}

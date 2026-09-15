@@ -61,8 +61,8 @@ const PRIORITY_SHORT: Record<ModerationReviewPriority, string> = {
   P4_LOW_VALUE: 'LOW VALUE',
 };
 
-/** Pending más viejos que esto pueden subir a P2_REVIEW (sin cambiar calidad). */
-export const MODERATION_PRIORITY_STALE_HOURS = 48;
+/** Pending más viejos que esto pueden subir a P2_REVIEW (sin cambiar calidad). Alineado a SLA CEO 24h. */
+export const MODERATION_PRIORITY_STALE_HOURS = 24;
 
 function asRecord(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;

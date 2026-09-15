@@ -49,6 +49,22 @@ describe('CEO Control Center contracts', () => {
     expect(ceo).toMatch(/NO_DATA/);
   });
 
+  it('CEO expone bottleneck STATUS→PROBLEM→IMPACT→ACTION', () => {
+    expect(ceo).toMatch(/data-circuit-bottleneck/);
+    expect(ceo).toMatch(/Bottleneck/);
+    expect(ceo).toMatch(/Impacto:/);
+    expect(ceo).toMatch(/Acción:/);
+    expect(ceo).toMatch(/Outbound 7d/);
+    const builder = readFileSync(
+      join(process.cwd(), 'lib/owner/buildOwnerDashboard.ts'),
+      'utf8',
+    );
+    expect(builder).toMatch(/circuitBottleneck/);
+    expect(builder).toMatch(/pickCircuitBottleneck/);
+    expect(builder).toMatch(/pendingGt24h/);
+    expect(builder).toMatch(/live_starvation/);
+  });
+
   it('rutas legacy de money siguen alcanzables en nav', () => {
     const nav = readFileSync(join(process.cwd(), 'lib/owner/navigation.ts'), 'utf8');
     expect(nav).toMatch(/\/admin\/commissions/);

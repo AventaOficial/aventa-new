@@ -13,6 +13,11 @@ import {
 } from '@/lib/owner/mxTime';
 import { fetchOfferHealthSummary, type OfferHealthSummary } from '@/lib/offers/offerHealthSummary';
 import { buildSupplyFunnelSnapshot } from '@/lib/moderation/outcomes';
+import {
+  pickCircuitBottleneck,
+  type CircuitBottleneck,
+} from '@/lib/owner/circuitBottleneck';
+import { OUTBOUND_VOLUME_SOT } from '@/lib/analytics/outboundClickContract';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -85,6 +90,10 @@ export type OwnerDashboardPayload = {
   };
   moderation: {
     pending: number;
+    /** Pending con created_at > 24h (SLA operativo). */
+    pendingGt24h: number;
+    /** Edad en horas de la pending más vieja, o null. */
+    oldestPendingHours: number | null;
     rejectedToday: number | null;
     approvedToday: number | null;
     avgApprovalHours: number | null;
@@ -101,6 +110,8 @@ export type OwnerDashboardPayload = {
   liveDeals: number | null;
   /** Liability productiva (excluye QA). */
   userLiabilityConfirmedCents: number;
+  /** Cuello de botella del circuito (STATUS → PROBLEM → IMPACT → ACTION). */
+  circuitBottleneck: CircuitBottleneck;
   affiliation: {
     programsActive: number;
     programsTotal: number;
@@ -199,6 +210,66 @@ async function countPendingOffers(): Promise<number> {
     .eq('status', 'pending');
   if (error) return 0;
   return count ?? 0;
+}
+
+/** Edad de cola pending (SLA). Solo lectura. */
+async function fetchPendingAgeStats(): Promise<{
+  pendingGt24h: number;
+  oldestPendingHours: number | null;
+}> {
+  const supabase = createServerClient();
+  const cutoff24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const [{ count: gt24 }, { data: oldestRow }] = await Promise.all([
+    supabase
+      .from('offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .lt('created_at', cutoff24),
+    supabase
+      .from('offers')
+      .select('created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  let oldestPendingHours: number | null = null;
+  const created = (oldestRow as { created_at?: string } | null)?.created_at;
+  if (created) {
+    const ms = Date.now() - new Date(created).getTime();
+    if (Number.isFinite(ms) && ms >= 0) oldestPendingHours = Math.round(ms / 3_600_000);
+  }
+  return { pendingGt24h: gt24 ?? 0, oldestPendingHours };
+}
+
+/** Fuentes Hunter sin éxito reciente (stale). Solo lectura. */
+async function countStaleHunterSources(staleMs = 6 * 60 * 60 * 1000): Promise<number | null> {
+  const supabase = createServerClient();
+  try {
+    const { data, error } = await supabase
+      .from('hunter_source_health')
+      .select('source_id, enabled, last_success_at, last_run_at')
+      .eq('enabled', true);
+    if (error) return null;
+    const cutoff = Date.now() - staleMs;
+    let stale = 0;
+    for (const row of data ?? []) {
+      const r = row as {
+        last_success_at?: string | null;
+        last_run_at?: string | null;
+      };
+      const ts = r.last_success_at || r.last_run_at;
+      if (!ts) {
+        stale += 1;
+        continue;
+      }
+      const t = new Date(ts).getTime();
+      if (!Number.isFinite(t) || t < cutoff) stale += 1;
+    }
+    return stale;
+  } catch {
+    return null;
+  }
 }
 
 async function buildPeriodKpis(start: string, end: string, includePendingSnapshot: boolean): Promise<PeriodKpis> {
@@ -541,7 +612,19 @@ function diffLabel(current: number | null, previous: number | null): string | nu
   return `${sign}${d} vs ayer`;
 }
 
-function pickRecommendedAction(alerts: OwnerAlert[], pending: number): OwnerDashboardPayload['recommendedAction'] {
+function pickRecommendedAction(
+  alerts: OwnerAlert[],
+  pending: number,
+  bottleneck: CircuitBottleneck,
+): OwnerDashboardPayload['recommendedAction'] {
+  // El cuello de botello del circuito manda sobre alertas genéricas.
+  if (bottleneck.id !== 'none') {
+    return {
+      title: bottleneck.recommendedAction,
+      detail: `${bottleneck.problem}. Impacto: ${bottleneck.impact}`,
+      href: bottleneck.href,
+    };
+  }
   const red = alerts.find((a) => a.severity === 'red');
   if (red?.id === 'moderation_queue') {
     return {
@@ -603,6 +686,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     liveDealsResult,
     liabilityResult,
     funnelSnapshot,
+    pendingAge,
+    supplyStale,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -622,6 +707,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     countLiveFeedOffers(),
     sumProductionUserLiabilityCents(),
     buildSupplyFunnelSnapshot({ windowDays: 7 }),
+    fetchPendingAgeStats(),
+    countStaleHunterSources(),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -662,8 +749,12 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       `${economy.syntheticLedgerRowsExcluded} fila(s) ledger QA/synthetic excluidas de revenue/EPC`,
     );
   }
-  dataGaps.push('Clics “sin tag” no medibles en BD — solo cobertura de programas por env');
-  dataGaps.push('Atribución venta → oferta: no existe en producto');
+  dataGaps.push(
+    `Volumen outbound SoT=${OUTBOUND_VOLUME_SOT}; atribución Rewards en reward_outbound_clicks (dual-write track-outbound)`,
+  );
+  dataGaps.push(
+    'Atribución automática venta→oferta: Amazon sub-id high-confidence; ML sin sub-id → staff/ventana. Money path FAIL-CLOSED.',
+  );
 
   const alerts: OwnerAlert[] = [];
   const SLA_HOURS = 24;
@@ -676,12 +767,20 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       detail: `${economy.syntheticLedgerRowsExcluded} fila(s) synthetic/QA no cuentan como economía de producción.`,
     });
   }
+  if ((liveDealsResult ?? 0) < 3 && pending >= 5) {
+    alerts.push({
+      id: 'live_starvation',
+      severity: 'red',
+      title: 'Live starvation',
+      detail: `${liveDealsResult ?? 0} live vs ${pending} pending — feed sin liquidez.`,
+    });
+  }
   if (pending >= 10) {
     alerts.push({
       id: 'moderation_queue',
       severity: pending >= 20 ? 'red' : 'yellow',
       title: 'Cola de moderación alta',
-      detail: `${pending} ofertas pendientes.`,
+      detail: `${pending} ofertas pendientes (${pendingAge.pendingGt24h} >24h).`,
     });
   }
   if (integrityOk === false) {
@@ -724,18 +823,31 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       detail: `${queueBacklog.failed} jobs fallidos.`,
     });
   }
+
+  const circuitBottleneck = pickCircuitBottleneck({
+    liveDeals: liveDealsResult,
+    pending,
+    pendingGt24h: pendingAge.pendingGt24h,
+    oldestPendingHours: pendingAge.oldestPendingHours,
+    outbound7d: weekBase.outbound,
+    integrityOk,
+    amazonTagConfigured: amazonActive,
+    mercadolibreTagConfigured: mlActive,
+    supplyStaleSources: supplyStale,
+  });
+
   let status: TrafficLight = 'green';
-  if (alerts.some((a) => a.severity === 'red')) status = 'red';
-  else if (alerts.length > 0) status = 'yellow';
+  if (alerts.some((a) => a.severity === 'red') || circuitBottleneck.severity === 'red') status = 'red';
+  else if (alerts.length > 0 || circuitBottleneck.severity === 'yellow') status = 'yellow';
 
   let headline = 'AVENTA operando con normalidad';
   let subline = `Zona ${OWNER_DASHBOARD_TZ}. Actualizado ${now.toLocaleString('es-MX', { timeZone: OWNER_DASHBOARD_TZ })}`;
   if (status === 'red') {
-    headline = alerts.find((a) => a.severity === 'red')?.title ?? 'Requiere atención';
-    subline = alerts.find((a) => a.severity === 'red')?.detail ?? subline;
+    headline = alerts.find((a) => a.severity === 'red')?.title ?? circuitBottleneck.problem;
+    subline = alerts.find((a) => a.severity === 'red')?.detail ?? circuitBottleneck.impact;
   } else if (status === 'yellow') {
     headline = 'AVENTA operando con avisos';
-    subline = alerts[0]?.detail ?? subline;
+    subline = alerts[0]?.detail ?? circuitBottleneck.problem;
   }
 
   const slaOk =
@@ -769,6 +881,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     },
     moderation: {
       pending,
+      pendingGt24h: pendingAge.pendingGt24h,
+      oldestPendingHours: pendingAge.oldestPendingHours,
       rejectedToday: today.offersRejected,
       approvedToday: today.offersApproved,
       avgApprovalHours: approvalSla.hours,
@@ -781,6 +895,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     },
     liveDeals: liveDealsResult,
     userLiabilityConfirmedCents: liabilityResult,
+    circuitBottleneck,
     affiliation: {
       programsActive,
       programsTotal: programs.length,
@@ -797,7 +912,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       writeQueueFailed: queueBacklog.failed,
     },
     alerts,
-    recommendedAction: pickRecommendedAction(alerts, pending),
+    recommendedAction: pickRecommendedAction(alerts, pending, circuitBottleneck),
     dataGaps,
     economy,
     offerHealth,

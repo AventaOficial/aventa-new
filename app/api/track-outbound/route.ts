@@ -6,8 +6,9 @@ import { recordOfferEvent } from '@/lib/server/writeQueue';
 import { shouldSkipDuplicateOfferEvent } from '@/lib/server/offerEventDedupe';
 import { isOfferTrackable } from '@/lib/server/trackableOffer';
 import { recordOutboundClick } from '@/lib/rewards/attribution/clickTracking';
+import { OUTBOUND_EVENT_TYPE } from '@/lib/analytics/outboundClickContract';
 
-/** Outbound = clic real a tienda. Registra click_id para atribución Rewards. */
+/** Outbound = clic real a tienda. Dual-write: offer_events (volumen) + reward_outbound_clicks (atribución). */
 export async function POST(request: Request) {
   const ip = getClientIp(request);
   const rl = await enforceRateLimit(ip);
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
     const skip = await shouldSkipDuplicateOfferEvent({
       offerId,
-      eventType: 'outbound',
+      eventType: OUTBOUND_EVENT_TYPE,
       userId,
       ip,
     });
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       await recordOfferEvent({
         offer_id: offerId,
         user_id: userId,
-        event_type: 'outbound',
+        event_type: OUTBOUND_EVENT_TYPE,
       });
     }
 

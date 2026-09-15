@@ -32,7 +32,7 @@ function pendingAgeLabel(createdAt: string | null | undefined): string | null {
   if (!Number.isFinite(t)) return null;
   const hours = Math.max(0, (Date.now() - t) / 3_600_000);
   if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m en cola`;
-  if (hours < 48) return `${Math.round(hours)}h en cola`;
+  if (hours < 24) return `${Math.round(hours)}h en cola`;
   return `${Math.round(hours / 24)}d en cola`;
 }
 
