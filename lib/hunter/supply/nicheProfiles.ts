@@ -7,6 +7,19 @@ export type SupplyNicheLane = 'day_to_day' | 'top_deals' | 'beauty' | 'electroni
 
 export type SupplyEngineMode = 'shadow' | 'dry_run' | 'enabled';
 
+export type SupplyQueryIntent =
+  | 'price_drop'
+  | 'brand_product'
+  | 'category'
+  | 'coupon'
+  | 'anomaly';
+
+export type NicheQuerySpec = {
+  query: string;
+  intent: SupplyQueryIntent;
+  priority: number;
+};
+
 export type NicheHunterProfile = {
   id: string;
   name: string;
@@ -15,8 +28,13 @@ export type NicheHunterProfile = {
   categories: string[];
   /** Categorías MLM para discovery API. */
   mlCategoryIds: string[];
-  /** Queries de búsqueda ML. */
+  /** Queries de búsqueda ML (legacy flat list — derivado de querySpecs). */
   mlQueries: string[];
+  /**
+   * Estrategia de queries medible (intent + priority).
+   * Agregar queries = datos aquí, no código nuevo.
+   */
+  querySpecs: readonly NicheQuerySpec[];
   /** Fuentes permitidas (supply source ids). Vacío = defaults del engine. */
   allowedSources: readonly string[];
   /** Prioridad 1..100 (mayor = primero en rotación). */
@@ -40,6 +58,25 @@ export type NicheHunterProfile = {
 
 export type SupplyLaneTag = SupplyNicheLane;
 
+function queriesFromSpecs(specs: readonly NicheQuerySpec[]): string[] {
+  return [...specs]
+    .sort((a, b) => b.priority - a.priority || a.query.localeCompare(b.query))
+    .map((s) => s.query);
+}
+
+const BEAUTY_QUERY_SPECS: readonly NicheQuerySpec[] = [
+  { query: 'perfume mujer oferta', intent: 'price_drop', priority: 95 },
+  { query: 'perfume hombre oferta', intent: 'price_drop', priority: 90 },
+  { query: 'fragancia eau de parfum', intent: 'category', priority: 85 },
+  { query: 'maquillaje oferta', intent: 'price_drop', priority: 80 },
+  { query: 'skincare serum oferta', intent: 'price_drop', priority: 88 },
+  { query: 'crema facial oferta', intent: 'price_drop', priority: 78 },
+  { query: 'labial maybelline', intent: 'brand_product', priority: 82 },
+  { query: 'cerave limpiador oferta', intent: 'brand_product', priority: 86 },
+  { query: 'shampoo oferta', intent: 'category', priority: 70 },
+  { query: 'protector solar oferta', intent: 'price_drop', priority: 84 },
+] as const;
+
 /** Belleza / perfumería — alta señal observada en moderación. */
 export const NICHE_BEAUTY: NicheHunterProfile = {
   id: 'beauty',
@@ -47,17 +84,8 @@ export const NICHE_BEAUTY: NicheHunterProfile = {
   lane: 'beauty',
   categories: ['belleza'],
   mlCategoryIds: ['MLM1246', 'MLM1271'],
-  mlQueries: [
-    'perfume mujer oferta',
-    'perfume hombre oferta',
-    'fragancia eau de parfum',
-    'maquillaje oferta',
-    'skincare serum oferta',
-    'crema facial oferta',
-    'labial maybelline',
-    'shampoo oferta',
-    'protector solar oferta',
-  ],
+  querySpecs: BEAUTY_QUERY_SPECS,
+  mlQueries: queriesFromSpecs(BEAUTY_QUERY_SPECS),
   allowedSources: ['ml_api_legacy', 'ml_worker'],
   priority: 90,
   candidateBudget: 24,
@@ -70,6 +98,18 @@ export const NICHE_BEAUTY: NicheHunterProfile = {
   enabled: true,
 };
 
+const ELECTRONICS_QUERY_SPECS: readonly NicheQuerySpec[] = [
+  { query: 'celular oferta', intent: 'price_drop', priority: 95 },
+  { query: 'smartphone android', intent: 'category', priority: 88 },
+  { query: 'laptop oferta', intent: 'price_drop', priority: 90 },
+  { query: 'audifonos bluetooth oferta', intent: 'price_drop', priority: 80 },
+  { query: 'monitor 27 oferta', intent: 'price_drop', priority: 78 },
+  { query: 'tablet oferta', intent: 'price_drop', priority: 82 },
+  { query: 'ssd nvme oferta', intent: 'price_drop', priority: 85 },
+  { query: 'samsung galaxy oferta', intent: 'brand_product', priority: 92 },
+  { query: 'nintendo switch juego', intent: 'brand_product', priority: 75 },
+] as const;
+
 /** Electrónica / celulares — fuerte en SKU + Price Memory. */
 export const NICHE_ELECTRONICS: NicheHunterProfile = {
   id: 'electronics',
@@ -77,16 +117,8 @@ export const NICHE_ELECTRONICS: NicheHunterProfile = {
   lane: 'electronics',
   categories: ['tecnologia', 'gaming'],
   mlCategoryIds: ['MLM1000', 'MLM1648', 'MLM1574', 'MLM1144'],
-  mlQueries: [
-    'celular oferta',
-    'smartphone android',
-    'laptop oferta',
-    'audifonos bluetooth oferta',
-    'monitor 27 oferta',
-    'tablet oferta',
-    'ssd nvme oferta',
-    'nintendo switch juego',
-  ],
+  querySpecs: ELECTRONICS_QUERY_SPECS,
+  mlQueries: queriesFromSpecs(ELECTRONICS_QUERY_SPECS),
   allowedSources: ['ml_api_legacy', 'ml_worker', 'amazon_paapi', 'amazon_asin'],
   priority: 80,
   candidateBudget: 28,
@@ -99,6 +131,17 @@ export const NICHE_ELECTRONICS: NicheHunterProfile = {
   enabled: true,
 };
 
+const DAY_TO_DAY_QUERY_SPECS: readonly NicheQuerySpec[] = [
+  { query: 'papel higienico oferta', intent: 'price_drop', priority: 90 },
+  { query: 'detergente oferta', intent: 'price_drop', priority: 88 },
+  { query: 'aceite cocina oferta', intent: 'price_drop', priority: 85 },
+  { query: 'arroz oferta', intent: 'price_drop', priority: 80 },
+  { query: 'freidora de aire', intent: 'category', priority: 75 },
+  { query: 'sabanas oferta', intent: 'price_drop', priority: 70 },
+  { query: 'toallas oferta', intent: 'price_drop', priority: 68 },
+  { query: 'limpiador oferta', intent: 'price_drop', priority: 72 },
+] as const;
+
 /**
  * Día a día — ingreso hormiga vía ML queries (retailer DTD flags siguen OFF).
  * No activa Chedraui/Walmart/Bodega.
@@ -109,16 +152,8 @@ export const NICHE_DAY_TO_DAY: NicheHunterProfile = {
   lane: 'day_to_day',
   categories: ['supermercado', 'hogar'],
   mlCategoryIds: ['MLM1430', 'MLM1575'],
-  mlQueries: [
-    'papel higienico oferta',
-    'detergente oferta',
-    'aceite cocina oferta',
-    'arroz oferta',
-    'freidora de aire',
-    'sabanas oferta',
-    'toallas oferta',
-    'limpiador oferta',
-  ],
+  querySpecs: DAY_TO_DAY_QUERY_SPECS,
+  mlQueries: queriesFromSpecs(DAY_TO_DAY_QUERY_SPECS),
   allowedSources: ['ml_api_legacy', 'ml_worker'],
   priority: 70,
   candidateBudget: 20,

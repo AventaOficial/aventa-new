@@ -190,6 +190,80 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
       <div
         className={cn(
           'mb-4 rounded-2xl border p-4',
+          toneClass(
+            data.supply.bottleneck === 'none'
+              ? 'green'
+              : data.supply.bottleneck === 'moderation'
+                ? 'yellow'
+                : 'yellow',
+          ),
+        )}
+        data-ceo-supply
+      >
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
+          Supply Engine
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div>
+            <p className="text-[10px] text-white/40">Discovered</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.supply.discovered)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Verified</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.supply.verified)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Approval ready</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.supply.approvalReady)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Sticky observed</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.supply.stickyObserved)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Fresh discovered</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.supply.freshDiscovered)}
+            </p>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-white/55">
+          Sticky {formatNum(data.supply.stickyObserved)} obs ·{' '}
+          {formatNum(data.supply.stickyVerified)} ver ·{' '}
+          {formatNum(data.supply.stickyApprovalReady)} ready
+          {' · '}
+          Fresh {formatNum(data.supply.freshDiscovered)} disc ·{' '}
+          {formatNum(data.supply.freshVerified)} ver ·{' '}
+          {formatNum(data.supply.freshApprovalReady)} ready
+        </p>
+        <p className="mt-1 text-xs text-white/55">
+          Top niche <span className="text-white/80">{data.supply.topNiche ?? '—'}</span>
+          {' · '}
+          Top query <span className="text-white/80">{data.supply.topQuery ?? '—'}</span>
+          {' · '}
+          Source <span className="text-white/80">{data.supply.topSource ?? '—'}</span>
+        </p>
+        <p className="mt-1 text-xs text-white/70">
+          <span className="text-white/35">Bottleneck:</span> {data.supply.bottleneck}
+          {' · '}
+          <span className="text-white/35">Action:</span> {data.supply.action}
+        </p>
+        <p className="mt-1 text-[10px] text-white/35">
+          mode={data.supply.mode} · WRITE={data.supply.writeEnabled ? '1' : '0'}
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          'mb-4 rounded-2xl border p-4',
           toneClass(reviewTone === 'green' ? 'green' : reviewTone),
         )}
         data-ceo-moderation

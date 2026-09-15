@@ -79,20 +79,42 @@ export function classifySupplyQuality(input: {
 }
 
 export function parseMlSourceDetail(sourceDetail: string | null | undefined): {
-  kind: 'q' | 'cat' | 'hl' | 'unknown';
+  kind: 'q' | 'cat' | 'hl' | 'seed' | 'sticky' | 'unknown';
   value: string | null;
   sort: string | null;
+  discoveryMode: 'sticky' | 'fresh' | 'unknown';
 } {
   const raw = (sourceDetail ?? '').trim();
+  // ml:sticky:MLM123|niche:beauty|mode:sticky
+  const sticky = /^ml:sticky:([^|]+)/i.exec(raw);
+  if (sticky) {
+    return {
+      kind: 'sticky',
+      value: sticky[1]!.trim() || null,
+      sort: null,
+      discoveryMode: 'sticky',
+    };
+  }
+  // worker:playwright:card|seed:offers_home
+  const seed = /(?:^|\|)seed:([^|]+)/i.exec(raw);
+  if (seed) {
+    return {
+      kind: 'seed',
+      value: seed[1]!.trim() || null,
+      sort: null,
+      discoveryMode: /mode:sticky/i.test(raw) ? 'sticky' : 'fresh',
+    };
+  }
   // ml:q:perfume mujer oferta|sort:sold_quantity_desc
   // ml:hl:MLM1246|q:perfume mujer oferta|sort:highlights
   const m = /^ml:(q|cat|hl):(.+?)(?:\|sort:([a-z0-9_]+))?$/i.exec(raw);
-  if (!m) return { kind: 'unknown', value: null, sort: null };
+  if (!m) return { kind: 'unknown', value: null, sort: null, discoveryMode: 'unknown' };
   const kindRaw = m[1]!.toLowerCase();
   const kind = kindRaw === 'cat' ? 'cat' : kindRaw === 'hl' ? 'hl' : 'q';
   return {
     kind,
     value: m[2]!.trim() || null,
     sort: m[3]?.trim() || null,
+    discoveryMode: 'fresh',
   };
 }

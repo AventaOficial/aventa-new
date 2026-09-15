@@ -31,6 +31,10 @@ export {
 } from './registry';
 export { runSupplyRouter } from './router';
 export type { RunSupplyRouterOptions } from './router';
+export { getPriceMemoryHealth, SUPPLY_DAILY_TARGETS } from './priceMemoryHealth';
+export type { PriceMemoryHealthSnapshot } from './priceMemoryHealth';
+export { buildSupplyToday } from './supplyToday';
+export type { SupplyTodaySnapshot } from './supplyToday';
 export {
   NICHE_HUNTER_PROFILES,
   NICHE_BEAUTY,
@@ -41,7 +45,13 @@ export {
   pickNicheForWave,
   parseSupplyEngineMode,
 } from './nicheProfiles';
-export type { NicheHunterProfile, SupplyEngineMode, SupplyNicheLane } from './nicheProfiles';
+export type {
+  NicheHunterProfile,
+  SupplyEngineMode,
+  SupplyNicheLane,
+  NicheQuerySpec,
+  SupplyQueryIntent,
+} from './nicheProfiles';
 export { applyNicheProfileToIngestConfig, candidateMatchesNiche } from './applyNicheProfile';
 export {
   computeDealSignals,
@@ -66,7 +76,13 @@ export type {
   SupplyEngineReport,
   SupplyEngineMetrics,
   SupplyEngineCandidateView,
+  DiscoveryMode,
 } from './engine';
+export { selectStickySkuTargets, filterStickyByCooldown, DEFAULT_STICKY_SKU_CONFIG } from './stickySku';
+export type { StickySkuTarget, StickySkuSelectConfig } from './stickySku';
+export { observeStickySkus } from './observeStickySkus';
+export type { StickyObserveReport } from './observeStickySkus';
+export { applySupplyQualityPipeline } from './router';
 export {
   computeGlobalSupplyStatus,
   mapHunterStatus,

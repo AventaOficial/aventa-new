@@ -34,9 +34,12 @@ jobs:
 
     env:
       AVENTA_INGEST_ENDPOINT: https://aventaofertas.com/api/cron/bot-ingest-candidates
+      AVENTA_STICKY_SEEDS_ENDPOINT: https://aventaofertas.com/api/cron/sticky-sku-seeds?limit=12
       AVENTA_CRON_SECRET: ${{ secrets.AVENTA_CRON_SECRET }}
       WORKER_PROFILE: standard
       WORKER_HEADLESS: '1'
+      # Discovery-only: dryRun=true en POST → snapshots sí, INSERT ofertas no.
+      WORKER_DISCOVERY_ONLY: '1'
       # Amplitud sobre profundidad: pocas cards por superficie y muchas superficies.
       # Con 3 por seed el ciclo alcanza a visitar 12 de las 14 del registro.
       WORKER_MAX_ITEMS: '36'

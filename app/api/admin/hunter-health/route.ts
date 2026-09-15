@@ -13,7 +13,13 @@ import { getSurfaceDiscoveryMetrics, summarizeDayToDaySupply } from '@/lib/hunte
 import { summarizeRetailerDiscoveryMatrix } from '@/lib/hunter/retailerDiscovery';
 import { getMlQualityMetrics } from '@/lib/hunter/mlQuality/metrics';
 import { getDealQualificationMetrics } from '@/lib/hunter/dealQualification';
-import { getCommunityQualityMetrics, getSupplyTruth, summarizeSupplyBoard, enabledNicheProfiles, parseSupplyEngineMode } from '@/lib/hunter/supply';
+import {
+  getCommunityQualityMetrics,
+  getSupplyTruth,
+  summarizeSupplyBoard,
+  enabledNicheProfiles,
+  buildSupplyToday,
+} from '@/lib/hunter/supply';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -76,10 +82,7 @@ export async function GET(request: Request) {
       communityQuality: getCommunityQualityMetrics(),
       supplyTruth: await getSupplyTruth(supabase, { hunterRows: summary.rows }),
       supplyEngine: {
-        mode: parseSupplyEngineMode(process.env.SUPPLY_ENGINE_MODE),
-        writeEnabled:
-          (process.env.SUPPLY_ENGINE_WRITE ?? '').trim() === '1' ||
-          (process.env.SUPPLY_ENGINE_WRITE ?? '').trim().toLowerCase() === 'true',
+        ...(await buildSupplyToday(supabase)),
         niches: enabledNicheProfiles().map((p) => ({
           id: p.id,
           name: p.name,
@@ -87,6 +90,7 @@ export async function GET(request: Request) {
           priority: p.priority,
           candidateBudget: p.candidateBudget,
           insertBudget: p.insertBudget,
+          queryCount: p.querySpecs.length,
         })),
         cronPath: '/api/cron/supply-engine',
         runNowPath: '/api/admin/supply-engine-run-now',

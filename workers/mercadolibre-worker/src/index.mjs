@@ -44,7 +44,10 @@ async function main() {
     const maxItems = Number.parseInt(getEnv('WORKER_MAX_ITEMS', '12'), 10) || 12;
   const minDiscountPercent = Number.parseInt(getEnv('WORKER_MIN_DISCOUNT_PERCENT', '15'), 10) || 15;
   const timeoutMs = Number.parseInt(getEnv('WORKER_TIMEOUT_MS', '45000'), 10) || 45000;
-  const dryRun = process.argv.includes('--dry-run');
+  const dryRun =
+    process.argv.includes('--dry-run') ||
+    getEnv('WORKER_DISCOVERY_ONLY', '0') === '1' ||
+    getEnv('WORKER_DISCOVERY_ONLY', '').toLowerCase() === 'true';
   const perSeedMax = Number.parseInt(getEnv('WORKER_MAX_PER_SEED', ''), 10) || null;
   const pdpMax = Number.parseInt(getEnv('WORKER_PDP_MAX', ''), 10) || null;
   const shortlistMax = Number.parseInt(getEnv('WORKER_SHORTLIST_MAX', ''), 10) || null;
@@ -53,14 +56,44 @@ async function main() {
   // El orden depende del reloj, no de un contador guardado: dos runners del mismo
   // ciclo eligen las mismas seeds sin compartir estado.
   const cycleIndex = cycleIndexFor(Date.now(), rotationIntervalMs);
-  const seeds = resolveSeeds({ override: parseSeeds(getEnv('WORKER_ML_SEEDS')), cycleIndex });
+  let seeds = resolveSeeds({ override: parseSeeds(getEnv('WORKER_ML_SEEDS')), cycleIndex });
+
+  // Sticky seeds from Aventa Price Memory (optional, discovery-only).
+  const stickyEndpoint = getEnv('AVENTA_STICKY_SEEDS_ENDPOINT');
+  if (stickyEndpoint && secret) {
+    try {
+      const stickyRes = await fetch(stickyEndpoint, {
+        headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
+      });
+      if (stickyRes.ok) {
+        const stickyJson = await stickyRes.json();
+        const stickySeeds = Array.isArray(stickyJson?.seeds) ? stickyJson.seeds : [];
+        const mapped = stickySeeds
+          .filter((s) => s && typeof s.url === 'string')
+          .map((s) => ({
+            id: String(s.id || `sticky_${s.productId || 'x'}`),
+            url: String(s.url),
+            group: 'sticky',
+            category: null,
+            enabled: true,
+          }));
+        if (mapped.length > 0) {
+          // Sticky PDPs first, then fresh surfaces — budget shared via maxItems.
+          seeds = [...mapped, ...seeds];
+          console.log(`[worker] sticky_seeds=${mapped.length}`);
+        }
+      }
+    } catch (e) {
+      console.warn('[worker] sticky seeds fetch failed', e instanceof Error ? e.message : e);
+    }
+  }
 
   if (!endpoint) throw new Error('Falta AVENTA_INGEST_ENDPOINT');
   if (!secret) throw new Error('Falta AVENTA_CRON_SECRET');
   if (seeds.length === 0) throw new Error('El registro de seeds quedó vacío');
 
   console.log(
-    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} pdpMax=${pdpMax ?? 'auto'} shortlistMax=${shortlistMax ?? 'auto'} seeds=${seeds.length} cycleIndex=${cycleIndex}`
+    `[worker] boot profile=${profile} headless=${headless ? '1' : '0'} maxItems=${maxItems} minDiscount=${minDiscountPercent} pdpMax=${pdpMax ?? 'auto'} shortlistMax=${shortlistMax ?? 'auto'} seeds=${seeds.length} cycleIndex=${cycleIndex} discoveryOnly=${dryRun ? '1' : '0'}`
   );
   console.log(`[worker] seed_order=${seeds.map((s) => s.id).join(',')}`);
 

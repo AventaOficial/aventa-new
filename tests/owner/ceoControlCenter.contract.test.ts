@@ -65,6 +65,22 @@ describe('CEO Control Center contracts', () => {
     expect(builder).toMatch(/slaBreachEstimate/);
   });
 
+  it('CEO Supply Today es accionable (sin auto-write)', () => {
+    expect(ceo).toMatch(/data-ceo-supply/);
+    expect(ceo).toMatch(/Supply Engine/);
+    expect(ceo).toMatch(/Discovered/);
+    expect(ceo).toMatch(/Approval ready/);
+    expect(ceo).toMatch(/Sticky observed/);
+    expect(ceo).toMatch(/Fresh discovered/);
+    expect(ceo).toMatch(/WRITE=/);
+    const builder = readFileSync(
+      join(process.cwd(), 'lib/owner/buildOwnerDashboard.ts'),
+      'utf8',
+    );
+    expect(builder).toMatch(/buildSupplyToday/);
+    expect(builder).toMatch(/stickyObserved/);
+  });
+
   it('CEO expone bottleneck STATUS→PROBLEM→IMPACT→ACTION', () => {
     expect(ceo).toMatch(/data-circuit-bottleneck/);
     expect(ceo).toMatch(/Bottleneck/);

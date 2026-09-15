@@ -19,6 +19,7 @@ import {
 } from '@/lib/owner/circuitBottleneck';
 import { OUTBOUND_VOLUME_SOT } from '@/lib/analytics/outboundClickContract';
 import { buildModerationOpsStats } from '@/lib/moderation/moderationOpsStats';
+import { buildSupplyToday } from '@/lib/hunter/supply/supplyToday';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -121,6 +122,30 @@ export type OwnerDashboardPayload = {
   userLiabilityConfirmedCents: number;
   /** Cuello de botella del circuito (STATUS → PROBLEM → IMPACT → ACTION). */
   circuitBottleneck: CircuitBottleneck;
+  /** Supply Engine — solo métricas accionables para CEO. */
+  supply: {
+    mode: string;
+    writeEnabled: boolean;
+    discovered: number | null;
+    verified: number | null;
+    approvalReady: number | null;
+    highQuality: number | null;
+    pendingModeration: number | null;
+    stickyObserved: number | null;
+    freshDiscovered: number | null;
+    stickyVerified: number | null;
+    stickyApprovalReady: number | null;
+    freshVerified: number | null;
+    freshApprovalReady: number | null;
+    qualityRatePct: number | null;
+    topNiche: string | null;
+    topQuery: string | null;
+    topSource: string | null;
+    bottleneck: 'discovery' | 'price_memory' | 'moderation' | 'none';
+    action: string;
+    priceMemoryReadyEligible7d: number | null;
+    nichesEnabled: string[];
+  };
   affiliation: {
     programsActive: number;
     programsTotal: number;
@@ -698,6 +723,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     pendingAge,
     supplyStale,
     modOps,
+    supplyToday,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -720,6 +746,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     fetchPendingAgeStats(),
     countStaleHunterSources(),
     buildModerationOpsStats(createServerClient(), 500),
+    buildSupplyToday(),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -834,6 +861,21 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       detail: `${queueBacklog.failed} jobs fallidos.`,
     });
   }
+  if (supplyToday.bottleneck === 'price_memory') {
+    alerts.push({
+      id: 'supply_price_memory',
+      severity: 'yellow',
+      title: 'Price Memory frío',
+      detail: supplyToday.action,
+    });
+  } else if (supplyToday.bottleneck === 'discovery') {
+    alerts.push({
+      id: 'supply_discovery',
+      severity: 'yellow',
+      title: 'Discovery insuficiente',
+      detail: supplyToday.action,
+    });
+  }
 
   const circuitBottleneck = pickCircuitBottleneck({
     liveDeals: liveDealsResult,
@@ -915,6 +957,29 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     liveDeals: liveDealsResult,
     userLiabilityConfirmedCents: liabilityResult,
     circuitBottleneck,
+    supply: {
+      mode: supplyToday.mode,
+      writeEnabled: supplyToday.writeEnabled,
+      discovered: supplyToday.discovered,
+      verified: supplyToday.verified,
+      approvalReady: supplyToday.approvalReady,
+      highQuality: supplyToday.highQuality,
+      pendingModeration: supplyToday.pendingModeration,
+      stickyObserved: supplyToday.stickyObserved,
+      freshDiscovered: supplyToday.freshDiscovered,
+      stickyVerified: supplyToday.stickyVerified,
+      stickyApprovalReady: supplyToday.stickyApprovalReady,
+      freshVerified: supplyToday.freshVerified,
+      freshApprovalReady: supplyToday.freshApprovalReady,
+      qualityRatePct: supplyToday.qualityRatePct,
+      topNiche: supplyToday.topNiche,
+      topQuery: supplyToday.topQuery,
+      topSource: supplyToday.topSource,
+      bottleneck: supplyToday.bottleneck,
+      action: supplyToday.action,
+      priceMemoryReadyEligible7d: supplyToday.priceMemory.productsHistoryReadyEligible7d,
+      nichesEnabled: supplyToday.nichesEnabled,
+    },
     affiliation: {
       programsActive,
       programsTotal: programs.length,

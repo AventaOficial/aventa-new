@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   const sp = request.nextUrl.searchParams;
-  const mode = parseSupplyEngineMode(sp.get('mode') ?? process.env.SUPPLY_ENGINE_MODE);
+  // Cron diario: dry_run por defecto para acumular Price Memory. WRITE sigue gated.
+  const mode = parseSupplyEngineMode(
+    sp.get('mode') ?? process.env.SUPPLY_ENGINE_MODE ?? 'dry_run',
+  );
   const nicheId = sp.get('niche');
   const waveRaw = sp.get('wave');
   const wave = waveRaw != null && waveRaw !== '' ? Number(waveRaw) : null;

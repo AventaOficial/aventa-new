@@ -450,6 +450,25 @@ export async function discoverMercadoLibreIngestItems(
     candidates.push({ id: row.id, meta: row.meta, signals: row.signals });
   }
 
+  // Price Memory → signals (historyReady). Snapshots ya persistidos arriba.
+  // preserveLabelDiscount: no sustituir evidencia de etiqueta por intel derivada.
+  {
+    const { enrichWithPriceIntel } = await import('./priceIntel');
+    for (let i = 0; i < candidates.length; i++) {
+      const row = candidates[i]!;
+      const enrichedMeta = await enrichWithPriceIntel(
+        { ...row.meta, signals: { ...row.signals, ...(row.meta.signals ?? {}) } },
+        config,
+        { preserveLabelDiscount: true },
+      );
+      candidates[i] = {
+        id: row.id,
+        meta: enrichedMeta,
+        signals: { ...row.signals, ...(enrichedMeta.signals ?? {}) },
+      };
+    }
+  }
+
   let ratingMap = new Map<string, MlRatingSummary>();
   if (config.mlFetchReviews && config.mlReviewFetchMax > 0 && candidates.length > 0) {
     const sorted = [...candidates].sort(

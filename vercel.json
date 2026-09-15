@@ -27,6 +27,10 @@
     {
       "path": "/api/cron/rewards-release-holds",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/supply-engine",
+      "schedule": "20 14 * * *"
     }
   ]
 }

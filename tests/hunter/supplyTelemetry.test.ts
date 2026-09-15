@@ -33,6 +33,16 @@ describe('query attribution parse', () => {
       kind: 'hl',
       value: 'MLM1246|q:perfume mujer oferta',
       sort: 'highlights',
+      discoveryMode: 'fresh',
+    });
+  });
+
+  it('parsea seed de ml_worker', () => {
+    expect(parseMlSourceDetail('worker:playwright:card|seed:offers_home')).toEqual({
+      kind: 'seed',
+      value: 'offers_home',
+      sort: null,
+      discoveryMode: 'fresh',
     });
   });
 });

@@ -28,7 +28,7 @@ import {
   type NicheHunterProfile,
   type SupplyEngineMode,
 } from './nicheProfiles';
-import { runSupplyRouter, type RunSupplyRouterOptions } from './router';
+import { runSupplyRouter, applySupplyQualityPipeline, type RunSupplyRouterOptions } from './router';
 import { SUPPLY_SOURCES } from './registry';
 import {
   classifySupplyQuality,
@@ -36,7 +36,17 @@ import {
   type SupplyQualityBucket,
   type SupplyQualityReason,
 } from './qualityClass';
+import {
+  emptySupplyTelemetryRollup,
+  recordSupplyCandidateTelemetry,
+  topKeysByGoodDeals,
+  type SupplyTelemetryRollup,
+} from './telemetry';
+import { dedupeSupplyCandidates } from './candidate';
+import { observeStickySkus, type StickyObserveReport } from './observeStickySkus';
 import type { SupplyCandidate, SupplyRouterReport, SupplySource } from './types';
+
+export type DiscoveryMode = 'sticky' | 'fresh' | 'unknown';
 
 export type SupplyEngineCandidateView = {
   canonicalUrl: string;
@@ -44,7 +54,8 @@ export type SupplyEngineCandidateView = {
   sourceId: string;
   sourceDetail: string | null;
   query: string | null;
-  queryKind: 'q' | 'cat' | 'hl' | 'unknown';
+  queryKind: 'q' | 'cat' | 'hl' | 'seed' | 'sticky' | 'unknown';
+  discoveryMode: DiscoveryMode;
   merchant: string | null;
   categoryId: string | null;
   price: number | null;
@@ -79,6 +90,14 @@ export type SupplyEngineMetrics = {
   nicheFilteredOut: number;
   topDealsLane: number;
   dayToDayLane: number;
+  stickyCandidates: number;
+  stickyObserved: number;
+  stickyFailed: number;
+  stickyVerified: number;
+  stickyApprovalReady: number;
+  freshCandidates: number;
+  freshVerified: number;
+  freshApprovalReady: number;
   processingLatencyMs: number;
 };
 
@@ -92,8 +111,10 @@ export type SupplyEngineReport = {
   finishedAt: string;
   metrics: SupplyEngineMetrics;
   router: SupplyRouterReport | null;
+  sticky: StickyObserveReport | null;
   ingest: IngestCycleReport | null;
   candidates: SupplyEngineCandidateView[];
+  telemetry: SupplyTelemetryRollup;
   note: string;
 };
 
@@ -110,6 +131,8 @@ export type RunSupplyEngineOptions = {
   hunterHealth?: RunSupplyRouterOptions['hunterHealth'];
   now?: Date;
   supabase?: RunSupplyRouterOptions['supabase'];
+  /** Sticky SKU observation. Default on (off en VITEST salvo enableSticky=true). */
+  enableSticky?: boolean;
 };
 
 function emptyMetrics(latencyMs = 0): SupplyEngineMetrics {
@@ -132,6 +155,14 @@ function emptyMetrics(latencyMs = 0): SupplyEngineMetrics {
     nicheFilteredOut: 0,
     topDealsLane: 0,
     dayToDayLane: 0,
+    stickyCandidates: 0,
+    stickyObserved: 0,
+    stickyFailed: 0,
+    stickyVerified: 0,
+    stickyApprovalReady: 0,
+    freshCandidates: 0,
+    freshVerified: 0,
+    freshApprovalReady: 0,
     processingLatencyMs: latencyMs,
   };
 }
@@ -158,9 +189,10 @@ function filterSourcesForNiche(niche: NicheHunterProfile, sources: SupplySource[
 function enrichCandidates(
   niche: NicheHunterProfile,
   unique: SupplyCandidate[],
-): { views: SupplyEngineCandidateView[]; filteredOut: number } {
+): { views: SupplyEngineCandidateView[]; filteredOut: number; telemetry: SupplyTelemetryRollup } {
   const views: SupplyEngineCandidateView[] = [];
   let filteredOut = 0;
+  const telemetry = emptySupplyTelemetryRollup();
   for (const c of unique) {
     const meta = c.ingestItem.precomputedMeta;
     const match = candidateMatchesNiche(niche, {
@@ -194,6 +226,23 @@ function enrichCandidates(
       verifierDecision: c.verifierDecision,
       price: c.price,
     });
+    const approvalReady =
+      (c.qualification === 'VERIFIED_DEAL' || c.qualification === 'PROMOTION') &&
+      deal.priceClass !== 'false_discount' &&
+      deal.dealScore >= 35;
+    recordSupplyCandidateTelemetry(telemetry, {
+      nicheId: niche.id,
+      sourceId: c.sourceId,
+      query: parsed.value,
+      category: meta?.signals?.categoryId ?? null,
+      merchant: c.seller ?? meta?.store ?? null,
+      isUnique: true,
+      isDuplicate: false,
+      approvalReady,
+      bucket: quality.bucket,
+      priceClass: deal.priceClass,
+      laneHint: deal.laneHint,
+    });
     views.push({
       canonicalUrl: c.canonicalUrl,
       title: c.title,
@@ -201,6 +250,7 @@ function enrichCandidates(
       sourceDetail: c.ingestItem.sourceDetail ?? null,
       query: parsed.value,
       queryKind: parsed.kind,
+      discoveryMode: parsed.discoveryMode,
       merchant: c.seller ?? meta?.store ?? null,
       categoryId: meta?.signals?.categoryId ?? null,
       price: c.price,
@@ -217,7 +267,15 @@ function enrichCandidates(
     });
   }
   views.sort((a, b) => a.moderationPriority - b.moderationPriority || b.deal.dealScore - a.deal.dealScore);
-  return { views, filteredOut };
+  return { views, filteredOut, telemetry };
+}
+
+function isApprovalReady(v: SupplyEngineCandidateView): boolean {
+  return (
+    (v.qualification === 'VERIFIED_DEAL' || v.qualification === 'PROMOTION') &&
+    v.deal.priceClass !== 'false_discount' &&
+    v.deal.dealScore >= 35
+  );
 }
 
 function buildMetrics(
@@ -225,21 +283,27 @@ function buildMetrics(
   views: SupplyEngineCandidateView[],
   filteredOut: number,
   latencyMs: number,
+  sticky: StickyObserveReport | null,
 ): SupplyEngineMetrics {
+  const stickyViews = views.filter((v) => v.discoveryMode === 'sticky');
+  const freshViews = views.filter((v) => v.discoveryMode !== 'sticky');
+  const stickyApprovalReady = stickyViews.filter(isApprovalReady).length;
+  const freshApprovalReady = freshViews.filter(isApprovalReady).length;
+  const stickyVerified = stickyViews.filter(
+    (v) => v.qualification === 'VERIFIED_DEAL' || v.qualification === 'PROMOTION',
+  ).length;
+  const freshVerified = freshViews.filter(
+    (v) => v.qualification === 'VERIFIED_DEAL' || v.qualification === 'PROMOTION',
+  ).length;
   return {
-    discovered: router.candidatesDiscovered,
-    unique: router.uniqueCandidates.length,
+    discovered: router.candidatesDiscovered + (sticky?.stickyObserved ?? 0),
+    unique: views.length,
     duplicates: router.duplicates,
     normalized: views.length,
-    verified: router.verifiedDeals,
+    verified: stickyVerified + freshVerified,
     promotions: router.promotions,
-    qualified: router.candidatesQualified,
-    approvalReady: views.filter(
-      (v) =>
-        (v.qualification === 'VERIFIED_DEAL' || v.qualification === 'PROMOTION') &&
-        v.deal.priceClass !== 'false_discount' &&
-        v.deal.dealScore >= 35,
-    ).length,
+    qualified: router.candidatesQualified + stickyVerified,
+    approvalReady: stickyApprovalReady + freshApprovalReady,
     insufficientEvidence: views.filter((v) => v.deal.priceClass === 'insufficient_evidence').length,
     falseDiscounts: views.filter((v) => v.deal.priceClass === 'false_discount').length,
     historicalLows: views.filter((v) => v.deal.priceClass === 'historical_low').length,
@@ -248,10 +312,18 @@ function buildMetrics(
     ).length,
     anomalies: views.filter((v) => v.deal.laneHint === 'anomaly_review').length,
     rejected: router.rejected,
-    sourceFailures: router.sourceFailures,
+    sourceFailures: router.sourceFailures + (sticky?.stickyFailed ?? 0),
     nicheFilteredOut: filteredOut,
     topDealsLane: views.filter((v) => v.deal.laneHint === 'top_deals').length,
     dayToDayLane: views.filter((v) => v.deal.laneHint === 'day_to_day').length,
+    stickyCandidates: sticky?.stickyCandidates ?? 0,
+    stickyObserved: sticky?.stickyObserved ?? 0,
+    stickyFailed: sticky?.stickyFailed ?? 0,
+    stickyVerified,
+    stickyApprovalReady,
+    freshCandidates: router.candidatesDiscovered,
+    freshVerified,
+    freshApprovalReady,
     processingLatencyMs: latencyMs,
   };
 }
@@ -286,8 +358,10 @@ export async function runSupplyEngine(
       finishedAt: new Date().toISOString(),
       metrics: emptyMetrics(Date.now() - t0),
       router: null,
+      sticky: null,
       ingest: null,
       candidates: [],
+      telemetry: emptySupplyTelemetryRollup(),
       note: 'No hay NicheHunterProfiles enabled',
     };
   }
@@ -300,6 +374,45 @@ export async function runSupplyEngine(
       : opts.persistSnapshots === true ||
         (opts.persistSnapshots !== false && process.env.VITEST !== 'true');
 
+  // Sticky primero (Price Memory), luego fresh discovery — coexisten.
+  let sticky: StickyObserveReport | null = null;
+  const stickyEnabled =
+    opts.enableSticky !== false &&
+    !(process.env.VITEST === 'true' && opts.enableSticky !== true);
+  if (stickyEnabled) {
+    try {
+      sticky = await observeStickySkus({
+        config,
+        nicheId: niche.id,
+        persistSnapshots,
+        supabase: opts.supabase ?? null,
+        now,
+      });
+    } catch {
+      sticky = {
+        stickyCandidates: 0,
+        stickyObserved: 0,
+        stickyFailed: 1,
+        stickySkippedCooldown: 0,
+        candidates: [],
+        targets: [],
+      };
+    }
+  } else {
+    sticky = {
+      stickyCandidates: 0,
+      stickyObserved: 0,
+      stickyFailed: 0,
+      stickySkippedCooldown: 0,
+      candidates: [],
+      targets: [],
+    };
+  }
+
+  const stickyQualified = (sticky.candidates ?? []).map((c) =>
+    applySupplyQualityPipeline(c, config),
+  );
+
   const router = await runSupplyRouter({
     config,
     sources,
@@ -311,12 +424,13 @@ export async function runSupplyEngine(
     supabase: opts.supabase,
   });
 
-  const { views, filteredOut } = enrichCandidates(niche, router.uniqueCandidates);
-  const metrics = buildMetrics(router, views, filteredOut, Date.now() - t0);
+  const merged = dedupeSupplyCandidates([...stickyQualified, ...router.uniqueCandidates]);
+  const { views, filteredOut, telemetry } = enrichCandidates(niche, merged.unique);
+  const metrics = buildMetrics(router, views, filteredOut, Date.now() - t0, sticky);
 
   let ingest: IngestCycleReport | null = null;
   let wroteOffers = false;
-  let note = `Supply Engine ${mode} · niche=${niche.id} · wave=${wave}`;
+  let note = `Supply Engine ${mode} · niche=${niche.id} · wave=${wave} · sticky=${sticky.stickyObserved} · fresh=${router.candidatesDiscovered}`;
 
   if (resolveWriteAllowed(mode, opts)) {
     ingest = await runIngestCycleForProfile('standard', new Date().toISOString(), { config });
@@ -338,21 +452,47 @@ export async function runSupplyEngine(
     finishedAt: new Date().toISOString(),
     metrics: { ...metrics, processingLatencyMs: Date.now() - t0 },
     router,
+    sticky,
     ingest,
     candidates: views.slice(0, 40),
+    telemetry,
     note,
   };
 }
 
 /** Resumen liviano para logs/admin (sin payloads grandes). */
 export function summarizeSupplyEngineReport(report: SupplyEngineReport) {
+  const topQueries = topKeysByGoodDeals(report.telemetry.byQuery, 5).map((r) => ({
+    query: r.key.split('|')[2] ?? r.key,
+    good: r.good,
+    approvalReady: r.approvalReady,
+    discovered: r.discovered,
+  }));
+  const m = report.metrics;
   return {
     ok: report.ok,
     mode: report.mode,
     wroteOffers: report.wroteOffers,
     nicheId: report.niche?.id ?? null,
     wave: report.wave,
-    metrics: report.metrics,
+    metrics: m,
+    stickyVsFresh: {
+      stickyObserved: m.stickyObserved,
+      stickyVerified: m.stickyVerified,
+      stickyApprovalReady: m.stickyApprovalReady,
+      freshDiscovered: m.freshCandidates,
+      freshVerified: m.freshVerified,
+      freshApprovalReady: m.freshApprovalReady,
+      approvalReadyRateSticky:
+        m.stickyObserved > 0
+          ? Math.round((m.stickyApprovalReady / m.stickyObserved) * 1000) / 10
+          : null,
+      approvalReadyRateFresh:
+        m.freshCandidates > 0
+          ? Math.round((m.freshApprovalReady / m.freshCandidates) * 1000) / 10
+          : null,
+    },
+    topQueries,
     note: report.note,
     enabledNiches: enabledNicheProfiles().map((p) => p.id),
   };

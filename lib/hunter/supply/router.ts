@@ -67,7 +67,8 @@ function emptyRun(source: SupplySource, patch: Partial<SupplySourceRun>): Supply
   };
 }
 
-function applyQualityPipeline(
+/** Aplica Verifier + Autonomous + DQE. No inserta. Exportada para sticky path. */
+export function applySupplyQualityPipeline(
   candidate: SupplyCandidate,
   config: BotIngestConfig,
 ): SupplyCandidate {
@@ -110,6 +111,13 @@ function applyQualityPipeline(
     autonomousDecision: auto.decision,
     qualityDecision: quality,
   };
+}
+
+function applyQualityPipeline(
+  candidate: SupplyCandidate,
+  config: BotIngestConfig,
+): SupplyCandidate {
+  return applySupplyQualityPipeline(candidate, config);
 }
 
 export async function runSupplyRouter(

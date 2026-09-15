@@ -923,7 +923,9 @@ export async function discoverMercadoLibreCandidates(page, options) {
     out.push({
       ...rest,
       seedId: working.seedId,
-      sourceDetail: working.sourceDetail || 'worker:playwright:card',
+      sourceDetail: working.seedId
+        ? `worker:playwright:${working.sourceDetail?.includes('pdp') ? 'pdp' : 'card'}|seed:${working.seedId}`
+        : working.sourceDetail || 'worker:playwright:card',
       signals: {
         ...(working.signals || {}),
         listingTypeId: 'worker_card',
