@@ -48,6 +48,18 @@ export {
   moderationPriorityFromDealSignals,
 } from './dealSignals';
 export type { DealSignals, DealPriceClass, DealLaneHint } from './dealSignals';
+export {
+  classifySupplyQuality,
+  parseMlSourceDetail,
+} from './qualityClass';
+export type { SupplyQualityBucket, SupplyQualityReason } from './qualityClass';
+export {
+  emptySupplyTelemetryRollup,
+  recordSupplyCandidateTelemetry,
+  ratesFromCounters,
+  topKeysByGoodDeals,
+} from './telemetry';
+export type { SupplyDimCounters, SupplyTelemetryRollup } from './telemetry';
 export { runSupplyEngine, summarizeSupplyEngineReport } from './engine';
 export type {
   RunSupplyEngineOptions,

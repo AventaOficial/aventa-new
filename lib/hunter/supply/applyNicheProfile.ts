@@ -18,15 +18,9 @@ export function applyNicheProfileToIngestConfig(
     mlUseDefaultQueries: false,
     mlQueries: mlQueries.length > 0 ? mlQueries : base.mlQueries,
     mlCategoryIds: mlCategoryIds.length > 0 ? mlCategoryIds : base.mlCategoryIds,
-    techCategoryIds:
-      niche.lane === 'electronics' && mlCategoryIds.length > 0
-        ? mlCategoryIds
-        : base.techCategoryIds,
-    techCategoryIdSet: new Set(
-      niche.lane === 'electronics' && mlCategoryIds.length > 0
-        ? mlCategoryIds
-        : base.techCategoryIds
-    ),
+    // Evitar que defaults tech contaminen beauty/day_to_day (buildMlSearchPlan usa techCategoryIds).
+    techCategoryIds: niche.lane === 'electronics' ? mlCategoryIds : [],
+    techCategoryIdSet: new Set(niche.lane === 'electronics' ? mlCategoryIds : []),
     minDiscountPercent: Math.max(0, niche.minDiscountPercent),
     candidatePoolMax: Math.min(base.candidatePoolMax, Math.max(4, niche.candidateBudget)),
     mlMaxCollect: Math.min(base.mlMaxCollect, Math.max(4, niche.candidateBudget)),

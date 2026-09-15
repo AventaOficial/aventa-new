@@ -30,17 +30,34 @@ import {
 } from './nicheProfiles';
 import { runSupplyRouter, type RunSupplyRouterOptions } from './router';
 import { SUPPLY_SOURCES } from './registry';
+import {
+  classifySupplyQuality,
+  parseMlSourceDetail,
+  type SupplyQualityBucket,
+  type SupplyQualityReason,
+} from './qualityClass';
 import type { SupplyCandidate, SupplyRouterReport, SupplySource } from './types';
 
 export type SupplyEngineCandidateView = {
   canonicalUrl: string;
   title: string | null;
   sourceId: string;
+  sourceDetail: string | null;
+  query: string | null;
+  queryKind: 'q' | 'cat' | 'hl' | 'unknown';
+  merchant: string | null;
+  categoryId: string | null;
+  price: number | null;
+  originalPrice: number | null;
+  labelDiscountPercent: number | null;
   qualification: string | null;
   verifierDecision: string | null;
+  qualityDecision: string | null;
   deal: DealSignals;
   moderationPriority: 1 | 2 | 3 | 4;
   nicheMatch: boolean;
+  qualityBucket: SupplyQualityBucket;
+  qualityReason: SupplyQualityReason;
 };
 
 export type SupplyEngineMetrics = {
@@ -170,15 +187,33 @@ function enrichCandidates(
           },
           signals: null,
         });
+    const parsed = parseMlSourceDetail(c.ingestItem.sourceDetail);
+    const quality = classifySupplyQuality({
+      deal,
+      qualification: c.qualification,
+      verifierDecision: c.verifierDecision,
+      price: c.price,
+    });
     views.push({
       canonicalUrl: c.canonicalUrl,
       title: c.title,
       sourceId: c.sourceId,
+      sourceDetail: c.ingestItem.sourceDetail ?? null,
+      query: parsed.value,
+      queryKind: parsed.kind,
+      merchant: c.seller ?? meta?.store ?? null,
+      categoryId: meta?.signals?.categoryId ?? null,
+      price: c.price,
+      originalPrice: c.originalPrice,
+      labelDiscountPercent: c.discountPercent,
       qualification: c.qualification,
       verifierDecision: c.verifierDecision,
+      qualityDecision: c.qualityDecision?.decision ?? null,
       deal,
       moderationPriority: moderationPriorityFromDealSignals(deal),
       nicheMatch: match,
+      qualityBucket: quality.bucket,
+      qualityReason: quality.reason,
     });
   }
   views.sort((a, b) => a.moderationPriority - b.moderationPriority || b.deal.dealScore - a.deal.dealScore);

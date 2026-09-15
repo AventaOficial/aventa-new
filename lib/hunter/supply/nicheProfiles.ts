@@ -46,7 +46,7 @@ export const NICHE_BEAUTY: NicheHunterProfile = {
   name: 'Perfumería / Belleza',
   lane: 'beauty',
   categories: ['belleza'],
-  mlCategoryIds: ['MLM1246'],
+  mlCategoryIds: ['MLM1246', 'MLM1271'],
   mlQueries: [
     'perfume mujer oferta',
     'perfume hombre oferta',
@@ -56,6 +56,7 @@ export const NICHE_BEAUTY: NicheHunterProfile = {
     'crema facial oferta',
     'labial maybelline',
     'shampoo oferta',
+    'protector solar oferta',
   ],
   allowedSources: ['ml_api_legacy', 'ml_worker'],
   priority: 90,
