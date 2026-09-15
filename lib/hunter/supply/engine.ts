@@ -93,8 +93,14 @@ export type SupplyEngineMetrics = {
   stickyCandidates: number;
   stickyObserved: number;
   stickyFailed: number;
+  stickyPdpAttempted: number;
+  stickyPdpSuccess: number;
+  stickyEvidenceRich: number;
+  stickySnapshotOnly: number;
   stickyVerified: number;
   stickyApprovalReady: number;
+  stickyHistoryReady: number;
+  stickyHistoricalLow: number;
   freshCandidates: number;
   freshVerified: number;
   freshApprovalReady: number;
@@ -158,8 +164,14 @@ function emptyMetrics(latencyMs = 0): SupplyEngineMetrics {
     stickyCandidates: 0,
     stickyObserved: 0,
     stickyFailed: 0,
+    stickyPdpAttempted: 0,
+    stickyPdpSuccess: 0,
+    stickyEvidenceRich: 0,
+    stickySnapshotOnly: 0,
     stickyVerified: 0,
     stickyApprovalReady: 0,
+    stickyHistoryReady: 0,
+    stickyHistoricalLow: 0,
     freshCandidates: 0,
     freshVerified: 0,
     freshApprovalReady: 0,
@@ -319,8 +331,14 @@ function buildMetrics(
     stickyCandidates: sticky?.stickyCandidates ?? 0,
     stickyObserved: sticky?.stickyObserved ?? 0,
     stickyFailed: sticky?.stickyFailed ?? 0,
+    stickyPdpAttempted: sticky?.pdpAttempted ?? 0,
+    stickyPdpSuccess: sticky?.pdpSuccess ?? 0,
+    stickyEvidenceRich: sticky?.evidenceRich ?? 0,
+    stickySnapshotOnly: sticky?.snapshotOnly ?? 0,
     stickyVerified,
     stickyApprovalReady,
+    stickyHistoryReady: stickyViews.filter((v) => v.deal.historyReady).length,
+    stickyHistoricalLow: stickyViews.filter((v) => v.deal.priceClass === 'historical_low').length,
     freshCandidates: router.candidatesDiscovered,
     freshVerified,
     freshApprovalReady,
@@ -394,6 +412,10 @@ export async function runSupplyEngine(
         stickyObserved: 0,
         stickyFailed: 1,
         stickySkippedCooldown: 0,
+        pdpAttempted: 0,
+        pdpSuccess: 0,
+        evidenceRich: 0,
+        snapshotOnly: 0,
         candidates: [],
         targets: [],
       };
@@ -404,6 +426,10 @@ export async function runSupplyEngine(
       stickyObserved: 0,
       stickyFailed: 0,
       stickySkippedCooldown: 0,
+      pdpAttempted: 0,
+      pdpSuccess: 0,
+      evidenceRich: 0,
+      snapshotOnly: 0,
       candidates: [],
       targets: [],
     };
@@ -478,11 +504,25 @@ export function summarizeSupplyEngineReport(report: SupplyEngineReport) {
     metrics: m,
     stickyVsFresh: {
       stickyObserved: m.stickyObserved,
+      stickyPdpSuccess: m.stickyPdpSuccess,
+      stickyEvidenceRich: m.stickyEvidenceRich,
       stickyVerified: m.stickyVerified,
+      stickyHistoryReady: m.stickyHistoryReady,
+      stickyHistoricalLow: m.stickyHistoricalLow,
       stickyApprovalReady: m.stickyApprovalReady,
       freshDiscovered: m.freshCandidates,
       freshVerified: m.freshVerified,
       freshApprovalReady: m.freshApprovalReady,
+      bottleneck:
+        m.stickyObserved > 0 && m.stickyEvidenceRich === 0
+          ? 'sticky_evidence_rich'
+          : m.stickyEvidenceRich > 0 && m.stickyApprovalReady === 0
+            ? 'sticky_quality_gates'
+            : m.freshCandidates > 0 && m.freshApprovalReady === 0
+              ? 'fresh_history_cold'
+              : m.approvalReady > 0
+                ? 'none'
+                : 'discovery',
       approvalReadyRateSticky:
         m.stickyObserved > 0
           ? Math.round((m.stickyApprovalReady / m.stickyObserved) * 1000) / 10

@@ -739,8 +739,84 @@ export async function discoverMercadoLibreCandidates(page, options) {
   const qualityGate = emptyQualityGateTelemetry();
   const cardPool = [];
 
+  // Fase 0: sticky PDP directo (seeds group=sticky apuntan a articulo…, no listados).
+  for (const seed of seeds) {
+    if (seed.group !== 'sticky') continue;
+    if (cardPool.length >= Math.max(maxItems * 4, 40)) break;
+    const stat = emptySeedStat(seed);
+    seedStats.push(stat);
+    const dedupeKey = canonicalizeUrl(seed.url);
+    if (!seed.url || seen.has(dedupeKey)) {
+      stat.status = 'zero_results';
+      continue;
+    }
+    seen.add(dedupeKey);
+    qualityGate.pdpAttempts += 1;
+    try {
+      const stub = {
+        href: seed.url,
+        title: '',
+        image: '',
+        priceText: '',
+        originalText: '',
+        discountPrice: null,
+        originalPrice: null,
+        discountPercent: 0,
+        nominalDiscountPercent: 0,
+        cardDiscountSource: 'unknown',
+        originalFromBadgeOnly: false,
+        cardBadgePercent: null,
+        canonicalUrl: canonicalizeUrl(seed.url),
+        url: seed.url,
+        store: 'Mercado Libre',
+        imageUrl: '',
+        sourceDetail: 'worker:playwright:sticky',
+        signals: {},
+      };
+      const enriched = await enrichCandidate(page, stub);
+      qualityGate.pdpSuccess += 1;
+      const working = {
+        ...stub,
+        ...enriched,
+        seedId: seed.id,
+        evidenceSource: 'pdp',
+        cardDiscountSource: 'pdp',
+        sourceDetail: 'worker:playwright:pdp',
+        signals: {
+          ...(enriched.signals || {}),
+          cardDiscountSource: 'pdp',
+          currentPriceProvenance: 'source_explicit',
+          originalPriceProvenance:
+            enriched.originalPrice != null && enriched.originalPrice > (enriched.discountPrice ?? 0)
+              ? 'source_explicit'
+              : 'unknown',
+          discountPercentProvenance:
+            enriched.discountPercent > 0 ? 'derived' : 'unknown',
+        },
+      };
+      const gate = workerCandidateEligibleForIngest(working);
+      if (!gate.ok) {
+        console.log(`[worker] sticky_pdp_skip=${seed.url} reason=${gate.reason}`);
+        stat.status = 'zero_results';
+        continue;
+      }
+      cardPool.push(working);
+      stat.shortlisted = 1;
+      console.log(
+        `[worker] sticky_pdp_ok=${working.canonicalUrl || seed.url} discount=${working.discountPercent}% seed=${seed.id}`
+      );
+    } catch (error) {
+      qualityGate.pdpFailed += 1;
+      const message = error instanceof Error ? error.message : String(error);
+      stat.status = 'failed';
+      stat.errorKind = /timeout/i.test(message) ? 'timeout' : 'navigation';
+      console.log(`[worker] sticky_pdp_failed seed=${seed.id} kind=${stat.errorKind}`);
+    }
+  }
+
   // Fase 1: card discovery (barato). Badge solo shortlist.
   for (const seed of seeds) {
+    if (seed.group === 'sticky') continue;
     if (cardPool.length >= Math.max(maxItems * 4, 40)) break;
     const stat = emptySeedStat(seed);
     seedStats.push(stat);
@@ -809,7 +885,10 @@ export async function discoverMercadoLibreCandidates(page, options) {
     let working = { ...cardCandidate };
     let pdpOk = false;
 
-    if (qualityGate.pdpAttempts < pdpBudget) {
+    // Sticky seeds ya pasaron PDP directo en fase 0.
+    if (cardCandidate.evidenceSource === 'pdp' && cardCandidate.seedId?.startsWith?.('sticky_')) {
+      pdpOk = true;
+    } else if (qualityGate.pdpAttempts < pdpBudget) {
       qualityGate.pdpAttempts += 1;
       try {
         const enriched = await enrichCandidate(page, {
@@ -924,7 +1003,9 @@ export async function discoverMercadoLibreCandidates(page, options) {
       ...rest,
       seedId: working.seedId,
       sourceDetail: working.seedId
-        ? `worker:playwright:${working.sourceDetail?.includes('pdp') ? 'pdp' : 'card'}|seed:${working.seedId}`
+        ? `worker:playwright:${working.sourceDetail?.includes('pdp') ? 'pdp' : 'card'}|seed:${working.seedId}${
+            String(working.seedId).startsWith('sticky_') ? '|mode:sticky' : ''
+          }`
         : working.sourceDetail || 'worker:playwright:card',
       signals: {
         ...(working.signals || {}),

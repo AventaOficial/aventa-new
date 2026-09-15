@@ -22,6 +22,8 @@ export type SupplyTodaySnapshot = {
   pendingModeration: number | null;
   stickyObserved: number | null;
   freshDiscovered: number | null;
+  stickyPdpSuccess: number | null;
+  stickyEvidenceRich: number | null;
   stickyVerified: number | null;
   stickyApprovalReady: number | null;
   freshVerified: number | null;
@@ -145,6 +147,8 @@ export async function buildSupplyToday(
     pendingModeration,
     stickyObserved,
     freshDiscovered,
+    stickyPdpSuccess: null,
+    stickyEvidenceRich: null,
     stickyVerified: null,
     stickyApprovalReady: null,
     freshVerified: verified,

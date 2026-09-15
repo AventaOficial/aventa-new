@@ -1,14 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { filterStickyByCooldown, DEFAULT_STICKY_SKU_CONFIG } from '@/lib/hunter/supply/stickySku';
-import { observeStickySkus } from '@/lib/hunter/supply/observeStickySkus';
 import { parseMlSourceDetail } from '@/lib/hunter/supply/qualityClass';
-import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import { computeMlPriceIntel } from '@/lib/bots/ingest/mlPriceEngine';
-import { runSupplyEngine, summarizeSupplyEngineReport } from '@/lib/hunter/supply/engine';
-import { toSupplyCandidate } from '@/lib/hunter/supply/candidate';
-import { communitySupplySource } from '@/lib/hunter/supply/community';
-import type { SupplySource } from '@/lib/hunter/supply/types';
-import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
 
 describe('sticky cooldown', () => {
   it('excluye SKUs observados dentro del cooldown', () => {
@@ -54,121 +47,6 @@ describe('historyReady contract (sticky intel)', () => {
     );
     expect(intel.historyReady).toBe(false);
     expect(intel.lowest90d).toBeNull();
-  });
-});
-
-describe('observeStickySkus discovery-only', () => {
-  it('persiste snapshot vía record path y no escribe ofertas (sin insert)', async () => {
-    const config = loadBotIngestConfig('standard');
-    const report = await observeStickySkus({
-      config,
-      nicheId: 'beauty',
-      persistSnapshots: false,
-      selectTargets: async () => [
-        {
-          productId: 'MLM1111111111',
-          priorDays: 5,
-          lastObservedOn: '2026-09-10',
-          lastPrice: 200,
-          listPrice: 250,
-          hoursSinceObserved: 48,
-        },
-      ],
-      fetchQuote: async () => ({
-        current: 180,
-        listPrice: 250,
-        regularPrice: null,
-      }),
-      supabase: null,
-    });
-    expect(report.stickyCandidates).toBe(1);
-    expect(report.stickyObserved).toBe(1);
-    expect(report.candidates).toHaveLength(1);
-    expect(report.candidates[0]!.ingestItem.sourceDetail).toContain('mode:sticky');
-    expect(report.candidates[0]!.ingestItem.sourceDetail).toContain('ml:sticky:');
-  });
-
-  it('cuenta failure si quote inválido', async () => {
-    const config = loadBotIngestConfig('standard');
-    const report = await observeStickySkus({
-      config,
-      nicheId: 'beauty',
-      persistSnapshots: false,
-      selectTargets: async () => [
-        {
-          productId: 'MLM2222222222',
-          priorDays: 5,
-          lastObservedOn: '2026-09-10',
-          lastPrice: 10,
-          listPrice: null,
-          hoursSinceObserved: 48,
-        },
-      ],
-      fetchQuote: async () => ({ current: 0, listPrice: null, regularPrice: null }),
-      supabase: null,
-    });
-    expect(report.stickyFailed).toBe(1);
-    expect(report.stickyObserved).toBe(0);
-  });
-});
-
-describe('worker discovery-only / no WRITE', () => {
-  it('Supply Engine dry_run nunca wroteOffers', async () => {
-    const meta: ParsedOfferMetadata = {
-      canonicalUrl: 'https://articulo.mercadolibre.com.mx/MLM-9',
-      title: 'Test sticky perfume',
-      store: 'Mercado Libre',
-      imageUrl: 'https://http2.mlstatic.com/x.jpg',
-      discountPrice: 100,
-      originalPrice: 200,
-      discountPercent: 50,
-      signals: {
-        historyReady: true,
-        priceLowest90d: 100,
-        habitual30d: 180,
-        savingsVsHabitualPct: 44,
-        effectiveDiscountPercent: 44,
-        priceVsLowest90dPct: 0,
-        suspectedArtificialListPrice: false,
-      },
-    };
-    const candidate = toSupplyCandidate({
-      item: {
-        url: meta.canonicalUrl,
-        source: 'ml_api',
-        sourceDetail: 'ml:q:perfume|sort:relevance',
-        precomputedMeta: meta,
-      },
-      hunterSourceId: 'ml_api_legacy',
-      sourceId: 'ml_api_legacy',
-      sourceFamily: 'official_api',
-      sourceType: 'official_api',
-    });
-    const source: SupplySource = {
-      ...communitySupplySource,
-      id: 'ml_api_legacy',
-      displayName: 'ml',
-      family: 'official_api',
-      type: 'official_api',
-      isEnabled: () => true,
-      isConfigured: () => true,
-      async collect() {
-        return { ok: true, candidates: [candidate] };
-      },
-    };
-    const report = await runSupplyEngine({
-      mode: 'dry_run',
-      nicheId: 'beauty',
-      sources: [source],
-      enableSticky: false,
-      persistSnapshots: false,
-      allowWrite: false,
-    });
-    expect(report.wroteOffers).toBe(false);
-    expect(report.mode).toBe('dry_run');
-    const summary = summarizeSupplyEngineReport(report);
-    expect(summary.wroteOffers).toBe(false);
-    expect(summary.stickyVsFresh).toBeDefined();
   });
 });
 

@@ -133,6 +133,8 @@ export type OwnerDashboardPayload = {
     pendingModeration: number | null;
     stickyObserved: number | null;
     freshDiscovered: number | null;
+    stickyPdpSuccess: number | null;
+    stickyEvidenceRich: number | null;
     stickyVerified: number | null;
     stickyApprovalReady: number | null;
     freshVerified: number | null;
@@ -967,6 +969,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       pendingModeration: supplyToday.pendingModeration,
       stickyObserved: supplyToday.stickyObserved,
       freshDiscovered: supplyToday.freshDiscovered,
+      stickyPdpSuccess: supplyToday.stickyPdpSuccess ?? null,
+      stickyEvidenceRich: supplyToday.stickyEvidenceRich ?? null,
       stickyVerified: supplyToday.stickyVerified,
       stickyApprovalReady: supplyToday.stickyApprovalReady,
       freshVerified: supplyToday.freshVerified,

@@ -154,12 +154,23 @@ export async function selectStickySkuTargets(
     });
   }
 
-  out.sort(
-    (a, b) =>
-      b.hoursSinceObserved - a.hoursSinceObserved ||
+  out.sort((a, b) => {
+    // Prefer potential price-drop signal (last < list) without inventing lows.
+    const aDrop =
+      a.lastPrice != null && a.listPrice != null && a.listPrice > a.lastPrice
+        ? (a.listPrice - a.lastPrice) / a.listPrice
+        : 0;
+    const bDrop =
+      b.lastPrice != null && b.listPrice != null && b.listPrice > b.lastPrice
+        ? (b.listPrice - b.lastPrice) / b.listPrice
+        : 0;
+    return (
       b.priorDays - a.priorDays ||
-      a.productId.localeCompare(b.productId),
-  );
+      bDrop - aDrop ||
+      b.hoursSinceObserved - a.hoursSinceObserved ||
+      a.productId.localeCompare(b.productId)
+    );
+  });
   return out.slice(0, Math.max(0, cfg.maxTargets));
 }
 

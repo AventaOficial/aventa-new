@@ -236,20 +236,15 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
           </div>
         </div>
         <p className="mt-2 text-xs text-white/55">
-          Sticky {formatNum(data.supply.stickyObserved)} obs ·{' '}
+          Sticky {formatNum(data.supply.stickyObserved)} obs · PDP{' '}
+          {formatNum(data.supply.stickyPdpSuccess ?? null)} · rich{' '}
+          {formatNum(data.supply.stickyEvidenceRich ?? null)} ·{' '}
           {formatNum(data.supply.stickyVerified)} ver ·{' '}
           {formatNum(data.supply.stickyApprovalReady)} ready
           {' · '}
           Fresh {formatNum(data.supply.freshDiscovered)} disc ·{' '}
           {formatNum(data.supply.freshVerified)} ver ·{' '}
           {formatNum(data.supply.freshApprovalReady)} ready
-        </p>
-        <p className="mt-1 text-xs text-white/55">
-          Top niche <span className="text-white/80">{data.supply.topNiche ?? '—'}</span>
-          {' · '}
-          Top query <span className="text-white/80">{data.supply.topQuery ?? '—'}</span>
-          {' · '}
-          Source <span className="text-white/80">{data.supply.topSource ?? '—'}</span>
         </p>
         <p className="mt-1 text-xs text-white/70">
           <span className="text-white/35">Bottleneck:</span> {data.supply.bottleneck}
