@@ -1,36 +1,18 @@
+import {
+  extractMercadoLibrePdpEvidence,
+  parsePositiveLocalizedNumber,
+  pdpEvidenceToEnrichmentFields,
+} from './extractPdpEvidence.mjs';
+
+export { extractMercadoLibrePdpEvidence, parsePositiveLocalizedNumber };
+
 function normalizeText(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 }
 
+/** @deprecated use parsePositiveLocalizedNumber — MX miles (1.299 → 1299). */
 function parseLocalizedNumber(value) {
-  if (typeof value !== 'string' || !value.trim()) return null;
-  const clean = value.replace(/[^\d,.-]/g, '').trim();
-  if (!clean) return null;
-  const hasComma = clean.includes(',');
-  const hasDot = clean.includes('.');
-  let normalized = clean;
-  if (hasComma && hasDot) {
-    normalized =
-      clean.lastIndexOf('.') > clean.lastIndexOf(',')
-        ? clean.replace(/,/g, '')
-        : clean.replace(/\./g, '').replace(',', '.');
-  } else if (hasComma && !hasDot) {
-    const parts = clean.split(',');
-    normalized =
-      parts.length === 2 && parts[1].length <= 2
-        ? `${parts[0].replace(/,/g, '')}.${parts[1]}`
-        : clean.replace(/,/g, '');
-  }
-  const number = Number(normalized);
-  return Number.isFinite(number) && number > 0 ? number : null;
-}
-
-function parseMoneyParts(fraction, cents) {
-  const f = normalizeText(fraction || '');
-  const c = normalizeText(cents || '');
-  if (!f) return null;
-  if (!c) return parseLocalizedNumber(f);
-  return parseLocalizedNumber(`${f}.${c}`);
+  return parsePositiveLocalizedNumber(value);
 }
 
 function inferItemId(url) {
@@ -148,28 +130,6 @@ function isProductLikeUrl(rawUrl) {
   } catch {
     return false;
   }
-}
-
-function extractJsonLikeNumberFromHtml(html, field) {
-  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match =
-    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*["']([^"']+)["']`, 'i'))?.[1] ??
-    html.match(new RegExp(`["']${escaped}["']\\s*:\\s*([0-9][0-9.,]*)`, 'i'))?.[1] ??
-    null;
-  return parseLocalizedNumber(match);
-}
-
-function collectJsonLikeNumbersFromHtml(html, field) {
-  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`["']${escaped}["']\\s*:\\s*(?:(["'])([^"']+)\\1|([0-9][0-9.,]*))`, 'gi');
-  const out = [];
-  let match;
-  while ((match = re.exec(html)) !== null) {
-    const raw = match[2] ?? match[3] ?? '';
-    const parsed = parseLocalizedNumber(raw);
-    if (parsed != null) out.push(parsed);
-  }
-  return out;
 }
 
 function looksGenericMercadoLibreTitle(title) {
@@ -541,138 +501,94 @@ async function extractCards(page) {
   });
 }
 
+async function warmMercadoLibreSession(page) {
+  try {
+    await page.goto('https://www.mercadolibre.com.mx/ofertas', {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForTimeout(1200).catch(() => {});
+    try {
+      await page.getByRole('button', { name: /Aceptar cookies/i }).click({ timeout: 2500 });
+    } catch {
+      /* optional */
+    }
+    await page.mouse.wheel(0, 1800).catch(() => {});
+    await page.waitForTimeout(800).catch(() => {});
+    console.log('[worker] session_warm=ofertas');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`[worker] session_warm_failed msg=${message.slice(0, 120)}`);
+  }
+}
+
 async function enrichCandidate(page, candidate) {
   await page.goto(candidate.href, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(1500).catch(() => {});
-  const extracted = await page.evaluate(() => {
-    const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
-      .map((node) => node.textContent || '')
-      .filter(Boolean);
-    const currentFractionNode =
-      document.querySelector('.ui-pdp-price__second-line .andes-money-amount__fraction') ||
-      document.querySelector('.ui-pdp-price__main-container .andes-money-amount__fraction') ||
-      document.querySelector('[data-testid="price-part"]') ||
-      document.querySelector('.andes-money-amount__fraction');
-    const currentCentsNode =
-      document.querySelector('.ui-pdp-price__second-line .andes-money-amount__cents') ||
-      document.querySelector('.ui-pdp-price__main-container .andes-money-amount__cents') ||
-      document.querySelector('.andes-money-amount__cents');
-    const originalFractionNode =
-      document.querySelector('.ui-pdp-price__original-value .andes-money-amount__fraction') ||
-      document.querySelector('.ui-pdp-price__subtitles .andes-money-amount__fraction') ||
-      document.querySelector('s .andes-money-amount__fraction');
-    const originalCentsNode =
-      document.querySelector('.ui-pdp-price__original-value .andes-money-amount__cents') ||
-      document.querySelector('.ui-pdp-price__subtitles .andes-money-amount__cents') ||
-      document.querySelector('s .andes-money-amount__cents');
-    const title =
-      document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
-      document.querySelector('h1')?.textContent ||
-      '';
-    const image =
-      document.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
-      document.querySelector('img')?.getAttribute('src') ||
-      '';
-    const current = currentFractionNode?.textContent || '';
-    const currentCents = currentCentsNode?.textContent || '';
-    const original = originalFractionNode?.textContent || '';
-    const originalCents = originalCentsNode?.textContent || '';
-    const soldText =
-      document.querySelector('.ui-pdp-subtitle')?.textContent ||
-      document.body.textContent ||
-      '';
-    return {
-      title,
-      image,
-      currentText: `${current}${currentCents ? `.${currentCents}` : ''}`,
-      originalText: original,
-      currentFraction: current,
-      currentCents,
-      originalFraction: original,
-      originalCents,
-      soldText,
-      url: location.href,
-      scripts,
-      pathname: location.pathname,
-    };
-  });
+  await page.waitForTimeout(1200).catch(() => {});
+  // Esperar señal de precio o muro; no inventar si no aparece.
+  await page
+    .waitForSelector(
+      [
+        '.ui-pdp-price .andes-money-amount__fraction',
+        '.andes-money-amount__fraction',
+        'meta[property="product:price:amount"]',
+        'script[type="application/ld+json"]',
+        '.account-verification-main',
+      ].join(', '),
+      { timeout: 8000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(400).catch(() => {});
+
+  const liveUrl = page.url();
   const html = await page.content();
-  const currentFromSelectors =
-    parseMoneyParts(extracted.currentFraction, extracted.currentCents) ||
-    parseLocalizedNumber(extracted.currentText || candidate.priceText);
-  const originalFromSelectors =
-    parseMoneyParts(extracted.originalFraction, extracted.originalCents) ||
-    parseLocalizedNumber(extracted.originalText || candidate.originalText);
+  const extracted = extractMercadoLibrePdpEvidence(html, { url: liveUrl });
+  const fields = pdpEvidenceToEnrichmentFields(extracted);
 
-  const currentCandidates = [
-    currentFromSelectors,
-    extractJsonLikeNumberFromHtml(html, 'price'),
-    extractJsonLikeNumberFromHtml(html, 'price_amount'),
-    extractJsonLikeNumberFromHtml(html, 'amount'),
-    ...collectJsonLikeNumbersFromHtml(html, 'price'),
-  ].filter((value) => value != null);
-
-  const originalCandidates = [
-    originalFromSelectors,
-    extractJsonLikeNumberFromHtml(html, 'original_price'),
-    extractJsonLikeNumberFromHtml(html, 'priceBefore'),
-    extractJsonLikeNumberFromHtml(html, 'regular_amount'),
-    ...collectJsonLikeNumbersFromHtml(html, 'original_price'),
-    ...collectJsonLikeNumbersFromHtml(html, 'regular_amount'),
-  ].filter((value) => value != null);
-
-  let currentFromLdJson = null;
-  let originalFromLdJson = null;
-  for (const raw of extracted.scripts || []) {
-    if (raw.length > 500000) continue;
-    try {
-      const parsed = JSON.parse(raw);
-      const stack = Array.isArray(parsed) ? [...parsed] : [parsed];
-      while (stack.length > 0) {
-        const node = stack.pop();
-        if (!node || typeof node !== 'object') continue;
-        if (Array.isArray(node)) {
-          stack.push(...node);
-          continue;
-        }
-        if (node['@graph']) stack.push(node['@graph']);
-        if (node.offers) stack.push(node.offers);
-        if (currentFromLdJson == null) {
-          currentFromLdJson =
-            parseLocalizedNumber(String(node.price ?? '')) ||
-            parseLocalizedNumber(String(node.lowPrice ?? '')) ||
-            currentFromLdJson;
-        }
-        if (originalFromLdJson == null) {
-          originalFromLdJson =
-            parseLocalizedNumber(String(node.highPrice ?? '')) ||
-            parseLocalizedNumber(String(node.priceBefore ?? '')) ||
-            originalFromLdJson;
-        }
-      }
-    } catch {
-      // Ignorar JSON-LD inválido.
-    }
+  // DOM evaluate solo refuerza title/image si el HTML extractor no los vio (SPA parcial).
+  let domTitle = '';
+  let domImage = '';
+  let pathname = '';
+  try {
+    const live = await page.evaluate(() => ({
+      title:
+        document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+        document.querySelector('h1')?.textContent ||
+        '',
+      image:
+        document.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
+        document.querySelector('img')?.getAttribute('src') ||
+        '',
+      pathname: location.pathname,
+      href: location.href,
+    }));
+    domTitle = normalizeText(live.title);
+    domImage = normalizeAbsoluteImageUrl(live.image) || '';
+    pathname = live.pathname || '';
+  } catch {
+    /* ignore */
   }
 
-  if (currentFromLdJson != null) currentCandidates.push(currentFromLdJson);
-  if (originalFromLdJson != null) originalCandidates.push(originalFromLdJson);
-
-  const discountPrice = currentCandidates.find((value) => Number.isFinite(value) && value > 0) ?? null;
-  const originalPrice =
-    originalCandidates
-      .filter((value) => Number.isFinite(value) && value > 0)
-      .find((value) => discountPrice != null && value > discountPrice) ?? null;
+  const blocked =
+    fields.blocked ||
+    isPdpBlockedPath(pathname) ||
+    isPdpBlockedPath(liveUrl) ||
+    isPdpBlockedPath(extracted.canonicalUrl || '');
 
   return {
-    url: extracted.url || candidate.href,
-    canonicalUrl: canonicalizeUrl(extracted.url || candidate.href),
-    title: normalizeText(extracted.title || candidate.title),
-    imageUrl: normalizeAbsoluteImageUrl(extracted.image || candidate.image),
-    discountPrice,
-    originalPrice,
-    soldText: extracted.soldText || '',
-    pathname: extracted.pathname || '',
+    url: liveUrl,
+    canonicalUrl: canonicalizeUrl(liveUrl || candidate.href),
+    title: normalizeText(fields.title || domTitle || candidate.title),
+    imageUrl: normalizeAbsoluteImageUrl(fields.imageUrl || domImage || candidate.image) || '',
+    discountPrice: blocked ? null : fields.discountPrice,
+    originalPrice: blocked ? null : fields.originalPrice,
+    soldText: '',
+    pathname,
+    blocked,
+    extractReason: fields.reason,
+    evidenceSources: fields.evidenceSources || [],
+    priceSource: fields.priceSource || null,
+    originalPriceSource: fields.originalPriceSource || null,
   };
 }
 
@@ -723,6 +639,9 @@ function emptyQualityGateTelemetry() {
  * Discovery V2:
  * cards → shortlist (badge = señal) → PDP limitado → gate evidencia → candidatos ingest.
  * El badge nominal YA NO basta para pending.
+ *
+ * Sticky corre DESPUÉS del card discovery (sesión caliente): en prod, sticky en frío
+ * caía en account-verification y se reportaba erróneamente como sin_discount_price.
  */
 export async function discoverMercadoLibreCandidates(page, options) {
   const {
@@ -739,82 +658,9 @@ export async function discoverMercadoLibreCandidates(page, options) {
   const qualityGate = emptyQualityGateTelemetry();
   const cardPool = [];
 
-  // Fase 0: sticky PDP directo (seeds group=sticky apuntan a articulo…, no listados).
-  for (const seed of seeds) {
-    if (seed.group !== 'sticky') continue;
-    if (cardPool.length >= Math.max(maxItems * 4, 40)) break;
-    const stat = emptySeedStat(seed);
-    seedStats.push(stat);
-    const dedupeKey = canonicalizeUrl(seed.url);
-    if (!seed.url || seen.has(dedupeKey)) {
-      stat.status = 'zero_results';
-      continue;
-    }
-    seen.add(dedupeKey);
-    qualityGate.pdpAttempts += 1;
-    try {
-      const stub = {
-        href: seed.url,
-        title: '',
-        image: '',
-        priceText: '',
-        originalText: '',
-        discountPrice: null,
-        originalPrice: null,
-        discountPercent: 0,
-        nominalDiscountPercent: 0,
-        cardDiscountSource: 'unknown',
-        originalFromBadgeOnly: false,
-        cardBadgePercent: null,
-        canonicalUrl: canonicalizeUrl(seed.url),
-        url: seed.url,
-        store: 'Mercado Libre',
-        imageUrl: '',
-        sourceDetail: 'worker:playwright:sticky',
-        signals: {},
-      };
-      const enriched = await enrichCandidate(page, stub);
-      qualityGate.pdpSuccess += 1;
-      const working = {
-        ...stub,
-        ...enriched,
-        seedId: seed.id,
-        evidenceSource: 'pdp',
-        cardDiscountSource: 'pdp',
-        sourceDetail: 'worker:playwright:pdp',
-        signals: {
-          ...(enriched.signals || {}),
-          cardDiscountSource: 'pdp',
-          currentPriceProvenance: 'source_explicit',
-          originalPriceProvenance:
-            enriched.originalPrice != null && enriched.originalPrice > (enriched.discountPrice ?? 0)
-              ? 'source_explicit'
-              : 'unknown',
-          discountPercentProvenance:
-            enriched.discountPercent > 0 ? 'derived' : 'unknown',
-        },
-      };
-      const gate = workerCandidateEligibleForIngest(working);
-      if (!gate.ok) {
-        console.log(`[worker] sticky_pdp_skip=${seed.url} reason=${gate.reason}`);
-        stat.status = 'zero_results';
-        continue;
-      }
-      cardPool.push(working);
-      stat.shortlisted = 1;
-      console.log(
-        `[worker] sticky_pdp_ok=${working.canonicalUrl || seed.url} discount=${working.discountPercent}% seed=${seed.id}`
-      );
-    } catch (error) {
-      qualityGate.pdpFailed += 1;
-      const message = error instanceof Error ? error.message : String(error);
-      stat.status = 'failed';
-      stat.errorKind = /timeout/i.test(message) ? 'timeout' : 'navigation';
-      console.log(`[worker] sticky_pdp_failed seed=${seed.id} kind=${stat.errorKind}`);
-    }
-  }
+  await warmMercadoLibreSession(page);
 
-  // Fase 1: card discovery (barato). Badge solo shortlist.
+  // Fase 1: card discovery (barato) — también calienta cookies antes de sticky PDP.
   for (const seed of seeds) {
     if (seed.group === 'sticky') continue;
     if (cardPool.length >= Math.max(maxItems * 4, 40)) break;
@@ -864,6 +710,107 @@ export async function discoverMercadoLibreCandidates(page, options) {
     }
   }
 
+  // Fase 0b: sticky PDP directo (tras warm + listings).
+  for (const seed of seeds) {
+    if (seed.group !== 'sticky') continue;
+    if (cardPool.length >= Math.max(maxItems * 4, 40)) break;
+    const stat = emptySeedStat(seed);
+    seedStats.push(stat);
+    const dedupeKey = canonicalizeUrl(seed.url);
+    if (!seed.url || seen.has(dedupeKey)) {
+      stat.status = 'zero_results';
+      continue;
+    }
+    seen.add(dedupeKey);
+    qualityGate.pdpAttempts += 1;
+    try {
+      const stub = {
+        href: seed.url,
+        title: '',
+        image: '',
+        priceText: '',
+        originalText: '',
+        discountPrice: null,
+        originalPrice: null,
+        discountPercent: 0,
+        nominalDiscountPercent: 0,
+        cardDiscountSource: 'unknown',
+        originalFromBadgeOnly: false,
+        cardBadgePercent: null,
+        canonicalUrl: canonicalizeUrl(seed.url),
+        url: seed.url,
+        store: 'Mercado Libre',
+        imageUrl: '',
+        sourceDetail: 'worker:playwright:sticky',
+        signals: {},
+      };
+      const enriched = await enrichCandidate(page, stub);
+
+      if (enriched.blocked || isPdpBlockedPath(enriched.pathname) || isPdpBlockedPath(enriched.url)) {
+        qualityGate.pdpBlocked += 1;
+        console.log(`[worker] sticky_pdp_skip=${seed.url} reason=pdp_blocked`);
+        stat.status = 'zero_results';
+        continue;
+      }
+
+      if (!(enriched.discountPrice > 0)) {
+        qualityGate.pdpFailed += 1;
+        console.log(
+          `[worker] sticky_pdp_skip=${seed.url} reason=${enriched.extractReason || 'sin_discount_price'}`
+        );
+        stat.status = 'zero_results';
+        continue;
+      }
+
+      qualityGate.pdpSuccess += 1;
+      const discountPercent =
+        enriched.originalPrice != null && enriched.originalPrice > enriched.discountPrice
+          ? clampDiscountPercent((1 - enriched.discountPrice / enriched.originalPrice) * 100)
+          : 0;
+      const working = {
+        ...stub,
+        ...enriched,
+        discountPercent,
+        nominalDiscountPercent: discountPercent,
+        seedId: seed.id,
+        evidenceSource: 'pdp',
+        cardDiscountSource: 'pdp',
+        originalFromBadgeOnly: false,
+        sourceDetail: 'worker:playwright:pdp',
+        signals: {
+          ...(enriched.signals || {}),
+          cardDiscountSource: 'pdp',
+          currentPriceProvenance: 'source_explicit',
+          originalPriceProvenance:
+            enriched.originalPrice != null && enriched.originalPrice > enriched.discountPrice
+              ? 'source_explicit'
+              : 'unknown',
+          discountPercentProvenance: discountPercent > 0 ? 'derived' : 'unknown',
+          pdpPriceSource: enriched.priceSource || null,
+          pdpOriginalSource: enriched.originalPriceSource || null,
+        },
+      };
+      const gate = workerCandidateEligibleForIngest(working);
+      if (!gate.ok) {
+        console.log(`[worker] sticky_pdp_skip=${seed.url} reason=${gate.reason}`);
+        stat.status = 'zero_results';
+        continue;
+      }
+      cardPool.push(working);
+      stat.accepted = 1;
+      stat.shortlisted = 1;
+      console.log(
+        `[worker] sticky_pdp_ok=${working.canonicalUrl || seed.url} discount=${working.discountPercent}% seed=${seed.id} priceSrc=${enriched.priceSource || 'n/a'}`
+      );
+    } catch (error) {
+      qualityGate.pdpFailed += 1;
+      const message = error instanceof Error ? error.message : String(error);
+      stat.status = 'failed';
+      stat.errorKind = /timeout/i.test(message) ? 'timeout' : 'navigation';
+      console.log(`[worker] sticky_pdp_failed seed=${seed.id} kind=${stat.errorKind}`);
+    }
+  }
+
   const shortlistCap =
     Number.isFinite(shortlistMax) && shortlistMax > 0
       ? Math.trunc(shortlistMax)
@@ -885,7 +832,7 @@ export async function discoverMercadoLibreCandidates(page, options) {
     let working = { ...cardCandidate };
     let pdpOk = false;
 
-    // Sticky seeds ya pasaron PDP directo en fase 0.
+    // Sticky seeds ya pasaron PDP directo.
     if (cardCandidate.evidenceSource === 'pdp' && cardCandidate.seedId?.startsWith?.('sticky_')) {
       pdpOk = true;
     } else if (qualityGate.pdpAttempts < pdpBudget) {
@@ -902,12 +849,18 @@ export async function discoverMercadoLibreCandidates(page, options) {
               : '',
         });
 
-        if (isPdpBlockedPath(enriched.pathname) || isPdpBlockedPath(enriched.url)) {
+        if (
+          enriched.blocked ||
+          isPdpBlockedPath(enriched.pathname) ||
+          isPdpBlockedPath(enriched.url)
+        ) {
           qualityGate.pdpBlocked += 1;
           console.log(`[worker] pdp_blocked=${cardCandidate.canonicalUrl}`);
         } else if (!(enriched.discountPrice > 0)) {
           qualityGate.pdpFailed += 1;
-          console.log(`[worker] pdp_no_price=${cardCandidate.canonicalUrl}`);
+          console.log(
+            `[worker] pdp_no_price=${cardCandidate.canonicalUrl} reason=${enriched.extractReason || 'sin_discount_price'}`
+          );
         } else {
           pdpOk = true;
           qualityGate.pdpSuccess += 1;
@@ -941,6 +894,8 @@ export async function discoverMercadoLibreCandidates(page, options) {
               currentPriceProvenance: 'source_explicit',
               originalPriceProvenance: 'source_explicit',
               discountPercentProvenance: 'derived',
+              pdpPriceSource: enriched.priceSource || null,
+              pdpOriginalSource: enriched.originalPriceSource || null,
             };
           } else if (working.cardDiscountSource === 'card_strikethrough') {
             // Conserva tachado de card; no inventa original desde badge.
