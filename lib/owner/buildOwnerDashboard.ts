@@ -18,6 +18,7 @@ import {
   type CircuitBottleneck,
 } from '@/lib/owner/circuitBottleneck';
 import { OUTBOUND_VOLUME_SOT } from '@/lib/analytics/outboundClickContract';
+import { buildModerationOpsStats } from '@/lib/moderation/moderationOpsStats';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -105,6 +106,14 @@ export type OwnerDashboardPayload = {
     /** Median pending→decision minutes (7d), or null. */
     medianDecisionMinutes: number | null;
     funnelNote: string | null;
+    /** Throughput decisiones última hora (approve+reject). */
+    throughputLastHour: number | null;
+    /** ETA drenaje = backlog / throughput (horas). */
+    hoursToDrain: number | null;
+    claimedActive: number | null;
+    highValueEstimate: number | null;
+    slaBreachEstimate: number | null;
+    pendingGt48h: number | null;
   };
   /** Ofertas approved/published no expiradas (feed-eligible). */
   liveDeals: number | null;
@@ -688,6 +697,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     funnelSnapshot,
     pendingAge,
     supplyStale,
+    modOps,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -709,6 +719,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     buildSupplyFunnelSnapshot({ windowDays: 7 }),
     fetchPendingAgeStats(),
     countStaleHunterSources(),
+    buildModerationOpsStats(createServerClient(), 500),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -834,6 +845,8 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     amazonTagConfigured: amazonActive,
     mercadolibreTagConfigured: mlActive,
     supplyStaleSources: supplyStale,
+    highValuePending: modOps.highValueEstimate,
+    slaBreachPending: modOps.slaBreachEstimate,
   });
 
   let status: TrafficLight = 'green';
@@ -892,6 +905,12 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       pendingToLivePct: funnelSnapshot.pendingToLivePct,
       medianDecisionMinutes: funnelSnapshot.medianDecisionMinutes,
       funnelNote: funnelSnapshot.note,
+      throughputLastHour: modOps.throughputLastHour,
+      hoursToDrain: modOps.hoursToDrain,
+      claimedActive: modOps.claimedActive,
+      highValueEstimate: modOps.highValueEstimate,
+      slaBreachEstimate: modOps.slaBreachEstimate,
+      pendingGt48h: modOps.pendingGt48h,
     },
     liveDeals: liveDealsResult,
     userLiabilityConfirmedCents: liabilityResult,

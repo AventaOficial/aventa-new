@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { persistSystemIntegrityResult, runSystemIntegrityChecks } from '@/lib/server/systemIntegrity';
+import { createServerClient } from '@/lib/supabase/server';
+import { releaseStaleModerationLocks } from '@/lib/moderation/releaseStaleLocks';
 
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
   if (denied) return denied;
+
+  // Piggyback: liberar claims abandonados (no consume un cron extra en Hobby).
+  let staleLocksReleased = 0;
+  try {
+    const released = await releaseStaleModerationLocks(createServerClient(), { limit: 200 });
+    staleLocksReleased = released.released;
+  } catch (err) {
+    console.error('[SYSTEM INTEGRITY] stale lock release failed', err);
+  }
 
   const payload = await runSystemIntegrityChecks();
   await persistSystemIntegrityResult(payload);
@@ -44,7 +55,7 @@ export async function GET(request: NextRequest) {
         }),
       }).catch((err) => console.error('[SYSTEM INTEGRITY] email alert failed', err));
     }
-    return NextResponse.json(payload, { status: 500 });
+    return NextResponse.json({ ...payload, staleLocksReleased }, { status: 500 });
   }
-  return NextResponse.json(payload, { status: 200 });
+  return NextResponse.json({ ...payload, staleLocksReleased }, { status: 200 });
 }

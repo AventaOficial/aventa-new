@@ -15,10 +15,17 @@ type Pulse = {
 
 type OpsStats = {
   backlog: number;
+  pendingGt24h?: number;
+  pendingGt48h?: number;
   oldestPendingAgeSeconds: number | null;
+  claimedActive?: number;
+  highValueEstimate?: number;
+  slaBreachEstimate?: number;
   throughputLastHour: number;
   approvalRateLastHour: number | null;
+  rejectionRateLastHour?: number | null;
   medianDecisionSecondsLastHour: number | null;
+  hoursToDrain?: number | null;
   levelDistribution: { sprint: number; review: number; enforcement: number };
   claimLatency: { lastMs: number | null; p95Ms: number | null; sampleCount: number };
 };
@@ -61,6 +68,26 @@ export default function ModerationWorkspaceStats() {
     ops
       ? { label: 'Backlog', value: String(ops.backlog), tone: ops.backlog > 15 ? 'attention' : 'ok' }
       : { label: 'Pendientes', value: String(pulse?.pendingTotal ?? '—'), tone: 'ok' },
+    ops?.pendingGt24h != null
+      ? {
+          label: '>24h',
+          value: String(ops.pendingGt24h),
+          tone: ops.pendingGt24h > 0 ? 'attention' : 'ok',
+        }
+      : null,
+    ops?.slaBreachEstimate != null
+      ? {
+          label: 'SLA breach',
+          value: String(ops.slaBreachEstimate),
+          tone: ops.slaBreachEstimate > 0 ? 'critical' : 'ok',
+        }
+      : null,
+    ops?.highValueEstimate != null
+      ? { label: 'HIGH VALUE', value: String(ops.highValueEstimate), tone: 'info' }
+      : null,
+    ops?.claimedActive != null
+      ? { label: 'Claimed', value: String(ops.claimedActive), tone: 'info' }
+      : null,
     ops
       ? {
           label: 'Más antigua',
@@ -70,6 +97,13 @@ export default function ModerationWorkspaceStats() {
       : null,
     ops
       ? { label: '/hora', value: String(ops.throughputLastHour), tone: 'info' }
+      : null,
+    ops?.hoursToDrain != null
+      ? {
+          label: 'ETA drain',
+          value: ops.hoursToDrain < 1 ? '<1h' : `${ops.hoursToDrain}h`,
+          tone: ops.hoursToDrain > 24 ? 'attention' : 'info',
+        }
       : null,
     ops?.medianDecisionSecondsLastHour != null
       ? {

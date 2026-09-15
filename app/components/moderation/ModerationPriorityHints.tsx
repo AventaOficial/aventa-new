@@ -1,6 +1,7 @@
 'use client';
 
 import { evaluateModerationPriority } from '@/lib/moderation/moderationPriority';
+import { isSlaBreached, slaHoursForPriority } from '@/lib/moderation/slaContract';
 import { parseBotMeta } from '@/lib/moderation/botFacts';
 import { cn } from '@/app/components/panel/utils';
 
@@ -27,13 +28,18 @@ const TONE: Record<string, string> = {
 };
 
 function pendingAgeLabel(createdAt: string | null | undefined): string | null {
-  if (!createdAt) return null;
-  const t = Date.parse(createdAt);
-  if (!Number.isFinite(t)) return null;
-  const hours = Math.max(0, (Date.now() - t) / 3_600_000);
+  const hours = pendingAgeHours(createdAt);
+  if (hours == null) return null;
   if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m en cola`;
   if (hours < 24) return `${Math.round(hours)}h en cola`;
   return `${Math.round(hours / 24)}d en cola`;
+}
+
+function pendingAgeHours(createdAt: string | null | undefined): number | null {
+  if (!createdAt) return null;
+  const t = Date.parse(createdAt);
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, (Date.now() - t) / 3_600_000);
 }
 
 /**
@@ -59,6 +65,8 @@ export default function ModerationPriorityHints({
     createdAt,
     botMeta,
   });
+  const ageHours = pendingAgeHours(createdAt);
+  const slaBreached = isSlaBreached({ priority: result.priority, ageHours });
   const maxReasons = density === 'compact' ? 2 : 4;
   const reasons = result.reasons.slice(0, maxReasons);
   const source = parseBotMeta(botMeta)?.source?.trim() || (isBot ? 'bot' : 'comunidad');
@@ -66,6 +74,9 @@ export default function ModerationPriorityHints({
 
   return (
     <div className={cn('space-y-1', className)} data-moderation-priority={result.priority}>
+      <p className={cn('text-[10px] font-semibold uppercase tracking-wide', mutedClassName)}>
+        ¿Por qué está aquí?
+      </p>
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className={cn(
@@ -75,6 +86,11 @@ export default function ModerationPriorityHints({
         >
           {result.shortLabel}
         </span>
+        {slaBreached ? (
+          <span className="inline-flex rounded-md bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-500/30 dark:text-rose-300">
+            SLA BREACH ({slaHoursForPriority(result.priority)}h)
+          </span>
+        ) : null}
         <span className={cn('text-[10px] font-medium uppercase tracking-wide', mutedClassName)}>
           {source}
         </span>

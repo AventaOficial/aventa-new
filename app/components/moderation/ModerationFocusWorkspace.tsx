@@ -15,6 +15,7 @@ import FocusRejectSheet from './FocusRejectSheet';
 import FocusDetailsDrawer from './FocusDetailsDrawer';
 import FocusShortcutsHint from './FocusShortcutsHint';
 import FocusAffiliatePrepare from './FocusAffiliatePrepare';
+import ModerationWorkspaceStats from '@/app/admin/moderation/ModerationWorkspaceStats';
 
 export type ModerationFocusWorkspaceProps = {
   mode?: ModerationHubMode;
@@ -139,6 +140,8 @@ export default function ModerationFocusWorkspace({
         </div>
         <FocusShortcutsHint mode={mode} />
       </header>
+
+      <ModerationWorkspaceStats />
 
       {mode === 'workspace' ? (
         <div className="mb-3 flex flex-wrap gap-2">

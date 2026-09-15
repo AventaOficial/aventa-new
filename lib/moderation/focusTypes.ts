@@ -30,4 +30,7 @@ export type FocusSourceTab = 'all' | 'bot' | 'users';
 export type FocusQueueStats = {
   globalPending: number;
   availableEstimate: number;
+  pendingGt24h?: number;
+  claimedActive?: number;
+  candidateCap?: number;
 };

@@ -162,7 +162,13 @@ export function useModerationFocusQueue({
           setStats({
             globalPending: Number(data.stats.globalPending) || 0,
             availableEstimate: Number(data.stats.availableEstimate) || 0,
+            pendingGt24h: Number(data.stats.pendingGt24h) || 0,
+            claimedActive: Number(data.stats.claimedActive) || 0,
+            candidateCap: Number(data.stats.candidateCap) || undefined,
           });
+          if (typeof data.stats.oldestPendingCreatedAt === 'string') {
+            setOldestCreatedAt(data.stats.oldestPendingCreatedAt);
+          }
         }
         if (data?.claimed && data?.offer) {
           const claimed = mapOffer(data.offer as Record<string, unknown>);
@@ -193,7 +199,7 @@ export function useModerationFocusQueue({
     [authHeaders, session?.access_token, sourceTab]
   );
 
-  // Bootstrap: pending count + first claim
+  // Bootstrap: un solo claim-next (stats + oldest vienen del mismo response).
   useEffect(() => {
     if (!session?.access_token) {
       setLoading(false);
@@ -203,23 +209,6 @@ export function useModerationFocusQueue({
     setLoading(true);
     void (async () => {
       try {
-        const res = await fetch('/api/admin/moderation-pending-offers', {
-          headers: authHeaders(),
-        });
-        if (res.ok) {
-          const body = (await res.json()) as { offers?: FocusModerationOffer[] };
-          const rows = body.offers ?? [];
-          if (!cancelled && rows.length > 0) {
-            const oldest = rows.reduce((a, b) =>
-              new Date(a.created_at).getTime() < new Date(b.created_at).getTime() ? a : b
-            );
-            setOldestCreatedAt(oldest.created_at);
-            setStats((s) => ({
-              ...s,
-              globalPending: Math.max(s.globalPending, rows.length),
-            }));
-          }
-        }
         if (!cancelled) await claimNext();
       } finally {
         if (!cancelled) setLoading(false);

@@ -32,7 +32,25 @@ export type CircuitSignals = {
   mercadolibreTagConfigured: boolean;
   /** Fuentes Hunter con last_run_at más viejo que umbral (si se midió). */
   supplyStaleSources?: number | null;
+  /** Estimados de cola (sample ops); opcionales. */
+  highValuePending?: number | null;
+  slaBreachPending?: number | null;
 };
+
+function moderationThroughputAction(s: CircuitSignals): string {
+  const hv = s.highValuePending ?? 0;
+  const breach = s.slaBreachPending ?? 0;
+  if (hv > 0 && breach > 0) {
+    return `Priorizar ${Math.min(hv, breach)} ofertas HIGH VALUE con SLA breach.`;
+  }
+  if (hv > 0) {
+    return `Priorizar ${hv} ofertas HIGH VALUE en cola Focus.`;
+  }
+  if (breach > 0) {
+    return `Drenar ${breach} ofertas con SLA breach (claim → decide).`;
+  }
+  return 'Drenar cola Focus: claim → approve/reject/snooze';
+}
 
 const LIVE_MIN = 3;
 const PENDING_RED = 20;
@@ -72,7 +90,7 @@ export function pickCircuitBottleneck(s: CircuitSignals): CircuitBottleneck {
       severity: 'red',
       problem: `Solo ${live} oferta(s) live con ${s.pending} pendientes`,
       impact: 'Feed vacío/pobre → casi sin views ni outbound clicks',
-      recommendedAction: `Moderar cola ahora (priorizar HIGH VALUE / stale >${AGE_RED_HOURS}h)`,
+      recommendedAction: moderationThroughputAction(s),
       href: '/admin/moderation',
     };
   }
@@ -89,7 +107,7 @@ export function pickCircuitBottleneck(s: CircuitSignals): CircuitBottleneck {
         s.oldestPendingHours != null ? `; más vieja ${s.oldestPendingHours}h` : ''
       })`,
       impact: 'Supply bloqueado en review humana; tiempo-a-live alto',
-      recommendedAction: 'Drenar cola Focus: claim → approve/reject/snooze',
+      recommendedAction: moderationThroughputAction(s),
       href: '/admin/moderation',
     };
   }

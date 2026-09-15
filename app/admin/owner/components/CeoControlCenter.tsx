@@ -8,6 +8,7 @@ import {
   formatMedianDecisionTime,
   formatPendingToLivePct,
 } from '@/lib/moderation/outcomes';
+import { formatHoursToDrain } from '@/lib/moderation/slaContract';
 
 function toneClass(tone: 'green' | 'yellow' | 'red' | 'gray') {
   if (tone === 'green') return 'border-emerald-500/30 bg-emerald-500/[0.08]';
@@ -184,6 +185,71 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
         >
           Ir al cuello de botella →
         </Link>
+      </div>
+
+      <div
+        className={cn(
+          'mb-4 rounded-2xl border p-4',
+          toneClass(reviewTone === 'green' ? 'green' : reviewTone),
+        )}
+        data-ceo-moderation
+      >
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
+          Moderation
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          <div>
+            <p className="text-[10px] text-white/40">Pending</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.moderation.pending)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">SLA breach</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.moderation.slaBreachEstimate)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">High value</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.moderation.highValueEstimate)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Claimed</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.moderation.claimedActive)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Throughput</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {data.moderation.throughputLastHour != null
+                ? `${data.moderation.throughputLastHour}/h`
+                : 'NO_DATA'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">ETA drain</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatHoursToDrain(data.moderation.hoursToDrain)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Live</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.liveDeals)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Target</p>
+            <p className="text-sm font-semibold tabular-nums text-white">5–10</p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-white/70">
+          <span className="text-white/35">Recomendación:</span> {bn.recommendedAction}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">

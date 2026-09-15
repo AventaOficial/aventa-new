@@ -11,6 +11,8 @@ import {
   fetchBannedCreatorIds,
   fetchPendingReportOfferIds,
 } from './moderationQueueSignals';
+import { CLAIM_QUEUE_HARD_CAP } from './slaContract';
+import { releaseStaleModerationLocks } from './releaseStaleLocks';
 
 const CLAIM_SELECT_CORE =
   'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, link_mod_ok, profiles:public_profiles_view!created_by(display_name, avatar_url)';
@@ -68,6 +70,11 @@ export type ClaimNextResult = {
   stats: {
     globalPending: number;
     availableEstimate: number;
+    /** Cap de candidatos considerados en este claim (escala). */
+    candidateCap: number;
+    oldestPendingCreatedAt: string | null;
+    pendingGt24h: number;
+    claimedActive: number;
   };
 };
 
@@ -97,12 +104,33 @@ export async function claimNextModerationOffer(
     await releaseModerationLockIfOwner(supabase, options.releaseOfferId, moderatorId);
   }
 
+  // Recovery pasivo: locks abandonados vuelven a cola antes de ordenar.
+  await releaseStaleModerationLocks(supabase, { limit: 100 });
+
+  const [{ count: pendingCount }, { count: claimedActive }, { count: pendingGt24hCount }] =
+    await Promise.all([
+      supabase.from('offers').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .not('locked_by', 'is', null),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+    ]);
+
   let rows: Record<string, unknown>[] | null = null;
   {
+    // Escala: no traer toda la tabla; priorizar backlog (created_at ASC) hasta hard cap.
     const first = await supabase
       .from('offers')
       .select(CLAIM_SELECT_WITH_ORIGINAL)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(CLAIM_QUEUE_HARD_CAP);
     if (
       first.error &&
       (hasMissingColumn(first.error, 'original_offer_url') || hasMissingColumn(first.error, 'bot_meta'))
@@ -110,7 +138,9 @@ export async function claimNextModerationOffer(
       const fallback = await supabase
         .from('offers')
         .select(CLAIM_SELECT_CORE)
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(CLAIM_QUEUE_HARD_CAP);
       if (fallback.error) throw new Error(fallback.error.message);
       rows = (fallback.data ?? []) as Record<string, unknown>[];
     } else if (first.error) {
@@ -137,8 +167,23 @@ export async function claimNextModerationOffer(
   });
 
   const scoped = filterBySourceTab(normalized, sourceTab);
-  const globalPending = scoped.length;
+  const globalPending = pendingCount ?? scoped.length;
   const availableEstimate = countClaimEligibleOffers(scoped, moderatorId);
+  const oldestPendingCreatedAt =
+    scoped.length > 0
+      ? scoped.reduce((a, b) =>
+          new Date(a.created_at).getTime() < new Date(b.created_at).getTime() ? a : b,
+        ).created_at
+      : null;
+
+  const emptyStats = {
+    globalPending,
+    availableEstimate,
+    candidateCap: CLAIM_QUEUE_HARD_CAP,
+    oldestPendingCreatedAt,
+    pendingGt24h: pendingGt24hCount ?? 0,
+    claimedActive: claimedActive ?? 0,
+  };
 
   const eligible = scoped.filter((o) => isOfferClaimEligible(o, moderatorId, exclude));
   const offerIds = eligible.map((o) => o.id);
@@ -212,13 +257,16 @@ export async function claimNextModerationOffer(
           botIds
         ),
       },
-      stats: { globalPending, availableEstimate: Math.max(0, availableEstimate - 1) },
+      stats: {
+        ...emptyStats,
+        availableEstimate: Math.max(0, availableEstimate - 1),
+      },
     };
   }
 
   return {
     claimed: false,
     offer: null,
-    stats: { globalPending, availableEstimate },
+    stats: emptyStats,
   };
 }

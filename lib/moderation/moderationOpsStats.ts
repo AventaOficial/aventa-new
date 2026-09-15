@@ -6,8 +6,11 @@ import {
   fetchBannedCreatorIds,
   fetchPendingReportOfferIds,
 } from './moderationQueueSignals';
+import { evaluateModerationPriority } from './moderationPriority';
+import { estimateHoursToDrain, isSlaBreached } from './slaContract';
+import { releaseStaleModerationLocks } from './releaseStaleLocks';
 
-const LEVEL_KEYS = ['sprint', 'review', 'enforcement'] as const;
+type LevelKey = 'sprint' | 'review' | 'enforcement';
 
 function computeIsBot(
   row: {
@@ -25,11 +28,18 @@ function computeIsBot(
 
 export type ModerationOpsStats = {
   backlog: number;
+  pendingGt24h: number;
+  pendingGt48h: number;
   oldestPendingAgeSeconds: number | null;
+  claimedActive: number;
+  highValueEstimate: number;
+  slaBreachEstimate: number;
   throughputLastHour: number;
   approvalRateLastHour: number | null;
+  rejectionRateLastHour: number | null;
   medianDecisionSecondsLastHour: number | null;
-  levelDistribution: Record<(typeof LEVEL_KEYS)[number], number>;
+  hoursToDrain: number | null;
+  levelDistribution: Record<LevelKey, number>;
   claimLatency: ReturnType<typeof getClaimLatencyStats>;
 };
 
@@ -38,31 +48,58 @@ export async function buildModerationOpsStats(
   sampleLimit = 500
 ): Promise<ModerationOpsStats> {
   const sinceHour = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const cutoff24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const cutoff48 = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  const [{ count: backlog }, { data: oldest }, { data: logs }, { data: pendingSample }] =
-    await Promise.all([
-      supabase.from('offers').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase
-        .from('offers')
-        .select('created_at')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('moderation_logs')
-        .select('action, created_at, offer_id')
-        .in('action', ['approved', 'rejected'])
-        .gte('created_at', sinceHour),
-      supabase
-        .from('offers')
-        .select(
-          'id, created_by, risk_score, moderator_comment, image_url, image_urls, offer_url, category, original_price, price, description'
-        )
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-        .limit(sampleLimit),
-    ]);
+  // Recovery pasivo en lectura de ops (idempotente).
+  await releaseStaleModerationLocks(supabase, { limit: 50 });
+
+  const [
+    { count: backlog },
+    { count: pendingGt24h },
+    { count: pendingGt48h },
+    { count: claimedActive },
+    { data: oldest },
+    { data: logs },
+    { data: pendingSample },
+  ] = await Promise.all([
+    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase
+      .from('offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .lt('created_at', cutoff24),
+    supabase
+      .from('offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .lt('created_at', cutoff48),
+    supabase
+      .from('offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .not('locked_by', 'is', null),
+    supabase
+      .from('offers')
+      .select('created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('moderation_logs')
+      .select('action, created_at, offer_id')
+      .in('action', ['approved', 'rejected'])
+      .gte('created_at', sinceHour),
+    supabase
+      .from('offers')
+      .select(
+        'id, created_at, created_by, risk_score, moderator_comment, image_url, image_urls, offer_url, category, original_price, price, description, bot_meta'
+      )
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(sampleLimit),
+  ]);
 
   const oldestCreated = (oldest as { created_at?: string } | null)?.created_at;
   const oldestPendingAgeSeconds = oldestCreated
@@ -75,6 +112,8 @@ export async function buildModerationOpsStats(
   const throughputLastHour = approved + rejected;
   const approvalRateLastHour =
     throughputLastHour > 0 ? Math.round((approved / throughputLastHour) * 1000) / 10 : null;
+  const rejectionRateLastHour =
+    throughputLastHour > 0 ? Math.round((rejected / throughputLastHour) * 1000) / 10 : null;
 
   let medianDecisionSecondsLastHour: number | null = null;
   if (decisionLogs.length > 0) {
@@ -136,31 +175,59 @@ export async function buildModerationOpsStats(
   ]);
 
   const levelDistribution = { sprint: 0, review: 0, enforcement: 0 };
+  let highValueEstimate = 0;
+  let slaBreachEstimate = 0;
+  const nowMs = Date.now();
+
   for (const row of sample) {
     const r = row as Record<string, unknown>;
     const createdBy = r.created_by as string | null | undefined;
+    const isBot = computeIsBot(
+      r as { created_by?: string | null; moderator_comment?: string | null; description?: string | null },
+      botIds
+    );
     const { level } = classifyOfferModerationLevel(
-      {
-        ...r,
-        is_bot: computeIsBot(
-          r as { created_by?: string | null; moderator_comment?: string | null; description?: string | null },
-          botIds
-        ),
-      },
+      { ...r, is_bot: isBot },
       {
         authorBanned: Boolean(createdBy && bannedCreatorIds.has(createdBy)),
         hasPendingReport: reportedOfferIds.has(r.id as string),
       }
     );
     levelDistribution[level] += 1;
+
+    const priority = evaluateModerationPriority({
+      price: r.price as number | null,
+      originalPrice: r.original_price as number | null,
+      imageUrl: r.image_url as string | null,
+      isBot,
+      createdAt: r.created_at as string | null,
+      botMeta: r.bot_meta,
+      nowMs,
+    });
+    if (priority.priority === 'P1_HIGH_VALUE') highValueEstimate += 1;
+    const ageH =
+      typeof r.created_at === 'string'
+        ? Math.max(0, (nowMs - new Date(r.created_at).getTime()) / 3_600_000)
+        : null;
+    if (isSlaBreached({ priority: priority.priority, ageHours: ageH })) {
+      slaBreachEstimate += 1;
+    }
   }
 
+  const backlogN = backlog ?? 0;
   return {
-    backlog: backlog ?? 0,
+    backlog: backlogN,
+    pendingGt24h: pendingGt24h ?? 0,
+    pendingGt48h: pendingGt48h ?? 0,
     oldestPendingAgeSeconds,
+    claimedActive: claimedActive ?? 0,
+    highValueEstimate,
+    slaBreachEstimate,
     throughputLastHour,
     approvalRateLastHour,
+    rejectionRateLastHour,
     medianDecisionSecondsLastHour,
+    hoursToDrain: estimateHoursToDrain(backlogN, throughputLastHour),
     levelDistribution,
     claimLatency: getClaimLatencyStats(),
   };

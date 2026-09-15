@@ -4,6 +4,7 @@ import {
   type CategoryId,
 } from '@/lib/categories';
 import { evaluateModerationPriority } from './moderationPriority';
+import { isSlaBreached } from './slaContract';
 
 /** Prioridad de categorías vitales en cola (Día a día primero). */
 const VITAL_CATEGORY_ORDER: CategoryId[] = [
@@ -69,7 +70,7 @@ function needsModerationFix(o: ModerationSortableOffer): boolean {
   return noImage || noCategory;
 }
 
-function priorityRankForOffer(o: ModerationSortableOffer): number {
+function priorityEvalForOffer(o: ModerationSortableOffer, nowMs = Date.now()) {
   return evaluateModerationPriority({
     price: o.price,
     originalPrice: o.original_price,
@@ -77,24 +78,44 @@ function priorityRankForOffer(o: ModerationSortableOffer): number {
     isBot: isBotOffer(o),
     createdAt: o.created_at,
     botMeta: o.bot_meta,
-  }).rank;
+    nowMs,
+  });
+}
+
+function ageHours(createdAt: string, nowMs: number): number {
+  return Math.max(0, (nowMs - new Date(createdAt).getTime()) / 3_600_000);
 }
 
 /**
- * Orden de cola: snooze → prioridad económica de revisión → editorial.
+ * Orden de cola: snooze → HIGH VALUE → SLA breach → editorial → edad.
  * La prioridad NO cambia calidad; solo el orden humano.
  */
 export function sortPendingOffersForModeration<T extends ModerationSortableOffer>(
-  offers: T[]
+  offers: T[],
+  nowMs = Date.now(),
 ): T[] {
   return [...offers].sort((a, b) => {
-    const aSnooze = isSnoozedActive(a) ? 1 : 0;
-    const bSnooze = isSnoozedActive(b) ? 1 : 0;
+    const aSnooze = isSnoozedActive(a, nowMs) ? 1 : 0;
+    const bSnooze = isSnoozedActive(b, nowMs) ? 1 : 0;
     if (aSnooze !== bSnooze) return aSnooze - bSnooze;
 
-    const aPri = priorityRankForOffer(a);
-    const bPri = priorityRankForOffer(b);
-    if (aPri !== bPri) return aPri - bPri;
+    const aEval = priorityEvalForOffer(a, nowMs);
+    const bEval = priorityEvalForOffer(b, nowMs);
+    if (aEval.rank !== bEval.rank) return aEval.rank - bEval.rank;
+
+    const aBreach = isSlaBreached({
+      priority: aEval.priority,
+      ageHours: ageHours(a.created_at, nowMs),
+    })
+      ? 0
+      : 1;
+    const bBreach = isSlaBreached({
+      priority: bEval.priority,
+      ageHours: ageHours(b.created_at, nowMs),
+    })
+      ? 0
+      : 1;
+    if (aBreach !== bBreach) return aBreach - bBreach;
 
     const aFix = needsModerationFix(a) ? 0 : 1;
     const bFix = needsModerationFix(b) ? 0 : 1;

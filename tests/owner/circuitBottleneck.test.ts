@@ -21,10 +21,13 @@ describe('pickCircuitBottleneck', () => {
       pending: 123,
       pendingGt24h: 111,
       oldestPendingHours: 71,
+      highValuePending: 12,
+      slaBreachPending: 40,
     });
     expect(bn.id).toBe('live_starvation');
     expect(bn.severity).toBe('red');
     expect(bn.href).toBe('/admin/moderation');
+    expect(bn.recommendedAction).toMatch(/HIGH VALUE.*SLA breach/i);
   });
 
   it('marca backlog cuando hay pending viejo con live sano', () => {

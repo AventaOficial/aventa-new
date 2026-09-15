@@ -49,6 +49,22 @@ describe('CEO Control Center contracts', () => {
     expect(ceo).toMatch(/NO_DATA/);
   });
 
+  it('CEO Moderation panel expone throughput y drain', () => {
+    expect(ceo).toMatch(/data-ceo-moderation/);
+    expect(ceo).toMatch(/SLA breach/);
+    expect(ceo).toMatch(/High value/);
+    expect(ceo).toMatch(/Throughput/);
+    expect(ceo).toMatch(/ETA drain/);
+    expect(ceo).toMatch(/formatHoursToDrain/);
+    const builder = readFileSync(
+      join(process.cwd(), 'lib/owner/buildOwnerDashboard.ts'),
+      'utf8',
+    );
+    expect(builder).toMatch(/buildModerationOpsStats/);
+    expect(builder).toMatch(/hoursToDrain/);
+    expect(builder).toMatch(/slaBreachEstimate/);
+  });
+
   it('CEO expone bottleneck STATUS→PROBLEM→IMPACT→ACTION', () => {
     expect(ceo).toMatch(/data-circuit-bottleneck/);
     expect(ceo).toMatch(/Bottleneck/);
