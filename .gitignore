@@ -56,6 +56,9 @@ next-env.d.ts
 /Codigo_Completo.txt
 /AVENTA_CONTEXT.md
 
+# Artefactos locales de migraciones / audits (snapshots, dry-runs)
+/tmp/
+
 .vercel
 .env*.local
 .env.vercel.check
