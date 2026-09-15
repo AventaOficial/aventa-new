@@ -6,10 +6,8 @@ import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
 import {
-  assessOfferAffiliateLink,
   resolveAndNormalizeAffiliateOfferUrl,
   isResolvedProductOfferUrl,
-  validateAffiliatePaste,
 } from '@/lib/affiliate'
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
@@ -118,6 +116,9 @@ export async function POST(request: Request) {
           ? body.original_product_url.trim()
           : persistedOriginal || rawUrl
 
+      // Una sola autoridad: evaluateAffiliateReadiness via assert.
+      // No re-bloquear con validateAffiliatePaste/isTagged (gate competidor que
+      // anulaba ready_moderator_confirmed y abría el loop móvil prepare→approve).
       const readiness = assertOfferReadyForAffiliateApproval({
         offerUrl: rawUrl,
         linkModOk,
@@ -125,27 +126,7 @@ export async function POST(request: Request) {
         originalProductUrl: originalForApproval,
       })
       if (!readiness.ok) {
-        return NextResponse.json(
-          { error: 'Falta preparar el enlace para Aventa.' },
-          { status: 400 }
-        )
-      }
-
-      if (rawUrl && linkModOk) {
-        const pasteCheck = validateAffiliatePaste(originalForApproval, rawUrl)
-        if (!pasteCheck.valid) {
-          return NextResponse.json(
-            { error: pasteCheck.reason ?? 'El enlace no corresponde al producto' },
-            { status: 400 }
-          )
-        }
-        const live = assessOfferAffiliateLink(rawUrl)
-        if (live.needsAffiliate && !live.isTagged) {
-          return NextResponse.json(
-            { error: 'El enlace afiliado no tiene el tag de Aventa configurado.' },
-            { status: 400 }
-          )
-        }
+        return NextResponse.json({ error: readiness.error }, { status: 400 })
       }
       const payload: {
         status: string

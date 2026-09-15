@@ -391,6 +391,43 @@ export function useModerationFocusQueue({
     [authHeaders, claimNext, offer]
   );
 
+  /** Aplica el resultado de update-offer al offer activo y al history (evita stale). */
+  const applyOfferUrlWrite = useCallback(
+    (patch: { offer_url: string; link_mod_ok: boolean | null | undefined }) => {
+      setOffer((prev) =>
+        prev
+          ? {
+              ...prev,
+              offer_url: patch.offer_url,
+              link_mod_ok:
+                patch.link_mod_ok === true
+                  ? true
+                  : patch.link_mod_ok === false
+                    ? false
+                    : prev.link_mod_ok,
+            }
+          : prev
+      );
+      setHistory((prev) =>
+        prev.map((o) =>
+          o.id === offer?.id
+            ? {
+                ...o,
+                offer_url: patch.offer_url,
+                link_mod_ok:
+                  patch.link_mod_ok === true
+                    ? true
+                    : patch.link_mod_ok === false
+                      ? false
+                      : o.link_mod_ok,
+              }
+            : o
+        )
+      );
+    },
+    [offer?.id]
+  );
+
   const confirmAffiliateAndApprove = useCallback(async () => {
     if (!offer || actingRef.current) return { ok: false as const };
     actingRef.current = true;
@@ -401,13 +438,16 @@ export function useModerationFocusQueue({
         originalOfferUrl: offer.original_offer_url,
         refOriginal: originalUrlRef.current.get(offer.id),
       });
+      const affiliatePaste = offerRequiresAffiliateValidation(
+        trustedOriginal || offer.original_offer_url || offer.offer_url
+      );
       const res = await fetch('/api/admin/update-offer', {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({
           id: offer.id,
           offer_url: offer.offer_url,
-          affiliate_paste: true,
+          affiliate_paste: affiliatePaste,
           ...(trustedOriginal ? { original_product_url: trustedOriginal } : {}),
         }),
       });
@@ -418,33 +458,22 @@ export function useModerationFocusQueue({
         );
       }
       const data = await res.json().catch(() => ({}));
-      setOffer((prev) =>
-        prev
-          ? {
-              ...prev,
-              link_mod_ok: data?.link_mod_ok === true ? true : prev.link_mod_ok,
-              offer_url: typeof data?.offer_url === 'string' ? data.offer_url : prev.offer_url,
-            }
-          : prev
-      );
-      actingRef.current = false;
-      setActing(false);
-      // Re-approve with updated link_mod_ok
-      setOffer((prev) => (prev ? { ...prev, link_mod_ok: true } : prev));
-      // Direct approve call after marking ok
-      actingRef.current = true;
-      setActing(true);
-      const current = offer;
+      const nextUrl =
+        typeof data?.offer_url === 'string' ? data.offer_url : (offer.offer_url ?? '');
+      const nextLinkModOk =
+        data?.link_mod_ok === true ? true : data?.link_mod_ok === false ? false : true;
+      applyOfferUrlWrite({ offer_url: nextUrl, link_mod_ok: nextLinkModOk });
+
+      const currentId = offer.id;
       const body: Record<string, unknown> = {
-        id: current.id,
+        id: currentId,
         status: 'approved',
       };
       const originalUrl = focusOriginalProductUrlForRequest({
-        originalOfferUrl: current.original_offer_url,
-        refOriginal: originalUrlRef.current.get(current.id),
+        originalOfferUrl: offer.original_offer_url,
+        refOriginal: originalUrlRef.current.get(currentId),
       });
       if (originalUrl) body.original_product_url = originalUrl;
-      // Force link path: update already set link_mod_ok server-side
       const modRes = await fetch('/api/admin/moderate-offer', {
         method: 'POST',
         headers: authHeaders(),
@@ -459,9 +488,9 @@ export function useModerationFocusQueue({
         );
       }
       heldLockIdRef.current = null;
-      excludeRef.current = [...excludeRef.current, current.id].slice(-40);
+      excludeRef.current = [...excludeRef.current, currentId].slice(-40);
       setNeedsAffiliateConfirm(false);
-      await claimNext({ releaseOfferId: current.id, excludeOfferIds: [current.id] });
+      await claimNext({ releaseOfferId: currentId, excludeOfferIds: [currentId] });
       return { ok: true as const };
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo confirmar el enlace');
@@ -470,7 +499,7 @@ export function useModerationFocusQueue({
       actingRef.current = false;
       setActing(false);
     }
-  }, [authHeaders, claimNext, offer]);
+  }, [applyOfferUrlWrite, authHeaders, claimNext, offer]);
 
   const goNext = useCallback(async () => {
     if (actingRef.current) return;
@@ -524,7 +553,10 @@ export function useModerationFocusQueue({
           originalOfferUrl: offer.original_offer_url,
           refOriginal: originalUrlRef.current.get(offer.id),
         });
-        const affiliatePaste = offerRequiresAffiliateValidation(pasted);
+        // Programa se decide por el producto original, no por lo pegado.
+        const affiliatePaste = offerRequiresAffiliateValidation(
+          trustedOriginal || offer.original_offer_url || pasted
+        );
         const res = await fetch('/api/admin/update-offer', {
           method: 'PATCH',
           headers: authHeaders(),
@@ -543,17 +575,17 @@ export function useModerationFocusQueue({
               typeof data?.error === 'string' ? data.error : 'No se pudo guardar el enlace',
           };
         }
-        setOffer((prev) =>
-          prev
-            ? {
-                ...prev,
-                link_mod_ok:
-                  data?.link_mod_ok === true || affiliatePaste ? true : prev.link_mod_ok,
-                offer_url: typeof data?.offer_url === 'string' ? data.offer_url : pasted,
-              }
-            : prev
-        );
+        const nextUrl = typeof data?.offer_url === 'string' ? data.offer_url : pasted;
+        // Confiar en la respuesta del servidor — no inventar link_mod_ok en cliente.
+        const nextLinkModOk =
+          data?.link_mod_ok === true
+            ? true
+            : data?.link_mod_ok === false
+              ? false
+              : offer.link_mod_ok;
+        applyOfferUrlWrite({ offer_url: nextUrl, link_mod_ok: nextLinkModOk });
         setNeedsAffiliateConfirm(false);
+        setError(null);
         return { ok: true };
       } catch (e) {
         return {
@@ -565,7 +597,7 @@ export function useModerationFocusQueue({
         setActing(false);
       }
     },
-    [authHeaders, offer]
+    [applyOfferUrlWrite, authHeaders, offer]
   );
 
   const position = Math.max(1, sessionCursor);

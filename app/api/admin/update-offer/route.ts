@@ -198,7 +198,9 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      link_mod_ok: payload.link_mod_ok === true ? true : undefined,
+      // Contrato de respuesta: el cliente debe poder refrescar readiness sin refetch.
+      // Si no tocamos link_mod_ok en este write, no inventamos el valor.
+      link_mod_ok: payload.link_mod_ok === true ? true : payload.link_mod_ok === false ? false : undefined,
       offer_url: payload.offer_url,
     })
   } catch (e) {

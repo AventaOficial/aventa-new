@@ -96,14 +96,25 @@ export function computeMonetizationReadiness(
 /** Mensaje humano para errores de approve relacionados con afiliado. */
 export function humanizeAffiliateApproveError(raw: string | null | undefined): string {
   const msg = (raw ?? '').toLowerCase();
+  // No mapear errores de producto/lock/auth al CTA de preparar enlace.
   if (
-    msg.includes('afiliad') ||
-    msg.includes('link_mod') ||
+    msg.includes('no corresponde al producto') ||
+    msg.includes('producto válido') ||
+    msg.includes('lock') ||
+    msg.includes('reclam') ||
+    msg.includes('moderada') ||
+    msg.includes('otro usuario')
+  ) {
+    return raw?.trim() || 'No se pudo aprobar la oferta.';
+  }
+  if (
     msg.includes('valida y guarda') ||
+    msg.includes('falta preparar') ||
     msg.includes('tag de aventa') ||
     msg.includes('permalink') ||
     msg.includes('navegable') ||
-    msg.includes('enlace')
+    msg.includes('link_mod') ||
+    msg.includes('afiliad')
   ) {
     return 'Falta preparar el enlace para Aventa.';
   }
