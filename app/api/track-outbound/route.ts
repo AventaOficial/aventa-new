@@ -78,6 +78,8 @@ export async function POST(request: Request) {
       },
     });
 
+    // Serializa dominio canónico (NEW y REUSED vienen de recordAttributedClick SoT).
+    // reused=true → campos de attribution desde fila persistida, nunca del body.
     return NextResponse.json(
       {
         ok: true,
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
         reused: click?.reused ?? false,
         channel: click?.channel ?? null,
         campaignKey: click?.campaignKey ?? null,
+        destinationUrl: click?.destinationUrl ?? null,
+        originalDestinationUrl: click?.originalDestinationUrl ?? null,
         // Placeholders explícitos — no inventar dinero/conversión.
         conversionId: null,
         commissionId: null,

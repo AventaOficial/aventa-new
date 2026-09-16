@@ -1,6 +1,9 @@
 /**
  * Registro de click atribuido — foundation sobre reward_outbound_clicks.
  * Extiende clickTracking sin segundo SoT. No money writes.
+ *
+ * Contrato reused: la fila persistida es la única fuente de verdad.
+ * Nunca rellenar channel/campaign/destination desde el request en colisión idempotente.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -18,21 +21,27 @@ import {
   resolveServerAttributionContext,
   type ClientAttributionHints,
 } from './resolveContext';
-import type { AttributionChannel } from './channels';
+import { isAttributionChannel, type AttributionChannel } from './channels';
 
 export type AttributedClickRecord = {
   clickId: string;
   offerId: string;
   network: string;
   productFingerprint: string | null;
+  /** URL canónica de la oferta en `offers` (contexto). */
   sourceOfferUrl: string;
+  /** Destino afiliado persistido (o resuelto en NEW). */
+  destinationUrl: string | null;
   originalDestinationUrl: string | null;
-  channel: AttributionChannel;
+  channel: AttributionChannel | null;
   campaignKey: string | null;
   idempotencyKey: string;
   reused: boolean;
   chain: AttributionIdentityChain;
 };
+
+const PERSISTED_CLICK_SELECT =
+  'id, offer_id, network, product_fingerprint, destination_url, original_destination_url, channel, campaign_key';
 
 function hashSignal(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;
@@ -53,6 +62,60 @@ function isUniqueViolation(error: { code?: string; message?: string } | null): b
   if (!error) return false;
   if (error.code === '23505') return true;
   return (error.message ?? '').toLowerCase().includes('duplicate');
+}
+
+function asNullableString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const t = value.trim();
+  return t ? t : null;
+}
+
+function asNullableChannel(value: unknown): AttributionChannel | null {
+  const raw = asNullableString(value);
+  if (!raw) return null;
+  return isAttributionChannel(raw) ? raw : null;
+}
+
+/**
+ * Mapea fila DB → dominio canónico.
+ * No acepta fallbacks de request: SoT = row.
+ */
+function canonicalFromPersistedRow(input: {
+  row: Record<string, unknown>;
+  offerId: string;
+  sourceOfferUrl: string;
+  idempotencyKey: string;
+}): AttributedClickRecord {
+  const clickId = String(input.row.id);
+  const network = asNullableString(input.row.network) ?? 'other';
+  const channel = asNullableChannel(input.row.channel);
+  const campaignKey = asNullableString(input.row.campaign_key);
+  const destinationUrl = asNullableString(input.row.destination_url);
+  const originalDestinationUrl = asNullableString(input.row.original_destination_url);
+  const productFingerprint = asNullableString(input.row.product_fingerprint);
+
+  return {
+    clickId,
+    offerId: input.offerId,
+    network,
+    productFingerprint,
+    sourceOfferUrl: input.sourceOfferUrl,
+    destinationUrl,
+    originalDestinationUrl,
+    channel,
+    campaignKey,
+    idempotencyKey: input.idempotencyKey,
+    reused: true,
+    chain: buildAttributionIdentityChain({
+      offerId: input.offerId,
+      clickId,
+      merchantNetwork: network,
+      campaignKey,
+      channel,
+      destinationUrl,
+      originalDestinationUrl,
+    }),
+  };
 }
 
 /**
@@ -96,6 +159,7 @@ export async function recordAttributedClick(
     detectNetwork: detectNetworkFromUrl,
   });
 
+  // Hints solo aplican a NEW. En reuse se ignoran por completo para attribution fields.
   const ctx = resolveServerAttributionContext(input.hints ?? {});
   const ipHash = hashSignal(input.ip);
   const uaHash = hashSignal(input.userAgent);
@@ -111,38 +175,16 @@ export async function recordAttributedClick(
   try {
     const existing = await supabase
       .from('reward_outbound_clicks')
-      .select(
-        'id, offer_id, network, product_fingerprint, destination_url, original_destination_url, channel, campaign_key',
-      )
+      .select(PERSISTED_CLICK_SELECT)
       .eq('idempotency_key', idempotencyKey)
       .maybeSingle();
     if (!existing.error && existing.data?.id) {
-      const row = existing.data as Record<string, unknown>;
-      const clickId = String(row.id);
-      const network = String(row.network ?? destinations.merchantNetwork ?? 'other');
-      return {
-        clickId,
+      return canonicalFromPersistedRow({
+        row: existing.data as Record<string, unknown>,
         offerId: input.offerId,
-        network,
-        productFingerprint: (row.product_fingerprint as string | null) ?? null,
         sourceOfferUrl: dbOfferUrl,
-        originalDestinationUrl:
-          (row.original_destination_url as string | null) ?? destinations.originalDestination,
-        channel: (row.channel as AttributionChannel) ?? ctx.channel,
-        campaignKey: (row.campaign_key as string | null) ?? ctx.campaignKey,
         idempotencyKey,
-        reused: true,
-        chain: buildAttributionIdentityChain({
-          offerId: input.offerId,
-          clickId,
-          merchantNetwork: network,
-          campaignKey: (row.campaign_key as string | null) ?? ctx.campaignKey,
-          channel: (row.channel as AttributionChannel) ?? ctx.channel,
-          destinationUrl: (row.destination_url as string | null) ?? destinations.affiliateDestination,
-          originalDestinationUrl:
-            (row.original_destination_url as string | null) ?? destinations.originalDestination,
-        }),
-      };
+      });
     }
   } catch {
     // Mock incompleto o driver sin select encadenado — continuar a insert.
@@ -192,39 +234,20 @@ export async function recordAttributedClick(
   if (error) {
     if (isMissingClickTable(error)) return null;
     if (isUniqueViolation(error)) {
-      // Race: otro request ganó el UNIQUE — releer.
+      // Race: UNIQUE parcial ganó — releer canónico. Garantía: un solo registro.
       try {
         const again = await supabase
           .from('reward_outbound_clicks')
-          .select('id, network, product_fingerprint, channel, campaign_key, destination_url, original_destination_url')
+          .select(PERSISTED_CLICK_SELECT)
           .eq('idempotency_key', idempotencyKey)
           .maybeSingle();
         if (again.data?.id) {
-          const row = again.data as Record<string, unknown>;
-          const existingId = String(row.id);
-          return {
-            clickId: existingId,
+          return canonicalFromPersistedRow({
+            row: again.data as Record<string, unknown>,
             offerId: input.offerId,
-            network: String(row.network ?? network),
-            productFingerprint: (row.product_fingerprint as string | null) ?? productFingerprint,
             sourceOfferUrl: dbOfferUrl,
-            originalDestinationUrl:
-              (row.original_destination_url as string | null) ?? destinations.originalDestination,
-            channel: (row.channel as AttributionChannel) ?? ctx.channel,
-            campaignKey: (row.campaign_key as string | null) ?? ctx.campaignKey,
             idempotencyKey,
-            reused: true,
-            chain: buildAttributionIdentityChain({
-              offerId: input.offerId,
-              clickId: existingId,
-              merchantNetwork: String(row.network ?? network),
-              campaignKey: (row.campaign_key as string | null) ?? ctx.campaignKey,
-              channel: (row.channel as AttributionChannel) ?? ctx.channel,
-              destinationUrl: (row.destination_url as string | null) ?? destinations.affiliateDestination,
-              originalDestinationUrl:
-                (row.original_destination_url as string | null) ?? destinations.originalDestination,
-            }),
-          };
+          });
         }
       } catch {
         // ignore
@@ -240,6 +263,7 @@ export async function recordAttributedClick(
     network,
     productFingerprint,
     sourceOfferUrl: dbOfferUrl,
+    destinationUrl: destinations.affiliateDestination,
     originalDestinationUrl: destinations.originalDestination,
     channel: ctx.channel,
     campaignKey: ctx.campaignKey,

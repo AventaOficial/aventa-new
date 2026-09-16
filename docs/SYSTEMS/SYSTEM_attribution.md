@@ -33,7 +33,8 @@ Puerta única de escritura outbound: `POST /api/track-outbound`.
 5. `recordAttributedClick` → DB `offers.offer_url` (nunca body.offerUrl)
 6. Idempotency key `offer+actor+ventana(10m)` UNIQUE parcial
 7. Channel/campaign vía taxonomía allowlisted (`lib/attribution/channels.ts`)
-8. Respuesta: `{ clickId, channel, campaignKey, conversionId: null, commissionId: null }`
+8. Respuesta: `{ clickId, reused, channel, campaignKey, destinationUrl, originalDestinationUrl, conversionId: null, commissionId: null }`
+9. **Reuse SoT:** si `idempotency_key` ya existe → `reused: true` y channel/campaign/destination **solo** desde la fila DB (nunca desde el request).
 
 ## Database
 
