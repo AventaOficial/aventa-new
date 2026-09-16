@@ -140,7 +140,7 @@ describe('anti-recirculación por product_fingerprint', () => {
       byTimeoutCooldown: [row],
     });
 
-    const match = await findDuplicateOfferByUrl(client as never, ML_URL);
+    const match = await findDuplicateOfferByUrl(client as never, ML_URL, { now: NOW });
     expect(match).not.toBeNull();
     expect(match?.id).toBe('rej-timeout-1');
     expect(match?.kind).toBe('timeout_cooldown');

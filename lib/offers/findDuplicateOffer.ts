@@ -188,12 +188,13 @@ function hasMissingColumn(error: { message?: string; code?: string } | null, col
 export async function findDuplicateOfferByUrl(
   supabase: SupabaseClient,
   normalizedOfferUrl: string,
+  opts?: { now?: Date },
 ): Promise<DuplicateOfferMatch | null> {
   if (!normalizedOfferUrl.trim()) return null;
   const fingerprint = strongProductFingerprintForUrl(normalizedOfferUrl);
   if (!fingerprint) return null;
 
-  const now = new Date();
+  const now = opts?.now ?? new Date();
 
   const { data: byFp, error: fpError } = await supabase
     .from('offers')
