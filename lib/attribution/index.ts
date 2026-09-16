@@ -24,5 +24,11 @@ export {
 } from './recordAttributedClick';
 export {
   buildAttributionTruth,
+  aggregateAttributionWindow,
+  isPersistedClickAttributionComplete,
+  ATTRIBUTION_TRUTH_ROW_CAP,
   type AttributionTruthSnapshot,
+  type AttributionWindowTruth,
+  type AttributionClickRow,
+  type AttributionNotConnected,
 } from './buildAttributionTruth';
