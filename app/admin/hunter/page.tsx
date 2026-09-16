@@ -256,6 +256,10 @@ type HunterHealthPayload = {
       totalRows: number | null;
       rowsToday: number | null;
       productsHistoryReadyEligible7d: number | null;
+      snapshotsWithNiche?: number | null;
+      snapshotsWithoutNiche?: number | null;
+      nicheCoverageRatePct?: number | null;
+      stickyPoolEligibleByNiche?: Record<string, number> | null;
     };
     niches: Array<{ id: string; name: string; queryCount: number }>;
   };
@@ -1144,6 +1148,12 @@ export default function HunterPage() {
                   {health.supplyEngine.writeEnabled ? '1' : '0'} · top niche={health.supplyEngine.topNiche ?? '—'}{' '}
                   · top query={health.supplyEngine.topQuery ?? '—'} · PM ready=
                   {health.supplyEngine.priceMemory?.productsHistoryReadyEligible7d ?? '—'}
+                  {' · '}PM niche=
+                  {health.supplyEngine.priceMemory?.nicheCoverageRatePct ?? '—'}%
+                  {' · '}pool sticky=
+                  {health.supplyEngine.priceMemory?.stickyPoolEligibleByNiche
+                    ? `b${health.supplyEngine.priceMemory.stickyPoolEligibleByNiche.beauty ?? 0}/e${health.supplyEngine.priceMemory.stickyPoolEligibleByNiche.electronics ?? 0}/d${health.supplyEngine.priceMemory.stickyPoolEligibleByNiche.day_to_day ?? 0}`
+                    : '—'}
                 </p>
               </>
             ) : (

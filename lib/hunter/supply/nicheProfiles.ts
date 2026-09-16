@@ -5,6 +5,20 @@
 
 export type SupplyNicheLane = 'day_to_day' | 'top_deals' | 'beauty' | 'electronics';
 
+/** Nicho canónico sticky/Price Memory (subset operativos del Supply Engine). */
+export const SUPPLY_NICHE_IDS = ['beauty', 'electronics', 'day_to_day'] as const;
+export type SupplyNicheId = (typeof SUPPLY_NICHE_IDS)[number];
+
+export function isSupplyNicheId(raw: string | null | undefined): raw is SupplyNicheId {
+  const v = (raw ?? '').trim();
+  return (SUPPLY_NICHE_IDS as readonly string[]).includes(v);
+}
+
+export function normalizeSupplyNicheId(raw: string | null | undefined): SupplyNicheId | null {
+  const v = (raw ?? '').trim();
+  return isSupplyNicheId(v) ? v : null;
+}
+
 export type SupplyEngineMode = 'shadow' | 'dry_run' | 'enabled';
 
 export type SupplyQueryIntent =

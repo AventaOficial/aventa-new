@@ -34,6 +34,7 @@ export function applyNicheProfileToIngestConfig(
       niche.categories[0] && niche.categories[0] !== 'other'
         ? niche.categories[0]
         : base.category,
+    supplyNicheId: niche.id,
   };
 }
 

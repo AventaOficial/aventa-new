@@ -160,6 +160,12 @@ export type OwnerDashboardPayload = {
     bottleneck: 'discovery' | 'price_memory' | 'moderation' | 'none';
     action: string;
     priceMemoryReadyEligible7d: number | null;
+    priceMemory: {
+      snapshotsWithNiche: number | null;
+      snapshotsWithoutNiche: number | null;
+      nicheCoverageRatePct: number | null;
+      stickyPoolEligibleByNiche: Record<string, number> | null;
+    } | null;
     nichesEnabled: string[];
   };
   affiliation: {
@@ -1010,6 +1016,12 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       bottleneck: supplyToday.bottleneck,
       action: supplyToday.action,
       priceMemoryReadyEligible7d: supplyToday.priceMemory.productsHistoryReadyEligible7d,
+      priceMemory: {
+        snapshotsWithNiche: supplyToday.priceMemory.snapshotsWithNiche,
+        snapshotsWithoutNiche: supplyToday.priceMemory.snapshotsWithoutNiche,
+        nicheCoverageRatePct: supplyToday.priceMemory.nicheCoverageRatePct,
+        stickyPoolEligibleByNiche: supplyToday.priceMemory.stickyPoolEligibleByNiche,
+      },
       nichesEnabled: supplyToday.nichesEnabled,
     },
     affiliation: {

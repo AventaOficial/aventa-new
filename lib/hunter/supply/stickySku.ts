@@ -1,6 +1,6 @@
 /**
- * Sticky SKU selection — niche-aware, budgeted, cooldown-aware.
- * Pool NUNCA es global: solo product_ids atribuibles al nicheId vía offers.category.
+ * Sticky SKU selection — niche-aware vía product_price_snapshots.niche_id.
+ * Pool NUNCA es global. NO usa offers.category.
  */
 
 import { createServerClient } from '@/lib/supabase/server';
@@ -123,7 +123,7 @@ export function pickStickyTargetsWithDiversity(
 
 /**
  * Selecciona SKUs history-ready del NICHÓ indicado.
- * Fail-closed: sin nicheId válido o sin allowlist de offers → [].
+ * Fail-closed: sin nicheId válido o sin allowlist de snapshots.niche_id → [].
  */
 export async function selectStickySkuTargets(
   opts: {
@@ -131,7 +131,7 @@ export async function selectStickySkuTargets(
     supabase?: ReturnType<typeof createServerClient> | null;
     config?: Partial<StickySkuSelectConfig>;
     now?: Date;
-    /** Tests: allowlist inyectada (omite query offers). */
+    /** Tests: allowlist inyectada (omite query snapshots.niche_id). */
     productIdAllowlist?: Set<string> | null;
     storeByProduct?: Map<string, string> | null;
     categoryByProduct?: Map<string, string> | null;

@@ -19,7 +19,7 @@ import { insertIngestedOffer } from './insertIngestedOffer';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import { type ScoreBreakdown } from './scoreIngestCandidate';
-import { enrichWithPriceIntel } from './priceIntel';
+import { enrichWithPriceIntel, nicheIdFromSourceDetail } from './priceIntel';
 import { evaluateDealSafe } from '@/lib/verifier';
 import {
   beginAutonomousShadowCycle,
@@ -466,6 +466,8 @@ export async function processExternalWorkerBatch(
         ? await (async () => {
             const priced = await enrichWithPriceIntel({ ...precomputed }, config, {
               preserveLabelDiscount: item.source === 'ml_worker',
+              nicheId:
+                nicheIdFromSourceDetail(item.sourceDetail) ?? config.supplyNicheId ?? null,
             });
             return (
               await enrichParsedOfferMetadata(priced, {

@@ -284,6 +284,16 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
           {' · '}
           <span className="text-white/35">Action:</span> {data.supply.action}
         </p>
+        {data.supply.priceMemory ? (
+          <p className="mt-1 text-[10px] text-white/45">
+            PM niche coverage {formatNum(data.supply.priceMemory.nicheCoverageRatePct)}% · with=
+            {formatNum(data.supply.priceMemory.snapshotsWithNiche)} · without=
+            {formatNum(data.supply.priceMemory.snapshotsWithoutNiche)}
+            {data.supply.priceMemory.stickyPoolEligibleByNiche
+              ? ` · pool b=${formatNum(data.supply.priceMemory.stickyPoolEligibleByNiche.beauty)} e=${formatNum(data.supply.priceMemory.stickyPoolEligibleByNiche.electronics)} d=${formatNum(data.supply.priceMemory.stickyPoolEligibleByNiche.day_to_day)}`
+              : ''}
+          </p>
+        ) : null}
         <p className="mt-1 text-[10px] text-white/35">
           mode={data.supply.mode} · WRITE={data.supply.writeEnabled ? '1' : '0'}
         </p>

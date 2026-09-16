@@ -405,13 +405,22 @@ export async function discoverMercadoLibreIngestItems(
       if (price == null || !Number.isFinite(price) || price <= 0) return [];
       const orig = body?.original_price;
       const listPrice = typeof orig === 'number' && orig > 0 ? orig : null;
-      return [{ productId: id, current: price, listPrice, regularPrice: null }];
+      return [
+        {
+          productId: id,
+          current: price,
+          listPrice,
+          regularPrice: null as number | null,
+          nicheId: config.supplyNicheId ?? null,
+        },
+      ];
     }),
     ...highlightRows.map((row) => ({
       productId: row.id,
       current: row.meta.discountPrice,
       listPrice: row.meta.originalPrice,
       regularPrice: null as number | null,
+      nicheId: config.supplyNicheId ?? null,
     })),
   ];
   if (priceObservations.length > 0) {
@@ -459,7 +468,7 @@ export async function discoverMercadoLibreIngestItems(
       const enrichedMeta = await enrichWithPriceIntel(
         { ...row.meta, signals: { ...row.signals, ...(row.meta.signals ?? {}) } },
         config,
-        { preserveLabelDiscount: true },
+        { preserveLabelDiscount: true, nicheId: config.supplyNicheId ?? null },
       );
       candidates[i] = {
         id: row.id,

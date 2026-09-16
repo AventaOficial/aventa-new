@@ -1,44 +1,31 @@
 /**
- * Atribución niche → product_id SOLO con datos existentes (offers.category + URL).
- * Fail-closed: sin categoría de oferta → el SKU no entra a ningún pool sticky de nicho.
- * No inventa belleza/electrónica a partir de título o precio.
+ * Atribución sticky desde Price Memory niche_id (provenance del Supply Engine).
+ * NO usa offers.category. NO infiere por título.
+ * Fail-closed: sin filas con niche_id = nicho → pool vacío.
  */
 
 import { createServerClient } from '@/lib/supabase/server';
-import { normalizeMlProductId } from '@/lib/bots/ingest/mlPriceEngine';
-import { resolveMercadoLibreItem } from '@/lib/offers/resolveMercadoLibreItem';
+import { ML_PRICE_MARKETPLACE } from '@/lib/bots/ingest/mlPriceEngine';
 import { nicheProfileById, type NicheHunterProfile } from './nicheProfiles';
 
 export type StickyNicheAttribution = {
   nicheId: string;
   productIds: Set<string>;
-  /** store/seller conocido por offer (minúsculas); vacío si ausente. */
+  /** store/seller opcional (vacío — diversidad por store solo si se aporta después). */
   storeByProduct: Map<string, string>;
-  /** category Aventa observada en offer. */
   categoryByProduct: Map<string, string>;
   offerRowsScanned: number;
+  /** Filas de snapshots con niche_id = nicho (cobertura). */
+  snapshotsWithNiche: number;
   reasonIfEmpty: string | null;
 };
-
-function extractProductIdFromOfferUrl(raw: string | null | undefined): string | null {
-  const url = (raw ?? '').trim();
-  if (!url) return null;
-  const resolved = resolveMercadoLibreItem(url);
-  const fromItem = normalizeMlProductId(resolved?.itemId ?? null);
-  if (fromItem) return fromItem;
-  const fromCatalog = normalizeMlProductId(resolved?.catalogProductId ?? null);
-  if (fromCatalog) return fromCatalog;
-  // Fallback: MLM… embebido en path/query (sin inventar).
-  const m = url.toUpperCase().match(/\b(ML[A-Z]{0,3}\d{6,})\b/);
-  return m ? normalizeMlProductId(m[1]!) : null;
-}
 
 export function nicheCategoriesForSticky(niche: NicheHunterProfile): string[] {
   return niche.categories.map((c) => c.trim().toLowerCase()).filter(Boolean);
 }
 
 /**
- * Carga product_ids atribuibles al nicho vía offers.category ∈ niche.categories.
+ * Carga product_ids atribuibles al nicho vía product_price_snapshots.niche_id.
  */
 export async function loadStickyProductAllowlistForNiche(opts: {
   nicheId: string;
@@ -51,14 +38,12 @@ export async function loadStickyProductAllowlistForNiche(opts: {
     storeByProduct: new Map(),
     categoryByProduct: new Map(),
     offerRowsScanned: 0,
+    snapshotsWithNiche: 0,
     reasonIfEmpty: reason,
   });
 
   const niche = nicheProfileById(opts.nicheId);
   if (!niche) return empty('unknown_niche');
-
-  const cats = nicheCategoriesForSticky(niche);
-  if (cats.length === 0) return empty('niche_has_no_categories');
 
   let client = opts.supabase ?? null;
   if (!client) {
@@ -69,49 +54,30 @@ export async function loadStickyProductAllowlistForNiche(opts: {
     }
   }
 
-  const limit = Math.min(8000, Math.max(100, opts.limitOffers ?? 4000));
+  const limit = Math.min(8000, Math.max(100, opts.limitOffers ?? 5000));
   const { data, error } = await client
-    .from('offers')
-    .select('offer_url, original_offer_url, category, store')
-    .in('category', cats)
-    .order('created_at', { ascending: false })
+    .from('product_price_snapshots')
+    .select('product_id')
+    .eq('marketplace', ML_PRICE_MARKETPLACE)
+    .eq('niche_id', opts.nicheId)
+    .order('recorded_on', { ascending: false })
     .limit(limit);
 
-  if (error || !data) return empty('offers_query_failed');
+  if (error || !data) return empty('snapshots_niche_query_failed');
 
   const productIds = new Set<string>();
-  const storeByProduct = new Map<string, string>();
-  const categoryByProduct = new Map<string, string>();
-
   for (const row of data) {
-    const category = String((row as { category?: string }).category ?? '')
-      .trim()
-      .toLowerCase();
-    if (!cats.includes(category)) continue;
-
-    const urls = [
-      String((row as { offer_url?: string | null }).offer_url ?? ''),
-      String((row as { original_offer_url?: string | null }).original_offer_url ?? ''),
-    ];
-    const store = String((row as { store?: string | null }).store ?? '')
-      .trim()
-      .toLowerCase();
-
-    for (const u of urls) {
-      const id = extractProductIdFromOfferUrl(u);
-      if (!id) continue;
-      productIds.add(id);
-      if (!categoryByProduct.has(id)) categoryByProduct.set(id, category);
-      if (store && !storeByProduct.has(id)) storeByProduct.set(id, store);
-    }
+    const id = String((row as { product_id: string }).product_id ?? '').trim();
+    if (id) productIds.add(id);
   }
 
   return {
     nicheId: opts.nicheId,
     productIds,
-    storeByProduct,
-    categoryByProduct,
-    offerRowsScanned: data.length,
-    reasonIfEmpty: productIds.size === 0 ? 'no_offers_with_extractable_product_id' : null,
+    storeByProduct: new Map(),
+    categoryByProduct: new Map(),
+    offerRowsScanned: 0,
+    snapshotsWithNiche: data.length,
+    reasonIfEmpty: productIds.size === 0 ? 'no_snapshots_with_niche_id' : null,
   };
 }

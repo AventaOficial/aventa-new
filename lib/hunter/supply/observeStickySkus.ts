@@ -472,6 +472,7 @@ export async function observeStickySkuViaServer(opts: {
         current,
         listPrice: apiOriginal,
         regularPrice: quote.regularPrice,
+        nicheId: opts.nicheId,
       },
     ]);
   }

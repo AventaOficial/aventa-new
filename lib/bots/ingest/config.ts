@@ -76,6 +76,11 @@ export type BotIngestConfig = {
   maxPerRun: number;
   minDiscountPercent: number;
   category: string | null;
+  /**
+   * Provenance del Supply Engine para Price Memory.
+   * Solo set vía applyNicheProfileToIngestConfig. Nunca inferir.
+   */
+  supplyNicheId: string | null;
   urlsFromEnv: string[];
 
   discoverMlEnabled: boolean;
@@ -479,6 +484,7 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     maxPerRun,
     minDiscountPercent,
     category,
+    supplyNicheId: null,
     urlsFromEnv,
     discoverMlEnabled,
     mlQueries,

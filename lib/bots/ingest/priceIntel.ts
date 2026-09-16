@@ -14,7 +14,19 @@ export type EnrichPriceIntelOptions = {
    * El intel del Price Engine queda solo en signals (scoring/diagnóstico).
    */
   preserveLabelDiscount?: boolean;
+  /** Provenance explícita Supply Engine → Price Memory niche_id. */
+  nicheId?: string | null;
 };
+
+/** Extrae nicheId solo si aparece explícito en sourceDetail (nunca por título). */
+export function nicheIdFromSourceDetail(sourceDetail: string | null | undefined): string | null {
+  const raw = (sourceDetail ?? '').trim();
+  if (!raw) return null;
+  const m = /(?:^|[|])niche:([a-z0-9_]+)(?:[|]|$)/i.exec(raw);
+  if (!m?.[1]) return null;
+  const v = m[1].toLowerCase();
+  return v === 'beauty' || v === 'electronics' || v === 'day_to_day' ? v : null;
+}
 
 function hasPreservableCardDiscount(meta: ParsedOfferMetadata): boolean {
   return Number.isFinite(meta.discountPercent) && meta.discountPercent > 0;
@@ -86,11 +98,15 @@ export async function enrichWithPriceIntel(
   const store = meta.store.toLowerCase();
 
   if (store.includes('mercado')) {
+    const nicheId =
+      options?.nicheId ??
+      (typeof config.supplyNicheId === 'string' ? config.supplyNicheId : null);
     const ml = await enrichMercadoLibrePriceIntel({
       url: meta.canonicalUrl,
       itemId: extractMercadoLibreItemId(meta.canonicalUrl),
       current: meta.discountPrice,
       listPrice: meta.originalPrice,
+      nicheId,
     });
     if (!ml) return meta;
     return applyMlPriceIntelToMeta(meta, ml, options);

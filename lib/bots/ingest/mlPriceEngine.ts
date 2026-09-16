@@ -35,6 +35,11 @@ export type MlPriceObservation = {
   current: number;
   listPrice: number | null;
   regularPrice: number | null;
+  /**
+   * Provenance del Supply Engine (beauty|electronics|day_to_day).
+   * NULL/omitido = desconocido → no inventar; preservar niche_id previo en upsert.
+   */
+  nicheId?: string | null;
 };
 
 function round2(n: number): number {
@@ -171,6 +176,16 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
   for (const obs of observations) {
     const id = normalizeMlProductId(obs.productId);
     if (!id || !Number.isFinite(obs.current) || obs.current < 0) continue;
+    const nicheRaw = typeof obs.nicheId === 'string' ? obs.nicheId.trim() : '';
+    const nicheId =
+      nicheRaw === 'beauty' || nicheRaw === 'electronics' || nicheRaw === 'day_to_day'
+        ? nicheRaw
+        : null;
+    const prev = unique.get(id);
+    // Si hay dos obs del mismo SKU en el lote, preferir la que trae niche explícito.
+    if (prev && !nicheId && prev.nicheId) {
+      continue;
+    }
     unique.set(id, {
       productId: id,
       current: round2(obs.current),
@@ -178,6 +193,7 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
         obs.listPrice != null && Number.isFinite(obs.listPrice) ? round2(obs.listPrice) : null,
       regularPrice:
         obs.regularPrice != null && Number.isFinite(obs.regularPrice) ? round2(obs.regularPrice) : null,
+      nicheId: nicheId ?? prev?.nicheId ?? null,
     });
   }
   if (unique.size === 0) return;
@@ -192,7 +208,7 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
   const ids = [...unique.keys()];
   const { data: existing, error: readError } = await supabase
     .from('product_price_snapshots')
-    .select('product_id, last_price, min_price, list_price, regular_price')
+    .select('product_id, last_price, min_price, list_price, regular_price, niche_id')
     .eq('marketplace', ML_PRICE_MARKETPLACE)
     .eq('recorded_on', today)
     .in('product_id', ids);
@@ -210,6 +226,7 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
         min_price: number;
         list_price: number | null;
         regular_price: number | null;
+        niche_id: string | null;
       },
     ])
   );
@@ -218,6 +235,11 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
     const obs = unique.get(id)!;
     const before = prev.get(id);
     const minPrice = before ? Math.min(Number(before.min_price), obs.current) : obs.current;
+    const beforeNiche =
+      typeof before?.niche_id === 'string' && before.niche_id.trim()
+        ? before.niche_id.trim()
+        : null;
+    const nicheId = obs.nicheId ?? beforeNiche;
     return {
       marketplace: ML_PRICE_MARKETPLACE,
       product_id: id,
@@ -228,6 +250,7 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
       currency: 'MXN',
       recorded_on: today,
       recorded_at: new Date().toISOString(),
+      niche_id: nicheId,
     };
   });
 
@@ -284,6 +307,8 @@ export async function enrichMercadoLibrePriceIntel(args: {
   itemId?: string | null;
   current: number;
   listPrice: number | null;
+  /** Provenance explícita del Supply Engine; null = no inventar. */
+  nicheId?: string | null;
 }): Promise<{ quote: MlPriceQuote; intel: MlPriceIntel } | null> {
   const productId = normalizeMlProductId(args.itemId) ?? normalizeMlProductId(args.url);
   if (!productId || !Number.isFinite(args.current) || args.current <= 0) return null;
@@ -303,6 +328,7 @@ export async function enrichMercadoLibrePriceIntel(args: {
       current: quote.current,
       listPrice: quote.listPrice,
       regularPrice: quote.regularPrice,
+      nicheId: args.nicheId ?? null,
     },
   ]);
 
