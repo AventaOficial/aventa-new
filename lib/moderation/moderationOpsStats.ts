@@ -9,6 +9,10 @@ import {
 import { evaluateModerationPriority } from './moderationPriority';
 import { estimateHoursToDrain, isSlaBreached } from './slaContract';
 import { releaseStaleModerationLocks } from './releaseStaleLocks';
+import {
+  buildModeratorThroughput,
+  type ModeratorThroughputRow,
+} from './moderatorMetrics';
 
 type LevelKey = 'sprint' | 'review' | 'enforcement';
 
@@ -41,6 +45,12 @@ export type ModerationOpsStats = {
   hoursToDrain: number | null;
   levelDistribution: Record<LevelKey, number>;
   claimLatency: ReturnType<typeof getClaimLatencyStats>;
+  /** Locks liberados en esta lectura (recovery pasivo). */
+  staleLocksReleasedNow: number;
+  /** Reclaims auditados en la última hora (lock_reclaimed_stale). */
+  staleReclaimedLastHour: number;
+  /** Top throughput por moderador (última hora). */
+  byModerator: ModeratorThroughputRow[];
 };
 
 export async function buildModerationOpsStats(
@@ -51,8 +61,8 @@ export async function buildModerationOpsStats(
   const cutoff24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const cutoff48 = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  // Recovery pasivo en lectura de ops (idempotente).
-  await releaseStaleModerationLocks(supabase, { limit: 50 });
+  // Recovery pasivo en lectura de ops (idempotente + audit).
+  const staleNow = await releaseStaleModerationLocks(supabase, { limit: 50 });
 
   const [
     { count: backlog },
@@ -62,6 +72,7 @@ export async function buildModerationOpsStats(
     { data: oldest },
     { data: logs },
     { data: pendingSample },
+    moderatorThroughput,
   ] = await Promise.all([
     supabase.from('offers').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase
@@ -99,6 +110,7 @@ export async function buildModerationOpsStats(
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
       .limit(sampleLimit),
+    buildModeratorThroughput(supabase, { sinceMs: Date.parse(sinceHour) }),
   ]);
 
   const oldestCreated = (oldest as { created_at?: string } | null)?.created_at;
@@ -230,5 +242,8 @@ export async function buildModerationOpsStats(
     hoursToDrain: estimateHoursToDrain(backlogN, throughputLastHour),
     levelDistribution,
     claimLatency: getClaimLatencyStats(),
+    staleLocksReleasedNow: staleNow.released,
+    staleReclaimedLastHour: moderatorThroughput.totals.reclaimed,
+    byModerator: moderatorThroughput.byModerator.slice(0, 20),
   };
 }

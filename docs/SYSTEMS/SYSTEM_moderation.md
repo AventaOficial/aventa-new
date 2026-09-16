@@ -1,28 +1,72 @@
-# SYSTEM — Moderación
+# SYSTEM — Moderación (Moderation OS)
 
 ## Architecture
 
-- **Admin:** app/admin/moderation/page.tsx lista ofertas pendientes y reportes. Acciones: aprobar, rechazar, editar (moderate-offer). Logs en app/api/admin/moderation-logs.
-- **Backend:** POST app/api/admin/moderate-offer/route.ts actualiza status (approved, rejected), opcionalmente expires_at, moderator_comment. Reports: app/api/admin/reports, app/api/reports (crear reporte usuario).
+**Modelo operativo:** Focus Mode (una oferta a la vez) + **lease/claim atómico**.
+No hay cola split-panel como fuente de verdad; el claim server-side es la autoridad.
+
+| Superficie | Ruta |
+|---|---|
+| Admin Focus | `/admin/moderation` |
+| Equipo Focus | `/equipo/moderacion`, `/bot`, `/cazadores` |
+
+**Ownership = lease temporal** (`offers.locked_by` + `offers.locked_at`), TTL **5 min** con heartbeat.
+No existe `assigned_to` permanente en FASE 1 — la asignación es claim colaborativo.
 
 ## Data flow
 
-1. Oferta nueva → status = pending (o approved si reputación ≥ 3 o whitelist owner). Aparece en cola de moderación.
-2. Moderador abre Admin → Moderación → ve ofertas pendientes y reportes.
-3. Aprobar → POST moderate-offer { offerId, action: 'approve', ... } → update offers.status = approved, expires_at.
-4. Rechazar → action: 'reject' → status = rejected; opcionalmente notificación al creador.
-5. Reportes de usuarios → cola de reportes; moderador puede actuar sobre oferta o comentario.
+1. Oferta nueva → `status = pending` → entra a cola claim-eligible.
+2. Moderador abre Focus → `POST /api/admin/moderation/claim-next`.
+3. Servidor: libera locks stale → ordena por prioridad → `tryAcquireModerationLock` (UPDATE condicional).
+4. Heartbeat `POST /api/admin/moderation-lock` cada ~60s.
+5. Decidir: approve/reject (`moderate-offer`), snooze, editar/replace-link (`update-offer`).
+6. Sin lock propio activo → **409** (excepto bulk owner/admin).
+7. Lease expirado → recovery pasivo (claim-next / ops-stats / cron system-integrity) + audit `lock_reclaimed_stale`.
 
-## Database usage
+## Lock / reclaim
 
-- **offers:** status (pending, approved, rejected, published), moderator_comment, expires_at.
-- **reports:** target_type (offer | comment), target_id, reason, description, status (pending, resolved).
-- **moderation_logs:** auditoría de acciones (quién, qué oferta, acción, fecha).
+| Pieza | Archivo |
+|---|---|
+| TTL / stale check | `lib/moderation/moderationLock.ts` |
+| Acquire atómico | `lib/moderation/atomicModerationLock.ts` → `tryAcquireModerationLock` |
+| Ownership assert | `assertModeratorOwnsLock` |
+| Stale release + audit | `lib/moderation/releaseStaleLocks.ts` |
+| Claim next | `lib/moderation/claimNextModerationOffer.ts` |
+| Manual reclaim (owner/admin) | `POST /api/admin/moderation/reclaim-stale` |
+| Cron piggyback | `app/api/cron/system-integrity` |
+
+**Garantía:** dos moderadores no pueden claim legítimo de la misma oferta simultáneamente (UPDATE condicional + tests de concurrencia).
+
+## Priority
+
+`lib/moderation/moderationPriority.ts` → P1_HIGH_VALUE … P4_LOW_VALUE.
+Deal Score / señales bot alimentan prioridad; **no modifican DQE**.
+
+## Audit
+
+- **Legacy action log:** `moderation_logs` (offer, user, action, previous/new status, reason, metadata, timestamp).
+- **Outcomes canónicos:** `moderation_outcomes` (`claim|approve|reject|snooze`) con `idempotency_key`.
+- Reclaim escribe `lock_reclaimed_stale` vía `writeModerationAudit`.
+
+## Metrics
+
+- `GET /api/admin/moderation-ops-stats` → backlog, SLA, throughput, claimed, reclaim, byModerator.
+- `lib/moderation/moderatorMetrics.ts` → agregación por moderador desde `moderation_logs`.
+
+## Auth
+
+`requireModeration` → owner | admin | moderator.
+Bulk / reclaim-stale → owner | admin.
+Nunca confiar en role/userId del cliente.
+
+## Mobile UX
+
+Focus móvil validado — **no rediseñar**. Acciones principales: approve / reject / replace-link.
+Ownership/contexto enriquecido solo en desktop (`FocusDesktopContext`).
 
 ## Edge cases
 
-- **Solo admin:** Rutas /api/admin/* verifican rol; 403 si no es admin.
-- **Cazadores sin moderación (owner):** En `/admin/owner`, sección «Cazadores sin moderación». API `GET/POST/DELETE /api/admin/trusted-hunters` (solo owner). Marca `profiles.owner_auto_approve_offers = true` con auditoría (`owner_auto_approve_offers_at`, `owner_auto_approve_offers_by`). Migración: `docs/supabase-migrations/profiles_owner_auto_approve_offers.sql`.
-- **Comunidades:** El enlace "Comunidades" en el sidebar del panel admin y la ruta /admin/communities son solo para owner (canManageTeam). El resto de roles son redirigidos; la página pública /communities es visible para todos.
-- **Oferta ya aprobada:** Idempotente; no falla si se re-aprueba.
-- **Expiración:** approved con expires_at; el feed filtra expires_at.is.null,expires_at.gte.now().
+- Re-approve/reject mismo status → `{ idempotent: true }`.
+- Lock ajeno / stale → 409.
+- Claim vacío → `{ claimed: false }` (cola vacía / todo locked).
+- Supply Engine WRITE=0 no afecta este sistema.

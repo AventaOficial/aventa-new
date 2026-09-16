@@ -74,6 +74,14 @@ export default function FocusDesktopContext({ offer, mode, onEdit, onOpenWhy }: 
             <dt className={ui.muted}>Edad</dt>
             <dd className={ui.soft}>{age}</dd>
           </div>
+          <div className="flex justify-between gap-2">
+            <dt className={ui.muted}>Claim</dt>
+            <dd className={cn('font-medium', ui.body)} data-focus-claim-ownership>
+              {offer.locked_by
+                ? offer.locked_by_name?.trim() || 'Activo'
+                : 'Sin claim'}
+            </dd>
+          </div>
         </dl>
       </section>
 

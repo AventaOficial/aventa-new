@@ -28,6 +28,8 @@ type OpsStats = {
   hoursToDrain?: number | null;
   levelDistribution: { sprint: number; review: number; enforcement: number };
   claimLatency: { lastMs: number | null; p95Ms: number | null; sampleCount: number };
+  staleReclaimedLastHour?: number;
+  staleLocksReleasedNow?: number;
 };
 
 function formatAge(seconds: number | null): string {
@@ -117,6 +119,13 @@ export default function ModerationWorkspaceStats() {
       : null,
     ops?.claimLatency.p95Ms != null
       ? { label: 'Claim P95', value: `${ops.claimLatency.p95Ms}ms`, tone: 'info' }
+      : null,
+    ops?.staleReclaimedLastHour != null && ops.staleReclaimedLastHour > 0
+      ? {
+          label: 'Reclaimed/h',
+          value: String(ops.staleReclaimedLastHour),
+          tone: 'attention',
+        }
       : null,
     pulse
       ? { label: 'Reportes', value: String(pulse.pendingReports), tone: pulse.pendingReports > 0 ? 'attention' : 'ok' }
