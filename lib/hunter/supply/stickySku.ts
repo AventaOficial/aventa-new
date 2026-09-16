@@ -1,6 +1,6 @@
 /**
- * Sticky SKU selection from product_price_snapshots (no new table).
- * historyReady pool = ≥ minHistoryDays prior distinct days (excl. today).
+ * Sticky SKU selection — niche-aware, budgeted, cooldown-aware.
+ * Pool NUNCA es global: solo product_ids atribuibles al nicheId vía offers.category.
  */
 
 import { createServerClient } from '@/lib/supabase/server';
@@ -10,6 +10,9 @@ import {
   ML_PRICE_TZ,
 } from '@/lib/bots/ingest/mlPriceEngine';
 import { formatYmdInTz } from '@/lib/bots/ingest/ingestZonedTime';
+import { nicheProfileById } from './nicheProfiles';
+import { loadStickyBudgetConfig, resolveStickyNicheBudget } from './stickyBudgets';
+import { loadStickyProductAllowlistForNiche } from './stickyNicheAttribution';
 
 export type StickySkuTarget = {
   productId: string;
@@ -18,25 +21,41 @@ export type StickySkuTarget = {
   lastPrice: number | null;
   listPrice: number | null;
   hoursSinceObserved: number;
+  nicheId: string;
+  store: string | null;
+  category: string | null;
 };
 
 export type StickySkuSelectConfig = {
-  /** Mínimo de días previos distintos (excl. hoy). Default ML_PRICE_MIN_HISTORY_DAYS. */
   minHistoryDays: number;
-  /** No re-observar si última observación fue hace menos de N horas. */
   cooldownHours: number;
-  /** Tope por corrida. */
+  /** Tope efectivo (ya min(niche, global)). */
   maxTargets: number;
-  /** Ventana de historial en días. */
   historyWindowDays: number;
+  maxPerStore: number;
+};
+
+export type StickySkuSelectReport = {
+  nicheId: string;
+  targets: StickySkuTarget[];
+  stickySelected: number;
+  allowlistSize: number;
+  poolHistoryReady: number;
+  cooldownSkipped: number;
+  qualitySkipped: number;
+  duplicateSkipped: number;
+  budgetLimited: number;
+  attributionReason: string | null;
+  nicheBudget: number;
+  globalBudget: number;
 };
 
 export const DEFAULT_STICKY_SKU_CONFIG: StickySkuSelectConfig = {
   minHistoryDays: ML_PRICE_MIN_HISTORY_DAYS,
-  /** Default: 1 observación/día efectiva (alineado a unique(recorded_on)). */
   cooldownHours: Number.parseInt(process.env.SUPPLY_STICKY_COOLDOWN_HOURS ?? '20', 10) || 20,
-  maxTargets: Number.parseInt(process.env.SUPPLY_STICKY_MAX_PER_WAVE ?? '12', 10) || 12,
+  maxTargets: Number.parseInt(process.env.SUPPLY_STICKY_MAX_PER_WAVE ?? '8', 10) || 8,
   historyWindowDays: 89,
+  maxPerStore: Number.parseInt(process.env.SUPPLY_STICKY_MAX_PER_STORE ?? '2', 10) || 2,
 };
 
 function daysAgoYmd(fromYmd: string, days: number): string {
@@ -52,20 +71,119 @@ function hoursBetween(fromIsoOrYmd: string, now: Date): number {
   return (now.getTime() - t) / 3_600_000;
 }
 
+function dropRatio(lastPrice: number | null, listPrice: number | null): number {
+  if (lastPrice == null || listPrice == null || !(listPrice > lastPrice)) return 0;
+  return (listPrice - lastPrice) / listPrice;
+}
+
 /**
- * Selecciona SKUs history-ready no observados recientemente.
- * Fail-closed: sin supabase → [].
+ * Selección pura sobre candidatos ya filtrados (tests de diversidad/budget).
+ */
+export function pickStickyTargetsWithDiversity(
+  ranked: StickySkuTarget[],
+  opts: { maxTargets: number; maxPerStore: number },
+): { picked: StickySkuTarget[]; duplicateSkipped: number; budgetLimited: number } {
+  const picked: StickySkuTarget[] = [];
+  const seenIds = new Set<string>();
+  const storeCounts = new Map<string, number>();
+  let duplicateSkipped = 0;
+  let diversitySkipped = 0;
+
+  for (const t of ranked) {
+    if (picked.length >= opts.maxTargets) break;
+    if (seenIds.has(t.productId)) {
+      duplicateSkipped += 1;
+      continue;
+    }
+    const storeKey = (t.store ?? '').trim().toLowerCase();
+    if (storeKey) {
+      const n = storeCounts.get(storeKey) ?? 0;
+      if (n >= opts.maxPerStore) {
+        diversitySkipped += 1;
+        continue;
+      }
+      storeCounts.set(storeKey, n + 1);
+    }
+    seenIds.add(t.productId);
+    picked.push(t);
+  }
+
+  const remainingEligible = ranked.filter((t) => !seenIds.has(t.productId)).length;
+  const budgetLimited =
+    picked.length >= opts.maxTargets && remainingEligible > 0
+      ? remainingEligible
+      : 0;
+
+  return {
+    picked,
+    duplicateSkipped: duplicateSkipped + diversitySkipped,
+    budgetLimited,
+  };
+}
+
+/**
+ * Selecciona SKUs history-ready del NICHÓ indicado.
+ * Fail-closed: sin nicheId válido o sin allowlist de offers → [].
  */
 export async function selectStickySkuTargets(
   opts: {
+    nicheId: string;
     supabase?: ReturnType<typeof createServerClient> | null;
     config?: Partial<StickySkuSelectConfig>;
     now?: Date;
-    /** Filtra product_id por prefijo de nicho (opcional; vacío = todos). */
+    /** Tests: allowlist inyectada (omite query offers). */
     productIdAllowlist?: Set<string> | null;
-  } = {},
+    storeByProduct?: Map<string, string> | null;
+    categoryByProduct?: Map<string, string> | null;
+  },
 ): Promise<StickySkuTarget[]> {
-  const cfg: StickySkuSelectConfig = { ...DEFAULT_STICKY_SKU_CONFIG, ...opts.config };
+  const report = await selectStickySkuTargetsWithReport(opts);
+  return report.targets;
+}
+
+export async function selectStickySkuTargetsWithReport(
+  opts: {
+    nicheId: string;
+    supabase?: ReturnType<typeof createServerClient> | null;
+    config?: Partial<StickySkuSelectConfig>;
+    now?: Date;
+    productIdAllowlist?: Set<string> | null;
+    storeByProduct?: Map<string, string> | null;
+    categoryByProduct?: Map<string, string> | null;
+  },
+): Promise<StickySkuSelectReport> {
+  const budgetCfg = loadStickyBudgetConfig();
+  const nicheBudget = resolveStickyNicheBudget(opts.nicheId, budgetCfg);
+  const baseReport: StickySkuSelectReport = {
+    nicheId: opts.nicheId,
+    targets: [],
+    stickySelected: 0,
+    allowlistSize: 0,
+    poolHistoryReady: 0,
+    cooldownSkipped: 0,
+    qualitySkipped: 0,
+    duplicateSkipped: 0,
+    budgetLimited: 0,
+    attributionReason: null,
+    nicheBudget,
+    globalBudget: budgetCfg.globalMaxPerWave,
+  };
+
+  if (!nicheProfileById(opts.nicheId) || nicheBudget <= 0) {
+    return { ...baseReport, attributionReason: 'invalid_niche_or_zero_budget' };
+  }
+
+  const cfg: StickySkuSelectConfig = {
+    ...DEFAULT_STICKY_SKU_CONFIG,
+    ...opts.config,
+    maxTargets: Math.min(
+      opts.config?.maxTargets ?? nicheBudget,
+      nicheBudget,
+      budgetCfg.globalMaxPerWave,
+    ),
+    maxPerStore: opts.config?.maxPerStore ?? budgetCfg.maxPerStore,
+  };
+
   const now = opts.now ?? new Date();
   const todayYmd = formatYmdInTz(now, ML_PRICE_TZ);
   const sinceYmd = daysAgoYmd(todayYmd, cfg.historyWindowDays);
@@ -75,8 +193,31 @@ export async function selectStickySkuTargets(
     try {
       client = createServerClient();
     } catch {
-      return [];
+      return { ...baseReport, attributionReason: 'no_supabase' };
     }
+  }
+
+  let allowlist = opts.productIdAllowlist ?? null;
+  let storeByProduct = opts.storeByProduct ?? new Map<string, string>();
+  let categoryByProduct = opts.categoryByProduct ?? new Map<string, string>();
+  let attributionReason: string | null = null;
+
+  if (!allowlist) {
+    const attr = await loadStickyProductAllowlistForNiche({
+      nicheId: opts.nicheId,
+      supabase: client,
+    });
+    allowlist = attr.productIds;
+    storeByProduct = attr.storeByProduct;
+    categoryByProduct = attr.categoryByProduct;
+    attributionReason = attr.reasonIfEmpty;
+  }
+
+  baseReport.allowlistSize = allowlist.size;
+  baseReport.attributionReason = attributionReason;
+
+  if (allowlist.size === 0) {
+    return { ...baseReport, attributionReason: attributionReason ?? 'empty_allowlist' };
   }
 
   const { data, error } = await client
@@ -88,7 +229,9 @@ export async function selectStickySkuTargets(
     .order('recorded_on', { ascending: false })
     .limit(5000);
 
-  if (error || !data) return [];
+  if (error || !data) {
+    return { ...baseReport, attributionReason: 'snapshots_query_failed' };
+  }
 
   type Agg = {
     days: Set<string>;
@@ -98,10 +241,11 @@ export async function selectStickySkuTargets(
     listPrice: number | null;
   };
   const byId = new Map<string, Agg>();
+  let qualitySkipped = 0;
 
   for (const row of data) {
     const id = String((row as { product_id: string }).product_id);
-    if (opts.productIdAllowlist && !opts.productIdAllowlist.has(id)) continue;
+    if (!allowlist.has(id)) continue;
     const on = String((row as { recorded_on: string }).recorded_on).slice(0, 10);
     const at =
       (row as { recorded_at?: string | null }).recorded_at != null
@@ -129,56 +273,85 @@ export async function selectStickySkuTargets(
     byId.set(id, agg);
   }
 
-  // También excluir si ya hay fila de hoy (unique day).
   const { data: todayRows } = await client
     .from('product_price_snapshots')
     .select('product_id')
     .eq('marketplace', ML_PRICE_MARKETPLACE)
     .eq('recorded_on', todayYmd)
     .limit(5000);
-  const observedToday = new Set((todayRows ?? []).map((r) => String((r as { product_id: string }).product_id)));
+  const observedToday = new Set(
+    (todayRows ?? []).map((r) => String((r as { product_id: string }).product_id)),
+  );
 
-  const out: StickySkuTarget[] = [];
+  let cooldownSkipped = 0;
+  const eligible: StickySkuTarget[] = [];
+
   for (const [productId, agg] of byId) {
-    if (agg.days.size < cfg.minHistoryDays) continue;
-    if (observedToday.has(productId)) continue;
+    if (agg.days.size < cfg.minHistoryDays) {
+      qualitySkipped += 1;
+      continue;
+    }
+    if (observedToday.has(productId)) {
+      cooldownSkipped += 1;
+      continue;
+    }
     const hours = hoursBetween(agg.lastAt ?? agg.lastOn, now);
-    if (hours < cfg.cooldownHours) continue;
-    out.push({
+    if (hours < cfg.cooldownHours) {
+      cooldownSkipped += 1;
+      continue;
+    }
+    eligible.push({
       productId,
       priorDays: agg.days.size,
       lastObservedOn: agg.lastOn,
       lastPrice: agg.lastPrice,
       listPrice: agg.listPrice,
       hoursSinceObserved: Math.round(hours * 10) / 10,
+      nicheId: opts.nicheId,
+      store: storeByProduct.get(productId) ?? null,
+      category: categoryByProduct.get(productId) ?? null,
     });
   }
 
-  out.sort((a, b) => {
-    // Prefer potential price-drop signal (last < list) without inventing lows.
-    const aDrop =
-      a.lastPrice != null && a.listPrice != null && a.listPrice > a.lastPrice
-        ? (a.listPrice - a.lastPrice) / a.listPrice
-        : 0;
-    const bDrop =
-      b.lastPrice != null && b.listPrice != null && b.listPrice > b.lastPrice
-        ? (b.listPrice - b.lastPrice) / b.listPrice
-        : 0;
+  // Prioridad económica: history coverage → drop potential → cooldown age → id.
+  eligible.sort((a, b) => {
+    const dropA = dropRatio(a.lastPrice, a.listPrice);
+    const dropB = dropRatio(b.lastPrice, b.listPrice);
     return (
       b.priorDays - a.priorDays ||
-      bDrop - aDrop ||
+      dropB - dropA ||
       b.hoursSinceObserved - a.hoursSinceObserved ||
       a.productId.localeCompare(b.productId)
     );
   });
 
-  // Diversidad: rotar por día UTC para no re-observar siempre el mismo top-N.
-  const cap = Math.max(0, cfg.maxTargets);
-  if (out.length <= cap) return out;
-  const dayIndex = Math.floor(now.getTime() / 86_400_000);
-  const start = dayIndex % out.length;
-  const rotated = [...out.slice(start), ...out.slice(0, start)];
-  return rotated.slice(0, cap);
+  // Rotación diaria suave dentro del pool del nicho (no entre nichos).
+  let ranked = eligible;
+  if (eligible.length > cfg.maxTargets) {
+    const dayIndex = Math.floor(now.getTime() / 86_400_000);
+    const start = dayIndex % eligible.length;
+    ranked = [...eligible.slice(start), ...eligible.slice(0, start)];
+  }
+
+  const { picked, duplicateSkipped, budgetLimited } = pickStickyTargetsWithDiversity(ranked, {
+    maxTargets: cfg.maxTargets,
+    maxPerStore: cfg.maxPerStore,
+  });
+
+  return {
+    nicheId: opts.nicheId,
+    targets: picked,
+    stickySelected: picked.length,
+    allowlistSize: allowlist.size,
+    poolHistoryReady: eligible.length,
+    cooldownSkipped,
+    qualitySkipped,
+    duplicateSkipped,
+    budgetLimited,
+    attributionReason,
+    nicheBudget,
+    globalBudget: budgetCfg.globalMaxPerWave,
+  };
 }
 
 /** Pura: aplica cooldown sobre lista ya agregada (tests). */

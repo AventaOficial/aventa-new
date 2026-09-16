@@ -78,8 +78,24 @@ export type {
   SupplyEngineCandidateView,
   DiscoveryMode,
 } from './engine';
-export { selectStickySkuTargets, filterStickyByCooldown, DEFAULT_STICKY_SKU_CONFIG } from './stickySku';
-export type { StickySkuTarget, StickySkuSelectConfig } from './stickySku';
+export {
+  selectStickySkuTargets,
+  selectStickySkuTargetsWithReport,
+  filterStickyByCooldown,
+  pickStickyTargetsWithDiversity,
+  DEFAULT_STICKY_SKU_CONFIG,
+} from './stickySku';
+export type { StickySkuTarget, StickySkuSelectConfig, StickySkuSelectReport } from './stickySku';
+export {
+  loadStickyBudgetConfig,
+  resolveStickyNicheBudget,
+} from './stickyBudgets';
+export type { StickyBudgetConfig } from './stickyBudgets';
+export {
+  loadStickyProductAllowlistForNiche,
+  nicheCategoriesForSticky,
+} from './stickyNicheAttribution';
+export type { StickyNicheAttribution } from './stickyNicheAttribution';
 export {
   observeStickySkus,
   observeStickySkuViaServer,

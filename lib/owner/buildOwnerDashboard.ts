@@ -142,6 +142,15 @@ export type OwnerDashboardPayload = {
     stickyPriceDrop: number | null;
     stickyHistoricalLow: number | null;
     stickyApprovalReady: number | null;
+    stickyByNiche: Array<{
+      nicheId: string;
+      selected: number;
+      verified: number;
+      historyReady: number;
+      priceDrop: number;
+      historicalLow: number;
+      approvalReady: number;
+    }>;
     freshVerified: number | null;
     freshApprovalReady: number | null;
     qualityRatePct: number | null;
@@ -983,6 +992,15 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       stickyPriceDrop: supplyToday.stickyPriceDrop ?? null,
       stickyHistoricalLow: supplyToday.stickyHistoricalLow ?? null,
       stickyApprovalReady: supplyToday.stickyApprovalReady,
+      stickyByNiche: (supplyToday.stickyByNiche ?? []).map((r) => ({
+        nicheId: r.nicheId,
+        selected: r.selected,
+        verified: r.verified,
+        historyReady: r.historyReady,
+        priceDrop: r.priceDrop,
+        historicalLow: r.historicalLow,
+        approvalReady: r.approvalReady,
+      })),
       freshVerified: supplyToday.freshVerified,
       freshApprovalReady: supplyToday.freshApprovalReady,
       qualityRatePct: supplyToday.qualityRatePct,

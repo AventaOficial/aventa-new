@@ -8,11 +8,13 @@ import {
 } from '@/lib/hunter/supply';
 
 /**
- * Supply Engine cron — rotación de NicheHunterProfiles + pipeline común.
- * Default mode: shadow (o SUPPLY_ENGINE_MODE). Nunca escribe ofertas sin
+ * Supply Engine cron — rotación NicheHunterProfiles + pipeline común.
+ * Default mode: dry_run (SUPPLY_ENGINE_MODE). Nunca escribe ofertas sin
  * mode=enabled + SUPPLY_ENGINE_WRITE=1.
  *
- * Auth: Authorization Bearer CRON_SECRET | x-cron-secret (sin query secrets).
+ * Waves (priority sort): 0=beauty, 1=electronics, 2=day_to_day.
+ * Params: ?niche=beauty | ?wave=0 | omit → wave desde timezone.
+ * Auth: Authorization Bearer CRON_SECRET | x-cron-secret.
  */
 export const maxDuration = 300;
 

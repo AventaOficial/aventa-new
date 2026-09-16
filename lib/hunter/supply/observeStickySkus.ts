@@ -27,7 +27,13 @@ import {
   type MercadoLibrePriceSource,
 } from '@/lib/offers/resolveMercadoLibrePrice';
 import { toSupplyCandidate } from './candidate';
-import { selectStickySkuTargets, type StickySkuTarget } from './stickySku';
+import { resolveStickyNicheBudget } from './stickyBudgets';
+import {
+  selectStickySkuTargets,
+  selectStickySkuTargetsWithReport,
+  type StickySkuSelectReport,
+  type StickySkuTarget,
+} from './stickySku';
 import type { SupplyCandidate } from './types';
 
 export type StickyObservationStatus =
@@ -64,9 +70,16 @@ export type StickyServerObservation = {
 export type StickyFunnelCounters = {
   stickyCandidates: number;
   stickyDiscovered: number;
+  /** Alias semántico: seleccionados para la ola del nicho. */
+  stickySelected: number;
   stickyObserved: number;
   stickyFailed: number;
   stickySkippedCooldown: number;
+  cooldownSkipped: number;
+  qualitySkipped: number;
+  duplicateSkipped: number;
+  budgetLimited: number;
+  allowlistSize: number;
   /** @deprecated alias de stickyApiAttempted — sticky ya no usa Playwright PDP */
   pdpAttempted: number;
   /** @deprecated alias de stickyApiSuccess */
@@ -85,6 +98,7 @@ export type StickyObserveReport = StickyFunnelCounters & {
   candidates: SupplyCandidate[];
   targets: StickySkuTarget[];
   observations: StickyServerObservation[];
+  selection: StickySkuSelectReport | null;
 };
 
 export function permalinkFromMlItemId(itemId: string): string {
@@ -110,9 +124,15 @@ function emptyReport(): StickyObserveReport {
   return {
     stickyCandidates: 0,
     stickyDiscovered: 0,
+    stickySelected: 0,
     stickyObserved: 0,
     stickyFailed: 0,
     stickySkippedCooldown: 0,
+    cooldownSkipped: 0,
+    qualitySkipped: 0,
+    duplicateSkipped: 0,
+    budgetLimited: 0,
+    allowlistSize: 0,
     pdpAttempted: 0,
     pdpSuccess: 0,
     stickyApiAttempted: 0,
@@ -126,6 +146,7 @@ function emptyReport(): StickyObserveReport {
     candidates: [],
     targets: [],
     observations: [],
+    selection: null,
   };
 }
 
@@ -582,7 +603,9 @@ export async function observeStickySkus(opts: {
   maxTargets?: number;
   supabase?: ReturnType<typeof createServerClient> | null;
   now?: Date;
+  /** Override de selección (tests). Si se omite, usa selectStickySkuTargetsWithReport niche-aware. */
   selectTargets?: typeof selectStickySkuTargets;
+  selectTargetsWithReport?: typeof selectStickySkuTargetsWithReport;
   /** @deprecated prefer deps.resolvePrice — mantenido para tests legacy */
   fetchQuote?: (itemId: string, fallback: { current: number; listPrice: number | null }) => Promise<{
     current: number;
@@ -603,22 +626,55 @@ export async function observeStickySkus(opts: {
     }
   }
 
-  const select = opts.selectTargets ?? selectStickySkuTargets;
+  const nicheBudget = resolveStickyNicheBudget(opts.nicheId);
   const maxTargets =
     opts.maxTargets ??
-    Math.min(
-      opts.config.mlMaxCollect,
-      Number.parseInt(process.env.SUPPLY_STICKY_MAX_PER_WAVE ?? '12', 10) || 12,
-    );
+    Math.min(opts.config.mlMaxCollect, nicheBudget || 0);
 
-  const targets = await select({
-    supabase: client,
-    now: opts.now,
-    config: { maxTargets },
-  });
+  let targets: StickySkuTarget[] = [];
+  if (opts.selectTargetsWithReport) {
+    const selection = await opts.selectTargetsWithReport({
+      nicheId: opts.nicheId,
+      supabase: client,
+      now: opts.now,
+      config: { maxTargets },
+    });
+    report.selection = selection;
+    targets = selection.targets;
+    report.cooldownSkipped = selection.cooldownSkipped;
+    report.stickySkippedCooldown = selection.cooldownSkipped;
+    report.qualitySkipped = selection.qualitySkipped;
+    report.duplicateSkipped = selection.duplicateSkipped;
+    report.budgetLimited = selection.budgetLimited;
+    report.allowlistSize = selection.allowlistSize;
+  } else if (opts.selectTargets) {
+    targets = await opts.selectTargets({
+      nicheId: opts.nicheId,
+      supabase: client,
+      now: opts.now,
+      config: { maxTargets },
+    });
+  } else {
+    const selection = await selectStickySkuTargetsWithReport({
+      nicheId: opts.nicheId,
+      supabase: client,
+      now: opts.now,
+      config: { maxTargets },
+    });
+    report.selection = selection;
+    targets = selection.targets;
+    report.cooldownSkipped = selection.cooldownSkipped;
+    report.stickySkippedCooldown = selection.cooldownSkipped;
+    report.qualitySkipped = selection.qualitySkipped;
+    report.duplicateSkipped = selection.duplicateSkipped;
+    report.budgetLimited = selection.budgetLimited;
+    report.allowlistSize = selection.allowlistSize;
+  }
+
   report.targets = targets;
   report.stickyCandidates = targets.length;
   report.stickyDiscovered = targets.length;
+  report.stickySelected = targets.length;
   if (targets.length === 0) return report;
 
   const legacyFetchQuote = opts.fetchQuote;

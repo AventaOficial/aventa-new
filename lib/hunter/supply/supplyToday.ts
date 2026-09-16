@@ -12,6 +12,18 @@ import {
 import { enabledNicheProfiles, parseSupplyEngineMode, type SupplyEngineMode } from './nicheProfiles';
 import { SUPPLY_RUN_TABLE } from './truthTypes';
 
+export type StickyNicheTodayRow = {
+  nicheId: string;
+  selected: number;
+  verified: number;
+  historyReady: number;
+  priceDrop: number;
+  historicalLow: number;
+  approvalReady: number;
+  evidenceRich: number;
+  runs: number;
+};
+
 export type SupplyTodaySnapshot = {
   mode: SupplyEngineMode;
   writeEnabled: boolean;
@@ -31,6 +43,7 @@ export type SupplyTodaySnapshot = {
   stickyPriceDrop: number | null;
   stickyHistoricalLow: number | null;
   stickyApprovalReady: number | null;
+  stickyByNiche: StickyNicheTodayRow[];
   freshVerified: number | null;
   freshApprovalReady: number | null;
   qualityRatePct: number | null;
@@ -47,6 +60,75 @@ export type SupplyTodaySnapshot = {
 function writeEnabledFromEnv(): boolean {
   const v = (process.env.SUPPLY_ENGINE_WRITE ?? '').trim().toLowerCase();
   return v === '1' || v === 'true';
+}
+
+async function sumStickyByNicheToday(
+  client: ReturnType<typeof createServerClient>,
+): Promise<{
+  rows: StickyNicheTodayRow[];
+  stickySelected: number;
+  stickyVerified: number;
+  stickyEvidenceRich: number;
+  stickyHistoryReady: number;
+  stickyPriceDrop: number;
+  stickyHistoricalLow: number;
+  stickyApprovalReady: number;
+}> {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const niches = enabledNicheProfiles();
+  const byNiche = new Map<string, StickyNicheTodayRow>();
+  for (const n of niches) {
+    byNiche.set(n.id, {
+      nicheId: n.id,
+      selected: 0,
+      verified: 0,
+      historyReady: 0,
+      priceDrop: 0,
+      historicalLow: 0,
+      approvalReady: 0,
+      evidenceRich: 0,
+      runs: 0,
+    });
+  }
+
+  const { data, error } = await client
+    .from(SUPPLY_RUN_TABLE)
+    .select(
+      'source_id, candidates_discovered, candidates_qualified, verified_deals, promotions, potential_deals, catalog_only, pending',
+    )
+    .like('source_id', 'sticky_%')
+    .gte('finished_at', start.toISOString())
+    .limit(500);
+
+  if (!error && data) {
+    for (const row of data) {
+      const sid = String((row as { source_id?: string }).source_id ?? '');
+      const nicheId = sid.startsWith('sticky_') ? sid.slice('sticky_'.length) : '';
+      if (!nicheId || !byNiche.has(nicheId)) continue;
+      const cur = byNiche.get(nicheId)!;
+      cur.runs += 1;
+      cur.selected += Number((row as { candidates_discovered?: number }).candidates_discovered ?? 0) || 0;
+      cur.evidenceRich += Number((row as { candidates_qualified?: number }).candidates_qualified ?? 0) || 0;
+      cur.verified += Number((row as { verified_deals?: number }).verified_deals ?? 0) || 0;
+      cur.historicalLow += Number((row as { promotions?: number }).promotions ?? 0) || 0;
+      cur.approvalReady += Number((row as { potential_deals?: number }).potential_deals ?? 0) || 0;
+      cur.historyReady += Number((row as { catalog_only?: number }).catalog_only ?? 0) || 0;
+      cur.priceDrop += Number((row as { pending?: number }).pending ?? 0) || 0;
+    }
+  }
+
+  const rows = niches.map((n) => byNiche.get(n.id)!);
+  return {
+    rows,
+    stickySelected: rows.reduce((s, r) => s + r.selected, 0),
+    stickyVerified: rows.reduce((s, r) => s + r.verified, 0),
+    stickyEvidenceRich: rows.reduce((s, r) => s + r.evidenceRich, 0),
+    stickyHistoryReady: rows.reduce((s, r) => s + r.historyReady, 0),
+    stickyPriceDrop: rows.reduce((s, r) => s + r.priceDrop, 0),
+    stickyHistoricalLow: rows.reduce((s, r) => s + r.historicalLow, 0),
+    stickyApprovalReady: rows.reduce((s, r) => s + r.approvalReady, 0),
+  };
 }
 
 async function sumSupplyToday(
@@ -95,12 +177,34 @@ export async function buildSupplyToday(
     }
   }
 
-  const [pending, priceMemory, todaySums] = await Promise.all([
+  const [pending, priceMemory, todaySums, stickyNiche] = await Promise.all([
     getPendingHealth(client),
     getPriceMemoryHealth(client),
     client
       ? sumSupplyToday(client)
       : Promise.resolve({ discovered: 0, verified: 0, topSource: null as string | null }),
+    client
+      ? sumStickyByNicheToday(client)
+      : Promise.resolve({
+          rows: enabledNicheProfiles().map((n) => ({
+            nicheId: n.id,
+            selected: 0,
+            verified: 0,
+            historyReady: 0,
+            priceDrop: 0,
+            historicalLow: 0,
+            approvalReady: 0,
+            evidenceRich: 0,
+            runs: 0,
+          })),
+          stickySelected: 0,
+          stickyVerified: 0,
+          stickyEvidenceRich: 0,
+          stickyHistoryReady: 0,
+          stickyPriceDrop: 0,
+          stickyHistoricalLow: 0,
+          stickyApprovalReady: 0,
+        }),
   ]);
 
   const discovered = client ? todaySums.discovered : null;
@@ -108,9 +212,7 @@ export async function buildSupplyToday(
   const highQuality = verified;
   const pendingModeration = pending.total ?? null;
 
-  // Sticky/fresh split: se completa en corridas del engine (metrics en logs).
-  // Aquí exponemos campos para CEO; valores null hasta que el último run los persista en memoria de health.
-  const stickyObserved = priceMemory.rowsToday;
+  const stickyObserved = stickyNiche.stickySelected > 0 ? stickyNiche.stickySelected : priceMemory.rowsToday;
   const freshDiscovered = discovered;
 
   const qualityRatePct =
@@ -152,15 +254,16 @@ export async function buildSupplyToday(
     pendingModeration,
     stickyObserved,
     freshDiscovered,
-    stickyPdpSuccess: null,
-    stickyApiSuccess: null,
+    stickyPdpSuccess: stickyNiche.stickySelected > 0 ? stickyNiche.stickySelected : null,
+    stickyApiSuccess: stickyNiche.stickySelected > 0 ? stickyNiche.stickySelected : null,
     stickyApiBlocked: null,
-    stickyEvidenceRich: null,
-    stickyVerified: null,
-    stickyHistoryReady: null,
-    stickyPriceDrop: null,
-    stickyHistoricalLow: null,
-    stickyApprovalReady: null,
+    stickyEvidenceRich: stickyNiche.stickyEvidenceRich,
+    stickyVerified: stickyNiche.stickyVerified,
+    stickyHistoryReady: stickyNiche.stickyHistoryReady,
+    stickyPriceDrop: stickyNiche.stickyPriceDrop,
+    stickyHistoricalLow: stickyNiche.stickyHistoricalLow,
+    stickyApprovalReady: stickyNiche.stickyApprovalReady,
+    stickyByNiche: stickyNiche.rows,
     freshVerified: verified,
     freshApprovalReady: null,
     qualityRatePct,

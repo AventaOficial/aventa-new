@@ -249,6 +249,36 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
           {formatNum(data.supply.freshVerified)} ver ·{' '}
           {formatNum(data.supply.freshApprovalReady)} ready
         </p>
+        {(data.supply.stickyByNiche?.length ?? 0) > 0 ? (
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-[10px] text-white/70">
+              <thead className="text-white/40">
+                <tr>
+                  <th className="py-1 pr-2 font-medium">NICHE</th>
+                  <th className="py-1 pr-2 font-medium">SELECTED</th>
+                  <th className="py-1 pr-2 font-medium">VERIFIED</th>
+                  <th className="py-1 pr-2 font-medium">HISTORY READY</th>
+                  <th className="py-1 pr-2 font-medium">PRICE DROP</th>
+                  <th className="py-1 pr-2 font-medium">HISTORICAL LOW</th>
+                  <th className="py-1 font-medium">APPROVAL READY</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.supply.stickyByNiche.map((row) => (
+                  <tr key={row.nicheId} className="border-t border-white/10">
+                    <td className="py-1 pr-2 text-white/80">{row.nicheId}</td>
+                    <td className="py-1 pr-2 tabular-nums">{row.selected}</td>
+                    <td className="py-1 pr-2 tabular-nums">{row.verified}</td>
+                    <td className="py-1 pr-2 tabular-nums">{row.historyReady}</td>
+                    <td className="py-1 pr-2 tabular-nums">{row.priceDrop}</td>
+                    <td className="py-1 pr-2 tabular-nums">{row.historicalLow}</td>
+                    <td className="py-1 tabular-nums text-white">{row.approvalReady}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
         <p className="mt-1 text-xs text-white/70">
           <span className="text-white/35">Bottleneck:</span> {data.supply.bottleneck}
           {' · '}

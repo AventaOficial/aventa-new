@@ -44,7 +44,39 @@ import {
 } from './telemetry';
 import { dedupeSupplyCandidates } from './candidate';
 import { observeStickySkus, type StickyObserveReport } from './observeStickySkus';
+import { recordSupplyRun } from './recordSupplyRun';
 import type { SupplyCandidate, SupplyRouterReport, SupplySource } from './types';
+
+function emptyStickyReport(partial?: Partial<StickyObserveReport>): StickyObserveReport {
+  return {
+    stickyCandidates: 0,
+    stickyDiscovered: 0,
+    stickySelected: 0,
+    stickyObserved: 0,
+    stickyFailed: 0,
+    stickySkippedCooldown: 0,
+    cooldownSkipped: 0,
+    qualitySkipped: 0,
+    duplicateSkipped: 0,
+    budgetLimited: 0,
+    allowlistSize: 0,
+    pdpAttempted: 0,
+    pdpSuccess: 0,
+    stickyApiAttempted: 0,
+    stickyApiSuccess: 0,
+    stickyApiBlocked: 0,
+    stickyNotFound: 0,
+    stickyPriceVerified: 0,
+    stickyEvidenceRich: 0,
+    evidenceRich: 0,
+    snapshotOnly: 0,
+    candidates: [],
+    targets: [],
+    observations: [],
+    selection: null,
+    ...partial,
+  };
+}
 
 export type DiscoveryMode = 'sticky' | 'fresh' | 'unknown';
 
@@ -429,48 +461,10 @@ export async function runSupplyEngine(
         now,
       });
     } catch {
-      sticky = {
-        stickyCandidates: 0,
-        stickyDiscovered: 0,
-        stickyObserved: 0,
-        stickyFailed: 1,
-        stickySkippedCooldown: 0,
-        pdpAttempted: 0,
-        pdpSuccess: 0,
-        stickyApiAttempted: 0,
-        stickyApiSuccess: 0,
-        stickyApiBlocked: 0,
-        stickyNotFound: 0,
-        stickyPriceVerified: 0,
-        stickyEvidenceRich: 0,
-        evidenceRich: 0,
-        snapshotOnly: 0,
-        candidates: [],
-        targets: [],
-        observations: [],
-      };
+      sticky = emptyStickyReport({ stickyFailed: 1 });
     }
   } else {
-    sticky = {
-      stickyCandidates: 0,
-      stickyDiscovered: 0,
-      stickyObserved: 0,
-      stickyFailed: 0,
-      stickySkippedCooldown: 0,
-      pdpAttempted: 0,
-      pdpSuccess: 0,
-      stickyApiAttempted: 0,
-      stickyApiSuccess: 0,
-      stickyApiBlocked: 0,
-      stickyNotFound: 0,
-      stickyPriceVerified: 0,
-      stickyEvidenceRich: 0,
-      evidenceRich: 0,
-      snapshotOnly: 0,
-      candidates: [],
-      targets: [],
-      observations: [],
-    };
+    sticky = emptyStickyReport();
   }
 
   const stickyQualified = (sticky.candidates ?? []).map((c) =>
@@ -491,6 +485,29 @@ export async function runSupplyEngine(
   const merged = dedupeSupplyCandidates([...stickyQualified, ...router.uniqueCandidates]);
   const { views, filteredOut, telemetry } = enrichCandidates(niche, merged.unique);
   const metrics = buildMetrics(router, views, filteredOut, Date.now() - t0, sticky);
+
+  // Telemetría sticky por nicho (Supply Truth) — no escribe offers.
+  if (process.env.VITEST !== 'true') {
+    await recordSupplyRun({
+      runId: `supply_${niche.id}_${wave}_${startedAt.slice(0, 19)}`,
+      sourceId: `sticky_${niche.id}`,
+      sourceFamily: 'official_api',
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      status: metrics.stickyApiBlocked > 0 && metrics.stickyApiSuccess === 0 ? 'degraded' : 'ok',
+      candidatesDiscovered: sticky.stickySelected ?? sticky.stickyCandidates,
+      candidatesQualified: metrics.stickyEvidenceRich,
+      verifiedDeals: metrics.stickyVerified,
+      promotions: metrics.stickyHistoricalLow,
+      potentialDeals: metrics.stickyApprovalReady,
+      catalogOnly: metrics.stickyHistoryReady,
+      pending: metrics.stickyPriceDrop,
+      duplicates: sticky.duplicateSkipped ?? 0,
+      rejected: sticky.cooldownSkipped ?? sticky.stickySkippedCooldown ?? 0,
+      errors: sticky.stickyFailed ?? 0,
+      durationMs: Date.now() - t0,
+    });
+  }
 
   let ingest: IngestCycleReport | null = null;
   let wroteOffers = false;

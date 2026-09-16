@@ -1,10 +1,15 @@
 /**
- * Dry-run sticky/server path para beauty, electronics, day_to_day.
- * WRITE off. Imprime funnel sticky separado.
+ * Dry-run sticky niche-aware: beauty, electronics, day_to_day.
+ * WRITE off. Reporta funnel por nicho.
+ *
+ * STICKY_DRY_RUN_SHIFT_HOURS (default 25) desplaza `now` para demostrar
+ * selección tras cooldown del día sin mutar el cooldown de producción.
  */
 import {
   runSupplyEngine,
   summarizeSupplyEngineReport,
+  loadStickyBudgetConfig,
+  resolveStickyNicheBudget,
 } from '../lib/hunter/supply';
 
 if (!process.env.ML_OAUTH_ENABLED) {
@@ -12,8 +17,11 @@ if (!process.env.ML_OAUTH_ENABLED) {
 }
 
 const niches = ['beauty', 'electronics', 'day_to_day'] as const;
+const shiftHours = Number.parseInt(process.env.STICKY_DRY_RUN_SHIFT_HOURS ?? '25', 10) || 0;
 
 async function main() {
+  const budgets = loadStickyBudgetConfig();
+  const now = new Date(Date.now() + Math.max(0, shiftHours) * 3_600_000);
   const rows = [];
   for (const nicheId of niches) {
     const report = await runSupplyEngine({
@@ -21,24 +29,29 @@ async function main() {
       nicheId,
       persistSnapshots: true,
       enableSticky: true,
+      now,
     });
     const s = summarizeSupplyEngineReport(report);
     const m = report.metrics;
+    const sel = report.sticky?.selection;
     rows.push({
       niche: nicheId,
+      nicheBudget: resolveStickyNicheBudget(nicheId, budgets),
+      globalBudget: budgets.globalMaxPerWave,
       wroteOffers: report.wroteOffers,
-      stickyDiscovered: m.stickyCandidates,
+      allowlistSize: sel?.allowlistSize ?? report.sticky?.allowlistSize ?? null,
+      stickySelected: m.stickyCandidates,
       stickyApiAttempted: m.stickyApiAttempted,
       stickyApiSuccess: m.stickyApiSuccess,
-      stickyApiBlocked: m.stickyApiBlocked,
-      stickyNotFound: m.stickyNotFound,
-      stickyPriceVerified: m.stickyPriceVerified,
       stickyEvidenceRich: m.stickyEvidenceRich,
       stickyVerified: m.stickyVerified,
       stickyHistoryReady: m.stickyHistoryReady,
       stickyPriceDrop: m.stickyPriceDrop,
       stickyHistoricalLow: m.stickyHistoricalLow,
       stickyApprovalReady: m.stickyApprovalReady,
+      cooldownSkipped: report.sticky?.cooldownSkipped ?? 0,
+      budgetLimited: report.sticky?.budgetLimited ?? 0,
+      attributionReason: sel?.attributionReason ?? null,
       freshDiscovered: m.freshCandidates,
       freshVerified: m.freshVerified,
       freshApprovalReady: m.freshApprovalReady,
@@ -46,7 +59,23 @@ async function main() {
       note: report.note,
     });
   }
-  console.log(JSON.stringify({ ok: true, wroteOffers: false, rows }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        wroteOffers: false,
+        nowShiftHours: shiftHours,
+        simulatedNow: now.toISOString(),
+        budgets: {
+          globalMaxPerWave: budgets.globalMaxPerWave,
+          nicheMaxPerWave: budgets.nicheMaxPerWave,
+        },
+        rows,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 main().catch((e) => {
