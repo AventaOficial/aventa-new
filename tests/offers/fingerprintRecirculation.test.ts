@@ -115,7 +115,7 @@ describe('anti-recirculación por product_fingerprint', () => {
       ],
     });
 
-    const match = await findDuplicateOfferByUrl(client as never, ML_URL);
+    const match = await findDuplicateOfferByUrl(client as never, ML_URL, { now: NOW });
     expect(match).not.toBeNull();
     expect(match?.id).toBe('pending-1');
     expect(match?.kind).toBe('pending_fresh');
@@ -180,7 +180,7 @@ describe('anti-recirculación por product_fingerprint', () => {
       byTimeoutCooldown: [],
     });
 
-    const match = await findDuplicateOfferByUrl(client as never, ML_URL);
+    const match = await findDuplicateOfferByUrl(client as never, ML_URL, { now: NOW });
     expect(match).toBeNull();
   });
 
