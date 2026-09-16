@@ -419,21 +419,30 @@ describe('status transitions', () => {
 
 describe('buildConversionCommissionTruth + money safety docs', () => {
   it('empty tables → 0 reported + ingest not connected + revenue not connected', async () => {
-    const sb = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          gte: vi.fn(() => ({
+    const emptyChain = {
+      select: vi.fn(() => ({
+        gte: vi.fn(() => ({
+          limit: vi.fn(async () => ({ data: [], error: null })),
+          order: vi.fn(() => ({
+            limit: vi.fn(async () => ({ data: [], error: null })),
+          })),
+          neq: vi.fn(() => ({
             limit: vi.fn(async () => ({ data: [], error: null })),
           })),
         })),
       })),
     };
+    const sb = {
+      from: vi.fn(() => emptyChain),
+    };
     const snap = await buildConversionCommissionTruth(sb as never);
     expect(snap.ingestSourceConnected).toBe(false);
+    expect(snap.networkConnectionStatus).toBe('not_connected');
     expect(snap.conversions.reported).toBe(0);
     expect(snap.revenue.label).toBe('not connected');
     expect(snap.revenue.confirmedCents).toBeNull();
     expect(snap.ledgerBoundary.settlementEnabled).toBe(false);
+    expect(snap.reconciliation.unmatched).toBe(0);
   });
 
   it('migration is additive and money-safe', () => {

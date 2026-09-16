@@ -97,7 +97,8 @@ Capability modelada: `confirmed/approved → reversed`.
 
 ## Migration
 
-`docs/supabase-migrations/20260916_conversion_commission_foundation.sql`
+`docs/supabase-migrations/20260916_conversion_commission_foundation.sql`  
+`docs/supabase-migrations/20260916_economy_adapter_revisions_reconciliation.sql`
 
 ## Code map
 

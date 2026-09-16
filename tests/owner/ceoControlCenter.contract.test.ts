@@ -119,6 +119,8 @@ describe('CEO Control Center contracts', () => {
       'utf8',
     );
     expect(builder).toMatch(/buildConversionCommissionTruth/);
+    expect(ceo).toMatch(/networkConnectionStatus/);
+    expect(ceo).toMatch(/reconciliation/);
   });
 
   it('rutas legacy de money siguen alcanzables en nav', () => {

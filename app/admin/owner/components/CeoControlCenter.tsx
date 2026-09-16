@@ -372,9 +372,11 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
           <div>
             <p className="text-[10px] text-white/40">Conversion ingest</p>
             <p className="text-sm font-semibold tabular-nums text-white">
-              {data.conversionCommission?.ingestSourceConnected
-                ? 'connected'
-                : 'not connected'}
+              {data.conversionCommission?.networkConnectionStatus === 'connected_with_data'
+                ? 'connected + data'
+                : data.conversionCommission?.networkConnectionStatus === 'connected_zero'
+                  ? 'connected / zero'
+                  : 'not connected'}
             </p>
             <p className="text-[9px] text-white/35">
               reported={formatNum(data.conversionCommission?.conversions.reported ?? null)}
@@ -392,6 +394,16 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
             </p>
           </div>
         </div>
+        {data.conversionCommission?.reconciliation ? (
+          <p className="mt-2 text-[10px] text-white/50">
+            Recon unmatched=
+            {formatNum(data.conversionCommission.reconciliation.unmatched)} · amount≠
+            {formatNum(data.conversionCommission.reconciliation.amountMismatches)} · status≠
+            {formatNum(data.conversionCommission.reconciliation.statusMismatches)} · orphan=
+            {formatNum(data.conversionCommission.reconciliation.orphans)} · revisions=
+            {formatNum(data.conversionCommission.revisions?.recorded ?? null)}
+          </p>
+        ) : null}
         {(data.conversionCommission?.conversions.attributed != null ||
           data.conversionCommission?.conversions.unattributed != null) &&
         (data.conversionCommission.conversions.reported ?? 0) > 0 ? (

@@ -21,7 +21,7 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 | [COMO_LLEVAR_AVENTA.md](./COMO_LLEVAR_AVENTA.md) | Cómo llevar el día a día (automátizar, simplificar, menos fricción) |
 | [SISTEMA_SUBIR_OFERTA.md](./SISTEMA_SUBIR_OFERTA.md) | Flujo de subir oferta (parse URL, fotos, categoría) |
 | [PARSE_OFFER_MELI_LA_GALERIA.md](./PARSE_OFFER_MELI_LA_GALERIA.md) | Fix galería `meli.la` / páginas social ML (parser + mobile) |
-| [SYSTEMS/SYSTEM_economy.md](./SYSTEMS/SYSTEM_economy.md) | Economy Foundation: conversion/commission sin settlement |
+| [SYSTEMS/SYSTEM_economy.md](./SYSTEMS/SYSTEM_economy.md) | Economy: adapter, revisions, reconciliation (sin settlement) |
 | [SYSTEMS/SYSTEM_conversion_commission.md](./SYSTEMS/SYSTEM_conversion_commission.md) | Detalle Conversion + Commission (alias de economy) |
 | [README.md](./README.md) | Este índice |
 

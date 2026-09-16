@@ -1,120 +1,133 @@
-# SYSTEM — Economy Foundation (Conversion + Commission)
+# SYSTEM — Economy Foundation
 
 ## Purpose
 
-Representación determinística y auditable de:
-
 ```
 click_id
-  → conversion externa (futura, autoridad = red)
-  → commission externa (futura, autoridad = red)
+  → attribution
+  → [signature verification]
+  → AffiliateNetworkAdapter (normalize)
+  → conversion / commission / revision
   → economic_event (audit)
+  → reconciliation (compare only)
   → settlement futuro (DISABLED)
 ```
 
-**Esta fase no liquida dinero.** Rewards / payouts / settlement permanecen OFF.
+**No liquida dinero.** Rewards / payouts / settlement OFF. Ninguna red live cableada.
 
-## Separation of concerns
+## Layer responsibilities (una cada una)
 
-| Capa | Responsabilidad | Persistencia | Estado actual |
-|------|-----------------|--------------|---------------|
-| **ATTRIBUTION** | click identity + channel/destination | `reward_outbound_clicks` | LIVE |
-| **ECONOMIC INGEST** | conversion + commission reportados por red | `affiliate_conversions`, `affiliate_commissions` | Foundation LIVE en schema; **ingest not connected** |
-| **ACCOUNTING** | ledger de plataforma (ops) | `affiliate_ledger_entries` | Manual / gated |
-| **SETTLEMENT** | commission → elegibilidad ledger → balance | — | **DISABLED** |
-| **REWARDS** | creator share / holds / payouts | `creator_rewards`, `reward_payouts` | **OFF / frozen** |
+| Capa | Responsabilidad | Persistencia | Estado |
+|------|-----------------|--------------|--------|
+| **ATTRIBUTION** | click identity | `reward_outbound_clicks` | LIVE |
+| **NETWORK INGESTION** | HTTP + signature gate | — (sin webhook público) | **NOT CONNECTED** |
+| **NORMALIZATION** | `AffiliateNetworkAdapter` EXTERNAL→NORMALIZED | in-memory types | Contract LIVE |
+| **ECONOMIC EVENTS** | conversion / commission records | `affiliate_conversions`, `affiliate_commissions` | Schema LIVE; 0 rows |
+| **REVISIONS** | append-only amount history | `affiliate_commission_revisions` | Schema LIVE |
+| **RECONCILIATION** | network truth vs aventa truth | `affiliate_reconciliation_runs` / `_findings` | Foundation LIVE |
+| **ACCOUNTING** | platform ledger | `affiliate_ledger_entries` | Manual / gated |
+| **SETTLEMENT** | commission → balance | — | **DISABLED** |
+| **REWARDS / PAYOUTS** | creator share | `creator_rewards`, `reward_payouts` | **OFF** |
 
-Nunca mezclar: un click no es conversion; una commission approved no es balance disponible.
-
-## Source of truth
-
-| Entidad | Autoridad | Persistencia |
-|---------|-----------|--------------|
-| Click | `POST /api/track-outbound` | `reward_outbound_clicks` |
-| Conversion | Red afiliada (webhook/API/CSV futuro) vía `recordConversion` | `affiliate_conversions` |
-| Commission amount | Red afiliada (importe confirmado) vía `recordCommission` | `affiliate_commissions` |
-| Audit | server append-only | `affiliate_economic_events` |
-
-**Prohibido:** inventar conversion desde click; inventar commission = sale × %.
-
-## Domain
-
-### Conversion (`affiliate_conversions`)
-
-- Identity: `UNIQUE(source, network, external_conversion_id)`
-- Attribution: `attributed` | `unattributed` | `unresolved`
-- Status: `received` → `pending` → `confirmed` | `rejected`; `confirmed` → `reversed`
-- `order_amount_cents` opcional ≠ commission
-
-### Commission (`affiliate_commissions`)
-
-- Identity: `UNIQUE(source, network, external_commission_id)`
-- FK `conversion_id` RESTRICT
-- `gross_commission_cents` + `currency` desde fuente trusted
-- Status: `reported` → `pending` → `approved` | `rejected`; `approved` → `reversed`
-- `ledger_entry_id` **siempre NULL en foundation**
-
-### Economic events (`affiliate_economic_events`)
-
-Append-only: `created` / `status_transition`. Sin PII / secretos.
-
-## Ledger boundary
+## CURRENT ECONOMIC GRAPH
 
 ```
-commission (approved)
-  → [settlement DISABLED]
-  → ledger eligibility (futuro)
-  → creator_rewards / payouts (OFF)
+EXTERNAL NETWORK EVENT
+  → verifyNetworkSignature()          # fail-closed si no hay adapter
+  → AffiliateNetworkAdapter.parse     # nunca sale×%
+  → NormalizedConversion|Commission|Revision
+  → recordConversion / recordCommission / recordCommissionRevision
+  → affiliate_economic_events (audit)
+  → [ledger_entry_id = NULL]
+
+Reconciliation:
+  External snapshot  vs  affiliate_* tables
+  → findings only (MATCHED / MISSING_* / *_MISMATCH / DUPLICATE / ORPHAN)
+  → NO money mutation
 ```
 
-`ECONOMIC_LEDGER_BOUNDARY.settlementEnabled = false`
+## Adapter contract
 
-## Security
+`lib/economy/adapter/*`
 
-- Solo server-side `lib/economy/recordConversion|recordCommission`
-- **No hay** API pública de ingest en esta fase
-- Frontend no es autoridad de amount/currency/status/ledger_entry_id
-- RLS ON, 0 policies; grants solo `service_role` (+ owner postgres)
-- anon/authenticated: sin grants → no SELECT/INSERT vía Data API
-- Webhook signature: **requerida antes de cablear red real**
+- `AffiliateNetworkAdapter`: `verifySignature` + `parsePayload`
+- Registry vacío en producción → `createNotConnectedAdapter`
+- Test harness: `createTestAffiliateNetworkAdapter` (solo tests)
+- `ingestNetworkHttpEvent` server-only — **sin** `app/api/webhooks/*`
 
-## Production migration
+## Signature boundary
 
-| Item | Valor |
-|------|-------|
-| File | `docs/supabase-migrations/20260916_conversion_commission_foundation.sql` |
-| Project | `mkgsrpsuvedwwlzmzmzh` (Aventa Cazadores de ofertas) |
-| Applied via | `npx supabase db query --linked -f ...` |
-| Date | 2026-09-16 |
-| Effect | 3 tablas nuevas + índices + UNIQUE + RLS |
-| Money delta | 0 (ledger/rewards/payouts counts unchanged on apply) |
-| Seed data | **none** — 0 conversions / 0 commissions / 0 events |
+```
+HTTP/request → verifyNetworkSignature → adapter.parse → persist
+```
+
+Sin red seleccionada: siempre `network_not_connected`.  
+No inventar algoritmo/header de proveedor desconocido.
+
+## Commission revisions (append-only)
+
+Tabla: `affiliate_commission_revisions`
+
+- `UNIQUE(source, network, external_revision_id)`
+- semantics: `delta` | `replacement`
+- kinds: positive/negative_adjustment, correction, reversal
+- **Nunca** `UPDATE affiliate_commissions SET gross_commission_cents`
+- Effective amount = `applyRevisionsToGross(original, recorded revisions)`
+- Status: `recorded` → `superseded` | `reversed`
+
+## Conversion status changes
+
+Reutilizan `transitionConversionStatus` + `affiliate_economic_events`.  
+**No** tabla paralela de conversion revisions.
+
+## Reconciliation
+
+`runAffiliateReconciliation(snapshot)`:
+
+- ventana temporal + source/network
+- idempotency_key determinista
+- persiste run + findings
+- **no** modifica commissions/conversions/ledger/rewards/payouts
 
 ## CEO Truth
 
 `buildConversionCommissionTruth()`:
 
-- `ingestSourceConnected: false` → **NOT CONNECTED** (≠ zero activity)
-- counts desde tablas (0 si vacías)
-- `revenue: { connected: false, label: "not connected" }`
+| Campo | Semántica |
+|-------|-----------|
+| `networkConnectionStatus=not_connected` | sin adapter live |
+| `connected_zero` | adapter registrado, 0 filas |
+| `connected_with_data` | hay filas (aún no payable) |
+| `revenue` | always **not connected** |
+| `reconciliation.*` | unmatched / amount≠ / status≠ / orphan |
+
+## Security
+
+- Frontend no ingiere economía
+- anon/authenticated sin grants en tablas nuevas
+- RLS ON, 0 policies
+- Adapter no puede settlement/payout
+- Firma obligatoria antes de parse en path HTTP
+
+## Migrations
+
+1. `20260916_conversion_commission_foundation.sql` (aplicada PROD)
+2. `20260916_economy_adapter_revisions_reconciliation.sql` (revisions + recon)
 
 ## Code map
 
 | Pieza | Path |
 |-------|------|
 | Types / transitions | `lib/economy/types.ts` |
-| recordConversion | `lib/economy/recordConversion.ts` |
-| recordCommission | `lib/economy/recordCommission.ts` |
-| Audit | `lib/economy/appendEconomicEvent.ts` |
+| Adapter types | `lib/economy/adapter/types.ts` |
+| Registry / signature / ingest | `lib/economy/adapter/*` |
+| Revisions | `lib/economy/revisions/*` |
+| Reconciliation | `lib/economy/reconciliation/*` |
 | CEO truth | `lib/economy/buildConversionCommissionTruth.ts` |
-| Tests | `tests/economy/conversionCommissionFoundation.test.ts` |
-| Detail (alias) | `docs/SYSTEMS/SYSTEM_conversion_commission.md` |
+| Tests | `tests/economy/*` |
 
-## Explicit non-goals (this phase)
+## Explicit non-goals
 
-- NO Amazon / Mercado Libre / other network webhooks
-- NO settlement
-- NO rewards activation
-- NO payouts
-- NO SUPPLY_ENGINE_WRITE
+- NO Amazon / ML / Impact / CJ / Awin webhooks
+- NO settlement / rewards / payouts / Supply WRITE
 - NO fictitious prod inserts

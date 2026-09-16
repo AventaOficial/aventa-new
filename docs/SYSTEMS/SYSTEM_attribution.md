@@ -65,9 +65,9 @@ completenessPct = attributionComplete / persistedClicks × 100
 
 Attribution Truth **no** es Economic Ingest:
 
-- En Attribution Snapshot (legacy fields): conversion/commission permanecen `not connected` (Attribution no es autoridad económica).
-- La capa ECONOMIC INGEST vive en `lib/economy/*` + tablas `affiliate_conversions` / `affiliate_commissions` — ver `docs/SYSTEMS/SYSTEM_economy.md`.
-- CEO muestra Conversion/Commission vía `buildConversionCommissionTruth()`: ingest **not connected** hasta cablear red; counts 0 ≠ “sin sistema”.
+- En Attribution Snapshot: conversion/commission permanecen `not connected`.
+- ECONOMIC INGEST + Adapter + Revisions + Reconciliation: `docs/SYSTEMS/SYSTEM_economy.md`.
+- CEO: `networkConnectionStatus` distingue NOT CONNECTED / connected_zero / connected_with_data.
 - `confirmedRevenueCents: null` hasta settlement (DISABLED).
 
 **Prohibido** inferir conversión o $ desde clicks/CTR/outbound volume.
