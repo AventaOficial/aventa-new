@@ -32,9 +32,13 @@ vi.mock('@/lib/hunter/healthStore', () => ({
   getHunterHealth: vi.fn(async () => []),
 }));
 
-vi.mock('@/lib/bots/ingest/priceIntel', () => ({
-  enrichWithPriceIntel: vi.fn(async (meta: unknown) => meta),
-}));
+vi.mock('@/lib/bots/ingest/priceIntel', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/bots/ingest/priceIntel')>();
+  return {
+    ...actual,
+    enrichWithPriceIntel: vi.fn(async (meta: unknown) => meta),
+  };
+});
 
 vi.mock('@/lib/hunter/enrichment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/hunter/enrichment')>();
