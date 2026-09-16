@@ -97,6 +97,23 @@ describe('CEO Control Center contracts', () => {
     expect(builder).toMatch(/live_starvation/);
   });
 
+  it('CEO Attribution Truth expone gap y not connected', () => {
+    expect(ceo).toMatch(/data-ceo-attribution/);
+    expect(ceo).toMatch(/Attribution Truth/);
+    expect(ceo).toMatch(/Attribution gap/);
+    expect(ceo).toMatch(/Persisted clicks/);
+    expect(ceo).toMatch(/not connected/);
+    expect(ceo).toMatch(/offer_events ≠ clicks/);
+    const truth = readFileSync(
+      join(process.cwd(), 'lib/attribution/buildAttributionTruth.ts'),
+      'utf8',
+    );
+    expect(truth).toMatch(/isPersistedClickAttributionComplete/);
+    expect(truth).toMatch(/attributionGap/);
+    expect(truth).toMatch(/OUTBOUND_ATTRIBUTION_SOT/);
+    expect(truth).toMatch(/confirmedRevenueCents: null/);
+  });
+
   it('rutas legacy de money siguen alcanzables en nav', () => {
     const nav = readFileSync(join(process.cwd(), 'lib/owner/navigation.ts'), 'utf8');
     expect(nav).toMatch(/\/admin\/commissions/);

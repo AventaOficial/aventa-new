@@ -327,15 +327,15 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
         </p>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div>
-            <p className="text-[10px] text-white/40">Volume</p>
+            <p className="text-[10px] text-white/40">Persisted clicks</p>
             <p className="text-sm font-semibold tabular-nums text-white">
-              {formatNum(data.attribution?.outboundVolume ?? null)}
+              {formatNum(data.attribution?.attributedClicks ?? null)}
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-white/40">Attributed clicks</p>
+            <p className="text-[10px] text-white/40">Unique click IDs</p>
             <p className="text-sm font-semibold tabular-nums text-white">
-              {formatNum(data.attribution?.attributedClicks ?? null)}
+              {formatNum(data.attribution?.uniqueClickIds ?? null)}
             </p>
           </div>
           <div>
@@ -347,12 +347,62 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-white/40">Conversions</p>
-            <p className="text-sm font-semibold tabular-nums text-white">N/A</p>
+            <p className="text-[10px] text-white/40">Attribution gap</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.attribution?.attributionGap ?? null)}
+            </p>
           </div>
         </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div>
+            <p className="text-[10px] text-white/40">Volume outbound</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.attribution?.outboundVolume ?? null)}
+            </p>
+            <p className="text-[9px] text-white/35">offer_events ≠ clicks</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Complete / total</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.attribution?.attributionComplete ?? null)}
+              {' / '}
+              {formatNum(data.attribution?.attributedClicks ?? null)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Conversion</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {data.attribution?.conversion?.label ?? 'not connected'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Commission / Revenue</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {data.attribution?.commission?.label ?? 'not connected'}
+            </p>
+          </div>
+        </div>
+        {(data.attribution?.byChannel?.length ?? 0) > 0 ? (
+          <p className="mt-2 text-[10px] text-white/50">
+            Top channels:{' '}
+            {data.attribution!.byChannel
+              .slice(0, 4)
+              .map((c) => `${c.channel}=${c.clicks}`)
+              .join(' · ')}
+          </p>
+        ) : null}
+        {(data.attribution?.byCampaign?.length ?? 0) > 0 ? (
+          <p className="mt-1 text-[10px] text-white/50">
+            Top campaigns:{' '}
+            {data.attribution!.byCampaign
+              .slice(0, 3)
+              .map((c) => `${c.campaignKey}=${c.clicks}`)
+              .join(' · ')}
+          </p>
+        ) : null}
         <p className="mt-2 text-[10px] text-white/45">
-          {data.attribution?.note ?? 'Attribution snapshot unavailable'} · revenue confirmed = N/A
+          {data.attribution?.note ?? 'Attribution snapshot unavailable'} · SoT=
+          {data.attribution?.attributionSot ?? 'reward_outbound_clicks'}
         </p>
       </div>
 

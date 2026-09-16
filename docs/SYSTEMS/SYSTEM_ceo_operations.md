@@ -25,8 +25,14 @@ Nunca mezclar Supply Today con Supply Truth sin etiquetar.
 
 ## Attribution Truth
 
-Muestra volumen, attributed clicks, completeness.  
-**conversions = N/A**, **confirmed revenue = N/A** (no inventar dinero).
+Panel CEO (`data-ceo-attribution`):
+
+- Persisted clicks / unique IDs / completeness / **attribution gap** (SoT = `reward_outbound_clicks`)
+- Volume outbound etiquetado como `offer_events ≠ clicks`
+- Top channels / campaigns
+- **Conversion / commission / revenue = not connected** (nunca $0 fingido)
+
+Definición gap: ver `docs/SYSTEMS/SYSTEM_attribution.md` (`isPersistedClickAttributionComplete`).
 
 ## System Health statuses
 
