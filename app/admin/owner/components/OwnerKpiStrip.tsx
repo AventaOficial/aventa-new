@@ -2,7 +2,7 @@
 
 import KpiCard from '@/app/components/panel/KpiCard';
 import { formatMoneyCents, formatNum } from '@/app/components/panel/utils';
-import { formatDiff } from '@/lib/owner/buildOwnerDashboard';
+import { formatDiff } from '@/lib/owner/formatDiff';
 import type { OwnerDashboardPayload } from '@/lib/owner/buildOwnerDashboard';
 import { listConfiguredMarkets } from '@/lib/markets';
 

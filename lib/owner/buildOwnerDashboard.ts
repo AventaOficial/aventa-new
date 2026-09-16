@@ -20,6 +20,12 @@ import {
 import { OUTBOUND_VOLUME_SOT } from '@/lib/analytics/outboundClickContract';
 import { buildModerationOpsStats } from '@/lib/moderation/moderationOpsStats';
 import { buildSupplyToday } from '@/lib/hunter/supply/supplyToday';
+import { SUPPLY_RUN_TABLE } from '@/lib/hunter/supply/truthTypes';
+import { buildAttributionTruth, type AttributionTruthSnapshot } from '@/lib/attribution/buildAttributionTruth';
+import {
+  buildSystemHealthSnapshot,
+  type SystemHealthSnapshot,
+} from '@/lib/owner/buildSystemHealth';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -115,8 +121,16 @@ export type OwnerDashboardPayload = {
     highValueEstimate: number | null;
     slaBreachEstimate: number | null;
     pendingGt48h: number | null;
+    /** Throughput por moderador (última hora). */
+    byModerator: Array<{
+      moderatorId: string;
+      decisions: number;
+      approved: number;
+      rejected: number;
+      approvalRate: number | null;
+    }>;
+    staleReclaimedLastHour: number | null;
   };
-  /** Ofertas approved/published no expiradas (feed-eligible). */
   liveDeals: number | null;
   /** Liability productiva (excluye QA). */
   userLiabilityConfirmedCents: number;
@@ -168,6 +182,18 @@ export type OwnerDashboardPayload = {
     } | null;
     nichesEnabled: string[];
   };
+  /** Supply Truth (ventanas) — semántica distinta a Supply Today. */
+  supplyTruth: {
+    todayVerified: number | null;
+    h24Verified: number | null;
+    d7Verified: number | null;
+    globalStatus: string | null;
+    note: string;
+  };
+  /** Attribution Truth — sin revenue inventado. */
+  attribution: AttributionTruthSnapshot;
+  /** System health agregada. */
+  systemHealth: SystemHealthSnapshot;
   affiliation: {
     programsActive: number;
     programsTotal: number;
@@ -266,6 +292,29 @@ async function countPendingOffers(): Promise<number> {
     .eq('status', 'pending');
   if (error) return 0;
   return count ?? 0;
+}
+
+function startOfUtcDay(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** Supply Truth lite — suma verified_deals sin importar getSupplyTruth (evita fs en client). */
+async function sumVerifiedDealsSince(since: Date): Promise<number | null> {
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from(SUPPLY_RUN_TABLE)
+      .select('verified_deals')
+      .gte('finished_at', since.toISOString())
+      .limit(500);
+    if (error || !data) return null;
+    return data.reduce(
+      (s, r) => s + (Number((r as { verified_deals?: number }).verified_deals ?? 0) || 0),
+      0,
+    );
+  } catch {
+    return null;
+  }
 }
 
 /** Edad de cola pending (SLA). Solo lectura. */
@@ -660,14 +709,6 @@ async function fetchGrowthAndRetention(): Promise<{ weeklyPct: number | null; re
   return { weeklyPct: growthWeeklyPct, retention48hPct };
 }
 
-function diffLabel(current: number | null, previous: number | null): string | null {
-  if (current == null || previous == null) return null;
-  const d = current - previous;
-  if (d === 0) return 'igual que ayer';
-  const sign = d > 0 ? '+' : '';
-  return `${sign}${d} vs ayer`;
-}
-
 function pickRecommendedAction(
   alerts: OwnerAlert[],
   pending: number,
@@ -746,6 +787,10 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     supplyStale,
     modOps,
     supplyToday,
+    attributionTruth,
+    supplyTruthToday,
+    supplyTruthH24,
+    supplyTruthD7,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -769,6 +814,10 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     countStaleHunterSources(),
     buildModerationOpsStats(createServerClient(), 500),
     buildSupplyToday(),
+    buildAttributionTruth(createServerClient(), { windowHours: 24 }),
+    sumVerifiedDealsSince(startOfUtcDay(now)),
+    sumVerifiedDealsSince(new Date(now.getTime() - 24 * 3600_000)),
+    sumVerifiedDealsSince(new Date(now.getTime() - 7 * 24 * 3600_000)),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -911,6 +960,18 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     supplyStaleSources: supplyStale,
     highValuePending: modOps.highValueEstimate,
     slaBreachPending: modOps.slaBreachEstimate,
+    attributionCompletenessPct: attributionTruth.completenessPct,
+    attributedClicks24h: attributionTruth.attributedClicks,
+    outboundVolume24h: attributionTruth.outboundVolume,
+  });
+
+  const systemHealth = await buildSystemHealthSnapshot({
+    integrityOk,
+    integrityFailedChecks: integrityFailed,
+    pendingModeration: pending,
+    attribution: attributionTruth,
+    priceMemoryOk: supplyToday.priceMemory.ok,
+    writeQueueBacklog: queueBacklog.pending,
   });
 
   let status: TrafficLight = 'green';
@@ -975,6 +1036,14 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       highValueEstimate: modOps.highValueEstimate,
       slaBreachEstimate: modOps.slaBreachEstimate,
       pendingGt48h: modOps.pendingGt48h,
+      byModerator: (modOps.byModerator ?? []).slice(0, 10).map((r) => ({
+        moderatorId: r.moderatorId,
+        decisions: r.decisions,
+        approved: r.approved,
+        rejected: r.rejected,
+        approvalRate: r.approvalRate,
+      })),
+      staleReclaimedLastHour: modOps.staleReclaimedLastHour ?? null,
     },
     liveDeals: liveDealsResult,
     userLiabilityConfirmedCents: liabilityResult,
@@ -1024,6 +1093,15 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       },
       nichesEnabled: supplyToday.nichesEnabled,
     },
+    supplyTruth: {
+      todayVerified: supplyTruthToday,
+      h24Verified: supplyTruthH24,
+      d7Verified: supplyTruthD7,
+      globalStatus: supplyToday.writeEnabled ? 'write_enabled' : 'dry_run',
+      note: 'Supply Truth lite (hunter_supply_runs). ≠ Supply Today. Sticky y fresh no se mezclan.',
+    },
+    attribution: attributionTruth,
+    systemHealth,
     affiliation: {
       programsActive,
       programsTotal: programs.length,
@@ -1047,11 +1125,11 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
   };
 }
 
+import { formatDiff as formatDiffImpl } from '@/lib/owner/formatDiff';
+
 export function formatDiff(current: number | null, previous: number | null): {
   delta: number | null;
   label: string | null;
 } {
-  if (current == null || previous == null) return { delta: null, label: null };
-  const delta = current - previous;
-  return { delta, label: diffLabel(current, previous) };
+  return formatDiffImpl(current, previous);
 }

@@ -233,6 +233,7 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
             <p className="text-sm font-semibold tabular-nums text-white">
               {formatNum(data.supply.freshDiscovered)}
             </p>
+            <p className="text-[9px] text-white/30">excl. sticky_*</p>
           </div>
         </div>
         <p className="mt-2 text-xs text-white/55">
@@ -296,7 +297,101 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
         ) : null}
         <p className="mt-1 text-[10px] text-white/35">
           mode={data.supply.mode} · WRITE={data.supply.writeEnabled ? '1' : '0'}
+          {data.supplyTruth ? (
+            <>
+              {' · '}Truth today={formatNum(data.supplyTruth.todayVerified)} / 24h=
+              {formatNum(data.supplyTruth.h24Verified)} / 7d=
+              {formatNum(data.supplyTruth.d7Verified)} ({data.supplyTruth.globalStatus ?? 'n/d'})
+            </>
+          ) : null}
         </p>
+      </div>
+
+      <div
+        className={cn(
+          'mb-4 rounded-2xl border p-4',
+          toneClass(
+            data.attribution?.status === 'healthy'
+              ? 'green'
+              : data.attribution?.status === 'degraded'
+                ? 'yellow'
+                : data.attribution?.status === 'blocked'
+                  ? 'red'
+                  : 'gray',
+          ),
+        )}
+        data-ceo-attribution
+      >
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
+          Attribution Truth (24h)
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div>
+            <p className="text-[10px] text-white/40">Volume</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.attribution?.outboundVolume ?? null)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Attributed clicks</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {formatNum(data.attribution?.attributedClicks ?? null)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Completeness</p>
+            <p className="text-sm font-semibold tabular-nums text-white">
+              {data.attribution?.completenessPct != null
+                ? `${data.attribution.completenessPct}%`
+                : 'NO_DATA'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-white/40">Conversions</p>
+            <p className="text-sm font-semibold tabular-nums text-white">N/A</p>
+          </div>
+        </div>
+        <p className="mt-2 text-[10px] text-white/45">
+          {data.attribution?.note ?? 'Attribution snapshot unavailable'} · revenue confirmed = N/A
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          'mb-4 rounded-2xl border p-4',
+          toneClass(
+            data.systemHealth?.overall === 'healthy'
+              ? 'green'
+              : data.systemHealth?.overall === 'degraded'
+                ? 'yellow'
+                : data.systemHealth?.overall === 'blocked'
+                  ? 'red'
+                  : 'gray',
+          ),
+        )}
+        data-ceo-system-health
+      >
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
+          System Health
+        </p>
+        <p className="mt-1 text-sm font-semibold text-white">
+          {data.systemHealth?.overall?.toUpperCase() ?? 'UNKNOWN'}
+          <span className="ml-2 text-[10px] font-normal text-white/40">
+            money={data.systemHealth?.moneyPathFrozen ? 'FROZEN' : 'OPEN'} · WRITE=
+            {data.systemHealth?.supplyWriteEnabled ? '1' : '0'}
+          </span>
+        </p>
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {(data.systemHealth?.components ?? []).map((c) => (
+            <li
+              key={c.id}
+              className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-white/60"
+              title={c.detail}
+            >
+              {c.id}:{c.status}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div

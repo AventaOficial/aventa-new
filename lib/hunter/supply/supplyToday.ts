@@ -133,7 +133,13 @@ async function sumStickyByNicheToday(
 
 async function sumSupplyToday(
   client: ReturnType<typeof createServerClient>,
-): Promise<{ discovered: number; verified: number; topSource: string | null }> {
+): Promise<{
+  discovered: number;
+  verified: number;
+  freshDiscovered: number;
+  freshVerified: number;
+  topSource: string | null;
+}> {
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
   const { data, error } = await client
@@ -141,18 +147,29 @@ async function sumSupplyToday(
     .select('source_id, candidates_discovered, verified_deals')
     .gte('finished_at', start.toISOString())
     .limit(500);
-  if (error || !data) return { discovered: 0, verified: 0, topSource: null };
+  if (error || !data) {
+    return { discovered: 0, verified: 0, freshDiscovered: 0, freshVerified: 0, topSource: null };
+  }
 
   let discovered = 0;
   let verified = 0;
+  let freshDiscovered = 0;
+  let freshVerified = 0;
   const bySource = new Map<string, number>();
   for (const row of data) {
     const d = Number((row as { candidates_discovered?: number }).candidates_discovered ?? 0);
     const v = Number((row as { verified_deals?: number }).verified_deals ?? 0);
     const sid = String((row as { source_id?: string }).source_id ?? '');
-    discovered += Number.isFinite(d) ? d : 0;
-    verified += Number.isFinite(v) ? v : 0;
-    if (sid) bySource.set(sid, (bySource.get(sid) ?? 0) + (Number.isFinite(v) ? v : 0));
+    const dN = Number.isFinite(d) ? d : 0;
+    const vN = Number.isFinite(v) ? v : 0;
+    discovered += dN;
+    verified += vN;
+    // sticky_* = observación sticky; el resto = fresh discovery (no solapar).
+    if (!sid.startsWith('sticky_')) {
+      freshDiscovered += dN;
+      freshVerified += vN;
+    }
+    if (sid) bySource.set(sid, (bySource.get(sid) ?? 0) + vN);
   }
   let topSource: string | null = null;
   let best = -1;
@@ -162,7 +179,7 @@ async function sumSupplyToday(
       topSource = sid;
     }
   }
-  return { discovered, verified, topSource };
+  return { discovered, verified, freshDiscovered, freshVerified, topSource };
 }
 
 export async function buildSupplyToday(
@@ -182,7 +199,13 @@ export async function buildSupplyToday(
     getPriceMemoryHealth(client),
     client
       ? sumSupplyToday(client)
-      : Promise.resolve({ discovered: 0, verified: 0, topSource: null as string | null }),
+      : Promise.resolve({
+          discovered: 0,
+          verified: 0,
+          freshDiscovered: 0,
+          freshVerified: 0,
+          topSource: null as string | null,
+        }),
     client
       ? sumStickyByNicheToday(client)
       : Promise.resolve({
@@ -212,8 +235,14 @@ export async function buildSupplyToday(
   const highQuality = verified;
   const pendingModeration = pending.total ?? null;
 
-  const stickyObserved = stickyNiche.stickySelected > 0 ? stickyNiche.stickySelected : priceMemory.rowsToday;
-  const freshDiscovered = discovered;
+  // stickyObserved = SKUs sticky selected hoy (no confundir con rowsToday de PM).
+  const stickyObserved =
+    stickyNiche.stickySelected > 0 ? stickyNiche.stickySelected : null;
+  const freshDiscovered = client ? todaySums.freshDiscovered : null;
+  const freshVerified = client ? todaySums.freshVerified : null;
+  // approvalReady sticky es el único persistido hoy en hunter_supply_runs (remap potential_deals).
+  const stickyApprovalReady = stickyNiche.stickyApprovalReady;
+  const approvalReady = stickyApprovalReady > 0 ? stickyApprovalReady : 0;
 
   const qualityRatePct =
     discovered != null && discovered > 0 && verified != null
@@ -235,7 +264,7 @@ export async function buildSupplyToday(
   } else if (!priceMemory.ok || (priceMemory.productsHistoryReadyEligible7d ?? 0) < 5) {
     bottleneck = 'price_memory';
     action = 'Acumular Price Memory (dry_run diario + sticky, WRITE=0)';
-  } else if ((discovered ?? 0) < SUPPLY_DAILY_TARGETS.discovered * 0.5) {
+  } else if ((freshDiscovered ?? 0) < SUPPLY_DAILY_TARGETS.discovered * 0.5) {
     bottleneck = 'discovery';
     action =
       'Activar ml_worker discovery-only (BOT_INGEST_EXTERNAL_WORKER=1, WORKER_DISCOVERY_ONLY=1)';
@@ -249,7 +278,7 @@ export async function buildSupplyToday(
     writeEnabled: writeEnabledFromEnv(),
     discovered,
     verified,
-    approvalReady: null,
+    approvalReady,
     highQuality,
     pendingModeration,
     stickyObserved,
@@ -262,9 +291,10 @@ export async function buildSupplyToday(
     stickyHistoryReady: stickyNiche.stickyHistoryReady,
     stickyPriceDrop: stickyNiche.stickyPriceDrop,
     stickyHistoricalLow: stickyNiche.stickyHistoricalLow,
-    stickyApprovalReady: stickyNiche.stickyApprovalReady,
+    stickyApprovalReady,
     stickyByNiche: stickyNiche.rows,
-    freshVerified: verified,
+    freshVerified,
+    // Fresh approvalReady aún no se persiste en hunter_supply_runs (router potential_deals ≠ approvalReady).
     freshApprovalReady: null,
     qualityRatePct,
     topNiche,

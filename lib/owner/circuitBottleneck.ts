@@ -10,6 +10,7 @@ export type CircuitBottleneckId =
   | 'integrity'
   | 'affiliate_tags'
   | 'no_outbound'
+  | 'attribution_gap'
   | 'none';
 
 export type CircuitBottleneck = {
@@ -35,6 +36,10 @@ export type CircuitSignals = {
   /** Estimados de cola (sample ops); opcionales. */
   highValuePending?: number | null;
   slaBreachPending?: number | null;
+  /** Completeness attribution 0–100 (canal+destination). */
+  attributionCompletenessPct?: number | null;
+  attributedClicks24h?: number | null;
+  outboundVolume24h?: number | null;
 };
 
 function moderationThroughputAction(s: CircuitSignals): string {
@@ -131,6 +136,31 @@ export function pickCircuitBottleneck(s: CircuitSignals): CircuitBottleneck {
       impact: 'Sin señal de demanda; EPC/estimado NO_DATA o estancado',
       recommendedAction: 'Revisar CTA Cazar, feed ranking y tráfico',
       href: '/admin/metrics',
+    };
+  }
+
+  // Attribution gap: volumen sin clicks atribuidos, o completeness baja con muestra suficiente.
+  const vol24 = s.outboundVolume24h ?? 0;
+  const attr24 = s.attributedClicks24h ?? 0;
+  const complete = s.attributionCompletenessPct;
+  if (vol24 >= 10 && attr24 === 0) {
+    return {
+      id: 'attribution_gap',
+      severity: 'yellow',
+      problem: `${vol24} outbound volume / 0 attributed clicks (24h)`,
+      impact: 'Volumen sin cadena click_id → imposible atribuir conversión futura',
+      recommendedAction: 'Verificar track-outbound dual-write y reward_outbound_clicks',
+      href: '/admin/rewards',
+    };
+  }
+  if (attr24 >= 5 && complete != null && complete < 40) {
+    return {
+      id: 'attribution_gap',
+      severity: 'yellow',
+      problem: `Attribution completeness ${complete}% (${attr24} clicks)`,
+      impact: 'Canal/destination incompletos → peor reconciliación futura',
+      recommendedAction: 'Revisar Attribution Truth y migración foundation',
+      href: '/admin/owner',
     };
   }
 
