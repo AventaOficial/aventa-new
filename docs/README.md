@@ -1,11 +1,19 @@
 # Documentación AVENTA
 
-Documentos activos en `docs/`:
+## Source of Truth
 
 | Archivo | Descripción |
 |---------|-------------|
-| [GUIA_AVENTA.md](./GUIA_AVENTA.md) | **Estado, roadmap y checklist** — documento único de referencia para el día a día |
-| [HUNTER_INFRA_Y_ROADMAP.md](./HUNTER_INFRA_Y_ROADMAP.md) | **Hunter:** infra conectada (Vercel, Supabase, Upstash, cron-job.org, Railway) y checklist para incorporarlo a prod |
+| **[AVENTA_SOURCE_OF_TRUTH.md](./AVENTA_SOURCE_OF_TRUTH.md)** | **Canónico.** Estado REAL de sistemas, supply, moderación, money, autonomía y drift documental. Código/producción prevalecen sobre el resto de docs. |
+
+Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
+
+| Archivo | Descripción |
+|---------|-------------|
+| [GUIA_AVENTA.md](./GUIA_AVENTA.md) | Estado, roadmap y checklist del día a día (puede estar desfasado vs SoT) |
+| [hunter/supply-orchestration.md](./hunter/supply-orchestration.md) | Supply Router / Truth (alineado con código FASE 10) |
+| [hunter/day-to-day-sources.md](./hunter/day-to-day-sources.md) | Fuentes Día a Día y flags |
+| [HUNTER_INFRA_Y_ROADMAP.md](./HUNTER_INFRA_Y_ROADMAP.md) | Hunter infra histórica — **parcialmente obsoleta** (GHA worker es el camino real; ver SoT) |
 | [CRON_EXTERNO_BOT.md](./CRON_EXTERNO_BOT.md) | Cómo configurar cron-job.org → `/api/cron/bot-ingest` |
 | [FEEDBACK_Y_ROADMAP.md](./FEEDBACK_Y_ROADMAP.md) | Encuestas de beta, patrón de respuestas, qué toca ahora, filtros (AVENTA vs Promodescuentos) |
 | [SISTEMAS_AVENTA.md](./SISTEMAS_AVENTA.md) | Mapa de sistemas (app por partes), notificaciones, referencia a propuestas archivadas |
@@ -13,6 +21,7 @@ Documentos activos en `docs/`:
 | [COMO_LLEVAR_AVENTA.md](./COMO_LLEVAR_AVENTA.md) | Cómo llevar el día a día (automátizar, simplificar, menos fricción) |
 | [SISTEMA_SUBIR_OFERTA.md](./SISTEMA_SUBIR_OFERTA.md) | Flujo de subir oferta (parse URL, fotos, categoría) |
 | [PARSE_OFFER_MELI_LA_GALERIA.md](./PARSE_OFFER_MELI_LA_GALERIA.md) | Fix galería `meli.la` / páginas social ML (parser + mobile) |
+| [SYSTEMS/SYSTEM_conversion_commission.md](./SYSTEMS/SYSTEM_conversion_commission.md) | Conversion + Commission Foundation (sin liquidación) |
 | [README.md](./README.md) | Este índice |
 
 Las migraciones SQL están en `docs/supabase-migrations/`.

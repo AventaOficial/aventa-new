@@ -23,6 +23,10 @@ import { buildSupplyToday } from '@/lib/hunter/supply/supplyToday';
 import { SUPPLY_RUN_TABLE } from '@/lib/hunter/supply/truthTypes';
 import { buildAttributionTruth, type AttributionTruthSnapshot } from '@/lib/attribution/buildAttributionTruth';
 import {
+  buildConversionCommissionTruth,
+  type ConversionCommissionTruth,
+} from '@/lib/economy/buildConversionCommissionTruth';
+import {
   buildSystemHealthSnapshot,
   type SystemHealthSnapshot,
 } from '@/lib/owner/buildSystemHealth';
@@ -192,6 +196,8 @@ export type OwnerDashboardPayload = {
   };
   /** Attribution Truth — sin revenue inventado. */
   attribution: AttributionTruthSnapshot;
+  /** Conversion + Commission Foundation — ingest not connected; counts from tables. */
+  conversionCommission: ConversionCommissionTruth;
   /** System health agregada. */
   systemHealth: SystemHealthSnapshot;
   affiliation: {
@@ -788,6 +794,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     modOps,
     supplyToday,
     attributionTruth,
+    conversionCommissionTruth,
     supplyTruthToday,
     supplyTruthH24,
     supplyTruthD7,
@@ -815,6 +822,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     buildModerationOpsStats(createServerClient(), 500),
     buildSupplyToday(),
     buildAttributionTruth(createServerClient(), { windowHours: 24 }),
+    buildConversionCommissionTruth(createServerClient(), { windowHours: 24 * 7 }),
     sumVerifiedDealsSince(startOfUtcDay(now)),
     sumVerifiedDealsSince(new Date(now.getTime() - 24 * 3600_000)),
     sumVerifiedDealsSince(new Date(now.getTime() - 7 * 24 * 3600_000)),
@@ -1101,6 +1109,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
       note: 'Supply Truth lite (hunter_supply_runs). ≠ Supply Today. Sticky y fresh no se mezclan.',
     },
     attribution: attributionTruth,
+    conversionCommission: conversionCommissionTruth,
     systemHealth,
     affiliation: {
       programsActive,

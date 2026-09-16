@@ -104,6 +104,8 @@ describe('CEO Control Center contracts', () => {
     expect(ceo).toMatch(/Persisted clicks/);
     expect(ceo).toMatch(/not connected/);
     expect(ceo).toMatch(/offer_events ≠ clicks/);
+    expect(ceo).toMatch(/Conversion ingest/);
+    expect(ceo).toMatch(/settlement\s+OFF/);
     const truth = readFileSync(
       join(process.cwd(), 'lib/attribution/buildAttributionTruth.ts'),
       'utf8',
@@ -112,6 +114,11 @@ describe('CEO Control Center contracts', () => {
     expect(truth).toMatch(/attributionGap/);
     expect(truth).toMatch(/OUTBOUND_ATTRIBUTION_SOT/);
     expect(truth).toMatch(/confirmedRevenueCents: null/);
+    const builder = readFileSync(
+      join(process.cwd(), 'lib/owner/buildOwnerDashboard.ts'),
+      'utf8',
+    );
+    expect(builder).toMatch(/buildConversionCommissionTruth/);
   });
 
   it('rutas legacy de money siguen alcanzables en nav', () => {

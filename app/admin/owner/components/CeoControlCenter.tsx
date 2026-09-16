@@ -370,18 +370,38 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-white/40">Conversion</p>
+            <p className="text-[10px] text-white/40">Conversion ingest</p>
             <p className="text-sm font-semibold tabular-nums text-white">
-              {data.attribution?.conversion?.label ?? 'not connected'}
+              {data.conversionCommission?.ingestSourceConnected
+                ? 'connected'
+                : 'not connected'}
+            </p>
+            <p className="text-[9px] text-white/35">
+              reported={formatNum(data.conversionCommission?.conversions.reported ?? null)}
             </p>
           </div>
           <div>
             <p className="text-[10px] text-white/40">Commission / Revenue</p>
             <p className="text-sm font-semibold tabular-nums text-white">
-              {data.attribution?.commission?.label ?? 'not connected'}
+              {data.conversionCommission?.revenue.label ?? 'not connected'}
+            </p>
+            <p className="text-[9px] text-white/35">
+              approved=
+              {formatNum(data.conversionCommission?.commissions.approved ?? null)} · settlement
+              OFF
             </p>
           </div>
         </div>
+        {(data.conversionCommission?.conversions.attributed != null ||
+          data.conversionCommission?.conversions.unattributed != null) &&
+        (data.conversionCommission.conversions.reported ?? 0) > 0 ? (
+          <p className="mt-2 text-[10px] text-white/50">
+            Conversions attr=
+            {formatNum(data.conversionCommission.conversions.attributed)} · unattr=
+            {formatNum(data.conversionCommission.conversions.unattributed)} · unresolved=
+            {formatNum(data.conversionCommission.conversions.unresolved)}
+          </p>
+        ) : null}
         {(data.attribution?.byChannel?.length ?? 0) > 0 ? (
           <p className="mt-2 text-[10px] text-white/50">
             Top channels:{' '}
