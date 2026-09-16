@@ -10,6 +10,7 @@ CEO Control Center (`/admin/owner`) agrega:
 | Supply Truth | ¿Verified en ventanas today/24h/7d? | suma `hunter_supply_runs.verified_deals` (lite; sin registry/fs) |
 | Moderation | ¿Backlog / throughput / reclaim? | `buildModerationOpsStats` |
 | Attribution Truth | ¿Clicks con canal/destination? | `buildAttributionTruth` |
+| Conversion / Commission | ¿Ingest económico? ¿counts? | `buildConversionCommissionTruth` |
 | System Health | ¿Qué subsistema está degradado? | `buildSystemHealthSnapshot` |
 | Circuit Bottleneck | ¿Dónde se atasca el circuito? | `pickCircuitBottleneck` |
 
@@ -30,9 +31,12 @@ Panel CEO (`data-ceo-attribution`):
 - Persisted clicks / unique IDs / completeness / **attribution gap** (SoT = `reward_outbound_clicks`)
 - Volume outbound etiquetado como `offer_events ≠ clicks`
 - Top channels / campaigns
-- **Conversion / commission / revenue = not connected** (nunca $0 fingido)
+- **Conversion ingest = not connected** (capa ECONOMIC INGEST aún sin red cableada)
+- Counts: `reported=0` cuando tablas vacías — distinto de “sistema ausente”
+- **Revenue = not connected** (nunca $0 fingido; settlement OFF)
 
-Definición gap: ver `docs/SYSTEMS/SYSTEM_attribution.md` (`isPersistedClickAttributionComplete`).
+Definición gap: ver `docs/SYSTEMS/SYSTEM_attribution.md` (`isPersistedClickAttributionComplete`).  
+Economy layers: ver `docs/SYSTEMS/SYSTEM_economy.md`.
 
 ## System Health statuses
 
@@ -65,4 +69,6 @@ No botones destructivos en CEO.
 ## Docs relacionadas
 
 - `docs/SYSTEMS/SYSTEM_attribution.md`
+- `docs/SYSTEMS/SYSTEM_economy.md`
+- `docs/SYSTEMS/SYSTEM_conversion_commission.md`
 - `docs/SYSTEMS/SYSTEM_moderation.md`

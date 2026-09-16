@@ -26,6 +26,8 @@ click_id → conversion → commission
 
 Estado actual de ingest live: **not connected** (foundation only).
 
+**PROD (2026-09-16):** migración aplicada en `mkgsrpsuvedwwlzmzmzh` — tablas vacías (0/0/0). Ver `docs/SYSTEMS/SYSTEM_economy.md` y `MIGRATION_20260916_conversion_commission_foundation.md`.
+
 ## Domain model
 
 ### Conversion (`affiliate_conversions`)
