@@ -11,6 +11,7 @@ import {
   resolveNetworkConnectionStatus,
 } from './adapter/registry';
 import type { NetworkConnectionStatus } from './adapter/types';
+import { buildMercadoLibreAffiliateHealth } from './providers/mercadolibre/health';
 import { ECONOMIC_LEDGER_BOUNDARY } from './types';
 
 export type ConversionCommissionTruth = {
@@ -46,6 +47,20 @@ export type ConversionCommissionTruth = {
     orphans: number | null;
     lastRunAt: string | null;
   };
+  providers: {
+    mercadolibre: {
+      enabled: boolean;
+      configured: boolean;
+      connected: false;
+      lastSuccessfulSync: string | null;
+      lastFailedSync: string | null;
+      lastError: string | null;
+      eventsReceived: number;
+      economicIngestSupported: false;
+      settlementEnabled: false;
+      note: string;
+    };
+  };
   revenue: {
     connected: false;
     label: 'not connected';
@@ -63,6 +78,7 @@ function emptyTruth(
   status: ConversionCommissionTruth['status'],
 ): ConversionCommissionTruth {
   const connected = isAnyAffiliateNetworkConnected();
+  const ml = buildMercadoLibreAffiliateHealth();
   return {
     generatedAt,
     windowHours,
@@ -98,6 +114,20 @@ function emptyTruth(
       statusMismatches: null,
       orphans: null,
       lastRunAt: null,
+    },
+    providers: {
+      mercadolibre: {
+        enabled: ml.enabled,
+        configured: ml.configured,
+        connected: false,
+        lastSuccessfulSync: ml.lastSync,
+        lastFailedSync: ml.metrics.lastFailedSyncAt,
+        lastError: ml.lastError,
+        eventsReceived: ml.metrics.eventsReceived,
+        economicIngestSupported: false,
+        settlementEnabled: false,
+        note: ml.note,
+      },
     },
     revenue: { connected: false, label: 'not connected', confirmedCents: null },
     ledgerBoundary: ECONOMIC_LEDGER_BOUNDARY,
@@ -209,6 +239,8 @@ export async function buildConversionCommissionTruth(
     commissionCount: commRows.length,
   });
 
+  const ml = buildMercadoLibreAffiliateHealth();
+
   return {
     generatedAt,
     windowHours,
@@ -243,6 +275,20 @@ export async function buildConversionCommissionTruth(
       statusMismatches: byFinding.STATUS_MISMATCH ?? 0,
       orphans: byFinding.ORPHAN ?? 0,
       lastRunAt: runRows[0]?.detected_at ? String(runRows[0].detected_at) : null,
+    },
+    providers: {
+      mercadolibre: {
+        enabled: ml.enabled,
+        configured: ml.configured,
+        connected: false,
+        lastSuccessfulSync: ml.lastSync,
+        lastFailedSync: ml.metrics.lastFailedSyncAt,
+        lastError: ml.lastError,
+        eventsReceived: ml.metrics.eventsReceived,
+        economicIngestSupported: false,
+        settlementEnabled: false,
+        note: ml.note,
+      },
     },
     revenue: { connected: false, label: 'not connected', confirmedCents: null },
     ledgerBoundary: ECONOMIC_LEDGER_BOUNDARY,

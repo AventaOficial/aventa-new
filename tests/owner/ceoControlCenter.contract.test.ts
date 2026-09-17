@@ -121,6 +121,8 @@ describe('CEO Control Center contracts', () => {
     expect(builder).toMatch(/buildConversionCommissionTruth/);
     expect(ceo).toMatch(/networkConnectionStatus/);
     expect(ceo).toMatch(/reconciliation/);
+    expect(ceo).toMatch(/ML affiliate/);
+    expect(ceo).toMatch(/economicAPI=NOT_SUPPORTED/);
   });
 
   it('rutas legacy de money siguen alcanzables en nav', () => {

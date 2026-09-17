@@ -20,7 +20,7 @@ click_id
 | Capa | Responsabilidad | Persistencia | Estado |
 |------|-----------------|--------------|--------|
 | **ATTRIBUTION** | click identity | `reward_outbound_clicks` | LIVE |
-| **NETWORK INGESTION** | HTTP + signature gate | — (sin webhook público) | **NOT CONNECTED** |
+| **NETWORK INGESTION** | HTTP + signature gate | — (sin webhook público) | **ML: NOT_SUPPORTED_BY_OFFICIAL_API** |
 | **NORMALIZATION** | `AffiliateNetworkAdapter` EXTERNAL→NORMALIZED | in-memory types | Contract LIVE |
 | **ECONOMIC EVENTS** | conversion / commission records | `affiliate_conversions`, `affiliate_commissions` | Schema LIVE; 0 rows |
 | **REVISIONS** | append-only amount history | `affiliate_commission_revisions` | Schema LIVE |
@@ -126,8 +126,16 @@ Reutilizan `transitionConversionStatus` + `affiliate_economic_events`.
 | CEO truth | `lib/economy/buildConversionCommissionTruth.ts` |
 | Tests | `tests/economy/*` |
 
+## Mercado Libre (first provider research)
+
+See `docs/SYSTEMS/SYSTEM_mercadolibre_affiliate.md`.
+
+**Economic ingest: NOT_SUPPORTED_BY_OFFICIAL_API.**  
+Link tagging via env remains; seller OAuth ≠ affiliate commissions.
 ## Explicit non-goals
 
-- NO Amazon / ML / Impact / CJ / Awin webhooks
+- NO invented ML affiliate webhooks/endpoints
+- NO scraping Central de Afiliados
+- NO sale � % commissions
 - NO settlement / rewards / payouts / Supply WRITE
 - NO fictitious prod inserts

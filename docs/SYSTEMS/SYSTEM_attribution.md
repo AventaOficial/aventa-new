@@ -67,7 +67,8 @@ Attribution Truth **no** es Economic Ingest:
 
 - En Attribution Snapshot: conversion/commission permanecen `not connected`.
 - ECONOMIC INGEST + Adapter + Revisions + Reconciliation: `docs/SYSTEMS/SYSTEM_economy.md`.
-- CEO: `networkConnectionStatus` distingue NOT CONNECTED / connected_zero / connected_with_data.
+- Mercado Libre first provider: `docs/SYSTEMS/SYSTEM_mercadolibre_affiliate.md` — **no official conversion/commission API**; ingest fail-closed.
+- CEO: `networkConnectionStatus` + `providers.mercadolibre` (connected=false).
 - `confirmedRevenueCents: null` hasta settlement (DISABLED).
 
 **Prohibido** inferir conversión o $ desde clicks/CTR/outbound volume.

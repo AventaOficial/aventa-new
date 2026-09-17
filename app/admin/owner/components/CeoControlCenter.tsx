@@ -404,6 +404,14 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
             {formatNum(data.conversionCommission.revisions?.recorded ?? null)}
           </p>
         ) : null}
+        {data.conversionCommission?.providers?.mercadolibre ? (
+          <p className="mt-1 text-[10px] text-white/45">
+            ML affiliate: enabled=
+            {data.conversionCommission.providers.mercadolibre.enabled ? '1' : '0'} · configured=
+            {data.conversionCommission.providers.mercadolibre.configured ? '1' : '0'} · connected=0
+            · economicAPI=NOT_SUPPORTED · settlement=OFF
+          </p>
+        ) : null}
         {(data.conversionCommission?.conversions.attributed != null ||
           data.conversionCommission?.conversions.unattributed != null) &&
         (data.conversionCommission.conversions.reported ?? 0) > 0 ? (

@@ -36,7 +36,8 @@ Panel CEO (`data-ceo-attribution`):
 - **Revenue = not connected** (nunca $0 fingido; settlement OFF)
 
 Definición gap: ver `docs/SYSTEMS/SYSTEM_attribution.md` (`isPersistedClickAttributionComplete`).  
-Economy layers: ver `docs/SYSTEMS/SYSTEM_economy.md`.
+Economy layers: ver `docs/SYSTEMS/SYSTEM_economy.md`.  
+ML provider: `docs/SYSTEMS/SYSTEM_mercadolibre_affiliate.md` (`providers.mercadolibre.connected=false`).
 
 ## System Health statuses
 
@@ -70,5 +71,6 @@ No botones destructivos en CEO.
 
 - `docs/SYSTEMS/SYSTEM_attribution.md`
 - `docs/SYSTEMS/SYSTEM_economy.md`
+- `docs/SYSTEMS/SYSTEM_mercadolibre_affiliate.md`
 - `docs/SYSTEMS/SYSTEM_conversion_commission.md`
 - `docs/SYSTEMS/SYSTEM_moderation.md`

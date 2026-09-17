@@ -83,3 +83,15 @@ export {
   type CommissionRevisionKind,
   type RevisionStatus,
 } from './adapter/types';
+export {
+  MERCADOLIBRE_AFFILIATE_CAPABILITY_MATRIX,
+  MERCADOLIBRE_AFFILIATE_ECONOMIC_INGEST_SUPPORTED,
+  MERCADOLIBRE_AFFILIATE_ADAPTER,
+  createMercadoLibreAffiliateAdapter,
+  getMercadoLibreAffiliateConfig,
+  buildMercadoLibreAffiliateHealth,
+  summarizeMercadoLibreAffiliateCapabilities,
+  resetMercadoLibreAffiliateMetricsForTests,
+  assertSellerOauthIsNotAffiliateAuthority,
+  ML_AFFILIATE_ERROR_CODES,
+} from './providers/mercadolibre';
