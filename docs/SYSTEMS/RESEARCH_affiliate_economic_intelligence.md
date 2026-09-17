@@ -157,7 +157,7 @@ Sources (primary): prior Aventa research + program pages
 | Access | CONFIRMED downloads | FAIL API |
 | Policy for click-level | FAIL/risk (no end-user subtag) | N/A |
 
-**Exact next evidence step (not code):** log into `afiliados.amazon.com.mx`, download Orders + Earnings XML/CSV for a short window, inventory columns for unique keys (order id, item id, date, tracking id, commission). Document schema. Re-evaluate Go/No-Go.
+**Exact next evidence step (not code):** follow `docs/SYSTEMS/AMAZON_EVIDENCE_HARVEST.md` — download Orders+Earnings XML/TXT from Associates MX, fill field uniqueness worksheet, then re-evaluate Go/No-Go.
 
 ---
 
