@@ -15,7 +15,7 @@ import { CLAIM_QUEUE_HARD_CAP } from './slaContract';
 import { releaseStaleModerationLocks } from './releaseStaleLocks';
 
 const CLAIM_SELECT_CORE =
-  'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, link_mod_ok, profiles:public_profiles_view!created_by(display_name, avatar_url)';
+  'id, title, price, original_price, store, category, bank_coupon, coupons, msi_months, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, link_mod_ok, profiles:public_profiles_view!created_by(display_name, avatar_url)';
 
 const CLAIM_SELECT_WITH_ORIGINAL = `${CLAIM_SELECT_CORE}, original_offer_url, bot_meta`;
 

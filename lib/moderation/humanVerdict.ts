@@ -19,13 +19,23 @@ export type HumanVerdictInput = ModerationTrustInput & {
 /**
  * Traduce señales internas a una conclusión humana.
  * No expone score ni jerga de Price Intel.
+ * Distingue INSUFFICIENT_EVIDENCE vs evidencia negativa (presentation only).
  */
 export function buildHumanVerdict(input: HumanVerdictInput): HumanVerdict {
   const trust = computeModerationTrust(input);
   const meta = parseBotMeta(input.bot_meta);
   const artificial = Boolean(meta?.signals?.suspectedArtificialListPrice);
   const effective = meta?.signals?.effectiveDiscountPercent;
+  const historyReady = meta?.signals?.historyReady === true;
+  const historyExplicitlyMissing =
+    input.is_bot === true &&
+    meta?.signals != null &&
+    meta.signals.historyReady === false;
+  const noEffectiveSavings =
+    input.is_bot === true &&
+    (effective == null || !Number.isFinite(effective) || effective <= 0);
   const noImage = !input.image_url?.trim();
+  const noCategory = !input.category?.trim();
   const price = Number(input.price ?? 0);
   const original = Number(input.original_price ?? 0);
   const hasDiscount = Number.isFinite(original) && original > price && price > 0;
@@ -74,21 +84,49 @@ export function buildHumanVerdict(input: HumanVerdictInput): HumanVerdict {
     };
   }
 
-  // low
-  const detailParts: string[] = [];
-  if (noImage) detailParts.push('No tiene foto.');
-  if (!input.category?.trim()) detailParts.push('Falta categoría.');
-  if (trust.ingestScore != null && trust.ingestScore < 58) {
-    detailParts.push('Hay señales de que la oferta no es suficientemente atractiva.');
+  // low — separar evidencia insuficiente vs defectos / señales negativas.
+  const insufficientParts: string[] = [];
+  if (historyExplicitlyMissing) {
+    insufficientParts.push('Sin historial de precio suficiente.');
   }
-  if (detailParts.length === 0) {
-    detailParts.push('Faltan datos para estar seguros.');
+  if (noEffectiveSavings && (historyExplicitlyMissing || !historyReady)) {
+    insufficientParts.push('Ahorro histórico no verificable.');
+  }
+
+  if (insufficientParts.length > 0 && !noImage) {
+    return {
+      tone: 'caution',
+      headline: 'Evidencia insuficiente para concluir.',
+      detail: insufficientParts.join(' '),
+    };
+  }
+
+  const defectParts: string[] = [];
+  if (noImage) defectParts.push('No tiene foto.');
+  if (noCategory) defectParts.push('Falta categoría.');
+  if (trust.ingestScore != null && trust.ingestScore < 58 && historyReady) {
+    defectParts.push('Las señales disponibles no respaldan un buen deal.');
+  }
+
+  if (defectParts.length === 0 && insufficientParts.length > 0) {
+    return {
+      tone: 'caution',
+      headline: 'Evidencia insuficiente para concluir.',
+      detail: insufficientParts.join(' '),
+    };
+  }
+
+  if (defectParts.length === 0) {
+    defectParts.push('Faltan datos para estar seguros.');
   }
 
   return {
-    tone: 'poor',
-    headline: 'No parece una oferta suficientemente buena.',
-    detail: detailParts.join(' '),
+    tone: noImage || noCategory ? 'poor' : 'caution',
+    headline:
+      noImage || noCategory
+        ? 'Faltan datos básicos.'
+        : 'Evidencia insuficiente o señales débiles.',
+    detail: [...insufficientParts, ...defectParts].join(' '),
   };
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardPaste, Images, Scissors, Wand2, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
@@ -9,9 +9,10 @@ import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import { MODERATION_TITLE_MAX } from '@/lib/moderation/botFacts';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
+import { MSI_MONTHS_MAX, MSI_MONTHS_MIN, isValidMsiMonths } from '@/lib/offers/msiDisplay';
 import { moderationUi } from '../moderation/moderationUi';
 
-export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description';
+export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description' | 'msi';
 
 export type FixableOffer = {
   id: string;
@@ -20,6 +21,7 @@ export type FixableOffer = {
   original_price?: number | null;
   description?: string | null;
   coupons?: string | null;
+  msi_months?: number | null;
   image_url: string | null;
   image_urls?: string[] | null;
   offer_url: string | null;
@@ -34,9 +36,13 @@ type Props = {
   onSaved: (result?: Record<string, unknown>) => void;
 };
 
+function msiToInput(raw: number | null | undefined): string {
+  return isValidMsiMonths(raw) ? String(raw) : '';
+}
+
 /**
- * Hoja «Arreglar»: los cuatro campos que bloquean la publicación, con teclado
- * correcto y pegado rápido. Misma pieza en teléfono y escritorio.
+ * Hoja «Arreglar»: mobile-first — precio primero, sticky guardar.
+ * Misma pieza en teléfono y escritorio. Guardado solo con botón explícito.
  */
 export default function ModerationFixSheet({
   mode = 'admin',
@@ -61,18 +67,22 @@ export default function ModerationFixSheet({
       ? String(offer.original_price)
       : ''
   );
+  const [msiMonths, setMsiMonths] = useState(msiToInput(offer.msi_months));
   const [description, setDescription] = useState(offer.description ?? '');
   const [coupons, setCoupons] = useState(offer.coupons ?? '');
   const [saving, setSaving] = useState(false);
   const [fetchingPhotos, setFetchingPhotos] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [successFlash, setSuccessFlash] = useState(false);
   const [previewBroken, setPreviewBroken] = useState(false);
+  const saveLockRef = useRef(false);
 
   const photoRef = useRef<HTMLInputElement>(null);
   const linkRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
+  const msiRef = useRef<HTMLSelectElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -87,11 +97,52 @@ export default function ModerationFixSheet({
               ? titleRef.current
               : focusField === 'price'
                 ? priceRef.current
-                : focusField === 'description'
-                  ? descriptionRef.current
-                  : null;
+                : focusField === 'msi'
+                  ? msiRef.current
+                  : focusField === 'description'
+                    ? descriptionRef.current
+                    : priceRef.current;
     target?.focus();
   }, [focusField]);
+
+  const dirty = useMemo(() => {
+    const prevPrice =
+      offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '';
+    const prevOriginal =
+      offer.original_price != null && Number.isFinite(offer.original_price)
+        ? String(offer.original_price)
+        : '';
+    const prevMsi = msiToInput(offer.msi_months);
+    const prevExtras = offer.image_urls ?? [];
+    const extrasChanged =
+      imageUrls.length !== prevExtras.length ||
+      imageUrls.some((u, i) => u !== prevExtras[i]);
+    return (
+      imageUrl.trim() !== (offer.image_url ?? '') ||
+      extrasChanged ||
+      offerUrl.trim() !== (offer.offer_url ?? '') ||
+      (title.trim() !== '' && title.trim() !== offer.title) ||
+      normalizeCategoryForStorage(category) !==
+        normalizeCategoryForStorage(offer.category ?? null) ||
+      price.trim() !== prevPrice ||
+      originalPrice.trim() !== prevOriginal ||
+      msiMonths.trim() !== prevMsi ||
+      description.trim() !== (offer.description ?? '').trim() ||
+      coupons.trim() !== (offer.coupons ?? '').trim()
+    );
+  }, [
+    offer,
+    imageUrl,
+    imageUrls,
+    offerUrl,
+    title,
+    category,
+    price,
+    originalPrice,
+    msiMonths,
+    description,
+    coupons,
+  ]);
 
   const pasteInto = async (setter: (value: string) => void) => {
     try {
@@ -148,7 +199,9 @@ export default function ModerationFixSheet({
       setImageUrl(parsedImages[0]);
       setImageUrls(parsedImages.slice(1, 8));
       setPreviewBroken(false);
-      setMessage(`${parsedImages.length} foto${parsedImages.length > 1 ? 's' : ''} lista${parsedImages.length > 1 ? 's' : ''} — guarda para aplicar`);
+      setMessage(
+        `${parsedImages.length} foto${parsedImages.length > 1 ? 's' : ''} lista${parsedImages.length > 1 ? 's' : ''} — guarda para aplicar`,
+      );
     } catch {
       setMessage('Error al traer fotos. Intenta de nuevo.');
     } finally {
@@ -157,95 +210,118 @@ export default function ModerationFixSheet({
   };
 
   const save = async () => {
+    if (saveLockRef.current || saving) return;
+    saveLockRef.current = true;
     setSaving(true);
     setMessage(null);
+    setSuccessFlash(false);
 
-    const body: Record<string, unknown> = { id: offer.id };
-    if (imageUrl.trim() !== (offer.image_url ?? '')) body.image_url = imageUrl.trim();
-    const prevExtras = offer.image_urls ?? [];
-    const extrasChanged =
-      imageUrls.length !== prevExtras.length ||
-      imageUrls.some((u, i) => u !== prevExtras[i]);
-    if (extrasChanged) body.image_urls = imageUrls;
-    if (offerUrl.trim() !== (offer.offer_url ?? '')) body.offer_url = offerUrl.trim();
-    if (title.trim() && title.trim() !== offer.title) body.title = title.trim();
+    try {
+      const body: Record<string, unknown> = { id: offer.id };
+      if (imageUrl.trim() !== (offer.image_url ?? '')) body.image_url = imageUrl.trim();
+      const prevExtras = offer.image_urls ?? [];
+      const extrasChanged =
+        imageUrls.length !== prevExtras.length ||
+        imageUrls.some((u, i) => u !== prevExtras[i]);
+      if (extrasChanged) body.image_urls = imageUrls;
+      if (offerUrl.trim() !== (offer.offer_url ?? '')) body.offer_url = offerUrl.trim();
+      if (title.trim() && title.trim() !== offer.title) body.title = title.trim();
 
-    const nextCategory = normalizeCategoryForStorage(category);
-    const prevCategory = normalizeCategoryForStorage(offer.category ?? null);
-    if (nextCategory !== prevCategory) body.category = nextCategory ?? '';
+      const nextCategory = normalizeCategoryForStorage(category);
+      const prevCategory = normalizeCategoryForStorage(offer.category ?? null);
+      if (nextCategory !== prevCategory) body.category = nextCategory ?? '';
 
-    const prevPrice =
-      offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '';
-    if (price.trim() !== prevPrice) {
-      if (!price.trim()) {
-        setSaving(false);
-        setMessage('El precio actual es obligatorio');
+      const prevPrice =
+        offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '';
+      if (price.trim() !== prevPrice) {
+        if (!price.trim()) {
+          setMessage('El precio actual es obligatorio');
+          return;
+        }
+        body.price = price.trim();
+      }
+      const prevOriginal =
+        offer.original_price != null && Number.isFinite(offer.original_price)
+          ? String(offer.original_price)
+          : '';
+      if (originalPrice.trim() !== prevOriginal) {
+        body.original_price = originalPrice.trim() === '' ? null : originalPrice.trim();
+      }
+      const prevMsi = msiToInput(offer.msi_months);
+      if (msiMonths.trim() !== prevMsi) {
+        body.msi_months = msiMonths.trim() === '' ? null : msiMonths.trim();
+      }
+      const prevDesc = (offer.description ?? '').trim();
+      if (description.trim() !== prevDesc) body.description = description.trim();
+      const prevCoupons = (offer.coupons ?? '').trim();
+      if (coupons.trim() !== prevCoupons) body.coupons = coupons.trim();
+
+      if (Object.keys(body).length <= 1) {
+        setMessage('No cambiaste nada');
         return;
       }
-      body.price = price.trim();
-    }
-    const prevOriginal =
-      offer.original_price != null && Number.isFinite(offer.original_price)
-        ? String(offer.original_price)
-        : '';
-    if (originalPrice.trim() !== prevOriginal) {
-      body.original_price = originalPrice.trim() === '' ? null : originalPrice.trim();
-    }
-    const prevDesc = (offer.description ?? '').trim();
-    if (description.trim() !== prevDesc) body.description = description.trim();
-    const prevCoupons = (offer.coupons ?? '').trim();
-    if (coupons.trim() !== prevCoupons) body.coupons = coupons.trim();
 
-    if (Object.keys(body).length <= 1) {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const res = await fetch('/api/admin/update-offer', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setMessage(typeof err?.error === 'string' ? err.error : 'No se pudo guardar');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setSuccessFlash(true);
+      setMessage('Guardado');
+      onSaved(typeof data === 'object' && data ? (data as Record<string, unknown>) : undefined);
+      // Brief success then close — queue keeps claim/lock.
+      window.setTimeout(() => onClose(), 280);
+    } catch {
+      setMessage('Error de red al guardar');
+    } finally {
       setSaving(false);
-      setMessage('No cambiaste nada');
-      return;
+      saveLockRef.current = false;
     }
-
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-
-    const res = await fetch('/api/admin/update-offer', {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(body),
-    });
-    setSaving(false);
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      setMessage(typeof err?.error === 'string' ? err.error : 'No se pudo guardar');
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    onSaved(typeof data === 'object' && data ? (data as Record<string, unknown>) : undefined);
-    onClose();
   };
 
   const previewSrc = !previewBroken ? normalizeOfferImageUrl(imageUrl) : null;
   const titleTooLong = title.trim().length > MODERATION_TITLE_MAX;
+  const msiOptions = Array.from({ length: MSI_MONTHS_MAX / 3 }, (_, i) => (i + 1) * 3).filter(
+    (n) => n >= MSI_MONTHS_MIN && n <= MSI_MONTHS_MAX,
+  );
 
   return (
     <div
       className="fixed inset-0 z-[70] flex flex-col justify-end bg-black/55 sm:items-center sm:justify-center sm:p-4"
-      onClick={onClose}
+      onClick={() => {
+        if (!saving) onClose();
+      }}
       role="presentation"
     >
       <div
-        className={`flex max-h-[92vh] flex-col overflow-hidden rounded-t-3xl sm:max-w-lg sm:rounded-3xl ${ui.modal}`}
+        className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl sm:max-w-lg sm:rounded-3xl ${ui.modal}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Arreglar oferta"
+        aria-label="Editar oferta"
+        aria-modal="true"
       >
         <div className={`flex shrink-0 items-center justify-between border-b px-4 py-3 ${ui.hairline}`}>
           <div>
-            <p className={`text-base font-semibold ${ui.title}`}>Arreglar oferta</p>
-            <p className={`text-xs ${ui.muted}`}>Corrige y guarda sin salir de la cola</p>
+            <p className={`text-base font-semibold ${ui.title}`}>Editar oferta</p>
+            <p className={`text-xs ${ui.muted}`}>
+              {dirty ? 'Hay cambios sin guardar' : 'Corrige y guarda sin salir de la cola'}
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full"
+            disabled={saving}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-40"
             aria-label="Cerrar"
           >
             <X className={`h-5 w-5 ${ui.soft}`} />
@@ -253,10 +329,128 @@ export default function ModerationFixSheet({
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          {/* 1–2 Precio primero */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio actual</label>
+              <input
+                ref={priceRef}
+                type="text"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value.slice(0, 20))}
+                placeholder="0"
+                className={`w-full min-h-12 px-3 text-base tabular-nums font-semibold ${ui.input}`}
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio original</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={originalPrice}
+                onChange={(e) => setOriginalPrice(e.target.value.slice(0, 20))}
+                placeholder="Opcional"
+                className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          {/* 3 Enlace */}
+          <div>
+            <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Enlace de la tienda</label>
+            <input
+              ref={linkRef}
+              type="text"
+              inputMode="url"
+              autoCapitalize="off"
+              spellCheck={false}
+              value={offerUrl}
+              onChange={(e) => setOfferUrl(e.target.value.slice(0, 2048))}
+              placeholder="https://articulo.mercadolibre.com.mx/…"
+              className={`w-full min-h-12 px-3 font-mono text-xs ${ui.input}`}
+            />
+            <button
+              type="button"
+              onClick={() => void pasteInto(setOfferUrl)}
+              className={`mt-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-semibold ${ui.btnGhost}`}
+            >
+              <ClipboardPaste className="h-4 w-4" aria-hidden />
+              Pegar
+            </button>
+            <p className={`mt-1.5 text-[11px] ${ui.muted}`}>
+              Al guardar se aplica el tag de afiliado automáticamente.
+            </p>
+          </div>
+
+          {/* 4 Título */}
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label className={`text-sm font-medium ${ui.body}`}>Título</label>
+              <span
+                className={`text-[11px] tabular-nums ${
+                  titleTooLong ? 'text-amber-700 dark:text-amber-200' : ui.muted
+                }`}
+              >
+                {title.trim().length}
+              </span>
+            </div>
+            <textarea
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 500))}
+              rows={2}
+              className={`w-full px-3 py-2 text-sm ${ui.input}`}
+            />
+            {title !== shortModerationQueueTitle(title) ? (
+              <button
+                type="button"
+                onClick={() => setTitle(shortModerationQueueTitle(title))}
+                className={`mt-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-semibold ${ui.btnGhost}`}
+              >
+                <Scissors className="h-4 w-4" aria-hidden />
+                Quitar el «Ahorra ~%» del bot
+              </button>
+            ) : null}
+          </div>
+
+          {/* 5 MSI + 6 Cupón */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>MSI</label>
+              <select
+                ref={msiRef}
+                value={msiMonths}
+                onChange={(e) => setMsiMonths(e.target.value)}
+                className={`w-full min-h-12 px-3 text-sm ${ui.select}`}
+              >
+                <option value="">Sin MSI</option>
+                {msiOptions.map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n} MSI
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Cupón</label>
+              <input
+                type="text"
+                value={coupons}
+                onChange={(e) => setCoupons(e.target.value.slice(0, 200))}
+                placeholder="Código"
+                className={`w-full min-h-12 px-3 text-sm ${ui.input}`}
+              />
+            </div>
+          </div>
+
+          {/* Secundarios: foto, categoría, descripción */}
           <div>
             <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Foto</label>
             <div className="flex items-start gap-3">
-              <div className={`h-20 w-20 shrink-0 overflow-hidden rounded-xl ${ui.thumbBg}`}>
+              <div className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl ${ui.thumbBg}`}>
                 {previewSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -285,7 +479,7 @@ export default function ModerationFixSheet({
                     setPreviewBroken(false);
                   }}
                   placeholder="https://http2.mlstatic.com/…"
-                  className={`w-full min-h-12 px-3 font-mono text-xs ${ui.input}`}
+                  className={`w-full min-h-11 px-3 font-mono text-xs ${ui.input}`}
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -322,76 +516,8 @@ export default function ModerationFixSheet({
                     {fetchingPhotos ? 'Buscando fotos…' : 'Traer fotos del enlace'}
                   </button>
                 </div>
-                {imageUrls.length > 0 ? (
-                  <p className={`text-[11px] ${ui.muted}`}>
-                    +{imageUrls.length} en galería al guardar
-                  </p>
-                ) : null}
               </div>
             </div>
-          </div>
-
-          <div>
-            <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Enlace de la tienda</label>
-            <input
-              ref={linkRef}
-              type="text"
-              inputMode="url"
-              autoCapitalize="off"
-              spellCheck={false}
-              value={offerUrl}
-              onChange={(e) => setOfferUrl(e.target.value.slice(0, 2048))}
-              placeholder="https://articulo.mercadolibre.com.mx/…"
-              className={`w-full min-h-12 px-3 font-mono text-xs ${ui.input}`}
-            />
-            <button
-              type="button"
-              onClick={() => void pasteInto(setOfferUrl)}
-              className={`mt-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-semibold ${ui.btnGhost}`}
-            >
-              <ClipboardPaste className="h-4 w-4" aria-hidden />
-              Pegar
-            </button>
-            <p className={`mt-1.5 text-[11px] ${ui.muted}`}>
-              Al guardar se aplica el tag de afiliado automáticamente.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio actual</label>
-              <input
-                ref={priceRef}
-                type="text"
-                inputMode="decimal"
-                value={price}
-                onChange={(e) => setPrice(e.target.value.slice(0, 20))}
-                placeholder="0"
-                className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
-              />
-            </div>
-            <div>
-              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio referencia</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={originalPrice}
-                onChange={(e) => setOriginalPrice(e.target.value.slice(0, 20))}
-                placeholder="Opcional"
-                className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Cupón</label>
-            <input
-              type="text"
-              value={coupons}
-              onChange={(e) => setCoupons(e.target.value.slice(0, 200))}
-              placeholder="Código o nota de cupón (opcional)"
-              className={`w-full min-h-12 px-3 text-sm ${ui.input}`}
-            />
           </div>
 
           <div>
@@ -414,36 +540,6 @@ export default function ModerationFixSheet({
 
           <div>
             <div className="mb-1.5 flex items-baseline justify-between gap-2">
-              <label className={`text-sm font-medium ${ui.body}`}>Título</label>
-              <span
-                className={`text-[11px] tabular-nums ${
-                  titleTooLong ? 'text-amber-700 dark:text-amber-200' : ui.muted
-                }`}
-              >
-                {title.trim().length}
-              </span>
-            </div>
-            <textarea
-              ref={titleRef}
-              value={title}
-              onChange={(e) => setTitle(e.target.value.slice(0, 500))}
-              rows={3}
-              className={`w-full px-3 py-2 text-sm ${ui.input}`}
-            />
-            {title !== shortModerationQueueTitle(title) ? (
-              <button
-                type="button"
-                onClick={() => setTitle(shortModerationQueueTitle(title))}
-                className={`mt-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-semibold ${ui.btnGhost}`}
-              >
-                <Scissors className="h-4 w-4" aria-hidden />
-                Quitar el «Ahorra ~%» del bot
-              </button>
-            ) : null}
-          </div>
-
-          <div>
-            <div className="mb-1.5 flex items-baseline justify-between gap-2">
               <label className={`text-sm font-medium ${ui.body}`}>Descripción</label>
               <span className={`text-[11px] tabular-nums ${ui.muted}`}>
                 {description.trim().length}/2000
@@ -453,7 +549,7 @@ export default function ModerationFixSheet({
               ref={descriptionRef}
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
-              rows={4}
+              rows={3}
               placeholder="Texto corto para el feed (sin HTML)"
               className={`w-full px-3 py-2 text-sm ${ui.input}`}
             />
@@ -464,16 +560,35 @@ export default function ModerationFixSheet({
           className={`shrink-0 space-y-2 border-t px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 ${ui.hairline}`}
         >
           {message ? (
-            <p className="text-center text-xs text-amber-700 dark:text-amber-200">{message}</p>
+            <p
+              className={`text-center text-xs ${
+                successFlash
+                  ? 'text-emerald-700 dark:text-emerald-300'
+                  : 'text-amber-700 dark:text-amber-200'
+              }`}
+              role="status"
+            >
+              {message}
+            </p>
           ) : null}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void save()}
-            className="inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl bg-emerald-600 text-[15px] font-bold text-white active:bg-emerald-700 disabled:opacity-40"
-          >
-            {saving ? 'Guardando…' : 'Guardar cambios'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onClose}
+              className={`inline-flex min-h-[3.25rem] flex-1 items-center justify-center rounded-2xl text-[15px] font-semibold disabled:opacity-40 ${ui.btnGhost}`}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={saving || !dirty}
+              onClick={() => void save()}
+              className="inline-flex min-h-[3.25rem] flex-[1.4] items-center justify-center rounded-2xl bg-emerald-600 text-[15px] font-bold text-white active:bg-emerald-700 disabled:opacity-40"
+            >
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -315,6 +315,7 @@ export default function ModerationFocusWorkspace({
             original_price: queue.offer.original_price,
             description: queue.offer.description,
             coupons: queue.offer.coupons,
+            msi_months: queue.offer.msi_months,
             image_url: queue.offer.image_url,
             image_urls: queue.offer.image_urls,
             offer_url: queue.offer.offer_url,

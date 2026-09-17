@@ -626,6 +626,8 @@ export function useModerationFocusQueue({
       else if (data.offer_url === null) patch.offer_url = null;
       if (data.coupons === null) patch.coupons = null;
       else if (typeof data.coupons === 'string') patch.coupons = data.coupons;
+      if (data.msi_months === null) patch.msi_months = null;
+      else if (typeof data.msi_months === 'number') patch.msi_months = data.msi_months;
       if (data.link_mod_ok === true) patch.link_mod_ok = true;
       else if (data.link_mod_ok === false) patch.link_mod_ok = false;
 

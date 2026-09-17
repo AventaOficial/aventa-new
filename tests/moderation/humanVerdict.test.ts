@@ -18,7 +18,7 @@ describe('buildHumanVerdict', () => {
     expect(v.detail.toLowerCase()).not.toMatch(/score=\d/);
   });
 
-  it('sin imagen → poor o caution, sin jerga de score en headline', () => {
+  it('sin imagen → poor, detalle menciona foto', () => {
     const v = buildHumanVerdict({
       price: 100,
       original_price: 200,

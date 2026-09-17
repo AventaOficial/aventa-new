@@ -12,6 +12,7 @@ export type OfferEditSnapshot = {
   image_url?: string | null;
   offer_url?: string | null;
   coupons?: string | null;
+  msi_months?: number | null;
 };
 
 export type ParsedMoney = { ok: true; value: number } | { ok: false; error: string };
@@ -48,6 +49,13 @@ export function sanitizeOfferEditCoupons(raw: unknown): string | null {
   const t = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
   return t.length > 0 ? t : null;
 }
+
+export {
+  parseOfferEditMsiMonths,
+  isValidMsiMonths,
+  MSI_MONTHS_MIN,
+  MSI_MONTHS_MAX,
+} from '@/lib/offers/msiDisplay';
 
 /** Cambios que afectan identidad comercial / evidencia de una oferta live. */
 export function isMaterialOfferEdit(fields: ReadonlyArray<string>): boolean {

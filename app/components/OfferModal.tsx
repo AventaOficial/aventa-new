@@ -1022,7 +1022,7 @@ export default function OfferModal({
                 disabled={!offerUrl?.trim()}
                 className="flex-1 min-w-[min(100%,10rem)] rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 md:px-4 md:py-2 font-semibold text-white shadow-lg transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide text-sm md:text-sm"
               >
-                <span>Ver si sigue disponible</span>
+                <span>Cazar oferta</span>
                 <ExternalLink className="h-4 w-4 md:h-4 md:w-4 shrink-0" />
               </button>
               {showCtaCouponChip ? (

@@ -20,6 +20,8 @@ export type BotMetaSignals = {
   savingsVsHabitualPct?: number | null;
   effectiveDiscountPercent?: number | null;
   suspectedArtificialListPrice?: boolean | null;
+  /** Present when Price Memory / intel wrote historyReady into bot_meta. */
+  historyReady?: boolean | null;
   priceIntelSource?: string | null;
 };
 
@@ -90,6 +92,8 @@ export function parseBotMeta(raw: unknown): BotMeta | null {
       typeof signalsRaw.suspectedArtificialListPrice === 'boolean'
         ? signalsRaw.suspectedArtificialListPrice
         : null,
+    historyReady:
+      typeof signalsRaw.historyReady === 'boolean' ? signalsRaw.historyReady : null,
     priceIntelSource: str(signalsRaw.priceIntelSource),
   };
 

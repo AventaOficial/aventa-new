@@ -14,6 +14,7 @@ import {
   buildOfferEditDiff,
   isMaterialOfferEdit,
   parseOfferEditMoney,
+  parseOfferEditMsiMonths,
   sanitizeOfferEditCoupons,
   sanitizeOfferEditDescription,
 } from '@/lib/moderation/offerEditContract'
@@ -45,7 +46,7 @@ export async function PATCH(request: Request) {
     const { data: offer } = await supabase
       .from('offers')
       .select(
-        'id, status, title, price, original_price, description, category, image_url, image_urls, offer_url, original_offer_url, coupons, locked_by, locked_at, link_mod_ok'
+        'id, status, title, price, original_price, description, category, image_url, image_urls, offer_url, original_offer_url, coupons, msi_months, locked_by, locked_at, link_mod_ok'
       )
       .eq('id', id)
       .single()
@@ -84,6 +85,7 @@ export async function PATCH(request: Request) {
       image_urls?: string[] | null
       category?: string | null
       coupons?: string | null
+      msi_months?: number | null
       link_mod_ok?: boolean | null
       status?: string
       locked_by?: null
@@ -228,6 +230,14 @@ export async function PATCH(request: Request) {
       payload.coupons = sanitizeOfferEditCoupons(body.coupons)
       afterSnapshot.coupons = payload.coupons
     }
+    if (body.msi_months !== undefined) {
+      const parsed = parseOfferEditMsiMonths(body.msi_months)
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 })
+      }
+      payload.msi_months = parsed.value
+      afterSnapshot.msi_months = parsed.value
+    }
     if (body.image_url !== undefined) {
       const raw = typeof body.image_url === 'string' ? body.image_url.trim() : ''
       payload.image_url = raw ? (normalizeOfferImageUrl(raw) ?? raw).slice(0, 2048) : null
@@ -266,6 +276,7 @@ export async function PATCH(request: Request) {
         image_url: (offer as { image_url?: string | null }).image_url,
         offer_url: (offer as { offer_url?: string | null }).offer_url,
         coupons: (offer as { coupons?: string | null }).coupons,
+        msi_months: (offer as { msi_months?: number | null }).msi_months ?? null,
       },
       afterSnapshot
     )
@@ -343,6 +354,7 @@ export async function PATCH(request: Request) {
       image_url: payload.image_url,
       image_urls: payload.image_urls,
       coupons: payload.coupons,
+      msi_months: payload.msi_months,
       status: demoted ? 'pending' : offerStatus,
     })
   } catch (e) {

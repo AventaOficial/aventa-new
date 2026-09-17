@@ -30,6 +30,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
+import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
@@ -207,6 +208,7 @@ export default function OfferCard({
   isLiked: isLikedProp = false,
   bankCoupon,
   coupons,
+  msiMonths,
   createdAt,
   expiresAt: _expiresAt,
   isDestacada = false,
@@ -407,6 +409,7 @@ export default function OfferCard({
         ? Math.round((1 - discountPrice / originalPrice) * 100)
         : 0;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
+  const msiLabel = formatMsiCardLabel(msiMonths);
   const personalCouponTrim = coupons?.trim() ?? '';
   const statusConfig = dealStatus
     ? (() => {
@@ -555,15 +558,15 @@ export default function OfferCard({
       </div>
 
       <div className="flex flex-row items-stretch min-h-0">
-        <div className="w-[38%] min-w-[100px] max-[400px]:min-w-[90px] md:w-[220px] md:min-w-[220px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
-          <div className="relative h-[152px] max-[400px]:h-[128px] md:h-[158px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
+        <div className="w-[36%] min-w-[88px] max-[400px]:min-w-[80px] md:w-[200px] md:min-w-[200px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
+          <div className="relative h-[112px] max-[400px]:h-[100px] md:h-[132px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
             {showImage ? (
               <Image
                 src={image}
                 alt=""
                 fill
-                sizes="(max-width: 400px) 90px, (max-width: 768px) 38vw, 220px"
-                className="object-contain object-center p-1 md:p-1.5"
+                sizes="(max-width: 400px) 80px, (max-width: 768px) 36vw, 200px"
+                className="object-contain object-center p-0.5 md:p-1"
                 onError={() => setImgError(true)}
                 unoptimized={image.startsWith('/') || image.includes('placehold.co')}
               />
@@ -691,6 +694,11 @@ export default function OfferCard({
             {bankCouponLabel ? (
               <span className="max-w-[11rem] text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 leading-snug">
                 {formatCupónBancarioDisplay(bankCouponLabel)}
+              </span>
+            ) : null}
+            {msiLabel ? (
+              <span className="inline-flex w-fit max-w-[11rem] rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] md:text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 leading-snug">
+                {msiLabel}
               </span>
             ) : null}
 
