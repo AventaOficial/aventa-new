@@ -30,6 +30,7 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 | [SYSTEMS/ADR_price_memory_vs_observations.md](./SYSTEMS/ADR_price_memory_vs_observations.md) | ADR: evolve Price Memory; no new obs table yet |
 | [SYSTEMS/ADR_deal_score_boundaries.md](./SYSTEMS/ADR_deal_score_boundaries.md) | ADR: Signals vs DQE vs Verifier vs votes |
 | [SYSTEMS/ADR_price_observation_read_bridge.md](./SYSTEMS/ADR_price_observation_read_bridge.md) | ADR P0.2: SoT → PriceObservation read-only adapters |
+| [SYSTEMS/AUDIT_moderation_offer_card_p03.md](./SYSTEMS/AUDIT_moderation_offer_card_p03.md) | Audit P0.3: Moderation OS + Offer Card (pre-implementation) |
 | [SYSTEMS/SYSTEM_economy.md](./SYSTEMS/SYSTEM_economy.md) | Economy: adapter, revisions, reconciliation (sin settlement) |
 | [SYSTEMS/SYSTEM_conversion_commission.md](./SYSTEMS/SYSTEM_conversion_commission.md) | Detalle Conversion + Commission (alias de economy) |
 | [README.md](./README.md) | Este Ã­ndice |
