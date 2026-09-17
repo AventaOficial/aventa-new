@@ -1,12 +1,21 @@
 # SYSTEM — Deal Intelligence Engine (P0.1 Foundation)
 
-**Status:** LIVE (contracts + pure builders) — **no persistence layer yet**  
+**Status:** LIVE (contracts + **read adapters P0.2**) — **no DI persistence writes**  
 **Date:** 2026-09-16  
 **SoT precedence:** this contract + live Supply/DQE code > research drafts  
 
 ## Purpose
 
 Convert multi-source product/price events into **evaluated, evidenced, non-publishing** deal signals — reusing the existing Supply pipeline. Deal Intelligence does **not** replace DQE, Verifier, or Moderation OS.
+
+## P0.2 Read bridge
+
+```
+offer_price_snapshots → mapOfferPriceSnapshotToObservation → PriceObservation
+product_price_snapshots → mapPriceMemorySnapshotToObservation → PriceObservation
+```
+
+CEO connection uses **read-path** over existing SoT. Persistence (`DEAL_INTELLIGENCE_ENABLED`) remains **OFF**.
 
 ## Pipeline (unchanged)
 

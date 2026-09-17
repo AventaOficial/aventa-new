@@ -30,6 +30,10 @@ import {
   buildSystemHealthSnapshot,
   type SystemHealthSnapshot,
 } from '@/lib/owner/buildSystemHealth';
+import {
+  buildDealIntelligenceReadTruth,
+  type DealIntelligenceTruthSnapshot,
+} from '@/lib/dealIntelligence/truth';
 
 export type TrafficLight = 'green' | 'yellow' | 'red';
 
@@ -198,6 +202,8 @@ export type OwnerDashboardPayload = {
   attribution: AttributionTruthSnapshot;
   /** Conversion + Commission Foundation — ingest not connected; counts from tables. */
   conversionCommission: ConversionCommissionTruth;
+  /** Deal Intelligence read bridge — SoT → PriceObservation; persistence OFF. */
+  dealIntelligence: DealIntelligenceTruthSnapshot;
   /** System health agregada. */
   systemHealth: SystemHealthSnapshot;
   affiliation: {
@@ -795,6 +801,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     supplyToday,
     attributionTruth,
     conversionCommissionTruth,
+    dealIntelligenceTruth,
     supplyTruthToday,
     supplyTruthH24,
     supplyTruthD7,
@@ -823,6 +830,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     buildSupplyToday(),
     buildAttributionTruth(createServerClient(), { windowHours: 24 }),
     buildConversionCommissionTruth(createServerClient(), { windowHours: 24 * 7 }),
+    buildDealIntelligenceReadTruth(createServerClient(), { now, sampleLimit: 100 }),
     sumVerifiedDealsSince(startOfUtcDay(now)),
     sumVerifiedDealsSince(new Date(now.getTime() - 24 * 3600_000)),
     sumVerifiedDealsSince(new Date(now.getTime() - 7 * 24 * 3600_000)),
@@ -978,6 +986,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     integrityFailedChecks: integrityFailed,
     pendingModeration: pending,
     attribution: attributionTruth,
+    dealIntelligence: dealIntelligenceTruth,
     priceMemoryOk: supplyToday.priceMemory.ok,
     writeQueueBacklog: queueBacklog.pending,
   });
@@ -1110,6 +1119,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     },
     attribution: attributionTruth,
     conversionCommission: conversionCommissionTruth,
+    dealIntelligence: dealIntelligenceTruth,
     systemHealth,
     affiliation: {
       programsActive,

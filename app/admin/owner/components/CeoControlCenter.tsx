@@ -422,6 +422,78 @@ export default function CeoControlCenter({ data }: { data: OwnerDashboardPayload
             {formatNum(data.conversionCommission.conversions.unresolved)}
           </p>
         ) : null}
+        <div className="mt-3 rounded-lg border border-white/[0.08] bg-black/20 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
+            Deal Intelligence (read)
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div>
+              <p className="text-[10px] text-white/40">Status</p>
+              <p className="text-sm font-semibold tabular-nums text-white">
+                {data.dealIntelligence?.connection ?? 'NOT_CONNECTED'}
+              </p>
+              <p className="text-[9px] text-white/35">
+                persist={data.dealIntelligence?.persistenceEnabled ? '1' : '0'} · publish=0
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-white/40">Obs total / 24h / 7d</p>
+              <p className="text-sm font-semibold tabular-nums text-white">
+                {formatNum(
+                  data.dealIntelligence
+                    ? (data.dealIntelligence.observations.offerSnapshotsTotal ?? 0) +
+                        (data.dealIntelligence.observations.priceMemoryTotal ?? 0)
+                    : null,
+                )}
+                {' / '}
+                {formatNum(
+                  data.dealIntelligence
+                    ? (data.dealIntelligence.observations.offerSnapshots24h ?? 0) +
+                        (data.dealIntelligence.observations.priceMemory24h ?? 0)
+                    : null,
+                )}
+                {' / '}
+                {formatNum(
+                  data.dealIntelligence
+                    ? (data.dealIntelligence.observations.offerSnapshots7d ?? 0) +
+                        (data.dealIntelligence.observations.priceMemory7d ?? 0)
+                    : null,
+                )}
+              </p>
+              <p className="text-[9px] text-white/35">offer_snaps + price_memory</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-white/40">Identity exact/prob/unk %</p>
+              <p className="text-sm font-semibold tabular-nums text-white">
+                {data.dealIntelligence?.identity.exactPct != null
+                  ? `${data.dealIntelligence.identity.exactPct}`
+                  : '—'}
+                /
+                {data.dealIntelligence?.identity.probablePct != null
+                  ? `${data.dealIntelligence.identity.probablePct}`
+                  : '—'}
+                /
+                {data.dealIntelligence?.identity.unknownPct != null
+                  ? `${data.dealIntelligence.identity.unknownPct}`
+                  : '—'}
+              </p>
+              <p className="text-[9px] text-white/35">sample mapped</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-white/40">Fresh / stale</p>
+              <p className="text-sm font-semibold tabular-nums text-white">
+                {formatNum(data.dealIntelligence?.freshness.fresh ?? null)}
+                {' / '}
+                {formatNum(data.dealIntelligence?.freshness.stale ?? null)}
+              </p>
+              <p className="text-[9px] text-white/35">
+                err={formatNum(data.dealIntelligence?.sources.errors ?? null)} · lat=
+                {formatNum(data.dealIntelligence?.sources.latencyMs ?? null)}ms
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] text-white/45">{data.dealIntelligence?.note ?? '—'}</p>
+        </div>
         {(data.attribution?.byChannel?.length ?? 0) > 0 ? (
           <p className="mt-2 text-[10px] text-white/50">
             Top channels:{' '}

@@ -13,3 +13,8 @@ export * from './dealDetectedEvent';
 export * from './sourceCapabilities';
 export * from './truth';
 export * from './safety';
+export * from './telemetry';
+export * from './mappers/offerPriceSnapshot';
+export * from './mappers/priceMemorySnapshot';
+export * from './mappers/rawRows';
+export * from './readers/canonicalRead';

@@ -461,17 +461,43 @@ describe('Deal Intelligence — money / supply / publish safety', () => {
     expect(snap.connection).toBe('NOT_CONNECTED');
     expect(snap.economicDataSettleable).toBe(false);
     expect(snap.autoPublish).toBe(false);
-    expect(snap.metrics.priceObservationsHour).toBeNull();
+    expect(snap.metrics.dealsDetectedHour).toBeNull();
   });
 
-  it('CONNECTED_ZERO only when persistence enabled + zero counts', () => {
-    const prev = process.env.DEAL_INTELLIGENCE_ENABLED;
-    process.env.DEAL_INTELLIGENCE_ENABLED = '1';
+  it('CONNECTED_ZERO when readOk and zero SoT rows', () => {
     const snap = buildDealIntelligenceTruth({
-      persistedObservationCount: 0,
-      persistedDealEventCount: 0,
+      readOk: true,
+      offerSnapshotsTotal: 0,
+      priceMemoryTotal: 0,
     });
     expect(snap.connection).toBe('CONNECTED_ZERO');
+    expect(snap.persistenceEnabled).toBe(false);
+  });
+
+  it('CONNECTED_WITH_DATA when readOk and SoT rows exist', () => {
+    const snap = buildDealIntelligenceTruth({
+      readOk: true,
+      offerSnapshotsTotal: 3,
+      priceMemoryTotal: 10,
+      identityExact: 8,
+      identityUnknown: 2,
+      fresh: 9,
+      stale: 1,
+    });
+    expect(snap.connection).toBe('CONNECTED_WITH_DATA');
+    expect(snap.identity.exactPct).toBe(80);
+  });
+
+  it('persistence flag stays OFF by default', () => {
+    const prev = process.env.DEAL_INTELLIGENCE_ENABLED;
+    delete process.env.DEAL_INTELLIGENCE_ENABLED;
+    expect(isDealIntelligencePersistenceEnabled()).toBe(false);
+    const snap = buildDealIntelligenceTruth({
+      readOk: true,
+      offerSnapshotsTotal: 5,
+      priceMemoryTotal: 0,
+    });
+    expect(snap.persistenceEnabled).toBe(false);
     process.env.DEAL_INTELLIGENCE_ENABLED = prev;
   });
 
