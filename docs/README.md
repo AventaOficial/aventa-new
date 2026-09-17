@@ -12,6 +12,7 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 |---------|-------------|
 | [GUIA_AVENTA.md](./GUIA_AVENTA.md) | Estado, roadmap y checklist del dÃ­a a dÃ­a (puede estar desfasado vs SoT) |
 | [hunter/supply-orchestration.md](./hunter/supply-orchestration.md) | Supply Router / Truth (alineado con cÃ³digo FASE 10) |
+| [SYSTEMS/RESEARCH_supply_intelligence_engine.md](./SYSTEMS/RESEARCH_supply_intelligence_engine.md) | Investigación científica Supply Intelligence Engine (2026-09-16) |
 | [hunter/day-to-day-sources.md](./hunter/day-to-day-sources.md) | Fuentes DÃ­a a DÃ­a y flags |
 | [HUNTER_INFRA_Y_ROADMAP.md](./HUNTER_INFRA_Y_ROADMAP.md) | Hunter infra histÃ³rica â€” **parcialmente obsoleta** (GHA worker es el camino real; ver SoT) |
 | [CRON_EXTERNO_BOT.md](./CRON_EXTERNO_BOT.md) | CÃ³mo configurar cron-job.org â†’ `/api/cron/bot-ingest` |
@@ -24,6 +25,10 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 | [SYSTEMS/SYSTEM_mercadolibre_affiliate.md](./SYSTEMS/SYSTEM_mercadolibre_affiliate.md) | ML Afiliados: capability matrix + fail-closed ingest |
 | [SYSTEMS/RESEARCH_affiliate_economic_intelligence.md](./SYSTEMS/RESEARCH_affiliate_economic_intelligence.md) | Research: Amazon+ML economic ingest evidence (FASE 1) |
 | [SYSTEMS/AMAZON_EVIDENCE_HARVEST.md](./SYSTEMS/AMAZON_EVIDENCE_HARVEST.md) | Amazon MX export harvest checklist + NO-GO until IDs verified |
+| [SYSTEMS/ARCHITECTURE_deal_intelligence_engine.md](./SYSTEMS/ARCHITECTURE_deal_intelligence_engine.md) | Deal Intelligence Engine — architecture audit (reuse Supply/DQE; no money) |
+| [SYSTEMS/SYSTEM_deal_intelligence.md](./SYSTEMS/SYSTEM_deal_intelligence.md) | Deal Intelligence system contract (P0.1) |
+| [SYSTEMS/ADR_price_memory_vs_observations.md](./SYSTEMS/ADR_price_memory_vs_observations.md) | ADR: evolve Price Memory; no new obs table yet |
+| [SYSTEMS/ADR_deal_score_boundaries.md](./SYSTEMS/ADR_deal_score_boundaries.md) | ADR: Signals vs DQE vs Verifier vs votes |
 | [SYSTEMS/SYSTEM_economy.md](./SYSTEMS/SYSTEM_economy.md) | Economy: adapter, revisions, reconciliation (sin settlement) |
 | [SYSTEMS/SYSTEM_conversion_commission.md](./SYSTEMS/SYSTEM_conversion_commission.md) | Detalle Conversion + Commission (alias de economy) |
 | [README.md](./README.md) | Este Ã­ndice |

@@ -8,6 +8,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import { parseSupplyEngineMode } from '@/lib/hunter/supply/nicheProfiles';
 import type { AttributionTruthSnapshot } from '@/lib/attribution/buildAttributionTruth';
+import type { DealIntelligenceTruthSnapshot } from '@/lib/dealIntelligence/truth';
 
 export type SystemHealthStatus = 'healthy' | 'degraded' | 'blocked' | 'unknown';
 
@@ -42,6 +43,7 @@ export async function buildSystemHealthSnapshot(input: {
   integrityFailedChecks?: number | null;
   pendingModeration?: number | null;
   attribution?: AttributionTruthSnapshot | null;
+  dealIntelligence?: DealIntelligenceTruthSnapshot | null;
   priceMemoryOk?: boolean | null;
   writeQueueBacklog?: number | null;
 }): Promise<SystemHealthSnapshot> {
@@ -107,6 +109,27 @@ export async function buildSystemHealthSnapshot(input: {
     components.push({ id: 'price_memory', status: 'healthy', detail: 'Price Memory OK' });
   } else {
     components.push({ id: 'price_memory', status: 'unknown', detail: 'PM status unknown' });
+  }
+
+  const di = input.dealIntelligence;
+  if (di) {
+    const diStatus: SystemHealthStatus =
+      di.connection === 'NOT_CONNECTED'
+        ? 'unknown'
+        : di.connection === 'CONNECTED_ZERO'
+          ? 'healthy'
+          : 'healthy';
+    components.push({
+      id: 'deal_intelligence',
+      status: diStatus,
+      detail: `${di.connection} — ${di.note}`,
+    });
+  } else {
+    components.push({
+      id: 'deal_intelligence',
+      status: 'unknown',
+      detail: 'NOT_CONNECTED — contracts only (no persistence)',
+    });
   }
 
   const wq = input.writeQueueBacklog;

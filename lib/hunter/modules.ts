@@ -36,6 +36,14 @@ export const HUNTER_MODULES: HunterModule[] = [
     code: 'lib/hunter/supply/getSupplyTruth.ts',
   },
   {
+    id: 'deal_intelligence',
+    emoji: '📡',
+    name: 'Deal Intelligence Foundation',
+    job: 'Contratos PriceObservation / deal.detected / capabilities. Reusa DQE+Signals. No publica ni liquida.',
+    status: 'partial',
+    code: 'lib/dealIntelligence/index.ts',
+  },
+  {
     id: 'collector',
     emoji: '🔎',
     name: 'Recolector',

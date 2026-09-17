@@ -134,6 +134,8 @@ export type HunterSource = {
   family?: HunterSourceFamily;
   country?: string;
   capabilities?: HunterSourceCapabilities;
+  /** DI overlay — see lib/dealIntelligence/types DealSourceCapabilities. */
+  dealCapabilities?: import('@/lib/dealIntelligence/types').DealSourceCapabilities;
   discoveryMethod?: HunterDiscoveryMethod;
   affiliateStatus?: HunterAffiliateAvailability;
   ratePolicy?: HunterSourceRatePolicy;

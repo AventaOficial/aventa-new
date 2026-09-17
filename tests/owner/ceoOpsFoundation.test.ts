@@ -57,4 +57,17 @@ describe('CEO ops — system health', () => {
     expect(snap.components.find((c) => c.id === 'money')?.status).toBe('healthy');
     process.env.MONEY_PATH_FROZEN = prev;
   });
+
+  it('incluye deal_intelligence como unknown/NOT_CONNECTED por defecto', async () => {
+    process.env.SUPPLY_ENGINE_WRITE = '0';
+    const snap = await buildSystemHealthSnapshot({
+      integrityOk: true,
+      pendingModeration: 1,
+      priceMemoryOk: true,
+      writeQueueBacklog: 0,
+    });
+    const di = snap.components.find((c) => c.id === 'deal_intelligence');
+    expect(di?.status).toBe('unknown');
+    expect(di?.detail).toMatch(/NOT_CONNECTED/);
+  });
 });
