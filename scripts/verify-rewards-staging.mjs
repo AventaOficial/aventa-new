@@ -1,13 +1,22 @@
 /**
- * Verificación Rewards V1 en staging (read/write controlado, sin dinero real).
+ * Verificación Rewards V1 en STAGING únicamente (read/write controlado).
  * Usage: node scripts/verify-rewards-staging.mjs
+ *
+ * Fail-closed: aborts if NEXT_PUBLIC_SUPABASE_URL is PRODUCTION (mkgsrpsuvedwwlzmzmzh).
+ * Requires staging project oojshofrpbfwsiypcecr in .env.local (or env).
  */
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import {
+  assertStagingSupabaseUrl,
+  PRODUCTION_SUPABASE_REF,
+  STAGING_SUPABASE_REF,
+} from './lib/supabaseProjectRefs.mjs';
 
-function loadEnvLocal() {
-  const raw = readFileSync(new URL('../.env.local', import.meta.url), 'utf8');
+function loadEnvFile(fileUrl) {
+  if (!existsSync(fileUrl)) return {};
+  const raw = readFileSync(fileUrl, 'utf8');
   const env = {};
   for (const line of raw.split(/\r?\n/)) {
     const t = line.trim();
@@ -19,17 +28,26 @@ function loadEnvLocal() {
   return env;
 }
 
-const env = loadEnvLocal();
+const envLocal = loadEnvFile(new URL('../.env.local', import.meta.url));
+const envStaging = loadEnvFile(new URL('../.env.staging.local', import.meta.url));
+// Prefer explicit staging file when present; never silently use prod for this script.
+const env = { ...envLocal, ...envStaging, ...process.env };
+
 const url = env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
 const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!url || !serviceKey || !anonKey) {
-  console.error('Faltan variables Supabase en .env.local');
+  console.error(
+    'Faltan NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  );
+  console.error(
+    `Configura staging (${STAGING_SUPABASE_REF}) en .env.staging.local o .env.local — no uses production.`,
+  );
   process.exit(2);
 }
 
-const projectRef = url.replace(/^https:\/\//, '').split('.')[0];
+const projectRef = assertStagingSupabaseUrl(url, env);
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 const anon = createClient(url, anonKey, { auth: { persistSession: false } });
 
@@ -37,6 +55,19 @@ const checks = [];
 function add(name, ok, detail, securityCheck = false) {
   checks.push({ name, ok, detail, blocker: securityCheck && !ok });
 }
+
+add(
+  'env.is_staging_ref',
+  projectRef === STAGING_SUPABASE_REF,
+  `ref=${projectRef}`,
+  true,
+);
+add(
+  'env.not_production_ref',
+  projectRef !== PRODUCTION_SUPABASE_REF,
+  projectRef === PRODUCTION_SUPABASE_REF ? 'FATAL: production' : 'ok',
+  true,
+);
 
 const REWARD_TABLES = [
   'creator_rewards',
@@ -279,8 +310,9 @@ add(
 
 const report = {
   projectRef,
-  environment: 'staging/dev (mkgsrpsuvedwwlzmzmzh — Aventa Cazadores de ofertas)',
-  productionProjectNotTouched: 'oojshofrpbfwsiypcecr',
+  environment: `staging (${STAGING_SUPABASE_REF})`,
+  productionRefProtected: PRODUCTION_SUPABASE_REF,
+  productionMustNotBeTarget: true,
   checks,
   ok: checks.every((c) => c.ok),
   simulatedIds: { simOfferId, simCreatorId, simLedgerId, simRewardId, simClickId },

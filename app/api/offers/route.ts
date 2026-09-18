@@ -21,6 +21,7 @@ import {
 } from '@/lib/server/requireCommunityUser';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
 import { getUploadCooldownStatus } from '@/lib/server/uploadCooldown';
+import { recordShadowOutcomeFromAutonomous } from '@/lib/autonomous';
 
 type OfferInsertPayload = {
   title: string;
@@ -300,6 +301,18 @@ export async function POST(request: Request) {
       evaluation: quality,
       insertedPending: offerStatus === 'pending',
     });
+    if (newOfferId && quality?.autonomousResult) {
+      void recordShadowOutcomeFromAutonomous({
+        offerId: newOfferId,
+        result: quality.autonomousResult,
+        sourceId: 'community',
+        sourceFamily: 'community',
+        sourceDetail: 'community:paste',
+        fingerprint: productFingerprint,
+        qualification: quality.qualification,
+        creatorId: createdBy,
+      });
+    }
     if (newOfferId) {
       const { recordOfferPriceSnapshot } = await import('@/lib/offers/priceHistory');
       void recordOfferPriceSnapshot(supabase, {

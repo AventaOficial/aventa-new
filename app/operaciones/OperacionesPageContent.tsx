@@ -139,6 +139,11 @@ function signalLabel(status: 'green' | 'yellow' | 'red'): string {
 
 const OPERATIONS_ZONE_INDEX: { id: string; title: string; description: string }[] = [
   {
+    id: 'ofertas-tester',
+    title: 'Ofertas tester (home)',
+    description: 'Activar o desactivar mocks tester-* en el home. Visible arriba.',
+  },
+  {
     id: 'zona-control-producto',
     title: 'Control por áreas',
     description: 'Último cambio, revisión y OK por módulo (tabla editable en código).',
@@ -156,7 +161,7 @@ const OPERATIONS_ZONE_INDEX: { id: string; title: string; description: string }[
   {
     id: 'zona-trafico',
     title: 'Tráfico y cola',
-    description: 'Go/No-Go, procesar cola de escrituras y control tester del home.',
+    description: 'Go/No-Go y procesar cola de escrituras.',
   },
   {
     id: 'zona-infra',
@@ -565,6 +570,47 @@ export default function OperacionesPageContent() {
             </p>
           </header>
 
+          <section
+            id="ofertas-tester"
+            className="rounded-2xl border-2 border-amber-400/80 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-950/40 p-5 md:p-6 mb-6 shadow-sm scroll-mt-24"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-200/80 dark:bg-amber-900/50">
+                  <FlaskConical className="h-5 w-5 text-amber-800 dark:text-amber-300" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
+                    Ofertas tester en el home
+                  </h2>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                    Mocks <code className="text-[10px]">tester-*</code> solo para pruebas visuales.
+                    Estado actual:{' '}
+                    <strong className={showTesterOffers ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}>
+                      {showTesterOffers ? 'ACTIVADAS' : 'DESACTIVADAS'}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={testerOffersSaving}
+                onClick={() => void setTesterOffersEnabled(!showTesterOffers)}
+                className={`shrink-0 inline-flex min-h-12 items-center justify-center rounded-2xl px-5 text-sm font-bold disabled:opacity-50 ${
+                  showTesterOffers
+                    ? 'bg-amber-600 text-white hover:bg-amber-700'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                {testerOffersSaving
+                  ? 'Guardando…'
+                  : showTesterOffers
+                    ? 'Desactivar ofertas tester'
+                    : 'Activar ofertas tester'}
+              </button>
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-dashed border-violet-300/90 dark:border-violet-700/80 bg-violet-50/50 dark:bg-violet-950/25 p-4 md:p-5 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="min-w-0">
@@ -887,29 +933,13 @@ export default function OperacionesPageContent() {
             </section>
 
             <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-5 md:p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
-                  <FlaskConical className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Control owner: ofertas tester</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Solo para pruebas visuales internas. No usar durante campañas reales.
-                  </p>
-                </div>
-              </div>
-              <label className="inline-flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/15 px-3 py-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showTesterOffers}
-                  disabled={testerOffersSaving}
-                  onChange={(e) => setTesterOffersEnabled(e.target.checked)}
-                  className="rounded border-gray-400 text-amber-500 focus:ring-amber-500 disabled:opacity-50"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {showTesterOffers ? 'Tester activado en home' : 'Tester desactivado en home'}
-                </span>
-              </label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                El control de ofertas tester está{' '}
+                <a href="#ofertas-tester" className="font-semibold text-amber-700 dark:text-amber-300 underline">
+                  arriba de esta página
+                </a>
+                .
+              </p>
             </section>
 
             <section

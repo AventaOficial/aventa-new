@@ -50,13 +50,6 @@ export const HUNTER_METRIC_UNIVERSES = {
     evidenceYield: 'offerEvidenceCount / candidateCount. No optimizar por volumen de catálogo.',
     candidates: 'Candidatos parseados en ESTE isolate durante discoverRetailer.',
   },
-  sitemapChannelDiscovery: {
-    persistence: 'process_memory_report',
-    note: 'FASE 9.1 canal sitemap→PDP. Report del script, no source health ni autonomousPct ni qualification counters.',
-    sitemapsInspected: 'Child sitemaps leídos en ESTE isolate (budget).',
-    pdpInspected: 'PDPs fetchados. No insertados.',
-    evidenceYield: 'VERIFIED_DEAL+PROMOTION / pdpInspected.',
-  },
   communityQuality: {
     persistence: 'process_memory',
     note: 'FASE 10.1 quality de POST /api/offers. No mezclar con supplyOrchestration, qualification, autonomousPct ni source health.',
@@ -76,6 +69,13 @@ export const HUNTER_METRIC_UNIVERSES = {
     candidatesDiscovered: 'Candidatos tras collect+budget en ESTE isolate (runSupplyRouter).',
     verifiedDeals: 'Contribution de evidencia VERIFIED_DEAL por source. No es AUTO_APPROVE.',
     communityShare: 'Share de unique community vs machine. Community no se penaliza.',
+  },
+  sitemapChannelDiscovery: {
+    persistence: 'process_memory_report',
+    note: 'FASE 9.1 canal sitemap→PDP. Report del script, no source health ni autonomousPct ni qualification counters.',
+    sitemapsInspected: 'Child sitemaps leídos en ESTE isolate (budget).',
+    pdpInspected: 'PDPs fetchados. No insertados.',
+    evidenceYield: 'VERIFIED_DEAL+PROMOTION / pdpInspected.',
   },
   mercadoLibreQuality: {
     persistence: 'process_memory',

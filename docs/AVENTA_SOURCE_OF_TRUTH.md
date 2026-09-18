@@ -173,7 +173,7 @@ Leyenda: 🟢 operativo · 🟡 incompleto · 🟠 desalineado · 🔴 solo docs
 | CI/CD | 🟢 | `.github/workflows/ci.yml` | Sí | | |
 | Migrations | 🟡 | `docs/supabase-migrations/` | Aplicadas a mano | | `supabase/migrations/` vacío |
 | Backups | 🔴 | checklists | Sin pipeline repo | Supabase | |
-| Staging | 🔴 | — | Solo Preview | | |
+| Staging | 🟡 | `oojshofrpbfwsiypcecr` (legacy→staging) | Contract + guards; local still often on prod until founder rekeys | `STAGING_ENVIRONMENT_CONTRACT.md` | Preview env TBD in Vercel |
 | Security | 🟡 | middleware, cron Bearer, RLS | Sí con WARN advisors | | |
 | **UX** | | | | | |
 | Desktop | 🟢 | home + detalle | Sí | | |

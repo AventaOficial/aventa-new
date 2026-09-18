@@ -21,6 +21,7 @@ import {
   recordModerationOutcomeFireAndForget,
   type ModerationOutcomeOfferSnapshot,
 } from '@/lib/moderation/outcomes'
+import { enqueueDistributionForApprovedOfferFireAndForget } from '@/lib/distribution'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -320,6 +321,9 @@ export async function POST(request: Request) {
     revalidatePath('/')
     if (status === 'approved' && previousStatus !== 'approved') {
       void invalidateHomeFeedCache()
+      // Distribution Engine P0-D1: enqueue pending publications only (flag default OFF).
+      // No provider API calls. Does not modify offer status / money / Supply / attribution.
+      enqueueDistributionForApprovedOfferFireAndForget(id, { supabase })
     }
     return NextResponse.json({ ok: true })
   } catch (e) {

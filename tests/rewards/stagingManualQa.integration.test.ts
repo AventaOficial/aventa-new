@@ -1,10 +1,14 @@
 /**
- * QA manual staging — ejecutar SOLO contra mkgsrpsuvedwwlzmzmzh:
+ * QA manual STAGING — escribe datos sintéticos. NUNCA contra production.
+ *
  *   STAGING_MANUAL_QA=1 npx vitest run tests/rewards/stagingManualQa.integration.test.ts
+ *
+ * Requires .env.local / .env.staging.local → oojshofrpbfwsiypcecr
+ * Aborts if URL points at mkgsrpsuvedwwlzmzmzh.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 import {
   getRewardsProgress,
@@ -19,12 +23,19 @@ import { processExpiredRewardHolds, reverseReward } from '../../lib/rewards/rewa
 import { createPaidRewardClawbackAdjustment } from '../../lib/rewards/clawback';
 import { assignManualLedgerAttribution } from '../../lib/rewards/manualAttribution';
 import { createManualRewardPayout } from '../../lib/rewards/payout';
+import {
+  STAGING_SUPABASE_REF,
+  PRODUCTION_SUPABASE_REF,
+  assertStagingSupabaseUrl,
+} from '@/lib/supabase/projectRefs';
 
-const STAGING_REF = 'mkgsrpsuvedwwlzmzmzh';
+const STAGING_REF = STAGING_SUPABASE_REF;
 const RUN_ID = `qa-${Date.now()}`;
 
-function loadEnvLocal(): Record<string, string> {
-  const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
+function loadEnvFile(rel: string): Record<string, string> {
+  const fileUrl = new URL(rel, import.meta.url);
+  if (!existsSync(fileUrl)) return {};
+  const raw = readFileSync(fileUrl, 'utf8');
   const env: Record<string, string> = {};
   for (const line of raw.split(/\r?\n/)) {
     const t = line.trim();
@@ -38,7 +49,7 @@ function loadEnvLocal(): Record<string, string> {
 
 const skip = !process.env.STAGING_MANUAL_QA;
 
-describe.skipIf(skip)('Staging manual QA — mkgsrpsuvedwwlzmzmzh', () => {
+describe.skipIf(skip)(`Staging manual QA — ${STAGING_REF}`, () => {
   let supabase: SupabaseClient;
   let testUserId: string;
   let voterIds: string[] = [];
@@ -51,10 +62,24 @@ describe.skipIf(skip)('Staging manual QA — mkgsrpsuvedwwlzmzmzh', () => {
   let actorId: string;
 
   beforeAll(async () => {
-    const env = loadEnvLocal();
-    const url = env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-    const key = env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+    const fileEnv = {
+      ...loadEnvFile('../../.env.local'),
+      ...loadEnvFile('../../.env.staging.local'),
+    };
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? fileEnv.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? fileEnv.SUPABASE_SERVICE_ROLE_KEY ?? '';
+
+    const ref = assertStagingSupabaseUrl(url, {
+      ...fileEnv,
+      ...process.env,
+      AVENTA_EXPECTED_SUPABASE_REF:
+        process.env.AVENTA_EXPECTED_SUPABASE_REF ?? STAGING_REF,
+    });
+    expect(ref).toBe(STAGING_REF);
+    expect(ref).not.toBe(PRODUCTION_SUPABASE_REF);
     expect(url).toContain(STAGING_REF);
+    expect(url).not.toContain(PRODUCTION_SUPABASE_REF);
 
     supabase = createClient(url, key, { auth: { persistSession: false } });
     process.env.REWARDS_PROGRAM_ACTIVE = 'true';
