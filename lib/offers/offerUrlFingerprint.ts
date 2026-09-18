@@ -26,7 +26,11 @@ const AFFILIATE_QUERY_KEYS = new Set([
   'utm_content',
 ]);
 
-export { extractMercadoLibreItemId, resolveMercadoLibreItem } from '@/lib/offers/resolveMercadoLibreItem';
+export {
+  extractMercadoLibreItemId,
+  extractMercadoLibreUserProductId,
+  resolveMercadoLibreItem,
+} from '@/lib/offers/resolveMercadoLibreItem';
 import {
   extractMercadoLibreItemId,
   extractMercadoLibreUserProductId,

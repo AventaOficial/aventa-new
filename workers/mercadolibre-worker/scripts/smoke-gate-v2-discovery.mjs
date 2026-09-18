@@ -13,14 +13,25 @@ import path from 'node:path';
 import { discoverMercadoLibreCandidates } from '../src/ml.mjs';
 import { resolveSeeds } from '../src/seeds.mjs';
 
+/** Env overrides for S5.5 real validation (hard cap 50). Defaults keep smoke small. */
+function smokeInt(name, fallback, max = 50) {
+  const n = Number.parseInt(process.env[name] ?? '', 10);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(max, n);
+}
+
 const SMOKE = {
-  maxItems: 8,
-  perSeedMax: 4,
-  shortlistMax: 12,
-  pdpMax: 6,
-  minDiscountPercent: 18,
-  seedIds: ['ofertas_hub', 'lightning'],
-  timeoutMs: 45000,
+  maxItems: smokeInt('SMOKE_MAX_ITEMS', 8, 50),
+  perSeedMax: smokeInt('SMOKE_PER_SEED_MAX', 4, 50),
+  shortlistMax: smokeInt('SMOKE_SHORTLIST_MAX', 12, 50),
+  pdpMax: smokeInt('SMOKE_PDP_MAX', 6, 50),
+  minDiscountPercent: smokeInt('SMOKE_MIN_DISCOUNT_PERCENT', 18, 95),
+  seedIds: (process.env.SMOKE_SEED_IDS || 'ofertas_hub,lightning')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 4),
+  timeoutMs: smokeInt('SMOKE_TIMEOUT_MS', 45000, 120000),
 };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
