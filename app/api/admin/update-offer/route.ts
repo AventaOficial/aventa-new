@@ -13,6 +13,7 @@ import { shouldPersistLinkModOk } from '@/lib/moderation/affiliateReadinessContr
 import {
   buildOfferEditDiff,
   isMaterialOfferEdit,
+  parseOfferEditBankCoupon,
   parseOfferEditMoney,
   parseOfferEditMsiMonths,
   sanitizeOfferEditCoupons,
@@ -46,7 +47,7 @@ export async function PATCH(request: Request) {
     const { data: offer } = await supabase
       .from('offers')
       .select(
-        'id, status, title, price, original_price, description, category, image_url, image_urls, offer_url, original_offer_url, coupons, msi_months, locked_by, locked_at, link_mod_ok'
+        'id, status, title, price, original_price, description, category, image_url, image_urls, offer_url, original_offer_url, coupons, bank_coupon, msi_months, locked_by, locked_at, link_mod_ok'
       )
       .eq('id', id)
       .single()
@@ -85,6 +86,7 @@ export async function PATCH(request: Request) {
       image_urls?: string[] | null
       category?: string | null
       coupons?: string | null
+      bank_coupon?: string | null
       msi_months?: number | null
       link_mod_ok?: boolean | null
       status?: string
@@ -230,6 +232,14 @@ export async function PATCH(request: Request) {
       payload.coupons = sanitizeOfferEditCoupons(body.coupons)
       afterSnapshot.coupons = payload.coupons
     }
+    if (body.bank_coupon !== undefined) {
+      const parsed = parseOfferEditBankCoupon(body.bank_coupon)
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 })
+      }
+      payload.bank_coupon = parsed.value
+      afterSnapshot.bank_coupon = parsed.value
+    }
     if (body.msi_months !== undefined) {
       const parsed = parseOfferEditMsiMonths(body.msi_months)
       if (!parsed.ok) {
@@ -276,6 +286,7 @@ export async function PATCH(request: Request) {
         image_url: (offer as { image_url?: string | null }).image_url,
         offer_url: (offer as { offer_url?: string | null }).offer_url,
         coupons: (offer as { coupons?: string | null }).coupons,
+        bank_coupon: (offer as { bank_coupon?: string | null }).bank_coupon ?? null,
         msi_months: (offer as { msi_months?: number | null }).msi_months ?? null,
       },
       afterSnapshot
@@ -307,11 +318,13 @@ export async function PATCH(request: Request) {
       (hasMissingColumn(error, 'link_mod_ok') ||
         hasMissingColumn(error, 'original_offer_url') ||
         hasMissingColumn(error, 'coupons') ||
+        hasMissingColumn(error, 'bank_coupon') ||
         hasMissingColumn(error, 'snoozed_until'))
     ) {
       if (hasMissingColumn(error, 'link_mod_ok')) delete payload.link_mod_ok
       if (hasMissingColumn(error, 'original_offer_url')) delete payload.original_offer_url
       if (hasMissingColumn(error, 'coupons')) delete payload.coupons
+      if (hasMissingColumn(error, 'bank_coupon')) delete payload.bank_coupon
       if (hasMissingColumn(error, 'snoozed_until')) delete payload.snoozed_until
       ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
     }
@@ -354,6 +367,7 @@ export async function PATCH(request: Request) {
       image_url: payload.image_url,
       image_urls: payload.image_urls,
       coupons: payload.coupons,
+      bank_coupon: payload.bank_coupon,
       msi_months: payload.msi_months,
       status: demoted ? 'pending' : offerStatus,
     })

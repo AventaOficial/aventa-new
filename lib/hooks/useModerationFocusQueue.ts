@@ -16,6 +16,20 @@ import type {
   FocusQueueStats,
   FocusSourceTab,
 } from '@/lib/moderation/focusTypes';
+import {
+  buildSessionExcludeIds,
+  bumpReviewedCount,
+  formatFocusSessionCounter,
+  markSessionOffer,
+  SESSION_HISTORY_CAP,
+  type ModerationSessionState,
+} from '@/lib/moderation/moderationSessionState';
+import {
+  loadModerationSessionState,
+  saveModerationSessionState,
+} from '@/lib/moderation/moderationSessionStorage';
+import { recordFocusSessionTelemetry } from '@/lib/moderation/focusSessionTelemetry';
+import type { ClaimKind } from '@/lib/moderation/claimNextModerationOffer';
 
 export type UseModerationFocusQueueOptions = {
   sourceTab: FocusSourceTab;
@@ -48,16 +62,45 @@ export function useModerationFocusQueue({
   const [needsAffiliateConfirm, setNeedsAffiliateConfirm] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [sessionCursor, setSessionCursor] = useState(0);
+  const [reviewedCount, setReviewedCount] = useState(0);
   const [oldestCreatedAt, setOldestCreatedAt] = useState<string | null>(null);
+  const [lastClaimKind, setLastClaimKind] = useState<ClaimKind | null>(null);
+  /** Lease servidor activo — independiente de offer mostrado en historial. */
+  const [activeLeaseOfferId, setActiveLeaseOfferId] = useState<string | null>(null);
 
   const claimInFlightRef = useRef(false);
   const actingRef = useRef(false);
   const heldLockIdRef = useRef<string | null>(null);
   const lockSupportedRef = useRef(true);
   const originalUrlRef = useRef<Map<string, string>>(new Map());
-  const excludeRef = useRef<string[]>([]);
+  const sessionStateRef = useRef<ModerationSessionState | null>(null);
   const preferOfferIdRef = useRef<string | null>(preferOfferId);
+
+  const setHeldLease = useCallback((offerId: string | null) => {
+    heldLockIdRef.current = offerId;
+    setActiveLeaseOfferId(offerId);
+  }, []);
+
+  const persistSession = useCallback(
+    (next: ModerationSessionState) => {
+      sessionStateRef.current = next;
+      setReviewedCount(next.reviewedCount);
+      saveModerationSessionState(session?.user?.id, sourceTab, next);
+    },
+    [session?.user?.id, sourceTab]
+  );
+
+  // Cargar / rehidratar sesión por moderador + tab (sobrevive refresh).
+  useEffect(() => {
+    if (!session?.user?.id) {
+      sessionStateRef.current = null;
+      setReviewedCount(0);
+      return;
+    }
+    const loaded = loadModerationSessionState(session.user.id, sourceTab);
+    sessionStateRef.current = loaded;
+    setReviewedCount(loaded.reviewedCount);
+  }, [session?.user?.id, sourceTab]);
 
   const authHeaders = useCallback((): HeadersInit => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -102,11 +145,15 @@ export function useModerationFocusQueue({
         // HTTP error o fallo de red transitorio — sin setError / sin throw.
         return { ok: false as const };
       }
-      if (action !== 'release') heldLockIdRef.current = offerId;
-      if (action === 'release' && heldLockIdRef.current === offerId) heldLockIdRef.current = null;
+      if (action === 'release') {
+        if (heldLockIdRef.current === offerId) setHeldLease(null);
+      } else if (heldLockIdRef.current === offerId || heldLockIdRef.current == null) {
+        // Solo adoptar lease en acquire/heartbeat del held actual — nunca por offer de historial.
+        setHeldLease(offerId);
+      }
       return { ok: true as const };
     },
-    [authHeaders, session?.access_token]
+    [authHeaders, session?.access_token, setHeldLease]
   );
 
   const claimNext = useCallback(
@@ -119,9 +166,16 @@ export function useModerationFocusQueue({
       claimInFlightRef.current = true;
       setError(null);
       try {
+        const sess =
+          sessionStateRef.current ??
+          loadModerationSessionState(session.user?.id, sourceTab);
+        sessionStateRef.current = sess;
         const exclude = [
-          ...new Set([...(options?.excludeOfferIds ?? []), ...excludeRef.current]),
-        ].slice(-40);
+          ...new Set([
+            ...buildSessionExcludeIds(sess),
+            ...(options?.excludeOfferIds ?? []),
+          ]),
+        ];
         // Se consume una vez: tras el primer claim la cola vuelve a su orden normal.
         const prefer = preferOfferIdRef.current;
         preferOfferIdRef.current = null;
@@ -130,8 +184,9 @@ export function useModerationFocusQueue({
           headers: authHeaders(),
           body: JSON.stringify({
             releaseOfferId: options?.releaseOfferId ?? heldLockIdRef.current,
-            excludeOfferIds: exclude.filter((id) => id !== '__retry__'),
+            excludeOfferIds: exclude,
             sourceTab,
+            sessionId: sess.sessionId,
             ...(prefer ? { preferOfferId: prefer } : {}),
           }),
         });
@@ -144,7 +199,11 @@ export function useModerationFocusQueue({
           if (res.status === 409 || /tomad|lock|ocupad|conflicto/i.test(msg)) {
             setError('Esta oferta ya fue tomada por otra persona.');
             const extra = options?.excludeOfferIds ?? [];
-            excludeRef.current = [...excludeRef.current, ...extra].slice(-40);
+            if (extra.length > 0) {
+              let next = sess;
+              for (const id of extra) next = markSessionOffer(next, id, 'skipped');
+              persistSession(next);
+            }
             if (!options?.retried) {
               claimInFlightRef.current = false;
               return claimNext({
@@ -173,31 +232,45 @@ export function useModerationFocusQueue({
         }
         if (data?.claimed && data?.offer) {
           const claimed = mapOffer(data.offer as Record<string, unknown>);
+          const claimKind =
+            data.claimKind === 'stale_reclaim' ||
+            data.claimKind === 'reclaim_own' ||
+            data.claimKind === 'fresh'
+              ? (data.claimKind as ClaimKind)
+              : 'fresh';
           const claimedOriginal = focusClaimOriginalRefValue(claimed.original_offer_url);
           if (claimedOriginal) {
             originalUrlRef.current.set(claimed.id, claimedOriginal);
           } else {
             originalUrlRef.current.delete(claimed.id);
           }
-          heldLockIdRef.current = claimed.id;
+          setHeldLease(claimed.id);
           setOffer(claimed);
+          setLastClaimKind(claimKind);
           setNeedsAffiliateConfirm(false);
           setHistory((prev) => {
             const without = prev.filter((o) => o.id !== claimed.id);
-            return [...without, claimed].slice(-30);
+            return [...without, claimed].slice(-SESSION_HISTORY_CAP);
           });
           setHistoryIndex(-1);
-          setSessionCursor((n) => n + 1);
+          persistSession(bumpReviewedCount(sess));
+          recordFocusSessionTelemetry({
+            event: claimKind === 'stale_reclaim' ? 'stale_reclaim' : 'claim',
+            offerId: claimed.id,
+            sessionId: sess.sessionId,
+            claimKind,
+          });
           return claimed.id;
         }
         setOffer(null);
-        heldLockIdRef.current = null;
+        setHeldLease(null);
+        setLastClaimKind(null);
         return null;
       } finally {
         claimInFlightRef.current = false;
       }
     },
-    [authHeaders, session?.access_token, sourceTab]
+    [authHeaders, persistSession, session?.access_token, session?.user?.id, setHeldLease, sourceTab]
   );
 
   // Bootstrap: un solo claim-next (stats + oldest vienen del mismo response).
@@ -222,18 +295,19 @@ export function useModerationFocusQueue({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token, sourceTab]);
 
-  // Heartbeat
+  // Heartbeat SOLO del lease servidor activo — no depende de historial / offer mostrado.
   useEffect(() => {
-    if (!offer?.id || !session?.access_token) return;
-    const id = offer.id;
+    if (!session?.access_token || !activeLeaseOfferId) return;
+    const id = activeLeaseOfferId;
     void postLock(id, 'acquire');
     const t = setInterval(() => {
+      if (heldLockIdRef.current !== id) return;
       void postLock(id, 'heartbeat');
     }, 60_000);
     return () => {
       clearInterval(t);
     };
-  }, [offer?.id, postLock, session?.access_token]);
+  }, [activeLeaseOfferId, postLock, session?.access_token]);
 
   // Release lock on unmount
   useEffect(() => {
@@ -245,6 +319,10 @@ export function useModerationFocusQueue({
 
   const approve = useCallback(async () => {
     if (!offer || actingRef.current) return { ok: false as const };
+    if (historyIndex >= 0) {
+      setError('Estás en historial. Vuelve a la oferta activa para decidir.');
+      return { ok: false as const };
+    }
     // Gate UI: misma autoridad que approve (contrato canónico).
     const originalUrl = focusOriginalProductUrlForRequest({
       originalOfferUrl: offer.original_offer_url,
@@ -298,8 +376,14 @@ export function useModerationFocusQueue({
         }).catch(() => {});
       }
       originalUrlRef.current.delete(current.id);
-      heldLockIdRef.current = null;
-      excludeRef.current = [...excludeRef.current, current.id].slice(-40);
+      setHeldLease(null);
+      const sess = sessionStateRef.current;
+      if (sess) persistSession(markSessionOffer(sess, current.id, 'actioned'));
+      recordFocusSessionTelemetry({
+        event: 'approve',
+        offerId: current.id,
+        sessionId: sess?.sessionId,
+      });
       setNeedsAffiliateConfirm(false);
       await claimNext({ releaseOfferId: current.id, excludeOfferIds: [current.id] });
       return { ok: true as const };
@@ -310,11 +394,15 @@ export function useModerationFocusQueue({
       actingRef.current = false;
       setActing(false);
     }
-  }, [authHeaders, claimNext, offer]);
+  }, [authHeaders, claimNext, offer, persistSession, historyIndex, setHeldLease]);
 
   const reject = useCallback(
     async (reason: string) => {
       if (!offer || actingRef.current) return { ok: false as const };
+      if (historyIndex >= 0) {
+        setError('Estás en historial. Vuelve a la oferta activa para decidir.');
+        return { ok: false as const };
+      }
       if (!reason.trim()) {
         setError('Elige un motivo para rechazar.');
         return { ok: false as const };
@@ -344,8 +432,14 @@ export function useModerationFocusQueue({
             body: JSON.stringify({ userId: current.created_by }),
           }).catch(() => {});
         }
-        heldLockIdRef.current = null;
-        excludeRef.current = [...excludeRef.current, current.id].slice(-40);
+        setHeldLease(null);
+        const sess = sessionStateRef.current;
+        if (sess) persistSession(markSessionOffer(sess, current.id, 'actioned'));
+        recordFocusSessionTelemetry({
+          event: 'reject',
+          offerId: current.id,
+          sessionId: sess?.sessionId,
+        });
         await claimNext({ releaseOfferId: current.id, excludeOfferIds: [current.id] });
         return { ok: true as const };
       } catch (e) {
@@ -356,12 +450,16 @@ export function useModerationFocusQueue({
         setActing(false);
       }
     },
-    [authHeaders, claimNext, offer]
+    [authHeaders, claimNext, offer, persistSession, historyIndex, setHeldLease]
   );
 
   const snooze = useCallback(
     async (minutes: 15 | 60 | 240) => {
       if (!offer || actingRef.current) return { ok: false as const };
+      if (historyIndex >= 0) {
+        setError('Estás en historial. Vuelve a la oferta activa para decidir.');
+        return { ok: false as const };
+      }
       actingRef.current = true;
       setActing(true);
       setError(null);
@@ -376,8 +474,14 @@ export function useModerationFocusQueue({
           const err = await res.json().catch(() => ({}));
           throw new Error(typeof err?.error === 'string' ? err.error : 'No se pudo posponer');
         }
-        heldLockIdRef.current = null;
-        excludeRef.current = [...excludeRef.current, current.id].slice(-40);
+        setHeldLease(null);
+        const sess = sessionStateRef.current;
+        if (sess) persistSession(markSessionOffer(sess, current.id, 'actioned'));
+        recordFocusSessionTelemetry({
+          event: 'snooze',
+          offerId: current.id,
+          sessionId: sess?.sessionId,
+        });
         await claimNext({ releaseOfferId: current.id, excludeOfferIds: [current.id] });
         return { ok: true as const };
       } catch (e) {
@@ -388,10 +492,8 @@ export function useModerationFocusQueue({
         setActing(false);
       }
     },
-    [authHeaders, claimNext, offer]
+    [authHeaders, claimNext, offer, persistSession, historyIndex, setHeldLease]
   );
-
-  /** Aplica el resultado de update-offer al offer activo y al history (evita stale). */
   const applyOfferUrlWrite = useCallback(
     (patch: { offer_url: string; link_mod_ok: boolean | null | undefined }) => {
       setOffer((prev) =>
@@ -430,6 +532,10 @@ export function useModerationFocusQueue({
 
   const confirmAffiliateAndApprove = useCallback(async () => {
     if (!offer || actingRef.current) return { ok: false as const };
+    if (historyIndex >= 0) {
+      setError('Estás en historial. Vuelve a la oferta activa para decidir.');
+      return { ok: false as const };
+    }
     actingRef.current = true;
     setActing(true);
     setError(null);
@@ -487,8 +593,14 @@ export function useModerationFocusQueue({
           )
         );
       }
-      heldLockIdRef.current = null;
-      excludeRef.current = [...excludeRef.current, currentId].slice(-40);
+      setHeldLease(null);
+      const sessAff = sessionStateRef.current;
+      if (sessAff) persistSession(markSessionOffer(sessAff, currentId, 'actioned'));
+      recordFocusSessionTelemetry({
+        event: 'approve',
+        offerId: currentId,
+        sessionId: sessAff?.sessionId,
+      });
       setNeedsAffiliateConfirm(false);
       await claimNext({ releaseOfferId: currentId, excludeOfferIds: [currentId] });
       return { ok: true as const };
@@ -499,7 +611,7 @@ export function useModerationFocusQueue({
       actingRef.current = false;
       setActing(false);
     }
-  }, [applyOfferUrlWrite, authHeaders, claimNext, offer]);
+  }, [applyOfferUrlWrite, authHeaders, claimNext, offer, persistSession, historyIndex, setHeldLease]);
 
   const goNext = useCallback(async () => {
     if (actingRef.current) return;
@@ -509,13 +621,35 @@ export function useModerationFocusQueue({
       setOffer(history[nextIdx] ?? null);
       return;
     }
-    if (offer?.id) {
-      excludeRef.current = [...excludeRef.current, offer.id].slice(-40);
-      await claimNext({ releaseOfferId: offer.id, excludeOfferIds: [offer.id] });
+    // Salir de historial al vivo sin skip / sin tocar lease
+    if (historyIndex >= 0 && historyIndex === history.length - 1) {
+      setHistoryIndex(-1);
+      const liveId = heldLockIdRef.current;
+      const live =
+        (liveId ? history.find((o) => o.id === liveId) : null) ??
+        history[history.length - 1] ??
+        offer;
+      setOffer(live);
+      return;
+    }
+    // Skip solo desde oferta con lease activo (no desde snapshot de historial).
+    const liveId = heldLockIdRef.current ?? offer?.id ?? null;
+    if (liveId) {
+      const sess = sessionStateRef.current;
+      if (sess) {
+        const next = markSessionOffer(sess, liveId, 'skipped');
+        persistSession(next);
+        recordFocusSessionTelemetry({
+          event: 'skip',
+          offerId: liveId,
+          sessionId: next.sessionId,
+        });
+      }
+      await claimNext({ releaseOfferId: liveId, excludeOfferIds: [liveId] });
     } else {
       await claimNext();
     }
-  }, [claimNext, history, historyIndex, offer?.id]);
+  }, [claimNext, history, historyIndex, offer, persistSession]);
 
   const goPrev = useCallback(() => {
     if (actingRef.current) return;
@@ -542,6 +676,9 @@ export function useModerationFocusQueue({
   const prepareAffiliateLink = useCallback(
     async (pastedUrl: string): Promise<{ ok: boolean; error?: string }> => {
       if (!offer || actingRef.current) return { ok: false, error: 'No hay oferta activa' };
+      if (historyIndex >= 0) {
+        return { ok: false, error: 'Estás en historial. Vuelve a la oferta activa.' };
+      }
       const pasted = pastedUrl.trim();
       if (!pasted) return { ok: false, error: 'Pega el enlace' };
 
@@ -597,7 +734,7 @@ export function useModerationFocusQueue({
         setActing(false);
       }
     },
-    [applyOfferUrlWrite, authHeaders, offer]
+    [applyOfferUrlWrite, authHeaders, historyIndex, offer]
   );
 
   /** Aplica respuesta de update-offer (edición completa) al offer + history. */
@@ -626,6 +763,8 @@ export function useModerationFocusQueue({
       else if (data.offer_url === null) patch.offer_url = null;
       if (data.coupons === null) patch.coupons = null;
       else if (typeof data.coupons === 'string') patch.coupons = data.coupons;
+      if (data.bank_coupon === null) patch.bank_coupon = null;
+      else if (typeof data.bank_coupon === 'string') patch.bank_coupon = data.bank_coupon;
       if (data.msi_months === null) patch.msi_months = null;
       else if (typeof data.msi_months === 'number') patch.msi_months = data.msi_months;
       if (data.link_mod_ok === true) patch.link_mod_ok = true;
@@ -644,8 +783,12 @@ export function useModerationFocusQueue({
     [offer]
   );
 
-  const position = Math.max(1, sessionCursor);
-  const total = Math.max(stats.globalPending, stats.availableEstimate, position);
+  const viewingHistory = historyIndex >= 0;
+  const sessionCounterLabel = formatFocusSessionCounter({
+    reviewedCount,
+    globalPending: stats.globalPending,
+    viewingHistory,
+  });
 
   return {
     offer,
@@ -654,8 +797,10 @@ export function useModerationFocusQueue({
     error,
     stats,
     oldestCreatedAt,
-    position,
-    total,
+    reviewedCount,
+    sessionCounterLabel,
+    viewingHistory,
+    lastClaimKind,
     needsAffiliateConfirm,
     isOwner,
     isAdmin,

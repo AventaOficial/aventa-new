@@ -3,6 +3,8 @@
  * No inventa columnas; valida solo campos del schema real.
  */
 
+import { normalizeBankCoupon } from '@/lib/bankCoupons';
+
 export type OfferEditSnapshot = {
   title?: string | null;
   price?: number | null;
@@ -12,6 +14,7 @@ export type OfferEditSnapshot = {
   image_url?: string | null;
   offer_url?: string | null;
   coupons?: string | null;
+  bank_coupon?: string | null;
   msi_months?: number | null;
 };
 
@@ -50,6 +53,28 @@ export function sanitizeOfferEditCoupons(raw: unknown): string | null {
   return t.length > 0 ? t : null;
 }
 
+/**
+ * Cupón bancario (columna `offers.bank_coupon`).
+ * null / '' → limpia. Slug inválido → error (no silent null).
+ */
+export function parseOfferEditBankCoupon(
+  raw: unknown
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (raw === null || raw === undefined || raw === '') {
+    return { ok: true, value: null };
+  }
+  if (typeof raw !== 'string') {
+    return { ok: false, error: 'Cupón bancario inválido' };
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: true, value: null };
+  const normalized = normalizeBankCoupon(trimmed);
+  if (!normalized) {
+    return { ok: false, error: 'Banco no reconocido. Elige uno del catálogo.' };
+  }
+  return { ok: true, value: normalized };
+}
+
 export {
   parseOfferEditMsiMonths,
   isValidMsiMonths,
@@ -59,8 +84,8 @@ export {
 
 /** Cambios que afectan identidad comercial / evidencia de una oferta live. */
 export function isMaterialOfferEdit(fields: ReadonlyArray<string>): boolean {
-  return fields.some((f) =>
-    f === 'price' || f === 'original_price' || f === 'offer_url' || f === 'image_url'
+  return fields.some(
+    (f) => f === 'price' || f === 'original_price' || f === 'offer_url' || f === 'image_url'
   );
 }
 
@@ -74,10 +99,8 @@ export function buildOfferEditDiff(
     const next = after[key];
     if (next === undefined) continue;
     const prev = before[key] ?? null;
-    const normalizedPrev =
-      typeof prev === 'string' ? prev.trim() || null : prev;
-    const normalizedNext =
-      typeof next === 'string' ? next.trim() || null : next;
+    const normalizedPrev = typeof prev === 'string' ? prev.trim() || null : prev;
+    const normalizedNext = typeof next === 'string' ? next.trim() || null : next;
     if (Object.is(normalizedPrev, normalizedNext)) continue;
     if (
       typeof normalizedPrev === 'number' &&
@@ -90,4 +113,15 @@ export function buildOfferEditDiff(
     changes[key] = { from: normalizedPrev, to: normalizedNext };
   }
   return { fields, changes };
+}
+
+/** % OFF derivado solo de price + original_price (nunca se persiste). */
+export function deriveOfferEditDiscountPercent(
+  price: number | null | undefined,
+  originalPrice: number | null | undefined
+): number {
+  const p = Number(price ?? 0);
+  const o = Number(originalPrice ?? 0);
+  if (!Number.isFinite(p) || !Number.isFinite(o) || o <= 0 || o <= p) return 0;
+  return Math.round(((o - p) / o) * 100);
 }

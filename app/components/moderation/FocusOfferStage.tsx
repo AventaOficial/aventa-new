@@ -8,6 +8,8 @@ import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { getOfferDiscountPercent } from '@/lib/moderation/relativeTime';
 import { buildHumanVerdict } from '@/lib/moderation/humanVerdict';
 import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
+import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
+import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
 import ModerationPriorityHints from './ModerationPriorityHints';
@@ -164,6 +166,31 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
           <span className={cn('text-sm', ui.soft)}>· {offer.store.trim()}</span>
         ) : null}
       </div>
+
+      {(() => {
+        const msiLabel = formatMsiCardLabel(offer.msi_months);
+        const bankLabel = getBankCouponLabel(offer.bank_coupon);
+        const personalCoupon = offer.coupons?.trim() || null;
+        if (!msiLabel && !bankLabel && !personalCoupon) return null;
+        return (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
+            {msiLabel ? <span className={cn('font-medium', ui.soft)}>{msiLabel}</span> : null}
+            {bankLabel ? (
+              <span
+                className={cn(
+                  'font-medium',
+                  ui.ws ? 'text-sky-700 dark:text-sky-300' : 'text-sky-300'
+                )}
+              >
+                {formatCupónBancarioDisplay(bankLabel)}
+              </span>
+            ) : null}
+            {personalCoupon ? (
+              <span className={cn('font-medium', ui.muted)}>Cupón: {personalCoupon}</span>
+            ) : null}
+          </div>
+        );
+      })()}
 
       <div className="mt-3 w-full max-w-sm">
         <ModerationPriorityHints

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import { tryAcquireModerationLock, releaseModerationLockIfOwner } from './atomicModerationLock';
+import { isModerationLockStale } from './moderationLock';
 import { countClaimEligibleOffers, isOfferClaimEligible } from './offerClaimEligibility';
 import type { ModerationQueueOffer } from './pickNextEligibleOffer';
 import { sortPendingOffersForModeration } from './sortPendingOffers';
@@ -11,8 +12,25 @@ import {
   fetchBannedCreatorIds,
   fetchPendingReportOfferIds,
 } from './moderationQueueSignals';
-import { CLAIM_QUEUE_HARD_CAP } from './slaContract';
+import { CLAIM_EXCLUDE_IDS_MAX, CLAIM_QUEUE_HARD_CAP } from './slaContract';
 import { releaseStaleModerationLocks } from './releaseStaleLocks';
+
+/** Distingue ítem nuevo de cola vs reclaim tras lease expirado. */
+export type ClaimKind = 'fresh' | 'stale_reclaim' | 'reclaim_own';
+
+export function classifyClaimKind(params: {
+  previousLockedBy: string | null | undefined;
+  previousLockedAt: string | null | undefined;
+  moderatorId: string;
+}): ClaimKind {
+  const prior = params.previousLockedBy ?? null;
+  if (!prior) return 'fresh';
+  if (prior === params.moderatorId) return 'reclaim_own';
+  if (isModerationLockStale(params.previousLockedAt)) return 'stale_reclaim';
+  // Elegible solo si no hay lock ajeno fresco; si llegamos aquí con prior ajeno no-stale,
+  // tryAcquire debería fallar — clasificar como fresh por seguridad de telemetría.
+  return 'fresh';
+}
 
 const CLAIM_SELECT_CORE =
   'id, title, price, original_price, store, category, bank_coupon, coupons, msi_months, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment, locked_by, locked_at, snoozed_until, link_mod_ok, profiles:public_profiles_view!created_by(display_name, avatar_url)';
@@ -67,6 +85,8 @@ export function preferOfferFirst<T extends { id: string }>(
 export type ClaimNextResult = {
   claimed: boolean;
   offer: Record<string, unknown> | null;
+  /** Presente solo si claimed=true. */
+  claimKind: ClaimKind | null;
   stats: {
     globalPending: number;
     availableEstimate: number;
@@ -96,7 +116,10 @@ export async function claimNextModerationOffer(
   }
 ): Promise<ClaimNextResult> {
   const sourceTab = options?.sourceTab ?? 'all';
-  const exclude = new Set(options?.excludeOfferIds ?? []);
+  const excludeRaw = (options?.excludeOfferIds ?? []).filter(
+    (id): id is string => typeof id === 'string' && id.trim().length > 0
+  );
+  const exclude = new Set(excludeRaw.slice(-CLAIM_EXCLUDE_IDS_MAX));
   const maxAttempts = options?.maxAttempts ?? 40;
   const maxLevel = options?.maxLevel ?? 'enforcement';
 
@@ -216,6 +239,12 @@ export async function claimNextModerationOffer(
   const ordered = preferOfferFirst(sorted, options?.preferOfferId ?? null);
 
   for (const candidate of ordered.slice(0, maxAttempts)) {
+    const claimKind = classifyClaimKind({
+      previousLockedBy: (candidate as { locked_by?: string | null }).locked_by,
+      previousLockedAt: (candidate as { locked_at?: string | null }).locked_at,
+      moderatorId,
+    });
+
     const acquired = await tryAcquireModerationLock(supabase, candidate.id, moderatorId);
     if (!acquired.claimed) continue;
 
@@ -245,6 +274,7 @@ export async function claimNextModerationOffer(
     const profiles = Array.isArray(offerRow.profiles) ? offerRow.profiles[0] : offerRow.profiles;
     return {
       claimed: true,
+      claimKind,
       offer: {
         ...offerRow,
         profiles,
@@ -267,6 +297,7 @@ export async function claimNextModerationOffer(
   return {
     claimed: false,
     offer: null,
+    claimKind: null,
     stats: emptyStats,
   };
 }

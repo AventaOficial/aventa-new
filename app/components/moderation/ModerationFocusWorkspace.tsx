@@ -116,6 +116,13 @@ export default function ModerationFocusWorkspace({
       })
     : null;
 
+  // Historial = snapshot de navegación; no es oferta editable. Lease/ownership siguen en servidor.
+  const canEdit = !queue.viewingHistory;
+
+  useEffect(() => {
+    if (queue.viewingHistory) setEditOpen(false);
+  }, [queue.viewingHistory]);
+
   return (
     <div
       className={cn(
@@ -214,7 +221,15 @@ export default function ModerationFocusWorkspace({
         ) : (
           <>
             <p className={cn('mb-2 text-center text-[11px] tabular-nums md:text-left', ui.faint)}>
-              Oferta {queue.position} de {queue.total}
+              {queue.sessionCounterLabel}
+              {queue.viewingHistory ? (
+                <span className={cn('ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide', ui.chipActive)}>
+                  Historial
+                </span>
+              ) : null}
+              {queue.lastClaimKind === 'stale_reclaim' && !queue.viewingHistory ? (
+                <span className={cn('ml-2', ui.faint)}>· recuperada</span>
+              ) : null}
               {monetization ? ` · ${monetization.label}` : ''}
             </p>
             <div className="flex flex-col gap-4 md:flex-row md:items-start">
@@ -229,6 +244,7 @@ export default function ModerationFocusWorkspace({
               <FocusDesktopContext
                 offer={queue.offer}
                 mode={mode}
+                canEdit={canEdit}
                 onEdit={() => setEditOpen(true)}
                 onOpenWhy={() => setWhyOpen(true)}
               />
@@ -252,6 +268,7 @@ export default function ModerationFocusWorkspace({
             <FocusActionsBar
               mode={mode}
               acting={queue.acting}
+              disabled={queue.viewingHistory}
               offerHref={queue.offer.offer_url}
               changeLabel={
                 monetization?.status === 'needs_attention' ? 'Preparar enlace' : 'Cambiar enlace'
@@ -299,13 +316,13 @@ export default function ModerationFocusWorkspace({
           open={whyOpen}
           offer={queue.offer}
           mode={mode}
-          canEdit
+          canEdit={canEdit}
           onClose={() => setWhyOpen(false)}
           onEdit={() => setEditOpen(true)}
         />
       ) : null}
 
-      {queue.offer && editOpen ? (
+      {queue.offer && editOpen && canEdit ? (
         <ModerationFixSheet
           mode={mode}
           offer={{
@@ -315,6 +332,7 @@ export default function ModerationFocusWorkspace({
             original_price: queue.offer.original_price,
             description: queue.offer.description,
             coupons: queue.offer.coupons,
+            bank_coupon: queue.offer.bank_coupon,
             msi_months: queue.offer.msi_months,
             image_url: queue.offer.image_url,
             image_urls: queue.offer.image_urls,

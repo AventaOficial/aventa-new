@@ -6,6 +6,7 @@ export type FocusModerationOffer = {
   category: string | null;
   store: string | null;
   coupons?: string | null;
+  bank_coupon?: string | null;
   msi_months?: number | null;
   image_url: string | null;
   image_urls?: string[] | null;

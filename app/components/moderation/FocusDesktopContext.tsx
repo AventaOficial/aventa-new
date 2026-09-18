@@ -13,6 +13,8 @@ import { cn } from '@/app/components/panel/utils';
 type Props = {
   offer: FocusModerationOffer;
   mode: ModerationHubMode;
+  /** false en viewingHistory — no ofrecer edición de snapshot histórico. */
+  canEdit?: boolean;
   onEdit: () => void;
   onOpenWhy: () => void;
 };
@@ -21,7 +23,13 @@ type Props = {
  * Contexto de decisión solo desktop/tablet (≥ md).
  * Mobile no lo renderiza — el Focus móvil permanece minimal.
  */
-export default function FocusDesktopContext({ offer, mode, onEdit, onOpenWhy }: Props) {
+export default function FocusDesktopContext({
+  offer,
+  mode,
+  canEdit = true,
+  onEdit,
+  onOpenWhy,
+}: Props) {
   const ui = moderationUi(mode);
   const monetization = computeMonetizationReadiness({
     offerUrl: offer.offer_url,
@@ -112,19 +120,21 @@ export default function FocusDesktopContext({ offer, mode, onEdit, onOpenWhy }: 
         <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>
           Acciones
         </p>
-        <button
-          type="button"
-          onClick={onEdit}
-          className={cn(
-            'w-full rounded-xl px-3 py-2 text-sm font-semibold',
-            ui.ws
-              ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-              : 'bg-violet-500 text-white hover:bg-violet-400'
-          )}
-          data-focus-edit-offer
-        >
-          Editar oferta
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className={cn(
+              'w-full rounded-xl px-3 py-2 text-sm font-semibold',
+              ui.ws
+                ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                : 'bg-violet-500 text-white hover:bg-violet-400'
+            )}
+            data-focus-edit-offer
+          >
+            Editar oferta
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onOpenWhy}

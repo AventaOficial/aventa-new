@@ -87,7 +87,7 @@ describe('ModerationFixSheet mobile-first', () => {
     expect(src).toContain('dirty');
     expect(src).toContain('saveLockRef');
     expect(src).toContain('msi_months');
-    expect(src).toContain('Precio actual');
+    expect(src).toMatch(/Precio (actual|detectado|publicado)/);
     expect(src).toContain('Guardar');
     expect(src).toContain('Cancelar');
     expect(src).not.toMatch(/\bautosave\b/i);

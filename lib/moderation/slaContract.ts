@@ -29,6 +29,9 @@ export function isSlaBreached(params: {
 /** Tope de filas pending cargadas al claim/ordenar (escala sin full-table al cliente). */
 export const CLAIM_QUEUE_HARD_CAP = 1000;
 
+/** Tope de excludeOfferIds aceptados en claim-next (sesión; anti-payload abuse). */
+export const CLAIM_EXCLUDE_IDS_MAX = 2000;
+
 /**
  * Horas estimadas para drenar backlog a throughput actual.
  * null si no hay tasa medible.

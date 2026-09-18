@@ -8,6 +8,8 @@ import {
 import { moderationMaxLevelForRole } from '@/lib/moderation/moderationMaxLevelForRole';
 import { recordClaimLatencyMs } from '@/lib/moderation/claimLatencyTracker';
 import { recordModerationOutcomeFireAndForget } from '@/lib/moderation/outcomes';
+import { writeModerationAudit } from '@/lib/moderation/writeModerationAudit';
+import { CLAIM_EXCLUDE_IDS_MAX } from '@/lib/moderation/slaContract';
 
 function parseSourceTab(value: unknown): ClaimSourceTab {
   if (value === 'bot' || value === 'users' || value === 'all') return value;
@@ -16,7 +18,7 @@ function parseSourceTab(value: unknown): ClaimSourceTab {
 
 /**
  * POST — reclama atómicamente la siguiente oferta elegible para el moderador.
- * Body opcional: { releaseOfferId?, excludeOfferIds?, sourceTab?, preferOfferId? }
+ * Body opcional: { releaseOfferId?, excludeOfferIds?, sourceTab?, preferOfferId?, sessionId? }
  */
 export async function POST(request: Request) {
   const auth = await requireModeration(request);
@@ -28,10 +30,13 @@ export async function POST(request: Request) {
   const releaseOfferId =
     typeof body?.releaseOfferId === 'string' ? body.releaseOfferId : null;
   const excludeOfferIds = Array.isArray(body?.excludeOfferIds)
-    ? body.excludeOfferIds.filter((id: unknown): id is string => typeof id === 'string')
+    ? body.excludeOfferIds
+        .filter((id: unknown): id is string => typeof id === 'string')
+        .slice(-CLAIM_EXCLUDE_IDS_MAX)
     : undefined;
   const sourceTab = parseSourceTab(body?.sourceTab);
   const preferOfferId = typeof body?.preferOfferId === 'string' ? body.preferOfferId : null;
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId.slice(0, 64) : null;
   const maxLevel = moderationMaxLevelForRole(auth.role);
 
   const started = Date.now();
@@ -51,6 +56,7 @@ export async function POST(request: Request) {
 
     if (result.claimed && result.offer && typeof result.offer.id === 'string') {
       const o = result.offer;
+      const claimKind = result.claimKind ?? 'fresh';
       recordModerationOutcomeFireAndForget(
         {
           offer: {
@@ -68,15 +74,35 @@ export async function POST(request: Request) {
           },
           decision: 'claim',
           moderatorId: auth.user.id,
+          extras: {
+            claim_kind: claimKind,
+            session_id: sessionId,
+          },
         },
         { supabase },
       );
+
+      if (claimKind === 'stale_reclaim') {
+        void writeModerationAudit(supabase, {
+          offerId: o.id as string,
+          userId: auth.user.id,
+          action: 'claim',
+          previousStatus: 'pending',
+          newStatus: 'pending',
+          reason: 'stale_reclaim',
+          metadata: {
+            claim_kind: claimKind,
+            session_id: sessionId,
+          },
+        });
+      }
     }
 
     return NextResponse.json({
       ok: true,
       claimed: result.claimed,
       offer: result.offer,
+      claimKind: result.claimKind,
       stats: result.stats,
       claimLatencyMs,
       maxLevel,

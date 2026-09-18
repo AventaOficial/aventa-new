@@ -10,9 +10,11 @@ import { shortModerationQueueTitle } from '@/lib/moderation/queueTitle';
 import { MODERATION_TITLE_MAX } from '@/lib/moderation/botFacts';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { MSI_MONTHS_MAX, MSI_MONTHS_MIN, isValidMsiMonths } from '@/lib/offers/msiDisplay';
+import { BANK_COUPON_OPTIONS, normalizeBankCoupon } from '@/lib/bankCoupons';
+import { deriveOfferEditDiscountPercent } from '@/lib/moderation/offerEditContract';
 import { moderationUi } from '../moderation/moderationUi';
 
-export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description' | 'msi';
+export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description' | 'msi' | 'bank';
 
 export type FixableOffer = {
   id: string;
@@ -21,6 +23,7 @@ export type FixableOffer = {
   original_price?: number | null;
   description?: string | null;
   coupons?: string | null;
+  bank_coupon?: string | null;
   msi_months?: number | null;
   image_url: string | null;
   image_urls?: string[] | null;
@@ -68,6 +71,9 @@ export default function ModerationFixSheet({
       : ''
   );
   const [msiMonths, setMsiMonths] = useState(msiToInput(offer.msi_months));
+  const [bankCoupon, setBankCoupon] = useState(
+    normalizeBankCoupon(offer.bank_coupon) ?? ''
+  );
   const [description, setDescription] = useState(offer.description ?? '');
   const [coupons, setCoupons] = useState(offer.coupons ?? '');
   const [saving, setSaving] = useState(false);
@@ -83,6 +89,7 @@ export default function ModerationFixSheet({
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
   const msiRef = useRef<HTMLSelectElement>(null);
+  const bankRef = useRef<HTMLSelectElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -99,6 +106,8 @@ export default function ModerationFixSheet({
                 ? priceRef.current
                 : focusField === 'msi'
                   ? msiRef.current
+                  : focusField === 'bank'
+                    ? bankRef.current
                   : focusField === 'description'
                     ? descriptionRef.current
                     : priceRef.current;
@@ -113,6 +122,7 @@ export default function ModerationFixSheet({
         ? String(offer.original_price)
         : '';
     const prevMsi = msiToInput(offer.msi_months);
+    const prevBank = normalizeBankCoupon(offer.bank_coupon) ?? '';
     const prevExtras = offer.image_urls ?? [];
     const extrasChanged =
       imageUrls.length !== prevExtras.length ||
@@ -127,6 +137,7 @@ export default function ModerationFixSheet({
       price.trim() !== prevPrice ||
       originalPrice.trim() !== prevOriginal ||
       msiMonths.trim() !== prevMsi ||
+      bankCoupon !== prevBank ||
       description.trim() !== (offer.description ?? '').trim() ||
       coupons.trim() !== (offer.coupons ?? '').trim()
     );
@@ -140,6 +151,7 @@ export default function ModerationFixSheet({
     price,
     originalPrice,
     msiMonths,
+    bankCoupon,
     description,
     coupons,
   ]);
@@ -251,6 +263,10 @@ export default function ModerationFixSheet({
       if (msiMonths.trim() !== prevMsi) {
         body.msi_months = msiMonths.trim() === '' ? null : msiMonths.trim();
       }
+      const prevBank = normalizeBankCoupon(offer.bank_coupon) ?? '';
+      if (bankCoupon !== prevBank) {
+        body.bank_coupon = bankCoupon === '' ? null : bankCoupon;
+      }
       const prevDesc = (offer.description ?? '').trim();
       if (description.trim() !== prevDesc) body.description = description.trim();
       const prevCoupons = (offer.coupons ?? '').trim();
@@ -294,6 +310,24 @@ export default function ModerationFixSheet({
   const msiOptions = Array.from({ length: MSI_MONTHS_MAX / 3 }, (_, i) => (i + 1) * 3).filter(
     (n) => n >= MSI_MONTHS_MIN && n <= MSI_MONTHS_MAX,
   );
+  const detectedPriceLabel =
+    offer.price != null && Number.isFinite(offer.price)
+      ? `$${Number(offer.price).toLocaleString('es-MX', { maximumFractionDigits: 2 })}`
+      : null;
+  const priceChanged =
+    price.trim() !==
+    (offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '');
+  const draftPriceNum = Number(String(price).trim().replace(/,/g, ''));
+  const draftOriginalNum =
+    originalPrice.trim() === ''
+      ? null
+      : Number(String(originalPrice).trim().replace(/,/g, ''));
+  const draftDiscount =
+    Number.isFinite(draftPriceNum) &&
+    draftOriginalNum != null &&
+    Number.isFinite(draftOriginalNum)
+      ? deriveOfferEditDiscountPercent(draftPriceNum, draftOriginalNum)
+      : deriveOfferEditDiscountPercent(offer.price, offer.original_price);
 
   return (
     <div
@@ -332,7 +366,9 @@ export default function ModerationFixSheet({
           {/* 1–2 Precio primero */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio actual</label>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>
+                {priceChanged ? 'Precio publicado' : 'Precio detectado'}
+              </label>
               <input
                 ref={priceRef}
                 type="text"
@@ -343,6 +379,13 @@ export default function ModerationFixSheet({
                 className={`w-full min-h-12 px-3 text-base tabular-nums font-semibold ${ui.input}`}
                 autoComplete="off"
               />
+              {priceChanged && detectedPriceLabel ? (
+                <p className={`mt-1 text-[11px] ${ui.muted}`}>
+                  Detectado: {detectedPriceLabel} → se publicará el valor de arriba
+                </p>
+              ) : (
+                <p className={`mt-1 text-[11px] ${ui.muted}`}>Valor almacenado en Aventa</p>
+              )}
             </div>
             <div>
               <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Precio original</label>
@@ -355,6 +398,13 @@ export default function ModerationFixSheet({
                 className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
                 autoComplete="off"
               />
+              {draftDiscount > 0 ? (
+                <p className={`mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300`}>
+                  {draftDiscount}% OFF (derivado)
+                </p>
+              ) : (
+                <p className={`mt-1 text-[11px] ${ui.muted}`}>Sin descuento derivado</p>
+              )}
             </div>
           </div>
 
@@ -385,7 +435,58 @@ export default function ModerationFixSheet({
             </p>
           </div>
 
-          {/* 4 Título */}
+          {/* 4 MSI + 5 Cupón bancario */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>MSI</label>
+              <select
+                ref={msiRef}
+                value={msiMonths}
+                onChange={(e) => setMsiMonths(e.target.value)}
+                className={`w-full min-h-12 px-3 text-sm ${ui.select}`}
+              >
+                <option value="">Sin MSI</option>
+                {msiOptions.map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n} MSI
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Cupón bancario</label>
+              <select
+                ref={bankRef}
+                value={bankCoupon}
+                onChange={(e) => setBankCoupon(e.target.value)}
+                className={`w-full min-h-12 px-3 text-sm ${ui.select}`}
+              >
+                <option value="">Sin banco</option>
+                {BANK_COUPON_OPTIONS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 6 Cupón personal (código) */}
+          <div>
+            <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Cupón / código</label>
+            <input
+              type="text"
+              value={coupons}
+              onChange={(e) => setCoupons(e.target.value.slice(0, 200))}
+              placeholder="Código de descuento (opcional)"
+              className={`w-full min-h-12 px-3 text-sm ${ui.input}`}
+            />
+            <p className={`mt-1 text-[11px] ${ui.muted}`}>
+              Separado del cupón bancario. No se apilan automáticamente.
+            </p>
+          </div>
+
+          {/* 7 Título */}
           <div>
             <div className="mb-1.5 flex items-baseline justify-between gap-2">
               <label className={`text-sm font-medium ${ui.body}`}>Título</label>
@@ -414,36 +515,6 @@ export default function ModerationFixSheet({
                 Quitar el «Ahorra ~%» del bot
               </button>
             ) : null}
-          </div>
-
-          {/* 5 MSI + 6 Cupón */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>MSI</label>
-              <select
-                ref={msiRef}
-                value={msiMonths}
-                onChange={(e) => setMsiMonths(e.target.value)}
-                className={`w-full min-h-12 px-3 text-sm ${ui.select}`}
-              >
-                <option value="">Sin MSI</option>
-                {msiOptions.map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n} MSI
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={`mb-1.5 block text-sm font-medium ${ui.body}`}>Cupón</label>
-              <input
-                type="text"
-                value={coupons}
-                onChange={(e) => setCoupons(e.target.value.slice(0, 200))}
-                placeholder="Código"
-                className={`w-full min-h-12 px-3 text-sm ${ui.input}`}
-              />
-            </div>
           </div>
 
           {/* Secundarios: foto, categoría, descripción */}

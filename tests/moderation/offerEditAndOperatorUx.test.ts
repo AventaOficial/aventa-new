@@ -47,9 +47,10 @@ describe('update-offer edit surface', () => {
     'utf8'
   );
 
-  it('acepta price/original_price/coupons/msi y audita edited', () => {
+  it('acepta price/original_price/coupons/msi/bank_coupon y audita edited', () => {
     expect(src).toContain('parseOfferEditMoney');
     expect(src).toContain('parseOfferEditMsiMonths');
+    expect(src).toContain('parseOfferEditBankCoupon');
     expect(src).toContain('sanitizeOfferEditDescription');
     expect(src).toContain("action: 'edited'");
     expect(src).toContain('isMaterialOfferEdit');
