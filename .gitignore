@@ -35,6 +35,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!.env.staging.local.example
 
 # Migraciones y esquema: no subir al repo público (mantener copia privada si hace falta)
 /supabase/migrations/
@@ -58,6 +59,8 @@ next-env.d.ts
 
 # Artefactos locales de migraciones / audits (snapshots, dry-runs)
 /tmp/
+/scripts/_s55_reports/
+/scripts/_smoke-gate-v2-discovery.json
 
 .vercel
 .env*.local
