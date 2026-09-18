@@ -1,5 +1,19 @@
 # SYSTEM — Moderación (Moderation OS)
 
+## Session integrity (P0.3C)
+
+Focus distingue **CLAIMED** (lease servidor), **SKIPPED** / **ACTIONED** (sesión de pestaña), e **Historial** (`goPrev` sin claim).
+
+Detalle canónico: [`MODERATION_SESSION_SEMANTICS.md`](./MODERATION_SESSION_SEMANTICS.md).
+
+## Editor canónico (P0.4)
+
+`ModerationFixSheet` → `PATCH /api/admin/update-offer`.
+
+Campos: price, original_price, offer_url, msi_months, **bank_coupon**, coupons, title, image_*, category, description.
+
+Discount = derivado UI (nunca columna). MSI bot ingest = UNKNOWN (ver `RESEARCH_msi_ingest_gap_p04.md`).
+
 ## Architecture
 
 **Modelo operativo:** Focus Mode (una oferta a la vez) + **lease/claim atómico**.

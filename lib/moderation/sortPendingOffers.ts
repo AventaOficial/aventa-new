@@ -3,7 +3,10 @@ import {
   normalizeCategoryForStorage,
   type CategoryId,
 } from '@/lib/categories';
-import { evaluateModerationPriority } from './moderationPriority';
+import {
+  evaluateModerationPriority,
+  extractDealScoreFromBotMeta,
+} from './moderationPriority';
 import { isSlaBreached } from './slaContract';
 
 /** Prioridad de categorías vitales en cola (Día a día primero). */
@@ -102,6 +105,12 @@ export function sortPendingOffersForModeration<T extends ModerationSortableOffer
     const aEval = priorityEvalForOffer(a, nowMs);
     const bEval = priorityEvalForOffer(b, nowMs);
     if (aEval.rank !== bEval.rank) return aEval.rank - bEval.rank;
+
+    // S3: within same priority tier, higher DealScore first.
+    // Missing score is neutral (UGC / unscored) — never catastrophic last.
+    const aDs = aEval.dealScoreTotal ?? extractDealScoreFromBotMeta(a.bot_meta)?.score ?? null;
+    const bDs = bEval.dealScoreTotal ?? extractDealScoreFromBotMeta(b.bot_meta)?.score ?? null;
+    if (aDs != null && bDs != null && aDs !== bDs) return bDs - aDs;
 
     const aBreach = isSlaBreached({
       priority: aEval.priority,

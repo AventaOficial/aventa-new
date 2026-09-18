@@ -199,10 +199,22 @@ export function computeDealSignals(input: {
 }
 
 /** Prioridad de moderación sugerida (1=alta). No publica. */
+export const DEAL_SCORE_REVIEW_CUTOFFS = {
+  /** top_deals lane + score — highest review urgency among scored bots */
+  top: 70,
+  /** elevated opportunity — prefer earlier review */
+  elevated: 55,
+  /** below this → weak opportunity signal */
+  mid: 35,
+} as const;
+
+/** Minimum DealScore confidence to allow priority upgrade (same floor as probable identity). */
+export const DEAL_SCORE_PRIORITY_MIN_CONFIDENCE = 0.5;
+
 export function moderationPriorityFromDealSignals(signals: DealSignals): 1 | 2 | 3 | 4 {
   if (signals.laneHint === 'anomaly_review') return 1;
-  if (signals.laneHint === 'top_deals' && signals.dealScore >= 70) return 1;
-  if (signals.dealScore >= 55) return 2;
-  if (signals.dealScore >= 35) return 3;
+  if (signals.laneHint === 'top_deals' && signals.dealScore >= DEAL_SCORE_REVIEW_CUTOFFS.top) return 1;
+  if (signals.dealScore >= DEAL_SCORE_REVIEW_CUTOFFS.elevated) return 2;
+  if (signals.dealScore >= DEAL_SCORE_REVIEW_CUTOFFS.mid) return 3;
   return 4;
 }

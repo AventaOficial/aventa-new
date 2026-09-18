@@ -2,7 +2,14 @@
  * Prioridad de revisión humana en cola de moderación.
  * NO cambia Qualification / Deal Quality / Evidence Contract.
  * Solo responde: ¿qué debería revisar un humano primero?
+ *
+ * S3: DealScore persistido en bot_meta es señal de orden — nunca approve/publish.
  */
+
+import {
+  DEAL_SCORE_PRIORITY_MIN_CONFIDENCE,
+  DEAL_SCORE_REVIEW_CUTOFFS,
+} from '@/lib/hunter/supply/dealSignals';
 
 export type ModerationReviewPriority =
   | 'P1_HIGH_VALUE'
@@ -37,6 +44,18 @@ export type ModerationPriorityResult = {
   label: string;
   shortLabel: string;
   reasons: ModerationPriorityReason[];
+  /** DealScore total when present on bot_meta — null if absent (UGC / unscored). */
+  dealScoreTotal: number | null;
+};
+
+/** Compact DealScore read from offers.bot_meta (S2 provenance). Untrusted for ownership. */
+export type PersistedDealScoreSignal = {
+  score: number;
+  confidence: number | null;
+  version: string | null;
+  reasons: string[];
+  reasonCodes: string[];
+  warnings: string[];
 };
 
 const PRIORITY_RANK: Record<ModerationReviewPriority, number> = {
@@ -86,6 +105,35 @@ function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
+function strList(v: unknown, max: number): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    .map((x) => x.trim())
+    .slice(0, max);
+}
+
+/**
+ * Read DealScore from bot_meta without inventing values.
+ * Missing score ≠ low quality (UGC / legacy unscored machine).
+ */
+export function extractDealScoreFromBotMeta(botMeta: unknown): PersistedDealScoreSignal | null {
+  const root = asRecord(botMeta);
+  if (!root) return null;
+  const ds = asRecord(root.dealScore);
+  if (!ds) return null;
+  const score = num(ds.score);
+  if (score == null || score < 0 || score > 100) return null;
+  return {
+    score,
+    confidence: num(ds.confidence),
+    version: str(ds.version),
+    reasons: strList(ds.reasons, 8),
+    reasonCodes: strList(ds.reasonCodes, 12),
+    warnings: strList(ds.warnings, 6),
+  };
+}
+
 function extractSignals(botMeta: unknown) {
   const root = asRecord(botMeta);
   const signals = asRecord(root?.signals) ?? {};
@@ -119,9 +167,15 @@ function ageHours(createdAt: string | null | undefined, nowMs: number): number |
   return Math.max(0, (nowMs - t) / 3_600_000);
 }
 
+function confidenceAllowsUpgrade(confidence: number | null): boolean {
+  if (confidence == null) return true; // legacy slice without confidence — score alone OK
+  return confidence >= DEAL_SCORE_PRIORITY_MIN_CONFIDENCE;
+}
+
 /**
  * Prioridad de revisión. Pura y determinista.
  * Nunca muta ni implica VERIFIED/POTENTIAL/NO_VERIFIED.
+ * Nunca aprueba ni publica.
  */
 export function evaluateModerationPriority(
   input: ModerationPriorityInput,
@@ -129,6 +183,7 @@ export function evaluateModerationPriority(
   const reasons: ModerationPriorityReason[] = [];
   const nowMs = input.nowMs ?? Date.now();
   const s = extractSignals(input.botMeta);
+  const dealScore = extractDealScoreFromBotMeta(input.botMeta);
   const imageOk = hasValidImage(input.imageUrl);
   const isBot = input.isBot === true;
   const isDuplicate = input.isDuplicate === true;
@@ -234,7 +289,7 @@ export function evaluateModerationPriority(
     });
   }
 
-  // Comunidad / manual: no penalizar por falta de bot signals — siempre revisables.
+  // Comunidad / manual: no penalizar por falta de DealScore — siempre revisables.
   if (!isBot) {
     if (!reasons.some((r) => r.code === 'community_manual')) {
       reasons.unshift({
@@ -243,11 +298,30 @@ export function evaluateModerationPriority(
         label: 'Oferta humana / comunidad',
       });
     }
-    return finalize('P2_REVIEW', reasons);
+    return finalize('P2_REVIEW', reasons, null);
   }
 
   if (isDuplicate) {
-    return finalize('P4_LOW_VALUE', reasons);
+    return finalize('P4_LOW_VALUE', reasons, dealScore?.score ?? null);
+  }
+
+  // DealScore reasons (machine only). Missing score ≠ penalty.
+  if (dealScore) {
+    if (dealScore.score >= DEAL_SCORE_REVIEW_CUTOFFS.elevated) {
+      reasons.push({
+        kind: 'positive',
+        code: 'deal_score',
+        label: `DealScore ${Math.round(dealScore.score)}${
+          dealScore.version ? ` · ${dealScore.version}` : ''
+        }`,
+      });
+    } else if (dealScore.score < DEAL_SCORE_REVIEW_CUTOFFS.mid) {
+      reasons.push({
+        kind: 'warning',
+        code: 'deal_score_low',
+        label: `DealScore bajo (${Math.round(dealScore.score)})`,
+      });
+    }
   }
 
   const strongProvenance =
@@ -278,6 +352,29 @@ export function evaluateModerationPriority(
     priority = 'P2_REVIEW';
   }
 
+  // S3: DealScore upgrade/demote using existing cutoffs only (never publishes).
+  if (dealScore && confidenceAllowsUpgrade(dealScore.confidence) && !artificial && imageOk) {
+    if (
+      dealScore.score >= DEAL_SCORE_REVIEW_CUTOFFS.elevated &&
+      priority === 'P2_REVIEW'
+    ) {
+      priority = 'P1_HIGH_VALUE';
+    } else if (
+      dealScore.score >= DEAL_SCORE_REVIEW_CUTOFFS.top &&
+      priority === 'P3_INSUFFICIENT_EVIDENCE'
+    ) {
+      priority = 'P1_HIGH_VALUE';
+    }
+  }
+  if (
+    dealScore &&
+    dealScore.score < DEAL_SCORE_REVIEW_CUTOFFS.mid &&
+    priority === 'P1_HIGH_VALUE' &&
+    !effectivePositive
+  ) {
+    priority = 'P2_REVIEW';
+  }
+
   // Antigüedad: eleva a revisión humana sin cambiar Deal Quality.
   if (
     stalePending &&
@@ -286,12 +383,13 @@ export function evaluateModerationPriority(
     priority = 'P2_REVIEW';
   }
 
-  return finalize(priority, reasons);
+  return finalize(priority, reasons, dealScore?.score ?? null);
 }
 
 function finalize(
   priority: ModerationReviewPriority,
   reasons: ModerationPriorityReason[],
+  dealScoreTotal: number | null,
 ): ModerationPriorityResult {
   return {
     priority,
@@ -299,6 +397,7 @@ function finalize(
     label: PRIORITY_LABEL[priority],
     shortLabel: PRIORITY_SHORT[priority],
     reasons: reasons.slice(0, 6),
+    dealScoreTotal,
   };
 }
 

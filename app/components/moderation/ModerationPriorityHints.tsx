@@ -1,6 +1,9 @@
 'use client';
 
-import { evaluateModerationPriority } from '@/lib/moderation/moderationPriority';
+import {
+  evaluateModerationPriority,
+  extractDealScoreFromBotMeta,
+} from '@/lib/moderation/moderationPriority';
 import { isSlaBreached, slaHoursForPriority } from '@/lib/moderation/slaContract';
 import { parseBotMeta } from '@/lib/moderation/botFacts';
 import { cn } from '@/app/components/panel/utils';
@@ -71,6 +74,12 @@ export default function ModerationPriorityHints({
   const reasons = result.reasons.slice(0, maxReasons);
   const source = parseBotMeta(botMeta)?.source?.trim() || (isBot ? 'bot' : 'comunidad');
   const age = pendingAgeLabel(createdAt);
+  const dealScore = extractDealScoreFromBotMeta(botMeta);
+  const rawObs =
+    botMeta && typeof botMeta === 'object' && !Array.isArray(botMeta)
+      ? (botMeta as { rawObservation?: { observationId?: string; evidenceHash?: string } })
+          .rawObservation
+      : null;
 
   return (
     <div className={cn('space-y-1', className)} data-moderation-priority={result.priority}>
@@ -94,6 +103,26 @@ export default function ModerationPriorityHints({
         <span className={cn('text-[10px] font-medium uppercase tracking-wide', mutedClassName)}>
           {source}
         </span>
+        {dealScore ? (
+          <span
+            className={cn('text-[10px] font-medium tabular-nums', mutedClassName)}
+            title={
+              [
+                dealScore.version ? `version ${dealScore.version}` : null,
+                dealScore.reasons[0] ?? null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined
+            }
+            data-deal-score={dealScore.score}
+            data-deal-score-version={dealScore.version ?? undefined}
+          >
+            Deal {Math.round(dealScore.score)}
+            {dealScore.confidence != null
+              ? ` · conf ${Math.round(dealScore.confidence * 100)}%`
+              : ''}
+          </span>
+        ) : null}
         {age ? <span className={cn('text-[10px]', mutedClassName)}>{age}</span> : null}
       </div>
       {reasons.length > 0 ? (
@@ -107,6 +136,15 @@ export default function ModerationPriorityHints({
             </li>
           ))}
         </ul>
+      ) : null}
+      {density === 'full' && rawObs?.observationId ? (
+        <p
+          className={cn('text-[10px] tabular-nums', mutedClassName)}
+          data-raw-observation-id={rawObs.observationId}
+        >
+          obs {rawObs.observationId.slice(0, 18)}
+          {rawObs.evidenceHash ? ` · ${rawObs.evidenceHash.slice(0, 8)}` : ''}
+        </p>
       ) : null}
     </div>
   );
