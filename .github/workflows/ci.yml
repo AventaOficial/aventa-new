@@ -16,6 +16,8 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_role_key
       DIGEST_TIMEZONE: America/Mexico_City
       NEXT_PUBLIC_APP_URL: https://aventaofertas.com
+      # Placeholder Supabase URL — skip hard ref binding in CI
+      AVENTA_SKIP_SUPABASE_REF_GUARD: '1'
 
     steps:
       - name: Checkout

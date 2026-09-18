@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { assertSupabaseUrlForProcess } from '@/lib/supabase/projectRefs';
 
 type CookieStore = {
   getAll: () => Promise<{ name: string; value: string }[]>;
@@ -30,6 +31,7 @@ export function createServerAuthClient(cookieStore: CookieStore) {
   if (!url || !anonKey) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
+  assertSupabaseUrlForProcess(url);
 
   return createServerClient(url, anonKey, {
     cookies: {
