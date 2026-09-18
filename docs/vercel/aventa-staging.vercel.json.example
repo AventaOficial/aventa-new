@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_comment": "EXAMPLE ONLY for Vercel project aventa-staging. Do NOT merge into Production aventa-new vercel.json. Founder copies cron entries into the staging project's vercel.json (or dashboard) after creating aventa-staging.",
+  "crons": [
+    {
+      "path": "/api/cron/distribution-drain",
+      "schedule": "*/10 * * * *"
+    }
+  ]
+}
