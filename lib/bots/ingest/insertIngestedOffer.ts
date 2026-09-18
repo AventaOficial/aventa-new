@@ -8,6 +8,8 @@ import type { ScoreBreakdown, ScoreDecision } from './scoreIngestCandidate';
 import { resolveBotAuthorUserId } from './resolveBotAuthorUserId';
 import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { buildBotOfferDescription } from './buildBotOfferDescription';
+import type { DealScore } from '@/lib/dealIntelligence';
+import type { RawObservationProvenanceSlice } from '@/lib/dealIntelligence/rawObservation';
 import { buildBotMeta } from './buildBotMeta';
 import {
   evaluateDealQualityFromParsedMeta,
@@ -42,6 +44,12 @@ export type InsertIngestOptions = {
   ingestSource?: string;
   ingestSourceDetail?: string;
   decision?: ScoreDecision;
+  /** DealScore v1 advisory — never publishes. */
+  dealScore?: DealScore | null;
+  /** Compact RawObservation provenance for audit (hash/meta only). */
+  rawObservation?: RawObservationProvenanceSlice | null;
+  gateAction?: string | null;
+  gateReason?: string | null;
 };
 
 export type InsertIngestResult =
@@ -159,6 +167,10 @@ export async function insertIngestedOffer(
     ingestSourceDetail: opts?.ingestSourceDetail,
     decision: opts?.decision,
     dealQuality: toDealQualityTelemetry(botQuality),
+    dealScore: opts?.dealScore ?? null,
+    rawObservation: opts?.rawObservation ?? null,
+    gateAction: opts?.gateAction ?? null,
+    gateReason: opts?.gateReason ?? null,
   });
 
   const payload: Record<string, unknown> = {

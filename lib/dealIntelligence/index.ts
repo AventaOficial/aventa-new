@@ -7,6 +7,7 @@ export * from './constants';
 export * from './types';
 export * from './identity';
 export * from './priceObservation';
+export * from './rawObservation';
 export * from './promotion';
 export * from './dealScore';
 export * from './dealDetectedEvent';

@@ -21,6 +21,13 @@ import { isLowQualityTitle } from './isLowQualityTitle';
 import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { enrichWithPriceIntel, nicheIdFromSourceDetail } from './priceIntel';
 import { evaluateDealSafe } from '@/lib/verifier';
+import { computeDealScore } from '@/lib/dealIntelligence';
+import {
+  buildRawObservation,
+  toProvenanceSlice,
+  withProcessingStatus,
+} from '@/lib/dealIntelligence/rawObservation';
+import { selectTopKByScore } from './candidateInsertGate';
 import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
@@ -611,14 +618,46 @@ export async function processExternalWorkerBatch(
   let autoApproved = 0;
   let insertedThisRun = 0;
 
-  for (const row of resolved) {
-    if (insertedThisRun >= maxInsertsThisBatch) break;
+  const insertQueue = selectTopKByScore(
+    resolved.map((row) => ({ ...row, score: row.total })),
+    maxInsertsThisBatch,
+  );
 
+  for (const row of insertQueue) {
     // Camino legacy: apagado en producción. El verifier puede seguir concluyendo
     // 'auto_approve' (y el shadow registrarlo), pero el bot no escribe 'approved'.
     const allowAuto = config.legacyAutoApproveWriteEnabled && row.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(row.meta);
+    const dealScore = computeDealScore({
+      meta: {
+        discountPrice: row.meta.discountPrice,
+        originalPrice: row.meta.originalPrice,
+        discountPercent: row.meta.discountPercent,
+      },
+      signals: row.meta.signals ?? null,
+    });
+    const sourceEventId = `${supplyRunId}:${row.item.source}:${row.item.url}`.slice(0, 240);
+    const rawSlice = toProvenanceSlice(
+      withProcessingStatus(
+        buildRawObservation({
+          sourceId: row.item.source,
+          sourceEventId,
+          url: row.meta.canonicalUrl || row.item.url,
+          merchant: row.meta.store,
+          salePrice: row.meta.discountPrice,
+          listPrice: row.meta.originalPrice,
+          currency: 'MXN',
+          title: row.meta.title,
+          sourceDetail: row.item.sourceDetail ?? null,
+          supplyRunId,
+          captureMethod: 'browser_justified',
+          processingStatus: 'scored',
+        }),
+        'inserted',
+      ),
+      dealScore,
+    );
 
     if (payload.dryRun) {
       insertedThisRun += 1;
@@ -628,12 +667,12 @@ export async function processExternalWorkerBatch(
         status: 'inserted',
         offerId: `dry-run-${insertedThisRun}`,
       });
-        sourceStats[row.item.source].inserted += 1;
-        pendingBySource[row.item.source] =
-          (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
-        if (status === 'approved') autoApproved += 1;
-        continue;
-      }
+      sourceStats[row.item.source].inserted += 1;
+      pendingBySource[row.item.source] =
+        (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
+      if (status === 'approved') autoApproved += 1;
+      continue;
+    }
 
     stageCounts.insertedAttempted += 1;
     try {
@@ -645,6 +684,10 @@ export async function processExternalWorkerBatch(
         ingestSource: row.item.source,
         ingestSourceDetail: row.item.sourceDetail ?? undefined,
         decision: row.decision,
+        dealScore,
+        rawObservation: rawSlice,
+        gateAction: 'insert_pending',
+        gateReason: 'passed_machine_gates',
       });
       if (ins.ok) {
         insertedThisRun += 1;

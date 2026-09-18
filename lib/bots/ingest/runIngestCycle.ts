@@ -42,6 +42,13 @@ import {
   trackIngestQualification,
   type QualificationCounts,
 } from '@/lib/hunter/supply/persistSnapshots';
+import { computeDealScore } from '@/lib/dealIntelligence';
+import {
+  buildRawObservation,
+  toProvenanceSlice,
+  withProcessingStatus,
+} from '@/lib/dealIntelligence/rawObservation';
+import { selectTopKByScore } from './candidateInsertGate';
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -406,13 +413,14 @@ export async function runIngestCycleForProfile(
     await sleep(randomIntInclusive(delayLo, delayHi));
   }
 
-  resolved.sort((a, b) => b.total - a.total);
+  const insertQueue = selectTopKByScore(
+    resolved.map((r) => ({ ...r, score: r.total })),
+    targetMax,
+  );
 
   let autoApproved = 0;
-  let insertedThisRun = 0;
 
-  for (const r of resolved) {
-    if (insertedThisRun >= targetMax) break;
+  for (const r of insertQueue) {
     stageCounts.insertedAttempted += 1;
 
     // Camino legacy: apagado en producción. Ver legacyAutoApproveWriteEnabled.
@@ -420,6 +428,37 @@ export async function runIngestCycleForProfile(
       config.legacyAutoApproveWriteEnabled && r.decision === 'auto_approve';
     const status = allowAuto ? 'approved' : 'pending';
     const title = optimizeIngestTitle(r.meta);
+    const dealScore = computeDealScore({
+      meta: {
+        discountPrice: r.meta.discountPrice,
+        originalPrice: r.meta.originalPrice,
+        discountPercent: r.meta.discountPercent,
+      },
+      signals: r.meta.signals ?? null,
+    });
+    const sourceEventId = `${supplyRunId}:${r.item.source}:${r.item.url}`.slice(0, 240);
+    const rawObs = withProcessingStatus(
+      buildRawObservation({
+        sourceId: r.item.source,
+        sourceEventId,
+        url: r.meta.canonicalUrl || r.item.url,
+        merchant: r.meta.store,
+        salePrice: r.meta.discountPrice,
+        listPrice: r.meta.originalPrice,
+        currency: 'MXN',
+        title: r.meta.title,
+        sourceDetail: r.item.sourceDetail ?? null,
+        supplyRunId,
+        captureMethod:
+          r.item.source === 'ml_worker'
+            ? 'browser_justified'
+            : r.item.source === 'ml_api' || r.item.source === 'amazon_asin'
+              ? 'official_api'
+              : 'unknown',
+        processingStatus: 'scored',
+      }),
+      'scored',
+    );
 
     try {
       const ins = await insertIngestedOffer(r.meta, config, {
@@ -430,9 +469,15 @@ export async function runIngestCycleForProfile(
         ingestSource: r.item.source,
         ingestSourceDetail: r.item.sourceDetail ?? undefined,
         decision: r.decision,
+        dealScore,
+        rawObservation: toProvenanceSlice(
+          withProcessingStatus(rawObs, status === 'pending' || status === 'approved' ? 'inserted' : 'scored'),
+          dealScore,
+        ),
+        gateAction: 'insert_pending',
+        gateReason: 'passed_machine_gates',
       });
       if (ins.ok) {
-        insertedThisRun += 1;
         void recordShadowOutcomeFromAutonomous({
           offerId: ins.offerId,
           result: r.autonomous,
