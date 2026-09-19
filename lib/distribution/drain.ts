@@ -8,6 +8,7 @@ import {
   distributionBackoffMinutes,
   type ClaimedPublication,
 } from './claim';
+import { evaluateDistributionEligibilityFromSnapshot } from './eligibility';
 import { appendDistributionEvent } from './events';
 import { getDistributionProviderAdapter } from './providers/registry';
 import type { DistributionProviderAdapter } from './providers/types';
@@ -69,13 +70,12 @@ function isOfferStillLive(offer: {
   status: string;
   expires_at: string | null;
 }, nowMs: number): boolean {
-  const st = String(offer.status ?? '').toLowerCase();
-  if (st !== 'approved' && st !== 'published') return false;
-  if (offer.expires_at) {
-    const exp = Date.parse(offer.expires_at);
-    if (Number.isFinite(exp) && exp < nowMs) return false;
-  }
-  return true;
+  // C2: mid-drain re-check uses same snapshot authority (flag already gated at drain entry).
+  const r = evaluateDistributionEligibilityFromSnapshot(
+    { id: 'drain', status: offer.status, expires_at: offer.expires_at },
+    { nowMs, requireEngineEnabled: false },
+  );
+  return r.eligible;
 }
 
 async function markRetryable(

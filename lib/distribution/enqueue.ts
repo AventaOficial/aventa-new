@@ -4,7 +4,10 @@ import {
   DISTRIBUTION_DEFAULT_VERSION,
   isDistributionEngineEnabled,
 } from './constants';
-import { isOfferDistributable, isOfferSnapshotDistributable } from './eligibility';
+import {
+  assertNotPendingForDistribution,
+  evaluateDistributionEligibility,
+} from './eligibility';
 import { appendDistributionEvent } from './events';
 import { buildDistributionIdempotencyKey } from './idempotency';
 import { resolveEligibleDestinations } from './routing';
@@ -42,7 +45,7 @@ function mapDestinationRow(raw: Record<string, unknown>): DistributionDestinatio
 /**
  * Post-approval enqueue: create pending publications for eligible destinations.
  * Does NOT call Telegram/WhatsApp. Does NOT modify offers.status.
- * Publications table is the outbox (write_jobs_queue is offer_event-only — incompatible).
+ * C2: evaluateDistributionEligibility is the sole status authority (DB).
  */
 export async function enqueueDistributionForApprovedOffer(
   offerId: string,
@@ -60,10 +63,22 @@ export async function enqueueDistributionForApprovedOffer(
   const supabase = options?.supabase ?? createServerClient();
   const version = options?.distributionVersion ?? DISTRIBUTION_DEFAULT_VERSION;
 
-  const distributable = await isOfferDistributable(offerId, supabase);
-  if (!distributable) {
-    return { ok: true, skipped: 'not_distributable', reason: 'trackable_predicate_failed' };
+  // C2 single authority — loads offers.status from DB; pending cannot pass.
+  const eligibility = await evaluateDistributionEligibility({
+    offerId,
+    supabase,
+    env,
+  });
+  if (!eligibility.eligible) {
+    return {
+      ok: true,
+      skipped: 'not_distributable',
+      reason: `${eligibility.decision}:${eligibility.reason}`,
+    };
   }
+
+  // Defense in depth — never proceed if status somehow still pending.
+  assertNotPendingForDistribution(eligibility.status);
 
   const { data: offerRow, error: offerErr } = await supabase
     .from('offers')
@@ -76,14 +91,11 @@ export async function enqueueDistributionForApprovedOffer(
     return { ok: false, error: offerErr.message };
   }
   if (!offerRow) {
-    return { ok: true, skipped: 'not_distributable', reason: 'offer_missing' };
+    return { ok: true, skipped: 'not_distributable', reason: 'OFFER_MISSING:offer_missing' };
   }
 
   const offer = offerRow as DistributionOfferSnapshot;
-  const snap = isOfferSnapshotDistributable(offer);
-  if (!snap.ok) {
-    return { ok: true, skipped: 'not_distributable', reason: snap.reason };
-  }
+  assertNotPendingForDistribution(offer.status);
 
   const { data: destRows, error: destErr } = await supabase
     .from('distribution_destinations')
@@ -148,6 +160,7 @@ export async function enqueueDistributionForApprovedOffer(
           destination_id: dest.id,
           provider: dest.provider,
           distribution_version: version,
+          eligibility_decision: eligibility.decision,
         },
       });
       continue;
