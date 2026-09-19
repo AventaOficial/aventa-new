@@ -1,0 +1,19 @@
+{
+  "stamp": "2026-09-19T23:04:43.796Z",
+  "stagingRef": "oojshofrpbfwsiypcecr",
+  "migrationDocs": "E:\\AVENTA NEW\\aventa-new\\docs\\supabase-migrations\\20260919_cazaofertas_persistence.sql",
+  "migrationLocal": "E:\\AVENTA NEW\\aventa-new\\supabase\\migrations\\20260919223000_cazaofertas_persistence.sql",
+  "moneyUntouched": true,
+  "tables": {
+    "caza_deal_candidates": true,
+    "caza_publications": true,
+    "caza_revenue_events": true
+  },
+  "rpcProbes": {
+    "caza_upsert_deal_candidate": "caza_upsert_deal_candidate: identity_key required",
+    "caza_insert_publication_idempotent": "caza_insert_publication_idempotent: publication_id required",
+    "caza_append_revenue_event": "caza_append_revenue_event: event_id required"
+  },
+  "ddlStatus": "APPLIED",
+  "result": "PASS"
+}

@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase",
+    "test": "npm run test:contracts",
+    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase tests/cazaOfertas",
+    "test:cazaofertas": "vitest run tests/cazaOfertas",
     "build:extension": "tsc -p browser-extension/tsconfig.json",
     "ci:verify": "npm run test:contracts && npm run build"
   },
