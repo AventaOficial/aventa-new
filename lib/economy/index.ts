@@ -119,6 +119,8 @@ export {
   type SettlementOpsSnapshot,
   type SettlementStagingCanaryResult,
   type SettlementStagingCanaryGuardsResult,
+  type SettlementStagingCanaryMode,
+  type SettlementStagingCanaryRejectReason,
   type SettlementAllocation,
   type SettlementEventType,
   type SettlementRejectReason,

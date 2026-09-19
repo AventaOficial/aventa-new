@@ -75,12 +75,29 @@ SUPPLY INTELLIGENCE → HUNTER BENCHMARK → SUPPLY AUTOMATION
 - `/api/cron/distribution-drain` (staging-gated; omitted from prod vercel.json)
 - `/api/cron/process-write-queue`, digests, integrity, rewards-release-holds
 
-## Merge order (after Wave 1 DONE)
+## Wave 1 status (2026-09-19)
 
-1. Observability (lowest coupling)
-2. Attribution
-3. Distribution harden
-4. M2 settlement staging helpers
-5. S8.1 hunter benchmark
-6. S8 supply intelligence
-7. Then Wave 2 S9
+| Stream | Branch / worktree | Status | Targeted tests |
+|--------|-------------------|--------|----------------|
+| S8 Supply Intelligence | `agent/s8-supply-intelligence` | Foundation DONE | 14 passed |
+| S8.1 Hunter Benchmark | `agent/s81-hunter-benchmark` | Contract DONE | 14 passed |
+| Attribution | on `staging` (committed) | Hardened DONE | 43 passed |
+| Distribution | `agent/distribution` | Contract harden DONE | 12 passed |
+| M2 Money staging | main + settlement | Canary DONE (OFF) | economy 96 passed |
+| Observability | `agent/observability` | Pulse DONE (merge-safe, no settlement ownership) | 7 passed |
+| S9 Automation | — | **Wave 2 blocked** until S8 merge | — |
+
+### Merge risks (resolve before integrate)
+
+- **Observability** must not introduce `lib/economy/settlement/**` (flag mirrored locally for pulse).
+- **Distribution** `drain.ts` UNKNOWN_OUTCOME narrowing — review vs C3 reclaim on staging before merge.
+- **S8.1** handoff: `hunterCandidateToS8Input()` → S8 `evaluateOpportunity`.
+- Merge order unchanged: Obs → Dist → S8.1 → S8 → M2 overlays.
+
+### Layering note (do not confuse)
+
+- `lib/supplyIntelligence/` = S4 SourceAdapter dry-run (listing normalize)
+- `lib/supply/intelligence/` = S8 opportunity evaluation engine
+- `lib/supply/hunterBenchmark/` = S8.1 external hunter normalize + metrics
+
+S9 must call S8 `evaluateOpportunity` before machine pending insert — observation-only until canary flag.
