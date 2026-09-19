@@ -35,13 +35,13 @@ function StatCard({
   hint: string;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800/80 bg-[#121214] p-4 shadow-[0_0_0_1px_rgba(139,92,246,0.04)] transition-colors hover:border-violet-500/30">
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-violet-300 dark:border-zinc-800/80 dark:bg-[#121214] dark:shadow-[0_0_0_1px_rgba(139,92,246,0.04)] dark:hover:border-violet-500/30">
       <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClass}`}>
         <Icon className="h-4 w-4" aria-hidden />
       </div>
-      <p className="text-2xl font-bold tabular-nums text-white">{value}</p>
-      <p className="mt-0.5 text-sm font-medium text-zinc-200">{label}</p>
-      <p className="mt-1 text-[11px] leading-snug text-zinc-500">{hint}</p>
+      <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{value}</p>
+      <p className="mt-0.5 text-sm font-medium text-gray-800 dark:text-zinc-200">{label}</p>
+      <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-zinc-500">{hint}</p>
     </div>
   );
 }
@@ -60,14 +60,14 @@ export default function HunterActivitySummary({
     <section className="mb-8 space-y-4" aria-label="Actividad del cazador">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-white">Tu actividad como cazador</h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Tu actividad como cazador</h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-500">
             Un resumen de tu contribución en AVENTA.
           </p>
         </div>
         <Link
           href="/me/estadisticas"
-          className="text-xs font-medium text-violet-400 hover:text-violet-300 hover:underline"
+          className="text-xs font-medium text-violet-600 hover:text-violet-500 hover:underline dark:text-violet-400 dark:hover:text-violet-300"
         >
           Ver métricas completas
         </Link>

@@ -335,7 +335,24 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
 export function stripOfferTrackingParams(rawUrl: string): string {
   try {
     const u = new URL(rawUrl.trim());
-    const dropExact = new Set(['tag', 'ref', 'ref_', 'ascsubtag', 'linkcode', 'camp', 'creative', 'creativeasin', 'adid']);
+    // Hash is only useful for identity resolve (already done upstream) — drop for fetch/normalize.
+    u.hash = '';
+    const dropExact = new Set([
+      'tag',
+      'ref',
+      'ref_',
+      'ascsubtag',
+      'linkcode',
+      'camp',
+      'creative',
+      'creativeasin',
+      'adid',
+      // Share / analytics noise (not identity).
+      'ua',
+      'origin',
+      'sid',
+      'action',
+    ]);
     const keys = [...u.searchParams.keys()];
     for (const key of keys) {
       const k = key.toLowerCase();
@@ -429,19 +446,19 @@ export function extractOfferImages(html: string, base: string): string[] {
     pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
   }
 
-  const mlPicRe = /"secure_url"\s*:\s*"(https?:\\?\/\\?\/[^"]*mlstatic[^"]+)"/gi;
+  const mlPicRe = /"secure_url"\s*:\s*"(https?:\\?\/\\?\/[^"]*mlstatic[^"]*D_(?:NQ_)?(?:NP_|Q_NP_)[^"]+)"/gi;
   while ((hm = mlPicRe.exec(html)) !== null) {
     pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
   }
-  const mlUrlRe = /"url"\s*:\s*"(https?:\\?\/\\?\/http2\.mlstatic\.com[^"]+)"/gi;
+  const mlUrlRe = /"url"\s*:\s*"(https?:\\?\/\\?\/http2\.mlstatic\.com[^"]*D_(?:NQ_)?(?:NP_|Q_NP_)[^"]+)"/gi;
   while ((hm = mlUrlRe.exec(html)) !== null) {
     pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
   }
 
-  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
+  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_(?:NQ_)?(?:NP_|Q_NP_)[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
   while ((hm = mlCdnRe.exec(html)) !== null) {
     const u = hm[1];
-    if (/placeholder|pixel|1x1|sprite|grey-pixel/i.test(u)) continue;
+    if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter/i.test(u)) continue;
     pushUnique(images, absoluteUrl(base, u));
   }
 

@@ -183,6 +183,7 @@ export async function POST(request: Request) {
     }
 
     // Tracking fuera; params funcionales (wid, item_id, pdp_filters) se conservan.
+    // Identity resolve uses raw URL first (hash/query signals) — strip is for fetch only.
     let workingHref = stripOfferTrackingParams(httpsUrl.href);
     const wasMeliLa = isOfferMeliLaHost(url.hostname);
     const wasAmazonShort =
@@ -204,10 +205,23 @@ export async function POST(request: Request) {
     }
 
     const inputIsMl = isOfferMercadoLibreHost(url.hostname) || isOfferMercadoLibreHost(workingUrl.hostname);
-    const mlResolution = inputIsMl ? resolveMercadoLibreItem(workingHref) ?? resolveMercadoLibreItem(rawUrl) : null;
+    // Prefer raw paste for identity (hash wid / pdp_filters) — S6.8 authority.
+    const mlResolution = inputIsMl
+      ? resolveMercadoLibreItem(rawUrl) ?? resolveMercadoLibreItem(workingHref)
+      : null;
     const mlIdOnMlHost = mlResolution?.itemId ?? (inputIsMl ? extractMercadoLibreItemId(workingHref) : null);
     if (mlResolution?.itemId) {
       recordMlQuality({ resolved: true });
+    }
+
+    // After identity: fetch the cleaned canonical (drop ua/share noise), not the bloated share URL.
+    if (mlResolution?.canonicalUrl) {
+      workingHref = stripOfferTrackingParams(mlResolution.canonicalUrl);
+      try {
+        workingUrl = new URL(workingHref);
+      } catch {
+        /* keep previous workingUrl */
+      }
     }
 
     const htmlPromise = fetchHtml(workingHref);

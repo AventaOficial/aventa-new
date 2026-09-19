@@ -58,7 +58,7 @@ export default function RewardsOfferSelection({
   return (
     <div className="space-y-4">
       <div className="space-y-2 rounded-2xl border border-violet-500/25 bg-violet-950/30 p-5 text-center">
-        <p className="text-lg font-semibold text-white">¡Felicidades, cazador!</p>
+        <p className="text-lg font-semibold text-gray-900 dark:text-white">¡Felicidades, cazador!</p>
         <p className="text-sm leading-relaxed text-zinc-400">
           Acabas de desbloquear una recompensa.
         </p>
@@ -89,7 +89,7 @@ export default function RewardsOfferSelection({
                   className={`overflow-hidden rounded-2xl border transition-colors ${
                     active
                       ? 'border-violet-500 bg-violet-950/40 ring-2 ring-violet-500/25'
-                      : 'border-zinc-800 bg-[#0e0e10]'
+                      : 'border-gray-200 bg-white dark:border-zinc-800 dark:bg-[#0e0e10]'
                   }`}
                 >
                   <div className="flex gap-3 p-3">
@@ -115,7 +115,7 @@ export default function RewardsOfferSelection({
                         {offer.title}
                       </p>
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-sm font-bold tabular-nums text-white">
+                        <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-white">
                           {formatMx(offer.price)}
                         </span>
                         {disc != null ? (

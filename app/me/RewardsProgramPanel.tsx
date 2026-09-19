@@ -79,14 +79,14 @@ function ProgressMeter({
 }) {
   const pct = required > 0 ? Math.min(100, Math.round((current / required) * 100)) : 0;
   return (
-    <div className="rounded-2xl border border-zinc-800/80 bg-[#0e0e10] p-4">
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-zinc-800/80 dark:bg-[#0e0e10] p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400">
           <Icon className="h-3.5 w-3.5" aria-hidden />
         </span>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
       </div>
-      <p className="mb-2 text-xl font-bold tabular-nums text-white">
+      <p className="mb-2 text-xl font-bold tabular-nums text-gray-900 dark:text-white">
         {current} <span className="text-zinc-500">/</span> {required}
       </p>
       <div
@@ -289,7 +289,7 @@ export default function RewardsProgramPanel() {
 
   if (loading) {
     return (
-      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-[#0c0c0e] p-8">
+      <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white dark:border-zinc-800 dark:bg-[#0c0c0e] p-8">
         <div className="h-3 w-32 animate-pulse rounded bg-zinc-800" />
         <div className="mt-4 h-8 w-64 max-w-full animate-pulse rounded bg-zinc-800" />
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -305,7 +305,7 @@ export default function RewardsProgramPanel() {
     return (
       <div
         id="hunter-rewards-panel"
-        className="scroll-mt-24 rounded-3xl border border-zinc-800 bg-[#0c0c0e] p-5 sm:p-6"
+        className="scroll-mt-24 rounded-3xl border border-gray-200 bg-white dark:border-zinc-800 dark:bg-[#0c0c0e] p-5 sm:p-6"
         role="alert"
       >
         <p className="text-sm font-medium text-zinc-200">
@@ -317,7 +317,7 @@ export default function RewardsProgramPanel() {
         <button
           type="button"
           onClick={() => void reload()}
-          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0c0e]"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#0c0c0e]"
         >
           Reintentar
         </button>
@@ -334,7 +334,7 @@ export default function RewardsProgramPanel() {
     <>
       <section
         id="hunter-rewards-panel"
-        className="relative scroll-mt-24 overflow-hidden rounded-3xl border border-zinc-800/90 bg-gradient-to-br from-[#141418] via-[#0c0c0e] to-[#0a0a0c] shadow-[0_0_60px_-20px_rgba(139,92,246,0.35)]"
+        className="relative scroll-mt-24 overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/40 to-gray-50 dark:border-zinc-800/90 dark:from-[#141418] dark:via-[#0c0c0e] dark:to-[#0a0a0c] shadow-[0_0_60px_-20px_rgba(139,92,246,0.35)]"
         aria-label="Programa del Cazador"
       >
         <div
@@ -354,7 +354,7 @@ export default function RewardsProgramPanel() {
           {phase === 'locked' ? (
             <div className="mt-4 grid items-center gap-5 sm:gap-6 md:grid-cols-[minmax(0,1fr)_minmax(220px,42%)] lg:gap-4">
               <div className="min-w-0 space-y-3">
-                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
                   Hay algo{' '}
                   <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(167,139,250,0.5)]">
                     esperándote…
@@ -411,7 +411,7 @@ export default function RewardsProgramPanel() {
                   <Sparkles className="h-6 w-6" aria-hidden />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                     ¡Lo lograste, cazador!
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-400 lg:mx-0 mx-auto">
@@ -422,7 +422,7 @@ export default function RewardsProgramPanel() {
                 <button
                   type="button"
                   onClick={openCeremony}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(139,92,246,0.6)] transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0c0e] sm:w-auto"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(139,92,246,0.6)] transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#0c0c0e] sm:w-auto"
                 >
                   Descubrir recompensa
                 </button>
@@ -438,7 +438,7 @@ export default function RewardsProgramPanel() {
           {phase === 'pending_selection' ? (
             <div className="mt-4 space-y-4">
               <div>
-                <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                   Tu recompensa está lista
                 </h2>
                 <p className="mt-2 text-sm text-zinc-400">
@@ -460,7 +460,7 @@ export default function RewardsProgramPanel() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-400" />
                   <div className="min-w-0 space-y-1">
-                    <h2 className="text-xl font-bold text-white sm:text-2xl">Recompensa activada</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">Recompensa activada</h2>
                     <p className="text-sm text-zinc-400">
                       Tu reconocimiento quedó registrado. Puedes verlo en Mis recompensas.
                     </p>
@@ -468,7 +468,7 @@ export default function RewardsProgramPanel() {
                 </div>
 
                 {data.welcome.welcomeOffer ? (
-                  <div className="mt-4 flex gap-3 rounded-2xl border border-zinc-800 bg-[#0e0e10] p-3">
+                  <div className="mt-4 flex gap-3 rounded-2xl border border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-[#0e0e10] p-3">
                     <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
                       {data.welcome.welcomeOffer.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -511,21 +511,21 @@ export default function RewardsProgramPanel() {
               {data.programActive ? (
                 <>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-xl border border-zinc-800 bg-[#0e0e10] p-3">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-[#0e0e10] p-3">
                       <p className="text-[10px] uppercase text-zinc-500">En validación</p>
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {centsToMx(data.balances.validatingCents)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-zinc-800 bg-[#0e0e10] p-3">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-[#0e0e10] p-3">
                       <p className="text-[10px] uppercase text-zinc-500">Disponible</p>
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {centsToMx(data.balances.availableCents)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-zinc-800 bg-[#0e0e10] p-3">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-[#0e0e10] p-3">
                       <p className="text-[10px] uppercase text-zinc-500">Pagado</p>
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {centsToMx(data.balances.paidCents)}
                       </p>
                     </div>

@@ -60,7 +60,7 @@ function formatDate(iso: string | null | undefined): string {
 
 function OfferMini({ offer }: { offer: OfferSnippet }) {
   return (
-    <div className="flex gap-3 rounded-xl border border-zinc-800 bg-[#0e0e10] p-2.5">
+    <div className="flex gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-[#0e0e10] p-2.5">
       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
         {offer.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -137,7 +137,7 @@ export default function MyRewardsHistory() {
   if (loading) {
     return (
       <section className="mb-4" aria-label="Mis recompensas">
-        <h2 className="text-lg font-semibold text-white">Mis recompensas</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mis recompensas</h2>
         <div className="mt-3 h-28 animate-pulse rounded-2xl bg-zinc-900" />
       </section>
     );
@@ -146,7 +146,7 @@ export default function MyRewardsHistory() {
   if (error) {
     return (
       <section className="mb-4" aria-label="Mis recompensas">
-        <h2 className="text-lg font-semibold text-white">Mis recompensas</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mis recompensas</h2>
         <p className="mt-3 text-sm text-red-400">{error}</p>
       </section>
     );
@@ -162,7 +162,7 @@ export default function MyRewardsHistory() {
   return (
     <section className="mb-4 space-y-3" aria-label="Mis recompensas">
       <div>
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
           <Trophy className="h-5 w-5 text-violet-400" aria-hidden />
           Mis recompensas
         </h2>
@@ -211,7 +211,7 @@ export default function MyRewardsHistory() {
       ) : null}
 
       {hasWelcomeComplete ? (
-        <article className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121214] p-4">
+        <article className="space-y-3 rounded-2xl border border-gray-200 bg-white dark:border-zinc-800 dark:bg-[#121214] p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-violet-400" aria-hidden />
@@ -270,8 +270,8 @@ export default function MyRewardsHistory() {
             key={r.id}
             className={`space-y-3 rounded-2xl border p-4 ${
               r.isSynthetic || r.uiStatus === 'synthetic'
-                ? 'border-zinc-700/80 bg-[#101012] opacity-90'
-                : 'border-zinc-800 bg-[#121214]'
+                ? 'border-gray-200 bg-gray-50 opacity-90 dark:border-zinc-700/80 dark:bg-[#101012]'
+                : 'border-gray-200 bg-white dark:border-zinc-800 dark:bg-[#121214]'
             }`}
           >
             <div className="flex items-start justify-between gap-3">

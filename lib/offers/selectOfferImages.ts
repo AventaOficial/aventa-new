@@ -68,6 +68,11 @@ export function isHighConfidenceJunkImage(raw: string): boolean {
   if (/\/placeholder(\.|_)/i.test(path) || /placehold\.co|placeholder\.png/i.test(lower)) return true;
   if (/1x1|pixel\.gif|tracking[_-]?pixel/i.test(lower)) return true;
   if (/\/adsystem\/|doubleclick\.net|pixel\?|beacon/i.test(lower)) return true;
+  // ML / CDN UI chrome (not product D_NQ_NP stems).
+  if (/\/storage\/splinter/i.test(path)) return true;
+  if (/avatar|seller[-_]?logo|meli-logo|nav-icon|icon[_-]?ui|loyalty|shipping-icon|free.?ship.?badge/i.test(lower)) {
+    return true;
+  }
   return false;
 }
 

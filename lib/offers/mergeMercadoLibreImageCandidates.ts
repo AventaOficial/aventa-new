@@ -3,7 +3,10 @@ import {
   type MlImageCandidate,
   type MlImageProvenanceSource,
 } from '@/lib/offers/mlImageProvenance';
-import { mercadoLibreImageResourceId } from '@/lib/offers/selectOfferImages';
+import {
+  isHighConfidenceJunkImage,
+  mercadoLibreImageResourceId,
+} from '@/lib/offers/selectOfferImages';
 
 function isHttpUrl(u: string): boolean {
   return /^https?:\/\//i.test(u);
@@ -16,6 +19,7 @@ function normalizeList(urls: string[]): string[] {
     if (typeof raw !== 'string') continue;
     const u = raw.trim();
     if (!isHttpUrl(u)) continue;
+    if (isHighConfidenceJunkImage(u)) continue;
     const key = mercadoLibreImageResourceId(u) ?? u.split('?')[0] ?? u;
     if (seen.has(key)) continue;
     seen.add(key);

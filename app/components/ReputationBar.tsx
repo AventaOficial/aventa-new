@@ -34,11 +34,11 @@ export default function ReputationBar({
     return (
       <>
         <div
-          className={`rounded-2xl border border-zinc-800/80 bg-[#0e0e10]/90 px-4 py-4 sm:px-5 ${className}`}
+          className={`rounded-2xl border border-gray-200 bg-white/90 px-4 py-4 sm:px-5 dark:border-zinc-800/80 dark:bg-[#0e0e10]/90 ${className}`}
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
             <div className="shrink-0 sm:w-36">
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
                 Nivel {level} – {label}
               </p>
             </div>

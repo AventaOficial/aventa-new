@@ -37,6 +37,11 @@ export function isRejectedMercadoLibreImage(url: string, sourceItemId: string | 
     return true;
   }
   if (/\/logo\.(?:png|webp|jpg|jpeg|svg)(?:$|[?#])/i.test(path)) return true;
+  if (/\/storage\/splinter/i.test(path)) return true;
+  // Non-product mlstatic paths (admin UI tiles, icons) without product stem.
+  if (/mlstatic\.com/i.test(lower) && !/D_(?:NQ_)?(?:NP_|Q_NP_)/i.test(path)) {
+    return true;
+  }
   if (/D_Q_NP_|-I\.(?:jpg|webp|jpeg|png)/i.test(path) && !/-O\.|-F\.|-G\./i.test(path)) {
     // Thumbnail pequeño; permitir si es la única foto API del item.
   }

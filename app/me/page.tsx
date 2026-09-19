@@ -321,21 +321,14 @@ function MePageInner() {
 
   return (
     <ClientLayout>
-      <div
-        className={`min-h-screen text-gray-900 dark:text-gray-100 ${
-          isHunter
-            ? /* Fuerza variantes dark: de OfferCard y controles aunque el tema global sea light */
-              'dark bg-[#050506] text-zinc-100'
-            : 'bg-transparent'
-        }`}
-      >
+      <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
         <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
           {isHunter ? (
-            <div className="mb-6 overflow-hidden rounded-3xl border border-zinc-800/90 bg-gradient-to-br from-[#16161a] via-[#101014] to-[#0c0c0e] p-5 shadow-[0_0_40px_-16px_rgba(139,92,246,0.25)] sm:p-6">
+            <div className="mb-6 overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/40 to-gray-50 p-5 shadow-sm dark:border-zinc-800/90 dark:from-[#16161a] dark:via-[#101014] dark:to-[#0c0c0e] dark:shadow-[0_0_40px_-16px_rgba(139,92,246,0.25)] sm:p-6">
               <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                   <div className="flex shrink-0 flex-col items-center gap-2">
-                    <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-violet-500 to-purple-700 ring-2 ring-violet-500/40 ring-offset-2 ring-offset-[#101014]">
+                    <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-violet-500 to-purple-700 ring-2 ring-violet-500/40 ring-offset-2 ring-offset-white dark:ring-offset-[#101014]">
                       {profile?.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
@@ -361,24 +354,24 @@ function MePageInner() {
                     </button>
                   </div>
                   <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <h1 className="truncate text-2xl font-bold text-white sm:text-3xl">
+                    <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                       {displayName}
                     </h1>
-                    <p className="mt-1.5 inline-flex flex-wrap items-center justify-center gap-1.5 text-sm text-violet-300 sm:justify-start">
+                    <p className="mt-1.5 inline-flex flex-wrap items-center justify-center gap-1.5 text-sm text-violet-700 dark:text-violet-300 sm:justify-start">
                       <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       <span className="font-medium">Cazador de Ofertas</span>
-                      <span className="text-zinc-600">•</span>
-                      <span className="text-zinc-400">
+                      <span className="text-gray-300 dark:text-zinc-600">•</span>
+                      <span className="text-gray-500 dark:text-zinc-400">
                         Nivel {repLevel}
                       </span>
                     </p>
-                    <p className="mt-2 text-sm text-zinc-400">
+                    <p className="mt-2 text-sm text-gray-500 dark:text-zinc-400">
                       Encuentra. Comparte. Ayuda a otros a ahorrar.
                     </p>
                     {publicHref ? (
                       <Link
                         href={publicHref}
-                        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-400 hover:text-violet-300 hover:underline"
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-500 hover:underline dark:text-violet-400 dark:hover:text-violet-300"
                       >
                         Ver perfil público
                         <ExternalLink className="h-3 w-3" />
@@ -386,12 +379,12 @@ function MePageInner() {
                     ) : null}
                   </div>
                 </div>
-                <blockquote className="hidden max-w-xs rounded-2xl border border-violet-500/20 bg-violet-950/30 px-4 py-3 text-sm leading-relaxed text-zinc-200 lg:block">
+                <blockquote className="hidden max-w-xs rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm leading-relaxed text-gray-700 dark:border-violet-500/20 dark:bg-violet-950/30 dark:text-zinc-200 lg:block">
                   <p>
                     &ldquo;Las mejores oportunidades siempre están un paso adelante. Para eso
                     estamos aquí.&rdquo;
                   </p>
-                  <footer className="mt-3 border-t border-violet-500/30 pt-2 text-[11px] font-semibold tracking-widest text-violet-400">
+                  <footer className="mt-3 border-t border-violet-200 pt-2 text-[11px] font-semibold tracking-widest text-violet-600 dark:border-violet-500/30 dark:text-violet-400">
                     AVENTA
                   </footer>
                 </blockquote>
@@ -458,11 +451,7 @@ function MePageInner() {
           )}
 
           <div
-            className={`mb-8 flex max-w-md gap-1 rounded-2xl p-1.5 ${
-              isHunter
-                ? 'border border-zinc-800 bg-[#121214]'
-                : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#141414]'
-            }`}
+            className="mb-8 flex max-w-md gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-[#141414]"
             role="tablist"
             aria-label="Vista de perfil"
           >
@@ -480,14 +469,10 @@ function MePageInner() {
                   role="tab"
                   aria-selected={selected}
                   onClick={() => setMeView(tab.id)}
-                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#141414] ${
                     selected
-                      ? isHunter
-                        ? 'bg-white text-[#1d1d1f] shadow-sm focus-visible:ring-offset-[#121214]'
-                        : 'bg-[#1d1d1f] text-white focus-visible:ring-offset-white dark:bg-white dark:text-[#1d1d1f] dark:focus-visible:ring-offset-[#141414]'
-                      : isHunter
-                        ? 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 focus-visible:ring-offset-[#121214]'
-                        : 'text-gray-600 hover:bg-gray-100 focus-visible:ring-offset-white dark:text-gray-400 dark:hover:bg-[#1a1a1a] dark:focus-visible:ring-offset-[#141414]'
+                      ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                      : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#1a1a1a]'
                   }`}
                 >
                   {tab.label}
@@ -514,13 +499,13 @@ function MePageInner() {
 
               <div className="mb-4 flex flex-col gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Mis ofertas</h2>
-                  <p className="mt-0.5 text-xs text-zinc-500">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mis ofertas</h2>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-500">
                     Consulta el estado, la actividad y la siguiente acción de cada publicación.
                   </p>
                 </div>
                 <div
-                  className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-[#121214] p-1.5"
+                  className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 dark:border-zinc-800 dark:bg-[#121214]"
                   role="tablist"
                   aria-label="Filtrar ofertas por estado"
                 >
@@ -533,15 +518,15 @@ function MePageInner() {
                         role="tab"
                         aria-selected={selected}
                         onClick={() => setStatusFilter(filter.value)}
-                        className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121214] ${
+                        className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#121214] ${
                           selected
-                            ? 'bg-white text-[#1d1d1f]'
-                            : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                            ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                            : 'text-gray-600 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200'
                         }`}
                       >
                         {filter.label}
                         <span
-                          className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-zinc-600'}`}
+                          className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-gray-400 dark:text-zinc-600'}`}
                         >
                           {statusCounts[filter.value]}
                         </span>
@@ -552,14 +537,14 @@ function MePageInner() {
               </div>
               <div className="space-y-4 md:space-y-6">
                 {filteredOffers.length === 0 ? (
-                  <div className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121214] py-10 text-center">
-                    <p className="text-zinc-300">
+                  <div className="space-y-3 rounded-2xl border border-gray-200 bg-white py-10 text-center dark:border-zinc-800 dark:bg-[#121214]">
+                    <p className="text-gray-700 dark:text-zinc-300">
                       {offers.length === 0
                         ? 'Nada publicado. ¿Cazamos una oferta?'
                         : 'No tienes ofertas en este estado.'}
                     </p>
                     {offers.length === 0 ? (
-                      <p className="text-sm text-zinc-500">
+                      <p className="text-sm text-gray-500 dark:text-zinc-500">
                         Usa el botón de subir cuando veas un precio que valga la pena.
                       </p>
                     ) : null}
@@ -568,7 +553,7 @@ function MePageInner() {
                   filteredOffers.map((offer) => (
                     <div
                       key={offer.id}
-                      className="overflow-hidden rounded-2xl ring-1 ring-zinc-800/80 transition hover:ring-violet-500/30"
+                      className="overflow-hidden rounded-2xl ring-1 ring-gray-200 transition hover:ring-violet-400/40 dark:ring-zinc-800/80 dark:hover:ring-violet-500/30"
                     >
                       <OfferCard
                         offerId={offer.id}
@@ -625,12 +610,12 @@ function MePageInner() {
                 <MyRewardsHistory />
               </div>
 
-              <div className="mt-8 flex flex-col items-stretch gap-4 rounded-2xl border border-zinc-800 bg-[#121214] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="mt-8 flex flex-col items-stretch gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-zinc-800 dark:bg-[#121214] sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-400">
                     <Sparkles className="h-4 w-4" aria-hidden />
                   </span>
-                  <p className="text-sm leading-relaxed text-zinc-400">
+                  <p className="text-sm leading-relaxed text-gray-600 dark:text-zinc-400">
                     Cada oferta que compartes puede ayudar a alguien a encontrar una gran
                     oportunidad. Gracias por ser parte de AVENTA.
                   </p>
@@ -638,7 +623,7 @@ function MePageInner() {
                 <button
                   type="button"
                   onClick={() => openUploadModal()}
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_20px_-4px_rgba(139,92,246,0.5)] transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121214]"
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_20px_-4px_rgba(139,92,246,0.5)] transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#121214]"
                 >
                   <Plus className="h-4 w-4" aria-hidden />
                   Subir nueva oferta
