@@ -33,3 +33,24 @@ export type {
   ScoreDecomposition,
   WorkerCardContribution,
 } from './workerCardScoreDiagnostics';
+export {
+  evaluateMachineLiveInsertEligibility,
+  isMachinePendingWriteEnabled,
+  machineGateSkipReason,
+} from './machineLiveInsertEligibility';
+export type { MachineLiveInsertEligibility } from './machineLiveInsertEligibility';
+export {
+  buildSupplyOpsRunSummary,
+  diagnoseSupplyOpsBottleneck,
+  formatSupplyOpsRunSummaryLog,
+} from './supplyOpsRunSummary';
+export type { SupplyOpsRunSummary, SupplyOpsBottleneck } from './supplyOpsRunSummary';
+export { processExternalWorkerBatch } from './externalWorker';
+export type { ExternalWorkerBatchPayload, ExternalWorkerCandidate } from './externalWorker';
+export {
+  S71_SEED_AUTHOR_ID,
+  S72_STAGING_WINDOW_DEFAULT_CAP,
+  S72_STAGING_WINDOW_HARD_CAP,
+  assertDedicatedMachineAuthor,
+  resolveStagingSupplyWindowCap,
+} from './stagingSupplyWindow';

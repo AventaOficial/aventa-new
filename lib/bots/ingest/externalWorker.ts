@@ -60,6 +60,10 @@ import {
 } from '@/lib/bots/ingest/machineLiveInsertEligibility';
 import { resolveCanaryInsertCap } from '@/lib/bots/ingest/machineInsertCanary';
 import {
+  buildSupplyOpsRunSummary,
+  formatSupplyOpsRunSummaryLog,
+} from '@/lib/bots/ingest/supplyOpsRunSummary';
+import {
   persistIngestSupplyRuns,
   trackIngestQualification,
   type QualificationCounts,
@@ -373,11 +377,39 @@ export async function processExternalWorkerBatch(
   payload: ExternalWorkerBatchPayload
 ): Promise<IngestCycleReport> {
   const startedAt = new Date().toISOString();
+  const supplyRunId = crypto.randomUUID();
   const profile: IngestProfileId = payload.profile === 'mega' ? 'mega' : 'standard';
   const config = loadBotIngestConfig(profile);
   const pausedByOwner = await getBotIngestPausedFromDb();
+  const writesEnabled = isMachinePendingWriteEnabled();
+  const dryRun = payload.dryRun === true;
   const block = ingestRunBlockFromConfig(config, pausedByOwner);
   if (block) {
+    const finishedAt = new Date().toISOString();
+    const ops = buildSupplyOpsRunSummary({
+      runId: supplyRunId,
+      startedAt,
+      finishedAt,
+      profile,
+      dryRun,
+      machinePendingWritesEnabled: writesEnabled,
+      discovered: Array.isArray(payload.candidates) ? payload.candidates.length : 0,
+      identityValid: 0,
+      identityInvalid: 0,
+      qualityVerified: 0,
+      suppressed: 0,
+      duplicates: 0,
+      liveEligible: 0,
+      budgetRejected: 0,
+      writeAttempts: 0,
+      writeSuccess: 0,
+      writeDuplicate: 0,
+      writeFailed: 0,
+      writesDisabled: 0,
+      dryRunSimulated: 0,
+      runBlock: block,
+    });
+    console.info(formatSupplyOpsRunSummaryLog(ops));
     return {
       ok: block !== 'missing_bot_user',
       enabled: block !== 'disabled' && block !== 'paused',
@@ -385,7 +417,7 @@ export async function processExternalWorkerBatch(
       envIngestEnabled: config.enabled,
       profile,
       startedAt,
-      finishedAt: new Date().toISOString(),
+      finishedAt,
       maxPerRun: 0,
       runMode: block === 'paused' ? 'skipped' : block === 'disabled' ? 'off' : 'error',
       dailyInsertedApprox: null,
@@ -399,6 +431,7 @@ export async function processExternalWorkerBatch(
         errors: block === 'missing_bot_user' ? 1 : 0,
         rejected: 0,
         autoApproved: 0,
+        ops,
       },
     };
   }
@@ -408,6 +441,32 @@ export async function processExternalWorkerBatch(
   // pasarse del tope diario. Ver ingestCycleLock: falla abierto a propósito.
   const lock = await acquireIngestCycleLock({ lockKey: EXTERNAL_WORKER_LOCK_KEY });
   if (!lock.acquired) {
+    const finishedAt = new Date().toISOString();
+    const ops = buildSupplyOpsRunSummary({
+      runId: supplyRunId,
+      startedAt,
+      finishedAt,
+      profile,
+      dryRun,
+      machinePendingWritesEnabled: writesEnabled,
+      discovered: Array.isArray(payload.candidates) ? payload.candidates.length : 0,
+      identityValid: 0,
+      identityInvalid: 0,
+      qualityVerified: 0,
+      suppressed: 0,
+      duplicates: 0,
+      liveEligible: 0,
+      budgetRejected: 0,
+      writeAttempts: 0,
+      writeSuccess: 0,
+      writeDuplicate: 0,
+      writeFailed: 0,
+      writesDisabled: 0,
+      dryRunSimulated: 0,
+      runBlock: 'concurrent',
+      reasonCodes: { concurrent_cycle_in_progress: 1 },
+    });
+    console.info(formatSupplyOpsRunSummaryLog(ops));
     return {
       ok: true,
       enabled: true,
@@ -415,7 +474,7 @@ export async function processExternalWorkerBatch(
       envIngestEnabled: config.enabled,
       profile,
       startedAt,
-      finishedAt: new Date().toISOString(),
+      finishedAt,
       maxPerRun: 0,
       runMode: 'skipped',
       dailyInsertedApprox: null,
@@ -430,6 +489,7 @@ export async function processExternalWorkerBatch(
         rejected: 0,
         autoApproved: 0,
         skipReasonCounts: { concurrent_cycle_in_progress: 1 },
+        ops,
       },
     };
   }
@@ -486,9 +546,14 @@ export async function processExternalWorkerBatch(
   };
   const resolved: Resolved[] = [];
   let scoreRejected = 0;
+  let opsSuppressed = 0;
+  let opsWritesDisabled = 0;
+  let opsDryRunSimulated = 0;
+  let opsWriteSuccess = 0;
+  let opsWriteDuplicate = 0;
+  let opsWriteFailed = 0;
   const shadowDup = createDuplicateShadowContext();
   beginAutonomousShadowCycle();
-  const supplyRunId = crypto.randomUUID();
   const qualificationBySource: Partial<Record<IngestSourceId, QualificationCounts>> = {};
   const rejectedBySource: Partial<Record<IngestSourceId, number>> = {};
   const pendingBySource: Partial<Record<IngestSourceId, number>> = {};
@@ -621,6 +686,7 @@ export async function processExternalWorkerBatch(
         pdpBlocked: item.pdpBlocked,
       });
       if (!machineGate.eligible) {
+        opsSuppressed += 1;
         const reason = machineGateSkipReason(machineGate);
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
@@ -709,6 +775,7 @@ export async function processExternalWorkerBatch(
 
     if (payload.dryRun) {
       insertedThisRun += 1;
+      opsDryRunSimulated += 1;
       results.push({
         url: row.item.url,
         source: row.item.source,
@@ -726,6 +793,7 @@ export async function processExternalWorkerBatch(
     // Quality may pass while writes remain disabled — no production insert by default.
     if (!isMachinePendingWriteEnabled()) {
       const reason = 'machine_pending_writes_disabled';
+      opsWritesDisabled += 1;
       results.push({ url: row.item.url, source: row.item.source, status: 'skipped', reason });
       markSourceSkip(sourceStats, row.item.source, reason);
       continue;
@@ -748,6 +816,7 @@ export async function processExternalWorkerBatch(
       });
       if (ins.ok) {
         insertedThisRun += 1;
+        opsWriteSuccess += 1;
         void recordShadowOutcomeFromAutonomous({
           offerId: ins.offerId,
           result: row.autonomous,
@@ -762,6 +831,7 @@ export async function processExternalWorkerBatch(
           (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
         if (status === 'approved') autoApproved += 1;
       } else if ('duplicate' in ins && ins.duplicate) {
+        opsWriteDuplicate += 1;
         results.push({
           url: row.item.url,
           source: row.item.source,
@@ -771,10 +841,12 @@ export async function processExternalWorkerBatch(
         });
         sourceStats[row.item.source].duplicate += 1;
       } else if ('error' in ins) {
+        opsWriteFailed += 1;
         results.push({ url: row.item.url, source: row.item.source, status: 'error', message: ins.error });
         sourceStats[row.item.source].errors += 1;
       }
     } catch (error) {
+      opsWriteFailed += 1;
       const message = error instanceof Error ? error.message : String(error);
       results.push({ url: row.item.url, source: row.item.source, status: 'error', message });
       sourceStats[row.item.source].errors += 1;
@@ -784,6 +856,38 @@ export async function processExternalWorkerBatch(
   const skipReasonCounts = buildSkipSummary(results, sourceStats);
   const duplicateKindCounts = countDuplicateKinds(results);
   const supplyOpportunities = countSupplyOpportunities(results);
+  const budgetRejected = Math.max(0, resolved.length - insertQueue.length);
+  const identityInvalid = Math.max(0, rawCandidates.length - items.length);
+  const finishedAt = new Date().toISOString();
+  const ops = buildSupplyOpsRunSummary({
+    runId: supplyRunId,
+    startedAt,
+    finishedAt,
+    profile,
+    dryRun,
+    machinePendingWritesEnabled: writesEnabled,
+    discovered: rawCandidates.length,
+    identityValid: items.length,
+    identityInvalid,
+    qualityVerified: resolved.length,
+    suppressed: opsSuppressed,
+    duplicates:
+      results.filter((r) => r.status === 'duplicate').length +
+      (skipReasonCounts['duplicado dentro del lote worker'] ?? 0),
+    liveEligible: resolved.length,
+    budgetRejected,
+    writeAttempts: stageCounts.insertedAttempted,
+    writeSuccess: opsWriteSuccess,
+    writeDuplicate: opsWriteDuplicate,
+    writeFailed: opsWriteFailed,
+    writesDisabled: opsWritesDisabled,
+    dryRunSimulated: opsDryRunSimulated,
+    reasonCodes: skipReasonCounts,
+    discoverySeedsAttempted: discovery?.seedsAttempted,
+    discoverySeedsFailed: discovery?.seedsFailed,
+  });
+  console.info(formatSupplyOpsRunSummaryLog(ops));
+
   const summary = {
     inserted: results.filter((r) => r.status === 'inserted').length,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
@@ -797,9 +901,9 @@ export async function processExternalWorkerBatch(
     ...(discovery ? { discovery } : {}),
     sourceStats,
     stageCounts,
+    ops,
   };
 
-  const finishedAt = new Date().toISOString();
   // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
   const shadow = await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
   await persistIngestSupplyRuns({

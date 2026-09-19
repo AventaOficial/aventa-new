@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { appendEconomicEvent } from './appendEconomicEvent';
+import { emitSettlementReversalRequired } from './settlement/reversalContract';
 import {
   ECONOMIC_LEDGER_BOUNDARY,
   canTransitionCommission,
@@ -139,17 +140,27 @@ export async function recordCommission(
   }
 
   if (isUniqueViolation(error)) {
+    const selectCols =
+      'id, conversion_id, source, network, external_commission_id, gross_commission_cents, currency, status, occurred_at, ledger_entry_id';
+    // External key reuse (idempotent report).
     const again = await supabase
       .from('affiliate_commissions')
-      .select(
-        'id, conversion_id, source, network, external_commission_id, gross_commission_cents, currency, status, occurred_at, ledger_entry_id',
-      )
+      .select(selectCols)
       .eq('source', input.source)
       .eq('network', input.network)
       .eq('external_commission_id', externalCommissionId)
       .maybeSingle();
     if (again.data?.id) {
       return mapRow(again.data as Record<string, unknown>, true);
+    }
+    // Double-credit guard: UNIQUE(conversion_id) — reuse canonical row for same conversion.
+    const byConversion = await supabase
+      .from('affiliate_commissions')
+      .select(selectCols)
+      .eq('conversion_id', conversionId)
+      .maybeSingle();
+    if (byConversion.data?.id) {
+      return mapRow(byConversion.data as Record<string, unknown>, true);
     }
   }
 
@@ -170,7 +181,7 @@ export async function transitionCommissionStatus(
 ): Promise<{ ok: boolean; from?: CommissionStatus; to?: CommissionStatus; error?: string }> {
   const { data: existing, error } = await supabase
     .from('affiliate_commissions')
-    .select('id, status')
+    .select('id, status, ledger_entry_id')
     .eq('id', input.commissionId)
     .maybeSingle();
   if (error || !existing?.id) {
@@ -200,6 +211,19 @@ export async function transitionCommissionStatus(
     actor: input.actor ?? 'system',
     payload: { reason: input.reason ?? null },
   });
+
+  // M1: reversal with existing ledger → contract event only (no silent void / money move).
+  if (
+    input.toStatus === 'reversed' &&
+    typeof existing.ledger_entry_id === 'string' &&
+    existing.ledger_entry_id.trim()
+  ) {
+    await emitSettlementReversalRequired(supabase, {
+      commissionId: input.commissionId,
+      ledgerEntryId: existing.ledger_entry_id.trim(),
+      actor: input.actor ?? 'system',
+    });
+  }
 
   return { ok: true, from, to: input.toStatus };
 }

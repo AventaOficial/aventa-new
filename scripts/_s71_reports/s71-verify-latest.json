@@ -1,0 +1,39 @@
+{
+  "campaign": "S7.1",
+  "at": "2026-09-19T02:23:32.504Z",
+  "flags": {
+    "machineWrites": false,
+    "distribution": false
+  },
+  "offerFetchError": "column offers.discount_percent does not exist",
+  "offerCount": 0,
+  "allPending": true,
+  "proofs": [],
+  "afterCounts": {
+    "offers": 18,
+    "distribution_publications": 9,
+    "distribution_events": 72,
+    "distribution_destinations": 1,
+    "creator_rewards": null,
+    "affiliate_ledger_entries": null,
+    "affiliate_conversions": null,
+    "affiliate_commissions": null,
+    "reward_outbound_clicks": 1,
+    "offer_events": 14,
+    "offers_pending": 9
+  },
+  "surfaceErrors": {},
+  "deltasVsBeforeSnap": {
+    "offers": 3,
+    "distribution_publications": 0,
+    "distribution_events": 0,
+    "distribution_destinations": 0,
+    "creator_rewards": null,
+    "affiliate_ledger_entries": null,
+    "affiliate_conversions": null,
+    "affiliate_commissions": null,
+    "reward_outbound_clicks": null,
+    "offer_events": null,
+    "offers_pending": 3
+  }
+}

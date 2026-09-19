@@ -65,7 +65,16 @@ describe('P0-D3 — feature flag fail-closed', () => {
       supabase: { from } as never,
       env: { DISTRIBUTION_ENGINE_ENABLED: 'false' },
     });
-    expect(r.skipped).toBe('flag_disabled');
+    expect(r).toEqual({
+      ok: true,
+      skipped: 'flag_disabled',
+      claimed: 0,
+      published: 0,
+      retryable: 0,
+      failed: 0,
+      unknownOutcome: 0,
+      blockedCredential: 0,
+    });
     expect(from).not.toHaveBeenCalled();
   });
 

@@ -1,34 +1,22 @@
 /**
- * Distribution C3 WIP — ISOLATED from C1/C2 compile + runtime surface.
- *
- * WHY THIS FILE IS NOT UNDER lib/distribution/*.ts:
- * - Uses event types publication_reclaimed / publication_unknown_outcome
- * - Uses publication status unknown_outcome
- * - Those require the unapplied migration
- *   docs/supabase-migrations/20260918_distribution_c3_unknown_outcome.sql
- * - C1 contract (DISTRIBUTION_EVENT_TYPES / PUBLICATION_STATUSES) must stay closed
- *
- * Excluded via tsconfig.json → "lib/distribution/c3-wip".
- * Not exported from lib/distribution/index.ts.
- * Not imported by drain/enqueue/eligibility.
- *
- * Do NOT wire into drain/cron until C3 is an approved campaign.
- *
- * --- original header ---
- * Distribution C3 — lease, reclaim, UNKNOWN_OUTCOME classification.
+ * Distribution C3 — publishing lease, reclaim, UNKNOWN_OUTCOME, operator recovery.
  *
  * Lease authority while status=publishing: updated_at (claim/reclaim CAS stamp).
- * UNKNOWN_OUTCOME ≠ FAILED_RETRYABLE — never auto-republish without reconcile.
+ * UNKNOWN_OUTCOME ≠ FAILED / RETRYABLE — never auto-republish without reconcile.
  *
- * No HTTP. No Telegram. Fail-closed. Flag-gated at drain entry.
+ * Not invoked from drain. releaseUnknownOutcomeToRetryable is operator-only.
+ * Fail-closed. No HTTP. No Telegram.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { appendDistributionEvent } from './events';
 import { distributionBackoffMinutes } from './claim';
+import { appendDistributionEvent } from './events';
+import {
+  DISTRIBUTION_C3_EVENTS,
+  DISTRIBUTION_PUBLISHING_LEASE_MS,
+} from './constants';
 
-/** Default publishing lease — claim stamp (updated_at) older than this is reclaimable. */
-export const DISTRIBUTION_PUBLISHING_LEASE_MS = 5 * 60_000;
+export { DISTRIBUTION_PUBLISHING_LEASE_MS };
 
 export type ReclaimDecision =
   | 'RETRYABLE_NO_SIDE_EFFECT'
@@ -58,6 +46,37 @@ export type PublishingLeaseSnapshot = {
   external_message_id: string | null;
   last_error_code: string | null;
 };
+
+/** Explicit lease view for operators / observability (not a parallel table). */
+export type PublishingLease = {
+  publicationId: string;
+  idempotencyKey: string;
+  attempt: number;
+  leaseOwner: string;
+  leaseAcquiredAt: string;
+  leaseExpiresAt: string;
+};
+
+export function buildPublishingLease(input: {
+  publicationId: string;
+  idempotencyKey: string;
+  attempt: number;
+  leaseOwner: string;
+  acquiredAtIso: string;
+  leaseMs?: number;
+}): PublishingLease {
+  const leaseMs = input.leaseMs ?? DISTRIBUTION_PUBLISHING_LEASE_MS;
+  const started = Date.parse(input.acquiredAtIso);
+  const acquiredMs = Number.isFinite(started) ? started : Date.now();
+  return {
+    publicationId: input.publicationId,
+    idempotencyKey: input.idempotencyKey,
+    attempt: input.attempt,
+    leaseOwner: input.leaseOwner,
+    leaseAcquiredAt: new Date(acquiredMs).toISOString(),
+    leaseExpiresAt: new Date(acquiredMs + leaseMs).toISOString(),
+  };
+}
 
 /**
  * Pure: has the publishing lease expired?
@@ -100,7 +119,7 @@ export async function detectPublishSideEffectStarted(
     .from('distribution_events')
     .select('id, event_type, meta, created_at')
     .eq('publication_id', publicationId)
-    .eq('event_type', 'publication_attempted')
+    .in('event_type', ['publication_attempted', 'publish_success', 'publish_failure', 'unknown_outcome'])
     .gte('created_at', leaseStartedAtIso)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -112,6 +131,14 @@ export async function detectPublishSideEffectStarted(
   }
 
   for (const row of data ?? []) {
+    const eventType = String(row.event_type ?? '');
+    if (
+      eventType === 'publish_success' ||
+      eventType === 'publish_failure' ||
+      eventType === 'unknown_outcome'
+    ) {
+      return true;
+    }
     const meta = (row.meta ?? {}) as Record<string, unknown>;
     const phase = String(meta.phase ?? '');
     if (phase === 'publish_attempt') return true;
@@ -140,6 +167,26 @@ export async function reclaimStuckPublishingPublication(
 
   const nowIso = new Date(nowMs).toISOString();
 
+  await appendDistributionEvent(supabase, {
+    publicationId: row.id,
+    eventType: DISTRIBUTION_C3_EVENTS.reclaim_attempted,
+    meta: {
+      lease_started_at: row.updated_at,
+      attempt_count: row.attempt_count,
+      idempotency_key: row.idempotency_key,
+    },
+  });
+
+  await appendDistributionEvent(supabase, {
+    publicationId: row.id,
+    eventType: DISTRIBUTION_C3_EVENTS.lease_expired,
+    meta: {
+      lease_started_at: row.updated_at,
+      lease_ms: leaseMs,
+      attempt_count: row.attempt_count,
+    },
+  });
+
   // Already have provider message id → prefer published (definitive success recovered).
   if (row.external_message_id) {
     const { data, error } = await supabase
@@ -159,7 +206,7 @@ export async function reclaimStuckPublishingPublication(
     if (error || !data) return 'CAS_LOST';
     await appendDistributionEvent(supabase, {
       publicationId: row.id,
-      eventType: 'publication_reclaimed',
+      eventType: DISTRIBUTION_C3_EVENTS.reclaimed,
       meta: {
         decision: 'published_from_external_message_id',
         offer_id: row.offer_id,
@@ -172,6 +219,11 @@ export async function reclaimStuckPublishingPublication(
     await appendDistributionEvent(supabase, {
       publicationId: row.id,
       eventType: 'publication_published',
+      meta: { via: 'reclaim', reused_external_message_id: true },
+    });
+    await appendDistributionEvent(supabase, {
+      publicationId: row.id,
+      eventType: DISTRIBUTION_C3_EVENTS.publish_success,
       meta: { via: 'reclaim', reused_external_message_id: true },
     });
     return 'PUBLISHED_FROM_EXTERNAL_MESSAGE_ID';
@@ -204,7 +256,7 @@ export async function reclaimStuckPublishingPublication(
     if (error || !data) return 'CAS_LOST';
     await appendDistributionEvent(supabase, {
       publicationId: row.id,
-      eventType: 'publication_reclaimed',
+      eventType: DISTRIBUTION_C3_EVENTS.reclaimed,
       meta: {
         decision: 'unknown_outcome',
         offer_id: row.offer_id,
@@ -216,7 +268,7 @@ export async function reclaimStuckPublishingPublication(
     });
     await appendDistributionEvent(supabase, {
       publicationId: row.id,
-      eventType: 'publication_unknown_outcome',
+      eventType: DISTRIBUTION_C3_EVENTS.unknown_outcome,
       meta: {
         reason: 'lease_expired_side_effect_possible',
         attempt_count: row.attempt_count,
@@ -246,7 +298,7 @@ export async function reclaimStuckPublishingPublication(
   if (error || !data) return 'CAS_LOST';
   await appendDistributionEvent(supabase, {
     publicationId: row.id,
-    eventType: 'publication_reclaimed',
+    eventType: DISTRIBUTION_C3_EVENTS.reclaimed,
     meta: {
       decision: 'retryable_no_side_effect',
       offer_id: row.offer_id,
@@ -271,6 +323,7 @@ export async function reclaimStuckPublishingPublication(
 
 /**
  * Scan + CAS reclaim stuck publishing rows. Never calls providers.
+ * Never releases unknown_outcome → retryable (operator path only).
  */
 export async function reclaimStuckPublishingPublications(
   supabase: SupabaseClient,
@@ -297,6 +350,7 @@ export async function reclaimStuckPublishingPublications(
       scanned: 0,
       reclaimedRetryable: 0,
       reclaimedUnknown: 0,
+      reclaimedPublished: 0,
       skippedActiveLease: 0,
       casLost: 0,
     };
@@ -304,6 +358,7 @@ export async function reclaimStuckPublishingPublications(
 
   let reclaimedRetryable = 0;
   let reclaimedUnknown = 0;
+  let reclaimedPublished = 0;
   let skippedActiveLease = 0;
   let casLost = 0;
 
@@ -315,6 +370,7 @@ export async function reclaimStuckPublishingPublications(
     });
     if (decision === 'RETRYABLE_NO_SIDE_EFFECT') reclaimedRetryable += 1;
     else if (decision === 'UNKNOWN_OUTCOME_SIDE_EFFECT_POSSIBLE') reclaimedUnknown += 1;
+    else if (decision === 'PUBLISHED_FROM_EXTERNAL_MESSAGE_ID') reclaimedPublished += 1;
     else if (decision === 'LEASE_ACTIVE') skippedActiveLease += 1;
     else if (decision === 'CAS_LOST') casLost += 1;
   }
@@ -323,6 +379,7 @@ export async function reclaimStuckPublishingPublications(
     scanned: candidates.length,
     reclaimedRetryable,
     reclaimedUnknown,
+    reclaimedPublished,
     skippedActiveLease,
     casLost,
   };
@@ -359,11 +416,19 @@ export async function releaseUnknownOutcomeToRetryable(
 
   await appendDistributionEvent(supabase, {
     publicationId,
-    eventType: 'publication_retryable',
+    eventType: DISTRIBUTION_C3_EVENTS.released_to_retryable,
     meta: {
       via: 'unknown_reconcile',
       reason: options?.reason ?? 'reconciled_not_published',
       idempotency_key: (data as { idempotency_key?: string }).idempotency_key,
+    },
+  });
+  await appendDistributionEvent(supabase, {
+    publicationId,
+    eventType: 'publication_retryable',
+    meta: {
+      via: 'unknown_reconcile',
+      reason: options?.reason ?? 'reconciled_not_published',
     },
   });
   return { ok: true };
@@ -402,7 +467,7 @@ export async function markPublishingUnknownOutcome(
 
   await appendDistributionEvent(supabase, {
     publicationId: input.publicationId,
-    eventType: 'publication_unknown_outcome',
+    eventType: DISTRIBUTION_C3_EVENTS.unknown_outcome,
     meta: {
       code: input.code,
       message: input.message.slice(0, 200),

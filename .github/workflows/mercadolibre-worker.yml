@@ -1,6 +1,11 @@
 # Playwright worker: scrape ML ofertas and POST to Aventa ingest.
 # Public repo → Actions minutes are free on standard GitHub-hosted runners.
 #
+# S7: WORKER_DISCOVERY_ONLY defaults to 1 (dryRun — snapshots yes, INSERT no).
+# Override via repo variable WORKER_DISCOVERY_ONLY or workflow_dispatch input.
+# Even with discovery_only=0, server still requires BOT_INGEST_MACHINE_PENDING_WRITES=1
+# (default OFF) plus BOT_INGEST_ENABLED and bot author IDs — fail-closed.
+#
 # Observado en produccion: con '*/30' este workflow corria cada 2-5 h, no cada
 # 30 min. Dos causas y sus mitigaciones:
 #
@@ -19,6 +24,11 @@ on:
   schedule:
     - cron: '7,37 * * * *'
   workflow_dispatch:
+    inputs:
+      discovery_only:
+        description: '1 = dryRun (default, no DB insert). 0 = allow POST without dryRun (server write flag still required).'
+        required: false
+        default: '1'
 
 concurrency:
   group: mercadolibre-worker
@@ -38,8 +48,8 @@ jobs:
       AVENTA_CRON_SECRET: ${{ secrets.AVENTA_CRON_SECRET }}
       WORKER_PROFILE: standard
       WORKER_HEADLESS: '1'
-      # Discovery-only: dryRun=true en POST → snapshots sí, INSERT ofertas no.
-      WORKER_DISCOVERY_ONLY: '1'
+      # Default discovery-only. Variable override > dispatch input > '1'.
+      WORKER_DISCOVERY_ONLY: ${{ vars.WORKER_DISCOVERY_ONLY || github.event.inputs.discovery_only || '1' }}
       # Amplitud sobre profundidad: pocas cards por superficie y muchas superficies.
       # Con 3 por seed el ciclo alcanza a visitar 12 de las 14 del registro.
       WORKER_MAX_ITEMS: '36'
@@ -65,6 +75,12 @@ jobs:
             echo "Falta el secret AVENTA_CRON_SECRET en GitHub (Settings → Secrets and variables → Actions)."
             exit 1
           fi
+
+      - name: Log S7 ops mode
+        run: |
+          echo "WORKER_DISCOVERY_ONLY=$WORKER_DISCOVERY_ONLY"
+          echo "dryRun expected=$( [ \"$WORKER_DISCOVERY_ONLY\" = \"1\" ] || [ \"$WORKER_DISCOVERY_ONLY\" = \"true\" ] && echo yes || echo no )"
+          echo "Server still requires BOT_INGEST_MACHINE_PENDING_WRITES=1 for real pending inserts."
 
       - name: Install npm dependencies
         run: npm install

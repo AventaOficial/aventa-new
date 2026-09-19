@@ -32,3 +32,25 @@ export {
   type AttributionClickRow,
   type AttributionNotConnected,
 } from './buildAttributionTruth';
+export {
+  getAttributionWindowDays,
+  getAttributionWindowMs,
+  getAttributionWindowSinceIso,
+  isClickWithinAttributionWindow,
+  isAttributionWindowExpired,
+  parseAttributionTimestamp,
+} from './attributionWindow';
+export {
+  ATTRIBUTION_FRAUD_SIGNALS,
+  evaluateClickFraudSignals,
+  evaluateConversionAttributionFraudSignals,
+  isAttributionFraudSignal,
+  isAuthenticatedClickEvidence,
+  type AttributionFraudSignal,
+} from './fraudSignals';
+export {
+  resolveConversionAttribution,
+  resolveConversionAttributionStrict,
+  type ConversionAttributionConflict,
+  type ConversionAttributionStrictResult,
+} from './resolveConversionAttribution';

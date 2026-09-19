@@ -1,0 +1,44 @@
+{
+  "at": "2026-09-19T02:36:19.769Z",
+  "attempts": [
+    {
+      "method": "inviteUserByEmail",
+      "email": "machine-invite-1789785378941@example.com",
+      "userId": null,
+      "error": {
+        "message": "Database error saving new user",
+        "status": 500,
+        "code": "unexpected_failure"
+      }
+    },
+    {
+      "method": "generateLink.signup",
+      "email": "machine-link-1789785379299@example.com",
+      "userId": null,
+      "error": {
+        "message": "Database error saving new user",
+        "status": 500,
+        "code": "unexpected_failure"
+      }
+    },
+    {
+      "method": "listUsers",
+      "count": 1,
+      "error": null,
+      "emails": [
+        {
+          "idPrefix": "6aa733d4",
+          "email": "jafetalonsovazquez@gmail.com",
+          "meta": {
+            "contact_email": "jafetalonsovazquez@gmail.com",
+            "email": "jafetalonsovazquez@gmail.com",
+            "email_verified": true,
+            "name": "Fet_tx",
+            "phone_verified": false,
+            "sub": "6aa733d4-02cb-4c64-92fc-cf45fdcee344"
+          }
+        }
+      ]
+    }
+  ]
+}

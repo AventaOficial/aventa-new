@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "mode": "dry-run",
+  "guards": {
+    "ok": true,
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "destinationId": "c2222222-2222-4222-8222-222222222201",
+    "destinationSlug": "telegram-staging-test",
+    "provider": "telegram",
+    "credentialRef": "TELEGRAM_BOT_TOKEN_STAGING",
+    "externalDestinationKeyPrefix": "-10043074225",
+    "activeDestinationCount": 1,
+    "engineEnabledInProcess": true
+  },
+  "offerId": "a1111111-1111-4111-8111-111111111101",
+  "distributionVersion": 20260919,
+  "idempotencyKey": "a1111111-1111-4111-8111-111111111101:c2222222-2222-4222-8222-222222222201:v20260919",
+  "eligibility": {
+    "decision": "ELIGIBLE",
+    "reason": "approved_or_published_live",
+    "offerId": "a1111111-1111-4111-8111-111111111101",
+    "status": "approved",
+    "expiresAt": null,
+    "eligible": true
+  },
+  "processDistributionFlag": false,
+  "canaryEnvDistributionFlag": true,
+  "machineWrites": false,
+  "before": {
+    "publications": 9,
+    "events": 72,
+    "offers": 23,
+    "creatorRewards": 0,
+    "affiliateLedger": 0,
+    "rewardOutboundClicks": 1,
+    "economicLedger": 0,
+    "attributionEvents": 0
+  }
+}

@@ -15,6 +15,8 @@ export * from './safety';
 export * from './trackingContext';
 export * from './claim';
 export * from './drain';
+export * from './reclaim';
+export * from './opsSurface';
 export * from './cronSafety';
 export * from './hop';
 export * from './siteUrl';
@@ -23,7 +25,11 @@ export * from './render/telegramMessage';
 export * from './security/urls';
 export * from './providers/types';
 export * from './providers/registry';
+export * from './providerContract';
 export { createTelegramAdapter } from './providers/telegram/adapter';
+export { createControlledDistributionAdapter } from './providers/controlled';
+export type { ControlledProviderScenario } from './providers/controlled';
+export * from './stagingCanary';
 export {
   resolveTelegramBotToken,
   redactTelegramSecrets,

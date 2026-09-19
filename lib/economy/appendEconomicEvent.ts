@@ -1,6 +1,6 @@
 /**
- * Audit append-only para conversion/commission.
- * Sin PII. Sin secretos. Sin money mutation.
+ * Audit append-only para conversion/commission/settlement.
+ * Sin PII. Sin secretos. Sin money mutation (salvo que el caller ya mutó).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -8,7 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export async function appendEconomicEvent(
   supabase: SupabaseClient,
   input: {
-    entityType: 'conversion' | 'commission';
+    entityType: 'conversion' | 'commission' | 'settlement';
     entityId: string;
     eventType: string;
     fromStatus?: string | null;

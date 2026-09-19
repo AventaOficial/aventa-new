@@ -1,0 +1,66 @@
+{
+  "campaign": "S7",
+  "mode": "read_only",
+  "runId": "s7-diag-1789784219482",
+  "startedAt": "2026-09-19T02:16:59.482Z",
+  "finishedAt": "2026-09-19T02:17:15.919Z",
+  "configSnapshot": {
+    "BOT_INGEST_ENABLED": false,
+    "BOT_INGEST_MACHINE_PENDING_WRITES": false,
+    "botUserConfigured": false,
+    "botAuthorDualMode": false,
+    "botUserIdsForQuotaCount": 0,
+    "workerMaxPerRun": 10,
+    "dailyMaxOffers": 120,
+    "discoverMlEnabled": false,
+    "runGateBlock": "disabled",
+    "authoritativeScheduler": {
+      "kind": "github_actions",
+      "workflow": ".github/workflows/mercadolibre-worker.yml",
+      "schedule": "7,37 * * * *",
+      "ingestPath": "/api/cron/bot-ingest-candidates",
+      "discoveryOnlyDefault": true
+    },
+    "discoveryJsonPath": "E:\\AVENTA NEW\\aventa-new\\scripts\\_smoke-gate-v2-discovery.json",
+    "discoveryJsonExists": true,
+    "discoveryCandidateCount": 15
+  },
+  "staticBottleneck": {
+    "bottleneck": "ingest_disabled",
+    "detail": "BOT_INGEST_ENABLED is off"
+  },
+  "dryBatchOps": {
+    "runId": "c219f4f8-b827-46d5-b08f-f40f8ec620cd",
+    "startedAt": "2026-09-19T02:17:00.080Z",
+    "finishedAt": "2026-09-19T02:17:15.159Z",
+    "environment": "unknown",
+    "profile": "standard",
+    "dryRun": true,
+    "machinePendingWritesEnabled": false,
+    "bottleneck": "dry_run",
+    "bottleneckDetail": "WORKER_DISCOVERY_ONLY / dryRun=true — no DB offers write",
+    "discovered": 12,
+    "normalized": 12,
+    "identityValid": 12,
+    "identityInvalid": 0,
+    "qualityVerified": 12,
+    "suppressed": 0,
+    "duplicates": 0,
+    "liveEligible": 12,
+    "budgetRejected": 2,
+    "writeAttempts": 0,
+    "writeSuccess": 0,
+    "writeDuplicate": 0,
+    "writeFailed": 0,
+    "writesDisabled": 0,
+    "dryRunSimulated": 10,
+    "reasonCodes": {},
+    "durationMs": 15079
+  },
+  "notes": [
+    "GHA defaults WORKER_DISCOVERY_ONLY=1 → dryRun on POST (no DB insert).",
+    "Server requires BOT_INGEST_MACHINE_PENDING_WRITES=1 for real pending inserts (default OFF).",
+    "This script never enables machine writes.",
+    "For controlled staging inserts use scripts/s67-machine-insert-canary.ts --execute (cap≤3)."
+  ]
+}

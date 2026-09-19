@@ -1,0 +1,145 @@
+{
+  "ok": true,
+  "at": "2026-09-19T03:32:26.522Z",
+  "safety": {
+    "AVENTA_SUPABASE_TARGET": "staging",
+    "expectedRef": "oojshofrpbfwsiypcecr",
+    "urlRef": "oojshofrpbfwsiypcecr",
+    "stagingConfirmed": true,
+    "distributionEnabledBefore": false,
+    "machineWritesBefore": false,
+    "telegramProductionOff": true,
+    "rewardsNotActivatedByThisRun": true,
+    "economyNotActivatedByThisRun": true,
+    "attributionNotActivatedByThisRun": true,
+    "distributionEnabledAfter": false,
+    "machineWritesAfter": false
+  },
+  "matrix": {
+    "success": {
+      "publicationStatus": "published",
+      "offerStatus": "approved",
+      "externalMessageId": "e2e-staging-1789788746394",
+      "idempotencyKey": "offer-ff76ab87-1a0b7b8f29a:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb:v1",
+      "providerInvocations": 1,
+      "duplicateCount": 0
+    },
+    "pendingBlocked": {
+      "eligible": false,
+      "decision": "PENDING:not_distributable"
+    },
+    "rejectedBlocked": {
+      "eligible": false,
+      "decision": "REJECTED:not_distributable"
+    },
+    "unknownRecovery": {
+      "afterReleaseStatus": "retryable",
+      "providerInvocationsDuringRelease": 0,
+      "events": [
+        "publication_created",
+        "publication_attempted",
+        "lease_acquired",
+        "publication_attempted",
+        "unknown_outcome",
+        "released_to_retryable",
+        "publication_retryable"
+      ]
+    },
+    "lease": {
+      "noSideEffect": "RETRYABLE_NO_SIDE_EFFECT",
+      "withSideEffect": "UNKNOWN_OUTCOME_SIDE_EFFECT_POSSIBLE"
+    },
+    "concurrentClaimWinners": 1,
+    "concurrentReclaim": [
+      "CAS_LOST",
+      "RETRYABLE_NO_SIDE_EFFECT"
+    ],
+    "retryableFailureStatus": "retryable",
+    "definiteFailureStatus": "failed"
+  },
+  "observability": {
+    "runId": "staging-1789788746394",
+    "offerId": "offer-ff76ab87-1a0b7b8f29a",
+    "publicationId": "pub-56f4af24-1a0b7b8f29e",
+    "destinationId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "idempotencyKey": "offer-ff76ab87-1a0b7b8f29a:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb:v1",
+    "initialOfferStatus": "pending",
+    "finalOfferStatus": "approved",
+    "publicationTransitions": [
+      "status:published",
+      "publication_created",
+      "publication_attempted",
+      "lease_acquired",
+      "publication_attempted",
+      "publication_published",
+      "publish_success"
+    ],
+    "events": [
+      {
+        "event_type": "publication_created",
+        "meta": {
+          "offer_id": "offer-ff76ab87-1a0b7b8f29a",
+          "destination_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "provider": "telegram",
+          "distribution_version": 1,
+          "eligibility_decision": "ELIGIBLE"
+        }
+      },
+      {
+        "event_type": "publication_attempted",
+        "meta": {
+          "phase": "claim",
+          "attempt_count": 1
+        }
+      },
+      {
+        "event_type": "lease_acquired",
+        "meta": {
+          "lease_owner": "drain-worker",
+          "lease_acquired_at": "2026-09-19T03:32:26.398Z",
+          "lease_expires_at": "2026-09-19T03:37:26.398Z",
+          "attempt": 1,
+          "idempotency_key": "offer-ff76ab87-1a0b7b8f29a:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb:v1"
+        }
+      },
+      {
+        "event_type": "publication_attempted",
+        "meta": {
+          "phase": "publish_attempt",
+          "provider": "telegram"
+        }
+      },
+      {
+        "event_type": "publication_published",
+        "meta": {
+          "external_message_id": "e2e-staging-1789788746394",
+          "provider": "telegram"
+        }
+      },
+      {
+        "event_type": "publish_success",
+        "meta": {
+          "external_message_id": "e2e-staging-1789788746394",
+          "provider": "telegram"
+        }
+      }
+    ],
+    "providerScenario": "success",
+    "providerInvocations": 1,
+    "externalMessageId": "e2e-staging-1789788746394",
+    "attempt": 1,
+    "lease": null,
+    "unknownOutcome": false,
+    "recovery": null,
+    "duplicateCount": 0,
+    "touchedTables": [
+      "distribution_destinations",
+      "distribution_events",
+      "distribution_publications",
+      "offers"
+    ],
+    "forbiddenTablesTouched": [],
+    "engineEnabledDuringRun": true,
+    "telegramReal": false
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "productAnchors": 51,
+  "totalImgs": 67,
+  "rows": [
+    {
+      "href": "https://www.mercadolibre.com/jms/mlm/lgz/login?platform_id=ML&go=https%3A%2F%2Fwww.mercadolibre.com.mx%2Fofertas&loginTy",
+      "rootTag": "LI",
+      "rootClass": "user-menu-guest-item",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/hidrolavadora-electrica-portatil-1600-psi-1200w-alta-presion-amarillo-60hz-trent-para-la",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/audifonos-in-ear-bluetooth-para-celulares-tablets-y-laptops-conexion-automatica-resisten",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?pdp_filter",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/pioneer-mvh-s145bt-1-din-bt-usb-50wx4-display-va-lcd/p/MLM61988793?pdp_filters=deal%3AML",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/birdman-falcon-protein-proteina-vegetal-solo-4-ingredientes-sin-azucar-anadida-sin-glute",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamie",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    },
+    {
+      "href": "https://articulo.mercadolibre.com.mx/MLM-4572402030-plancha-cabello-wavytalk-cepillo-alisador-electrico-de-vapor-_JM?sea",
+      "rootTag": "DIV",
+      "rootClass": "poly-card__content",
+      "usedStructural": true,
+      "imgCount": 0,
+      "sample": []
+    }
+  ],
+  "allImgs": [
+    {
+      "src": "https://http2.mlstatic.com/D_NQ_950189-MLA117032275195_092026-OO.webp",
+      "dataSrc": null,
+      "className": "",
+      "parentClass": "exhibitor__picture"
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1583341146061-todas-las-ofertas@3x.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item selected"
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1589556042906-relampago@3x.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item "
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1749822971075-299cc130-485e-11f0-a495-919b8f98e835.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item "
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1583341349527-celulares@3x.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item "
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1583341411212-audifonos@3x.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item "
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1604083032911-sale2x.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item "
+    },
+    {
+      "src": "https://http2.mlstatic.com/storage/splinter-admin/1583354080423-zapatillas@3x.png",
+      "dataSrc": null,
+      "className": "image",
+      "parentClass": "carousel_item "
+    }
+  ]
+}

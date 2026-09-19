@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "mode": "S6.7_MACHINE_INSERT_CANARY",
+    "generatedAt": "2026-09-18T17:38:37.159Z",
+    "safety": {
+      "target": "staging",
+      "ref": "oojshofrpbfwsiypcecr",
+      "expected": "oojshofrpbfwsiypcecr",
+      "refOk": true,
+      "stagingOnly": true,
+      "writesFlagBefore": false,
+      "execute": false,
+      "canaryCap": 3
+    },
+    "stagingCanaryAuthorPrefix": "6aa733d4",
+    "discoveryPath": "E:\\AVENTA NEW\\aventa-new\\scripts\\_smoke-gate-v2-discovery.json",
+    "canaryCap": 3,
+    "hardCap": 5
+  },
+  "dryRun": {
+    "wouldInsertCount": 15,
+    "suppressed": 0,
+    "duplicates": 0,
+    "failed": 0,
+    "offerInsertedAlwaysFalse": true
+  },
+  "selection": {
+    "poolSize": 15,
+    "eligibleCount": 15,
+    "selected": [
+      {
+        "index": 0,
+        "url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "sourceEventId": "ml_worker:ml:MLM48434598",
+        "idempotencyKey": "ro:884e6ac695ae35ad8e480829378ae0d5",
+        "productFingerprint": "ml:MLM48434598",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_869368-MLA109073888271_032026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 1,
+        "url": "https://www.mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+        "sourceEventId": "ml_worker:ml:MLMU3097285590",
+        "idempotencyKey": "ro:0b12af5fdf3749336a03be66bf3e9298",
+        "productFingerprint": "ml:MLMU3097285590",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_952497-MLM98031767352_112025-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 2,
+        "url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "sourceEventId": "ml_worker:ml:MLM51558214",
+        "idempotencyKey": "ro:fc3025d83575c1f110f80a4d5379c20f",
+        "productFingerprint": "ml:MLM51558214",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_650122-MLA112368708728_062026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      }
+    ]
+  },
+  "before": {
+    "offersTotal": 10,
+    "offersPending": 1,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "errors": []
+  },
+  "live": null,
+  "after": null,
+  "deltas": null,
+  "idempotency": null,
+  "focusClaim": null,
+  "equivalence": null,
+  "stop": {
+    "reason": "dry_run_only",
+    "note": "Re-run with --execute to perform controlled live inserts"
+  }
+}

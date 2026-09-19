@@ -1,0 +1,295 @@
+{
+  "meta": {
+    "mode": "S6.8.1_CANARY_QUALITY_REVIEW",
+    "generatedAt": "2026-09-18T18:00:47.418Z",
+    "stagingRef": "oojshofrpbfwsiypcecr",
+    "machineWritesEnv": "(unset)",
+    "readOnly": true
+  },
+  "inventory": [
+    {
+      "wave": "S6.7",
+      "offer_id": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+      "external_id": "MLM48434598",
+      "sourceEventId": "a74c2f9e-5de2-49ee-9fec-c6590498f8fd:ml_worker:https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+      "fingerprint": "ml:MLM48434598",
+      "created_at": "2026-09-18T17:39:02.918974+00:00",
+      "status": "pending",
+      "title": "Llave de Impacto Inalámbrica LUCKSSY de 21V y 520Nm con Motor Sin Escobillas y Juego de Herramientas de 2 Baterías — Ahorra ~72% en Mercado Libre",
+      "sale_price": 698.18,
+      "original_price": 2492,
+      "discount_percent_computed": 72,
+      "store": "Mercado Libre",
+      "offer_url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+      "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_869368-MLA109073888271_032026-AB.webp",
+      "image_present": true,
+      "imageProvenance": null,
+      "originalPriceProvenance": "listing_card",
+      "cardDiscountSource": "card_strikethrough",
+      "DealScore": {
+        "score": 0,
+        "confidence": 0.15000000000000002,
+        "reasons": [
+          "insufficient_price_history",
+          "artificial_list_price_without_history"
+        ]
+      },
+      "verifier_score_total": 40,
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "dqe_decision": "NO_VERIFIED_DEAL",
+      "dqe_recommendedAction": "DISCARD",
+      "s61_gate_in_bot_meta": true,
+      "issues": [],
+      "classifications": [
+        "expected_advisory_limitation:suspected_artificial_list_price",
+        "expected_advisory_limitation:dealscore_zero_no_history",
+        "expected_advisory_limitation:dqe_no_verified_deal_vs_s61_verified",
+        "scoring_issue:effective_discount_zeroed_by_price_intel"
+      ],
+      "quality_pass": true
+    },
+    {
+      "wave": "S6.7",
+      "offer_id": "c7ba9c00-fb7b-4b8a-b655-4609f992b129",
+      "external_id": "MLM51558214",
+      "sourceEventId": "a74c2f9e-5de2-49ee-9fec-c6590498f8fd:ml_worker:https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM",
+      "fingerprint": "ml:MLM51558214",
+      "created_at": "2026-09-18T17:39:03.685473+00:00",
+      "status": "pending",
+      "title": "Cobertizo Exterior Acero Bodega Armable Cuarto de Lamina Galvanizada Casa De Almacenamiento Trent 187x151x91 Caseta Deposito Galpón Obrador — Ahorra ~68% en Mercado Libre",
+      "sale_price": 3294.6,
+      "original_price": 10198,
+      "discount_percent_computed": 68,
+      "store": "Mercado Libre",
+      "offer_url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+      "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_650122-MLA112368708728_062026-AB.webp",
+      "image_present": true,
+      "imageProvenance": null,
+      "originalPriceProvenance": "listing_card",
+      "cardDiscountSource": "card_strikethrough",
+      "DealScore": {
+        "score": 0,
+        "confidence": 0.15000000000000002,
+        "reasons": [
+          "insufficient_price_history",
+          "artificial_list_price_without_history"
+        ]
+      },
+      "verifier_score_total": 40,
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "dqe_decision": "NO_VERIFIED_DEAL",
+      "dqe_recommendedAction": "DISCARD",
+      "s61_gate_in_bot_meta": true,
+      "issues": [],
+      "classifications": [
+        "expected_advisory_limitation:suspected_artificial_list_price",
+        "expected_advisory_limitation:dealscore_zero_no_history",
+        "expected_advisory_limitation:dqe_no_verified_deal_vs_s61_verified",
+        "scoring_issue:effective_discount_zeroed_by_price_intel"
+      ],
+      "quality_pass": true
+    },
+    {
+      "wave": "S6.8",
+      "offer_id": "b0efafbc-444c-4c33-8e9b-ef67924b706e",
+      "external_id": "MLMU3097285590",
+      "sourceEventId": "b7c00d0c-dea2-4c83-b4ac-724c25c8a6ba:ml_worker:https://www.mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+      "fingerprint": "ml:MLMU3097285590",
+      "created_at": "2026-09-18T17:49:42.733705+00:00",
+      "status": "pending",
+      "title": "Espejo Luz Led De Pared Tocador Baño Touch Cambio 3 Luces Marco — Ahorra ~71% en Mercado Libre",
+      "sale_price": 298.9,
+      "original_price": 1044,
+      "discount_percent_computed": 71,
+      "store": "Mercado Libre",
+      "offer_url": "https://www.mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+      "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_952497-MLM98031767352_112025-AB.webp",
+      "image_present": true,
+      "imageProvenance": null,
+      "originalPriceProvenance": "listing_card",
+      "cardDiscountSource": "card_strikethrough",
+      "DealScore": {
+        "score": 15,
+        "confidence": 0.4,
+        "reasons": [
+          "insufficient_price_history",
+          "label_discount_weak_without_history"
+        ]
+      },
+      "verifier_score_total": 65,
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "dqe_decision": "POTENTIAL_DEAL",
+      "dqe_recommendedAction": "HUMAN_REVIEW",
+      "s61_gate_in_bot_meta": true,
+      "issues": [],
+      "classifications": [],
+      "quality_pass": true
+    },
+    {
+      "wave": "S6.8",
+      "offer_id": "4c2e82af-0e8f-4efa-b38f-a293e7066dea",
+      "external_id": "MLMU488803900",
+      "sourceEventId": "b7c00d0c-dea2-4c83-b4ac-724c25c8a6ba:ml_worker:https://www.mercadolibre.com.mx/calcetines-cortos-hombres-dama-unisex-comodo-12-pares/up/MLMU488803900",
+      "fingerprint": "ml:MLMU488803900",
+      "created_at": "2026-09-18T17:49:43.440665+00:00",
+      "status": "pending",
+      "title": "Calcetines Cortos Hombres Dama Unisex Cómodo 12 Pares Gris L — Ahorra ~60% en Mercado Libre",
+      "sale_price": 54,
+      "original_price": 135,
+      "discount_percent_computed": 60,
+      "store": "Mercado Libre",
+      "offer_url": "https://www.mercadolibre.com.mx/calcetines-cortos-hombres-dama-unisex-comodo-12-pares/up/MLMU488803900",
+      "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_751973-MLM110102876627_042026-AB.webp",
+      "image_present": true,
+      "imageProvenance": null,
+      "originalPriceProvenance": "listing_card",
+      "cardDiscountSource": "card_strikethrough",
+      "DealScore": {
+        "score": 15,
+        "confidence": 0.4,
+        "reasons": [
+          "insufficient_price_history",
+          "label_discount_weak_without_history"
+        ]
+      },
+      "verifier_score_total": 61,
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "dqe_decision": "POTENTIAL_DEAL",
+      "dqe_recommendedAction": "HUMAN_REVIEW",
+      "s61_gate_in_bot_meta": true,
+      "issues": [],
+      "classifications": [],
+      "quality_pass": true
+    },
+    {
+      "wave": "S6.8",
+      "offer_id": "6a0304a5-6194-4484-9090-62b636c660f2",
+      "external_id": "MLM53177027",
+      "sourceEventId": "b7c00d0c-dea2-4c83-b4ac-724c25c8a6ba:ml_worker:https://www.mercadolibre.com.mx/hidrolavadora-electrica-portatil-1600-psi-1200w-alta-presion-amarillo-60hz-trent-para-lavar-carros/p/MLM53177027?wid=MLM53177027",
+      "fingerprint": "ml:MLM53177027",
+      "created_at": "2026-09-18T17:49:44.107226+00:00",
+      "status": "pending",
+      "title": "Hidrolavadora Electrica Portátil 1600 Psi 1200w Alta Presion Amarillo 60hz Trent Para Lavar Carros — Ahorra ~62% en Mercado Libre",
+      "sale_price": 869.51,
+      "original_price": 2299,
+      "discount_percent_computed": 62,
+      "store": "Mercado Libre",
+      "offer_url": "https://www.mercadolibre.com.mx/hidrolavadora-electrica-portatil-1600-psi-1200w-alta-presion-amarillo-60hz-trent-para-lavar-carros/p/MLM53177027?wid=MLM53177027",
+      "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_947804-MLA110085183161_042026-AB.webp",
+      "image_present": true,
+      "imageProvenance": null,
+      "originalPriceProvenance": "listing_card",
+      "cardDiscountSource": "card_strikethrough",
+      "DealScore": {
+        "score": 0,
+        "confidence": 0.15000000000000002,
+        "reasons": [
+          "insufficient_price_history",
+          "artificial_list_price_without_history"
+        ]
+      },
+      "verifier_score_total": 40,
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "dqe_decision": "NO_VERIFIED_DEAL",
+      "dqe_recommendedAction": "DISCARD",
+      "s61_gate_in_bot_meta": true,
+      "issues": [],
+      "classifications": [
+        "expected_advisory_limitation:suspected_artificial_list_price",
+        "expected_advisory_limitation:dealscore_zero_no_history",
+        "expected_advisory_limitation:dqe_no_verified_deal_vs_s61_verified",
+        "scoring_issue:effective_discount_zeroed_by_price_intel"
+      ],
+      "quality_pass": true
+    }
+  ],
+  "focusResults": [
+    {
+      "offer_id": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+      "claimed": true,
+      "claimedId": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+      "claimKind": "fresh",
+      "released": true,
+      "claimable": true
+    },
+    {
+      "offer_id": "c7ba9c00-fb7b-4b8a-b655-4609f992b129",
+      "claimed": true,
+      "claimedId": "c7ba9c00-fb7b-4b8a-b655-4609f992b129",
+      "claimKind": "fresh",
+      "released": true,
+      "claimable": true
+    },
+    {
+      "offer_id": "b0efafbc-444c-4c33-8e9b-ef67924b706e",
+      "claimed": true,
+      "claimedId": "b0efafbc-444c-4c33-8e9b-ef67924b706e",
+      "claimKind": "fresh",
+      "released": true,
+      "claimable": true
+    },
+    {
+      "offer_id": "4c2e82af-0e8f-4efa-b38f-a293e7066dea",
+      "claimed": true,
+      "claimedId": "4c2e82af-0e8f-4efa-b38f-a293e7066dea",
+      "claimKind": "fresh",
+      "released": true,
+      "claimable": true
+    },
+    {
+      "offer_id": "6a0304a5-6194-4484-9090-62b636c660f2",
+      "claimed": true,
+      "claimedId": "6a0304a5-6194-4484-9090-62b636c660f2",
+      "claimKind": "fresh",
+      "released": true,
+      "claimable": true
+    }
+  ],
+  "writeAudit": {
+    "note": "Historical Δ (+5) evidenced by S6.7/S6.8 reports; this review confirms current presence of the 5 canary rows and zero Distribution growth claims from those reports.",
+    "canaryOffersFound": 5,
+    "canaryPending": 5,
+    "expectedCanaryCount": 5,
+    "missingIds": [],
+    "missingFps": [],
+    "currentPendingTotal": 6,
+    "distribution_publications": 9,
+    "distribution_events": 72,
+    "rewards": {
+      "ok": true,
+      "err": null,
+      "count": null
+    },
+    "economy": {
+      "ok": true,
+      "err": null,
+      "count": null
+    },
+    "attribution": {
+      "ok": true,
+      "err": null,
+      "count": null
+    },
+    "prior_report_deltas": {
+      "s67": {
+        "offersPending": 2,
+        "distributionPublications": 0
+      },
+      "s68": {
+        "pendingDelta": 3,
+        "distDelta": 0
+      }
+    }
+  },
+  "stop": {
+    "allPending": true,
+    "allQualityPass": true,
+    "allFocusClaimable": true,
+    "missing": 0
+  }
+}

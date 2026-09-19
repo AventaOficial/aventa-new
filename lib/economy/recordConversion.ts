@@ -4,6 +4,11 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  resolveConversionAttribution,
+  resolveConversionAttributionStrict,
+} from '@/lib/attribution/resolveConversionAttribution';
+import { evaluateConversionAttributionFraudSignals } from '@/lib/attribution/fraudSignals';
 import { appendEconomicEvent } from './appendEconomicEvent';
 import {
   canTransitionConversion,
@@ -14,6 +19,15 @@ import {
   type ConversionStatus,
   type EconomicIngestSource,
 } from './types';
+
+export {
+  resolveConversionAttribution,
+  resolveConversionAttributionStrict,
+} from '@/lib/attribution/resolveConversionAttribution';
+export type {
+  ConversionAttributionConflict,
+  ConversionAttributionStrictResult,
+} from '@/lib/attribution/resolveConversionAttribution';
 
 export type ConversionRecord = {
   conversionId: string;
@@ -49,53 +63,6 @@ function mapRow(row: Record<string, unknown>, reused: boolean): ConversionRecord
   };
 }
 
-/**
- * Resuelve attribution sin inventar click.
- * - sin clickId → unattributed
- * - clickId presente pero no en DB → unresolved
- * - clickId válido → attributed (+ offer_id desde click si falta)
- */
-export async function resolveConversionAttribution(
-  supabase: SupabaseClient,
-  input: { clickId?: string | null; offerId?: string | null },
-): Promise<{
-  attributionStatus: AttributionLinkStatus;
-  clickId: string | null;
-  offerId: string | null;
-}> {
-  const clickId = input.clickId?.trim() || null;
-  if (!clickId) {
-    return {
-      attributionStatus: 'unattributed',
-      clickId: null,
-      offerId: input.offerId?.trim() || null,
-    };
-  }
-
-  const { data, error } = await supabase
-    .from('reward_outbound_clicks')
-    .select('id, offer_id')
-    .eq('id', clickId)
-    .maybeSingle();
-
-  if (error || !data?.id) {
-    return {
-      attributionStatus: 'unresolved',
-      clickId,
-      offerId: input.offerId?.trim() || null,
-    };
-  }
-
-  const offerFromClick =
-    typeof data.offer_id === 'string' && data.offer_id.trim() ? data.offer_id.trim() : null;
-
-  return {
-    attributionStatus: 'attributed',
-    clickId: String(data.id),
-    offerId: input.offerId?.trim() || offerFromClick,
-  };
-}
-
 export async function recordConversion(
   supabase: SupabaseClient,
   input: {
@@ -123,9 +90,10 @@ export async function recordConversion(
       ? input.occurredAt
       : input.occurredAt.toISOString();
 
-  const attribution = await resolveConversionAttribution(supabase, {
+  const attribution = await resolveConversionAttributionStrict(supabase, {
     clickId: input.clickId,
     offerId: input.offerId,
+    conversionAt: occurredAt,
   });
 
   const status: ConversionStatus = input.status ?? 'received';
@@ -147,6 +115,9 @@ export async function recordConversion(
     attribution_meta: {
       resolvedAt: new Date().toISOString(),
       attributionStatus: attribution.attributionStatus,
+      isAuthenticatedClick: attribution.isAuthenticatedClick,
+      fraudSignals: attribution.fraudSignals,
+      conflicts: attribution.conflicts,
     },
   };
 
@@ -186,7 +157,25 @@ export async function recordConversion(
       .eq('external_conversion_id', externalConversionId)
       .maybeSingle();
     if (again.data?.id) {
-      return mapRow(again.data as Record<string, unknown>, true);
+      const reusedRow = again.data as Record<string, unknown>;
+      const duplicateSignals = evaluateConversionAttributionFraudSignals({
+        isDuplicateConversion: true,
+        clickId: (reusedRow.click_id as string | null) ?? null,
+      });
+      if (duplicateSignals.length > 0) {
+        const meta = (reusedRow.attribution_meta as Record<string, unknown> | null) ?? {};
+        reusedRow.attribution_meta = {
+          ...meta,
+          duplicateIngestAttempt: true,
+          fraudSignals: [
+            ...new Set([
+              ...((meta.fraudSignals as string[] | undefined) ?? []),
+              ...duplicateSignals,
+            ]),
+          ],
+        };
+      }
+      return mapRow(reusedRow, true);
     }
   }
 

@@ -1,0 +1,707 @@
+{
+  "meta": {
+    "mode": "S6.7_MACHINE_INSERT_CANARY",
+    "generatedAt": "2026-09-19T02:22:45.966Z",
+    "safety": {
+      "target": "staging",
+      "ref": "oojshofrpbfwsiypcecr",
+      "expected": "oojshofrpbfwsiypcecr",
+      "refOk": true,
+      "stagingOnly": true,
+      "writesFlagBefore": false,
+      "execute": true,
+      "canaryCap": 3
+    },
+    "stagingCanaryAuthorPrefix": "6aa733d4",
+    "discoveryPath": "E:\\AVENTA NEW\\aventa-new\\scripts\\_smoke-gate-v2-discovery.json",
+    "canaryCap": 3,
+    "hardCap": 5
+  },
+  "dryRun": {
+    "wouldInsertCount": 15,
+    "suppressed": 0,
+    "duplicates": 0,
+    "failed": 0,
+    "offerInsertedAlwaysFalse": true
+  },
+  "selection": {
+    "poolSize": 15,
+    "eligibleCount": 10,
+    "selected": [
+      {
+        "index": 4,
+        "url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "sourceEventId": "ml_worker:ml:MLM63723900",
+        "idempotencyKey": "ro:a2117a07ab139719eeef39f4903c86fa",
+        "productFingerprint": "ml:MLM63723900",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_699771-MLA114851533690_082026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 5,
+        "url": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "sourceEventId": "ml_worker:ml:MLM74850561",
+        "idempotencyKey": "ro:fe9c2215c4c2768388b8d3330fa1cd27",
+        "productFingerprint": "ml:MLM74850561",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_836589-MLA116882090683_082026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 6,
+        "url": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "sourceEventId": "ml_worker:ml:MLM67977902",
+        "idempotencyKey": "ro:7013e8d57efec50a4af66d6565806be8",
+        "productFingerprint": "ml:MLM67977902",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_912995-MLA109549722618_042026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      }
+    ]
+  },
+  "before": {
+    "offersTotal": 15,
+    "offersPending": 6,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "errors": []
+  },
+  "live": {
+    "latencyMs": 9787,
+    "summary": {
+      "inserted": 3,
+      "duplicate": 0,
+      "skipped": 0,
+      "errors": 0,
+      "rejected": 0,
+      "autoApproved": 0,
+      "discovery": {
+        "cycleIndex": 0,
+        "seedsAvailable": 1,
+        "seedsAttempted": 1,
+        "seedsSuccessful": 1,
+        "seedsZeroResults": 0,
+        "seedsFailed": 0,
+        "bySeed": [
+          {
+            "id": "s67_canary",
+            "status": "ok",
+            "rawLinks": 3,
+            "accepted": 3
+          }
+        ]
+      },
+      "sourceStats": {
+        "env_urls": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "rss": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_api": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "amazon_asin": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_worker": {
+          "collected": 3,
+          "evaluated": 3,
+          "inserted": 3,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "walmart_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "bodega_aurrera_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "chedraui_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        }
+      },
+      "stageCounts": {
+        "collected": 3,
+        "evaluated": 3,
+        "resolved": 3,
+        "insertedAttempted": 3
+      },
+      "ops": {
+        "runId": "c2d69839-4bc1-4f97-84f4-fbc65a986d03",
+        "startedAt": "2026-09-19T02:22:45.967Z",
+        "finishedAt": "2026-09-19T02:22:54.999Z",
+        "environment": "unknown",
+        "profile": "standard",
+        "dryRun": false,
+        "machinePendingWritesEnabled": true,
+        "bottleneck": "none",
+        "bottleneckDetail": "pending inserts occurred this run",
+        "discovered": 3,
+        "normalized": 3,
+        "identityValid": 3,
+        "identityInvalid": 0,
+        "qualityVerified": 3,
+        "suppressed": 0,
+        "duplicates": 0,
+        "liveEligible": 3,
+        "budgetRejected": 0,
+        "writeAttempts": 3,
+        "writeSuccess": 3,
+        "writeDuplicate": 0,
+        "writeFailed": 0,
+        "writesDisabled": 0,
+        "dryRunSimulated": 0,
+        "reasonCodes": {},
+        "durationMs": 9032
+      }
+    },
+    "results": [
+      {
+        "url": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "2af71ce8-1dfa-4c6f-ba59-242da382370e"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "29d3a499-c76b-4bd0-8a33-47b3d4b8f228"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "8c92bbcf-f411-4226-8523-0ea06d880ea2"
+      }
+    ],
+    "insertedCount": 3,
+    "duplicateCount": 0,
+    "skippedCount": 0,
+    "errorCount": 0,
+    "offerIds": [
+      "2af71ce8-1dfa-4c6f-ba59-242da382370e",
+      "29d3a499-c76b-4bd0-8a33-47b3d4b8f228",
+      "8c92bbcf-f411-4226-8523-0ea06d880ea2"
+    ],
+    "offerRows": [
+      {
+        "id": "2af71ce8-1dfa-4c6f-ba59-242da382370e",
+        "status": "pending",
+        "created_by": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "product_fingerprint": "ml:MLM74850561",
+        "offer_url": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "original_offer_url": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 61,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:22:53.363Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:22:53.363Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:lightning",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:22:52.723Z",
+            "evidenceHash": "e18e66a7a6facd5b57c8b020d364deaa5dc15252",
+            "observationId": "raw_98f47a366f47a99282e923bff2cb22b3",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "c2d69839-4bc1-4f97-84f4-fbc65a986d03:ml_worker:https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM748505",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM74850561",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 | cat=hogar",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_836589-MLA116882090683_082026-AB.webp",
+        "created_at": "2026-09-19T02:22:52.6496+00:00"
+      },
+      {
+        "id": "29d3a499-c76b-4bd0-8a33-47b3d4b8f228",
+        "status": "pending",
+        "created_by": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "product_fingerprint": "ml:MLM63723900",
+        "offer_url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "original_offer_url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 38,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 72
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 62,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:22:54.207Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:22:54.207Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:ofertas_hub",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:22:53.594Z",
+            "evidenceHash": "879ab9415a2b7b0692d82d94e2f330a3bc0ceb52",
+            "observationId": "raw_25a45754a19c4d2b718498e99012b448",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "c2d69839-4bc1-4f97-84f4-fbc65a986d03:ml_worker:https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM63723900",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=38 (moderación) | d0 p58 r60 c35 $72",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_699771-MLA114851533690_082026-AB.webp",
+        "created_at": "2026-09-19T02:22:53.479017+00:00"
+      },
+      {
+        "id": "8c92bbcf-f411-4226-8523-0ea06d880ea2",
+        "status": "pending",
+        "created_by": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "product_fingerprint": "ml:MLM67977902",
+        "offer_url": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "original_offer_url": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 38,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 72
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 59,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:22:54.863Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:22:54.863Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:ofertas_hub",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:22:54.348Z",
+            "evidenceHash": "a01bf6147cd20236f295dfbf3952763e6d785c32",
+            "observationId": "raw_76f5834ae60bb981731f20c4c4b9105f",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "c2d69839-4bc1-4f97-84f4-fbc65a986d03:ml_worker:https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM67977902",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=38 (moderación) | d0 p58 r60 c35 $72 | cat=jardin",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_912995-MLA109549722618_042026-AB.webp",
+        "created_at": "2026-09-19T02:22:54.136041+00:00"
+      }
+    ]
+  },
+  "after": {
+    "offersTotal": 18,
+    "offersPending": 9,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "errors": []
+  },
+  "deltas": {
+    "offersTotal": 3,
+    "offersPending": 3,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 0,
+    "distributionEvents": 0,
+    "distributionDestinations": 0
+  },
+  "idempotency": {
+    "url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+    "retryResults": [
+      {
+        "url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "source": "ml_worker",
+        "status": "duplicate",
+        "duplicateKind": "pending_fresh",
+        "supplyOpportunity": false
+      }
+    ],
+    "secondInsertCreated": false,
+    "duplicateOrNoop": true
+  },
+  "focusClaim": {
+    "preferOfferId": "2af71ce8-1dfa-4c6f-ba59-242da382370e",
+    "claimed": true,
+    "claimedId": "2af71ce8-1dfa-4c6f-ba59-242da382370e",
+    "claimKind": "fresh",
+    "released": true,
+    "rowStatus": "pending",
+    "hasFingerprint": true,
+    "hasBotMeta": true,
+    "hasBotIngestComment": false,
+    "claimable": true
+  },
+  "equivalence": [
+    {
+      "sourceEventId": "ml_worker:ml:MLM63723900",
+      "dryWouldInsert": true,
+      "dryQuality": "VERIFIED_OPPORTUNITY",
+      "dryFingerprint": "ml:MLM63723900",
+      "dryProvenance": "listing_card",
+      "liveStatus": "inserted",
+      "liveOfferId": "29d3a499-c76b-4bd0-8a33-47b3d4b8f228",
+      "ok": true
+    },
+    {
+      "sourceEventId": "ml_worker:ml:MLM74850561",
+      "dryWouldInsert": true,
+      "dryQuality": "VERIFIED_OPPORTUNITY",
+      "dryFingerprint": "ml:MLM74850561",
+      "dryProvenance": "listing_card",
+      "liveStatus": "inserted",
+      "liveOfferId": "2af71ce8-1dfa-4c6f-ba59-242da382370e",
+      "ok": true
+    },
+    {
+      "sourceEventId": "ml_worker:ml:MLM67977902",
+      "dryWouldInsert": true,
+      "dryQuality": "VERIFIED_OPPORTUNITY",
+      "dryFingerprint": "ml:MLM67977902",
+      "dryProvenance": "listing_card",
+      "liveStatus": "inserted",
+      "liveOfferId": "8c92bbcf-f411-4226-8523-0ea06d880ea2",
+      "ok": true
+    }
+  ],
+  "stop": {
+    "reason": null,
+    "completed": true
+  },
+  "observability": {
+    "canaryCandidates": 3,
+    "eligible": 3,
+    "inserted": 3,
+    "failed": 0,
+    "duplicate": 0,
+    "suppressed": 0,
+    "writeSuccessRate": 1,
+    "liveLatencyMs": 9787,
+    "unexpectedWrites": [],
+    "dryWouldInsert": 15,
+    "liveEligible": 3,
+    "liveInserted": 3
+  }
+}

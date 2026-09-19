@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "mode": "S6.7_MACHINE_INSERT_CANARY",
+    "generatedAt": "2026-09-19T02:22:01.141Z",
+    "safety": {
+      "target": "staging",
+      "ref": "oojshofrpbfwsiypcecr",
+      "expected": "oojshofrpbfwsiypcecr",
+      "refOk": true,
+      "stagingOnly": true,
+      "writesFlagBefore": false,
+      "execute": false,
+      "canaryCap": 3
+    },
+    "stagingCanaryAuthorPrefix": "6aa733d4",
+    "discoveryPath": "E:\\AVENTA NEW\\aventa-new\\scripts\\_smoke-gate-v2-discovery.json",
+    "canaryCap": 3,
+    "hardCap": 5
+  },
+  "dryRun": {
+    "wouldInsertCount": 15,
+    "suppressed": 0,
+    "duplicates": 0,
+    "failed": 0,
+    "offerInsertedAlwaysFalse": true
+  },
+  "selection": {
+    "poolSize": 15,
+    "eligibleCount": 10,
+    "selected": [
+      {
+        "index": 4,
+        "url": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/soldadora-inversora-portatil-mmatig-maquina-2en1-color-amarillo/p/MLM63723900?wid=MLM63723900",
+        "sourceEventId": "ml_worker:ml:MLM63723900",
+        "idempotencyKey": "ro:0a79202cf11c72885d3b71463e01c083",
+        "productFingerprint": "ml:MLM63723900",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_699771-MLA114851533690_082026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 5,
+        "url": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/aspiradora-para-limpiar-alfombras-y-manchas-faghto-20l15l-30kpa-2200w-5m15m-limpiadora-electrica-para-hogar-o-auto-oficina-con-2-cabezales-de-cepillo/p/MLM74850561?wid=MLM74850561",
+        "sourceEventId": "ml_worker:ml:MLM74850561",
+        "idempotencyKey": "ro:4fc5f02ebd6cf45416d62de70981c94f",
+        "productFingerprint": "ml:MLM74850561",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_836589-MLA116882090683_082026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 6,
+        "url": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/38kit-de-taladro-rotomartillo-funcion-inalambrico-impacto-3-en-1con-maletin-de-plastico-kit-de-taladros-rotomartillos-inalambricos/p/MLM67977902?wid=MLM67977902",
+        "sourceEventId": "ml_worker:ml:MLM67977902",
+        "idempotencyKey": "ro:3effc0f70e6edcd5bc071cac5667d12c",
+        "productFingerprint": "ml:MLM67977902",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_912995-MLA109549722618_042026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      }
+    ]
+  },
+  "before": {
+    "offersTotal": 15,
+    "offersPending": 6,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "errors": []
+  },
+  "live": null,
+  "after": null,
+  "deltas": null,
+  "idempotency": null,
+  "focusClaim": null,
+  "equivalence": null,
+  "stop": {
+    "reason": "dry_run_only",
+    "note": "Re-run with --execute to perform controlled live inserts"
+  }
+}

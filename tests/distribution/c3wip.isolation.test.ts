@@ -1,5 +1,5 @@
 /**
- * Guard: Distribution C3 reclaim WIP stays outside C1/C2 contract + compile.
+ * Guard: C3 is promoted out of WIP; migration remains the schema authority.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -12,28 +12,29 @@ import {
 
 const ROOT = process.cwd();
 
-describe('Distribution C3 WIP isolation (build restoration)', () => {
-  it('reclaim lives under c3-wip, not on C1 public exports', () => {
-    expect(existsSync(join(ROOT, 'lib/distribution/c3-wip/reclaim.ts'))).toBe(true);
-    expect(existsSync(join(ROOT, 'lib/distribution/reclaim.ts'))).toBe(false);
+describe('Distribution C3 promotion (replaces WIP isolation)', () => {
+  it('reclaim is under lib/distribution (not c3-wip)', () => {
+    expect(existsSync(join(ROOT, 'lib/distribution/reclaim.ts'))).toBe(true);
+    expect(existsSync(join(ROOT, 'lib/distribution/c3-wip/reclaim.ts'))).toBe(false);
 
     const index = readFileSync(join(ROOT, 'lib/distribution/index.ts'), 'utf8');
-    expect(index).not.toMatch(/reclaim/);
+    expect(index).toMatch(/from '\.\/reclaim'/);
     expect(index).not.toMatch(/c3-wip/);
   });
 
-  it('tsconfig excludes c3-wip from compilation', () => {
+  it('tsconfig no longer excludes c3-wip (folder removed from compile gate)', () => {
     const tsconfig = readFileSync(join(ROOT, 'tsconfig.json'), 'utf8');
-    expect(tsconfig).toMatch(/lib\/distribution\/c3-wip/);
+    expect(tsconfig).not.toMatch(/lib\/distribution\/c3-wip/);
   });
 
-  it('C1 event/status unions do not include C3-only values', () => {
-    expect(DISTRIBUTION_EVENT_TYPES).not.toContain('publication_reclaimed');
-    expect(DISTRIBUTION_EVENT_TYPES).not.toContain('publication_unknown_outcome');
-    expect(DISTRIBUTION_PUBLICATION_STATUSES).not.toContain('unknown_outcome');
+  it('C3 status/event unions are explicit in C1 surface', () => {
+    expect(DISTRIBUTION_PUBLICATION_STATUSES).toContain('unknown_outcome');
+    expect(DISTRIBUTION_EVENT_TYPES).toContain('unknown_outcome');
+    expect(DISTRIBUTION_EVENT_TYPES).toContain('reclaimed');
+    expect(DISTRIBUTION_EVENT_TYPES).toContain('lease_acquired');
   });
 
-  it('pending migration for C3 remains docs-only (not applied by this isolation)', () => {
+  it('C3 migration exists and is the schema change vehicle', () => {
     const mig = join(
       ROOT,
       'docs/supabase-migrations/20260918_distribution_c3_unknown_outcome.sql',
@@ -41,6 +42,7 @@ describe('Distribution C3 WIP isolation (build restoration)', () => {
     expect(existsSync(mig)).toBe(true);
     const sql = readFileSync(mig, 'utf8');
     expect(sql).toContain('unknown_outcome');
-    expect(sql).toContain('publication_reclaimed');
+    expect(sql).toContain('lease_acquired');
+    expect(sql).toContain('Apply ONLY on staging');
   });
 });

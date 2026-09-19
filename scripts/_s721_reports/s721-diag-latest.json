@@ -1,0 +1,223 @@
+{
+  "at": "2026-09-19T02:45:45.424Z",
+  "safety": {
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "expected": "oojshofrpbfwsiypcecr"
+  },
+  "openapiRequired": [
+    "id",
+    "role",
+    "level",
+    "onboarding_completed",
+    "offers_submitted_count",
+    "offers_approved_count",
+    "offers_rejected_count",
+    "reputation_score",
+    "reputation_level",
+    "is_trusted",
+    "vote_weight_multiplier",
+    "owner_auto_approve_offers"
+  ],
+  "openapiColCount": 59,
+  "openapiCols": [
+    "account_deletion_requested_at",
+    "address",
+    "amazon_tracking_tag",
+    "approved_offers_count",
+    "avatar_url",
+    "commission_clabe",
+    "commission_fiscal_updated_at",
+    "commission_legal_name",
+    "commission_rfc",
+    "commissions_accepted_at",
+    "commissions_terms_version",
+    "country",
+    "created_at",
+    "currency",
+    "direccion",
+    "display_name",
+    "display_name_updated_at",
+    "full_name",
+    "id",
+    "is_trusted",
+    "is_unlocked",
+    "join_number",
+    "karma",
+    "leader_badge",
+    "legal_consent_version",
+    "level",
+    "ml_tracking_tag",
+    "muted_until",
+    "name_saved_in_settings_at",
+    "offers_approved_count",
+    "offers_rejected_count",
+    "offers_submitted_count",
+    "onboarding_completed",
+    "owner_auto_approve_offers",
+    "owner_auto_approve_offers_at",
+    "owner_auto_approve_offers_by",
+    "phone",
+    "preferred_categories",
+    "privacy_accepted_at",
+    "rank_points",
+    "rank_tier",
+    "reputation_level",
+    "reputation_score",
+    "reward_program_unlocked_at",
+    "rewards_terms_accepted_at",
+    "rewards_terms_version",
+    "role",
+    "slug",
+    "telefono",
+    "terms_accepted_at",
+    "total_votes_cast",
+    "trusted",
+    "unlock_basis_count",
+    "unlocked_at",
+    "user_number",
+    "username",
+    "vote_weight_multiplier",
+    "welcome_offer_id",
+    "welcome_offer_selected_at"
+  ],
+  "existingProfileKeys": [
+    "account_deletion_requested_at",
+    "address",
+    "amazon_tracking_tag",
+    "approved_offers_count",
+    "avatar_url",
+    "commission_clabe",
+    "commission_fiscal_updated_at",
+    "commission_legal_name",
+    "commission_rfc",
+    "commissions_accepted_at",
+    "commissions_terms_version",
+    "country",
+    "created_at",
+    "currency",
+    "direccion",
+    "display_name",
+    "display_name_updated_at",
+    "full_name",
+    "id",
+    "is_trusted",
+    "is_unlocked",
+    "join_number",
+    "karma",
+    "leader_badge",
+    "legal_consent_version",
+    "level",
+    "ml_tracking_tag",
+    "muted_until",
+    "name_saved_in_settings_at",
+    "offers_approved_count",
+    "offers_rejected_count",
+    "offers_submitted_count",
+    "onboarding_completed",
+    "owner_auto_approve_offers",
+    "owner_auto_approve_offers_at",
+    "owner_auto_approve_offers_by",
+    "phone",
+    "preferred_categories",
+    "privacy_accepted_at",
+    "rank_points",
+    "rank_tier",
+    "reputation_level",
+    "reputation_score",
+    "reward_program_unlocked_at",
+    "rewards_terms_accepted_at",
+    "rewards_terms_version",
+    "role",
+    "slug",
+    "telefono",
+    "terms_accepted_at",
+    "total_votes_cast",
+    "trusted",
+    "unlock_basis_count",
+    "unlocked_at",
+    "user_number",
+    "username",
+    "vote_weight_multiplier",
+    "welcome_offer_id",
+    "welcome_offer_selected_at"
+  ],
+  "existingProfileSample": {
+    "role": "admin",
+    "level": 1,
+    "join_number": 0,
+    "user_number": 1,
+    "username": null,
+    "display_name": "fet_tx",
+    "full_name": "fet_tx"
+  },
+  "insertProbes": [
+    {
+      "keys": [
+        "id"
+      ],
+      "error": {
+        "message": "insert or update on table \"profiles\" violates foreign key constraint \"profiles_id_fkey\"",
+        "code": "23503",
+        "details": "Key (id)=(11111111-2222-4333-8444-555555555555) is not present in table \"users\".",
+        "hint": null
+      }
+    },
+    {
+      "keys": [
+        "id",
+        "display_name",
+        "role"
+      ],
+      "error": {
+        "message": "insert or update on table \"profiles\" violates foreign key constraint \"profiles_id_fkey\"",
+        "code": "23503",
+        "details": "Key (id)=(11111111-2222-4333-8444-555555555555) is not present in table \"users\".",
+        "hint": null
+      }
+    },
+    {
+      "keys": [
+        "id",
+        "display_name",
+        "role",
+        "username",
+        "level"
+      ],
+      "error": {
+        "message": "insert or update on table \"profiles\" violates foreign key constraint \"profiles_id_fkey\"",
+        "code": "23503",
+        "details": "Key (id)=(11111111-2222-4333-8444-555555555555) is not present in table \"users\".",
+        "hint": null
+      }
+    },
+    {
+      "keys": [
+        "id",
+        "display_name",
+        "full_name",
+        "role",
+        "username",
+        "level",
+        "join_number",
+        "user_number"
+      ],
+      "error": {
+        "message": "insert or update on table \"profiles\" violates foreign key constraint \"profiles_id_fkey\"",
+        "code": "23503",
+        "details": "Key (id)=(11111111-2222-4333-8444-555555555555) is not present in table \"users\".",
+        "hint": null
+      }
+    }
+  ],
+  "createUser": {
+    "email": "s721-diag-1789785945177@example.com",
+    "userId": null,
+    "error": {
+      "message": "Database error creating new user",
+      "status": 500,
+      "code": "unexpected_failure",
+      "name": "AuthApiError"
+    }
+  }
+}

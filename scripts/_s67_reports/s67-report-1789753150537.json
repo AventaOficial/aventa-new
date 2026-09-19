@@ -1,0 +1,563 @@
+{
+  "meta": {
+    "mode": "S6.7_MACHINE_INSERT_CANARY",
+    "generatedAt": "2026-09-18T17:38:58.528Z",
+    "safety": {
+      "target": "staging",
+      "ref": "oojshofrpbfwsiypcecr",
+      "expected": "oojshofrpbfwsiypcecr",
+      "refOk": true,
+      "stagingOnly": true,
+      "writesFlagBefore": false,
+      "execute": true,
+      "canaryCap": 3
+    },
+    "stagingCanaryAuthorPrefix": "6aa733d4",
+    "discoveryPath": "E:\\AVENTA NEW\\aventa-new\\scripts\\_smoke-gate-v2-discovery.json",
+    "canaryCap": 3,
+    "hardCap": 5
+  },
+  "dryRun": {
+    "wouldInsertCount": 15,
+    "suppressed": 0,
+    "duplicates": 0,
+    "failed": 0,
+    "offerInsertedAlwaysFalse": true
+  },
+  "selection": {
+    "poolSize": 15,
+    "eligibleCount": 15,
+    "selected": [
+      {
+        "index": 0,
+        "url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "sourceEventId": "ml_worker:ml:MLM48434598",
+        "idempotencyKey": "ro:884e6ac695ae35ad8e480829378ae0d5",
+        "productFingerprint": "ml:MLM48434598",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_869368-MLA109073888271_032026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 1,
+        "url": "https://www.mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+        "sourceEventId": "ml_worker:ml:MLMU3097285590",
+        "idempotencyKey": "ro:0b12af5fdf3749336a03be66bf3e9298",
+        "productFingerprint": "ml:MLMU3097285590",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_952497-MLM98031767352_112025-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 2,
+        "url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "sourceEventId": "ml_worker:ml:MLM51558214",
+        "idempotencyKey": "ro:fc3025d83575c1f110f80a4d5379c20f",
+        "productFingerprint": "ml:MLM51558214",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_650122-MLA112368708728_062026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      }
+    ]
+  },
+  "before": {
+    "offersTotal": 10,
+    "offersPending": 1,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "errors": []
+  },
+  "live": {
+    "latencyMs": 6336,
+    "summary": {
+      "inserted": 2,
+      "duplicate": 0,
+      "skipped": 0,
+      "errors": 0,
+      "rejected": 0,
+      "autoApproved": 0,
+      "skipReasonCounts": {
+        "worker payload inválido": 1
+      },
+      "discovery": {
+        "cycleIndex": 0,
+        "seedsAvailable": 1,
+        "seedsAttempted": 1,
+        "seedsSuccessful": 1,
+        "seedsZeroResults": 0,
+        "seedsFailed": 0,
+        "bySeed": [
+          {
+            "id": "s67_canary",
+            "status": "ok",
+            "rawLinks": 3,
+            "accepted": 3
+          }
+        ]
+      },
+      "sourceStats": {
+        "env_urls": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "rss": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_api": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "amazon_asin": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_worker": {
+          "collected": 3,
+          "evaluated": 2,
+          "inserted": 2,
+          "duplicate": 0,
+          "skipped": 1,
+          "errors": 0,
+          "skipReasonCounts": {
+            "worker payload inválido": 1
+          }
+        },
+        "walmart_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "bodega_aurrera_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "chedraui_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        }
+      },
+      "stageCounts": {
+        "collected": 2,
+        "evaluated": 2,
+        "resolved": 2,
+        "insertedAttempted": 2
+      }
+    },
+    "results": [
+      {
+        "url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "e29c4f66-7dc4-4658-9620-63efc78775f7"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "c7ba9c00-fb7b-4b8a-b655-4609f992b129"
+      }
+    ],
+    "insertedCount": 2,
+    "duplicateCount": 0,
+    "skippedCount": 0,
+    "errorCount": 0,
+    "offerIds": [
+      "e29c4f66-7dc4-4658-9620-63efc78775f7",
+      "c7ba9c00-fb7b-4b8a-b655-4609f992b129"
+    ],
+    "offerRows": [
+      {
+        "id": "c7ba9c00-fb7b-4b8a-b655-4609f992b129",
+        "status": "pending",
+        "created_by": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "product_fingerprint": "ml:MLM51558214",
+        "offer_url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "original_offer_url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 67,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-18T17:39:03.987Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-18T17:39:03.987Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:ofertas_hub",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM51558214",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-18T17:39:03.371Z",
+            "evidenceHash": "15b063e8e6f7afb4c3cd557fd928b4df6a3aaff3",
+            "observationId": "raw_b1531b496fe665292619891ee8e17164",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "a74c2f9e-5de2-49ee-9fec-c6590498f8fd:ml_worker:https://www.mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214?wid=MLM",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM51558214",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_650122-MLA112368708728_062026-AB.webp",
+        "created_at": "2026-09-18T17:39:03.685473+00:00"
+      },
+      {
+        "id": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+        "status": "pending",
+        "created_by": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "product_fingerprint": "ml:MLM48434598",
+        "offer_url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "original_offer_url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 72,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-18T17:39:03.209Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-18T17:39:03.207Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:lightning",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-18T17:39:02.573Z",
+            "evidenceHash": "42d577c85bf3790d700447d0168756679c597b08",
+            "observationId": "raw_509a68b5ae70f08642defb68a5c23503",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "a74c2f9e-5de2-49ee-9fec-c6590498f8fd:ml_worker:https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM48434598",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 | cat=hogar",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_869368-MLA109073888271_032026-AB.webp",
+        "created_at": "2026-09-18T17:39:02.918974+00:00"
+      }
+    ]
+  },
+  "after": {
+    "offersTotal": 12,
+    "offersPending": 3,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "errors": []
+  },
+  "deltas": {
+    "offersTotal": 2,
+    "offersPending": 2,
+    "hunterSupplyRuns": null,
+    "distributionPublications": 0,
+    "distributionEvents": 0,
+    "distributionDestinations": 0
+  },
+  "idempotency": {
+    "url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+    "retryResults": [
+      {
+        "url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598?wid=MLM48434598",
+        "source": "ml_worker",
+        "status": "duplicate",
+        "duplicateKind": "pending_fresh",
+        "supplyOpportunity": false
+      }
+    ],
+    "secondInsertCreated": false,
+    "duplicateOrNoop": true
+  },
+  "focusClaim": {
+    "preferOfferId": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+    "claimed": true,
+    "claimedId": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+    "claimKind": "fresh",
+    "released": true,
+    "rowStatus": "pending",
+    "hasFingerprint": true,
+    "hasBotMeta": true,
+    "hasBotIngestComment": false,
+    "claimable": true
+  },
+  "equivalence": [
+    {
+      "sourceEventId": "ml_worker:ml:MLM48434598",
+      "dryWouldInsert": true,
+      "dryQuality": "VERIFIED_OPPORTUNITY",
+      "dryFingerprint": "ml:MLM48434598",
+      "dryProvenance": "listing_card",
+      "liveStatus": "inserted",
+      "liveOfferId": "e29c4f66-7dc4-4658-9620-63efc78775f7",
+      "ok": true
+    },
+    {
+      "sourceEventId": "ml_worker:ml:MLMU3097285590",
+      "dryWouldInsert": true,
+      "dryQuality": "VERIFIED_OPPORTUNITY",
+      "dryFingerprint": "ml:MLMU3097285590",
+      "dryProvenance": "listing_card",
+      "liveStatus": null,
+      "liveOfferId": null,
+      "ok": false
+    },
+    {
+      "sourceEventId": "ml_worker:ml:MLM51558214",
+      "dryWouldInsert": true,
+      "dryQuality": "VERIFIED_OPPORTUNITY",
+      "dryFingerprint": "ml:MLM51558214",
+      "dryProvenance": "listing_card",
+      "liveStatus": "inserted",
+      "liveOfferId": "c7ba9c00-fb7b-4b8a-b655-4609f992b129",
+      "ok": true
+    }
+  ],
+  "stop": {
+    "reason": null,
+    "completed": true
+  },
+  "observability": {
+    "canaryCandidates": 3,
+    "eligible": 3,
+    "inserted": 2,
+    "failed": 0,
+    "duplicate": 0,
+    "suppressed": 0,
+    "writeSuccessRate": 0.6666666666666666,
+    "liveLatencyMs": 6336,
+    "unexpectedWrites": [],
+    "dryWouldInsert": 15,
+    "liveEligible": 3,
+    "liveInserted": 2
+  }
+}

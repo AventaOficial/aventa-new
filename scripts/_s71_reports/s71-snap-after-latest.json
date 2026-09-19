@@ -1,0 +1,24 @@
+{
+  "label": "after",
+  "at": "2026-09-19T02:23:36.911Z",
+  "target": "staging",
+  "ref": "oojshofrpbfwsiypcecr",
+  "counts": {
+    "offers": 18,
+    "distribution_publications": 9,
+    "distribution_events": 72,
+    "distribution_destinations": 1,
+    "reward_ledger_entries": null,
+    "rewards_ledger": null,
+    "user_rewards": null,
+    "economy_ledger_entries": null,
+    "ledger_entries": null,
+    "attribution_events": null,
+    "click_attributions": null,
+    "affiliate_attributions": null,
+    "telegram_outbox": null,
+    "publication_jobs": null,
+    "offers_pending": 9
+  },
+  "errors": {}
+}

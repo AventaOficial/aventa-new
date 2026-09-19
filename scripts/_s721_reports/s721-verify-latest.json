@@ -1,0 +1,42 @@
+{
+  "campaign": "S7.2.1",
+  "at": "2026-09-19T02:55:19.323Z",
+  "target": "staging",
+  "ref": "oojshofrpbfwsiypcecr",
+  "machineId": "778cfbf5-294e-4866-883f-71e3046566cb",
+  "authUserExists": true,
+  "authEmail": "machine-supply-staging@aventa.internal",
+  "authError": null,
+  "profile": {
+    "id": "778cfbf5-294e-4866-883f-71e3046566cb",
+    "display_name": "Aventa Machine Supply (staging)",
+    "username": "aventa_machine_supply",
+    "role": "user",
+    "full_name": "machine-supply-staging"
+  },
+  "profileError": null,
+  "roleIsUser": true,
+  "notSeedAdmin": true,
+  "dedicatedCheck": {
+    "ok": true,
+    "reason": null
+  },
+  "resolveBotAuthorUserId": "778cfbf5-294e-4866-883f-71e3046566cb",
+  "resolveMatches": true,
+  "authUserCount": 2,
+  "authUserIds": [
+    {
+      "idPrefix": "778cfbf5",
+      "email": "machine-supply-staging@aventa.internal"
+    },
+    {
+      "idPrefix": "6aa733d4",
+      "email": "jafetalonsovazquez@gmail.com"
+    }
+  ],
+  "exactlyTwoUsers": true,
+  "flags": {
+    "machineWrites": false,
+    "distribution": false
+  }
+}

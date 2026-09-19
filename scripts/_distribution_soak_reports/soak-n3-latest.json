@@ -1,0 +1,143 @@
+{
+  "ok": true,
+  "at": "2026-09-19T03:58:35.646Z",
+  "n": 3,
+  "version": 20260920,
+  "destinationId": "c2222222-2222-4222-8222-222222222201",
+  "guards": {
+    "ok": true,
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "destinationId": "c2222222-2222-4222-8222-222222222201",
+    "destinationSlug": "telegram-staging-test",
+    "provider": "telegram",
+    "credentialRef": "TELEGRAM_BOT_TOKEN_STAGING",
+    "externalDestinationKeyPrefix": "-10043074225",
+    "activeDestinationCount": 1,
+    "engineEnabledInProcess": true
+  },
+  "offers": [
+    "d3333333-3333-4333-8333-3333333333a4",
+    "d3333333-3333-4333-8333-3333333333a1",
+    "d3333333-3333-4333-8333-333333333301"
+  ],
+  "executions": [
+    {
+      "offerId": "d3333333-3333-4333-8333-3333333333a4",
+      "publicationId": "3b6283db-e37c-4ec7-8006-d184928e528d",
+      "status": "failed",
+      "externalMessageId": null,
+      "idempotencyKey": "d3333333-3333-4333-8333-3333333333a4:c2222222-2222-4222-8222-222222222201:v20260920",
+      "idempotency": {
+        "rowsForKey": 1,
+        "secondEnqueueReused": true,
+        "sameKey": true
+      },
+      "drain": {
+        "ok": true,
+        "claimed": 1,
+        "published": 0,
+        "retryable": 0,
+        "failed": 1,
+        "unknownOutcome": 0,
+        "blockedCredential": 0
+      }
+    },
+    {
+      "offerId": "d3333333-3333-4333-8333-3333333333a1",
+      "publicationId": "affe2928-921c-4b4c-968c-8500c0069cea",
+      "status": "failed",
+      "externalMessageId": null,
+      "idempotencyKey": "d3333333-3333-4333-8333-3333333333a1:c2222222-2222-4222-8222-222222222201:v20260920",
+      "idempotency": {
+        "rowsForKey": 1,
+        "secondEnqueueReused": true,
+        "sameKey": true
+      },
+      "drain": {
+        "ok": true,
+        "claimed": 1,
+        "published": 0,
+        "retryable": 0,
+        "failed": 1,
+        "unknownOutcome": 0,
+        "blockedCredential": 0
+      }
+    },
+    {
+      "offerId": "d3333333-3333-4333-8333-333333333301",
+      "publicationId": "c3d7217f-9885-411a-8dd5-47f72d5fded4",
+      "status": "published",
+      "externalMessageId": "6",
+      "idempotencyKey": "d3333333-3333-4333-8333-333333333301:c2222222-2222-4222-8222-222222222201:v20260920",
+      "idempotency": {
+        "rowsForKey": 1,
+        "secondEnqueueReused": true,
+        "sameKey": true
+      },
+      "drain": {
+        "ok": true,
+        "claimed": 1,
+        "published": 1,
+        "retryable": 0,
+        "failed": 0,
+        "unknownOutcome": 0,
+        "blockedCredential": 0
+      }
+    }
+  ],
+  "opsSurface": {
+    "engineEnabled": false,
+    "matched": [
+      {
+        "id": "c3d7217f-9885-411a-8dd5-47f72d5fded4",
+        "status": "published",
+        "operatorStatus": "PUBLISHED",
+        "destinationId": "c2222222-2222-4222-8222-222222222201",
+        "externalMessageId": "6",
+        "lastEvent": "publish_success",
+        "requiresOperatorReconcile": false
+      }
+    ]
+  },
+  "idempotencySample": {
+    "rowsForKey": 1,
+    "secondEnqueueReused": true,
+    "sameKey": true
+  },
+  "firewall": {
+    "processDistributionFlagAfter": false,
+    "machineWritesAfter": false,
+    "before": {
+      "publications": 10,
+      "events": 78,
+      "offers": 23,
+      "creatorRewards": 0,
+      "affiliateLedger": 0,
+      "rewardOutboundClicks": 1,
+      "economicLedger": 0,
+      "attributionEvents": 0
+    },
+    "after": {
+      "publications": 13,
+      "events": 96,
+      "offers": 23,
+      "creatorRewards": 0,
+      "affiliateLedger": 0,
+      "rewardOutboundClicks": 1,
+      "economicLedger": 0,
+      "attributionEvents": 0
+    },
+    "deltas": {
+      "publications": 3,
+      "events": 18,
+      "offers": 0,
+      "creatorRewards": 0,
+      "affiliateLedger": 0,
+      "rewardOutboundClicks": 0,
+      "economicLedger": 0,
+      "attributionEvents": 0
+    }
+  },
+  "distributionStagingStatus": "CLOSED_PENDING_VALIDATION"
+}

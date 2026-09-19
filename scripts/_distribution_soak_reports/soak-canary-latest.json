@@ -1,0 +1,158 @@
+{
+  "ok": true,
+  "at": "2026-09-19T03:59:40.573Z",
+  "stagingRef": "oojshofrpbfwsiypcecr",
+  "guards": {
+    "ok": true,
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "destinationId": "c2222222-2222-4222-8222-222222222201",
+    "destinationSlug": "telegram-staging-test",
+    "provider": "telegram",
+    "credentialRef": "TELEGRAM_BOT_TOKEN_STAGING",
+    "externalDestinationKeyPrefix": "-10043074225",
+    "activeDestinationCount": 1,
+    "engineEnabledInProcess": true
+  },
+  "offerId": "a1111111-1111-4111-8111-111111111101",
+  "destinationId": "c2222222-2222-4222-8222-222222222201",
+  "distributionVersion": 20260920,
+  "idempotencyKey": "a1111111-1111-4111-8111-111111111101:c2222222-2222-4222-8222-222222222201:v20260920",
+  "existingBefore": null,
+  "enqueue": {
+    "first": {
+      "ok": true,
+      "created": 1,
+      "reused": 0,
+      "publicationIds": [
+        "fc1a6140-a49f-40b1-a051-8a9842d8c4ac"
+      ]
+    },
+    "second": {
+      "ok": true,
+      "created": 0,
+      "reused": 1,
+      "publicationIds": [
+        "fc1a6140-a49f-40b1-a051-8a9842d8c4ac"
+      ]
+    }
+  },
+  "drain": {
+    "ok": true,
+    "claimed": 1,
+    "published": 1,
+    "retryable": 0,
+    "failed": 0,
+    "unknownOutcome": 0,
+    "blockedCredential": 0
+  },
+  "publication": {
+    "id": "fc1a6140-a49f-40b1-a051-8a9842d8c4ac",
+    "status": "published",
+    "idempotency_key": "a1111111-1111-4111-8111-111111111101:c2222222-2222-4222-8222-222222222201:v20260920",
+    "external_message_id": "8",
+    "attempt_count": 1,
+    "destination_id": "c2222222-2222-4222-8222-222222222201",
+    "last_error_code": null,
+    "last_error_message": null,
+    "updated_at": "2026-09-19T03:59:36.562+00:00",
+    "published_at": "2026-09-19T03:59:36.562+00:00"
+  },
+  "events": [
+    {
+      "event_type": "publication_created",
+      "created_at": "2026-09-19T03:59:35.098316+00:00",
+      "meta": {
+        "offer_id": "a1111111-1111-4111-8111-111111111101",
+        "provider": "telegram",
+        "destination_id": "c2222222-2222-4222-8222-222222222201",
+        "distribution_version": 20260920,
+        "eligibility_decision": "ELIGIBLE"
+      }
+    },
+    {
+      "event_type": "publication_attempted",
+      "created_at": "2026-09-19T03:59:36.528109+00:00",
+      "meta": {
+        "phase": "claim",
+        "attempt_count": 1
+      }
+    },
+    {
+      "event_type": "lease_acquired",
+      "created_at": "2026-09-19T03:59:36.652023+00:00",
+      "meta": {
+        "attempt": 1,
+        "lease_owner": "drain-worker",
+        "idempotency_key": "a1111111-1111-4111-8111-111111111101:c2222222-2222-4222-8222-222222222201:v20260920",
+        "lease_expires_at": "2026-09-19T04:04:36.562Z",
+        "lease_acquired_at": "2026-09-19T03:59:36.562Z"
+      }
+    },
+    {
+      "event_type": "publication_attempted",
+      "created_at": "2026-09-19T03:59:37.052791+00:00",
+      "meta": {
+        "phase": "publish_attempt",
+        "provider": "telegram"
+      }
+    },
+    {
+      "event_type": "publication_published",
+      "created_at": "2026-09-19T03:59:37.990253+00:00",
+      "meta": {
+        "provider": "telegram",
+        "external_message_id": "8"
+      }
+    },
+    {
+      "event_type": "publish_success",
+      "created_at": "2026-09-19T03:59:38.118969+00:00",
+      "meta": {
+        "provider": "telegram",
+        "external_message_id": "8"
+      }
+    }
+  ],
+  "idempotency": {
+    "rowsForKey": 1,
+    "secondEnqueueReused": true,
+    "sameKey": true
+  },
+  "firewall": {
+    "processDistributionFlagAfter": false,
+    "machineWritesAfter": false,
+    "before": {
+      "publications": 14,
+      "events": 102,
+      "offers": 23,
+      "creatorRewards": 0,
+      "affiliateLedger": 0,
+      "rewardOutboundClicks": 1,
+      "economicLedger": 0,
+      "attributionEvents": 0
+    },
+    "after": {
+      "publications": 15,
+      "events": 108,
+      "offers": 23,
+      "creatorRewards": 0,
+      "affiliateLedger": 0,
+      "rewardOutboundClicks": 1,
+      "economicLedger": 0,
+      "attributionEvents": 0
+    },
+    "deltas": {
+      "publications": 1,
+      "events": 6,
+      "offers": 0,
+      "creatorRewards": 0,
+      "affiliateLedger": 0,
+      "rewardOutboundClicks": 0,
+      "economicLedger": 0,
+      "attributionEvents": 0
+    }
+  },
+  "telegramReal": true,
+  "note": "Provider call used TELEGRAM_BOT_TOKEN_STAGING against allowlisted staging destination only."
+}

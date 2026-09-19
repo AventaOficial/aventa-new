@@ -48,18 +48,37 @@ describe('resolveConversionAttribution', () => {
 
   it('click existente → attributed', async () => {
     const sb = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn(async () => ({
-              data: { id: 'click-1', offer_id: 'offer-1' },
-              error: null,
+      from: vi.fn((table: string) => {
+        if (table === 'offers') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+              })),
+            })),
+          };
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({
+                data: {
+                  id: 'click-1',
+                  offer_id: 'offer-1',
+                  clicker_user_id: null,
+                  created_at: '2026-09-18T11:00:00.000Z',
+                },
+                error: null,
+              })),
             })),
           })),
-        })),
-      })),
+        };
+      }),
     };
-    const r = await resolveConversionAttribution(sb as never, { clickId: 'click-1' });
+    const r = await resolveConversionAttribution(sb as never, {
+      clickId: 'click-1',
+      conversionAt: '2026-09-18T12:00:00.000Z',
+    });
     expect(r.attributionStatus).toBe('attributed');
     expect(r.offerId).toBe('offer-1');
   });
@@ -81,7 +100,12 @@ describe('resolveConversionAttribution', () => {
 });
 
 function mockEconomyDb(opts: {
-  click?: { id: string; offer_id: string } | null;
+  click?: {
+    id: string;
+    offer_id: string;
+    clicker_user_id?: string | null;
+    created_at?: string;
+  } | null;
   existingConversion?: Record<string, unknown> | null;
   existingCommission?: Record<string, unknown> | null;
   uniqueOnInsert?: 'conversion' | 'commission' | null;
@@ -90,14 +114,31 @@ function mockEconomyDb(opts: {
   const events: unknown[] = [];
   let conversionSelectMode: 'by_id' | 'by_external' = 'by_id';
 
+  const clickRow = opts.click
+    ? {
+        ...opts.click,
+        clicker_user_id: opts.click.clicker_user_id ?? null,
+        created_at: opts.click.created_at ?? '2026-09-16T12:00:00.000Z',
+      }
+    : null;
+
   const sb = {
     from: vi.fn((table: string) => {
+      if (table === 'offers') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+            })),
+          })),
+        };
+      }
       if (table === 'reward_outbound_clicks') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               maybeSingle: vi.fn(async () => ({
-                data: opts.click ?? null,
+                data: clickRow,
                 error: null,
               })),
             })),
@@ -219,7 +260,11 @@ function mockEconomyDb(opts: {
 describe('recordConversion', () => {
   it('NEW conversion attributed + no money tables', async () => {
     const { sb, inserts, events } = mockEconomyDb({
-      click: { id: 'click-1', offer_id: 'offer-1' },
+      click: {
+        id: 'click-1',
+        offer_id: 'offer-1',
+        created_at: '2026-09-16T12:00:00.000Z',
+      },
     });
     const r = await recordConversion(sb as never, {
       source: 'api',

@@ -1,0 +1,39 @@
+{
+  "campaign": "S7",
+  "mode": "read_only",
+  "runId": "s7-diag-1789784118101",
+  "startedAt": "2026-09-19T02:15:18.100Z",
+  "finishedAt": "2026-09-19T02:15:18.105Z",
+  "configSnapshot": {
+    "BOT_INGEST_ENABLED": false,
+    "BOT_INGEST_MACHINE_PENDING_WRITES": false,
+    "botUserConfigured": false,
+    "botAuthorDualMode": false,
+    "botUserIdsForQuotaCount": 0,
+    "workerMaxPerRun": 10,
+    "dailyMaxOffers": 120,
+    "discoverMlEnabled": false,
+    "runGateBlock": "disabled",
+    "authoritativeScheduler": {
+      "kind": "github_actions",
+      "workflow": ".github/workflows/mercadolibre-worker.yml",
+      "schedule": "7,37 * * * *",
+      "ingestPath": "/api/cron/bot-ingest-candidates",
+      "discoveryOnlyDefault": true
+    },
+    "discoveryJsonPath": "E:\\AVENTA NEW\\aventa-new\\scripts\\_smoke-gate-v2-discovery.json",
+    "discoveryJsonExists": true,
+    "discoveryCandidateCount": 15
+  },
+  "staticBottleneck": {
+    "bottleneck": "ingest_disabled",
+    "detail": "BOT_INGEST_ENABLED is off"
+  },
+  "dryBatchOps": null,
+  "notes": [
+    "GHA defaults WORKER_DISCOVERY_ONLY=1 → dryRun on POST (no DB insert).",
+    "Server requires BOT_INGEST_MACHINE_PENDING_WRITES=1 for real pending inserts (default OFF).",
+    "This script never enables machine writes.",
+    "For controlled staging inserts use scripts/s67-machine-insert-canary.ts --execute (cap≤3)."
+  ]
+}

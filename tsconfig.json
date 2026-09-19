@@ -36,7 +36,6 @@
     "supabase",
     "workers",
     "scripts",
-    "archived",
-    "lib/distribution/c3-wip"
+    "archived"
   ]
 }

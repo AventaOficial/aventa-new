@@ -274,11 +274,19 @@ function candidateInsufficientEvidence(
   });
 }
 
+const WRITES_ENV = 'BOT_INGEST_MACHINE_PENDING_WRITES';
+
+function withWritesEnabled() {
+  process.env[WRITES_ENV] = '1';
+}
+
 describe('FASE 4.5.1 ml_worker shadow wiring', () => {
   beforeEach(() => {
     resetAutonomousDecisionMetrics();
     resetHunterEnrichmentMetrics();
     resetDealVerifierMetrics();
+    // S6.6+: machine pending writes default OFF. Tests that assert insert must enable explicitly.
+    delete process.env[WRITES_ENV];
     vi.mocked(loadBotIngestConfig).mockReturnValue(cfg());
     vi.mocked(evaluateDealSafe).mockImplementation(() => verifier());
     vi.mocked(insertIngestedOffer).mockResolvedValue({ ok: true, offerId: 'offer-1' });
@@ -291,6 +299,7 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
   });
 
   it('M. con el camino legacy apagado el candidato entra como pending, no approved', async () => {
+    withWritesEnabled();
     vi.mocked(evaluateDealSafe).mockReturnValue(
       verifier({ decision: 'auto_approve', score: 95, ingestDecision: 'auto_approve' })
     );
@@ -432,6 +441,7 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
   });
 
   it('A. candidato ml_worker llega a enrichment + shadow cuando corresponde', async () => {
+    withWritesEnabled();
     const report = await processExternalWorkerBatch({ candidates: [candidate()] });
     expect(report.summary.inserted).toBe(1);
     expect(vi.mocked(enrichParsedOfferMetadata)).toHaveBeenCalledTimes(1);
@@ -454,6 +464,7 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
 
     resetAutonomousDecisionMetrics();
     resetHunterEnrichmentMetrics();
+    withWritesEnabled();
     vi.mocked(insertIngestedOffer).mockResolvedValueOnce({
       ok: false,
       duplicate: true,
@@ -485,6 +496,7 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
   });
 
   it('D. insertado queda observado; quality skip no entra a shadow', async () => {
+    withWritesEnabled();
     await processExternalWorkerBatch({ candidates: [candidate()] });
     expect(getAutonomousDecisionMetrics().evaluated).toBe(1);
     expect(vi.mocked(insertIngestedOffer)).toHaveBeenCalledTimes(1);
@@ -530,6 +542,7 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
   });
 
   it('H. duplicados se desglosan por tipo en el summary del ciclo', async () => {
+    withWritesEnabled();
     vi.mocked(insertIngestedOffer).mockResolvedValue({
       ok: false,
       duplicate: true,
@@ -547,12 +560,14 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
   });
 
   it('I. sin duplicados el summary no emite duplicateKindCounts', async () => {
+    withWritesEnabled();
     const report = await processExternalWorkerBatch({ candidates: [candidate()] });
     expect(report.summary.inserted).toBe(1);
     expect(report.summary.duplicateKindCounts).toBeUndefined();
   });
 
   it('J. persistencia shadow no rompe el ciclo cuando no hay cliente supabase', async () => {
+    withWritesEnabled();
     const report = await processExternalWorkerBatch({ candidates: [candidate()] });
     expect(report.ok).toBe(true);
     expect(report.summary.inserted).toBe(1);
@@ -583,7 +598,9 @@ describe('FASE 4.5.1 ml_worker shadow wiring', () => {
         (r) =>
           r.status === 'skipped' &&
           'reason' in r &&
-          String(r.reason).startsWith('quality_gate:'),
+          (String(r.reason).startsWith('quality_gate:') ||
+            String(r.reason).startsWith('s61_gate:') ||
+            String(r.reason).startsWith('s61_fail_closed:')),
       ),
     ).toBe(true);
   });

@@ -1,0 +1,991 @@
+{
+  "meta": {
+    "mode": "S7.2_CONTROLLED_STAGING_SUPPLY",
+    "generatedAt": "2026-09-19T02:55:34.916Z",
+    "safety": {
+      "target": "staging",
+      "ref": "oojshofrpbfwsiypcecr",
+      "expected": "oojshofrpbfwsiypcecr",
+      "refOk": true,
+      "stagingOnly": true,
+      "writesFlagBefore": false,
+      "distributionEnabled": false,
+      "execute": true,
+      "windowCap": 5,
+      "hardCap": 5,
+      "authorIdPrefix": "778cfbf5",
+      "authorOk": true,
+      "authorReason": null,
+      "seedAuthorForbidden": "6aa733d4"
+    },
+    "author": {
+      "id": "778cfbf5-294e-4866-883f-71e3046566cb",
+      "idPrefix": "778cfbf5",
+      "display_name": "Aventa Machine Supply (staging)",
+      "username": "aventa_machine_supply",
+      "role": "user"
+    },
+    "windowCap": 5,
+    "hardCap": 5
+  },
+  "dryRun": {
+    "wouldInsertCount": 15,
+    "suppressed": 0,
+    "duplicates": 0,
+    "failed": 0
+  },
+  "selection": {
+    "poolSize": 15,
+    "eligibleCount": 7,
+    "selected": [
+      {
+        "index": 7,
+        "url": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+        "sourceEventId": "ml_worker:ml:MLM60378714",
+        "idempotencyKey": "ro:d0ad3e19802b0750c67511b94b067f64",
+        "productFingerprint": "ml:MLM60378714",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_752345-MLA115575715300_092026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 8,
+        "url": "https://www.mercadolibre.com.mx/escalera-de-acero-inoxidable-tipo-tijera-plegable-4-peldanos-color-blanconegro/p/MLM38018157?wid=MLM38018157",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/escalera-de-acero-inoxidable-tipo-tijera-plegable-4-peldanos-color-blanconegro/p/MLM38018157?wid=MLM38018157",
+        "sourceEventId": "ml_worker:ml:MLM38018157",
+        "idempotencyKey": "ro:52e1ff8e6e94c595d9fbd14d526a54f6",
+        "productFingerprint": "ml:MLM38018157",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_830418-MLA116126551985_082026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 10,
+        "url": "https://www.mercadolibre.com.mx/compresor-de-aire-electrica-inalambrico-150psi-bupmova-bomba-inflador-de-llantas-power-bank-recargable-portatil-inflar-auto-5-modos-con-led-luz-y-pantalla-para-auto-motocicleta-neumaticos/p/MLM66345549?wid=MLM66345549",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/compresor-de-aire-electrica-inalambrico-150psi-bupmova-bomba-inflador-de-llantas-power-bank-recargable-portatil-inflar-auto-5-modos-con-led-luz-y-pantalla-para-auto-motocicleta-neumaticos/p/MLM66345549?wid=MLM66345549",
+        "sourceEventId": "ml_worker:ml:MLM66345549",
+        "idempotencyKey": "ro:8e1100c3ef557f1c47947e29eaa87803",
+        "productFingerprint": "ml:MLM66345549",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_678990-MLA113868479848_072026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 11,
+        "url": "https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote/p/MLM68709002?wid=MLM68709002",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote/p/MLM68709002?wid=MLM68709002",
+        "sourceEventId": "ml_worker:ml:MLM68709002",
+        "idempotencyKey": "ro:15f1d7c6ec6cb43f2bf47b0ad5ad0465",
+        "productFingerprint": "ml:MLM68709002",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_958823-MLA110048085248_042026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      },
+      {
+        "index": 12,
+        "url": "https://www.mercadolibre.com.mx/bancos-de-bar-giratorias-para-barra-cocina-restaurante-3-pz-acabado-de-la-estructura-mate-color-full-black/p/MLM48934950?wid=MLM48934950",
+        "canonicalUrl": "https://www.mercadolibre.com.mx/bancos-de-bar-giratorias-para-barra-cocina-restaurante-3-pz-acabado-de-la-estructura-mate-color-full-black/p/MLM48934950?wid=MLM48934950",
+        "sourceEventId": "ml_worker:ml:MLM48934950",
+        "idempotencyKey": "ro:67bd89cc39c88154b3ba7605dd3abac0",
+        "productFingerprint": "ml:MLM48934950",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "PARTIAL_NO_HISTORY"
+        ],
+        "evidenceLevel": "strong_card",
+        "confidence": null,
+        "dealScore": 15,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_905731-MLA95666755924_102025-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      }
+    ]
+  },
+  "before": {
+    "offersTotal": 18,
+    "offersPending": 9,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "rewardOutboundClicks": 1,
+    "creatorRewards": null,
+    "affiliateConversions": null,
+    "affiliateCommissions": null,
+    "errors": []
+  },
+  "live": {
+    "summary": {
+      "inserted": 5,
+      "duplicate": 0,
+      "skipped": 0,
+      "errors": 0,
+      "rejected": 0,
+      "autoApproved": 0,
+      "discovery": {
+        "cycleIndex": 0,
+        "seedsAvailable": 1,
+        "seedsAttempted": 1,
+        "seedsSuccessful": 1,
+        "seedsZeroResults": 0,
+        "seedsFailed": 0,
+        "bySeed": [
+          {
+            "id": "s72_staging_window",
+            "status": "ok",
+            "rawLinks": 5,
+            "accepted": 5
+          }
+        ]
+      },
+      "sourceStats": {
+        "env_urls": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "rss": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_api": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "amazon_asin": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_worker": {
+          "collected": 5,
+          "evaluated": 5,
+          "inserted": 5,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "walmart_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "bodega_aurrera_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "chedraui_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        }
+      },
+      "stageCounts": {
+        "collected": 5,
+        "evaluated": 5,
+        "resolved": 5,
+        "insertedAttempted": 5
+      },
+      "ops": {
+        "runId": "ec0a8134-7a61-4f3b-8686-924a352f04c0",
+        "startedAt": "2026-09-19T02:55:34.917Z",
+        "finishedAt": "2026-09-19T02:55:46.525Z",
+        "environment": "unknown",
+        "profile": "standard",
+        "dryRun": false,
+        "machinePendingWritesEnabled": true,
+        "bottleneck": "none",
+        "bottleneckDetail": "pending inserts occurred this run",
+        "discovered": 5,
+        "normalized": 5,
+        "identityValid": 5,
+        "identityInvalid": 0,
+        "qualityVerified": 5,
+        "suppressed": 0,
+        "duplicates": 0,
+        "liveEligible": 5,
+        "budgetRejected": 0,
+        "writeAttempts": 5,
+        "writeSuccess": 5,
+        "writeDuplicate": 0,
+        "writeFailed": 0,
+        "writesDisabled": 0,
+        "dryRunSimulated": 0,
+        "reasonCodes": {},
+        "durationMs": 11608
+      }
+    },
+    "results": [
+      {
+        "url": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "776b4432-057e-4627-aba7-e6f17fe4d5f6"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/escalera-de-acero-inoxidable-tipo-tijera-plegable-4-peldanos-color-blanconegro/p/MLM38018157?wid=MLM38018157",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "ee0779cb-2df6-47f4-b994-1cc4f8409177"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote/p/MLM68709002?wid=MLM68709002",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "f13920f9-358a-445f-9988-6a3e45b98e59"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/bancos-de-bar-giratorias-para-barra-cocina-restaurante-3-pz-acabado-de-la-estructura-mate-color-full-black/p/MLM48934950?wid=MLM48934950",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "a1d7c34f-e45d-4dd8-96e8-38d3d83e8ac5"
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/compresor-de-aire-electrica-inalambrico-150psi-bupmova-bomba-inflador-de-llantas-power-bank-recargable-portatil-inflar-auto-5-modos-con-led-luz-y-pantalla-para-auto-motocicleta-neumaticos/p/MLM66345549?wid=MLM66345549",
+        "source": "ml_worker",
+        "status": "inserted",
+        "offerId": "cdb95720-f097-440b-8a9e-af7bd1f3cff9"
+      }
+    ],
+    "insertedCount": 5,
+    "duplicateCount": 0,
+    "skippedCount": 0,
+    "errorCount": 0,
+    "offerIds": [
+      "776b4432-057e-4627-aba7-e6f17fe4d5f6",
+      "ee0779cb-2df6-47f4-b994-1cc4f8409177",
+      "f13920f9-358a-445f-9988-6a3e45b98e59",
+      "a1d7c34f-e45d-4dd8-96e8-38d3d83e8ac5",
+      "cdb95720-f097-440b-8a9e-af7bd1f3cff9"
+    ],
+    "offerRows": [
+      {
+        "id": "ee0779cb-2df6-47f4-b994-1cc4f8409177",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "product_fingerprint": "ml:MLM38018157",
+        "offer_url": "https://www.mercadolibre.com.mx/escalera-de-acero-inoxidable-tipo-tijera-plegable-4-peldanos-color-blanconegro/p/MLM38018157?wid=MLM38018157",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_830418-MLA116126551985_082026-AB.webp",
+        "price": 581.67,
+        "original_price": 1399,
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 58,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:55:44.435Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:55:44.435Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:lightning",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/escalera-de-acero-inoxidable-tipo-tijera-plegable-4-peldanos-color-blanconegro/p/MLM38018157?wid=MLM38018157",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:55:43.905Z",
+            "evidenceHash": "182b031b2b6e3fccf36c7f91c1fce59fe22f0c4e",
+            "observationId": "raw_0f96762883795194c9f395d9c4cb780c",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "ec0a8134-7a61-4f3b-8686-924a352f04c0:ml_worker:https://www.mercadolibre.com.mx/escalera-de-acero-inoxidable-tipo-tijera-plegable-4-peldanos-color-blanconegro/p/MLM38018157?wid=MLM38018157",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM38018157",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 | cat=hogar"
+      },
+      {
+        "id": "776b4432-057e-4627-aba7-e6f17fe4d5f6",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "product_fingerprint": "ml:MLM60378714",
+        "offer_url": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_752345-MLA115575715300_092026-AB.webp",
+        "price": 580.05,
+        "original_price": 1399,
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 58,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:55:43.746Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:55:43.746Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:lightning",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:55:42.851Z",
+            "evidenceHash": "86b12222725537e90202e390e0a4ab68c2b33895",
+            "observationId": "raw_dcaa598d1589f09d5a10cb4e11fab09a",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "ec0a8134-7a61-4f3b-8686-924a352f04c0:ml_worker:https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-ca",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM60378714",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 | cat=tecnologia"
+      },
+      {
+        "id": "f13920f9-358a-445f-9988-6a3e45b98e59",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "product_fingerprint": "ml:MLM68709002",
+        "offer_url": "https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote/p/MLM68709002?wid=MLM68709002",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_958823-MLA110048085248_042026-AB.webp",
+        "price": 669,
+        "original_price": 1320,
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 49,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:55:45.093Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:55:45.093Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:ofertas_hub",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote/p/MLM68709002?wid=MLM68709002",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:55:44.583Z",
+            "evidenceHash": "5bd7fd2c73385fedd09ed7e74851e1710096d914",
+            "observationId": "raw_92025eb5630be0a5412452b4e415ac74",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "ec0a8134-7a61-4f3b-8686-924a352f04c0:ml_worker:https://www.mercadolibre.com.mx/minoxidil-5-anacastel-6-pack-tratamiento-anticaida-crecimiento-de-cabello-barba-y-bigote/p/MLM68709002?wid=MLM68709002",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM68709002",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 | cat=belleza"
+      },
+      {
+        "id": "cdb95720-f097-440b-8a9e-af7bd1f3cff9",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "product_fingerprint": "ml:MLM66345549",
+        "offer_url": "https://www.mercadolibre.com.mx/compresor-de-aire-electrica-inalambrico-150psi-bupmova-bomba-inflador-de-llantas-power-bank-recargable-portatil-inflar-auto-5-modos-con-led-luz-y-pantalla-para-auto-motocicleta-neumaticos/p/MLM66345549?wid=MLM66345549",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_678990-MLA113868479848_072026-AB.webp",
+        "price": 280.17,
+        "original_price": 597,
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 38,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 72
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 53,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:55:46.387Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:55:46.387Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:lightning",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/compresor-de-aire-electrica-inalambrico-150psi-bupmova-bomba-inflador-de-llantas-power-bank-recargable-portatil-inflar-auto-5-modos-con-led-luz-y-pantalla-para-auto-motocicleta-neumaticos/p/MLM66345549?wid=MLM66345549",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:55:45.874Z",
+            "evidenceHash": "78977f648863577c378b724e13874a6663c6bd93",
+            "observationId": "raw_e5b2f42fd6309f040bc07e578a13f3d3",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "ec0a8134-7a61-4f3b-8686-924a352f04c0:ml_worker:https://www.mercadolibre.com.mx/compresor-de-aire-electrica-inalambrico-150psi-bupmova-bomba-inflador-de-llantas-power-bank-recargable-portatil-inflar-auto-5-modos-con-led-luz-y-pantalla-para-a",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM66345549",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=38 (moderación) | d0 p58 r60 c35 $72 | cat=autos"
+      },
+      {
+        "id": "a1d7c34f-e45d-4dd8-96e8-38d3d83e8ac5",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "product_fingerprint": "ml:MLM48934950",
+        "offer_url": "https://www.mercadolibre.com.mx/bancos-de-bar-giratorias-para-barra-cocina-restaurante-3-pz-acabado-de-la-estructura-mate-color-full-black/p/MLM48934950?wid=MLM48934950",
+        "image_url": "https://http2.mlstatic.com/D_Q_NP_2X_905731-MLA95666755924_102025-AB.webp",
+        "price": 1399.54,
+        "original_price": 2589,
+        "bot_meta": {
+          "v": 1,
+          "score": {
+            "total": 40,
+            "rating": 60,
+            "category": 35,
+            "discount": 0,
+            "historical": 10,
+            "popularity": 58,
+            "priceAppeal": 88
+          },
+          "source": "ml_worker",
+          "signals": {
+            "condition": "new",
+            "historyReady": false,
+            "listingTypeId": "worker_card",
+            "cardBadgePercent": 45,
+            "priceIntelSource": "aventa_ml",
+            "cardDiscountSource": "card_strikethrough",
+            "currentPriceProvenance": "source_explicit",
+            "originalPriceProvenance": "listing_card",
+            "effectiveDiscountPercent": 0,
+            "discountPercentProvenance": "derived",
+            "suspectedArtificialListPrice": true
+          },
+          "decision": "pending",
+          "dealScore": {
+            "score": 0,
+            "reasons": [
+              "insufficient_price_history",
+              "artificial_list_price_without_history"
+            ],
+            "version": "deal_signals.v1",
+            "warnings": [
+              "insufficient_price_history",
+              "suspected_artificial_list_price"
+            ],
+            "confidence": 0.15000000000000002,
+            "reasonCodes": [
+              "insufficient_evidence",
+              "suspicious_signal"
+            ],
+            "historicalLowClaimed": false
+          },
+          "capturedAt": "2026-09-19T02:55:45.734Z",
+          "gateAction": "insert_pending",
+          "gateReason": "passed_machine_quality_gates",
+          "dealQuality": {
+            "at": "2026-09-19T02:55:45.734Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Price Intel sospecha precio de lista artificial",
+              "Historial de precio insuficiente (no implica rechazo)",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)",
+              "Evidence Contract: listing WEAK + artificial_list_price + effectiveDiscount≤0 → NO_VERIFIED_DEAL",
+              "Descuento nominal no confiable por lista artificial"
+            ],
+            "decision": "NO_VERIFIED_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history",
+              "longer_price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence",
+              "artificial_list_price",
+              "insufficient_price_history",
+              "weak_listing_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "DISCARD"
+          },
+          "sourceDetail": "worker:playwright:card|seed:lightning",
+          "rawObservation": {
+            "url": "https://www.mercadolibre.com.mx/bancos-de-bar-giratorias-para-barra-cocina-restaurante-3-pz-acabado-de-la-estructura-mate-color-full-black/p/MLM48934950?wid=MLM48934950",
+            "sourceId": "ml_worker",
+            "dealScore": 0,
+            "observedAt": "2026-09-19T02:55:45.231Z",
+            "evidenceHash": "9e20e13ef88b2afce2fb4974d42226718ab063a6",
+            "observationId": "raw_de2ccdb2f08730bce78a7a81b0e01bb0",
+            "parserVersion": "ingest_parser.v1",
+            "schemaVersion": "raw_observation.v1",
+            "sourceEventId": "ec0a8134-7a61-4f3b-8686-924a352f04c0:ml_worker:https://www.mercadolibre.com.mx/bancos-de-bar-giratorias-para-barra-cocina-restaurante-3-pz-acabado-de-la-estructura-mate-color-full-black/p/MLM48934950?wid=MLM48934950",
+            "identityStatus": "exact",
+            "dealScoreVersion": "deal_signals.v1",
+            "processingStatus": "inserted",
+            "productFingerprint": "ml:MLM48934950",
+            "dealScoreConfidence": 0.15000000000000002,
+            "normalizationVersion": "ingest_normalize.v1"
+          },
+          "imageFromSource": true
+        },
+        "moderator_comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 | cat=hogar"
+      }
+    ],
+    "funnel": {
+      "discovered": 5,
+      "normalized": 5,
+      "identityValid": 5,
+      "qualityVerified": 5,
+      "liveEligible": 5,
+      "budgetRejected": 0,
+      "duplicates": 0,
+      "writeAttempted": 5,
+      "writeSuccess": 5,
+      "writeFailed": 0,
+      "pendingCreated": 5,
+      "reasonCodes": {}
+    }
+  },
+  "after": {
+    "offersTotal": 23,
+    "offersPending": 14,
+    "distributionPublications": 9,
+    "distributionEvents": 72,
+    "distributionDestinations": 1,
+    "rewardOutboundClicks": 1,
+    "creatorRewards": null,
+    "affiliateConversions": null,
+    "affiliateCommissions": null,
+    "errors": []
+  },
+  "deltas": {
+    "offersTotal": 5,
+    "offersPending": 5,
+    "distributionPublications": 0,
+    "distributionEvents": 0,
+    "distributionDestinations": 0,
+    "rewardOutboundClicks": 0,
+    "creatorRewards": null,
+    "affiliateConversions": null,
+    "affiliateCommissions": null
+  },
+  "idempotency": {
+    "url": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+    "retryResults": [
+      {
+        "url": "https://www.mercadolibre.com.mx/proyector-4k-profesional-30000lm-kinwodon-mini-proyector-portatil-android-13-smart-tv-rotacion-de-270-bluetooth-54-wifi6-proyector-de-video-1080p-para-cine-en-casa-y-al-aire-libre/p/MLM60378714?wid=MLM60378714",
+        "source": "ml_worker",
+        "status": "duplicate",
+        "duplicateKind": "pending_fresh",
+        "supplyOpportunity": false
+      }
+    ],
+    "secondInsertCreated": false,
+    "duplicateOrNoop": true
+  },
+  "focusClaim": {
+    "preferOfferId": "776b4432-057e-4627-aba7-e6f17fe4d5f6",
+    "claimed": true,
+    "claimedId": "776b4432-057e-4627-aba7-e6f17fe4d5f6",
+    "claimKind": "fresh",
+    "released": true,
+    "claimable": true
+  },
+  "capacity": {
+    "pendingCreated": 5,
+    "pendingAlreadyExisting": 9,
+    "qualityVerificationRate": 1,
+    "duplicateRate": 0,
+    "imageAvailability": 1,
+    "provenanceDistribution": {
+      "listing_card": 5
+    },
+    "averageDealScore": 15,
+    "moderationReadyCount": 5
+  },
+  "stop": {
+    "reason": null,
+    "completed": true
+  }
+}

@@ -25,6 +25,8 @@ export type DistributionPublishSuccess = {
 
 export type DistributionPublishFailure = {
   ok: false;
+  /** Definite failure path — may be retryable or terminal. */
+  unknownOutcome?: false;
   retryable: boolean;
   code: string;
   message: string;
@@ -32,7 +34,21 @@ export type DistributionPublishFailure = {
   blockedExternalCredential?: boolean;
 };
 
-export type DistributionPublishResult = DistributionPublishSuccess | DistributionPublishFailure;
+/**
+ * C3: provider response ambiguous (timeout / lost response).
+ * Must NOT be treated as FAILED or auto-retried — may have published externally.
+ */
+export type DistributionPublishUnknown = {
+  ok: false;
+  unknownOutcome: true;
+  code: string;
+  message: string;
+};
+
+export type DistributionPublishResult =
+  | DistributionPublishSuccess
+  | DistributionPublishFailure
+  | DistributionPublishUnknown;
 
 export type DistributionProviderAdapter = {
   readonly provider: 'telegram' | 'whatsapp' | 'web';

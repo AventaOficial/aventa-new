@@ -24,6 +24,7 @@ import {
   Users,
   Wrench,
   XCircle,
+  Radio,
 } from 'lucide-react';
 import type { Role } from '@/lib/admin/roles';
 import {
@@ -272,6 +273,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'submenu',
   },
   {
+    href: '/admin/distribution',
+    label: 'Distribution Operations',
+    domain: 'hangar',
+    frequency: 'diario',
+    audiences: ['founder', 'admin'],
+    visibility: 'submenu',
+  },
+  {
     href: '/admin/contexto',
     label: 'Contexto del sistema',
     domain: 'hangar',
@@ -339,6 +348,7 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/operaciones/trabajo': Briefcase,
   '/admin/sistemas/mapa': MapIcon,
   '/admin/infraestructura': Database,
+  '/admin/distribution': Radio,
   '/admin/health': Heart,
   '/admin/technical': Wrench,
   '/admin/hunter': BowArrow,
@@ -401,6 +411,8 @@ function canRoleAccessScreen(role: Role, screen: (typeof ADMIN_SCREEN_REGISTRY)[
     case '/admin/infraestructura':
     case '/admin/contexto':
       return canAccessOwnerOperationsPanel(role);
+    case '/admin/distribution':
+      return canAccessUsersLogs(role);
     case '/admin/technical':
     case '/admin/hunter':
       return role === 'owner';
@@ -581,6 +593,7 @@ export function getAdminMobileSectionTitle(pathname: string): string {
   if (
     pathname === '/admin/sistemas/mapa' ||
     pathname === '/admin/infraestructura' ||
+    pathname === '/admin/distribution' ||
     pathname === '/admin/contexto' ||
     pathname === '/admin/mantenimiento' ||
     pathname === '/admin/logs' ||

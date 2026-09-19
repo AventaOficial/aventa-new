@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { DISTRIBUTION_C3_EVENTS } from './constants';
 import { appendDistributionEvent } from './events';
+import { buildPublishingLease } from './reclaim';
 
 export const DISTRIBUTION_MAX_ATTEMPTS = 5;
 
@@ -48,10 +50,11 @@ export async function claimDistributionPublication(
  */
 export async function claimNextDistributionPublications(
   supabase: SupabaseClient,
-  options?: { limit?: number; nowMs?: number },
+  options?: { limit?: number; nowMs?: number; leaseOwner?: string },
 ): Promise<ClaimedPublication[]> {
   const limit = Math.max(1, Math.min(options?.limit ?? 10, 50));
   const nowIso = new Date(options?.nowMs ?? Date.now()).toISOString();
+  const leaseOwner = (options?.leaseOwner ?? 'drain-worker').slice(0, 120);
 
   const { data: candidates, error } = await supabase
     .from('distribution_publications')
@@ -86,10 +89,28 @@ export async function claimNextDistributionPublications(
 
     const pub = data as ClaimedPublication;
     claimed.push(pub);
+    const lease = buildPublishingLease({
+      publicationId: pub.id,
+      idempotencyKey: pub.idempotency_key,
+      attempt: pub.attempt_count,
+      leaseOwner,
+      acquiredAtIso: nowIso,
+    });
     await appendDistributionEvent(supabase, {
       publicationId: pub.id,
       eventType: 'publication_attempted',
       meta: { phase: 'claim', attempt_count: pub.attempt_count },
+    });
+    await appendDistributionEvent(supabase, {
+      publicationId: pub.id,
+      eventType: DISTRIBUTION_C3_EVENTS.lease_acquired,
+      meta: {
+        lease_owner: lease.leaseOwner,
+        lease_acquired_at: lease.leaseAcquiredAt,
+        lease_expires_at: lease.leaseExpiresAt,
+        attempt: lease.attempt,
+        idempotency_key: lease.idempotencyKey,
+      },
     });
   }
 

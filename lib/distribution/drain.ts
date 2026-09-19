@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase/server';
-import { isDistributionEngineEnabled } from './constants';
+import { DISTRIBUTION_C3_EVENTS, isDistributionEngineEnabled } from './constants';
 import { assertStagingTelegramCredentialRef, resolveDeploymentSurface } from './cronSafety';
 import {
   DISTRIBUTION_MAX_ATTEMPTS,
@@ -12,6 +12,7 @@ import { evaluateDistributionEligibilityFromSnapshot } from './eligibility';
 import { appendDistributionEvent } from './events';
 import { getDistributionProviderAdapter } from './providers/registry';
 import type { DistributionProviderAdapter } from './providers/types';
+import { markPublishingUnknownOutcome } from './reclaim';
 import { renderTelegramOfferMessage } from './render/telegramMessage';
 import { buildDistributionHopUrl } from './siteUrl';
 import type { DistributionProvider } from './types';
@@ -23,6 +24,7 @@ export type DrainResult = {
   published: number;
   retryable: number;
   failed: number;
+  unknownOutcome: number;
   blockedCredential: number;
 };
 
@@ -135,7 +137,7 @@ async function processOne(
     fetchImpl?: typeof fetch;
     nowMs: number;
   },
-): Promise<'published' | 'retryable' | 'failed' | 'blocked'> {
+): Promise<'published' | 'retryable' | 'failed' | 'blocked' | 'unknown'> {
   const dest = await loadDestination(supabase, pub.destination_id);
   if (!dest || dest.status !== 'active') {
     await supabase
@@ -259,7 +261,25 @@ async function processOne(
       eventType: 'publication_published',
       meta: { external_message_id: result.externalMessageId, provider: result.provider },
     });
+    await appendDistributionEvent(supabase, {
+      publicationId: pub.id,
+      eventType: DISTRIBUTION_C3_EVENTS.publish_success,
+      meta: { external_message_id: result.externalMessageId, provider: result.provider },
+    });
     return 'published';
+  }
+
+  // C3: ambiguous provider outcome — persist UNKNOWN, never auto-retry.
+  if (result.unknownOutcome === true) {
+    await markPublishingUnknownOutcome(supabase, {
+      publicationId: pub.id,
+      attemptCount: pub.attempt_count,
+      idempotencyKey: pub.idempotency_key,
+      code: result.code,
+      message: result.message,
+      nowMs: options.nowMs,
+    });
+    return 'unknown';
   }
 
   if (result.blockedExternalCredential) {
@@ -268,6 +288,11 @@ async function processOne(
   }
 
   if (result.retryable) {
+    await appendDistributionEvent(supabase, {
+      publicationId: pub.id,
+      eventType: DISTRIBUTION_C3_EVENTS.publish_failure,
+      meta: { code: result.code, retryable: true, attempt_count: pub.attempt_count },
+    });
     return markRetryable(supabase, pub, result.code, result.message);
   }
 
@@ -285,6 +310,11 @@ async function processOne(
     publicationId: pub.id,
     eventType: 'publication_failed',
     meta: { code: result.code, message: result.message.slice(0, 200) },
+  });
+  await appendDistributionEvent(supabase, {
+    publicationId: pub.id,
+    eventType: DISTRIBUTION_C3_EVENTS.publish_failure,
+    meta: { code: result.code, retryable: false, attempt_count: pub.attempt_count },
   });
   return 'failed';
 }
@@ -310,6 +340,7 @@ export async function drainDistributionPublications(options?: {
       published: 0,
       retryable: 0,
       failed: 0,
+      unknownOutcome: 0,
       blockedCredential: 0,
     };
   }
@@ -324,6 +355,7 @@ export async function drainDistributionPublications(options?: {
   let published = 0;
   let retryable = 0;
   let failed = 0;
+  let unknownOutcome = 0;
   let blockedCredential = 0;
 
   for (const pub of claimed) {
@@ -336,6 +368,7 @@ export async function drainDistributionPublications(options?: {
     if (outcome === 'published') published += 1;
     else if (outcome === 'retryable') retryable += 1;
     else if (outcome === 'blocked') blockedCredential += 1;
+    else if (outcome === 'unknown') unknownOutcome += 1;
     else failed += 1;
   }
 
@@ -345,6 +378,7 @@ export async function drainDistributionPublications(options?: {
     published,
     retryable,
     failed,
+    unknownOutcome,
     blockedCredential,
   };
 }

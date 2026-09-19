@@ -49,6 +49,8 @@ export const DISTRIBUTION_PUBLICATION_STATUSES = [
   'retryable',
   'failed',
   'cancelled',
+  /** C3: ambiguous external side effect — never auto-retry. */
+  'unknown_outcome',
 ] as const;
 
 export const DISTRIBUTION_PROVIDERS = ['telegram', 'whatsapp', 'web'] as const;
@@ -56,12 +58,48 @@ export const DISTRIBUTION_PROVIDERS = ['telegram', 'whatsapp', 'web'] as const;
 export const DISTRIBUTION_DESTINATION_KINDS = ['general', 'category', 'coupons'] as const;
 
 export const DISTRIBUTION_EVENT_TYPES = [
+  // C1
   'publication_created',
   'publication_attempted',
   'publication_published',
   'publication_failed',
   'publication_retryable',
+  // C3 semantic observability
+  'lease_acquired',
+  'lease_expired',
+  'reclaim_attempted',
+  'reclaimed',
+  'unknown_outcome',
+  'released_to_retryable',
+  'publish_success',
+  'publish_failure',
+  // Early WIP aliases (compat with prepared migration)
+  'publication_unknown_outcome',
+  'publication_reclaimed',
 ] as const;
+
+/** C3 structured event names (no PII / secrets / tokens). */
+export const DISTRIBUTION_C3_EVENTS = {
+  lease_acquired: 'lease_acquired',
+  lease_expired: 'lease_expired',
+  reclaim_attempted: 'reclaim_attempted',
+  reclaimed: 'reclaimed',
+  unknown_outcome: 'unknown_outcome',
+  released_to_retryable: 'released_to_retryable',
+  publish_success: 'publish_success',
+  publish_failure: 'publish_failure',
+} as const;
+
+/** Default publishing lease TTL while status=publishing (updated_at stamp). */
+export const DISTRIBUTION_PUBLISHING_LEASE_MS = 5 * 60_000;
+
+/** Operator-visible publication lifecycle labels (C3). */
+export const DISTRIBUTION_OPERATOR_STATUS_LABELS = {
+  publishing: 'PUBLISHING',
+  unknown_outcome: 'UNKNOWN_OUTCOME',
+  retryable: 'RETRYABLE',
+  published: 'PUBLISHED',
+} as const;
 
 /** Default version for first fan-out of an offer×destination. */
 export const DISTRIBUTION_DEFAULT_VERSION = 1;

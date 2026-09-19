@@ -1,0 +1,100 @@
+{
+  "ok": true,
+  "at": "2026-09-19T04:00:10.425Z",
+  "version": 20260920,
+  "destinationId": "c2222222-2222-4222-8222-222222222201",
+  "successfulPublications": [
+    {
+      "id": "c3d7217f-9885-411a-8dd5-47f72d5fded4",
+      "offer_id": "d3333333-3333-4333-8333-333333333301",
+      "destination_id": "c2222222-2222-4222-8222-222222222201",
+      "status": "published",
+      "external_message_id": "6",
+      "idempotency_key": "d3333333-3333-4333-8333-333333333301:c2222222-2222-4222-8222-222222222201:v20260920",
+      "distribution_version": 20260920,
+      "last_error_code": null,
+      "last_error_message": null
+    },
+    {
+      "id": "93a0de60-fa2f-424d-838f-cd1578f2d629",
+      "offer_id": "d3333333-3333-4333-8333-333333333303",
+      "destination_id": "c2222222-2222-4222-8222-222222222201",
+      "status": "published",
+      "external_message_id": "7",
+      "idempotency_key": "d3333333-3333-4333-8333-333333333303:c2222222-2222-4222-8222-222222222201:v20260920",
+      "distribution_version": 20260920,
+      "last_error_code": null,
+      "last_error_message": null
+    },
+    {
+      "id": "fc1a6140-a49f-40b1-a051-8a9842d8c4ac",
+      "offer_id": "a1111111-1111-4111-8111-111111111101",
+      "destination_id": "c2222222-2222-4222-8222-222222222201",
+      "status": "published",
+      "external_message_id": "8",
+      "idempotency_key": "a1111111-1111-4111-8111-111111111101:c2222222-2222-4222-8222-222222222201:v20260920",
+      "distribution_version": 20260920,
+      "last_error_code": null,
+      "last_error_message": null
+    }
+  ],
+  "failedExplained": [
+    {
+      "id": "3b6283db-e37c-4ec7-8006-d184928e528d",
+      "offer_id": "d3333333-3333-4333-8333-3333333333a4",
+      "destination_id": "c2222222-2222-4222-8222-222222222201",
+      "status": "failed",
+      "external_message_id": null,
+      "idempotency_key": "d3333333-3333-4333-8333-3333333333a4:c2222222-2222-4222-8222-222222222201:v20260920",
+      "distribution_version": 20260920,
+      "last_error_code": "telegram_bad_request",
+      "last_error_message": "Bad Request: failed to get HTTP URL content"
+    },
+    {
+      "id": "affe2928-921c-4b4c-968c-8500c0069cea",
+      "offer_id": "d3333333-3333-4333-8333-3333333333a1",
+      "destination_id": "c2222222-2222-4222-8222-222222222201",
+      "status": "failed",
+      "external_message_id": null,
+      "idempotency_key": "d3333333-3333-4333-8333-3333333333a1:c2222222-2222-4222-8222-222222222201:v20260920",
+      "distribution_version": 20260920,
+      "last_error_code": "telegram_bad_request",
+      "last_error_message": "Bad Request: failed to get HTTP URL content"
+    }
+  ],
+  "opsSurface": [
+    {
+      "id": "fc1a6140-a49f-40b1-a051-8a9842d8c4ac",
+      "status": "published",
+      "operatorStatus": "PUBLISHED",
+      "destinationId": "c2222222-2222-4222-8222-222222222201",
+      "externalMessageId": "8",
+      "lastEvent": "publish_success",
+      "requiresOperatorReconcile": false
+    },
+    {
+      "id": "93a0de60-fa2f-424d-838f-cd1578f2d629",
+      "status": "published",
+      "operatorStatus": "PUBLISHED",
+      "destinationId": "c2222222-2222-4222-8222-222222222201",
+      "externalMessageId": "7",
+      "lastEvent": "publish_success",
+      "requiresOperatorReconcile": false
+    },
+    {
+      "id": "c3d7217f-9885-411a-8dd5-47f72d5fded4",
+      "status": "published",
+      "operatorStatus": "PUBLISHED",
+      "destinationId": "c2222222-2222-4222-8222-222222222201",
+      "externalMessageId": "6",
+      "lastEvent": "publish_success",
+      "requiresOperatorReconcile": false
+    }
+  ],
+  "flags": {
+    "processDistributionEnabled": false,
+    "machineWrites": false,
+    "opsEngineEnabled": false
+  },
+  "distributionStagingStatus": "CLOSED"
+}

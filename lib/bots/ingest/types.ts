@@ -1,6 +1,7 @@
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 import type { DealQualificationResult } from '@/lib/hunter/dealQualification/types';
+import type { SupplyOpsRunSummary } from './supplyOpsRunSummary';
 
 export type IngestSourceId =
   | 'env_urls'
@@ -143,5 +144,10 @@ export type IngestCycleReport = {
       resolved: number;
       insertedAttempted: number;
     };
+    /**
+     * S7 — funnel operativo compacto (discovery → pending).
+     * Distingue dryRun / writes_disabled de inserts reales.
+     */
+    ops?: SupplyOpsRunSummary;
   };
 };

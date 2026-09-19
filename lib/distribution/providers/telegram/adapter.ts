@@ -132,11 +132,12 @@ export function createTelegramAdapter(options?: {
 
         const messageId = json.result?.message_id;
         if (messageId === undefined || messageId === null) {
+          // Ambiguous: Telegram may have accepted the message without returning id.
           return {
             ok: false,
-            retryable: true,
+            unknownOutcome: true,
             code: 'telegram_missing_message_id',
-            message: 'Telegram ok but message_id missing — treat as retryable cautiously',
+            message: 'Telegram ok but message_id missing — UNKNOWN_OUTCOME (do not auto-retry)',
           };
         }
 
@@ -148,10 +149,11 @@ export function createTelegramAdapter(options?: {
         };
       } catch (e) {
         const message = redactTelegramSecrets(e instanceof Error ? e.message : 'network_error');
+        // Timeout / network after request may mean provider accepted — UNKNOWN, not retryable.
         return {
           ok: false,
-          retryable: true,
-          code: 'telegram_network_error',
+          unknownOutcome: true,
+          code: 'telegram_network_or_timeout',
           message,
         };
       }

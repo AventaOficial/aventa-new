@@ -1,0 +1,82 @@
+{
+  "error": null,
+  "rows": [
+    {
+      "id": "29d3a499-c76b-4bd0-8a33-47b3d4b8f228",
+      "status": "pending",
+      "fp": "ml:MLM63723900",
+      "price": 498.75,
+      "original_price": 1325,
+      "hasImage": true,
+      "hasUrl": true,
+      "created_by": "6aa733d4",
+      "comment": "[bot-ingest v3] score=38 (moderación) | d0 p58 r60 c35 $72",
+      "provenance": "listing_card",
+      "currentProv": "source_explicit",
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "source": "ml_worker",
+      "locked_by": null
+    },
+    {
+      "id": "8c92bbcf-f411-4226-8523-0ea06d880ea2",
+      "status": "pending",
+      "fp": "ml:MLM67977902",
+      "price": 258.15,
+      "original_price": 635,
+      "hasImage": true,
+      "hasUrl": true,
+      "created_by": "6aa733d4",
+      "comment": "[bot-ingest v3] score=38 (moderación) | d0 p58 r60 c35 $72 |",
+      "provenance": "listing_card",
+      "currentProv": "source_explicit",
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "source": "ml_worker",
+      "locked_by": null
+    },
+    {
+      "id": "2af71ce8-1dfa-4c6f-ba59-242da382370e",
+      "status": "pending",
+      "fp": "ml:MLM74850561",
+      "price": 1310.16,
+      "original_price": 3399,
+      "hasImage": true,
+      "hasUrl": true,
+      "created_by": "6aa733d4",
+      "comment": "[bot-ingest v3] score=40 (moderación) | d0 p58 r60 c35 $88 |",
+      "provenance": "listing_card",
+      "currentProv": "source_explicit",
+      "gateAction": "insert_pending",
+      "gateReason": "passed_machine_quality_gates",
+      "source": "ml_worker",
+      "locked_by": null
+    }
+  ],
+  "counts": {
+    "creator_rewards": {
+      "count": null,
+      "err": null
+    },
+    "affiliate_ledger_entries": {
+      "count": null,
+      "err": null
+    },
+    "affiliate_conversions": {
+      "count": null,
+      "err": null
+    },
+    "affiliate_commissions": {
+      "count": null,
+      "err": null
+    },
+    "reward_outbound_clicks": {
+      "count": 1,
+      "err": null
+    },
+    "offer_events": {
+      "count": 14,
+      "err": null
+    }
+  }
+}

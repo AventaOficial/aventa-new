@@ -6,16 +6,26 @@ import {
   countBotOffersCreatedSinceMulti,
   getBotOfferCountStartUtc,
 } from '@/lib/bots/ingest/botIngestDailyState';
+import { isMachinePendingWriteEnabled } from '@/lib/bots/ingest/machineLiveInsertEligibility';
 import { createServerClient } from '@/lib/supabase/server';
 
-/** Objetivo si usas Vercel Pro o cron externo cada 15 min (no aplica en Hobby sin cron). */
-const CRON_SCHEDULE = '*/15 * * * *';
-const RUNS_PER_DAY_ESTIMATE = 96;
-const CRON_DEPLOYMENT_NOTE =
-  'En Vercel Hobby no puede haber cron del bot en vercel.json (máx. 1×/día). Para automatizar cada ~15 min: plan Pro y añade el job en vercel.json, o un servicio externo (GET con CRON_SECRET), o «Ejecutar ahora» en Trabajo.';
+/**
+ * S7 — authoritative machine supply scheduler is GitHub Actions ML worker
+ * → POST /api/cron/bot-ingest-candidates (not Vercel cron bot-ingest).
+ */
+const AUTHORITATIVE_SCHEDULER = {
+  kind: 'github_actions' as const,
+  workflow: '.github/workflows/mercadolibre-worker.yml',
+  schedule: '7,37 * * * *',
+  ingest_path: '/api/cron/bot-ingest-candidates',
+  discovery_only_default: true,
+  note:
+    'GHA sets WORKER_DISCOVERY_ONLY (default 1 → dryRun). Pending DB writes also require BOT_INGEST_MACHINE_PENDING_WRITES=1 and BOT_INGEST_ENABLED=1 plus bot author IDs. Vercel cron does not schedule bot-ingest.',
+};
 
 const TRACKED_ENV_KEYS = [
   'BOT_INGEST_ENABLED',
+  'BOT_INGEST_MACHINE_PENDING_WRITES',
   'BOT_INGEST_USER_ID',
   'BOT_INGEST_USER_ID_TECH',
   'BOT_INGEST_USER_ID_STAPLES',
@@ -70,6 +80,42 @@ function externalWorkerIngestEnabled(): boolean {
   return v === '1' || v === 'true' || v === 'yes';
 }
 
+function diagnoseOpsBottleneck(input: {
+  enabled: boolean;
+  paused: boolean;
+  hasAuthor: boolean;
+  machineWrites: boolean;
+  pendingCount: number | null;
+}): { bottleneck: string; detail: string } {
+  if (!input.enabled) {
+    return { bottleneck: 'ingest_disabled', detail: 'BOT_INGEST_ENABLED is off' };
+  }
+  if (input.paused) {
+    return { bottleneck: 'ingest_paused', detail: 'bot ingest paused by owner' };
+  }
+  if (!input.hasAuthor) {
+    return {
+      bottleneck: 'missing_bot_user',
+      detail: 'Configure BOT_INGEST_USER_ID or TECH+STAPLES pair',
+    };
+  }
+  if (!input.machineWrites) {
+    return {
+      bottleneck: 'writes_disabled',
+      detail:
+        'BOT_INGEST_MACHINE_PENDING_WRITES default OFF; GHA also defaults WORKER_DISCOVERY_ONLY=1 (dryRun)',
+    };
+  }
+  if ((input.pendingCount ?? 0) === 0) {
+    return {
+      bottleneck: 'pending_empty',
+      detail:
+        'Writes may be ON but queue empty — check last worker ops.bottleneck / S6.1 suppressions',
+    };
+  }
+  return { bottleneck: 'none', detail: 'machine pending offers present' };
+}
+
 /** Estado operativo del bot de ingesta para owner/admin. */
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -77,6 +123,7 @@ export async function GET(request: Request) {
 
   const cfg = loadBotIngestConfig();
   const pausedByOwner = await getBotIngestPausedFromDb();
+  const machinePendingWrites = isMachinePendingWriteEnabled();
 
   let recentOffers: Array<{
     id: string;
@@ -112,10 +159,12 @@ export async function GET(request: Request) {
   }
 
   const envStatus = Object.fromEntries(
-    TRACKED_ENV_KEYS.map((k) => [
-      k,
-      k === 'BOT_INGEST_EXTERNAL_WORKER' ? externalWorkerIngestEnabled() : hasEnvValue(k),
-    ])
+    TRACKED_ENV_KEYS.map((k) => {
+      if (k === 'BOT_INGEST_EXTERNAL_WORKER') return [k, externalWorkerIngestEnabled()];
+      if (k === 'BOT_INGEST_MACHINE_PENDING_WRITES') return [k, machinePendingWrites];
+      if (k === 'BOT_INGEST_ENABLED') return [k, cfg.enabled];
+      return [k, hasEnvValue(k)];
+    }),
   ) as Record<(typeof TRACKED_ENV_KEYS)[number], boolean>;
 
   const workerPostsCandidates = externalWorkerIngestEnabled();
@@ -126,28 +175,45 @@ export async function GET(request: Request) {
       (cfg.mlQueries.length > 0 || cfg.mlCategoryIds.length > 0 || cfg.mlUseDefaultQueries)) ||
     workerPostsCandidates;
 
-  const missingEnv: string[] = TRACKED_ENV_KEYS.filter((key) => !envStatus[key]);
+  const missingEnv: string[] = TRACKED_ENV_KEYS.filter((key) => {
+    if (key === 'BOT_INGEST_MACHINE_PENDING_WRITES') return false;
+    if (key === 'BOT_INGEST_ENABLED') return !cfg.enabled;
+    if (key === 'BOT_INGEST_EXTERNAL_WORKER') return !workerPostsCandidates;
+    return !envStatus[key];
+  });
   if (cfg.enabled && !hasIngestSources) {
     missingEnv.push(
-      'BOT_INGEST_fuentes: URLS, BOT_INGEST_DISCOVER_ML, BOT_INGEST_AMAZON_ASINS o BOT_INGEST_EXTERNAL_WORKER=1 (worker Railway → bot-ingest-candidates)'
+      'BOT_INGEST_fuentes: URLS, BOT_INGEST_DISCOVER_ML, BOT_INGEST_AMAZON_ASINS o BOT_INGEST_EXTERNAL_WORKER=1 (GHA worker → bot-ingest-candidates)',
     );
   }
 
   const avgNormal = (cfg.normalMaxPerRunMin + cfg.normalMaxPerRunMax) / 2;
   const estimatedProcessedPerDay = Math.min(
     cfg.dailyMaxOffers,
-    Math.round(avgNormal * RUNS_PER_DAY_ESTIMATE + cfg.boostMaxOffers)
+    Math.round(avgNormal * 48 + cfg.boostMaxOffers),
   );
+
+  const ops = diagnoseOpsBottleneck({
+    enabled: cfg.enabled,
+    paused: pausedByOwner,
+    hasAuthor: cfg.botUserIdsForQuota.length > 0,
+    machineWrites: machinePendingWrites,
+    pendingCount,
+  });
 
   return NextResponse.json({
     enabled: cfg.enabled && !pausedByOwner,
     env_ingest_enabled: cfg.enabled,
     paused_by_owner: pausedByOwner,
+    machine_pending_writes_enabled: machinePendingWrites,
+    ops_bottleneck: ops.bottleneck,
+    ops_bottleneck_detail: ops.detail,
+    scheduler: AUTHORITATIVE_SCHEDULER,
     cron: {
-      path: '/api/cron/bot-ingest',
-      schedule: CRON_SCHEDULE,
-      runs_per_day_estimate: RUNS_PER_DAY_ESTIMATE,
-      deployment_note: CRON_DEPLOYMENT_NOTE,
+      path: AUTHORITATIVE_SCHEDULER.ingest_path,
+      schedule: AUTHORITATIVE_SCHEDULER.schedule,
+      authoritative: AUTHORITATIVE_SCHEDULER.kind,
+      deployment_note: AUTHORITATIVE_SCHEDULER.note,
     },
     config: {
       bot_user_id_configured: cfg.botUserIdsForQuota.length > 0,
@@ -164,9 +230,6 @@ export async function GET(request: Request) {
       daily_max: cfg.dailyMaxOffers,
       candidate_pool_max: cfg.candidatePoolMax,
       min_discount_percent: cfg.minDiscountPercent,
-      // El panel histórico lee esta clave. Es el permiso de ESCRITURA, no la
-      // política que evalúa el shadow: si el bot no puede publicar, el operador
-      // tiene que ver Off.
       auto_approve_enabled: cfg.legacyAutoApproveWriteEnabled,
       auto_approve_policy_enabled: cfg.autoApproveEnabled,
       legacy_auto_approve_write_enabled: cfg.legacyAutoApproveWriteEnabled,
@@ -195,6 +258,7 @@ export async function GET(request: Request) {
       keepa_enabled: cfg.keepaEnabled,
       has_ingest_sources: hasIngestSources,
       external_worker_ingest: workerPostsCandidates,
+      machine_pending_writes: machinePendingWrites,
     },
     capacity: {
       estimated_inserted_ceiling_per_day: estimatedProcessedPerDay,

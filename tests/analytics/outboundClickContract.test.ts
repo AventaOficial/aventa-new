@@ -28,6 +28,7 @@ describe('outbound click canonical contract', () => {
     expect(src).toMatch(/outboundClickContract/);
     expect(src).toMatch(/OUTBOUND_EVENT_TYPE/);
     expect(src).toMatch(/recordOfferEvent/);
-    expect(src).toMatch(/recordOutboundClick/);
+    // Attribution SoT writer (canonical) — not a second analytics path.
+    expect(src).toMatch(/recordAttributedClick/);
   });
 });
