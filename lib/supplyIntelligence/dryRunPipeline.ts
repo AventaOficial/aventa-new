@@ -12,6 +12,9 @@ import type { BotIngestConfig } from '@/lib/bots/ingest/config';
 import {
   evaluateMachineCandidateGate,
   type CandidateGateAction,
+  type MachineEvidenceLevel,
+  type MachineQualityDecision,
+  type MachineQualityReasonCode,
 } from '@/lib/bots/ingest/candidateInsertGate';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
 import { scoreIngestCandidate } from '@/lib/bots/ingest/scoreIngestCandidate';
@@ -41,6 +44,7 @@ export type DryRunOutcomeStatus =
   | 'SCORED'
   | 'SUPPRESSED'
   | 'DUPLICATE'
+  | 'PARTIAL_EVIDENCE'
   | 'WOULD_INSERT'
   | 'FAILED';
 
@@ -54,6 +58,11 @@ export type DryRunItemResult = {
   dealScore: number | null;
   dealScoreVersion: string | null;
   gateAction: CandidateGateAction | null;
+  qualityDecision: MachineQualityDecision | null;
+  reasonCodes: MachineQualityReasonCode[];
+  evidenceLevel: MachineEvidenceLevel | null;
+  /** True only for VERIFIED_OPPORTUNITY — never for PARTIAL_EVIDENCE. */
+  wouldInsert: boolean;
   latencyMs: number;
   /** Explicit: dry-run never mutates offers. */
   offerInserted: false;
@@ -205,11 +214,16 @@ export function evaluateObservationDryRun(input: {
   meta: ParsedOfferMetadata | null;
   config: BotIngestConfig;
   duplicate?: { kind: DuplicateOfferKind; price?: number | null } | null;
+  pdpBlocked?: boolean | null;
 }): {
   status: DryRunOutcomeStatus;
   reason: string;
   dealScore: DealScore | null;
   gateAction: CandidateGateAction | null;
+  qualityDecision: MachineQualityDecision | null;
+  reasonCodes: MachineQualityReasonCode[];
+  evidenceLevel: MachineEvidenceLevel | null;
+  wouldInsert: boolean;
   observation: RawObservation;
 } {
   if (!input.meta) {
@@ -218,6 +232,10 @@ export function evaluateObservationDryRun(input: {
       reason: 'missing_normalized_meta',
       dealScore: null,
       gateAction: null,
+      qualityDecision: 'INVALID',
+      reasonCodes: ['MISSING_META'],
+      evidenceLevel: 'none',
+      wouldInsert: false,
       observation: withProcessingStatus(input.observation, 'failed'),
     };
   }
@@ -245,41 +263,70 @@ export function evaluateObservationDryRun(input: {
       ? { kind: input.duplicate.kind, price: input.duplicate.price ?? null }
       : null,
     dealScore,
+    pdpBlocked: input.pdpBlocked,
   });
+
+  const base = {
+    dealScore,
+    gateAction: gate.action,
+    qualityDecision: gate.qualityDecision,
+    reasonCodes: gate.reasonCodes,
+    evidenceLevel: gate.evidenceLevel,
+    wouldInsert: gate.wouldInsert,
+  };
 
   if (gate.action === 'invalid' || gate.action === 'suppress') {
     return {
+      ...base,
       status: 'SUPPRESSED',
       reason: gate.reason,
-      dealScore,
-      gateAction: gate.action,
       observation: withProcessingStatus(input.observation, 'suppressed'),
     };
   }
   if (gate.action === 'reject_quality') {
     return {
+      ...base,
       status: 'SUPPRESSED',
       reason: gate.reason,
-      dealScore,
-      gateAction: gate.action,
       observation: withProcessingStatus(input.observation, 'suppressed'),
     };
   }
   if (gate.action === 'duplicate') {
     return {
+      ...base,
       status: 'DUPLICATE',
       reason: gate.reason,
-      dealScore,
-      gateAction: gate.action,
       observation: withProcessingStatus(input.observation, 'duplicate'),
     };
   }
 
+  if (gate.qualityDecision === 'PARTIAL_EVIDENCE') {
+    return {
+      ...base,
+      status: 'PARTIAL_EVIDENCE',
+      reason: gate.reason,
+      wouldInsert: false,
+      observation: withProcessingStatus(input.observation, 'scored'),
+    };
+  }
+
+  // WOULD_INSERT only when gate.wouldInsert (VERIFIED_OPPORTUNITY).
+  if (!gate.wouldInsert || gate.qualityDecision !== 'VERIFIED_OPPORTUNITY') {
+    return {
+      ...base,
+      status: 'PARTIAL_EVIDENCE',
+      reason: gate.reason,
+      wouldInsert: false,
+      observation: withProcessingStatus(input.observation, 'scored'),
+    };
+  }
+
   return {
+    ...base,
     status: 'WOULD_INSERT',
-    reason: 'passed_machine_gates_dry_run',
-    dealScore,
+    reason: 'verified_opportunity_dry_run',
     gateAction: 'insert_pending',
+    wouldInsert: true,
     observation: withProcessingStatus(input.observation, 'scored'),
   };
 }
@@ -325,6 +372,10 @@ export async function runSourceAdapterDryRun(
         dealScore: null,
         dealScoreVersion: null,
         gateAction: null,
+        qualityDecision: null,
+        reasonCodes: [],
+        evidenceLevel: null,
+        wouldInsert: false,
         latencyMs: Date.now() - itemT0,
         offerInserted: false,
       });
@@ -351,10 +402,11 @@ export async function runSourceAdapterDryRun(
       meta,
       config: opts.config,
       duplicate: dup,
+      pdpBlocked: item.observation.fetchMetadata?.blocked === true,
     });
 
     if (evaluated.dealScore) scores.push(evaluated.dealScore.score);
-    if (evaluated.status === 'WOULD_INSERT') wouldInsertCount += 1;
+    if (evaluated.wouldInsert) wouldInsertCount += 1;
     if (evaluated.status === 'DUPLICATE') duplicateSuppressions += 1;
     if (evaluated.status === 'SUPPRESSED') {
       if (evaluated.gateAction === 'reject_quality') verifierRejects += 1;
@@ -372,6 +424,10 @@ export async function runSourceAdapterDryRun(
       dealScore: evaluated.dealScore?.score ?? null,
       dealScoreVersion: evaluated.dealScore?.version ?? DEAL_SCORE_VERSION,
       gateAction: evaluated.gateAction,
+      qualityDecision: evaluated.qualityDecision,
+      reasonCodes: evaluated.reasonCodes,
+      evidenceLevel: evaluated.evidenceLevel,
+      wouldInsert: evaluated.wouldInsert,
       latencyMs: Date.now() - itemT0,
       offerInserted: false,
     });

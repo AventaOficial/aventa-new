@@ -30,6 +30,8 @@ export {
   extractMercadoLibreItemId,
   extractMercadoLibreUserProductId,
   resolveMercadoLibreItem,
+  resolveMercadoLibreListingExternalId,
+  hasMercadoLibreListingIdentity,
 } from '@/lib/offers/resolveMercadoLibreItem';
 import {
   extractMercadoLibreItemId,

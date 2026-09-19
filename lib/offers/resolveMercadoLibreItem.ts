@@ -55,6 +55,8 @@ const DROP_QUERY_KEYS = new Set([
   'action',
   'ref',
   'ref_',
+  // Share analytics blob — not part of listing identity.
+  'ua',
 ]);
 
 const HOST_SITE: Record<string, string> = {
@@ -398,4 +400,41 @@ export function resolveMercadoLibreItem(rawUrl: string): MercadoLibreItemResolut
 /** Compat: devuelve solo itemId normalizado o null. */
 export function extractMercadoLibreItemId(rawUrl: string): string | null {
   return resolveMercadoLibreItem(rawUrl)?.itemId ?? null;
+}
+
+/**
+ * Canonical Mercado Libre listing external id (machine identity authority).
+ *
+ * Precedence (same as offerUrlFingerprint):
+ * 1. Item / catalog id (MLM… / MLA…) via extractMercadoLibreItemId
+ * 2. User-product id (MLMU…) via extractMercadoLibreUserProductId (/up/…)
+ *
+ * Used by dry-run adapter AND live toParsedMeta — never diverge.
+ */
+export function resolveMercadoLibreListingExternalId(
+  url: string,
+  canonicalUrl?: string | null,
+): string | null {
+  const primary = (canonicalUrl ?? url).trim();
+  const secondary = url.trim();
+  const ordered = primary === secondary ? [primary] : [primary, secondary];
+  for (const candidate of ordered) {
+    if (!candidate) continue;
+    const itemId = extractMercadoLibreItemId(candidate);
+    if (itemId) return itemId.toUpperCase();
+  }
+  for (const candidate of ordered) {
+    if (!candidate) continue;
+    const userProductId = extractMercadoLibreUserProductId(candidate);
+    if (userProductId) return userProductId.toUpperCase();
+  }
+  return null;
+}
+
+/** True when URL has a strong ML product identity (item or /up/ user-product). */
+export function hasMercadoLibreListingIdentity(
+  url: string,
+  canonicalUrl?: string | null,
+): boolean {
+  return resolveMercadoLibreListingExternalId(url, canonicalUrl) != null;
 }

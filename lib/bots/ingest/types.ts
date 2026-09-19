@@ -78,6 +78,8 @@ export type IngestItem = {
   sourceDetail?: string | null;
   /** Evidencia de oferta (Day-to-Day). No sustituye al Deal Verifier. */
   qualification?: DealQualificationResult;
+  /** Advisory: PDP fetch blocked (machine worker). Preserved for S6.1 gate. */
+  pdpBlocked?: boolean | null;
 };
 
 export type IngestSingleResult =

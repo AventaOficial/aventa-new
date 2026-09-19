@@ -130,6 +130,9 @@ export type RawObservationProvenanceSlice = {
   dealScoreVersion: string | null;
   dealScore: number | null;
   dealScoreConfidence: number | null;
+  /** Compact price provenance from payload.summary when present. */
+  originalPriceProvenance?: string | null;
+  cardDiscountSource?: string | null;
 };
 
 export function buildSourceEventIdempotencyKey(
@@ -243,6 +246,11 @@ export function buildRawObservation(input: {
   linkedOfferId?: string | null;
   /** Optional raw body size estimate — never the body. */
   payloadByteEstimate?: number | null;
+  /**
+   * Extra compact fields merged into payload.summary (price provenance, etc.).
+   * Never HTML / secrets — callers must keep this small and non-sensitive.
+   */
+  payloadSummaryExtra?: Record<string, unknown> | null;
 }): RawObservation {
   const observedAt = input.observedAt ?? new Date().toISOString();
   const url = input.url.trim();
@@ -289,6 +297,7 @@ export function buildRawObservation(input: {
       currency,
       merchant: input.merchant ?? identity.merchant,
       fingerprint: identity.productFingerprint,
+      ...(input.payloadSummaryExtra ?? {}),
     },
     byteEstimate: input.payloadByteEstimate ?? null,
   });
@@ -434,6 +443,13 @@ export function toProvenanceSlice(
   obs: RawObservation,
   dealScore?: DealScore | null,
 ): RawObservationProvenanceSlice {
+  const summary = obs.payload.summary ?? {};
+  const origProv =
+    typeof summary.originalPriceProvenance === 'string'
+      ? summary.originalPriceProvenance
+      : null;
+  const cardSrc =
+    typeof summary.cardDiscountSource === 'string' ? summary.cardDiscountSource : null;
   return {
     schemaVersion: RAW_OBSERVATION_SCHEMA_VERSION,
     observationId: obs.observationId,
@@ -450,6 +466,8 @@ export function toProvenanceSlice(
     dealScoreVersion: dealScore?.version ?? DEAL_SCORE_VERSION,
     dealScore: dealScore != null ? dealScore.score : null,
     dealScoreConfidence: dealScore != null ? dealScore.confidence : null,
+    originalPriceProvenance: origProv,
+    cardDiscountSource: cardSrc,
   };
 }
 

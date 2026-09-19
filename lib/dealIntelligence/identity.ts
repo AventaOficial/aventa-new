@@ -6,8 +6,8 @@
 import { createHash } from 'node:crypto';
 import {
   extractAmazonAsin,
-  extractMercadoLibreItemId,
   offerUrlFingerprint,
+  resolveMercadoLibreListingExternalId,
 } from '@/lib/offers/offerUrlFingerprint';
 import type { DealIdentity, DealIdentityMatch, EvidenceReference } from './types';
 
@@ -137,7 +137,7 @@ export function resolveIdentityFromUrl(input: {
       productFingerprint: `amz:${asin}`,
     });
   }
-  const ml = extractMercadoLibreItemId(url);
+  const ml = resolveMercadoLibreListingExternalId(url);
   if (ml) {
     return buildExactIdentity({
       merchant: input.merchant ?? 'mercadolibre',

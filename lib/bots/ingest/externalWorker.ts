@@ -43,7 +43,7 @@ import { getHunterHealth } from '@/lib/hunter/healthStore';
 import type { HunterHealthStatus, HunterSourceId } from '@/lib/hunter/types';
 import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
 import { enrichParsedOfferMetadata, isValidOfferImage } from '@/lib/hunter/enrichment';
-import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
+import { hasMercadoLibreListingIdentity } from '@/lib/offers/resolveMercadoLibreItem';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 import { qualifyParsedOfferMetadata } from '@/lib/hunter/dealQualification';
@@ -51,7 +51,14 @@ import {
   evaluateDealQualityFromParsedMeta,
   recordDealQualityDecision,
 } from '@/lib/hunter/dealQuality';
-import { mlWorkerMayInsertPending } from '@/lib/bots/ingest/mlWorkerPendingGate';
+import { preserveMachinePriceProvenance } from '@/lib/bots/ingest/machinePriceProvenance';
+import {
+  evaluateMachineLiveInsertEligibility,
+  isMachinePendingWriteEnabled,
+  machineGateSkipReason,
+  type MachineLiveInsertEligibility,
+} from '@/lib/bots/ingest/machineLiveInsertEligibility';
+import { resolveCanaryInsertCap } from '@/lib/bots/ingest/machineInsertCanary';
 import {
   persistIngestSupplyRuns,
   trackIngestQualification,
@@ -112,6 +119,14 @@ export type ExternalWorkerCandidate = {
   canonicalUrl?: string | null;
   sourceDetail?: string | null;
   signals?: Partial<ExternalCandidateSignals> | null;
+  /**
+   * Top-level worker evidence (machine path). Mirrored into signals by
+   * preserveMachinePriceProvenance — never trusted from client bot_meta.
+   */
+  cardDiscountSource?: ExternalCandidateSignals['cardDiscountSource'];
+  cardBadgePercent?: number | null;
+  /** Advisory: PDP fetch blocked (account-verification / anti-bot). */
+  pdpBlocked?: boolean | null;
 };
 
 export type ExternalWorkerBatchPayload = {
@@ -120,6 +135,11 @@ export type ExternalWorkerBatchPayload = {
   candidates: ExternalWorkerCandidate[];
   /** Qué superficies visitó el worker. Diagnóstico de supply: no altera el ciclo. */
   discovery?: WorkerDiscoveryStats | null;
+  /**
+   * S6.7 canary: when set, hard-clamps inserts to min(budget, canaryCap, 5).
+   * Omit for normal (non-canary) batches. Does not enable writes by itself.
+   */
+  canaryCap?: number | null;
 };
 
 /**
@@ -260,7 +280,8 @@ function normalizeSignals(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata | null {
+/** Live worker → ParsedOfferMetadata. Exported for dry/live identity parity (S6.8). */
+export function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata | null {
   const url = candidate.url?.trim();
   const title = candidate.title?.trim();
   const store = candidate.store?.trim() || 'Mercado Libre';
@@ -279,7 +300,11 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
     return null;
   }
   const storeLower = store.toLowerCase();
-  if (storeLower.includes('mercado') && !extractMercadoLibreItemId(canonicalUrl) && !extractMercadoLibreItemId(url)) {
+  // Same identity authority as dry-run / fingerprint: item id OR /up/MLMU user-product.
+  if (
+    storeLower.includes('mercado') &&
+    !hasMercadoLibreListingIdentity(url, canonicalUrl)
+  ) {
     return null;
   }
 
@@ -294,10 +319,16 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
   const discountPercent = Math.max(0, Math.min(MAX_WORKER_DISCOUNT_PERCENT, rawPercent));
 
   const baseSignals = normalizeSignals(candidate.signals) ?? {};
-  const signals: ExternalCandidateSignals = {
-    ...baseSignals,
-    listingTypeId: baseSignals.listingTypeId ?? 'worker_card',
-  };
+  const preserved = preserveMachinePriceProvenance({
+    salePrice: discountPrice,
+    originalPrice,
+    signals: {
+      ...baseSignals,
+      listingTypeId: baseSignals.listingTypeId ?? 'worker_card',
+    },
+    cardDiscountSource: candidate.cardDiscountSource ?? null,
+    cardBadgePercent: candidate.cardBadgePercent ?? null,
+  });
 
   return {
     canonicalUrl,
@@ -307,7 +338,7 @@ function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMetadata |
     discountPrice,
     originalPrice,
     discountPercent,
-    signals,
+    signals: preserved.signals,
   };
 }
 
@@ -435,6 +466,7 @@ export async function processExternalWorkerBatch(
       source: 'ml_worker',
       sourceDetail: candidate.sourceDetail?.trim() || 'worker:ml',
       precomputedMeta: meta,
+      pdpBlocked: candidate.pdpBlocked === true ? true : candidate.pdpBlocked === false ? false : null,
     });
   }
 
@@ -449,6 +481,8 @@ export async function processExternalWorkerBatch(
     total: number;
     breakdown: ScoreBreakdown;
     autonomous: AutonomousDecisionResult | null;
+    /** S6.6 — sole quality authority result (evaluateMachineCandidateGate). */
+    machineGate: MachineLiveInsertEligibility;
   };
   const resolved: Resolved[] = [];
   let scoreRejected = 0;
@@ -565,19 +599,32 @@ export async function processExternalWorkerBatch(
         continue;
       }
 
-      // V2 pending gate: bloquea insert/pending, no la observabilidad shadow.
-      if (item.source === 'ml_worker' && mlQuality) {
-        const pendingGate = mlWorkerMayInsertPending({
-          qualityDecision: mlQuality.decision,
-          recommendedAction: mlQuality.recommendedAction,
-          cardDiscountSource: meta.signals?.cardDiscountSource ?? null,
-        });
-        if (!pendingGate.allow) {
-          const reason = `quality_gate:${pendingGate.reason}`;
-          results.push({ url: item.url, source: item.source, status: 'skipped', reason });
-          markSourceSkip(sourceStats, item.source, reason);
-          continue;
-        }
+      // S6.6: S6.1 evaluateMachineCandidateGate is the sole quality authority.
+      // DQE (mlQuality) remains observational only — never insert bypass / never fallback.
+      // Early duplicate check optional here; final arbiter = insertIngestedOffer UNIQUE.
+      const dealScoreAdvisory = computeDealScore({
+        meta: {
+          discountPrice: meta.discountPrice,
+          originalPrice: meta.originalPrice,
+          discountPercent: meta.discountPercent,
+        },
+        signals: meta.signals ?? null,
+      });
+      const machineGate = evaluateMachineLiveInsertEligibility({
+        url: item.url,
+        meta,
+        config,
+        verifierDecision: verified.ingestDecision,
+        verifierReasons: verified.reasons,
+        duplicate: null,
+        dealScore: dealScoreAdvisory,
+        pdpBlocked: item.pdpBlocked,
+      });
+      if (!machineGate.eligible) {
+        const reason = machineGateSkipReason(machineGate);
+        results.push({ url: item.url, source: item.source, status: 'skipped', reason });
+        markSourceSkip(sourceStats, item.source, reason);
+        continue;
       }
 
       resolved.push({
@@ -587,6 +634,7 @@ export async function processExternalWorkerBatch(
         total: verified.score,
         breakdown: verified.breakdown,
         autonomous,
+        machineGate,
       });
       stageCounts.resolved += 1;
     } catch (error) {
@@ -611,9 +659,9 @@ export async function processExternalWorkerBatch(
   const organicCap = inMorningSustained
     ? randomIntInclusive(config.morningMaxPerRunMin, config.morningMaxPerRunMax)
     : randomIntInclusive(config.normalMaxPerRunMin, config.normalMaxPerRunMax);
-  // El worker trae un lote ya filtrado: no limitar a 1–3 como el ciclo API.
   const maxPerRunCap = Math.max(organicCap, config.workerMaxPerRun);
-  const maxInsertsThisBatch = Math.min(slotsDaily, maxPerRunCap);
+  const budgetCap = Math.min(slotsDaily, maxPerRunCap);
+  const maxInsertsThisBatch = resolveCanaryInsertCap(budgetCap, payload.canaryCap);
 
   let autoApproved = 0;
   let insertedThisRun = 0;
@@ -674,6 +722,15 @@ export async function processExternalWorkerBatch(
       continue;
     }
 
+    // S6.6 / S6.7: machine pending DB writes stay OFF until explicit canary activation.
+    // Quality may pass while writes remain disabled — no production insert by default.
+    if (!isMachinePendingWriteEnabled()) {
+      const reason = 'machine_pending_writes_disabled';
+      results.push({ url: row.item.url, source: row.item.source, status: 'skipped', reason });
+      markSourceSkip(sourceStats, row.item.source, reason);
+      continue;
+    }
+
     stageCounts.insertedAttempted += 1;
     try {
       const ins = await insertIngestedOffer(row.meta, config, {
@@ -687,7 +744,7 @@ export async function processExternalWorkerBatch(
         dealScore,
         rawObservation: rawSlice,
         gateAction: 'insert_pending',
-        gateReason: 'passed_machine_gates',
+        gateReason: row.machineGate.gateReason || 's61_verified_opportunity',
       });
       if (ins.ok) {
         insertedThisRun += 1;

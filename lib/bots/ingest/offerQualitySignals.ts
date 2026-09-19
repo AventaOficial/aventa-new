@@ -48,4 +48,9 @@ export type OfferQualitySignals = {
   cardDiscountSource?: 'badge_reconstructed' | 'card_strikethrough' | 'pdp' | 'unknown' | null;
   /** Badge % de la card: señal de discovery, no prueba de deal. */
   cardBadgePercent?: number | null;
+  /**
+   * Provenance of the product image URL (≠ originalPriceProvenance).
+   * listing_card = captured from search/listing card DOM.
+   */
+  imageProvenance?: 'listing_card' | 'pdp' | 'unknown' | null;
 };

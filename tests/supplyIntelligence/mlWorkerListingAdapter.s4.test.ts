@@ -20,6 +20,7 @@ import {
 } from '@/lib/supplyIntelligence';
 
 function goodCandidate(over: Partial<ExternalWorkerCandidate> = {}): ExternalWorkerCandidate {
+  const { signals: overSignals, ...rest } = over;
   return {
     url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-audifonos-bluetooth',
     canonicalUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-audifonos-bluetooth',
@@ -38,8 +39,11 @@ function goodCandidate(over: Partial<ExternalWorkerCandidate> = {}): ExternalWor
       savingsVsHabitualPct: 18,
       effectiveDiscountPercent: 50,
       suspectedArtificialListPrice: false,
+      originalPriceProvenance: 'listing_card',
+      cardDiscountSource: 'card_strikethrough',
+      ...(overSignals ?? {}),
     },
-    ...over,
+    ...rest,
   };
 }
 

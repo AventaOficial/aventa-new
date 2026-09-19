@@ -113,6 +113,17 @@ function baseConfig(over: Partial<BotIngestConfig> = {}): BotIngestConfig {
 }
 
 function goodMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetadata {
+  const baseSignals = {
+    effectiveDiscountPercent: 50,
+    soldQuantity: 200,
+    ratingAverage: 4.6,
+    ratingCount: 80,
+    historyReady: true,
+    savingsVsHabitualPct: 18,
+    originalPriceProvenance: 'listing_card' as const,
+    cardDiscountSource: 'card_strikethrough' as const,
+  };
+  const { signals: overSignals, ...rest } = over;
   return {
     canonicalUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-foo',
     title: 'Audífonos Bluetooth noise cancelling oferta',
@@ -122,14 +133,10 @@ function goodMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetadata 
     originalPrice: 1999,
     discountPercent: 50,
     signals: {
-      effectiveDiscountPercent: 50,
-      soldQuantity: 200,
-      ratingAverage: 4.6,
-      ratingCount: 80,
-      historyReady: true,
-      savingsVsHabitualPct: 18,
+      ...baseSignals,
+      ...(overSignals ?? {}),
     },
-    ...over,
+    ...rest,
   };
 }
 
@@ -288,6 +295,8 @@ describe('S2 candidate gate', () => {
       verifierDecision: 'pending',
     });
     expect(r.action).toBe('insert_pending');
+    expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
+    expect(r.wouldInsert).toBe(true);
   });
 
   it('duplicate gate returns duplicate without auto-replace', () => {

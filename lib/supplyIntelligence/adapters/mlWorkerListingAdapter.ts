@@ -24,10 +24,10 @@ import {
 import { resolveIdentityFromUrl } from '@/lib/dealIntelligence/identity';
 import { isOfferMercadoLibreHost } from '@/lib/offers/commerceHostAllowlist';
 import {
-  extractMercadoLibreItemId,
-  extractMercadoLibreUserProductId,
+  resolveMercadoLibreListingExternalId,
 } from '@/lib/offers/resolveMercadoLibreItem';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
+import { preserveMachinePriceProvenance } from '@/lib/bots/ingest/machinePriceProvenance';
 import type {
   SourceAdapter,
   SourceDiscoverContext,
@@ -88,26 +88,14 @@ function assertSafeMlUrl(raw: string): { ok: true; url: URL } | { ok: false; rea
 /**
  * Deterministic source-event id for a listing discovery.
  * Prefer ML item id; fall back to URL hash — never Math.random / uuid alone.
+ * Identity authority: resolveMercadoLibreListingExternalId (shared with live).
  */
-function resolveMlExternalListingId(url: string, canonicalUrl?: string | null): string | null {
-  const canonical = (canonicalUrl ?? url).trim();
-  const itemId =
-    extractMercadoLibreItemId(canonical) ?? extractMercadoLibreItemId(url.trim());
-  if (itemId) return itemId.toUpperCase();
-  // Worker cards often surface /up/MLMU… (user product). Stable for identity/dedupe;
-  // not an /items API id — same convention as offerUrlFingerprint.
-  const userProductId =
-    extractMercadoLibreUserProductId(canonical) ??
-    extractMercadoLibreUserProductId(url.trim());
-  return userProductId ? userProductId.toUpperCase() : null;
-}
-
 export function buildMlWorkerSourceEventId(input: {
   url: string;
   canonicalUrl?: string | null;
 }): string {
   const canonical = (input.canonicalUrl ?? input.url).trim();
-  const externalId = resolveMlExternalListingId(input.url, input.canonicalUrl);
+  const externalId = resolveMercadoLibreListingExternalId(input.url, input.canonicalUrl);
   if (externalId) return `ml_worker:ml:${externalId}`;
   return `ml_worker:url:${sha24(canonical.toLowerCase())}`;
 }
@@ -153,7 +141,7 @@ export function normalizeMlWorkerListing(
       ? Number(candidate.originalPrice)
       : null;
 
-  const itemId = resolveMlExternalListingId(urlRaw, canonicalRaw);
+  const itemId = resolveMercadoLibreListingExternalId(urlRaw, canonicalRaw);
   if (!itemId) {
     return { ok: false, reason: 'missing_external_id', inputSummary: summary };
   }
@@ -175,6 +163,31 @@ export function normalizeMlWorkerListing(
     canonicalUrl: canonicalRaw,
   });
 
+  // Preserve machine provenance — never invent from discountPercent alone.
+  const preserved = preserveMachinePriceProvenance({
+    salePrice: discountPrice,
+    originalPrice,
+    signals: {
+      listingTypeId: 'worker_card',
+      ...(candidate.signals ?? {}),
+    },
+    cardDiscountSource: candidate.cardDiscountSource ?? null,
+    cardBadgePercent: candidate.cardBadgePercent ?? null,
+  });
+
+  // Image provenance is independent of price provenance.
+  const signalsWithImage = {
+    ...preserved.signals,
+    ...(imageUrl
+      ? {
+          imageProvenance:
+            preserved.signals.imageProvenance ??
+            candidate.signals?.imageProvenance ??
+            'listing_card',
+        }
+      : {}),
+  };
+
   const meta: ParsedOfferMetadata = {
     canonicalUrl: canonicalRaw,
     title,
@@ -183,10 +196,7 @@ export function normalizeMlWorkerListing(
     discountPrice,
     originalPrice,
     discountPercent,
-    signals: {
-      listingTypeId: 'worker_card',
-      ...(candidate.signals ?? {}),
-    },
+    signals: signalsWithImage,
   };
 
   return {
@@ -201,13 +211,19 @@ export function normalizeMlWorkerListing(
 
 export function normalizedListingToRawObservation(
   normalized: NormalizedMlListing,
-  opts?: { observedAt?: string; supplyRunId?: string | null; sourceDetail?: string | null },
+  opts?: {
+    observedAt?: string;
+    supplyRunId?: string | null;
+    sourceDetail?: string | null;
+    pdpBlocked?: boolean | null;
+  },
 ): RawObservation {
   const { meta, sourceEventId } = normalized;
   const identity = resolveIdentityFromUrl({
     url: meta.canonicalUrl,
     merchant: 'mercadolibre',
   });
+  const s = meta.signals;
   return buildRawObservation({
     sourceId: ML_WORKER_ADAPTER_SOURCE_ID,
     sourceEventId,
@@ -225,14 +241,22 @@ export function normalizedListingToRawObservation(
     parserVersion: ML_WORKER_ADAPTER_PARSER_VERSION,
     normalizationVersion: RAW_NORMALIZATION_VERSION,
     processingStatus: 'normalized',
+    // Compact price provenance in existing payload.summary — no new table/column.
+    payloadSummaryExtra: {
+      originalPriceProvenance: s?.originalPriceProvenance ?? null,
+      cardDiscountSource: s?.cardDiscountSource ?? null,
+      cardBadgePercent: s?.cardBadgePercent ?? null,
+      imagePresent: Boolean(meta.imageUrl?.trim()),
+      imageProvenance: s?.imageProvenance ?? null,
+    },
     fetchMetadata: {
       httpStatus: 200,
       finalUrl: meta.canonicalUrl,
       redirectHops: null,
       contentType: 'application/json',
       timedOut: false,
-      blocked: false,
-      errorCode: null,
+      blocked: opts?.pdpBlocked === true,
+      errorCode: opts?.pdpBlocked === true ? 'pdp_blocked' : null,
     },
   });
 }
@@ -269,6 +293,7 @@ export function createMlWorkerListingAdapter(
             observedAt: (ctx.now ?? new Date()).toISOString(),
             supplyRunId: ctx.runId ?? null,
             sourceDetail: candidate.sourceDetail ?? null,
+            pdpBlocked: candidate.pdpBlocked === true,
           });
           // Ensure parser version from adapter is visible on observation
           items.push({

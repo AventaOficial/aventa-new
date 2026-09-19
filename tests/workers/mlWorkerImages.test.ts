@@ -12,7 +12,10 @@ import {
   isMercadoLibreApiItemId as workerIsApiItemId,
   pickBestCardImageUrl,
   inferItemId,
+  collectRawUrlsFromImgAttrs,
+  normalizeAbsoluteImageUrl,
 } from '../../workers/mercadolibre-worker/src/ml.mjs';
+// re-exports from cardImage via ml.mjs — keep worker entry stable for existing imports
 
 describe('worker card image extraction', () => {
   it('elige img src https de mlstatic', () => {
@@ -40,6 +43,21 @@ describe('worker card image extraction', () => {
     expect(pickBestCardImageUrl([])).toBeNull();
     expect(pickBestCardImageUrl([null, '', 'data:image/png;base64,aaa'])).toBeNull();
     expect(pickBestCardImageUrl(['https://cdn.example.com/placeholder-lazy.gif'])).toBeNull();
+  });
+
+  it('collectRawUrlsFromImgAttrs lee lazy attrs', () => {
+    const urls = collectRawUrlsFromImgAttrs({
+      src: '',
+      'data-src': 'https://http2.mlstatic.com/D_NQ_NP_LAZY-O.webp',
+    });
+    expect(pickBestCardImageUrl(urls)).toContain('LAZY');
+  });
+
+  it('normalizeAbsoluteImageUrl rechaza schemes inseguros', () => {
+    expect(normalizeAbsoluteImageUrl('javascript:1')).toBeNull();
+    expect(normalizeAbsoluteImageUrl('//http2.mlstatic.com/D_X.webp')).toBe(
+      'https://http2.mlstatic.com/D_X.webp',
+    );
   });
 });
 

@@ -3,8 +3,26 @@ import {
   parsePositiveLocalizedNumber,
   pdpEvidenceToEnrichmentFields,
 } from './extractPdpEvidence.mjs';
+import {
+  CARD_IMAGE_URL_ATTRS,
+  collectRawUrlsFromImgAttrs,
+  firstUrlFromSrcset,
+  normalizeAbsoluteImageUrl,
+  pickBestCardImageUrl,
+  resolveListingCardRoot,
+  scoreCardImageCandidate,
+} from './cardImage.mjs';
 
 export { extractMercadoLibrePdpEvidence, parsePositiveLocalizedNumber };
+export {
+  CARD_IMAGE_URL_ATTRS,
+  collectRawUrlsFromImgAttrs,
+  firstUrlFromSrcset,
+  normalizeAbsoluteImageUrl,
+  pickBestCardImageUrl,
+  resolveListingCardRoot,
+  scoreCardImageCandidate,
+};
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
@@ -48,57 +66,6 @@ export function isMercadoLibreApiItemId(raw) {
   // MLMU123… / MLAU123… ≠ items Uruguay MLU123…
   if (/^ML[A-Z]U\d+$/i.test(id)) return false;
   return true;
-}
-
-export function firstUrlFromSrcset(srcset) {
-  if (typeof srcset !== 'string' || !srcset.trim()) return null;
-  const parts = srcset
-    .split(',')
-    .map((part) => part.trim().split(/\s+/)[0])
-    .filter(Boolean)
-    .filter((u) => !u.startsWith('data:'));
-  if (parts.length === 0) return null;
-  // Último entry suele ser la resolución más alta (2x / Nw).
-  return parts[parts.length - 1] || parts[0];
-}
-
-function scoreCardImageCandidate(url) {
-  if (!url || typeof url !== 'string') return -1;
-  const u = url.trim();
-  if (!u || u.startsWith('data:')) return -1;
-  if (/placeholder|pixel|spacer|blank\.|data:image\/svg|\.svg(\?|$)/i.test(u)) return 0;
-  if (/mlstatic|meli/i.test(u)) return 10;
-  if (/^https?:\/\//i.test(u)) return 5;
-  return 1;
-}
-
-/**
- * Elige la mejor URL de imagen de card entre candidatas (src, data-src, srcset…).
- * Exportada para tests; la misma lógica se usa dentro de page.evaluate.
- */
-export function pickBestCardImageUrl(rawCandidates, origin = 'https://www.mercadolibre.com.mx') {
-  let best = null;
-  let bestScore = -1;
-  for (const raw of rawCandidates) {
-    if (typeof raw !== 'string' || !raw.trim()) continue;
-    let value = raw.trim();
-    if (value.startsWith('//')) value = `https:${value}`;
-    else if (value.startsWith('/')) {
-      try {
-        value = new URL(value, origin).href;
-      } catch {
-        value = normalizeAbsoluteImageUrl(value) || value;
-      }
-    }
-    const abs = normalizeAbsoluteImageUrl(value);
-    if (!abs) continue;
-    const score = scoreCardImageCandidate(abs);
-    if (score > bestScore) {
-      bestScore = score;
-      best = abs;
-    }
-  }
-  return bestScore > 0 ? best : null;
 }
 
 function canonicalizeUrl(url) {
@@ -182,15 +149,6 @@ function parseDiscountBadgePercent(raw) {
   return n;
 }
 
-function normalizeAbsoluteImageUrl(raw) {
-  const value = typeof raw === 'string' ? raw.trim() : '';
-  if (!value) return null;
-  if (value.startsWith('//')) return `https:${value}`;
-  if (/^https?:\/\//i.test(value)) return value;
-  if (value.startsWith('/')) return `https://http2.mlstatic.com${value}`;
-  return null;
-}
-
 /**
  * Shortlist desde card. El badge es DISCOVERY SIGNAL, no DEAL PROOF.
  * Si el original se reconstruye solo desde badge %, se marca `badge_reconstructed`
@@ -248,6 +206,7 @@ function candidateFromCard(card, minDiscountPercent) {
   }
 
   const canonicalUrl = canonicalizeUrl(card.href);
+  const imageUrl = normalizeAbsoluteImageUrl(card.image);
   return {
     ok: true,
     candidate: {
@@ -256,7 +215,7 @@ function candidateFromCard(card, minDiscountPercent) {
       href: card.href,
       title,
       store: 'Mercado Libre',
-      imageUrl: normalizeAbsoluteImageUrl(card.image),
+      imageUrl,
       discountPrice,
       originalPrice,
       discountPercent: nominalDiscountPercent,
@@ -278,6 +237,8 @@ function candidateFromCard(card, minDiscountPercent) {
           cardDiscountSource === 'card_strikethrough' ? 'listing_card' : 'unknown',
         discountPercentProvenance:
           cardDiscountSource === 'card_strikethrough' ? 'derived' : 'unknown',
+        // Image provenance ≠ price provenance.
+        ...(imageUrl ? { imageProvenance: 'listing_card' } : {}),
       },
     },
   };
@@ -398,18 +359,57 @@ async function extractCards(page) {
         .split(',')
         .map((part) => part.trim().split(/\s+/)[0])
         .filter(Boolean)
-        .filter((u) => !u.startsWith('data:'));
+        .filter((u) => !/^(data|blob|javascript):/i.test(u));
       if (parts.length === 0) return null;
       return parts[parts.length - 1] || parts[0];
+    };
+
+    const normalizeAbsoluteImageUrl = (raw) => {
+      const value = typeof raw === 'string' ? raw.trim() : '';
+      if (!value) return null;
+      if (/^(javascript|data|blob):/i.test(value)) return null;
+      if (value.startsWith('//')) return `https:${value}`;
+      if (/^https?:\/\//i.test(value)) {
+        try {
+          const u = new URL(value);
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+          if (/account-verification|\/login|\/registration/i.test(u.pathname)) return null;
+          if (/aventaofertas\.com$/i.test(u.hostname) || /\.aventaofertas\.com$/i.test(u.hostname)) {
+            return null;
+          }
+          return value;
+        } catch {
+          return null;
+        }
+      }
+      if (value.startsWith('/')) return `https://http2.mlstatic.com${value}`;
+      return null;
     };
 
     const scoreCardImageCandidate = (url) => {
       if (!url || typeof url !== 'string') return -1;
       const u = url.trim();
-      if (!u || u.startsWith('data:')) return -1;
-      if (/placeholder|pixel|spacer|blank\.|data:image\/svg|\.svg(\?|$)/i.test(u)) return 0;
-      if (/mlstatic|meli/i.test(u)) return 10;
-      if (/^https?:\/\//i.test(u)) return 5;
+      if (!u || /^(data|blob|javascript):/i.test(u)) return -1;
+      if (
+        /placeholder|pixel|spacer|blank\.|data:image\/svg|\.svg(\?|$)|1x1|tracking|sprite|storage\/splinter/i.test(
+          u,
+        )
+      ) {
+        return 0;
+      }
+      if (
+        /avatar|seller[-_]?logo|\/logo|favicon|icon[_-]?ui|nav-icon|meli-logo|loyalty|shipping-icon|free.?ship.?badge|aventaofertas\.com/i.test(
+          u,
+        )
+      ) {
+        return 0;
+      }
+      if (/mlstatic\.com\/.*D_(?:NQ_)?(?:NP_|Q_NP_)/i.test(u) || /mlstatic\.com\/D_(?:NQ_)?NP_/i.test(u)) {
+        return 12;
+      }
+      if (/mlstatic|meli/i.test(u)) return 4;
+      if (/^https:\/\//i.test(u)) return 5;
+      if (/^http:\/\//i.test(u)) return 3;
       return 1;
     };
 
@@ -429,31 +429,134 @@ async function extractCards(page) {
         } else if (!/^https?:\/\//i.test(value)) {
           continue;
         }
-        const score = scoreCardImageCandidate(value);
+        const abs = normalizeAbsoluteImageUrl(value);
+        if (!abs) continue;
+        const score = scoreCardImageCandidate(abs);
         if (score > bestScore) {
           bestScore = score;
-          best = value;
+          best = abs;
         }
       }
       return bestScore > 0 ? best : null;
     };
 
+    const IMAGE_ATTRS = [
+      'src',
+      'data-src',
+      'data-lazy',
+      'data-lazy-src',
+      'data-original',
+      'data-img',
+      'data-image',
+      'data-zoom',
+    ];
+
     const collectImgCandidates = (root) => {
       const out = [];
-      const imgs = Array.from(root.querySelectorAll('img'));
+      if (!root || typeof root.querySelectorAll !== 'function') return out;
+
+      const uiChrome =
+        '.andes-money-amount, [class*="andes-money-amount"], [class*="shipping"], [class*="loyalty"], [class*="poly-price"], [class*="poly-component__price"], [class*="badge"], nav, header, footer';
+      const isChrome = (el) => {
+        try {
+          return Boolean(el?.closest?.(uiChrome));
+        } catch {
+          return false;
+        }
+      };
+
+      const pictureSel =
+        '.poly-component__picture, [class*="ui-search-result__image"], [class*="ui-search-result-image"], picture';
+      let pictureRoots = [];
+      try {
+        pictureRoots = Array.from(root.querySelectorAll(pictureSel));
+      } catch {
+        pictureRoots = [];
+      }
+
+      const imgs =
+        pictureRoots.length > 0
+          ? pictureRoots.flatMap((pr) => Array.from(pr.querySelectorAll('img')).concat(pr.tagName === 'IMG' ? [pr] : []))
+          : Array.from(root.querySelectorAll('img'));
+
       for (const img of imgs) {
-        out.push(img.getAttribute('src'));
-        out.push(img.getAttribute('data-src'));
+        if (isChrome(img)) continue;
+        for (const attr of IMAGE_ATTRS) {
+          out.push(img.getAttribute(attr));
+        }
         out.push(firstUrlFromSrcset(img.getAttribute('data-srcset') || ''));
+        out.push(firstUrlFromSrcset(img.getAttribute('data-lazy-srcset') || ''));
         out.push(firstUrlFromSrcset(img.getAttribute('srcset') || ''));
         out.push(img.currentSrc || null);
+      }
+      const sources =
+        pictureRoots.length > 0
+          ? pictureRoots.flatMap((pr) => Array.from(pr.querySelectorAll('source')))
+          : Array.from(root.querySelectorAll('picture source'));
+      for (const source of sources) {
+        if (isChrome(source)) continue;
+        out.push(firstUrlFromSrcset(source.getAttribute('srcset') || ''));
+        out.push(firstUrlFromSrcset(source.getAttribute('data-srcset') || ''));
+        out.push(firstUrlFromSrcset(source.getAttribute('data-lazy-srcset') || ''));
       }
       return out;
     };
 
+    /**
+     * Prefer real poly-card / layout item root — never poly-card__content
+     * (substring match excluded the image column → imageUrl=null).
+     * Bare `li` is NOT a card root (too coarse).
+     */
+    const resolveListingCardRoot = (anchor) => {
+      const classTokens = (el) => {
+        const raw = el?.className;
+        if (typeof raw === 'string') return raw.split(/\s+/).filter(Boolean);
+        if (raw && typeof raw.baseVal === 'string') return raw.baseVal.split(/\s+/).filter(Boolean);
+        return [];
+      };
+      const isCardRoot = (el) => {
+        if (!el || el.nodeType !== 1) return false;
+        const tag = (el.tagName || '').toLowerCase();
+        const tokens = classTokens(el);
+        if (tag === 'li') {
+          return (
+            tokens.includes('ui-search-layout__item') ||
+            tokens.some((t) => t.startsWith('ui-search-layout'))
+          );
+        }
+        if (tag === 'article') return true;
+        return (
+          tokens.includes('poly-card') ||
+          tokens.includes('ui-search-result') ||
+          tokens.includes('andes-card') ||
+          tokens.includes('ui-search-layout__item')
+        );
+      };
+      const exact = anchor.closest(
+        'li.ui-search-layout__item, li.ui-search-layout--grid__grid, article, div.poly-card, div.ui-search-result, div.andes-card',
+      );
+      if (exact && isCardRoot(exact)) return exact;
+
+      let node = anchor.parentElement;
+      let fallbackWithImg = null;
+      for (let depth = 0; depth < 12 && node; depth += 1) {
+        if (isCardRoot(node)) return node;
+        if (
+          !fallbackWithImg &&
+          node.querySelector?.(
+            'img, picture, .poly-component__picture, [class*="ui-search-result__image"]',
+          )
+        ) {
+          fallbackWithImg = node;
+        }
+        node = node.parentElement;
+      }
+      return fallbackWithImg ?? anchor.parentElement ?? anchor;
+    };
+
     const cards = Array.from(document.querySelectorAll('a[href]'));
     return cards.map((anchor) => {
-      const card = anchor.closest('article, li, div') ?? anchor.parentElement ?? anchor;
+      const card = resolveListingCardRoot(anchor) ?? anchor.parentElement ?? anchor;
       const rawHref = anchor.getAttribute('href') || '';
       const href = rawHref.startsWith('http') ? rawHref : new URL(rawHref, location.origin).href;
       const image = pickBest(collectImgCandidates(card));
@@ -879,6 +982,15 @@ export async function discoverMercadoLibreCandidates(page, options) {
             discountPrice: enriched.discountPrice,
             evidenceSource: 'pdp',
             sourceDetail: 'worker:playwright:pdp',
+            signals: {
+              ...working.signals,
+              // Keep card image provenance unless PDP supplied a real image URL.
+              ...(enriched.imageUrl
+                ? { imageProvenance: 'pdp' }
+                : working.imageUrl
+                  ? { imageProvenance: working.signals?.imageProvenance ?? 'listing_card' }
+                  : {}),
+            },
           };
 
           if (pdpOriginal != null) {
@@ -1001,7 +1113,6 @@ export async function discoverMercadoLibreCandidates(page, options) {
 export {
   inferItemId,
   canonicalizeUrl,
-  normalizeAbsoluteImageUrl,
   candidateFromCard,
   isProductLikeUrl,
   enrichCandidate,

@@ -75,6 +75,7 @@ export function buildBotMeta({
         originalPriceProvenance: s.originalPriceProvenance,
         discountPercentProvenance: s.discountPercentProvenance,
         promotionBoundToProduct: s.promotionBoundToProduct,
+        imageProvenance: s.imageProvenance,
       })
     : {};
 
@@ -179,5 +180,7 @@ function rawObservationSnapshot(
     dealScoreVersion: raw.dealScoreVersion,
     dealScore: raw.dealScore,
     dealScoreConfidence: raw.dealScoreConfidence,
+    originalPriceProvenance: raw.originalPriceProvenance,
+    cardDiscountSource: raw.cardDiscountSource,
   });
 }
