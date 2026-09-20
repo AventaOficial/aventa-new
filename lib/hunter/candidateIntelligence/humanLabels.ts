@@ -27,6 +27,7 @@ export const HUNTER_HUMAN_DECISIONS = [
   'BROKEN_LINK',
   'BAD_PRICE',
   'BAD_DISCOUNT',
+  'UNCERTAIN',
   'OTHER',
 ] as const;
 

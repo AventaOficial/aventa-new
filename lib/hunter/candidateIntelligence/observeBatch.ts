@@ -3,7 +3,6 @@ import type { ScoreBreakdown } from '@/lib/bots/ingest/scoreIngestCandidate';
 import type { IngestSingleResult } from '@/lib/bots/ingest/types';
 import { buildHunterCandidateRecord } from './buildCandidateRecord';
 import { buildHunterIntelligenceRunSummary } from './runReport';
-import type { Disposition } from './taxonomy';
 import type { HunterCandidateRecord, HunterIntelligenceRunSummary } from './types';
 
 export type ObservedResolved = {
@@ -18,34 +17,26 @@ export type ObservedResolved = {
 };
 
 /**
- * Build durable Candidate Intelligence records for one external worker batch.
- * Captures identity-invalid, pool-truncated, evaluated, suppressed, and mint outcomes.
- * Does not mint. Does not change publication gates.
+ * Build durable Candidate Intelligence records for one ingest cycle / worker batch.
+ * Captures discovery skips, pool/topk cuts, evaluated outcomes. Observation only.
  */
-export function observeExternalWorkerBatch(input: {
+export function observeIngestBatch(input: {
   runId: string;
   startedAt: string;
   finishedAt: string;
   source?: string;
   dryRun: boolean;
-  /** Raw discovery count before identity filter. */
-  rawCandidateUrls: Array<{ url: string; title?: string | null; reason?: string }>;
-  /** URLs that became IngestItems (identity-valid). */
+  rawCandidateUrls: Array<{ url: string; title?: string | null; reason?: string; source?: string }>;
   itemUrls: string[];
-  /** URLs actually evaluated (after candidatePoolMax slice). */
   sliceUrls: string[];
-  /** Final ingest results (may omit pool-cut / identity-invalid). */
   results: IngestSingleResult[];
-  /** Meta captured during evaluation (url → meta). */
   metaByUrl: Map<string, ParsedOfferMetadata>;
-  /** Score context for resolved / scored candidates. */
   resolvedByUrl: Map<string, ObservedResolved>;
-  /** URLs suppressed by negative memory (already in results, used for NM level). */
   nmSuppressedUrls?: Set<string>;
-  /** URLs that passed quality but missed diversity shortlist (silent drop today). */
   diversityCutUrls?: string[];
+  topKCutUrls?: string[];
 }): { records: HunterCandidateRecord[]; summary: HunterIntelligenceRunSummary } {
-  const source = input.source ?? 'ml_worker';
+  const defaultSource = input.source ?? 'ml_api';
   const seenKeys = new Set<string>();
   const records: HunterCandidateRecord[] = [];
 
@@ -58,9 +49,10 @@ export function observeExternalWorkerBatch(input: {
 
   const itemSet = new Set(input.itemUrls.map((u) => u.toLowerCase()));
   const sliceSet = new Set(input.sliceUrls.map((u) => u.toLowerCase()));
-  const resultUrls = new Set(input.results.map((r) => r.url.toLowerCase()));
+  const resultUrls = new Set(
+    input.results.filter((r) => r.url?.trim()).map((r) => r.url.toLowerCase()),
+  );
 
-  // 1) Identity-invalid / blocked at intake (never reach results today).
   for (const raw of input.rawCandidateUrls) {
     const url = raw.url?.trim();
     if (!url) continue;
@@ -68,7 +60,7 @@ export function observeExternalWorkerBatch(input: {
     push(
       buildHunterCandidateRecord({
         runId: input.runId,
-        source,
+        source: raw.source ?? defaultSource,
         url,
         meta: null,
         status: 'skipped',
@@ -78,14 +70,13 @@ export function observeExternalWorkerBatch(input: {
     );
   }
 
-  // 2) Pool truncated (identity-valid but beyond candidatePoolMax).
   for (const url of input.itemUrls) {
     if (sliceSet.has(url.toLowerCase())) continue;
     if (resultUrls.has(url.toLowerCase())) continue;
     push(
       buildHunterCandidateRecord({
         runId: input.runId,
-        source,
+        source: defaultSource,
         url,
         meta: input.metaByUrl.get(url) ?? null,
         status: 'skipped',
@@ -95,14 +86,13 @@ export function observeExternalWorkerBatch(input: {
     );
   }
 
-  // 3) Diversity / budget cut after resolve (silent today).
   for (const url of input.diversityCutUrls ?? []) {
     if (resultUrls.has(url.toLowerCase())) continue;
     const resolved = input.resolvedByUrl.get(url);
     push(
       buildHunterCandidateRecord({
         runId: input.runId,
-        source,
+        source: defaultSource,
         url,
         meta: resolved?.meta ?? input.metaByUrl.get(url) ?? null,
         status: 'skipped',
@@ -120,9 +110,29 @@ export function observeExternalWorkerBatch(input: {
     );
   }
 
-  // 4) Every explicit result row.
+  for (const url of input.topKCutUrls ?? []) {
+    if (resultUrls.has(url.toLowerCase())) continue;
+    const resolved = input.resolvedByUrl.get(url);
+    push(
+      buildHunterCandidateRecord({
+        runId: input.runId,
+        source: defaultSource,
+        url,
+        meta: resolved?.meta ?? input.metaByUrl.get(url) ?? null,
+        status: 'skipped',
+        reason: 'score_shortlist_cut',
+        scoreDecision: resolved?.decision ?? null,
+        scoreTotal: resolved?.total ?? null,
+        breakdown: resolved?.breakdown ?? null,
+        machineEligible: true,
+        evidence: { topKCut: true },
+      }),
+    );
+  }
+
   for (const result of input.results) {
-    const url = result.url;
+    const url = result.url?.trim();
+    if (!url) continue;
     const resolved = input.resolvedByUrl.get(url);
     const meta = resolved?.meta ?? input.metaByUrl.get(url) ?? null;
     const nm = input.nmSuppressedUrls?.has(url) === true;
@@ -144,7 +154,6 @@ export function observeExternalWorkerBatch(input: {
             ? result.duplicateKind ?? 'duplicate'
             : null;
 
-    let dispositionOverride: Disposition | null = null;
     if (result.status === 'inserted' && input.dryRun) {
       status = 'would_insert';
       reason = 'dry_run_simulated';
@@ -153,7 +162,7 @@ export function observeExternalWorkerBatch(input: {
     push(
       buildHunterCandidateRecord({
         runId: input.runId,
-        source: result.source ?? source,
+        source: result.source ?? defaultSource,
         url,
         meta,
         status,
@@ -169,7 +178,6 @@ export function observeExternalWorkerBatch(input: {
         insertedOfferId:
           result.status === 'inserted' && !input.dryRun ? result.offerId : null,
         duplicateOf: result.status === 'duplicate' ? result.duplicateKind ?? 'duplicate' : null,
-        dispositionOverride,
         evidence: {
           ingestStatus: result.status,
           dryRun: input.dryRun,
@@ -186,4 +194,28 @@ export function observeExternalWorkerBatch(input: {
   });
 
   return { records, summary };
+}
+
+/** Alias for worker path. */
+export function observeExternalWorkerBatch(
+  input: Parameters<typeof observeIngestBatch>[0],
+): ReturnType<typeof observeIngestBatch> {
+  return observeIngestBatch(input);
+}
+
+/** discovered must equal sum of decisionBreakdown (each row is one terminal decision). */
+export function assertZeroSilentDrops(summary: HunterIntelligenceRunSummary): {
+  ok: boolean;
+  discovered: number;
+  terminalSum: number;
+  gap: number;
+} {
+  const discovered = summary.candidateCount;
+  const terminalSum = Object.values(summary.decisionBreakdown).reduce((a, b) => a + b, 0);
+  return {
+    ok: discovered === terminalSum,
+    discovered,
+    terminalSum,
+    gap: discovered - terminalSum,
+  };
 }

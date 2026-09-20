@@ -74,6 +74,7 @@ import {
   type QualificationCounts,
 } from '@/lib/hunter/supply/persistSnapshots';
 import {
+  assertZeroSilentDrops,
   isHunterCandidateIntelligenceEnabled,
   observeExternalWorkerBatch,
   persistHunterCandidates,
@@ -1040,6 +1041,12 @@ export async function processExternalWorkerBatch(
         nmSuppressedUrls: suppressedIds,
         diversityCutUrls,
       });
+      const recon = assertZeroSilentDrops(observed.summary);
+      if (!recon.ok) {
+        console.warn(
+          `[hunter_candidate_intelligence] reconciliation gap run=${supplyRunId} discovered=${recon.discovered} terminal=${recon.terminalSum}`,
+        );
+      }
       summary.candidateIntelligence = observed.summary;
       const wrote = await persistHunterCandidates(shadowDup.supabase, observed.records);
       if (!wrote.ok) {
@@ -1050,7 +1057,7 @@ export async function processExternalWorkerBatch(
         console.warn('[hunter_candidate_intelligence] persist run failed', runWrote.error);
       } else {
         console.info(
-          `[hunter_candidate_intelligence] run=${supplyRunId} candidates=${observed.summary.candidateCount} rejected=${observed.summary.rejectedCount} needs_review=${observed.summary.needsReviewCount} would_insert=${observed.summary.wouldInsertCount}`,
+          `[hunter_candidate_intelligence] run=${supplyRunId} candidates=${observed.summary.candidateCount} rejected=${observed.summary.rejectedCount} needs_review=${observed.summary.needsReviewCount} would_insert=${observed.summary.wouldInsertCount} recon_ok=${recon.ok}`,
         );
       }
     } catch (err) {

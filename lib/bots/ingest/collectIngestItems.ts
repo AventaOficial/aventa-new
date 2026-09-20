@@ -10,6 +10,12 @@ export type IngestCollectionResult = {
       {
         collectedCount?: number;
         skipReasonCounts?: Record<string, number>;
+        skippedCandidates?: Array<{
+          url: string;
+          title?: string | null;
+          reason: string;
+          itemId?: string | null;
+        }>;
       }
     >
   >;

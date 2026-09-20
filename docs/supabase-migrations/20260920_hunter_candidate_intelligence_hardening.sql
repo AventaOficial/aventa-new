@@ -83,6 +83,7 @@ ALTER TABLE public.hunter_candidate_human_labels
       'BROKEN_LINK',
       'BAD_PRICE',
       'BAD_DISCOUNT',
+      'UNCERTAIN',
       'OTHER'
     )
   );

@@ -116,6 +116,30 @@ export function classifyIngestDisposition(input: {
       stage: 'negative_memory',
     };
   }
+  if (lower.includes('s91_discovery') || lower.includes('discovery_only')) {
+    return {
+      decision: 'WOULD_INSERT',
+      reasonCode: 's91_discovery_only',
+      reasonDetail: reason || 'eligible under discovery-only; mint reserved for S9',
+      stage: 'write',
+    };
+  }
+  if (lower.includes('score_shortlist') || lower.includes('topk') || lower.includes('top_k')) {
+    return {
+      decision: 'REJECTED_BUDGET',
+      reasonCode: 'score_shortlist_cut',
+      reasonDetail: reason || null,
+      stage: 'budget',
+    };
+  }
+  if (lower.includes('enrich') || lower.includes('metadatos') || lower.includes('timeout al obtener')) {
+    return {
+      decision: 'REJECTED_SOURCE',
+      reasonCode: 'enrichment_failed',
+      reasonDetail: reason || null,
+      stage: 'enrich',
+    };
+  }
   if (lower.includes('machine_pending_writes') || lower.includes('writes_disabled')) {
     return {
       decision: 'REJECTED_WRITE_GATE',

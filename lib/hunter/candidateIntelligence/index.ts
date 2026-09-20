@@ -24,7 +24,7 @@ export {
   HUNTER_CANDIDATE_LABELS_TABLE,
 } from './persist';
 export { buildHunterIntelligenceRunSummary, isRejectedDecision } from './runReport';
-export { observeExternalWorkerBatch, type ObservedResolved } from './observeBatch';
+export { observeExternalWorkerBatch, observeIngestBatch, assertZeroSilentDrops, type ObservedResolved } from './observeBatch';
 export {
   HUNTER_HUMAN_DECISIONS,
   classifyLabelOutcome,
