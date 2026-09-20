@@ -41,7 +41,7 @@ import {
 export function extractAmazonAsin(rawUrl: string): string | null {
   try {
     const upper = rawUrl.toUpperCase();
-    const dp = upper.match(/\/(?:DP|GP\/PRODUCT|GP\/AW\/D)\/([A-Z0-9]{10})\b/);
+    const dp = upper.match(/\/(?:DP|GP\/PRODUCT|GP\/AW\/D|EXEC\/OBIDOS\/ASIN)\/([A-Z0-9]{10})\b/);
     if (dp?.[1]) return dp[1];
     const u = new URL(rawUrl);
     const asinParam = u.searchParams.get('asin') || u.searchParams.get('ASIN');

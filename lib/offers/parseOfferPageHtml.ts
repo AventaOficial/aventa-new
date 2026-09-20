@@ -1,5 +1,6 @@
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import { OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
+import { normalizeOfferUrl } from '@/lib/offers/urlResolution/normalizeOfferUrl';
 
 export function getMetaContent(html: string, selector: string): string | null {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -331,39 +332,9 @@ export function extractSuggestedPrices(html: string): ExtractedPrices {
   return { discount, original };
 }
 
-/** Quita tracking conocido sin tocar params funcionales de producto (wid, item_id, pdp_filters…). */
+/** Quita tracking/share; preserva identity + variant (wid, attributes, pdp_filters…). */
 export function stripOfferTrackingParams(rawUrl: string): string {
-  try {
-    const u = new URL(rawUrl.trim());
-    // Hash is only useful for identity resolve (already done upstream) — drop for fetch/normalize.
-    u.hash = '';
-    const dropExact = new Set([
-      'tag',
-      'ref',
-      'ref_',
-      'ascsubtag',
-      'linkcode',
-      'camp',
-      'creative',
-      'creativeasin',
-      'adid',
-      // Share / analytics noise (not identity).
-      'ua',
-      'origin',
-      'sid',
-      'action',
-    ]);
-    const keys = [...u.searchParams.keys()];
-    for (const key of keys) {
-      const k = key.toLowerCase();
-      if (k.startsWith('utm_') || k.startsWith('matt_') || dropExact.has(k)) {
-        u.searchParams.delete(key);
-      }
-    }
-    return u.toString();
-  } catch {
-    return rawUrl;
-  }
+  return normalizeOfferUrl(rawUrl) || rawUrl;
 }
 
 function pushUnique(list: string[], url: string | null) {

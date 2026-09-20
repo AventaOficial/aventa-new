@@ -13,9 +13,8 @@ import {
 } from '@/lib/offers/mlPublicOffer';
 import {
   normalizePastedOfferUrl,
-  resolveMercadoLibreShortlinks,
-  resolveAmazonShortlinks,
 } from '@/lib/offerUrl';
+import { resolveOfferUrl } from '@/lib/offers/urlResolution';
 import {
   isOfferAmazonHost,
   isOfferMeliLaHost,
@@ -182,18 +181,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Tracking fuera; params funcionales (wid, item_id, pdp_filters) se conservan.
-    // Identity resolve uses raw URL first (hash/query signals) — strip is for fetch only.
-    let workingHref = stripOfferTrackingParams(httpsUrl.href);
+    // Tracking fuera; params funcionales (wid, item_id, attributes, pdp_filters) se conservan.
+    // OfferUrlResolver: shortlinks + identity + canonicalize (no inventa identidad).
+    const offerResolved = await resolveOfferUrl(rawUrl);
+    let workingHref =
+      offerResolved.canonicalUrl ||
+      offerResolved.resolvedUrl ||
+      stripOfferTrackingParams(httpsUrl.href);
     const wasMeliLa = isOfferMeliLaHost(url.hostname);
     const wasAmazonShort =
       isOfferAmazonHost(url.hostname) && !url.hostname.toLowerCase().includes('amazon.');
 
-    if (wasMeliLa) {
-      workingHref = await resolveMercadoLibreShortlinks(workingHref);
-    }
-    if (wasAmazonShort) {
-      workingHref = await resolveAmazonShortlinks(workingHref);
+    // Fail-soft Amazon short: if resolver couldn't prove ASIN, keep trying fetch on resolved hop
+    if (wasAmazonShort && offerResolved.resolvedUrl) {
+      workingHref = stripOfferTrackingParams(offerResolved.resolvedUrl);
     }
 
     let workingUrl: URL;
@@ -204,13 +205,21 @@ export async function POST(request: Request) {
       workingHref = url.href;
     }
 
-    const inputIsMl = isOfferMercadoLibreHost(url.hostname) || isOfferMercadoLibreHost(workingUrl.hostname);
+    const inputIsMl =
+      offerResolved.provider === 'mercado_libre' ||
+      isOfferMercadoLibreHost(url.hostname) ||
+      isOfferMercadoLibreHost(workingUrl.hostname);
     // Prefer raw paste for identity (hash wid / pdp_filters) — S6.8 authority.
     const mlResolution = inputIsMl
       ? resolveMercadoLibreItem(rawUrl) ?? resolveMercadoLibreItem(workingHref)
       : null;
-    const mlIdOnMlHost = mlResolution?.itemId ?? (inputIsMl ? extractMercadoLibreItemId(workingHref) : null);
-    if (mlResolution?.itemId) {
+    const mlIdOnMlHost =
+      mlResolution?.itemId ??
+      (offerResolved.productFingerprint?.startsWith('ml:')
+        ? offerResolved.productFingerprint.slice(3)
+        : null) ??
+      (inputIsMl ? extractMercadoLibreItemId(workingHref) : null);
+    if (mlResolution?.itemId || mlIdOnMlHost) {
       recordMlQuality({ resolved: true });
     }
 
@@ -221,6 +230,16 @@ export async function POST(request: Request) {
         workingUrl = new URL(workingHref);
       } catch {
         /* keep previous workingUrl */
+      }
+    }
+
+    // Amazon: fetch /dp/{ASIN} when identity proven
+    if (offerResolved.provider === 'amazon' && offerResolved.canonicalUrl) {
+      workingHref = offerResolved.canonicalUrl;
+      try {
+        workingUrl = new URL(workingHref);
+      } catch {
+        /* keep */
       }
     }
 
@@ -290,41 +309,60 @@ export async function POST(request: Request) {
     }
 
     // API ML autenticada = fuente de verdad para precio/título/imágenes/categoría.
-    if (ml && isMercadoLibre) {
-      data = {
-        title: ml.title || data.title,
-        image: ml.pictures[0] || data.image,
-        store: 'Mercado Libre',
-      };
-      // No mezclar scrape HTML (similares/otros modelos) cuando la API ya trae galería.
-      const mergedPics = mergeMercadoLibreImageCandidates({
-        apiPictures: ml.pictures,
-        htmlImages,
-        trustedHtmlImages,
-        mlSource: ml.source,
-        sourceItemId: ml.itemId ?? mlIdOnMlHost,
-      });
-      candidates = collectCandidates(ml.pictures[0] ?? data.image, mergedPics);
-      // workingHref puede haber perdido matt_* por strip de tracking; medir readiness
-      // sobre la URL canónica + tags de plataforma (lo que persistirá offer_url).
-      const affiliateProbe = applyPlatformAffiliateTags(ml.canonicalUrl || workingHref || rawUrl);
-      recordMlQuality({
-        apiStatus: ml.source === 'ml_api' ? 'success' : 'other',
-        imagesFromApi: ml.pictures.length,
-        imagesFromFallback: mergedPics.length > ml.pictures.length ? mergedPics.length - ml.pictures.length : 0,
-        affiliateReady: storeHasAffiliateProgram(affiliateProbe)
-          ? isPlatformAffiliateTagged(affiliateProbe)
-          : false,
-      });
-      mlCategoryId = ml.categoryId;
-      mlPathNames = ml.pathNames;
-      if (ml.source === 'ml_api') {
-        if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
-        if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
-          suggestedOriginal = ml.originalPrice;
-        } else {
-          suggestedOriginal = null;
+    if (isMercadoLibre) {
+      if (ml) {
+        data = {
+          title: ml.title || data.title,
+          image: ml.pictures[0] || data.image,
+          store: 'Mercado Libre',
+        };
+        // No mezclar scrape HTML (similares/otros modelos) cuando la API ya trae galería.
+        const mergedPics = mergeMercadoLibreImageCandidates({
+          apiPictures: ml.pictures,
+          htmlImages,
+          trustedHtmlImages,
+          mlSource: ml.source,
+          sourceItemId: ml.itemId ?? mlIdOnMlHost,
+        });
+        candidates = collectCandidates(ml.pictures[0] ?? data.image, mergedPics);
+        // workingHref puede haber perdido matt_* por strip de tracking; medir readiness
+        // sobre la URL canónica + tags de plataforma (lo que persistirá offer_url).
+        const affiliateProbe = applyPlatformAffiliateTags(ml.canonicalUrl || workingHref || rawUrl);
+        recordMlQuality({
+          apiStatus: ml.source === 'ml_api' ? 'success' : 'other',
+          imagesFromApi: ml.pictures.length,
+          imagesFromFallback: mergedPics.length > ml.pictures.length ? mergedPics.length - ml.pictures.length : 0,
+          affiliateReady: storeHasAffiliateProgram(affiliateProbe)
+            ? isPlatformAffiliateTagged(affiliateProbe)
+            : false,
+        });
+        mlCategoryId = ml.categoryId;
+        mlPathNames = ml.pathNames;
+        if (ml.source === 'ml_api') {
+          if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
+          if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
+            suggestedOriginal = ml.originalPrice;
+          } else {
+            suggestedOriginal = null;
+          }
         }
+      } else {
+        // Fail closed: sin API del item, solo meta de confianza (og/twitter). Nunca scrape CDN.
+        candidates = mergeMercadoLibreImageCandidates({
+          apiPictures: [],
+          htmlImages: [],
+          trustedHtmlImages,
+          sourceItemId: mlIdOnMlHost,
+        });
+        data = {
+          title: data.title,
+          image: candidates[0] ?? null,
+          store: 'Mercado Libre',
+        };
+        recordMlQuality({
+          usedHtmlFallback: trustedHtmlImages.length > 0,
+          imagesFromFallback: candidates.length,
+        });
       }
     }
 

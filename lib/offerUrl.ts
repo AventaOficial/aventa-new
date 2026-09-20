@@ -149,54 +149,22 @@ export function isAmazonShortUrl(url: string): boolean {
 
 /**
  * Sigue redirecciones HTTP (amzn.to, a.co → amazon.*).
- * Si falla la red o el destino no es Amazon, devuelve la URL original.
+ * Delega al AmazonUrlResolver (browser UA + allowlist + ASIN gate).
  */
 export async function resolveAmazonShortlinks(url: string): Promise<string> {
-  const { fetchFollowingRedirectsSafely } = await import('@/lib/server/fetchUrlSafety');
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (!isAmazonShortUrl(trimmed)) return trimmed;
-
-  let u: URL;
-  try {
-    u = new URL(trimmed);
-  } catch {
-    return trimmed;
+  const { resolveAmazonOfferUrl } = await import('@/lib/offers/urlResolution/amazonResolver');
+  const resolved = await resolveAmazonOfferUrl(trimmed);
+  if (resolved.productFingerprint && resolved.canonicalUrl) {
+    return resolved.resolvedUrl || resolved.canonicalUrl;
   }
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
-  try {
-    const result = await fetchFollowingRedirectsSafely(u.toString(), {
-      timeoutMs: RESOLVE_TIMEOUT_MS,
-      method: 'GET',
-      requireHttps: true,
-      requireAllowlist: true,
-      signal: controller.signal,
-      headers: {
-        'User-Agent': RESOLVE_USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-    });
-    if (!result.ok) return trimmed;
-    const final = result.finalUrl;
-    if (!final || final === trimmed) return trimmed;
-    let finalUrl: URL;
-    try {
-      finalUrl = new URL(final);
-    } catch {
-      return trimmed;
-    }
-    if (!isAmazonOfferUrl(finalUrl.toString())) return trimmed;
-    const { extractAmazonAsin } = await import('@/lib/offers/offerUrlFingerprint');
-    if (!extractAmazonAsin(final) && extractAmazonAsin(trimmed) == null) {
-      return trimmed;
-    }
-    return final;
-  } catch {
-    return trimmed;
-  } finally {
-    clearTimeout(timeoutId);
+  // Prefer expanded amazon host even without ASIN only if still amazon short fail-closed
+  if (resolved.resolvedUrl && isAmazonOfferUrl(resolved.resolvedUrl) && !isAmazonShortUrl(resolved.resolvedUrl)) {
+    return resolved.resolvedUrl;
   }
+  return trimmed;
 }
 
 /** Normaliza en memoria (tags de plataforma por dominio); no resuelve meli.la. */

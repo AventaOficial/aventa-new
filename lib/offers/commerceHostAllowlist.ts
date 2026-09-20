@@ -26,6 +26,8 @@ export const AMAZON_REGISTERED_DOMAINS = [
   'amazon.sa',
   'amzn.to',
   'a.co',
+  /** Amazon mobile / Branch deep-link hop used by a.co shares */
+  'amazon.app.link',
 ] as const;
 
 export const MERCADOLIBRE_REGISTERED_DOMAINS = [

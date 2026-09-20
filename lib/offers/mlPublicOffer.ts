@@ -172,7 +172,10 @@ export async function fetchMercadoLibrePublicOffer(
   if (product && !product.error) {
     title = title || (typeof product.name === 'string' ? product.name : null);
     permalink = permalink || (typeof product.permalink === 'string' ? product.permalink : null);
-    pictureCandidates.push(...picturesFromMlApiBody(product, id));
+    // FAIL CLOSED: never merge /products gallery into a listing.
+    // Catalog family pictures often belong to sibling SKUs / other models
+    // (wrong phone when PDP is an iPhone listing). Prefer empty over wrong.
+    // Only item + variation pictures for `id` are trusted here.
   }
 
   // Precio: resolver oficial único (prices → sale_price → products/items exact match).

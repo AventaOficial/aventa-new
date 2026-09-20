@@ -260,9 +260,38 @@ export function scoreShortlistCandidate(candidate) {
 
 export function selectShortlist(candidates, limit) {
   const cap = Math.max(1, Math.trunc(limit) || 1);
-  return [...candidates]
-    .sort((a, b) => scoreShortlistCandidate(b) - scoreShortlistCandidate(a))
-    .slice(0, cap);
+  const sorted = [...candidates].sort(
+    (a, b) => scoreShortlistCandidate(b) - scoreShortlistCandidate(a),
+  );
+  // Soft diversity pre-PDP: avoid filling the shortlist with one product family.
+  const maxPerFamily = Math.max(2, Math.ceil(cap / 3));
+  const familyKey = (c) => {
+    const t = String(c.title || '').toLowerCase();
+    if (/aud[ií]fono|earbud|airpods|headset|audifono/.test(t)) return 'audio';
+    if (/smartwatch|reloj inteligente/.test(t)) return 'watch';
+    if (/\btv\b|television|smart tv/.test(t)) return 'tv';
+    return 'other';
+  };
+  const picked = [];
+  const counts = new Map();
+  const used = new Set();
+  for (const c of sorted) {
+    if (picked.length >= cap) break;
+    const key = familyKey(c);
+    const n = counts.get(key) || 0;
+    if (key !== 'other' && n >= maxPerFamily) continue;
+    picked.push(c);
+    used.add(c);
+    counts.set(key, n + 1);
+  }
+  if (picked.length < cap) {
+    for (const c of sorted) {
+      if (picked.length >= cap) break;
+      if (used.has(c)) continue;
+      picked.push(c);
+    }
+  }
+  return picked;
 }
 
 /**
