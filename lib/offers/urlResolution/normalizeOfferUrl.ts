@@ -17,7 +17,7 @@ export function normalizeOfferUrl(raw: string): string {
     u.hash = '';
     const keys = [...u.searchParams.keys()];
     for (const key of keys) {
-      if (shouldDropQueryParam(key)) {
+      if (shouldDropQueryParam(key, { pathname: u.pathname })) {
         u.searchParams.delete(key);
       }
     }

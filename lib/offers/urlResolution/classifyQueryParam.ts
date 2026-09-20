@@ -57,7 +57,28 @@ export function classifyOfferUrlQueryParam(key: string): QueryParamClass {
   return 'unknown';
 }
 
-export function shouldDropQueryParam(key: string): boolean {
+/**
+ * ML `/social/…` share pages encode the listing in `ref` (and often need `matt_*`).
+ * Dropping them collapses the page to `/lists` with no og:title/og:image — paste parse fails.
+ */
+function isMercadoLibreSocialPath(pathname: string | undefined): boolean {
+  return typeof pathname === 'string' && /\/social\//i.test(pathname);
+}
+
+function isSocialShareIdentityParam(key: string): boolean {
+  const k = key.trim().toLowerCase();
+  return k === 'ref' || k.startsWith('matt_');
+}
+
+export function shouldDropQueryParam(
+  key: string,
+  opts?: { pathname?: string },
+): boolean {
   const c = classifyOfferUrlQueryParam(key);
-  return c === 'tracking-only' || c === 'share-only';
+  if (c === 'share-only') return true;
+  if (c !== 'tracking-only') return false;
+  if (isMercadoLibreSocialPath(opts?.pathname) && isSocialShareIdentityParam(key)) {
+    return false;
+  }
+  return true;
 }

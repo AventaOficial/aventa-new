@@ -50,6 +50,30 @@ const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
+/** ML anti-bot interstitial — not a product page; never parse as listing HTML. */
+function isMercadoLibreVerificationPage(finalUrl: string, html: string): boolean {
+  if (/account-verification|\/gz\/account/i.test(finalUrl)) return true;
+  if (/suspicious-traffic-frontend|account-verification-main/i.test(html)) return true;
+  return false;
+}
+
+/**
+ * Prefer the hop that still carries social `ref` / shortlink expansion over an
+ * over-stripped canonical when identity was not proven.
+ */
+function pickFetchHref(params: {
+  canonicalUrl: string | null;
+  resolvedUrl: string | null;
+  fallbackHref: string;
+  hasProductIdentity: boolean;
+}): string {
+  const { canonicalUrl, resolvedUrl, fallbackHref, hasProductIdentity } = params;
+  if (hasProductIdentity && canonicalUrl) return canonicalUrl;
+  if (resolvedUrl) return resolvedUrl;
+  if (canonicalUrl) return canonicalUrl;
+  return fallbackHref;
+}
+
 function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
   return {
     title: null as string | null,
@@ -183,18 +207,21 @@ export async function POST(request: Request) {
 
     // Tracking fuera; params funcionales (wid, item_id, attributes, pdp_filters) se conservan.
     // OfferUrlResolver: shortlinks + identity + canonicalize (no inventa identidad).
+    // Social ML: keep resolved hop (ref=) for HTML fetch when identity is missing.
     const offerResolved = await resolveOfferUrl(rawUrl);
-    let workingHref =
-      offerResolved.canonicalUrl ||
-      offerResolved.resolvedUrl ||
-      stripOfferTrackingParams(httpsUrl.href);
     const wasMeliLa = isOfferMeliLaHost(url.hostname);
     const wasAmazonShort =
       isOfferAmazonHost(url.hostname) && !url.hostname.toLowerCase().includes('amazon.');
+    let workingHref = pickFetchHref({
+      canonicalUrl: offerResolved.canonicalUrl,
+      resolvedUrl: offerResolved.resolvedUrl,
+      fallbackHref: stripOfferTrackingParams(httpsUrl.href),
+      hasProductIdentity: Boolean(offerResolved.productIdentity || offerResolved.productFingerprint),
+    });
 
     // Fail-soft Amazon short: if resolver couldn't prove ASIN, keep trying fetch on resolved hop
     if (wasAmazonShort && offerResolved.resolvedUrl) {
-      workingHref = stripOfferTrackingParams(offerResolved.resolvedUrl);
+      workingHref = offerResolved.resolvedUrl;
     }
 
     let workingUrl: URL;
@@ -251,8 +278,26 @@ export async function POST(request: Request) {
 
     const [htmlResult, mlFirst] = await Promise.all([htmlPromise, mlPromise]);
 
-    const html = htmlResult?.html ?? '';
-    const pageUrl = htmlResult?.pageUrl ?? workingUrl;
+    let html = htmlResult?.html ?? '';
+    let pageUrl = htmlResult?.pageUrl ?? workingUrl;
+    if (html && isMercadoLibreVerificationPage(pageUrl.href, html)) {
+      // Anti-bot interstitial: discard so we do not treat captcha HTML as a listing.
+      // Prefer identity recovered from ?go= when present (keeps API / diagnostics honest).
+      try {
+        const go = pageUrl.searchParams.get('go');
+        if (go) {
+          const goUrl = new URL(go);
+          if (isOfferMercadoLibreHost(goUrl.hostname)) {
+            pageUrl = goUrl;
+            workingHref = goUrl.href;
+            workingUrl = goUrl;
+          }
+        }
+      } catch {
+        /* keep */
+      }
+      html = '';
+    }
     const base = pageUrl.origin + pageUrl.pathname;
     const flags = resolveOfferStoreFlags(url.hostname, pageUrl.hostname);
     const { isAmazon, isMercadoLibre } = flags;
