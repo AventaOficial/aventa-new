@@ -417,12 +417,29 @@ function finalize(
   reasons: ModerationPriorityReason[],
   dealScoreTotal: number | null,
 ): ModerationPriorityResult {
+  const MAX_REASONS = 6;
+  // Keep decision-driving codes visible even when warning volume grows.
+  const mustKeep = new Set(['stale_pending', 'deal_score', 'deal_score_low', 'duplicate']);
+  let trimmed = reasons.slice(0, MAX_REASONS);
+  for (const code of mustKeep) {
+    if (!reasons.some((r) => r.code === code) || trimmed.some((r) => r.code === code)) continue;
+    const keep = reasons.find((r) => r.code === code)!;
+    const dropIdx = [...trimmed]
+      .map((r, i) => ({ r, i }))
+      .reverse()
+      .find((x) => !mustKeep.has(x.r.code))?.i;
+    if (dropIdx == null) break;
+    trimmed = [...trimmed.slice(0, dropIdx), keep, ...trimmed.slice(dropIdx + 1)].slice(
+      0,
+      MAX_REASONS,
+    );
+  }
   return {
     priority,
     rank: PRIORITY_RANK[priority],
     label: PRIORITY_LABEL[priority],
     shortLabel: PRIORITY_SHORT[priority],
-    reasons: reasons.slice(0, 6),
+    reasons: trimmed,
     dealScoreTotal,
   };
 }
