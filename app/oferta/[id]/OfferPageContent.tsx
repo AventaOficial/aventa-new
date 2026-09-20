@@ -14,6 +14,8 @@ import {
   Globe,
   Store,
   Clock,
+  Sparkles,
+  Archive,
 } from 'lucide-react';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
@@ -140,8 +142,12 @@ type OfferPayload = {
     creatorAmazonTag?: string | null;
     userId?: string | null;
     slug?: string | null;
+    isBot?: boolean;
   };
   createdAt: string | null;
+  expiresAt?: string | null;
+  /** Lifecycle flag: expired ≠ inaccessible. */
+  isExpired?: boolean;
   categorySlug?: string;
   categoryLabel?: string;
   storeSlug?: string;
@@ -487,6 +493,23 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           </span>
         </nav>
 
+        {offer.isExpired ? (
+          <div
+            className="mb-4 flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-[#1a1a1a]"
+            role="status"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+              <Archive className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Oferta expirada</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                Ya no está activa en el feed. Puedes consultar el historial; el precio mostrado es de referencia y puede haber cambiado en la tienda.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <div className="rounded-2xl bg-white dark:bg-[#141414] border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-6 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -642,27 +665,62 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 {offer.title}
               </h1>
               {offer.author?.username && (
-                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  {offerAuthorProfileHref ? (
+                <div className="flex items-center gap-3 mt-3 flex-wrap">
+                  {offerAuthorProfileHref && !offer.author.isBot ? (
                     <Link
                       href={offerAuthorProfileHref}
-                      className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
+                      className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
                     >
                       {offer.author.avatar_url ? (
-                        <img src={offer.author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        <img
+                          src={offer.author.avatar_url}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                        />
                       ) : (
-                        <User className="h-4 w-4" />
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#262626] shrink-0">
+                          <User className="h-5 w-5 text-gray-400" />
+                        </span>
                       )}
-                      <span>{offer.author.username} lo encontró</span>
+                      <span className="flex flex-col leading-tight">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          {offer.author.username}
+                        </span>
+                        {offer.createdAt ? (
+                          <span className="text-xs text-gray-400">
+                            {formatRelativeDate(offer.createdAt)}
+                          </span>
+                        ) : null}
+                      </span>
                     </Link>
                   ) : (
-                    <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                       {offer.author.avatar_url ? (
-                        <img src={offer.author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        <img
+                          src={offer.author.avatar_url}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                        />
                       ) : (
-                        <User className="h-4 w-4" />
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950/40 shrink-0">
+                          <Sparkles className="h-5 w-5 text-violet-500" aria-hidden />
+                        </span>
                       )}
-                      <span>{offer.author.username} lo encontró</span>
+                      <span className="flex flex-col leading-tight">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          {offer.author.username}
+                          {offer.author.isBot ? (
+                            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                              sistema
+                            </span>
+                          ) : null}
+                        </span>
+                        {offer.createdAt ? (
+                          <span className="text-xs text-gray-400">
+                            {formatRelativeDate(offer.createdAt)}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                   )}
                   {offer.author.leaderBadge === 'cazador_estrella' && (
@@ -793,7 +851,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
                   >
-                    Cazar oferta
+                    {offer.isExpired ? 'Ver oferta' : 'Cazar oferta'}
                     <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                   {showCtaCouponChip ? (

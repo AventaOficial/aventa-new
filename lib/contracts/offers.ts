@@ -3,6 +3,9 @@ import { z } from 'zod';
 /** Tope único de fotos por oferta (portada + extras). Parser, cliente, Zod y upload deben usarlo. */
 export const OFFER_MAX_IMAGES = 8;
 
+/** Tope de descripción en «Subir oferta» (UI + schema create). Moderación puede usar hasta 2000. */
+export const OFFER_DESCRIPTION_MAX = 300;
+
 /**
  * Todos los campos llevan mensaje en español. Un error sin texto útil (el
  * «Invalid input» por defecto de Zod) deja al usuario sin saber qué arreglar y
@@ -33,7 +36,11 @@ const optionalNumberLike = z
   })
   .transform((v) => {
     if (v == null) return undefined;
-    if (typeof v === 'string' && v.trim() === '') return undefined;
+    if (typeof v === 'string') {
+      const trimmed = v.trim();
+      if (trimmed === '') return undefined;
+      return Number(trimmed.replace(/,/g, ''));
+    }
     return Number(v);
   })
   .refine((v) => v === undefined || Number.isFinite(v), {
@@ -80,7 +87,11 @@ export const createOfferInputSchema = z
         message: 'Los meses sin intereses deben estar entre 1 y 24',
       }),
     offer_url: optionalTrimmedString,
-    description: optionalTrimmedString,
+    description: z
+      .string({ error: 'Descripción requerida' })
+      .trim()
+      .min(1, 'Descripción requerida')
+      .max(OFFER_DESCRIPTION_MAX, `La descripción no puede pasar de ${OFFER_DESCRIPTION_MAX} caracteres`),
     steps: optionalTrimmedString,
     conditions: optionalTrimmedString,
     coupons: optionalTrimmedString,

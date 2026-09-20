@@ -39,8 +39,6 @@ import { publicProfilePath } from '@/lib/profileSlug';
 import type { OfferScopeUi } from '@/lib/offerScope';
 import StoreBrandMark from './StoreBrandMark';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
-import AffiliateDisclosure from './AffiliateDisclosure';
-import { resolveStoreBrand } from '@/lib/stores/storeBrand';
 
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
 
@@ -76,7 +74,8 @@ type DealStatusConfig = {
   headerClassName: string;
   icon: typeof CircleCheck;
   summary: string;
-  behavior: 'public' | 'informational' | 'management';
+  /** archive = expirada pero consultable (no activa). */
+  behavior: 'public' | 'informational' | 'management' | 'archive';
   ctaLabel: string;
   message?: string;
   reasonLabel?: string;
@@ -122,12 +121,12 @@ const DEAL_STATUS_CONFIG: Record<DealStatus, DealStatusConfig> = {
     badgeClassName: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
     headerClassName: 'bg-gray-50/80 dark:bg-[#1a1a1a]/55',
     icon: Archive,
-    summary: 'Esta oferta ya no está disponible.',
-    behavior: 'management',
-    ctaLabel: 'Actualizar oferta',
+    summary: 'Ya no está activa; puedes consultar el historial.',
+    behavior: 'archive',
+    ctaLabel: 'Ver oferta',
     action: 'republish',
     message:
-      'Ya no está visible para la comunidad, pero sigue en tu historial. Si el producto sigue disponible, publica una versión actualizada.',
+      'Esta oferta expiró y ya no aparece como activa en el feed. Sigue siendo consultable como referencia de precio e historial.',
   },
 };
 
@@ -194,6 +193,7 @@ export default function OfferCard({
   originalPrice,
   discountPrice,
   discount,
+  description,
   image,
   onCardClick,
   upvotes,
@@ -398,7 +398,6 @@ export default function OfferCard({
 
   const showImage = image && !imgError;
   const storeLabel = brand || 'Tienda';
-  const isAmazonStore = resolveStoreBrand(storeLabel).name === 'Amazon';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const savingsAmount =
     originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
@@ -414,21 +413,34 @@ export default function OfferCard({
   const statusConfig = dealStatus
     ? (() => {
         const base = DEAL_STATUS_CONFIG[dealStatus];
+        // Mis ofertas: expirada con acción de republicar → management.
+        if (base.behavior === 'archive' && onManagementAction) {
+          return {
+            ...base,
+            behavior: 'management' as const,
+            ctaLabel: 'Actualizar oferta',
+            message:
+              'Ya no está visible como oferta activa. Si el producto sigue disponible, publica una versión actualizada.',
+          };
+        }
         if (base.behavior === 'management' && !onManagementAction) {
           return {
             ...base,
             behavior: 'informational' as const,
-            message:
-              dealStatus === 'expired'
-                ? 'Esta oferta ya no está vigente, pero forma parte del historial del cazador.'
-                : base.message,
+            message: base.message,
           };
         }
         return base;
       })()
     : null;
   const StatusIcon = statusConfig?.icon;
-  const canNavigateToPublicOffer = !statusConfig || statusConfig.behavior === 'public';
+  const canNavigateToPublicOffer =
+    !statusConfig ||
+    statusConfig.behavior === 'public' ||
+    statusConfig.behavior === 'archive';
+  const shortDescription = description?.trim()
+    ? description.trim().slice(0, OFFER_CARD_DESCRIPTION_MAX_LENGTH)
+    : null;
 
   const copyCouponsToClipboard = async (): Promise<void> => {
     if (isTesterOffer) return;
@@ -594,6 +606,13 @@ export default function OfferCard({
               {title}
             </h3>
 
+            {shortDescription ? (
+              <p className="hidden md:block text-xs md:text-[13px] leading-snug text-gray-500 dark:text-gray-400 line-clamp-2 wrap-anywhere">
+                {shortDescription}
+                {(description?.trim().length ?? 0) > OFFER_CARD_DESCRIPTION_MAX_LENGTH ? '…' : ''}
+              </p>
+            ) : null}
+
             {author?.username ? (
               <span className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
                 {authorProfileHref ? (
@@ -751,13 +770,9 @@ export default function OfferCard({
               </span>
             ) : null}
             <div className="min-w-0 flex-1">
-              {(!statusConfig || statusConfig.behavior === 'public') ? (
-                <>
-                  <AffiliateDisclosure
-                    variant="feed"
-                    includeAmazonEn={isAmazonStore}
-                    className="mb-1.5 px-0.5"
-                  />
+              {(!statusConfig ||
+                statusConfig.behavior === 'public' ||
+                statusConfig.behavior === 'archive') ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -786,7 +801,6 @@ export default function OfferCard({
                   {statusConfig?.ctaLabel ?? 'Ver oferta'}
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                 </button>
-                </>
               ) : null}
 
               {statusConfig?.behavior === 'informational' ? (

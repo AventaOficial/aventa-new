@@ -12,8 +12,10 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { describeOfferIssue, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { describeOfferIssue, OFFER_DESCRIPTION_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
+import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
+import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
 import { logClientError } from '@/lib/utils/handleError';
 import { normalizePastedOfferUrl } from '@/lib/offerUrl';
 import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded';
@@ -24,25 +26,19 @@ import AventaIcon from './AventaIcon';
 import SidebarProgressCard from './SidebarProgressCard';
 import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
 
-function formatThousands(s: string): string {
-  const digits = s.replace(/\D/g, '');
-  if (digits === '') return '';
-  return Number(digits).toLocaleString('es-MX', { maximumFractionDigits: 0 });
-}
-
-function parsePriceString(s: string): string {
-  return s.replace(/\D/g, '');
-}
-
 function parseDecimalPrice(s: string): number {
-  const n = parseFloat(s.replace(/,/g, ''));
-  return Number.isFinite(n) ? n : 0;
+  const parsed = parseOfferEditMoney(s);
+  return parsed.ok ? parsed.value : 0;
 }
 
 function formatPreviewPrice(s: string): string {
   const n = parseDecimalPrice(s);
-  const formatted = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
-  return `$${formatted}`;
+  return `$${formatOfferMoneyInput(n) || '0'}`;
+}
+
+function blurFormatMoney(raw: string): string {
+  const parsed = parseOfferEditMoney(raw);
+  return parsed.ok ? formatOfferMoneyInput(parsed.value) : raw.trim();
 }
 
 function isOnlineOfferUrl(raw: string): boolean {
@@ -347,11 +343,11 @@ export default function ActionBar() {
         const edited = userEditedFieldsRef.current;
         const disc =
           typeof data.suggested_discount_price === 'number' && data.suggested_discount_price > 0
-            ? String(data.suggested_discount_price)
+            ? formatOfferMoneyInput(data.suggested_discount_price)
             : null;
         const orig =
           typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
-            ? String(data.suggested_original_price)
+            ? formatOfferMoneyInput(data.suggested_original_price)
             : null;
         setFormData((prev) => {
           if (prev.offer_url.trim() !== url) return prev;
@@ -514,7 +510,8 @@ export default function ActionBar() {
       formData.title.trim() !== '' &&
       formData.originalPrice.trim() !== '' &&
       formData.category !== '' &&
-      formData.store.trim() !== '';
+      formData.store.trim() !== '' &&
+      formData.description.trim() !== '';
     if (!hasDiscount) return baseValid;
     return baseValid && formData.discountPrice.trim() !== '';
   };
@@ -586,7 +583,7 @@ export default function ActionBar() {
       ...(formData.offer_url.trim() && {
         offer_url: normalizePastedOfferUrl(formData.offer_url) || formData.offer_url.trim(),
       }),
-      ...(formData.description.trim() && { description: formData.description.trim() }),
+      description: formData.description.trim().slice(0, OFFER_DESCRIPTION_MAX),
       ...(stepsList.filter((s) => s.trim()).length > 0 && {
         steps: JSON.stringify(stepsList.map((s) => s.trim()).filter(Boolean)),
       }),
@@ -1202,14 +1199,17 @@ export default function ActionBar() {
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Precio original *</label>
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
                         inputMode="decimal"
                         value={formData.originalPrice}
-                        onChange={(e) => handleInputChange('originalPrice', e.target.value)}
-                        placeholder="$0"
-                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                        onChange={(e) =>
+                          handleInputChange('originalPrice', sanitizeOfferMoneyTyping(e.target.value).slice(0, 24))
+                        }
+                        onBlur={() =>
+                          handleInputChange('originalPrice', blurFormatMoney(formData.originalPrice))
+                        }
+                        placeholder="0"
+                        className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 tabular-nums"
                       />
                     </div>
                     {hasDiscount && (
@@ -1218,14 +1218,17 @@ export default function ActionBar() {
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Precio con descuento *</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                          type="text"
                           inputMode="decimal"
                           value={formData.discountPrice}
-                          onChange={(e) => handleInputChange('discountPrice', e.target.value)}
-                          placeholder="$0"
-                          className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
+                          onChange={(e) =>
+                            handleInputChange('discountPrice', sanitizeOfferMoneyTyping(e.target.value).slice(0, 24))
+                          }
+                          onBlur={() =>
+                            handleInputChange('discountPrice', blurFormatMoney(formData.discountPrice))
+                          }
+                          placeholder="0"
+                          className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200 tabular-nums"
                         />
                       </div>
                       </>
@@ -1282,17 +1285,25 @@ export default function ActionBar() {
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Descripción
+                        Descripción *
                       </label>
-                      <span className="text-[11px] text-gray-400">{formData.description.length}/300</span>
+                      <span className="text-[11px] text-gray-400">
+                        {formData.description.length}/{OFFER_DESCRIPTION_MAX}
+                      </span>
                     </div>
                     <textarea
                       value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value.slice(0, 300))}
+                      onChange={(e) =>
+                        handleInputChange('description', e.target.value.slice(0, OFFER_DESCRIPTION_MAX))
+                      }
                       placeholder="Describe brevemente la oferta..."
+                      required
                       rows={4}
                       className="w-full min-h-[6.5rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y break-words whitespace-pre-wrap transition-colors duration-200"
                     />
+                    {!formData.description.trim() ? (
+                      <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Descripción requerida</p>
+                    ) : null}
                   </div>
 
                   <div>

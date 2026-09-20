@@ -5,6 +5,7 @@ const base = {
   title: 'Colchón matrimonial Fred 14 cm',
   store: 'Mercado Libre',
   image_url: 'https://http2.mlstatic.com/foto.jpg',
+  description: 'Oferta válida por tiempo limitado',
 };
 
 describe('createOfferInputSchema', () => {
@@ -86,6 +87,48 @@ describe('createOfferInputSchema', () => {
       expect(parsed.error.issues.some((i) => i.message === 'El precio no puede ser negativo')).toBe(
         true
       );
+    }
+  });
+
+  it('exige descripción no vacía', () => {
+    for (const description of ['', '   ', null, undefined] as const) {
+      const parsed = createOfferInputSchema.safeParse({ ...base, description });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues.some((i) => i.message === 'Descripción requerida')).toBe(true);
+      }
+    }
+  });
+
+  it('acepta descripción válida y rechaza demasiado larga', () => {
+    const ok = createOfferInputSchema.safeParse({
+      ...base,
+      hasDiscount: false,
+      price: 1788.88,
+      description: 'Buen descuento en colchón',
+    });
+    expect(ok.success).toBe(true);
+
+    const tooLong = createOfferInputSchema.safeParse({
+      ...base,
+      hasDiscount: false,
+      price: 1788.88,
+      description: 'x'.repeat(301),
+    });
+    expect(tooLong.success).toBe(false);
+  });
+
+  it('acepta precio con separadores de miles en string (display → canónico)', () => {
+    const parsed = createOfferInputSchema.safeParse({
+      ...base,
+      price: '19,999.99',
+      original_price: '25,000',
+      hasDiscount: true,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.price).toBe(19999.99);
+      expect(parsed.data.original_price).toBe(25000);
     }
   });
 });

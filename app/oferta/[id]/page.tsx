@@ -6,6 +6,8 @@ import { slugifyStore } from '@/lib/slug';
 import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offerPath';
 import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
+import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import OfferPageContent from './OfferPageContent';
 import { stringifyJsonLd } from '@/lib/seo/jsonLd';
 
@@ -29,6 +31,7 @@ type OfferRow = {
   coupons: string | null;
   created_at: string | null;
   created_by: string | null;
+  expires_at: string | null;
   upvotes_count: number | null;
   downvotes_count: number | null;
   ranking_momentum: number | null;
@@ -59,19 +62,18 @@ function categorySlugToLabel(slug: string): string {
 
 async function getOffer(id: string) {
   const supabase = createServerClient();
-  const now = new Date().toISOString();
 
+  // Lifecycle (expires_at) ≠ accessibility: approved expired offers remain consultable.
   const { data, error } = await supabase
     .from('offers')
     .select(`
       id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon,
-      store, offer_url, description, steps, conditions, coupons,
+      store, offer_url, description, steps, conditions, coupons, expires_at,
       created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)
     `)
     .eq('id', id)
     .eq('status', 'approved')
-    .or(`expires_at.is.null,expires_at.gte.${now}`)
     .maybeSingle();
 
   if (error || !data) return null;
@@ -128,14 +130,20 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   }
 
   const prof = Array.isArray(offer.profiles) ? offer.profiles[0] : offer.profiles;
+  const botAuthor = isBotUserId(offer.created_by);
   const author = {
-    username: prof?.display_name?.trim() || 'Usuario',
-    avatar_url: prof?.avatar_url ?? null,
-    leaderBadge: (prof as { leader_badge?: string | null })?.leader_badge ?? null,
+    username: botAuthor
+      ? BOT_AUTHOR_DISPLAY_NAME
+      : prof?.display_name?.trim() || 'Usuario',
+    avatar_url: botAuthor ? null : (prof?.avatar_url ?? null),
+    leaderBadge: botAuthor
+      ? null
+      : ((prof as { leader_badge?: string | null })?.leader_badge ?? null),
     creatorMlTag: (prof as { ml_tracking_tag?: string | null })?.ml_tracking_tag ?? null,
     creatorAmazonTag: (prof as { amazon_tracking_tag?: string | null })?.amazon_tracking_tag ?? null,
     userId: offer.created_by,
-    slug: (prof as { slug?: string | null })?.slug?.trim() || null,
+    slug: botAuthor ? null : ((prof as { slug?: string | null })?.slug?.trim() || null),
+    isBot: botAuthor,
   };
 
   const originalPrice = Number(offer.original_price) || 0;
@@ -151,6 +159,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   const categoryMacro = normalizeCategoryForStorage(offer.category);
   const categorySlugForUrl = categoryMacro && ALL_CATEGORIES.some((c) => c.value === categoryMacro) ? categoryMacro : (categoryMacro || undefined);
   const storeSlug = slugifyStore(offer.store);
+  const isExpired = isOfferExpiredByExpiresAt(offer.expires_at);
 
   const offerPayload = {
     id: offer.id,
@@ -173,6 +182,8 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     votes: { up, down, score: momentum },
     author,
     createdAt: offer.created_at ?? null,
+    expiresAt: offer.expires_at ?? null,
+    isExpired,
     categorySlug: categorySlugForUrl,
     categoryLabel: categorySlugForUrl ? categorySlugToLabel(categorySlugForUrl) : undefined,
     storeSlug: storeSlug || undefined,
@@ -194,7 +205,9 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
       url: `${BASE_URL}${canonicalPath}`,
       price: discountPrice,
       priceCurrency: 'MXN',
-      availability: 'https://schema.org/InStock',
+      availability: isExpired
+        ? 'https://schema.org/OutOfStock'
+        : 'https://schema.org/InStock',
       seller: {
         '@type': 'Organization',
         name: formatStoreDisplayName(offer.store) || offer.store?.trim() || 'Tienda',
