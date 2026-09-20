@@ -19,6 +19,7 @@ import { insertIngestedOffer } from './insertIngestedOffer';
 import { optimizeIngestTitle } from './optimizeIngestTitle';
 import { isLowQualityTitle } from './isLowQualityTitle';
 import { type ScoreBreakdown } from './scoreIngestCandidate';
+import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { enrichWithPriceIntel, nicheIdFromSourceDetail } from './priceIntel';
 import { evaluateDealSafe } from '@/lib/verifier';
 import { computeDealScore } from '@/lib/dealIntelligence';
@@ -27,7 +28,11 @@ import {
   toProvenanceSlice,
   withProcessingStatus,
 } from '@/lib/dealIntelligence/rawObservation';
-import { selectTopKByScore } from './candidateInsertGate';
+import {
+  applyDiscoveryIntelligence,
+  loadNegativeMemoryEvents,
+} from '@/lib/discovery/negativeMemory';
+import { strongProductFingerprintForUrl } from '@/lib/offers/findDuplicateOffer';
 import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
@@ -729,19 +734,55 @@ export async function processExternalWorkerBatch(
   const budgetCap = Math.min(slotsDaily, maxPerRunCap);
   const maxInsertsThisBatch = resolveCanaryInsertCap(budgetCap, payload.canaryCap);
 
-  let autoApproved = 0;
+  const autoApproved = 0;
   let insertedThisRun = 0;
 
-  const insertQueue = selectTopKByScore(
-    resolved.map((row) => ({ ...row, score: row.total })),
-    maxInsertsThisBatch,
-  );
+  // Discovery intelligence: negative memory → source quality → category policy → diversity
+  const fingerprints = resolved
+    .map((row) => strongProductFingerprintForUrl(row.meta.canonicalUrl || row.item.url))
+    .filter((fp): fp is string => Boolean(fp));
+  const nmEvents =
+    shadowDup.supabase && fingerprints.length > 0
+      ? await loadNegativeMemoryEvents(shadowDup.supabase, fingerprints)
+      : new Map();
+  const byUrl = new Map(resolved.map((row) => [row.item.url, row]));
+  const intel = applyDiscoveryIntelligence({
+    candidates: resolved.map((row) => ({
+      id: row.item.url,
+      url: row.meta.canonicalUrl || row.item.url,
+      title: row.meta.title,
+      score: row.total,
+      source: row.item.source,
+      category: classifyBotCategoryForStorage(row.meta, config.techCategoryIdSet),
+      discountPercent: row.meta.discountPercent,
+      price: row.meta.discountPrice,
+    })),
+    eventsByFingerprint: nmEvents,
+    limit: maxInsertsThisBatch,
+    now: nowWorker,
+  });
+  for (const s of intel.suppressed) {
+    markSourceSkip(sourceStats, 'ml_worker', `negative_memory:${s.reason}`);
+    results.push({
+      url: s.id,
+      source: 'ml_worker',
+      status: 'skipped',
+      reason: `negative_memory:${s.reason}`,
+    });
+    opsSuppressed += 1;
+  }
+  const insertQueue = intel.shortlist
+    .map((c) => {
+      const row = byUrl.get(c.id);
+      if (!row) return null;
+      return { ...row, score: c.score };
+    })
+    .filter((row): row is Resolved & { score: number } => row != null);
 
   for (const row of insertQueue) {
-    // Camino legacy: apagado en producción. El verifier puede seguir concluyendo
-    // 'auto_approve' (y el shadow registrarlo), pero el bot no escribe 'approved'.
-    const allowAuto = config.legacyAutoApproveWriteEnabled && row.decision === 'auto_approve';
-    const status = allowAuto ? 'approved' : 'pending';
+    // S9.1: auto_approve scoring decision never authorizes approved mint.
+    // Machine insert is always pending; human moderation owns approval.
+    const status = 'pending' as const;
     const title = optimizeIngestTitle(row.meta);
     const dealScore = computeDealScore({
       meta: {
@@ -783,9 +824,7 @@ export async function processExternalWorkerBatch(
         offerId: `dry-run-${insertedThisRun}`,
       });
       sourceStats[row.item.source].inserted += 1;
-      pendingBySource[row.item.source] =
-        (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
-      if (status === 'approved') autoApproved += 1;
+      pendingBySource[row.item.source] = (pendingBySource[row.item.source] ?? 0) + 1;
       continue;
     }
 
@@ -827,9 +866,7 @@ export async function processExternalWorkerBatch(
         });
         results.push({ url: row.item.url, source: row.item.source, status: 'inserted', offerId: ins.offerId });
         sourceStats[row.item.source].inserted += 1;
-        pendingBySource[row.item.source] =
-          (pendingBySource[row.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
-        if (status === 'approved') autoApproved += 1;
+        pendingBySource[row.item.source] = (pendingBySource[row.item.source] ?? 0) + 1;
       } else if ('duplicate' in ins && ins.duplicate) {
         opsWriteDuplicate += 1;
         results.push({

@@ -145,8 +145,11 @@ export const LEGACY_CATEGORY_MAP: Record<string, string> = {
   hogar: 'hogar',
   mascotas: 'bebes',
   bebidas: 'supermercado',
-  electrones: 'tecnologia',
   electronics: 'tecnologia',
+  electrones: 'tecnologia',
+  technology: 'tecnologia',
+  tecnologia: 'tecnologia',
+  tech: 'tecnologia',
   ropa_mujer: 'moda',
   ropa_hombre: 'moda',
   fashion: 'moda',
@@ -182,11 +185,26 @@ const CATEGORY_QUERY_ALIASES: Record<string, string[]> = {
   other: [],
 };
 
+function foldCategoryKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+}
+
 export function normalizeCategoryForStorage(category: string | null | undefined): CategoryId | null {
   if (!category?.trim()) return null;
   const lower = category.trim().toLowerCase();
   const mapped = LEGACY_CATEGORY_MAP[lower] ?? lower;
   if (CATEGORY_IDS_SET.has(mapped)) return mapped as CategoryId;
+
+  const folded = foldCategoryKey(category);
+  for (const opt of ALL_CATEGORIES) {
+    if (foldCategoryKey(opt.value) === folded || foldCategoryKey(opt.label) === folded) {
+      return opt.value as CategoryId;
+    }
+  }
   return null;
 }
 

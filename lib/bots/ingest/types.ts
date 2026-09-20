@@ -102,7 +102,9 @@ export type IngestRunMode =
   | 'daily_cap'
   | 'skipped'
   | 'off'
-  | 'error';
+  | 'error'
+  /** S9.1: discovery + eval only — no insertIngestedOffer. */
+  | 'discovery_only';
 
 export type IngestCycleReport = {
   ok: boolean;

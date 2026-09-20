@@ -514,11 +514,13 @@ export async function runSupplyEngine(
   let note = `Supply Engine ${mode} · niche=${niche.id} · wave=${wave} · sticky=${sticky.stickyObserved} · fresh=${router.candidatesDiscovered}`;
 
   if (resolveWriteAllowed(mode, opts)) {
+    // S9.1: Supply Engine must NOT mint via legacy ingest.
+    // Discovery/eval only — live writes go through S9 → S7.
     ingest = await runIngestCycleForProfile('standard', new Date().toISOString(), { config });
-    wroteOffers = (ingest.summary.inserted ?? 0) > 0;
-    note += ` · write attempted (inserted=${ingest.summary.inserted})`;
+    wroteOffers = false;
+    note += ` · write delegated to S9 (ingest discovery_only inserted=${ingest.summary.inserted} runMode=${ingest.runMode})`;
   } else if (mode === 'enabled') {
-    note += ' · write blocked (set SUPPLY_ENGINE_WRITE=1 to insert)';
+    note += ' · write blocked (set SUPPLY_ENGINE_WRITE=1 for discovery; mint via S9)';
   } else {
     note += ' · no offer writes';
   }

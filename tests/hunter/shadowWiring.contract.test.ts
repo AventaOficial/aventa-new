@@ -7,7 +7,7 @@ function src(rel: string) {
   return readFileSync(join(process.cwd(), rel), 'utf8');
 }
 
-function assertShadowObserveOrder(fileSrc: string, fileLabel: string) {
+function assertShadowObserveOrder(fileSrc: string, fileLabel: string, opts?: { discoveryOnly?: boolean }) {
   const evalAt = fileSrc.indexOf('evaluateDealSafe(');
   const observeAt = fileSrc.indexOf('observeIngestShadow(');
   const beginAt = fileSrc.indexOf('beginAutonomousShadowCycle(');
@@ -23,13 +23,20 @@ function assertShadowObserveOrder(fileSrc: string, fileLabel: string) {
   expect(observeAt, `${fileLabel} observeIngestShadow`).toBeGreaterThan(evalAt);
   expect(originalPriceSkip, `${fileLabel} quality skip before observe`).toBeGreaterThan(-1);
   expect(originalPriceSkip).toBeLessThan(observeAt);
-  expect(insertDup, `${fileLabel} insert duplicate after observe`).toBeGreaterThan(observeAt);
+  if (opts?.discoveryOnly) {
+    expect(fileSrc).toMatch(/S91_DISCOVERY_ONLY_SKIP_REASON|discovery_only/);
+    expect(fileSrc).not.toMatch(/insertIngestedOffer\s*\(/);
+  } else {
+    expect(insertDup, `${fileLabel} insert duplicate after observe`).toBeGreaterThan(observeAt);
+  }
 }
 
 describe('FASE 4.5.1 shadow wiring contract', () => {
   it('ml_worker y runIngestCycle observan después del verifier y de quality gates', () => {
     assertShadowObserveOrder(src('lib/bots/ingest/externalWorker.ts'), 'externalWorker');
-    assertShadowObserveOrder(src('lib/bots/ingest/runIngestCycle.ts'), 'runIngestCycle');
+    assertShadowObserveOrder(src('lib/bots/ingest/runIngestCycle.ts'), 'runIngestCycle', {
+      discoveryOnly: true,
+    });
   });
 
   it('universos de métricas no se mezclan (persistencia distinta)', () => {

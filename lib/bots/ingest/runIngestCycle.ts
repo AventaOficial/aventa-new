@@ -9,13 +9,10 @@ import {
 } from './botIngestDailyState';
 import { collectIngestItems } from './collectIngestItems';
 import { fetchParsedOfferMetadataDetailed } from './fetchParsedOfferMetadata';
-import { insertIngestedOffer } from './insertIngestedOffer';
 import { isLowQualityTitle } from './isLowQualityTitle';
-import { optimizeIngestTitle } from './optimizeIngestTitle';
 import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { computeSourceRotationWave, formatYmdInTz, getZonedHourMinute } from './ingestZonedTime';
 import { sleep } from './ingestHttp';
-import { recalculateUserReputation } from '@/lib/server/reputation';
 import type { IngestCycleReport, IngestSingleResult, IngestProfileId, IngestSourceId, IngestSourceStats, IngestItem } from './types';
 import { emptyIngestSourceStats } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
@@ -25,9 +22,7 @@ import {
   beginAutonomousShadowCycle,
   createDuplicateShadowContext,
   observeIngestShadow,
-  peekCurrentShadowCycleId,
   persistShadowCycleSnapshot,
-  recordShadowOutcomeFromAutonomous,
 } from '@/lib/autonomous';
 import type { AutonomousDecisionResult } from '@/lib/autonomous/types';
 import { countDuplicateKinds, countSupplyOpportunities } from './duplicateDrain';
@@ -42,13 +37,11 @@ import {
   trackIngestQualification,
   type QualificationCounts,
 } from '@/lib/hunter/supply/persistSnapshots';
-import { computeDealScore } from '@/lib/dealIntelligence';
-import {
-  buildRawObservation,
-  toProvenanceSlice,
-  withProcessingStatus,
-} from '@/lib/dealIntelligence/rawObservation';
 import { selectTopKByScore } from './candidateInsertGate';
+
+/** S9.1 — legacy cycle must not mint offers; live writes go through S9→S7. */
+export const S91_DISCOVERY_ONLY_SKIP_REASON =
+  's91_discovery_only_use_s9_for_writes' as const;
 
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
@@ -418,109 +411,21 @@ export async function runIngestCycleForProfile(
     targetMax,
   );
 
-  let autoApproved = 0;
-
+  // S9.1: discovery-only. Never call insertIngestedOffer from legacy cron.
+  // Canonical mint: S9 → withMachinePendingWritesEnabled → writePendingViaS7Bridge → S7.
+  const autoApproved = 0;
   for (const r of insertQueue) {
-    stageCounts.insertedAttempted += 1;
-
-    // Camino legacy: apagado en producción. Ver legacyAutoApproveWriteEnabled.
-    const allowAuto =
-      config.legacyAutoApproveWriteEnabled && r.decision === 'auto_approve';
-    const status = allowAuto ? 'approved' : 'pending';
-    const title = optimizeIngestTitle(r.meta);
-    const dealScore = computeDealScore({
-      meta: {
-        discountPrice: r.meta.discountPrice,
-        originalPrice: r.meta.originalPrice,
-        discountPercent: r.meta.discountPercent,
-      },
-      signals: r.meta.signals ?? null,
+    results.push({
+      url: r.item.url,
+      source: r.item.source,
+      status: 'skipped',
+      reason: S91_DISCOVERY_ONLY_SKIP_REASON,
     });
-    const sourceEventId = `${supplyRunId}:${r.item.source}:${r.item.url}`.slice(0, 240);
-    const rawObs = withProcessingStatus(
-      buildRawObservation({
-        sourceId: r.item.source,
-        sourceEventId,
-        url: r.meta.canonicalUrl || r.item.url,
-        merchant: r.meta.store,
-        salePrice: r.meta.discountPrice,
-        listPrice: r.meta.originalPrice,
-        currency: 'MXN',
-        title: r.meta.title,
-        sourceDetail: r.item.sourceDetail ?? null,
-        supplyRunId,
-        captureMethod:
-          r.item.source === 'ml_worker'
-            ? 'browser_justified'
-            : r.item.source === 'ml_api' || r.item.source === 'amazon_asin'
-              ? 'official_api'
-              : 'unknown',
-        processingStatus: 'scored',
-      }),
-      'scored',
-    );
-
-    try {
-      const ins = await insertIngestedOffer(r.meta, config, {
-        status,
-        titleOverride: title,
-        ingestScore: r.total,
-        scoreBreakdown: r.breakdown,
-        ingestSource: r.item.source,
-        ingestSourceDetail: r.item.sourceDetail ?? undefined,
-        decision: r.decision,
-        dealScore,
-        rawObservation: toProvenanceSlice(
-          withProcessingStatus(rawObs, status === 'pending' || status === 'approved' ? 'inserted' : 'scored'),
-          dealScore,
-        ),
-        gateAction: 'insert_pending',
-        gateReason: 'passed_machine_gates',
-      });
-      if (ins.ok) {
-        void recordShadowOutcomeFromAutonomous({
-          offerId: ins.offerId,
-          result: r.autonomous,
-          sourceId: r.item.source,
-          sourceDetail: r.item.sourceDetail,
-          shadowCycleId: peekCurrentShadowCycleId(),
-          qualification: r.item.qualification?.qualification ?? null,
-        });
-        results.push({ url: r.item.url, source: r.item.source, status: 'inserted', offerId: ins.offerId });
-        sourceStats[r.item.source].inserted += 1;
-        pendingBySource[r.item.source] = (pendingBySource[r.item.source] ?? 0) + (status === 'pending' ? 1 : 0);
-        if (status === 'approved') autoApproved += 1;
-      } else if ('duplicate' in ins && ins.duplicate) {
-        results.push({
-          url: r.item.url,
-          source: r.item.source,
-          status: 'duplicate',
-          duplicateKind: ins.duplicateKind,
-          supplyOpportunity: ins.supplyOpportunity,
-        });
-        sourceStats[r.item.source].duplicate += 1;
-      } else if ('error' in ins) {
-        results.push({ url: r.item.url, source: r.item.source, status: 'error', message: ins.error });
-        sourceStats[r.item.source].errors += 1;
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      results.push({ url: r.item.url, source: r.item.source, status: 'error', message });
-      sourceStats[r.item.source].errors += 1;
-    }
-
-    await sleep(randomIntInclusive(Math.max(120, delayLo), delayHi + 120));
+    markSourceSkip(sourceStats, r.item.source, S91_DISCOVERY_ONLY_SKIP_REASON);
   }
 
   if (inLegacyBoost) {
     await setBotIngestLastBoostYmd(ymd);
-  }
-
-  const insertedCount = results.filter((x) => x.status === 'inserted').length;
-  if (insertedCount > 0) {
-    for (const uid of config.botUserIdsForQuota) {
-      recalculateUserReputation(uid).catch(() => {});
-    }
   }
 
   const skipReasonCounts: Record<string, number> = {};
@@ -538,7 +443,7 @@ export async function runIngestCycleForProfile(
   const duplicateKindCounts = countDuplicateKinds(results);
   const supplyOpportunities = countSupplyOpportunities(results);
   const summary = {
-    inserted: results.filter((r) => r.status === 'inserted').length,
+    inserted: 0,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
     skipped: results.filter((r) => r.status === 'skipped').length,
     errors: results.filter((r) => r.status === 'error').length,
@@ -548,7 +453,10 @@ export async function runIngestCycleForProfile(
     ...(Object.keys(duplicateKindCounts).length > 0 ? { duplicateKindCounts } : {}),
     ...(supplyOpportunities > 0 ? { supplyOpportunities } : {}),
     sourceStats,
-    stageCounts,
+    stageCounts: {
+      ...stageCounts,
+      insertedAttempted: 0,
+    },
   };
 
   // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
@@ -573,8 +481,8 @@ export async function runIngestCycleForProfile(
     startedAt,
     finishedAt,
     maxPerRun: targetMax,
-    runMode: inMorningSustained ? 'morning_sustained' : inLegacyBoost ? 'boost' : 'normal',
-    dailyInsertedApprox: countToday + summary.inserted,
+    runMode: 'discovery_only',
+    dailyInsertedApprox: countToday,
     dailyCap: config.dailyMaxOffers,
     rotationWave,
     results,

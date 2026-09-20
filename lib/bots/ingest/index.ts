@@ -1,4 +1,9 @@
-export { runIngestCycle } from './runIngestCycle';
+export { runIngestCycle, S91_DISCOVERY_ONLY_SKIP_REASON } from './runIngestCycle';
+export {
+  assertMachineOfferWriteAuthorized,
+  resolveMachineInsertStatus,
+} from './machineWriteAuth';
+export type { MachineWriteAuthFailure, MachineWriteAuthOk } from './machineWriteAuth';
 export { loadBotIngestConfig } from './config';
 export type { IngestCycleReport, IngestSingleResult } from './types';
 export {

@@ -10,7 +10,8 @@ import { runIngestCycleForProfile } from '@/lib/bots/ingest/runIngestCycle';
 export const maxDuration = 300;
 
 /**
- * GET: ciclo de ingesta v3 (score, filtros ML/Amazon, auto-aprobación, tope diario).
+ * GET: ciclo de ingesta — S9.1 discovery/eval only (no offer mint).
+ * Live machine writes: S9 → withMachinePendingWritesEnabled → S7.
  * Protegido con CRON_SECRET (Authorization: Bearer o x-cron-secret).
  *
  * Respuesta **202**: el trabajo sigue en segundo plano. El reporte completo va a logs de Vercel / panel Trabajo (POST run-now sigue devolviendo 200 con JSON).

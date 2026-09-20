@@ -20,6 +20,12 @@ import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import { resolveBotInsertPublication } from './resolveBotInsertPublication';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 import { isSupplyOpportunity } from '@/lib/offers/supplyOpportunity';
+import {
+  assertMachineOfferWriteAuthorized,
+  resolveMachineInsertStatus,
+} from './machineWriteAuth';
+import { formatOfferScopeCondition, inferBotOfferScope } from '@/lib/offerScope';
+import { isSuppressedByNegativeMemory } from '@/lib/discovery/negativeMemory';
 
 /** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
 const OPTIONAL_COLUMNS = [
@@ -61,7 +67,7 @@ export type InsertIngestResult =
       /** El candidato descartado venía más barato que la oferta que bloquea. Solo métrica. */
       supplyOpportunity?: boolean;
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: 'NEGATIVE_MEMORY' };
 
 function buildModeratorComment(opts: InsertIngestOptions | undefined): string {
   if (opts?.ingestScore == null) {
@@ -80,6 +86,13 @@ export async function insertIngestedOffer(
   config: BotIngestConfig,
   opts?: InsertIngestOptions
 ): Promise<InsertIngestResult> {
+  // S9.1 defense-in-depth: sole machine writer requires explicit write auth.
+  // AUTO_APPROVE decision never bypasses this gate.
+  const writeAuth = assertMachineOfferWriteAuthorized();
+  if (!writeAuth.ok) {
+    return { ok: false, error: writeAuth.error };
+  }
+
   const authorId = resolveBotAuthorUserId(config, meta);
   if (!authorId) {
     return {
@@ -95,6 +108,16 @@ export async function insertIngestedOffer(
     rawCanonical || meta.canonicalUrl
   );
   const supabase = createServerClient();
+
+  // Defense-in-depth: SUPPRESS must not be bypassed by any machine insert path.
+  const nm = await isSuppressedByNegativeMemory({ supabase, url: offerUrl });
+  if (nm.suppressed) {
+    return {
+      ok: false,
+      error: `negative_memory:${nm.reason ?? 'SUPPRESS'}`,
+      code: 'NEGATIVE_MEMORY',
+    };
+  }
 
   const {
     findDuplicateOfferByUrl,
@@ -124,7 +147,8 @@ export async function insertIngestedOffer(
   const categoryInferred = classifyBotCategoryForStorage(meta, config.techCategoryIdSet);
   const categoryBase = categoryFromEnv ?? categoryInferred;
   const hasOriginal = meta.originalPrice != null && meta.originalPrice > meta.discountPrice;
-  const requestedStatus = opts?.status ?? 'pending';
+  // S9.1: approval *decision* may be auto_approve; mint is always pending.
+  const requestedStatus = resolveMachineInsertStatus(opts?.status);
   const publication = resolveBotInsertPublication({
     requestedStatus,
     offerUrl,
@@ -141,6 +165,8 @@ export async function insertIngestedOffer(
   const category = autogroup.category ?? categoryBase;
   const tags = autogroup.tags;
   const imageNormalized = normalizeOfferImageUrl(meta.imageUrl) ?? '';
+  const botScope = inferBotOfferScope({ store: meta.store, url: offerUrl });
+  const conditions = botScope ? formatOfferScopeCondition(botScope) : null;
 
   const expiresAt =
     status === 'approved' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined;
@@ -187,6 +213,7 @@ export async function insertIngestedOffer(
     ...(originalOfferUrl ? { original_offer_url: originalOfferUrl.slice(0, 2048) } : {}),
     ...(productFingerprint ? { product_fingerprint: productFingerprint } : {}),
     description,
+    ...(conditions ? { conditions } : {}),
     moderator_comment: moderatorComment,
     ...(botMeta ? { bot_meta: botMeta } : {}),
     ...(expiresAt ? { expires_at: expiresAt } : {}),
