@@ -19,6 +19,7 @@ export default function TiendaOfferList({ offers }: { offers: CardOffer[] }) {
           discountPrice={offer.discountPrice}
           discount={offer.discount}
           description={offer.description}
+          hunterComment={offer.hunterComment}
           image={offer.image}
           upvotes={offer.upvotes}
           downvotes={offer.downvotes}

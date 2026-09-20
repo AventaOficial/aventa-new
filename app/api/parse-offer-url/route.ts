@@ -418,12 +418,25 @@ export async function POST(request: Request) {
       inferStoreFromHostname(pageUrl.hostname);
     const extracted = Boolean(title) || images.length > 0 || suggestedDiscount != null;
 
+    // Observability for broken paste flow (no secrets). Helps Hunter Lab / support.
+    const extractDiagnostics = {
+      htmlFetched: Boolean(html),
+      mlApiHit: Boolean(ml),
+      mlSource: ml?.source ?? null,
+      mlItemId: ml?.itemId ?? mlIdOnMlHost,
+      imageCandidateCount: candidates.length,
+      selectedImageCount: images.length,
+      offerResolvedConfidence: offerResolved.confidence,
+      offerResolvedProvenance: offerResolved.provenance?.slice(0, 12) ?? [],
+    };
+
     if (wasMeliLa && !extracted && isMercadoLibre) {
       return NextResponse.json({
         ...emptyPayload('extract_failed'),
         store: 'Mercado Libre',
         error:
           'No pudimos obtener el producto desde este enlace corto. Pega la URL completa de Mercado Libre y puedes completar los datos a mano.',
+        diagnostics: extractDiagnostics,
       });
     }
 
@@ -436,6 +449,7 @@ export async function POST(request: Request) {
       suggested_original_price: suggestedOriginal,
       suggested_category: suggestedCategory,
       reason: extracted ? null : 'extract_failed',
+      diagnostics: extractDiagnostics,
     });
   } catch {
     return NextResponse.json(emptyPayload('extract_failed'));

@@ -156,6 +156,7 @@ export default function PublicHallazgosSection({
               discountPrice={offer.discountPrice}
               discount={offer.discount}
               description={offer.description}
+                    hunterComment={offer.hunterComment}
               image={offer.image}
               upvotes={offer.upvotes}
               downvotes={offer.downvotes}

@@ -19,6 +19,7 @@ import {
   Archive,
   AlertTriangle,
   ArrowRight,
+  MessageCircle,
   Flame,
   Clock,
 } from 'lucide-react';
@@ -40,7 +41,10 @@ import type { OfferScopeUi } from '@/lib/offerScope';
 import StoreBrandMark from './StoreBrandMark';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
 
-export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = 80;
+/** Tope visual del comentario del cazador en la card (ellipsis / line-clamp). */
+export const OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH = 120;
+/** @deprecated Prefer OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH — description ya no se muestra bajo el título. */
+export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH;
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('es-MX', {
@@ -138,6 +142,8 @@ interface OfferCardProps {
   discountPrice: number;
   discount: number;
   description?: string;
+  /** Comentario corto del cazador; solo se muestra si existe (no sustituye description del detalle). */
+  hunterComment?: string;
   image?: string;
   onCardClick?: () => void;
   upvotes: number;
@@ -193,7 +199,8 @@ export default function OfferCard({
   originalPrice,
   discountPrice,
   discount,
-  description,
+  description: _description,
+  hunterComment,
   image,
   onCardClick,
   upvotes,
@@ -397,6 +404,12 @@ export default function OfferCard({
   };
 
   const showImage = image && !imgError;
+  const imageUnoptimized =
+    Boolean(image) &&
+    (image!.startsWith('/') ||
+      image!.includes('placehold.co') ||
+      /mlstatic\.com|media-amazon\.com|ssl-images-amazon\.com/i.test(image!));
+
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const savingsAmount =
@@ -438,9 +451,11 @@ export default function OfferCard({
     !statusConfig ||
     statusConfig.behavior === 'public' ||
     statusConfig.behavior === 'archive';
-  const shortDescription = description?.trim()
-    ? description.trim().slice(0, OFFER_CARD_DESCRIPTION_MAX_LENGTH)
+  const shortHunterComment = hunterComment?.trim()
+    ? hunterComment.trim().slice(0, OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH)
     : null;
+  const hunterCommentOverflow =
+    (hunterComment?.trim().length ?? 0) > OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH;
 
   const copyCouponsToClipboard = async (): Promise<void> => {
     if (isTesterOffer) return;
@@ -580,7 +595,7 @@ export default function OfferCard({
                 sizes="(max-width: 400px) 80px, (max-width: 768px) 36vw, 200px"
                 className="object-contain object-center p-0.5 md:p-1"
                 onError={() => setImgError(true)}
-                unoptimized={image.startsWith('/') || image.includes('placehold.co')}
+                unoptimized={imageUnoptimized}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -605,13 +620,6 @@ export default function OfferCard({
             <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
               {title}
             </h3>
-
-            {shortDescription ? (
-              <p className="hidden md:block text-xs md:text-[13px] leading-snug text-gray-500 dark:text-gray-400 line-clamp-2 wrap-anywhere">
-                {shortDescription}
-                {(description?.trim().length ?? 0) > OFFER_CARD_DESCRIPTION_MAX_LENGTH ? '…' : ''}
-              </p>
-            ) : null}
 
             {author?.username ? (
               <span className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
@@ -834,7 +842,45 @@ export default function OfferCard({
             </div>
           </div>
         </div>
+
+        {shortHunterComment ? (
+          <>
+            <div
+              className="hidden md:block w-px self-stretch mx-2.5 lg:mx-3 shrink-0 bg-gray-200/90 dark:bg-[#2a2a2a]"
+              aria-hidden
+            />
+            <aside
+              className="hidden md:flex w-[30%] max-w-[200px] min-w-[132px] shrink-0 flex-col gap-1.5 self-stretch pt-0.5"
+              aria-label="Comentario del cazador"
+            >
+              <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
+                Comentario del cazador
+              </div>
+              <p className="text-xs md:text-[13px] leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
+                {shortHunterComment}
+                {hunterCommentOverflow ? '…' : ''}
+              </p>
+            </aside>
+          </>
+        ) : null}
       </div>
+
+      {shortHunterComment ? (
+        <aside
+          className="md:hidden flex flex-col gap-1 border-l-2 border-violet-500/35 pl-3"
+          aria-label="Comentario del cazador"
+        >
+          <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
+            Comentario del cazador
+          </div>
+          <p className="text-xs leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
+            {shortHunterComment}
+            {hunterCommentOverflow ? '…' : ''}
+          </p>
+        </aside>
+      ) : null}
     </div>
     {showAdvancedMetrics && offerId ? (
       <OfferAdvancedMetricsModal

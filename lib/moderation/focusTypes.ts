@@ -13,6 +13,7 @@ export type FocusModerationOffer = {
   offer_url: string | null;
   original_offer_url?: string | null;
   description?: string | null;
+  hunter_comment?: string | null;
   created_at: string;
   created_by: string | null;
   risk_score?: number | null;

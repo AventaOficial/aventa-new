@@ -267,6 +267,32 @@ export function evaluateModerationPriority(
       label: 'Evidencia solo de listing/card',
     });
   }
+  if (!imageOk) {
+    reasons.push({
+      kind: 'warning',
+      code: 'suspicious_image',
+      label: '⚠️ imagen sospechosa o ausente',
+    });
+  }
+  if (
+    input.originalPrice != null &&
+    input.price != null &&
+    input.originalPrice > 0 &&
+    input.price > input.originalPrice
+  ) {
+    reasons.push({
+      kind: 'warning',
+      code: 'price_inconsistent',
+      label: '⚠️ precio inconsistente',
+    });
+  }
+  if (dealScore != null && typeof dealScore.score === 'number' && dealScore.score < 42) {
+    reasons.push({
+      kind: 'warning',
+      code: 'low_confidence',
+      label: '⚠️ candidato con baja confianza',
+    });
+  }
   if (!historyUseful && isBot) {
     reasons.push({
       kind: 'warning',

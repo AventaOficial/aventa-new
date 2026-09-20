@@ -9,7 +9,7 @@ function hasMissingColumn(error: { message?: string } | null, columnName: string
 }
 
 const SELECT_CORE =
-  'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, steps, conditions, created_at, created_by, risk_score, moderator_comment';
+  'id, title, price, original_price, store, category, bank_coupon, coupons, image_url, image_urls, offer_url, description, hunter_comment, steps, conditions, created_at, created_by, risk_score, moderator_comment';
 
 const SELECT_PROFILE = 'profiles:public_profiles_view!created_by(display_name, avatar_url)';
 

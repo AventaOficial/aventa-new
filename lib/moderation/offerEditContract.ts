@@ -10,6 +10,7 @@ export type OfferEditSnapshot = {
   price?: number | null;
   original_price?: number | null;
   description?: string | null;
+  hunter_comment?: string | null;
   category?: string | null;
   image_url?: string | null;
   offer_url?: string | null;
@@ -43,6 +44,19 @@ export function sanitizeOfferEditDescription(raw: unknown): string | null {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 2000);
+  return stripped.length > 0 ? stripped : null;
+}
+
+/** Comentario del cazador (feed); vacío → null (limpia columna). */
+export function sanitizeOfferEditHunterComment(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string') return null;
+  const stripped = raw
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/javascript:/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
   return stripped.length > 0 ? stripped : null;
 }
 

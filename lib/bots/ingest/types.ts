@@ -2,6 +2,7 @@ import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 import type { DealQualificationResult } from '@/lib/hunter/dealQualification/types';
 import type { SupplyOpsRunSummary } from './supplyOpsRunSummary';
+import type { HunterIntelligenceRunSummary } from '@/lib/hunter/candidateIntelligence/types';
 
 export type IngestSourceId =
   | 'env_urls'
@@ -151,5 +152,9 @@ export type IngestCycleReport = {
      * Distingue dryRun / writes_disabled de inserts reales.
      */
     ops?: SupplyOpsRunSummary;
+    /**
+     * Candidate Intelligence run report (observation/shadow). Never authorizes mint.
+     */
+    candidateIntelligence?: HunterIntelligenceRunSummary;
   };
 };

@@ -29,6 +29,7 @@ type ProfileOffer = {
   discountPrice: number;
   discount: number;
   description?: string;
+  hunterComment?: string;
   upvotes: number;
   downvotes: number;
   offerUrl: string;
@@ -364,6 +365,7 @@ export default function ProfilePage() {
                         discountPrice={offer.discountPrice}
                         discount={offer.discount}
                         description={offer.description}
+                        hunterComment={offer.hunterComment}
                         image={offer.image}
                         upvotes={offer.upvotes}
                         downvotes={offer.downvotes}

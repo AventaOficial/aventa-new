@@ -11,11 +11,12 @@ import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 describe('OfferCard product quality', () => {
   const cardSrc = readFileSync(join(process.cwd(), 'app/components/OfferCard.tsx'), 'utf8');
 
-  it('renders short description with line-clamp (desktop)', () => {
-    expect(OFFER_CARD_DESCRIPTION_MAX_LENGTH).toBe(80);
-    expect(cardSrc).toContain('shortDescription');
-    expect(cardSrc).toContain('line-clamp-2');
-    expect(cardSrc).toContain('OFFER_CARD_DESCRIPTION_MAX_LENGTH');
+  it('renders hunter comment with line-clamp (not description under title)', () => {
+    expect(OFFER_CARD_DESCRIPTION_MAX_LENGTH).toBe(120);
+    expect(cardSrc).toContain('shortHunterComment');
+    expect(cardSrc).toContain('line-clamp-3');
+    expect(cardSrc).toContain('OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH');
+    expect(cardSrc).not.toContain('shortDescription');
   });
 
   it('removes feed commission disclosure from OfferCard', () => {

@@ -22,6 +22,8 @@ export type CardOffer = {
   discountPrice: number;
   discount: number;
   description?: string;
+  /** Comentario corto del cazador para la card (no sustituye description). */
+  hunterComment?: string;
   steps?: string;
   conditions?: string;
   coupons?: string;
@@ -70,6 +72,7 @@ export type RankedOfferSource = {
   store?: string | null;
   offer_url?: string | null;
   description?: string | null;
+  hunter_comment?: string | null;
   image_url?: string | null;
   image_urls?: string[] | null;
   up_votes?: number | null;
@@ -105,6 +108,7 @@ export type FeedApiItemShape = {
   store?: string | null;
   msi_months?: number | null;
   description?: string | null;
+  hunter_comment?: string | null;
   coupons?: string | null;
   conditions?: string | null;
   author?: {
@@ -170,6 +174,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     msiMonths: row.msi_months != null ? Number(row.msi_months) : undefined,
     bankCoupon: row.bank_coupon?.trim() || undefined,
     description: row.description?.trim() || undefined,
+    hunterComment: row.hunter_comment?.trim() || undefined,
     steps: row.steps?.trim() || undefined,
     conditions: row.conditions?.trim() || undefined,
     coupons: row.coupons?.trim() || undefined,
@@ -232,6 +237,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     msiMonths: msiOk,
     bankCoupon: item.bank_coupon?.trim() || undefined,
     description: item.description?.trim() || undefined,
+    hunterComment: item.hunter_comment?.trim() || undefined,
     coupons: item.coupons?.trim() || undefined,
     conditions: item.conditions?.trim() || undefined,
     offerScope: parseOfferScopeFromConditions(item.conditions),
