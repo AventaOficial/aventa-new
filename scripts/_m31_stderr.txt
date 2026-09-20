@@ -1,0 +1,51 @@
+[m3.1] module-loaded
+[m3.1] main-start
+[m3.1] env-loaded { target: 'staging', ref: 'oojshofrpbfwsiypcecr' }
+[m3.1] guard {
+  ok: true,
+  target: 'staging',
+  supabaseRef: 'oojshofrpbfwsiypcecr',
+  productionRuntime: false
+}
+[m3.1] creds { urlOk: true, keyLen: 219 }
+[m3.1] client-ready
+[m3.1] prod-key { present: false, prodRef: 'mkgsrpsuvedwwlzmzmzh' }
+[m3.1] staging-snapshot-start
+[m3.1] staging-snapshot-done {
+  creator_rewards: 0,
+  reward_payouts: 0,
+  ledger_settlements: 0,
+  reward_audit_log: 0,
+  affiliate_ledger_entries: 1,
+  affiliate_commissions: 1,
+  affiliate_conversions: 2,
+  reward_outbound_clicks: 8
+}
+[m3.1] flags {
+  SUPPLY_AUTOMATION_ENABLED: '(unset)',
+  BOT_INGEST_MACHINE_PENDING_WRITES: '(unset)',
+  DISTRIBUTION_ENGINE_ENABLED: 'false',
+  SETTLEMENT_BRIDGE_ENABLED: 'false',
+  MONEY_PATH_FROZEN: 'true',
+  REWARDS_PROGRAM_ACTIVE: 'false',
+  COMMISSION_PROGRAM_ACTIVE: 'false',
+  supplyOn: false,
+  machineWritesOn: false,
+  distributionOn: false,
+  settlementOn: false,
+  moneyFrozen: true,
+  rewardsOn: false,
+  commissionOn: false
+}
+[m3.1] pre-a checkpoint written
+[m3.1] phase-a-start
+[m3.1] phase-a-done { created: false, reason: 'ambiguous_or_no_click' }
+[m3.1] phase-b offer-start
+[m3.1] phase-b offer-done {
+  ok: true,
+  creatorId: 'fd392640-64f7-4daa-b2d6-1c85a9fa36e1',
+  clickerId: '11a10a37-9c9f-49ed-ac54-945ff8eb1e43',
+  offerId: 'f5b35c36-4c59-42a8-bd62-1b3ba8b7a278',
+  asin: 'https://www.amazon.com.mx/dp/B0M31301079'
+}
+[m3.1] wrote E:\AVENTA NEW\aventa-new\scripts\_m31_reports\m3-1-rewards-staging-canary-latest.json

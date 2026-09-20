@@ -1,0 +1,13 @@
+
+ RUN  v4.1.2 E:/AVENTA NEW/aventa-new
+
+·············stderr | tests/rewards/monetaryHardening.test.ts > Monetary hardening — payout atómico > payout RPC fallido → error mapeado (rollback implícito en RPC)
+[rewards/payout rpc] amount_mismatch
+
+············································································································································································································································································································································------
+
+ Test Files  31 passed | 1 skipped (32)
+      Tests  345 passed | 6 skipped (351)
+   Start at  10:53:25
+   Duration  7.72s (transform 3.98s, setup 0ms, import 9.23s, tests 1.20s, environment 5ms)
+

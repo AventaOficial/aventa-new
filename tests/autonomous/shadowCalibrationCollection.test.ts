@@ -310,7 +310,8 @@ describe('FASE 11.1 calibration data collection', () => {
       },
     );
     expect(human).toEqual({ applied: false, reason: 'error' });
-    expect(src('lib/bots/ingest/runIngestCycle.ts')).toMatch(/void recordShadowOutcomeFromAutonomous/);
+    expect(src('lib/bots/ingest/runIngestCycle.ts')).toMatch(/discovery_only|S91_DISCOVERY_ONLY/);
+    expect(src('lib/bots/ingest/externalWorker.ts')).toMatch(/void recordShadowOutcomeFromAutonomous/);
     expect(src('app/api/admin/moderate-offer/route.ts')).toMatch(/void captureHumanModerationOutcome/);
   });
 

@@ -67,6 +67,31 @@ export function createPostgresRevenueRepository(
       if (error) throw new Error(`caza.repo.revenue_list_failed:${error.message}`);
       return ((data ?? []) as unknown as CazaRevenueEventRow[]).map(rowToRevenueEvent);
     },
+
+    async listByExternalReference(network, externalReference, limit) {
+      const safeLimit = assertBoundedLimit(limit, 500);
+      const { data, error } = await client
+        .from(CAZA_REVENUE_EVENTS_TABLE)
+        .select('*')
+        .eq('network', network)
+        .eq('external_reference', externalReference)
+        .order('occurred_at', { ascending: true })
+        .limit(safeLimit);
+      if (error) throw new Error(`caza.repo.revenue_list_ext_failed:${error.message}`);
+      return ((data ?? []) as unknown as CazaRevenueEventRow[]).map(rowToRevenueEvent);
+    },
+
+    async listByTrackingLabel(trackingLabel, limit) {
+      const safeLimit = assertBoundedLimit(limit, 500);
+      const { data, error } = await client
+        .from(CAZA_REVENUE_EVENTS_TABLE)
+        .select('*')
+        .eq('tracking_label', trackingLabel)
+        .order('occurred_at', { ascending: false })
+        .limit(safeLimit);
+      if (error) throw new Error(`caza.repo.revenue_list_track_failed:${error.message}`);
+      return ((data ?? []) as unknown as CazaRevenueEventRow[]).map(rowToRevenueEvent);
+    },
   };
 }
 

@@ -1,0 +1,25 @@
+{
+  "flagsFinal": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "machinePendingWritesEnabled": false,
+    "supplyAutomationEnabled": false,
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "distributionEngineEnabled": false,
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "settlementBridgeEnabled": false,
+    "MONEY_PATH_FROZEN": "true",
+    "moneyPathFrozen": true,
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "rewardsActive": false,
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "commissionActive": false
+  },
+  "supplyOff": true,
+  "machineWritesOff": true,
+  "distributionOff": true,
+  "settlementOff": true,
+  "rewardsOff": true,
+  "commissionOff": true,
+  "moneyFrozen": true
+}

@@ -23,6 +23,7 @@ export const SETTLEMENT_REJECT_REASONS = [
   'commission_malformed',
   'commission_not_approved',
   'commission_reversed',
+  'conversion_not_found',
   'currency_mismatch',
   'invalid_amount',
   'invalid_allocation',

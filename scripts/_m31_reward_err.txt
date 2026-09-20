@@ -1,0 +1,171 @@
+[m3.1-reward] wrote E:\AVENTA NEW\aventa-new\scripts\_m31_reports\m3-1-reward-canary-attributed-latest.json
+{
+  "ok": true,
+  "campaign": "M3.1_reward_canary_attributed",
+  "targetLedger": "20e5662d-a1a2-45d6-810a-55cd0aec6c3f",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "precheck": {
+    "ledgerExists": true,
+    "settlementLink": true,
+    "commissionId": "bb4873f0-5242-46c4-8e85-6a923139f1c7",
+    "conversionAttributed": true,
+    "hasCreator": true,
+    "hasOffer": true,
+    "hasClick": true,
+    "attributable": true,
+    "attributionMethod": "sub_id",
+    "attributionConfidence": "high",
+    "clickMatchesOffer": true,
+    "creatorMatchesOffer": true,
+    "offerParticipating": true,
+    "clickerNotCreator": true,
+    "amountCents": 1800,
+    "expectedCreatorShareCents": 720,
+    "countsBefore": {
+      "creator_rewards": 0,
+      "reward_payouts": 0,
+      "ledger_settlements": 0,
+      "reward_audit_log": 3
+    },
+    "prodBefore": null
+  },
+  "dryRun": {
+    "attributionMatched": true,
+    "attribution": {
+      "method": "sub_id",
+      "confidence": "high",
+      "offerId": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+      "creatorId": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+      "clickId": "0e6366ac-322d-4c80-ae24-ad62114fffb0"
+    },
+    "rewardBlockedReason": "money_path_frozen",
+    "noWrites": true,
+    "eligibleIfUnfrozen": true
+  },
+  "rewardCanary": {
+    "result": {
+      "created": true,
+      "rewardId": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146"
+    }
+  },
+  "rewardVerify": {
+    "reward": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+      "offer_id": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+      "ledger_entry_id": "20e5662d-a1a2-45d6-810a-55cd0aec6c3f",
+      "gross_commission_cents": 1800,
+      "creator_share_cents": 720,
+      "platform_share_cents": 1080,
+      "currency": "MXN",
+      "status": "VALIDATING",
+      "hold_until": "2026-11-18T16:50:39.292+00:00",
+      "attribution_method": "sub_id",
+      "attribution_confidence": "high",
+      "meta": {
+        "click_id": "0e6366ac-322d-4c80-ae24-ad62114fffb0"
+      }
+    },
+    "creatorRewardsForLedger": 1,
+    "ledgerSettlementsForLedger": 1,
+    "auditRewardCreated": 1,
+    "payouts": 0,
+    "amountOk": true,
+    "currencyOk": true,
+    "statusOk": true,
+    "idsOk": true
+  },
+  "idempotency": {
+    "replay": {
+      "created": false,
+      "reason": "duplicate_ledger"
+    },
+    "concurrent": [
+      {
+        "created": false,
+        "reason": "duplicate_ledger"
+      },
+      {
+        "created": false,
+        "reason": "duplicate_ledger"
+      }
+    ],
+    "creatorRewardsForLedger": 1,
+    "ledgerSettlementsForLedger": 1,
+    "payouts": 0,
+    "ok": true
+  },
+  "negatives": {
+    "A_m2": {
+      "created": false,
+      "reason": "ambiguous_or_no_click"
+    },
+    "B_unattributed": {
+      "created": false,
+      "reason": "ambiguous_or_no_click"
+    },
+    "C_creator_mismatch": {
+      "created": false,
+      "reason": "creator_offer_mismatch"
+    },
+    "D_bad_click": {
+      "created": false,
+      "reason": "anonymous_click_not_auto_rewardable"
+    },
+    "E_missing": {
+      "created": false,
+      "reason": "no_evidence"
+    },
+    "creatorRewardsTotal": 1,
+    "creatorRewardsForTarget": 1,
+    "ok": true
+  },
+  "payoutBoundary": {
+    "creator_rewards": 1,
+    "reward_payouts": 0,
+    "ok": true
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "countsAfter": {
+    "creator_rewards": 1,
+    "reward_payouts": 0,
+    "ledger_settlements": 1
+  },
+  "prodNote": "production service key unavailable — skipped live prod counts"
+}

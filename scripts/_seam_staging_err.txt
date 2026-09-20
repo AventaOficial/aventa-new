@@ -1,0 +1,92 @@
+[seam] wrote E:\AVENTA NEW\aventa-new\scripts\_m31_reports\settlement-ledger-attribution-staging-latest.json
+{
+  "ok": true,
+  "campaign": "settlement_ledger_attribution_seam",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "true",
+    "MONEY_PATH_FROZEN": "false",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": true,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "settlement": {
+    "ok": true,
+    "reason": null,
+    "ledgerEntryId": "20e5662d-a1a2-45d6-810a-55cd0aec6c3f",
+    "reused": false,
+    "createdCreatorReward": false
+  },
+  "ledger": {
+    "id": "20e5662d-a1a2-45d6-810a-55cd0aec6c3f",
+    "click_id": "0e6366ac-322d-4c80-ae24-ad62114fffb0",
+    "offer_id": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+    "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "tracking_tag": "av1.f5b35c36-4c59-42a8-bd62-1b3ba8b7a278.0e6366ac-322d-4c80-ae24-ad62114fffb0",
+    "attributable": true,
+    "attribution_method": "sub_id",
+    "attribution_confidence": "high",
+    "network": "amazon",
+    "amount_cents": 1800,
+    "status": "accrued",
+    "external_ref": "settlement:commission:bb4873f0-5242-46c4-8e85-6a923139f1c7",
+    "meta": {
+      "settlement": {
+        "settled": false,
+        "externalRef": "settlement:commission:bb4873f0-5242-46c4-8e85-6a923139f1c7",
+        "commissionId": "bb4873f0-5242-46c4-8e85-6a923139f1c7",
+        "conversionId": "a928b487-cf38-4eb4-8970-f4961cd9c029",
+        "withdrawable": false,
+        "bridgeVersion": "m1",
+        "rewardBoundary": "future_createRewardFromLedgerEntry",
+        "creatorShareBps": 4000,
+        "attributionSource": "conversion_attributed",
+        "externalCommissionId": "seam-attr-comm-1789836229116",
+        "grossCommissionCents": 1800,
+        "creatorAllocationCents": 720,
+        "platformAllocationCents": 1080
+      }
+    }
+  },
+  "rewardDryRun": {
+    "matched": true,
+    "method": "sub_id",
+    "confidence": "high",
+    "reason": null,
+    "offerId": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+    "creatorId": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "rewardsProgramActive": false,
+    "note": "resolver only — createRewardFromLedgerEntry not called"
+  },
+  "m2Intact": true,
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

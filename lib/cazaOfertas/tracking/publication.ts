@@ -39,14 +39,26 @@ export type PublicationTerminalStatus = 'PUBLISHED' | 'FAILED' | 'RETRACTED';
 
 /**
  * Métricas de desempeño. Todas nullable a propósito: se poblarán cuando exista
- * un reporte de la red, no antes.
+ * un reporte de la red, no antes. UNKNOWN ⇒ null, nunca 0 inventado.
  */
 export interface DealPublicationMetrics {
   readonly clicks: number | null;
   readonly orders: number | null;
   readonly approvedOrders: number | null;
+  /** FASE 3.2 — unidades; null hasta fuente oficial. */
+  readonly units: number | null;
+  /** FASE 3.2 — ventas brutas; null hasta evidencia. */
+  readonly grossSales: MoneyAmount | null;
+  /**
+   * Comisión estimada/reportada (nullable).
+   * Persistida históricamente como metrics_estimated_commission_*.
+   */
   readonly estimatedCommission: MoneyAmount | null;
+  /** Alias FASE 3.2 canónico de estimatedCommission (misma semántica nullable). */
+  readonly commission: MoneyAmount | null;
   readonly approvedCommission: MoneyAmount | null;
+  /** FASE 3.2 — comisión cancelada/revertida agregada; null si desconocida. */
+  readonly cancelledCommission: MoneyAmount | null;
   readonly lastSyncedAt: IsoTimestamp | null;
 }
 
@@ -54,8 +66,12 @@ export const EMPTY_PUBLICATION_METRICS: DealPublicationMetrics = {
   clicks: null,
   orders: null,
   approvedOrders: null,
+  units: null,
+  grossSales: null,
   estimatedCommission: null,
+  commission: null,
   approvedCommission: null,
+  cancelledCommission: null,
   lastSyncedAt: null,
 };
 

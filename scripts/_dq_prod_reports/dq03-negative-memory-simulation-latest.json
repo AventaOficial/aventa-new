@@ -1,0 +1,3400 @@
+{
+  "meta": {
+    "phase": "DQ-03",
+    "environment": "production",
+    "supabaseRef": "mkgsrpsuvedwwlzmzmzh",
+    "readOnly": true,
+    "writes": false,
+    "at": "2026-09-20T04:47:52.078Z",
+    "note": "Chronological simulation; no temporal leakage. LEVEL2=suppress within TTL after spam or ≥2 rejects. LEVEL1=penalize on repeat/single-reject history."
+  },
+  "dataset": {
+    "candidates": 579,
+    "fingerprints": 434,
+    "approvals": 66,
+    "rejects": 509,
+    "spam_rejects": 45,
+    "sources": [
+      "ml_worker",
+      "ml_api"
+    ],
+    "temporal_window": {
+      "first": "2026-09-06T09:01:00.776556+00:00",
+      "last": "2026-09-20T04:47:02.719514+00:00"
+    },
+    "statusFunnel": {
+      "rejected": 509,
+      "approved": 66,
+      "pending": 4
+    }
+  },
+  "policy_definition": {
+    "LEVEL_0_CLEAN": "ALLOW — first seen, no prior negative",
+    "LEVEL_1_SOFT": "PENALIZE — prior appearance OR ≥1 reject (any age)",
+    "LEVEL_2_STRONG": "SUPPRESS — (≥2 rejects OR ≥1 spam) AND last strong signal within TTL",
+    "ttl_experiments": [
+      "24h",
+      "72h",
+      "7d"
+    ],
+    "permanent_blacklist": false
+  },
+  "experiments": {
+    "24h": {
+      "policy": "24h suppression",
+      "suppress_window_ms": 86400000,
+      "total_candidates": 579,
+      "first_seen_candidates": 434,
+      "repeated_candidates": 145,
+      "previously_rejected_candidates": 145,
+      "previously_spammed_candidates": 30,
+      "candidates_hypothetically_suppressed": 31,
+      "candidates_hypothetically_penalized": 114,
+      "candidates_allowed": 434,
+      "noise_removed": 0.0535,
+      "false_suppression_hits": 0,
+      "false_suppression_unique_fingerprints": 0,
+      "false_suppression_risk": 0,
+      "false_suppression_risk_unique": 0,
+      "false_suppression_buckets": {
+        "within_24h": 0,
+        "within_72h": 0,
+        "within_7d": 0,
+        "after_7d": 0
+      },
+      "repeat_rejection_avoidance_count": 29,
+      "false_suppression_examples": [],
+      "by_source": [
+        {
+          "source": "ml_worker",
+          "total": 413,
+          "repeat_rate": 0.165,
+          "reject_rate": 0.913,
+          "spam_rate": 0.002,
+          "approval_rate": 0.087,
+          "hypothetical_suppression_rate": 0,
+          "hypothetical_false_suppression_rate": null,
+          "suppressed": 0,
+          "penalized": 68,
+          "allowed": 345
+        },
+        {
+          "source": "ml_api",
+          "total": 166,
+          "repeat_rate": 0.464,
+          "reject_rate": 0.795,
+          "spam_rate": 0.265,
+          "approval_rate": 0.181,
+          "hypothetical_suppression_rate": 0.187,
+          "hypothetical_false_suppression_rate": 0,
+          "suppressed": 31,
+          "penalized": 46,
+          "allowed": 89
+        }
+      ],
+      "by_category": [
+        {
+          "category": "tecnologia",
+          "total": 224,
+          "repeat": 77,
+          "reject": 197,
+          "spam": 34,
+          "approve": 23,
+          "hypothetical_suppression": 25,
+          "suppression_rate": 0.112
+        },
+        {
+          "category": "hogar",
+          "total": 122,
+          "repeat": 36,
+          "reject": 118,
+          "spam": 1,
+          "approve": 4,
+          "hypothetical_suppression": 5,
+          "suppression_rate": 0.041
+        },
+        {
+          "category": "UNKNOWN",
+          "total": 55,
+          "repeat": 12,
+          "reject": 46,
+          "spam": 2,
+          "approve": 9,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "belleza",
+          "total": 35,
+          "repeat": 2,
+          "reject": 26,
+          "spam": 0,
+          "approve": 9,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "autos",
+          "total": 23,
+          "repeat": 5,
+          "reject": 20,
+          "spam": 1,
+          "approve": 3,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "gaming",
+          "total": 23,
+          "repeat": 4,
+          "reject": 21,
+          "spam": 0,
+          "approve": 2,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "deportes",
+          "total": 22,
+          "repeat": 4,
+          "reject": 18,
+          "spam": 1,
+          "approve": 4,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "moda",
+          "total": 22,
+          "repeat": 1,
+          "reject": 18,
+          "spam": 0,
+          "approve": 4,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "jardin",
+          "total": 18,
+          "repeat": 2,
+          "reject": 17,
+          "spam": 0,
+          "approve": 1,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "entretenimiento",
+          "total": 18,
+          "repeat": 2,
+          "reject": 13,
+          "spam": 6,
+          "approve": 5,
+          "hypothetical_suppression": 1,
+          "suppression_rate": 0.056
+        },
+        {
+          "category": "supermercado",
+          "total": 11,
+          "repeat": 0,
+          "reject": 9,
+          "spam": 0,
+          "approve": 2,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "viajes",
+          "total": 5,
+          "repeat": 0,
+          "reject": 5,
+          "spam": 0,
+          "approve": 0,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "bebes",
+          "total": 1,
+          "repeat": 0,
+          "reject": 1,
+          "spam": 0,
+          "approve": 0,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        }
+      ]
+    },
+    "72h": {
+      "policy": "72h suppression",
+      "suppress_window_ms": 259200000,
+      "total_candidates": 579,
+      "first_seen_candidates": 434,
+      "repeated_candidates": 145,
+      "previously_rejected_candidates": 145,
+      "previously_spammed_candidates": 30,
+      "candidates_hypothetically_suppressed": 54,
+      "candidates_hypothetically_penalized": 91,
+      "candidates_allowed": 434,
+      "noise_removed": 0.0933,
+      "false_suppression_hits": 0,
+      "false_suppression_unique_fingerprints": 0,
+      "false_suppression_risk": 0,
+      "false_suppression_risk_unique": 0,
+      "false_suppression_buckets": {
+        "within_24h": 0,
+        "within_72h": 0,
+        "within_7d": 0,
+        "after_7d": 0
+      },
+      "repeat_rejection_avoidance_count": 50,
+      "false_suppression_examples": [],
+      "by_source": [
+        {
+          "source": "ml_worker",
+          "total": 413,
+          "repeat_rate": 0.165,
+          "reject_rate": 0.913,
+          "spam_rate": 0.002,
+          "approval_rate": 0.087,
+          "hypothetical_suppression_rate": 0,
+          "hypothetical_false_suppression_rate": null,
+          "suppressed": 0,
+          "penalized": 68,
+          "allowed": 345
+        },
+        {
+          "source": "ml_api",
+          "total": 166,
+          "repeat_rate": 0.464,
+          "reject_rate": 0.795,
+          "spam_rate": 0.265,
+          "approval_rate": 0.181,
+          "hypothetical_suppression_rate": 0.325,
+          "hypothetical_false_suppression_rate": 0,
+          "suppressed": 54,
+          "penalized": 23,
+          "allowed": 89
+        }
+      ],
+      "by_category": [
+        {
+          "category": "tecnologia",
+          "total": 224,
+          "repeat": 77,
+          "reject": 197,
+          "spam": 34,
+          "approve": 23,
+          "hypothetical_suppression": 44,
+          "suppression_rate": 0.196
+        },
+        {
+          "category": "hogar",
+          "total": 122,
+          "repeat": 36,
+          "reject": 118,
+          "spam": 1,
+          "approve": 4,
+          "hypothetical_suppression": 7,
+          "suppression_rate": 0.057
+        },
+        {
+          "category": "UNKNOWN",
+          "total": 55,
+          "repeat": 12,
+          "reject": 46,
+          "spam": 2,
+          "approve": 9,
+          "hypothetical_suppression": 1,
+          "suppression_rate": 0.018
+        },
+        {
+          "category": "belleza",
+          "total": 35,
+          "repeat": 2,
+          "reject": 26,
+          "spam": 0,
+          "approve": 9,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "autos",
+          "total": 23,
+          "repeat": 5,
+          "reject": 20,
+          "spam": 1,
+          "approve": 3,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "gaming",
+          "total": 23,
+          "repeat": 4,
+          "reject": 21,
+          "spam": 0,
+          "approve": 2,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "deportes",
+          "total": 22,
+          "repeat": 4,
+          "reject": 18,
+          "spam": 1,
+          "approve": 4,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "moda",
+          "total": 22,
+          "repeat": 1,
+          "reject": 18,
+          "spam": 0,
+          "approve": 4,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "jardin",
+          "total": 18,
+          "repeat": 2,
+          "reject": 17,
+          "spam": 0,
+          "approve": 1,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "entretenimiento",
+          "total": 18,
+          "repeat": 2,
+          "reject": 13,
+          "spam": 6,
+          "approve": 5,
+          "hypothetical_suppression": 2,
+          "suppression_rate": 0.111
+        },
+        {
+          "category": "supermercado",
+          "total": 11,
+          "repeat": 0,
+          "reject": 9,
+          "spam": 0,
+          "approve": 2,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "viajes",
+          "total": 5,
+          "repeat": 0,
+          "reject": 5,
+          "spam": 0,
+          "approve": 0,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "bebes",
+          "total": 1,
+          "repeat": 0,
+          "reject": 1,
+          "spam": 0,
+          "approve": 0,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        }
+      ]
+    },
+    "7d": {
+      "policy": "7d suppression",
+      "suppress_window_ms": 604800000,
+      "total_candidates": 579,
+      "first_seen_candidates": 434,
+      "repeated_candidates": 145,
+      "previously_rejected_candidates": 145,
+      "previously_spammed_candidates": 30,
+      "candidates_hypothetically_suppressed": 58,
+      "candidates_hypothetically_penalized": 87,
+      "candidates_allowed": 434,
+      "noise_removed": 0.1002,
+      "false_suppression_hits": 0,
+      "false_suppression_unique_fingerprints": 0,
+      "false_suppression_risk": 0,
+      "false_suppression_risk_unique": 0,
+      "false_suppression_buckets": {
+        "within_24h": 0,
+        "within_72h": 0,
+        "within_7d": 0,
+        "after_7d": 0
+      },
+      "repeat_rejection_avoidance_count": 54,
+      "false_suppression_examples": [],
+      "by_source": [
+        {
+          "source": "ml_worker",
+          "total": 413,
+          "repeat_rate": 0.165,
+          "reject_rate": 0.913,
+          "spam_rate": 0.002,
+          "approval_rate": 0.087,
+          "hypothetical_suppression_rate": 0.01,
+          "hypothetical_false_suppression_rate": 0,
+          "suppressed": 4,
+          "penalized": 64,
+          "allowed": 345
+        },
+        {
+          "source": "ml_api",
+          "total": 166,
+          "repeat_rate": 0.464,
+          "reject_rate": 0.795,
+          "spam_rate": 0.265,
+          "approval_rate": 0.181,
+          "hypothetical_suppression_rate": 0.325,
+          "hypothetical_false_suppression_rate": 0,
+          "suppressed": 54,
+          "penalized": 23,
+          "allowed": 89
+        }
+      ],
+      "by_category": [
+        {
+          "category": "tecnologia",
+          "total": 224,
+          "repeat": 77,
+          "reject": 197,
+          "spam": 34,
+          "approve": 23,
+          "hypothetical_suppression": 44,
+          "suppression_rate": 0.196
+        },
+        {
+          "category": "hogar",
+          "total": 122,
+          "repeat": 36,
+          "reject": 118,
+          "spam": 1,
+          "approve": 4,
+          "hypothetical_suppression": 9,
+          "suppression_rate": 0.074
+        },
+        {
+          "category": "UNKNOWN",
+          "total": 55,
+          "repeat": 12,
+          "reject": 46,
+          "spam": 2,
+          "approve": 9,
+          "hypothetical_suppression": 3,
+          "suppression_rate": 0.055
+        },
+        {
+          "category": "belleza",
+          "total": 35,
+          "repeat": 2,
+          "reject": 26,
+          "spam": 0,
+          "approve": 9,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "autos",
+          "total": 23,
+          "repeat": 5,
+          "reject": 20,
+          "spam": 1,
+          "approve": 3,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "gaming",
+          "total": 23,
+          "repeat": 4,
+          "reject": 21,
+          "spam": 0,
+          "approve": 2,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "deportes",
+          "total": 22,
+          "repeat": 4,
+          "reject": 18,
+          "spam": 1,
+          "approve": 4,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "moda",
+          "total": 22,
+          "repeat": 1,
+          "reject": 18,
+          "spam": 0,
+          "approve": 4,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "jardin",
+          "total": 18,
+          "repeat": 2,
+          "reject": 17,
+          "spam": 0,
+          "approve": 1,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "entretenimiento",
+          "total": 18,
+          "repeat": 2,
+          "reject": 13,
+          "spam": 6,
+          "approve": 5,
+          "hypothetical_suppression": 2,
+          "suppression_rate": 0.111
+        },
+        {
+          "category": "supermercado",
+          "total": 11,
+          "repeat": 0,
+          "reject": 9,
+          "spam": 0,
+          "approve": 2,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "viajes",
+          "total": 5,
+          "repeat": 0,
+          "reject": 5,
+          "spam": 0,
+          "approve": 0,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        },
+        {
+          "category": "bebes",
+          "total": 1,
+          "repeat": 0,
+          "reject": 1,
+          "spam": 0,
+          "approve": 0,
+          "hypothetical_suppression": 0,
+          "suppression_rate": 0
+        }
+      ]
+    }
+  },
+  "rejection_type_analysis": [
+    {
+      "rejection_type": "auto_rejected_timeout",
+      "reject_events": 294,
+      "unique_fingerprints": 263,
+      "appearances_afterwards_rate": 0.197,
+      "repeat_rejection_rate_given_reappear": 0.862,
+      "later_approval_rate_given_reappear": 0.138,
+      "later_approval_count": 8
+    },
+    {
+      "rejection_type": "not_good_offer_preset",
+      "reject_events": 117,
+      "unique_fingerprints": 85,
+      "appearances_afterwards_rate": 0.41,
+      "repeat_rejection_rate_given_reappear": 1,
+      "later_approval_rate_given_reappear": 0,
+      "later_approval_count": 0
+    },
+    {
+      "rejection_type": "spam_preset",
+      "reject_events": 45,
+      "unique_fingerprints": 29,
+      "appearances_afterwards_rate": 0.533,
+      "repeat_rejection_rate_given_reappear": 0.833,
+      "later_approval_rate_given_reappear": 0,
+      "later_approval_count": 0
+    },
+    {
+      "rejection_type": "price_misleading_preset",
+      "reject_events": 25,
+      "unique_fingerprints": 25,
+      "appearances_afterwards_rate": 0.12,
+      "repeat_rejection_rate_given_reappear": 1,
+      "later_approval_rate_given_reappear": 0,
+      "later_approval_count": 0
+    },
+    {
+      "rejection_type": "unavailable_preset",
+      "reject_events": 18,
+      "unique_fingerprints": 17,
+      "appearances_afterwards_rate": 0.167,
+      "repeat_rejection_rate_given_reappear": 1,
+      "later_approval_rate_given_reappear": 0,
+      "later_approval_count": 0
+    },
+    {
+      "rejection_type": "duplicate_preset",
+      "reject_events": 9,
+      "unique_fingerprints": 7,
+      "appearances_afterwards_rate": 0.889,
+      "repeat_rejection_rate_given_reappear": 0.875,
+      "later_approval_rate_given_reappear": 0.125,
+      "later_approval_count": 1
+    },
+    {
+      "rejection_type": "scam_text",
+      "reject_events": 1,
+      "unique_fingerprints": 1,
+      "appearances_afterwards_rate": 1,
+      "repeat_rejection_rate_given_reappear": 1,
+      "later_approval_rate_given_reappear": 0,
+      "later_approval_count": 0
+    }
+  ],
+  "top50_by_appearances": [
+    {
+      "fingerprint": "ml:MLM4343138394",
+      "appearances": 7,
+      "rejections": 7,
+      "spam": 3,
+      "approvals": 0,
+      "first_seen": "2026-09-15T20:17:09.124618+00:00",
+      "last_seen": "2026-09-18T22:02:17.652574+00:00",
+      "reappeared_after_reject": 6,
+      "consecutive_rejects_max": 7,
+      "appearances_after_ge2_rejects": 5,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Me",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 4,
+        "SUPPRESS": 2
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 5
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 5
+      }
+    },
+    {
+      "fingerprint": "ml:MLM4971112404",
+      "appearances": 6,
+      "rejections": 6,
+      "spam": 3,
+      "approvals": 0,
+      "first_seen": "2026-09-15T21:02:42.358673+00:00",
+      "last_seen": "2026-09-18T22:47:19.720255+00:00",
+      "reappeared_after_reject": 5,
+      "consecutive_rejects_max": 6,
+      "appearances_after_ge2_rejects": 4,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~34% en Mer",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 3
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 4
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 4
+      }
+    },
+    {
+      "fingerprint": "ml:MLM4837616144",
+      "appearances": 6,
+      "rejections": 6,
+      "spam": 2,
+      "approvals": 0,
+      "first_seen": "2026-09-15T23:02:50.530472+00:00",
+      "last_seen": "2026-09-18T22:47:20.598731+00:00",
+      "reappeared_after_reject": 5,
+      "consecutive_rejects_max": 6,
+      "appearances_after_ge2_rejects": 4,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~34% en Mercado ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 4
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 4
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 4
+      }
+    },
+    {
+      "fingerprint": "ml:MLM2851918343",
+      "appearances": 5,
+      "rejections": 5,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-15T22:02:32.852689+00:00",
+      "last_seen": "2026-09-18T23:02:28.700869+00:00",
+      "reappeared_after_reject": 4,
+      "consecutive_rejects_max": 5,
+      "appearances_after_ge2_rejects": 3,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automátic",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 2
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 3
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 3
+      }
+    },
+    {
+      "fingerprint": "ml:MLM5512176274",
+      "appearances": 5,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0,
+      "first_seen": "2026-09-15T22:47:22.896519+00:00",
+      "last_seen": "2026-09-20T04:47:02.719514+00:00",
+      "reappeared_after_reject": 4,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 3,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercad",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 3,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 3
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 3
+      }
+    },
+    {
+      "fingerprint": "ml:MLM4830169030",
+      "appearances": 5,
+      "rejections": 4,
+      "spam": 3,
+      "approvals": 0,
+      "first_seen": "2026-09-16T21:47:18.294777+00:00",
+      "last_seen": "2026-09-20T04:32:03.956082+00:00",
+      "reappeared_after_reject": 4,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 3,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Smartwatch Huawei Band 11 Caja de Aleación de Aluminio, Gran Pantalla de 1.62\", ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 3,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 4
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 4
+      }
+    },
+    {
+      "fingerprint": "ml:MLM5341490272",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0,
+      "first_seen": "2026-09-15T21:02:43.541267+00:00",
+      "last_seen": "2026-09-18T21:17:28.185918+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Audífonos In-ear Inalámbricos 1hora Auriculares Inalambricos Bluetooth 5.4 Con M",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 3
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 3
+      }
+    },
+    {
+      "fingerprint": "ml:MLM3732634000",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-15T21:17:33.989343+00:00",
+      "last_seen": "2026-09-18T23:02:29.359999+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Audífonos Inalámbrico In-ear Bluetooth gamer Anker Soundcore P20i con Manos Libr",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM4568331450",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 1,
+      "approvals": 0,
+      "first_seen": "2026-09-15T23:17:19.750857+00:00",
+      "last_seen": "2026-09-18T23:47:16.467214+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~33% en Mercad",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM5108540250",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-15T23:32:23.847271+00:00",
+      "last_seen": "2026-09-19T04:32:21.302163+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Audífonos 1HORA Inalámbricos Bluetooth 6.0, In-ear con Pantalla LED, Micrófono y",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM2751763985",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 1,
+      "approvals": 0,
+      "first_seen": "2026-09-16T00:03:11.895942+00:00",
+      "last_seen": "2026-09-19T04:47:19.419489+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Tablet Lenovo Idea Tab Pro 8GB + 256GB Teclado y pluma Verde — Ahorra ~36% en Me",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM6159705134",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-16T00:03:12.988832+00:00",
+      "last_seen": "2026-09-19T00:02:33.1818+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "hogar",
+      "title_short": "Freidora Aire Oster 7.5L DiamondForce 10 Programas — Ahorra ~30% en Mercado Libr",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM2624476949",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-16T00:17:25.231485+00:00",
+      "last_seen": "2026-09-19T00:17:20.295281+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "hogar",
+      "title_short": "Freidora De Aire Manual Oster® Diamondforce, 4l Ckstaf401mdf Color Negro — Ahorr",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM5167025228",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-16T03:47:10.756773+00:00",
+      "last_seen": "2026-09-18T22:17:15.785989+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "hogar",
+      "title_short": "Espejo rectangular con luz LED, luz táctil, tocador de pared, baño, vestidor, 3 ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM2824363923",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0,
+      "first_seen": "2026-09-16T05:47:12.12737+00:00",
+      "last_seen": "2026-09-18T23:17:17.758461+00:00",
+      "reappeared_after_reject": 3,
+      "consecutive_rejects_max": 4,
+      "appearances_after_ge2_rejects": 2,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~31% en Mercado ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM67079979",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:44.478672+00:00",
+      "last_seen": "2026-09-11T13:33:40.030841+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Set 6 Sillas Plegables Plástico Resistente Fiesta Eventos Jardín — Ahorra ~66% e",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM43749884",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T06:14:47.936274+00:00",
+      "last_seen": "2026-09-11T09:07:37.793877+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Silla Ejecutiva Vidita Ergonómica para Oficina y Gamer con Soporte Lumbar de 150",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM22592548",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T12:49:24.210353+00:00",
+      "last_seen": "2026-09-15T17:48:28.67689+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_worker",
+      "category_primary": "UNKNOWN",
+      "title_short": "Beyond Vitamins | Magnesio Complex |citrato De Magnesio Polvo, Glicinato De Magn",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM43420119",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-08T23:39:53.706962+00:00",
+      "last_seen": "2026-09-15T17:48:29.38728+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_worker",
+      "category_primary": "UNKNOWN",
+      "title_short": "Terminal Point Smart 2 con Internet Gratis, Pago con Tarjetas — Ahorra ~71% en M",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM4349081564",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0,
+      "first_seen": "2026-09-15T20:32:39.664585+00:00",
+      "last_seen": "2026-09-17T16:17:12.291168+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Cozylady Tiras De Led 40m Bluetooth Rgb Luz Led Inteligentes Música De Tiras De ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM5082538244",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0,
+      "first_seen": "2026-09-15T23:47:17.060368+00:00",
+      "last_seen": "2026-09-18T23:47:17.064166+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automátic",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM2162457985",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0,
+      "first_seen": "2026-09-16T00:47:30.806299+00:00",
+      "last_seen": "2026-09-17T23:02:34.771586+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_api",
+      "category_primary": "hogar",
+      "title_short": "Oster Freidora de Aire Digital, Recubrimiento Oster DiamondForce, con Ventana y ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM1649534433",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 2,
+      "approvals": 0,
+      "first_seen": "2026-09-17T03:47:11.80553+00:00",
+      "last_seen": "2026-09-19T21:47:01.900091+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 3,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_api",
+      "category_primary": "UNKNOWN",
+      "title_short": "Amazon Dot Echo Dot 5th Gen con asistente virtual Alexa color negro 127/220V — A",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 2,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 1
+      }
+    },
+    {
+      "fingerprint": "ml:MLM5416052470",
+      "appearances": 3,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0,
+      "first_seen": "2026-09-18T04:32:24.149672+00:00",
+      "last_seen": "2026-09-20T04:32:06.523324+00:00",
+      "reappeared_after_reject": 2,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 1,
+      "source_primary": "ml_api",
+      "category_primary": "tecnologia",
+      "title_short": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~30% en",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 2
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 2
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 0,
+        "SUPPRESS": 2
+      }
+    },
+    {
+      "fingerprint": "ml:MLM47528966",
+      "appearances": 2,
+      "rejections": 1,
+      "spam": 0,
+      "approvals": 1,
+      "first_seen": "2026-09-06T09:01:00.776556+00:00",
+      "last_seen": "2026-09-17T02:10:39.355+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 1,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "autos",
+      "title_short": "Jeep Montable Eléctrico Enyz BCX-6 de 12V para Niño y Niña con Control Remoto, B",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM66836957",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-06T09:01:01.059172+00:00",
+      "last_seen": "2026-09-10T21:52:10.893552+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "2 Mesas Plegables Plástico Tipo Portafolio 1.80m Jardín Blanco — Ahorra ~40% en ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM63172085",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:43.038725+00:00",
+      "last_seen": "2026-09-11T20:01:43.853372+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~43% en Mercad",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM58115878",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:43.306983+00:00",
+      "last_seen": "2026-09-10T16:21:31.539817+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Roborock Q7 L5 Robot Aspiradora Y Trapeador, 8,000 Pa Negro — Ahorra ~68% en Mer",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM53177027",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:43.66231+00:00",
+      "last_seen": "2026-09-10T06:38:37.784908+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Hidrolavadora Electrica Portátil 1600 Psi 1200w Alta Presion Amarillo 60hz Para ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM42692829",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:43.866722+00:00",
+      "last_seen": "2026-09-10T16:21:32.608829+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Me",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM2035176986",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:44.102302+00:00",
+      "last_seen": "2026-09-11T17:12:12.438112+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Apple AirPods Pro 3 Color Blanco Con Cancelación De Ruido (Nuevo con caja abiert",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM50224717",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:44.61243+00:00",
+      "last_seen": "2026-09-11T00:05:15.549734+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Colchón Individual Noite Basic Con Memory Adapt Gris — Ahorra ~59% en Mercado Li",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM47589514",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T02:57:44.7473+00:00",
+      "last_seen": "2026-09-07T21:02:36.959307+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Set de 4 SIllas Plegables Blanca — Ahorra ~55% en Mercado Libre",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM62369518",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T06:14:46.596203+00:00",
+      "last_seen": "2026-09-11T13:33:39.64825+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~33% en Mer",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM29760702",
+      "appearances": 2,
+      "rejections": 1,
+      "spam": 0,
+      "approvals": 1,
+      "first_seen": "2026-09-07T06:14:47.0569+00:00",
+      "last_seen": "2026-09-17T02:07:35.106+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 1,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "autos",
+      "title_short": "Autoestéreo Hivoz M99 con Pantalla Táctil de 7\" y Bluetooth para Auto — Ahorra ~",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLMU3718209495",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T06:14:47.198643+00:00",
+      "last_seen": "2026-09-11T09:07:37.297236+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Espejo Luz Led Touch Pared Tocador Baño Vestidor 3 Luces Rectangular Con Marco —",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM41704802",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T06:14:47.368457+00:00",
+      "last_seen": "2026-09-14T04:52:36.145056+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "UNKNOWN",
+      "title_short": "Cubot Kingkong Es Dual Sim 128 Gb Negro Naranja 6 Gb Ram — Ahorra ~29% en Mercad",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM64539888",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T06:14:48.344776+00:00",
+      "last_seen": "2026-09-11T09:07:37.595958+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "gaming",
+      "title_short": "VonKeep Silla Gamer Ergonómica Oficina Roja con Reposapiés y Tira LED de 5m Recl",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM29367002",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T06:14:48.547469+00:00",
+      "last_seen": "2026-09-11T17:12:13.213995+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Recipientes 24 Pz Herméticos De Almacenamiento De Cocina Transparente Raganet — ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM74580071",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T12:49:23.640292+00:00",
+      "last_seen": "2026-09-14T16:34:21.510859+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 128 Gb Gris 6 Gb Ram (ampliable Has",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM59117483",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T12:49:23.949495+00:00",
+      "last_seen": "2026-09-07T21:02:34.761252+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Recipientes Herméticos De Vidrio Almacenamiento Cocina 5 Pz. Transparente — Ahor",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM38176139",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T12:49:25.213548+00:00",
+      "last_seen": "2026-09-13T12:43:24.058423+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Audífonos Anker Soundcore P30i In-ear Bluetooth Inalámbrico Cancelación De Ruido",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM46689906",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T12:49:26.193975+00:00",
+      "last_seen": "2026-09-11T00:05:15.739982+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Coolsht Mesa Plegable Tipo Portafolio Plástico Mesa Portatil 1.80m Color Blanco ",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM29590545",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T12:49:26.502543+00:00",
+      "last_seen": "2026-09-14T16:34:22.357526+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Cámara de seguridad 2PCS-288 Hd 1080p Foco 360° Alarma 2 Piezas con resolución 2",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM48940915",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T17:58:47.365566+00:00",
+      "last_seen": "2026-09-11T17:12:11.074717+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "jardin",
+      "title_short": "Parrilla De Gas Empotrable de mesa XIUDEEN XD5001G 5 quemadores de gas GN GLP ap",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM58600159",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T17:58:48.551209+00:00",
+      "last_seen": "2026-09-07T21:02:36.793023+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Silla Escritorio Ergonomica Emilia Plus Con Reposacabezas Negro Malla Transpirab",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLMU3718229861",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T17:58:49.263986+00:00",
+      "last_seen": "2026-09-11T20:01:46.674203+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "hogar",
+      "title_short": "Espejo Decorativo Touch Para Baño Con Luz Led 3 Atenuaciones — Ahorra ~75% en Me",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLMU488803900",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T17:58:49.450822+00:00",
+      "last_seen": "2026-09-11T13:33:41.39383+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "UNKNOWN",
+      "title_short": "Calcetines Cortos Hombres Dama Unisex Cómodo 12 Pares Gris L — Ahorra ~60% en Me",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM45859658",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T21:02:35.570496+00:00",
+      "last_seen": "2026-09-11T04:33:08.875106+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Laptop Lenovo Loq Core I5-12450hx 8gb Ram 512gb Rtx 3050 6gb Color Gris — Ahorra",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    },
+    {
+      "fingerprint": "ml:MLM67666199",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0,
+      "first_seen": "2026-09-07T21:02:37.167147+00:00",
+      "last_seen": "2026-09-11T22:32:33.320148+00:00",
+      "reappeared_after_reject": 1,
+      "consecutive_rejects_max": 2,
+      "appearances_after_ge2_rejects": 0,
+      "source_primary": "ml_worker",
+      "category_primary": "tecnologia",
+      "title_short": "Bocina Jbl Partybox 130 Bluetooth 15h Batería Ipx4 Auracast — Ahorra ~34% en Mer",
+      "hypothetical_24h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_72h": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      },
+      "hypothetical_7d": {
+        "ALLOW": 1,
+        "PENALIZE": 1,
+        "SUPPRESS": 0
+      }
+    }
+  ],
+  "top50_by_rejections": [
+    {
+      "fingerprint": "ml:MLM4343138394",
+      "appearances": 7,
+      "rejections": 7,
+      "spam": 3,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4971112404",
+      "appearances": 6,
+      "rejections": 6,
+      "spam": 3,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4837616144",
+      "appearances": 6,
+      "rejections": 6,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2851918343",
+      "appearances": 5,
+      "rejections": 5,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5512176274",
+      "appearances": 5,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4830169030",
+      "appearances": 5,
+      "rejections": 4,
+      "spam": 3,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5341490272",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM3732634000",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4568331450",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5108540250",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2751763985",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM6159705134",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2624476949",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5167025228",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2824363923",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM67079979",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM43749884",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM22592548",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM43420119",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4349081564",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5082538244",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2162457985",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM1649534433",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5416052470",
+      "appearances": 3,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM66836957",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM63172085",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM58115878",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM53177027",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM42692829",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2035176986",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM50224717",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM47589514",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM62369518",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLMU3718209495",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM41704802",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM64539888",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM29367002",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM74580071",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM59117483",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM38176139",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM46689906",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM29590545",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM48940915",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM58600159",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLMU3718229861",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLMU488803900",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM45859658",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM67666199",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM50352916",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM47700596",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    }
+  ],
+  "top50_by_spam": [
+    {
+      "fingerprint": "ml:MLM4343138394",
+      "appearances": 7,
+      "rejections": 7,
+      "spam": 3,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4971112404",
+      "appearances": 6,
+      "rejections": 6,
+      "spam": 3,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4830169030",
+      "appearances": 5,
+      "rejections": 4,
+      "spam": 3,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4837616144",
+      "appearances": 6,
+      "rejections": 6,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5341490272",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5512176274",
+      "appearances": 5,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2824363923",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM1649534433",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4487656948",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5960952474",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4335601952",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2547177673",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5416052470",
+      "appearances": 3,
+      "rejections": 2,
+      "spam": 2,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4568331450",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2751763985",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4349081564",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5082538244",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2162457985",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM3770553396",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2333700203",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2237142369",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM77569368",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM6086817844",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM4459333672",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM6231848974",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2228421947",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5910048536",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM6190388566",
+      "appearances": 2,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM6235983600",
+      "appearances": 1,
+      "rejections": 1,
+      "spam": 1,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2851918343",
+      "appearances": 5,
+      "rejections": 5,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM3732634000",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5108540250",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM6159705134",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2624476949",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM5167025228",
+      "appearances": 4,
+      "rejections": 4,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM67079979",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM43749884",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM22592548",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM43420119",
+      "appearances": 3,
+      "rejections": 3,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM66836957",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM63172085",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM58115878",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM53177027",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM42692829",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM2035176986",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM50224717",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM47589514",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM62369518",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLMU3718209495",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    },
+    {
+      "fingerprint": "ml:MLM41704802",
+      "appearances": 2,
+      "rejections": 2,
+      "spam": 0,
+      "approvals": 0
+    }
+  ],
+  "temporal_examples": [
+    {
+      "fingerprint": "ml:MLM67079979",
+      "appearances": 3,
+      "steps": [
+        {
+          "t": "2026-09-07T02:57:44.478672+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-08T01:40:08.891889+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-11T13:33:40.030841+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM43749884",
+      "appearances": 3,
+      "steps": [
+        {
+          "t": "2026-09-07T06:14:47.936274+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-07T23:37:22.774062+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-11T09:07:37.793877+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM22592548",
+      "appearances": 3,
+      "steps": [
+        {
+          "t": "2026-09-07T12:49:24.210353+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-12T09:15:50.693525+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-15T17:48:28.67689+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM43420119",
+      "appearances": 3,
+      "steps": [
+        {
+          "t": "2026-09-08T23:39:53.706962+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-12T05:01:54.124437+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-15T17:48:29.38728+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM4343138394",
+      "appearances": 7,
+      "steps": [
+        {
+          "t": "2026-09-15T20:17:09.124618+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T01:47:16.369971+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-17T02:17:10.600421+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-17T16:17:11.207047+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T20:17:23.977226+00:00",
+          "status": "rejected",
+          "priorRejects": 4,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T20:32:39.645544+00:00",
+          "status": "rejected",
+          "priorRejects": 5,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T22:02:17.652574+00:00",
+          "status": "rejected",
+          "priorRejects": 6,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM4349081564",
+      "appearances": 3,
+      "steps": [
+        {
+          "t": "2026-09-15T20:32:39.664585+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T04:02:17.418629+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-17T16:17:12.291168+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM4971112404",
+      "appearances": 6,
+      "steps": [
+        {
+          "t": "2026-09-15T21:02:42.358673+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T02:02:17.658562+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-17T02:32:21.77083+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-17T16:17:14.235533+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T20:47:20.843248+00:00",
+          "status": "rejected",
+          "priorRejects": 4,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T22:47:19.720255+00:00",
+          "status": "rejected",
+          "priorRejects": 5,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM5341490272",
+      "appearances": 4,
+      "steps": [
+        {
+          "t": "2026-09-15T21:02:43.541267+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T04:17:18.331597+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T10:02:22.732758+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-18T21:17:28.185918+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM3732634000",
+      "appearances": 4,
+      "steps": [
+        {
+          "t": "2026-09-15T21:17:33.989343+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T04:17:17.634919+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-18T06:02:19.024591+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-18T23:02:29.359999+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM2851918343",
+      "appearances": 5,
+      "steps": [
+        {
+          "t": "2026-09-15T22:02:32.852689+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T03:02:21.996548+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-17T16:32:32.275871+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-18T21:02:32.826598+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-18T23:02:28.700869+00:00",
+          "status": "rejected",
+          "priorRejects": 4,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM5512176274",
+      "appearances": 5,
+      "steps": [
+        {
+          "t": "2026-09-15T22:47:22.896519+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T03:17:16.525492+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-17T22:47:10.978932+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-18T23:32:19.949845+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        },
+        {
+          "t": "2026-09-20T04:47:02.719514+00:00",
+          "status": "pending",
+          "priorRejects": 4,
+          "priorSpam": 2,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        }
+      ]
+    },
+    {
+      "fingerprint": "ml:MLM4837616144",
+      "appearances": 6,
+      "steps": [
+        {
+          "t": "2026-09-15T23:02:50.530472+00:00",
+          "status": "rejected",
+          "priorRejects": 0,
+          "priorSpam": 0,
+          "decision": "ALLOW",
+          "reason": "first_seen"
+        },
+        {
+          "t": "2026-09-17T02:02:18.242854+00:00",
+          "status": "rejected",
+          "priorRejects": 1,
+          "priorSpam": 0,
+          "decision": "PENALIZE",
+          "reason": "seen_after_reject_or_repeat"
+        },
+        {
+          "t": "2026-09-17T02:47:11.770002+00:00",
+          "status": "rejected",
+          "priorRejects": 2,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-17T22:32:18.58235+00:00",
+          "status": "rejected",
+          "priorRejects": 3,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-18T21:02:32.291556+00:00",
+          "status": "rejected",
+          "priorRejects": 4,
+          "priorSpam": 0,
+          "decision": "SUPPRESS",
+          "reason": "rejects_ge_2_within_window"
+        },
+        {
+          "t": "2026-09-18T22:47:20.598731+00:00",
+          "status": "rejected",
+          "priorRejects": 5,
+          "priorSpam": 1,
+          "decision": "SUPPRESS",
+          "reason": "spam_before_within_window"
+        }
+      ]
+    }
+  ],
+  "matrix": [
+    {
+      "policy": "24h",
+      "suppressed": 31,
+      "penalized": 114,
+      "allowed": 434,
+      "noise_removed": 0.0535,
+      "false_suppression_risk": 0,
+      "false_suppression_unique_fps": 0,
+      "repeat_rejection_avoidance": 29
+    },
+    {
+      "policy": "72h",
+      "suppressed": 54,
+      "penalized": 91,
+      "allowed": 434,
+      "noise_removed": 0.0933,
+      "false_suppression_risk": 0,
+      "false_suppression_unique_fps": 0,
+      "repeat_rejection_avoidance": 50
+    },
+    {
+      "policy": "7d",
+      "suppressed": 58,
+      "penalized": 87,
+      "allowed": 434,
+      "noise_removed": 0.1002,
+      "false_suppression_risk": 0,
+      "false_suppression_unique_fps": 0,
+      "repeat_rejection_avoidance": 54
+    }
+  ],
+  "safety": {
+    "operations": "SELECT only via supabase-js",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "schema_changes": 0,
+    "runtime_imports_from_lib_discovery": false
+  }
+}

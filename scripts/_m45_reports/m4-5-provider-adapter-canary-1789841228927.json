@@ -1,0 +1,66 @@
+{
+  "ok": false,
+  "campaign": "M4.5_provider_adapter",
+  "tag": "m45_canary_1789841216405",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "false",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "false",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "false",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "providerResolve": {
+    "ok": true,
+    "providerId": "sandbox"
+  },
+  "steps": {
+    "rpBefore": 0,
+    "A_initiated": {
+      "ok": true,
+      "status": "SUBMITTED",
+      "normalized": "initiated"
+    },
+    "A_confirm": "SUCCEEDED",
+    "B_unk_success": "SUCCEEDED",
+    "C_unk_fail": "FAILED",
+    "D_unk_unk": "UNKNOWN",
+    "E_replay": {
+      "ok": false,
+      "reused": false,
+      "sameKey": false
+    }
+  },
+  "pass": false,
+  "error": "E replay failed",
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

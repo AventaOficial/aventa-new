@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "stop": false,
+  "target": "staging",
+  "ref": "oojshofrpbfwsiypcecr",
+  "at": "2026-09-19T14:40:35.829Z",
+  "checks": {
+    "reward_outbound_clicks_idempotency": {
+      "ok": true,
+      "duplicateGroups": 0,
+      "samples": []
+    },
+    "affiliate_conversions": {
+      "status": "N/A",
+      "reason": "table_missing",
+      "duplicateRisk": "none_pre_apply"
+    },
+    "affiliate_commissions": {
+      "status": "N/A",
+      "reason": "table_missing",
+      "duplicateRisk": "none_pre_apply"
+    },
+    "affiliate_ledger_entries": {
+      "status": "N/A",
+      "reason": "table_missing",
+      "duplicateRisk": "none_pre_apply"
+    },
+    "affiliate_economic_events": {
+      "status": "N/A",
+      "reason": "table_missing",
+      "duplicateRisk": "none_pre_apply"
+    }
+  },
+  "verdict": "PASS — no blocking duplicates; missing money tables N/A"
+}

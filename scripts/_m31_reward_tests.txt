@@ -1,0 +1,220 @@
+
+ RUN  v4.1.2 E:/AVENTA NEW/aventa-new
+
+······x···················································x··x·······xxxxxxx······································································································································································································x·x····································································------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/rewards/configAndEngine.test.ts > createRewardFromLedgerEntry — programa inactivo > no crea recompensa cuando REWARDS_PROGRAM_ACTIVE está ausente (aunque COMMISSION=true)
+AssertionError: expected 'money_path_frozen' to be 'program_inactive' // Object.is equality
+
+Expected: "program_inactive"
+Received: "money_path_frozen"
+
+ ❯ tests/rewards/configAndEngine.test.ts:103:48
+    101|     });
+    102|     expect(result.created).toBe(false);
+    103|     if (!result.created) expect(result.reason).toBe('program_inactive'…
+       |                                                ^
+    104|   });
+    105| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — atribución manual > atribución manual correcta con creator derivado de offers.created_by
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/rewards/monetaryHardening.test.ts:174:23
+    172|     });
+    173|
+    174|     expect(result.ok).toBe(true);
+       |                       ^
+    175|     if (result.ok) {
+    176|       expect(result.rewardId).toMatch(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — VOID/REVERSED ledger > ledger VOID antes de reward → no reward
+AssertionError: expected 'money_path_frozen' to be 'commission_void' // Object.is equality
+
+Expected: "commission_void"
+Received: "money_path_frozen"
+
+ ❯ tests/rewards/monetaryHardening.test.ts:251:48
+    249|     );
+    250|     expect(result.created).toBe(false);
+    251|     if (!result.created) expect(result.reason).toBe('commission_void');
+       |                                                ^
+    252|   });
+    253|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — payout atómico > reward AVAILABLE < $200 → no payout
+AssertionError: expected 'Money path congelado (FASE 0.1). Oper…' to contain 'mínimo'
+
+Expected: "mínimo"
+Received: "Money path congelado (FASE 0.1). Operación monetaria bloqueada. [money_path_frozen]"
+
+ ❯ tests/rewards/monetaryHardening.test.ts:424:42
+    422|
+    423|     expect(result.ok).toBe(false);
+    424|     if (!result.ok) expect(result.error).toContain('mínimo');
+       |                                          ^
+    425|   });
+    426|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — payout atómico > rewards de otro creator → rechazo
+AssertionError: expected 'Money path congelado (FASE 0.1). Oper…' to contain 'otro creador'
+
+Expected: "otro creador"
+Received: "Money path congelado (FASE 0.1). Operación monetaria bloqueada. [money_path_frozen]"
+
+ ❯ tests/rewards/monetaryHardening.test.ts:457:42
+    455|
+    456|     expect(result.ok).toBe(false);
+    457|     if (!result.ok) expect(result.error).toContain('otro creador');
+       |                                          ^
+    458|   });
+    459|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — payout atómico > payout RPC fallido → error mapeado (rollback implícito en RPC)
+AssertionError: expected 'Money path congelado (FASE 0.1). Oper…' to contain 'exactamente'
+
+Expected: "exactamente"
+Received: "Money path congelado (FASE 0.1). Operación monetaria bloqueada. [money_path_frozen]"
+
+ ❯ tests/rewards/monetaryHardening.test.ts:492:42
+    490|
+    491|     expect(result.ok).toBe(false);
+    492|     if (!result.ok) expect(result.error).toContain('exactamente');
+       |                                          ^
+    493|   });
+    494|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — payout atómico > reward AVAILABLE >= $200 → payout vía RPC atómico
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/rewards/monetaryHardening.test.ts:529:23
+    527|     });
+    528|
+    529|     expect(result.ok).toBe(true);
+       |                       ^
+    530|     if (result.ok) {
+    531|       expect(result.payoutId).toBe('payout-99');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — confianza de atribución > ML MEDIUM → pending_staff_review, no reward automático
+AssertionError: expected 'money_path_frozen' to be 'pending_staff_review' // Object.is equality
+
+Expected: "pending_staff_review"
+Received: "money_path_frozen"
+
+ ❯ tests/rewards/monetaryHardening.test.ts:589:48
+    587|
+    588|     expect(result.created).toBe(false);
+    589|     if (!result.created) expect(result.reason).toBe('pending_staff_rev…
+       |                                                ^
+    590|     expect(flagged).toBe(true);
+    591|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — confianza de atribución > Amazon HIGH (sub-id) → puede crear reward
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/rewards/monetaryHardening.test.ts:626:28
+    624|     });
+    625|
+    626|     expect(result.created).toBe(true);
+       |                            ^
+    627|   });
+    628| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/12]⎯
+
+ FAIL  tests/rewards/monetaryHardening.test.ts > Monetary hardening — flags OFF > flags OFF → ningún reward real
+AssertionError: expected 'money_path_frozen' to be 'program_inactive' // Object.is equality
+
+Expected: "program_inactive"
+Received: "money_path_frozen"
+
+ ❯ tests/rewards/monetaryHardening.test.ts:656:48
+    654|     });
+    655|     expect(result.created).toBe(false);
+    656|     if (!result.created) expect(result.reason).toBe('program_inactive'…
+       |                                                ^
+    657|   });
+    658| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/12]⎯
+
+ FAIL  tests/rewards/processExpiredRewardHolds.test.ts > processExpiredRewardHolds > hold vencido → AVAILABLE
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/rewards/processExpiredRewardHolds.test.ts:98:30
+     96|
+     97|     const result = await processExpiredRewardHolds(supabase);
+     98|     expect(result.processed).toBe(1);
+       |                              ^
+     99|     expect(store[0].status).toBe('AVAILABLE');
+    100|     expect(auditInsertCount()).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/12]⎯
+
+ FAIL  tests/rewards/processExpiredRewardHolds.test.ts > processExpiredRewardHolds > ejecutar el proceso dos veces → no duplica transición ni auditoría
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/rewards/processExpiredRewardHolds.test.ts:121:29
+    119|     const first = await processExpiredRewardHolds(supabase);
+    120|     const second = await processExpiredRewardHolds(supabase);
+    121|     expect(first.processed).toBe(1);
+       |                             ^
+    122|     expect(second.processed).toBe(0);
+    123|     expect(store[0].status).toBe('AVAILABLE');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/12]⎯
+
+
+ Test Files  3 failed | 28 passed | 1 skipped (32)
+      Tests  12 failed | 333 passed | 6 skipped (351)
+   Start at  10:51:01
+   Duration  15.96s (transform 11.45s, setup 0ms, import 18.21s, tests 2.28s, environment 7ms)
+

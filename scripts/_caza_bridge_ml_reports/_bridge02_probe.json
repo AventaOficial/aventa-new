@@ -1,0 +1,57 @@
+[
+  {
+    "ok": true,
+    "externalProductId": "MLM48434598",
+    "identityKey": "mercadolibre_mx:pid:MLM48434598",
+    "evidenceQuality": "moderate",
+    "card": "card_strikethrough",
+    "discountPercent": 71,
+    "score": 64,
+    "grade": "REJECT",
+    "gates": []
+  },
+  {
+    "ok": true,
+    "externalProductId": "MLMU3097285590",
+    "identityKey": "mercadolibre_mx:pid:MLMU3097285590",
+    "evidenceQuality": "moderate",
+    "card": "card_strikethrough",
+    "discountPercent": 71,
+    "score": 64,
+    "grade": "REJECT",
+    "gates": []
+  },
+  {
+    "ok": true,
+    "externalProductId": "MLM51558214",
+    "identityKey": "mercadolibre_mx:pid:MLM51558214",
+    "evidenceQuality": "moderate",
+    "card": "card_strikethrough",
+    "discountPercent": 67,
+    "score": 64,
+    "grade": "REJECT",
+    "gates": []
+  },
+  {
+    "ok": true,
+    "externalProductId": "MLM53177027",
+    "identityKey": "mercadolibre_mx:pid:MLM53177027",
+    "evidenceQuality": "moderate",
+    "card": "card_strikethrough",
+    "discountPercent": 62,
+    "score": 64,
+    "grade": "REJECT",
+    "gates": []
+  },
+  {
+    "ok": true,
+    "externalProductId": "MLM63723900",
+    "identityKey": "mercadolibre_mx:pid:MLM63723900",
+    "evidenceQuality": "moderate",
+    "card": "card_strikethrough",
+    "discountPercent": 62,
+    "score": 64,
+    "grade": "REJECT",
+    "gates": []
+  }
+]

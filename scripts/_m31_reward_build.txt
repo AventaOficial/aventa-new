@@ -1,0 +1,267 @@
+
+> aventa-new@0.1.0 build
+> next build
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of E:\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * E:\AVENTA NEW\aventa-new\package-lock.json
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 32.8s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+⚠ Using edge runtime on a page currently disables static generation for that page
+  Generating static pages using 11 workers (0/211) ...
+  Generating static pages using 11 workers (52/211) 
+  Generating static pages using 11 workers (105/211) 
+  Generating static pages using 11 workers (158/211) 
+✓ Generating static pages using 11 workers (211/211) in 6.3s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ○ /admin/analista
+├ ○ /admin/announcements
+├ ○ /admin/commissions
+├ ○ /admin/contexto
+├ ○ /admin/creator-tags
+├ ○ /admin/dashboard
+├ ○ /admin/distribution
+├ ○ /admin/equipo
+├ ○ /admin/health
+├ ○ /admin/hunter
+├ ○ /admin/infraestructura
+├ ○ /admin/logs
+├ ○ /admin/mantenimiento
+├ ○ /admin/metrics
+├ ○ /admin/moderation
+├ ○ /admin/moderation/approved
+├ ○ /admin/moderation/bans
+├ ○ /admin/moderation/comments
+├ ○ /admin/moderation/rejected
+├ ○ /admin/moderation/reports
+├ ○ /admin/moderation/social
+├ ○ /admin/operaciones
+├ ○ /admin/operaciones/trabajo
+├ ○ /admin/owner
+├ ○ /admin/owner/cazadores
+├ ○ /admin/owner/crecimiento
+├ ƒ /admin/reports
+├ ○ /admin/rewards
+├ ○ /admin/sistemas/mapa
+├ ○ /admin/team
+├ ○ /admin/technical
+├ ○ /admin/users
+├ ○ /admin/vote-weights
+├ ƒ /api/activity/heartbeat
+├ ƒ /api/admin/affiliate-ledger
+├ ƒ /api/admin/affiliate-ledger/import-csv
+├ ƒ /api/admin/affiliate-programs
+├ ƒ /api/admin/announcements
+├ ƒ /api/admin/announcements/[id]
+├ ƒ /api/admin/app-config
+├ ƒ /api/admin/bans
+├ ƒ /api/admin/bot-ingest-run-now
+├ ƒ /api/admin/bot-ingest-status
+├ ƒ /api/admin/comments
+├ ƒ /api/admin/commissions/allocations
+├ ƒ /api/admin/commissions/pools
+├ ƒ /api/admin/commissions/run-monthly
+├ ƒ /api/admin/commissions/tax-estimate
+├ ƒ /api/admin/creator-tags
+├ ƒ /api/admin/daily-system-metrics
+├ ƒ /api/admin/distribution-ops
+├ ƒ /api/admin/expire-offer
+├ ƒ /api/admin/go-no-go
+├ ƒ /api/admin/growth-dashboard
+├ ƒ /api/admin/hunter-health
+├ ƒ /api/admin/integrity-check
+├ ƒ /api/admin/logs
+├ ƒ /api/admin/mercadolibre/oauth-status
+├ ƒ /api/admin/moderate-offer
+├ ƒ /api/admin/moderation-delete-bot-pending
+├ ƒ /api/admin/moderation-lock
+├ ƒ /api/admin/moderation-logs
+├ ƒ /api/admin/moderation-normalize-links
+├ ƒ /api/admin/moderation-objectives
+├ ƒ /api/admin/moderation-offer-signals
+├ ƒ /api/admin/moderation-ops-stats
+├ ƒ /api/admin/moderation-pending-offers
+├ ƒ /api/admin/moderation-session-summary
+├ ƒ /api/admin/moderation-snooze
+├ ƒ /api/admin/moderation/claim-next
+├ ƒ /api/admin/moderation/reclaim-stale
+├ ƒ /api/admin/offer-activity
+├ ƒ /api/admin/offer-health-queue
+├ ƒ /api/admin/offer-preview
+├ ƒ /api/admin/operations-pulse
+├ ƒ /api/admin/owner-dashboard
+├ ƒ /api/admin/owner-infrastructure
+├ ƒ /api/admin/owner-map
+├ ƒ /api/admin/platform-pulse
+├ ƒ /api/admin/process-write-queue
+├ ƒ /api/admin/product-metrics
+├ ƒ /api/admin/refresh-metrics
+├ ƒ /api/admin/reports
+├ ƒ /api/admin/rewards
+├ ƒ /api/admin/rewards/attribute
+├ ƒ /api/admin/rewards/clawback
+├ ƒ /api/admin/rewards/payouts
+├ ƒ /api/admin/settlement-ops
+├ ƒ /api/admin/social
+├ ƒ /api/admin/supply-engine-run-now
+├ ƒ /api/admin/system-integrity
+├ ƒ /api/admin/team
+├ ƒ /api/admin/team-board
+├ ƒ /api/admin/trusted-hunters
+├ ƒ /api/admin/update-offer
+├ ƒ /api/admin/users
+├ ƒ /api/admin/visibility
+├ ƒ /api/admin/vote-weight
+├ ƒ /api/announcements
+├ ƒ /api/app-config
+├ ƒ /api/auth/mercadolibre/authorize
+├ ƒ /api/auth/mercadolibre/callback
+├ ƒ /api/catalog-gaps
+├ ƒ /api/cron/bot-ingest
+├ ƒ /api/cron/bot-ingest-candidates
+├ ƒ /api/cron/daily-digest
+├ ƒ /api/cron/distribution-drain
+├ ƒ /api/cron/ml-oauth-refresh
+├ ƒ /api/cron/offer-health-scan
+├ ƒ /api/cron/process-write-queue
+├ ƒ /api/cron/rewards-release-holds
+├ ƒ /api/cron/sticky-sku-seeds
+├ ƒ /api/cron/supply-engine
+├ ƒ /api/cron/system-integrity
+├ ƒ /api/cron/weekly-digest
+├ ƒ /api/events
+├ ƒ /api/feed/for-you
+├ ƒ /api/feed/home
+├ ƒ /api/health
+├ ƒ /api/health/distribution-env
+├ ƒ /api/log-client-event
+├ ƒ /api/me/commission-earnings
+├ ƒ /api/me/commission-fiscal
+├ ƒ /api/me/commission-status
+├ ƒ /api/me/commissions-accept
+├ ƒ /api/me/impact-stats
+├ ƒ /api/me/legal-consent
+├ ƒ /api/me/offer-metrics
+├ ƒ /api/me/offer-metrics/[offerId]/advanced
+├ ƒ /api/me/preferred-categories
+├ ƒ /api/me/preferred-categories/sync
+├ ƒ /api/me/request-account-deletion
+├ ƒ /api/me/rewards
+├ ƒ /api/me/rewards/accept-terms
+├ ƒ /api/me/rewards/status
+├ ƒ /api/me/rewards/welcome-offer
+├ ƒ /api/me/upload-cooldown-status
+├ ƒ /api/notifications
+├ ƒ /api/notifications/preferences
+├ ƒ /api/offers
+├ ƒ /api/offers/[offerId]/comments
+├ ƒ /api/offers/[offerId]/comments/[commentId]/like
+├ ƒ /api/offers/[offerId]/comments/[commentId]/report
+├ ƒ /api/offers/[offerId]/price-insight
+├ ƒ /api/offers/similar
+├ ƒ /api/parse-offer-url
+├ ƒ /api/plaza/discussions
+├ ƒ /api/plaza/requests
+├ ƒ /api/profile/[username]
+├ ƒ /api/reports
+├ ƒ /api/reputation/increment-approved
+├ ƒ /api/reputation/increment-rejected
+├ ƒ /api/social
+├ ƒ /api/staff/finance
+├ ƒ /api/staff/finance/allocations
+├ ƒ /api/staff/finance/ledger
+├ ƒ /api/staff/gerencia
+├ ƒ /api/staff/home
+├ ƒ /api/staff/marketing
+├ ƒ /api/staff/offer-health-queue
+├ ƒ /api/staff/operations
+├ ƒ /api/staff/tasks
+├ ƒ /api/stores
+├ ƒ /api/sync-profile
+├ ƒ /api/track-outbound
+├ ƒ /api/track-view
+├ ƒ /api/upload-offer-image
+├ ƒ /api/upload-profile-avatar
+├ ƒ /api/votes
+├ ƒ /apple-icon
+├ ƒ /auth/callback
+├ ○ /auth/reset-password
+├ ƒ /categoria/[slug]
+├ ƒ /categoria/[slug]/[subslug]
+├ ○ /comisiones
+├ ○ /contexto
+├ ○ /descubre
+├ ○ /equipo
+├ ○ /equipo/contabilidad
+├ ○ /equipo/contabilidad/ledger
+├ ○ /equipo/contabilidad/pagos
+├ ○ /equipo/contabilidad/pools
+├ ○ /equipo/gerencia
+├ ○ /equipo/gerencia/areas
+├ ○ /equipo/gerencia/colas
+├ ○ /equipo/gerencia/equipo
+├ ○ /equipo/marketing
+├ ○ /equipo/marketing/edicion
+├ ○ /equipo/marketing/grabar
+├ ○ /equipo/marketing/publicado
+├ ○ /equipo/marketing/rendimiento
+├ ○ /equipo/moderacion
+├ ○ /equipo/moderacion/agotadas
+├ ○ /equipo/moderacion/aprobadas
+├ ○ /equipo/moderacion/bot
+├ ○ /equipo/moderacion/cazadores
+├ ○ /equipo/moderacion/comentarios
+├ ○ /equipo/moderacion/precio
+├ ○ /equipo/moderacion/rechazadas
+├ ○ /equipo/moderacion/reportes
+├ ○ /equipo/operaciones
+├ ○ /equipo/operaciones/agotadas
+├ ○ /equipo/operaciones/metricas
+├ ○ /equipo/operaciones/ofertas
+├ ○ /equipo/operaciones/precio
+├ ○ /equipo/operaciones/salud
+├ ○ /extension
+├ ○ /extension/auth
+├ ƒ /icon
+├ ○ /manifest.webmanifest
+├ ○ /me
+├ ○ /me/estadisticas
+├ ○ /me/favorites
+├ ○ /mi-panel
+├ ƒ /oferta/[id]
+├ ƒ /oferta/[id]/opengraph-image
+├ ○ /opengraph-image
+├ ○ /operaciones
+├ ○ /operaciones/trabajo
+├ ○ /plaza
+├ ○ /privacy
+├ ƒ /r/d/[publicationId]
+├ ○ /settings
+├ ○ /sitemap.xml
+├ ○ /subir
+├ ƒ /tag/[slug]
+├ ○ /terms
+├ ƒ /tienda/[slug]
+└ ƒ /u/[username]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

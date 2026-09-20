@@ -1,0 +1,182 @@
+{
+  "environment": "staging",
+  "projectRef": "oojshofrpbfwsiypcecr",
+  "phase": "4.1",
+  "mapping": {
+    "id": "caza_map_949ae3cd",
+    "identityKey": "amazon_mx:pid:B072747941",
+    "identityStrategy": "external_product_id",
+    "status": "ACTIVE",
+    "trackingLabelDeclared": null,
+    "affiliateUrlHost": "www.amazon.com.mx",
+    "upsertAction": "created",
+    "replayUpsertAction": "unchanged"
+  },
+  "manualImport": {
+    "importId": "imp_canary_1789872747941",
+    "format": "json",
+    "received": 2,
+    "accepted": 2,
+    "rejected": 0,
+    "duplicates": 0,
+    "conflicts": 0,
+    "errors": []
+  },
+  "cycle": {
+    "cycleId": "caza_cycle_full_3a0528c5",
+    "discovered": 2,
+    "validated": 2,
+    "scored": 2,
+    "affiliateEligible": 1,
+    "prepared": 1,
+    "published": 1,
+    "failed": 0,
+    "skipped": 1,
+    "budgetsExhausted": [],
+    "stages": [
+      {
+        "stage": "DISCOVER",
+        "input": 2,
+        "success": 2,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {}
+      },
+      {
+        "stage": "NORMALIZE",
+        "input": 2,
+        "success": 2,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {}
+      },
+      {
+        "stage": "VALIDATE",
+        "input": 2,
+        "success": 2,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {}
+      },
+      {
+        "stage": "SCORE",
+        "input": 2,
+        "success": 2,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {
+          "score.grade:GREAT_DEAL": 2
+        }
+      },
+      {
+        "stage": "AFFILIATE",
+        "input": 2,
+        "success": 1,
+        "rejected": 1,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {
+          "affiliate_mapping.NOT_FOUND": 1,
+          "affiliate_mapping.not_found": 1
+        }
+      },
+      {
+        "stage": "DEDUPE",
+        "input": 2,
+        "success": 2,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {
+          "dedupe.created": 2
+        }
+      },
+      {
+        "stage": "ELIGIBILITY",
+        "input": 2,
+        "success": 1,
+        "rejected": 1,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {
+          "eligibility.card:card.not_monetizable": 1,
+          "eligibility.not_monetizable": 1,
+          "eligibility.status_not_ready:VALIDATED": 1
+        }
+      },
+      {
+        "stage": "PREPARE_PUBLICATION",
+        "input": 1,
+        "success": 1,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {
+          "prepare.inserted": 1
+        }
+      },
+      {
+        "stage": "RECOVER",
+        "input": 1,
+        "success": 0,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {}
+      },
+      {
+        "stage": "PUBLISH",
+        "input": 1,
+        "success": 1,
+        "rejected": 0,
+        "failed": 0,
+        "skipped": 0,
+        "reasonCodes": {
+          "publish.published": 1
+        }
+      }
+    ]
+  },
+  "mappedCandidate": {
+    "id": "caza_amazon_mx_949ae3cd",
+    "status": "PUBLICATION_READY",
+    "revision": 1,
+    "monetizable": true,
+    "trackingLabel": "caza_eb4ff53e_20260920"
+  },
+  "unmappedCandidate": {
+    "id": "caza_amazon_mx_4d1b6a82",
+    "status": "VALIDATED",
+    "monetizable": false,
+    "publications": 0
+  },
+  "telegram": {
+    "channelIdentifierRedacted": "-100430***97",
+    "publicationIdRedacted": "caza_amazon_mx_949ae3cd|amazon_associates_mx|-100430***97|caza_eb4ff53e_20260920",
+    "messageId": "11",
+    "publishedAt": "2026-09-20T02:52:30.055+00:00",
+    "publishedRevision": 1,
+    "attempts": 1,
+    "snapshotAffiliateUrlHost": "www.amazon.com.mx"
+  },
+  "replay": {
+    "importAccepted": 2,
+    "importConflicts": 0,
+    "deduplicated": 2,
+    "prepared": 0,
+    "published": 0,
+    "publicationsForMappedDeal": 1,
+    "noSecondSend": true
+  },
+  "moneyPathUntouched": true,
+  "productionUntouched": true,
+  "deployPerformed": false,
+  "commitPerformed": false,
+  "pushPerformed": false,
+  "timestamp": "2026-09-20T02:52:35.279Z",
+  "result": "PASS"
+}

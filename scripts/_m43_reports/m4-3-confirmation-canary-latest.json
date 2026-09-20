@@ -1,0 +1,139 @@
+{
+  "ok": true,
+  "campaign": "M4.3_confirmation_boundary",
+  "tag": "m43_canary_1789839810282",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "false",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "false",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "false",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "doNotTouchReward": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "steps": {
+    "rpBefore": 0,
+    "m31Pre": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING"
+    },
+    "seeds": {
+      "mainSeed": {
+        "rewardId": "e5d2a77b-a2d4-4eda-81d4-710295721fb6",
+        "ledgerId": "425a2345-9fc6-4875-884e-78c5c93f17b4"
+      },
+      "mismatchSeed": {
+        "rewardId": "28270b29-8610-455d-b252-085c8b104e78",
+        "ledgerId": "f8afebea-13bc-48fe-8107-28e882abb5ab"
+      }
+    },
+    "reserved": {
+      "id": "45750f6b-230b-4de8-98dd-5d4c3af1cdb3",
+      "status": "RESERVED"
+    },
+    "initiated": {
+      "status": "SUBMITTED",
+      "meta": {
+        "providerReference": "SPEI-M43-m43_canary_1789839810282",
+        "initiatedAt": "2026-09-19T17:43:34.468Z",
+        "confirmedAt": null,
+        "confirmationStatus": "initiated",
+        "awaitingConfirmation": true
+      }
+    },
+    "timeoutUnknown": {
+      "status": "UNKNOWN"
+    },
+    "reconcileSuccess": {
+      "status": "SUCCEEDED",
+      "meta": {
+        "providerReference": "SPEI-M43-m43_canary_1789839810282-UNK",
+        "initiatedAt": null,
+        "confirmedAt": "2026-09-19T17:43:36.955Z",
+        "confirmationStatus": "confirmed_success",
+        "awaitingConfirmation": false
+      }
+    },
+    "confirmed": {
+      "status": "SUCCEEDED",
+      "meta": {
+        "providerReference": "SPEI-M43-m43_canary_1789839810282",
+        "initiatedAt": "2026-09-19T17:43:34.468Z",
+        "confirmedAt": "2026-09-19T17:43:38.414Z",
+        "confirmationStatus": "confirmed_success",
+        "awaitingConfirmation": false
+      }
+    },
+    "paid": {
+      "id": "e5d2a77b-a2d4-4eda-81d4-710295721fb6",
+      "status": "PAID"
+    },
+    "replay": {
+      "ok": true,
+      "reused": true
+    },
+    "concurrent": {
+      "ok": true,
+      "statuses": [
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED"
+      ]
+    },
+    "mismatches": {
+      "providerRef": "provider_reference_mismatch",
+      "amount": "amount_mismatch",
+      "currency": "currency_mismatch"
+    },
+    "mainIntentRows": 1,
+    "rpAfter": 0,
+    "m31Post": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING"
+    },
+    "productionReadonly": {
+      "ref": "mkgsrpsuvedwwlzmzmzh",
+      "note": "CLI probe; no writes"
+    }
+  },
+  "evidence": {
+    "seam": "AVAILABLE→claim→initiated→confirm→PAID + UNKNOWN→reconcile→PAID",
+    "mainReward": "e5d2a77b-a2d4-4eda-81d4-710295721fb6",
+    "mainIntent": "45750f6b-230b-4de8-98dd-5d4c3af1cdb3",
+    "providerReference": "SPEI-M43-m43_canary_1789839810282",
+    "intentCount": 1,
+    "rpUnchanged": true,
+    "realMoney": false
+  },
+  "pass": true,
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

@@ -15,6 +15,7 @@ import { appendEconomicEvent } from '../appendEconomicEvent';
 import { isAffiliateNetwork, type AffiliateNetwork } from '../types';
 import { buildSettlementExternalRef } from './externalRef';
 import { isSettlementBridgeEnabled } from './isSettlementBridgeEnabled';
+import { resolveSettlementLedgerAttribution } from './projectLedgerAttribution';
 import type {
   SettlementAllocation,
   SettlementBridgeResult,
@@ -22,6 +23,7 @@ import type {
   SettlementRejectReason,
 } from './types';
 
+/** Boundary pointer only — settlement never invokes the rewards engine. */
 const REWARD_BOUNDARY = 'future_createRewardFromLedgerEntry' as const;
 
 type CommissionRow = {
@@ -519,6 +521,30 @@ export async function settleCommission(
     payload: { externalRef, gross, currency },
   });
 
+  const attributionResolved = await resolveSettlementLedgerAttribution(
+    supabase,
+    commission.conversion_id,
+  );
+  if (!attributionResolved.ok) {
+    await audit(supabase, {
+      commissionId,
+      eventType: 'settlement_rejected',
+      reason: 'conversion_not_found',
+      actor,
+      payload: { conversionId: commission.conversion_id },
+    });
+    return baseResult({
+      ok: false,
+      event: 'settlement_rejected',
+      reason: 'conversion_not_found',
+      commissionId,
+      conversionId: commission.conversion_id,
+      network,
+      externalRef,
+    });
+  }
+  const { attribution } = attributionResolved;
+
   const ledgerRow = {
     network,
     amount_cents: gross,
@@ -527,6 +553,13 @@ export async function settleCommission(
     external_ref: externalRef,
     notes: 'settlement_bridge_m1',
     source: 'api' as const,
+    click_id: attribution.click_id,
+    offer_id: attribution.offer_id,
+    creator_id: attribution.creator_id,
+    tracking_tag: attribution.tracking_tag,
+    attributable: attribution.attributable,
+    attribution_method: attribution.attribution_method,
+    attribution_confidence: attribution.attribution_confidence,
     meta: {
       settlement: {
         bridgeVersion: 'm1',
@@ -541,6 +574,7 @@ export async function settleCommission(
         withdrawable: false,
         settled: false,
         rewardBoundary: REWARD_BOUNDARY,
+        attributionSource: attribution.source,
       },
     },
   };

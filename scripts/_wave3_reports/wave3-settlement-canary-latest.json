@@ -1,0 +1,66 @@
+{
+  "ok": false,
+  "mode": "dry_run",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "commissionId": "00000000-0000-4000-8000-000000000099",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+    "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+    "MONEY_PATH_FROZEN": "(unset)",
+    "REWARDS_PROGRAM_ACTIVE": "(unset)",
+    "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "canary": {
+    "mode": "dry_run",
+    "ok": false,
+    "reason": "commission_not_found",
+    "ops": {
+      "settlementBridgeEnabled": true,
+      "moneyPathFrozen": false,
+      "productionRuntime": false,
+      "supabaseTarget": "staging",
+      "supabaseRef": "oojshofrpbfwsiypcecr",
+      "rewardsProgramActive": false,
+      "commissionProgramActive": false,
+      "economicLedgerBoundary": {
+        "settlementEnabled": false,
+        "foundationWritesLedger": false,
+        "foundationWritesRewards": false,
+        "foundationWritesPayouts": false
+      },
+      "stagingCanaryEligible": true,
+      "blockers": []
+    },
+    "writesPerformed": false
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

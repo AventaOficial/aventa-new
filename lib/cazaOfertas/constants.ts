@@ -170,6 +170,93 @@ export const TELEGRAM_HTTP_TIMEOUT_MS = 15_000;
 /** Límite duro por drain del outbox. */
 export const PUBLICATION_DRAIN_MAX_BATCH = 25;
 
+// ---------------------------------------------------------------------------
+// Orchestration (FASE 4) — budgets por ejecución
+// ---------------------------------------------------------------------------
+
+/**
+ * Techos absolutos de un ciclo del orchestrator. Un input puede pedir MENOS,
+ * nunca más: `resolveCazaPipelineBudgets` recorta contra estos valores.
+ * Ninguna ejecución procesa un universo ilimitado.
+ */
+/** Drafts máximos recibidos de todas las fuentes de discovery en un ciclo. */
+export const MAX_DISCOVERY_PER_RUN = 200;
+/** Candidatos máximos que atraviesan NORMALIZE→DEDUPE en un ciclo. */
+export const MAX_CANDIDATES_PER_RUN = 200;
+/** Publicaciones nuevas (PREPARED insertadas) máximas por ciclo. */
+export const MAX_PUBLICATIONS_PER_RUN = 25;
+/** Envíos Telegram máximos por ciclo (≤ PUBLICATION_DRAIN_MAX_BATCH). */
+export const MAX_TELEGRAM_SENDS_PER_RUN = 25;
+/** Presupuesto de tiempo de un ciclo. Al agotarse, los stages restantes se saltan. */
+export const MAX_EXECUTION_MS = 25_000;
+/** Tamaño máximo de página pedido a una fuente de discovery. */
+export const MAX_DISCOVERY_PAGE_SIZE = 50;
+/** Leases SENDING expirados recuperados por ciclo. */
+export const MAX_RECOVERY_PER_RUN = 100;
+/** Concurrencia acotada para stages con I/O (affiliate resolver, upsert). */
+export const MAX_STAGE_CONCURRENCY = 4;
+/** Reason codes distintos retenidos por stage en el reporte (cardinalidad acotada). */
+export const MAX_STAGE_REASON_CODES = 50;
+/** Errores retenidos por ciclo en el reporte. */
+export const MAX_CYCLE_ERRORS = 100;
+
+export const CAZA_PIPELINE_BUDGETS = {
+  MAX_DISCOVERY_PER_RUN,
+  MAX_CANDIDATES_PER_RUN,
+  MAX_PUBLICATIONS_PER_RUN,
+  MAX_TELEGRAM_SENDS_PER_RUN,
+  MAX_EXECUTION_MS,
+  MAX_DISCOVERY_PAGE_SIZE,
+  MAX_RECOVERY_PER_RUN,
+  MAX_STAGE_CONCURRENCY,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Orchestration (FASE 4) — scheduling contract (sin cron productivo)
+// ---------------------------------------------------------------------------
+
+/**
+ * Intervalos por defecto y cotas. Configurables por env var (nombre, nunca
+ * valor secreto). No existe cron productivo: `vercel.json` no se toca.
+ */
+export const CAZA_SCHEDULE_DEFAULTS = {
+  discoveryIntervalMs: 15 * 60 * 1000,
+  publicationIntervalMs: 60 * 1000,
+  recoveryIntervalMs: 5 * 60 * 1000,
+  minIntervalMs: 30 * 1000,
+  maxIntervalMs: 24 * 60 * 60 * 1000,
+} as const;
+
+export const CAZAOFERTAS_DISCOVERY_INTERVAL_ENV = 'CAZAOFERTAS_DISCOVERY_INTERVAL_MS' as const;
+export const CAZAOFERTAS_PUBLICATION_INTERVAL_ENV =
+  'CAZAOFERTAS_PUBLICATION_INTERVAL_MS' as const;
+export const CAZAOFERTAS_RECOVERY_INTERVAL_ENV = 'CAZAOFERTAS_RECOVERY_INTERVAL_MS' as const;
+
+// ---------------------------------------------------------------------------
+// FASE 4.1 — Affiliate mapping operado + manual discovery
+// ---------------------------------------------------------------------------
+
+export const AFFILIATE_MAPPING_STATUSES = ['ACTIVE', 'DISABLED', 'EXPIRED'] as const;
+/** Claves consultadas por lookup (identidad primaria + fallback URL). Nunca scan. */
+export const AFFILIATE_MAPPING_LOOKUP_MAX_KEYS = 4;
+
+export const MANUAL_DEAL_IMPORT_FORMATS = ['json', 'csv'] as const;
+/** Ítems máximos por import manual. Un import mayor se rechaza completo. */
+export const MANUAL_IMPORT_MAX_ITEMS = 200;
+/** Tamaño máximo del cuerpo de un import (bytes). */
+export const MANUAL_IMPORT_MAX_BYTES = 1_048_576;
+/** Longitud máxima de una celda CSV. */
+export const MANUAL_IMPORT_MAX_CELL_LENGTH = 2_048;
+/** Errores retenidos en el reporte de operador. */
+export const MANUAL_IMPORT_MAX_REPORT_ERRORS = 200;
+
+/** Frontera de scheduling: los contratos existen; producción no está activada. */
+export const CAZAOFERTAS_SCHEDULING_BOUNDARY = {
+  productionCronEnabled: false,
+  vercelCronConfigured: false,
+  contractsDefined: true,
+} as const;
+
 /** El LLM nunca es autoridad de precio, descuento ni score. */
 export const CAZAOFERTAS_LLM_AUTHORITY = {
   priceAuthority: false,
@@ -186,6 +273,8 @@ export const CAZAOFERTAS_FORBIDDEN_IMPORT_PATTERNS = [
   'lib/rewards',
   'lib/economy',
   'lib/commissions',
+  'lib/payout',
+  'lib/settlement',
   'lib/finance',
   'lib/dealAlerts',
   'lib/dealIntelligence',

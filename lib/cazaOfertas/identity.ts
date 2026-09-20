@@ -194,7 +194,7 @@ export function buildDealIdentity(input: BuildIdentityInput): CazaResult<DealIde
   if (externalProductId !== null) {
     return okResult({
       strategy: 'external_product_id',
-      key: `${store}:pid:${externalProductId}`,
+      key: externalProductIdentityKey(store, externalProductId),
       store,
       externalProductId,
       normalizedUrl: normalized.value.url,
@@ -203,11 +203,21 @@ export function buildDealIdentity(input: BuildIdentityInput): CazaResult<DealIde
 
   return okResult({
     strategy: 'canonical_url',
-    key: `${store}:url:${stableHash(normalized.value.url)}`,
+    key: canonicalUrlIdentityKey(store, normalized.value.url),
     store,
     externalProductId: null,
     normalizedUrl: normalized.value.url,
   });
+}
+
+/** Clave de identidad primaria: `store:pid:<externalProductId>`. */
+export function externalProductIdentityKey(store: CazaStoreId, externalProductId: string): string {
+  return `${store}:pid:${externalProductId}`;
+}
+
+/** Clave de identidad fallback: `store:url:<hash(normalizedUrl)>`. */
+export function canonicalUrlIdentityKey(store: CazaStoreId, normalizedUrl: string): string {
+  return `${store}:url:${stableHash(normalizedUrl)}`;
 }
 
 /** El id público del candidato deriva de la identidad, no de un contador. */

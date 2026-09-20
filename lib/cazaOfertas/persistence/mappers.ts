@@ -129,6 +129,11 @@ export interface CazaRevenueEventRow {
   reverses_event_id: string | null;
   recorded_at: string;
   created_at?: string;
+  /** FASE 3 optional columns (null on FASE 1 rows). */
+  gross_amount?: number | string | null;
+  source_batch_id?: string | null;
+  product_external_id?: string | null;
+  product_reference?: string | null;
 }
 
 function num(value: number | string | null | undefined): number | null {
@@ -324,8 +329,10 @@ export function publicationToRow(record: DealPublicationRecord): CazaPublication
     metrics_clicks: metrics.clicks,
     metrics_orders: metrics.orders,
     metrics_approved_orders: metrics.approvedOrders,
-    metrics_estimated_commission_amount: metrics.estimatedCommission?.value ?? null,
-    metrics_estimated_commission_currency: metrics.estimatedCommission?.currency ?? null,
+    metrics_estimated_commission_amount:
+      (metrics.commission ?? metrics.estimatedCommission)?.value ?? null,
+    metrics_estimated_commission_currency:
+      (metrics.commission ?? metrics.estimatedCommission)?.currency ?? null,
     metrics_approved_commission_amount: metrics.approvedCommission?.value ?? null,
     metrics_approved_commission_currency: metrics.approvedCommission?.currency ?? null,
     metrics_last_synced_at: metrics.lastSyncedAt,
@@ -340,7 +347,20 @@ export function rowToPublication(row: CazaPublicationRow): DealPublicationRecord
     clicks: row.metrics_clicks,
     orders: row.metrics_orders,
     approvedOrders: row.metrics_approved_orders,
+    units: null,
+    grossSales: null,
     estimatedCommission:
+      row.metrics_estimated_commission_amount != null &&
+      row.metrics_estimated_commission_currency
+        ? {
+            value: requireNum(
+              row.metrics_estimated_commission_amount,
+              'metrics_estimated_commission_amount'
+            ),
+            currency: row.metrics_estimated_commission_currency as CazaCurrency,
+          }
+        : null,
+    commission:
       row.metrics_estimated_commission_amount != null &&
       row.metrics_estimated_commission_currency
         ? {
@@ -362,6 +382,7 @@ export function rowToPublication(row: CazaPublicationRow): DealPublicationRecord
             currency: row.metrics_approved_commission_currency as CazaCurrency,
           }
         : null,
+    cancelledCommission: null,
     lastSyncedAt: row.metrics_last_synced_at,
   };
 
@@ -411,12 +432,17 @@ export function revenueEventToRow(event: AffiliateRevenueEvent): CazaRevenueEven
     status: event.status,
     reverses_event_id: event.reversesEventId,
     recorded_at: event.recordedAt,
+    gross_amount: event.grossAmount?.value ?? null,
+    source_batch_id: event.sourceBatchId ?? null,
+    product_external_id: event.productExternalId ?? null,
+    product_reference: event.productReference ?? null,
   };
 }
 
 export function rowToRevenueEvent(row: CazaRevenueEventRow): AffiliateRevenueEvent {
   if (!row?.event_id) throw new Error('caza.mapper.event_id_missing');
   const amountValue = num(row.amount);
+  const grossValue = num(row.gross_amount);
   return {
     eventId: row.event_id,
     network: row.network as AffiliateNetworkId,
@@ -433,6 +459,13 @@ export function rowToRevenueEvent(row: CazaRevenueEventRow): AffiliateRevenueEve
     status: row.status as AffiliateRevenueEvent['status'],
     reversesEventId: row.reverses_event_id,
     recordedAt: iso(row.recorded_at),
+    grossAmount:
+      grossValue !== null && row.currency
+        ? { value: grossValue, currency: row.currency as CazaCurrency }
+        : null,
+    sourceBatchId: row.source_batch_id ?? null,
+    productExternalId: row.product_external_id ?? null,
+    productReference: row.product_reference ?? null,
   };
 }
 
@@ -490,5 +523,9 @@ export function revenueEventRowToRpcPayload(row: CazaRevenueEventRow): Record<st
     amount: row.amount ?? '',
     currency: row.currency ?? '',
     reverses_event_id: row.reverses_event_id ?? '',
+    gross_amount: row.gross_amount ?? '',
+    source_batch_id: row.source_batch_id ?? '',
+    product_external_id: row.product_external_id ?? '',
+    product_reference: row.product_reference ?? '',
   };
 }

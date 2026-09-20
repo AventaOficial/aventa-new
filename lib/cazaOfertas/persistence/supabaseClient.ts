@@ -33,6 +33,7 @@ export type CazaSupabaseClient = {
 export type CazaQueryBuilder = {
   select: (columns: string) => CazaQueryBuilder;
   eq: (column: string, value: string) => CazaQueryBuilder;
+  in: (column: string, values: readonly string[]) => CazaQueryBuilder;
   gt: (column: string, value: string) => CazaQueryBuilder;
   lte: (column: string, value: string) => CazaQueryBuilder;
   or: (filters: string) => CazaQueryBuilder;

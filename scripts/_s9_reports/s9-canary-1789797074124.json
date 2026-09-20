@@ -1,0 +1,55 @@
+{
+  "runId": "s9-canary-1789797074079",
+  "mode": "dry_run",
+  "productionRuntime": false,
+  "supplyAutomationEnabled": false,
+  "dryLiveFingerprintMatch": null,
+  "dry": {
+    "metrics": {
+      "candidates_seen": 2,
+      "evaluated": 2,
+      "eligible": 0,
+      "suppressed": 0,
+      "duplicates": 0,
+      "budget_rejected": 0,
+      "write_attempted": 0,
+      "write_success": 0,
+      "write_failed": 0,
+      "provenance_rejected": 0,
+      "quality_rejected": 0,
+      "policy_rejected": 2,
+      "by_code": {
+        "S9_DISABLED": 2
+      }
+    },
+    "outcomes": [
+      {
+        "key": "s9-canary-1",
+        "code": "S9_DISABLED",
+        "reasons": [
+          "SUPPLY_AUTOMATION_ENABLED_off"
+        ],
+        "s8": "OPPORTUNITY",
+        "score": 94
+      },
+      {
+        "key": "s9-canary-2",
+        "code": "S9_DISABLED",
+        "reasons": [
+          "SUPPLY_AUTOMATION_ENABLED_off"
+        ],
+        "s8": "OPPORTUNITY",
+        "score": 90
+      }
+    ],
+    "decisionFingerprint": "[{\"k\":\"s9-canary-1\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM-S9CANARY0001\",\"code\":\"S9_DISABLED\",\"reasons\":[\"SUPPLY_AUTOMATION_ENABLED_off\"],\"s8\":\"OPPORTUNITY\",\"score\":94,\"source\":\"aventa_supply\"},{\"k\":\"s9-canary-2\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM-S9CANARY0002\",\"code\":\"S9_DISABLED\",\"reasons\":[\"SUPPLY_AUTOMATION_ENABLED_off\"],\"s8\":\"OPPORTUNITY\",\"score\":90,\"source\":\"aventa_supply\"}]"
+  },
+  "live": null,
+  "boundaries": {
+    "distribution": "untouched",
+    "rewards": "untouched",
+    "settlement": "untouched",
+    "moneyFreeze": "untouched",
+    "soleWriter": "insertIngestedOffer"
+  }
+}

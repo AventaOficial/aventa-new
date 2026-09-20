@@ -1,0 +1,186 @@
+{
+  "ok": true,
+  "campaign": "M4.1_payout_intent_foundation",
+  "tag": "m41_canary_1789838469989",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "false",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "false",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "false",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "doNotTouchReward": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "steps": {
+    "rpBefore": 0,
+    "m31UntouchedPre": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING"
+    },
+    "seeds": {
+      "successSeed": {
+        "rewardId": "9bae51ec-540f-49fc-a599-c4d2d6970fbe",
+        "ledgerId": "e877e820-d87f-449d-b126-4de9f94f2fd4"
+      },
+      "failureSeed": {
+        "rewardId": "42b2e6c9-c5ff-467c-ac20-b23d84285cd6",
+        "ledgerId": "2f5a7689-2a2d-4c28-b907-3ff96c76b2f6"
+      },
+      "timeoutSeed": {
+        "rewardId": "33c957be-636f-4357-a834-e200251b1a3a",
+        "ledgerId": "d280aa35-2446-4b46-8942-55f6037ee751"
+      },
+      "concurrentSeed": {
+        "rewardId": "41f425cb-e2de-465a-b43e-8fbf2d8d54ad",
+        "ledgerId": "e1b03a6c-8099-47d5-9862-90f6a7d8e564"
+      }
+    },
+    "successReserve": {
+      "ok": true,
+      "status": "RESERVED",
+      "key": "payout_intent:9bae51ec-540f-49fc-a599-c4d2d6970fbe:v1",
+      "id": "b7dc3842-deee-4268-86b5-ee8f8d25d7f7"
+    },
+    "successReplay": {
+      "ok": true,
+      "reused": true,
+      "id": "b7dc3842-deee-4268-86b5-ee8f8d25d7f7"
+    },
+    "successSubmit": {
+      "ok": true,
+      "status": "SUCCEEDED",
+      "key": "payout_intent:9bae51ec-540f-49fc-a599-c4d2d6970fbe:v1"
+    },
+    "successReward": {
+      "id": "9bae51ec-540f-49fc-a599-c4d2d6970fbe",
+      "status": "PAID",
+      "paid_at": "2026-09-19T17:21:13.763+00:00"
+    },
+    "dupCallback": {
+      "ok": true,
+      "reused": true,
+      "status": "SUCCEEDED"
+    },
+    "failureSubmit": {
+      "ok": true,
+      "status": "FAILED"
+    },
+    "failureReward": {
+      "id": "42b2e6c9-c5ff-467c-ac20-b23d84285cd6",
+      "status": "AVAILABLE"
+    },
+    "timeoutSubmit": {
+      "ok": true,
+      "status": "UNKNOWN",
+      "key": "payout_intent:33c957be-636f-4357-a834-e200251b1a3a:v1"
+    },
+    "unknownNoSecondIntent": {
+      "ok": true,
+      "reused": true,
+      "id": "cac3f3a8-4209-4d59-a6d2-8a8b4925ab45",
+      "same": true
+    },
+    "reconcileSuccess": {
+      "ok": true,
+      "status": "SUCCEEDED",
+      "key": "payout_intent:33c957be-636f-4357-a834-e200251b1a3a:v1"
+    },
+    "reconcileReward": {
+      "id": "33c957be-636f-4357-a834-e200251b1a3a",
+      "status": "PAID"
+    },
+    "concurrent": {
+      "okCount": 2,
+      "failCount": 1,
+      "failReasons": [
+        "schema_missing"
+      ],
+      "uniqueIds": 1,
+      "intentRows": 1
+    },
+    "reconcileFailure": {
+      "ok": true,
+      "status": "FAILED",
+      "key": "payout_intent:cc690b8a-bfa1-4295-b990-88ae3c3ffd48:v1"
+    },
+    "reconcileFailureReward": {
+      "id": "cc690b8a-bfa1-4295-b990-88ae3c3ffd48",
+      "status": "AVAILABLE"
+    },
+    "rpAfter": 0,
+    "m31UntouchedPost": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING",
+      "creator_share_cents": 720
+    },
+    "successIntentRows": 1,
+    "legacyRpcForbidden": "execute_reward_payout",
+    "realMoneyMoved": false,
+    "provider": "stub",
+    "productionReadonly": {
+      "skipped": true,
+      "reason": "no_prod_key"
+    }
+  },
+  "evidence": {
+    "successChain": "AVAILABLE → RESERVED → SUBMITTED → SUCCESS → SUCCEEDED → PAID",
+    "successIntent": {
+      "id": "b7dc3842-deee-4268-86b5-ee8f8d25d7f7",
+      "status": "SUCCEEDED",
+      "idempotency_key": "payout_intent:9bae51ec-540f-49fc-a599-c4d2d6970fbe:v1",
+      "submitted_at": "2026-09-19T17:21:13.389+00:00",
+      "resolved_at": "2026-09-19T17:21:13.763+00:00"
+    },
+    "successReward": {
+      "id": "9bae51ec-540f-49fc-a599-c4d2d6970fbe",
+      "status": "PAID",
+      "paid_at": "2026-09-19T17:21:13.763+00:00"
+    },
+    "unknownChain": "SUBMITTED → UNKNOWN → reconciliation → SUCCEEDED → PAID",
+    "timeoutIntent": {
+      "id": "cac3f3a8-4209-4d59-a6d2-8a8b4925ab45",
+      "status": "SUCCEEDED",
+      "idempotency_key": "payout_intent:33c957be-636f-4357-a834-e200251b1a3a:v1",
+      "submitted_at": "2026-09-19T17:21:17.317+00:00",
+      "resolved_at": "2026-09-19T17:21:18.575+00:00"
+    },
+    "reconcileReward": {
+      "id": "33c957be-636f-4357-a834-e200251b1a3a",
+      "status": "PAID"
+    },
+    "secondIntent": false,
+    "secondKey": false,
+    "doublePaid": false
+  },
+  "pass": true,
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

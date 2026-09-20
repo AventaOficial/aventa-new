@@ -1,0 +1,205 @@
+{
+  "phase": "BRIDGE-02",
+  "environment": "staging",
+  "supabaseRef": "oojshofrpbfwsiypcecr",
+  "at": "2026-09-20T04:00:03.431Z",
+  "stamp": 1789876803431,
+  "sourceProvenance": {
+    "kind": "fixture_real",
+    "path": "scripts/_smoke-gate-v2-discovery.json",
+    "mode": "LOCAL_DISCOVERY_READ_ONLY",
+    "producedBy": "workers/mercadolibre-worker/scripts/smoke-gate-v2-discovery.mjs",
+    "totalInFile": 15,
+    "selected": 3
+  },
+  "note": "Discovery is fixture_real from existing smoke-gate READ-ONLY output. This harness does not scrape. card_strikethrough evidence typically scores REJECT (<70); publication only if grade allows — no invented PDP/evidence.",
+  "bridge": {
+    "received": 3,
+    "accepted": 3,
+    "rejected": 0
+  },
+  "affiliatePrep": [
+    {
+      "identityKey": "mercadolibre_mx:pid:MLM48434598",
+      "externalProductId": "MLM48434598",
+      "status": "FOUND"
+    },
+    {
+      "identityKey": "mercadolibre_mx:pid:MLMU3097285590",
+      "externalProductId": "MLMU3097285590",
+      "status": "FOUND"
+    },
+    {
+      "identityKey": "mercadolibre_mx:pid:MLM51558214",
+      "externalProductId": "MLM51558214",
+      "status": "FOUND"
+    }
+  ],
+  "cycle": {
+    "cycleId": "caza_cycle_full_017d5930",
+    "discovered": 3,
+    "validated": 3,
+    "rejected": 3,
+    "scored": 0,
+    "affiliateEligible": 0,
+    "prepared": 0,
+    "published": 0,
+    "deduplicated": 0,
+    "reasonCodes": {
+      "SCORE": {
+        "score.grade_reject": 3
+      },
+      "AFFILIATE": {},
+      "DEDUPE": {
+        "dedupe.created": 3
+      },
+      "PREPARE_PUBLICATION": {},
+      "PUBLISH": {}
+    },
+    "errors": []
+  },
+  "replay": {
+    "cycleId": "caza_cycle_full_017d5930",
+    "discovered": 3,
+    "validated": 3,
+    "affiliateEligible": 0,
+    "prepared": 0,
+    "published": 0,
+    "reasonCodes": {
+      "DEDUPE": {
+        "dedupe.unchanged": 3
+      },
+      "PREPARE_PUBLICATION": {},
+      "PUBLISH": {}
+    },
+    "errors": []
+  },
+  "perCandidate": [
+    {
+      "index": 0,
+      "source": "ml_worker:bridge02_staging_1789876803431",
+      "externalProductId": "MLM48434598",
+      "identityKey": "mercadolibre_mx:pid:MLM48434598",
+      "urlRedacted": "https://mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598",
+      "cardDiscountSource": "card_strikethrough",
+      "originalPriceProvenance": "listing_card",
+      "validationStatus": "persisted",
+      "evidenceStatus": {
+        "quality": "moderate",
+        "priceConfidence": "reported",
+        "historicalConfidence": "store_reference_price",
+        "source": "store_product_page"
+      },
+      "score": {
+        "score": 64,
+        "grade": "REJECT",
+        "gates": []
+      },
+      "candidateStatus": "REJECTED",
+      "affiliateStatus": "FOUND",
+      "affiliateEligibleInCycle": false,
+      "monetizable": false,
+      "prepared": false,
+      "published": false,
+      "messageId": null,
+      "publicationCount": 0,
+      "reasonCodes": {
+        "scoreGrade": "REJECT",
+        "scoreGates": []
+      }
+    },
+    {
+      "index": 1,
+      "source": "ml_worker:bridge02_staging_1789876803431",
+      "externalProductId": "MLMU3097285590",
+      "identityKey": "mercadolibre_mx:pid:MLMU3097285590",
+      "urlRedacted": "https://mercadolibre.com.mx/espejo-luz-led-de-pared-tocador-bano-touch-cambio-3-luces/up/MLMU3097285590",
+      "cardDiscountSource": "card_strikethrough",
+      "originalPriceProvenance": "listing_card",
+      "validationStatus": "persisted",
+      "evidenceStatus": {
+        "quality": "moderate",
+        "priceConfidence": "reported",
+        "historicalConfidence": "store_reference_price",
+        "source": "store_product_page"
+      },
+      "score": {
+        "score": 64,
+        "grade": "REJECT",
+        "gates": []
+      },
+      "candidateStatus": "REJECTED",
+      "affiliateStatus": "FOUND",
+      "affiliateEligibleInCycle": false,
+      "monetizable": false,
+      "prepared": false,
+      "published": false,
+      "messageId": null,
+      "publicationCount": 0,
+      "reasonCodes": {
+        "scoreGrade": "REJECT",
+        "scoreGates": []
+      }
+    },
+    {
+      "index": 2,
+      "source": "ml_worker:bridge02_staging_1789876803431",
+      "externalProductId": "MLM51558214",
+      "identityKey": "mercadolibre_mx:pid:MLM51558214",
+      "urlRedacted": "https://mercadolibre.com.mx/cobertizo-exterior-acero-bodega-armable-cuarto-de-lamina-galvanizada-casa-de-almacenamiento-trent-187x151x91-caseta-deposito-galpon-obrador/p/MLM51558214",
+      "cardDiscountSource": "card_strikethrough",
+      "originalPriceProvenance": "listing_card",
+      "validationStatus": "persisted",
+      "evidenceStatus": {
+        "quality": "moderate",
+        "priceConfidence": "reported",
+        "historicalConfidence": "store_reference_price",
+        "source": "store_product_page"
+      },
+      "score": {
+        "score": 64,
+        "grade": "REJECT",
+        "gates": []
+      },
+      "candidateStatus": "REJECTED",
+      "affiliateStatus": "FOUND",
+      "affiliateEligibleInCycle": false,
+      "monetizable": false,
+      "prepared": false,
+      "published": false,
+      "messageId": null,
+      "publicationCount": 0,
+      "reasonCodes": {
+        "scoreGrade": "REJECT",
+        "scoreGates": []
+      }
+    }
+  ],
+  "replayPerCandidate": [
+    {
+      "identityKey": "mercadolibre_mx:pid:MLM48434598",
+      "publicationCount": 0,
+      "publishedCount": 0,
+      "telegramMessageIds": []
+    },
+    {
+      "identityKey": "mercadolibre_mx:pid:MLMU3097285590",
+      "publicationCount": 0,
+      "publishedCount": 0,
+      "telegramMessageIds": []
+    },
+    {
+      "identityKey": "mercadolibre_mx:pid:MLM51558214",
+      "publicationCount": 0,
+      "publishedCount": 0,
+      "telegramMessageIds": []
+    }
+  ],
+  "idempotency": {
+    "noSecondPublish": true,
+    "publicationCountsStable": true,
+    "uniqueMessageIds": 0
+  },
+  "channelRedacted": "***",
+  "redacted": true
+}

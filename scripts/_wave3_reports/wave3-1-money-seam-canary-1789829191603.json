@@ -1,0 +1,127 @@
+{
+  "ok": true,
+  "mode": "execute",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "e2eRefs": {
+    "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc",
+    "clickId": "b1ab0c11-959b-4c3d-90a8-459834fa7a9a",
+    "conversionId": "038406f8-42aa-4cc1-9d1d-527560a2b17b",
+    "commissionId": "0e13735a-0f5e-4038-9c45-daaa7f6408ae"
+  },
+  "cases": {
+    "conversion_replay": {
+      "ok": true,
+      "reused": true,
+      "conversionId": "038406f8-42aa-4cc1-9d1d-527560a2b17b",
+      "rowsForExternal": 1
+    },
+    "commission_replay": {
+      "ok": true,
+      "reused": true,
+      "commissionId": "0e13735a-0f5e-4038-9c45-daaa7f6408ae",
+      "rowsForConversion": 1
+    },
+    "concurrent_commission_creation": {
+      "ok": true,
+      "results": [
+        {
+          "id": "0e13735a-0f5e-4038-9c45-daaa7f6408ae",
+          "reused": true
+        },
+        {
+          "id": "0e13735a-0f5e-4038-9c45-daaa7f6408ae",
+          "reused": true
+        }
+      ],
+      "rowsForConversion": 1
+    },
+    "missing_click": {
+      "ok": true,
+      "conversionId": "de99203e-fe37-4f1d-b528-1b1baacb612a",
+      "attributionStatus": "unattributed",
+      "clickId": null
+    },
+    "anonymous_actor": {
+      "ok": true,
+      "clickId": "bbab5b98-792d-4b9d-9db9-ddd14455e683",
+      "reused": false
+    },
+    "attribution_conflict": {
+      "ok": true,
+      "attributionStatus": "attributed",
+      "resolvedOfferId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc",
+      "clickOfferWins": true,
+      "conflicts": [
+        {
+          "kind": "conflicting_offer",
+          "clientOfferId": "00000000-0000-4000-8000-000000000099",
+          "clickOfferId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc",
+          "clickCreatedAt": "2026-09-19T14:44:22.054769+00:00",
+          "conversionAt": "2026-09-19T14:46:36.906Z"
+        }
+      ],
+      "fraudSignals": [
+        "self_click",
+        "conflicting_offer"
+      ]
+    },
+    "settlement_boundary": {
+      "commissionRecognized": true,
+      "commissionStatus": "approved",
+      "ledgerEntryIdStillNull": true,
+      "seamCode": "SETTLEMENT_DISABLED",
+      "seamOkForbidden": true,
+      "directReason": "settlement_disabled",
+      "directOkForbidden": true,
+      "ledgerDelta": 0,
+      "rewardsDelta": 0,
+      "flags": {
+        "settlementOn": false,
+        "moneyFrozen": true
+      },
+      "ok": true
+    },
+    "uniqueness": {
+      "ok": true,
+      "conversionsForClick": 1,
+      "commissionsForConversion": 1
+    }
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

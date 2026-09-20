@@ -1,0 +1,234 @@
+{
+  "ok": true,
+  "campaign": "M5.6_provider_confirmation",
+  "tag": "m56_1789846906954",
+  "realMoney": false,
+  "expectedShare": 20000,
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "countsBefore": {
+    "payout_intents": 47,
+    "reward_payouts": 0
+  },
+  "fixtures": {
+    "ok": true,
+    "creatorId": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "clickerId": "d0903a8f-2e68-4d8a-b66a-59c18afc1b09",
+    "offerId": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278"
+  },
+  "caseA_seed": {
+    "ok": true,
+    "rewardId": "e7ea44b3-b46f-4f00-83b4-6dabcbc8696c",
+    "intentId": "713e4a64-451f-44a2-82a7-ee203c63df97",
+    "idempotencyKey": "payout_intent:e7ea44b3-b46f-4f00-83b4-6dabcbc8696c:v1",
+    "providerReference": "sandbox:m56-a:713e4a64-451f-44a2-82a7-ee203c63df97"
+  },
+  "caseA": {
+    "intentId": "713e4a64-451f-44a2-82a7-ee203c63df97",
+    "rewardId": "e7ea44b3-b46f-4f00-83b4-6dabcbc8696c",
+    "outcome": "paid",
+    "reason": "confirmed_success",
+    "intentStatus": "SUCCEEDED",
+    "rewardStatus": "PAID",
+    "idempotencyKey": "payout_intent:e7ea44b3-b46f-4f00-83b4-6dabcbc8696c:v1",
+    "providerId": "sandbox",
+    "providerReference": "sandbox:m56-a:713e4a64-451f-44a2-82a7-ee203c63df97",
+    "reused": false,
+    "paid": true,
+    "source": "reconcile"
+  },
+  "caseB": {
+    "intentId": "02c936a6-ddb4-4323-a24b-8d16f90fe369",
+    "rewardId": "82a640d6-2dc4-4240-a7c5-6ea92bd9e942",
+    "outcome": "paid",
+    "reason": "confirmed_success",
+    "intentStatus": "SUCCEEDED",
+    "rewardStatus": "PAID",
+    "idempotencyKey": "payout_intent:82a640d6-2dc4-4240-a7c5-6ea92bd9e942:v1",
+    "providerId": "sandbox",
+    "providerReference": "sandbox:m56-b:02c936a6-ddb4-4323-a24b-8d16f90fe369",
+    "reused": false,
+    "paid": true,
+    "source": "automation"
+  },
+  "caseC": {
+    "intentId": "3b16aa8c-3961-4fad-8603-8c21232f74df",
+    "rewardId": "2c746b55-d168-4ae0-b833-98ed13a24e64",
+    "outcome": "still_unknown",
+    "reason": "reconcile_still_unknown",
+    "intentStatus": "UNKNOWN",
+    "rewardStatus": "AVAILABLE",
+    "idempotencyKey": "payout_intent:2c746b55-d168-4ae0-b833-98ed13a24e64:v1",
+    "providerId": "sandbox",
+    "providerReference": null,
+    "reused": false,
+    "paid": false,
+    "source": "automation"
+  },
+  "caseD": {
+    "intentId": "c7aac596-634a-488a-8366-cad0f0032368",
+    "rewardId": "d0264cf9-d9ef-4bdd-bc26-2a1f9a2268aa",
+    "outcome": "failed",
+    "reason": "confirmed_failure",
+    "intentStatus": "FAILED",
+    "rewardStatus": "AVAILABLE",
+    "idempotencyKey": "payout_intent:d0264cf9-d9ef-4bdd-bc26-2a1f9a2268aa:v1",
+    "providerId": "sandbox",
+    "providerReference": "reconcile_fail:payout_intent:d0264cf9-d9ef-4bdd-bc26-2a1f9a2268aa:v1",
+    "reused": false,
+    "paid": false,
+    "source": "automation"
+  },
+  "caseE": {
+    "intentId": "713e4a64-451f-44a2-82a7-ee203c63df97",
+    "rewardId": "e7ea44b3-b46f-4f00-83b4-6dabcbc8696c",
+    "outcome": "reused",
+    "reason": "already_succeeded",
+    "intentStatus": "SUCCEEDED",
+    "rewardStatus": "PAID",
+    "idempotencyKey": "payout_intent:e7ea44b3-b46f-4f00-83b4-6dabcbc8696c:v1",
+    "providerId": null,
+    "providerReference": "sandbox:m56-a:713e4a64-451f-44a2-82a7-ee203c63df97",
+    "reused": true,
+    "paid": true,
+    "source": "automation"
+  },
+  "caseFG": {
+    "first": "SUCCESS",
+    "second": "ALREADY_APPLIED",
+    "reward": "PAID"
+  },
+  "caseH": {
+    "reward": "PAID"
+  },
+  "caseIJKL": {
+    "amount": false,
+    "currency": false,
+    "ref": false,
+    "key": false,
+    "reward": "AVAILABLE"
+  },
+  "caseM": {
+    "intentId": "713e4a64-451f-44a2-82a7-ee203c63df97",
+    "rewardId": "e7ea44b3-b46f-4f00-83b4-6dabcbc8696c",
+    "outcome": "reused",
+    "reason": "already_succeeded",
+    "intentStatus": "SUCCEEDED",
+    "rewardStatus": "PAID",
+    "idempotencyKey": "payout_intent:e7ea44b3-b46f-4f00-83b4-6dabcbc8696c:v1",
+    "providerId": null,
+    "providerReference": "sandbox:m56-a:713e4a64-451f-44a2-82a7-ee203c63df97",
+    "reused": true,
+    "paid": true,
+    "source": "automation"
+  },
+  "caseN": {
+    "intentId": "2fb72899-3cbc-40ba-a328-43cd567cf7a3",
+    "rewardId": "b9f28df5-7791-4d53-8f62-694dc9ce623b",
+    "outcome": "rejected",
+    "reason": "already_terminal",
+    "intentStatus": "CANCELLED",
+    "rewardStatus": null,
+    "idempotencyKey": "payout_intent:b9f28df5-7791-4d53-8f62-694dc9ce623b:v1",
+    "providerId": null,
+    "providerReference": null,
+    "reused": false,
+    "paid": false,
+    "source": "automation"
+  },
+  "caseO": {
+    "intentId": "b4dd2a2e-520b-4b90-accd-6286f3d1c83f",
+    "rewardId": "98dbe858-627b-4d89-9ab0-c02b23380fd6",
+    "outcome": "rejected",
+    "reason": "mark_paid_failed",
+    "intentStatus": "SUBMITTED",
+    "rewardStatus": null,
+    "idempotencyKey": "payout_intent:98dbe858-627b-4d89-9ab0-c02b23380fd6:v1",
+    "providerId": "sandbox",
+    "providerReference": "sandbox:m56-o:b4dd2a2e-520b-4b90-accd-6286f3d1c83f",
+    "reused": false,
+    "paid": false,
+    "source": "automation",
+    "reward": "REVERSED"
+  },
+  "caseP": {
+    "intentId": "42505f7e-0c9c-49d4-8603-fb3869981533",
+    "rewardId": null,
+    "outcome": "deferred",
+    "reason": "money_path_frozen",
+    "intentStatus": null,
+    "rewardStatus": null,
+    "idempotencyKey": null,
+    "providerId": null,
+    "providerReference": null,
+    "reused": false,
+    "paid": false,
+    "source": "automation"
+  },
+  "caseQ": {
+    "ok": false,
+    "reason": "provider_forbidden_in_production"
+  },
+  "caseS": {
+    "paid": 10,
+    "reused": 0,
+    "reward": "PAID"
+  },
+  "caseT": {
+    "auditRowsForA": 7
+  },
+  "countsAfter": {
+    "payout_intents": 58,
+    "reward_payouts": 0
+  },
+  "deltas": {
+    "payout_intents": 11,
+    "reward_payouts": 0
+  },
+  "summary": {
+    "paidViaReconcile": true,
+    "paidViaWebhook": true,
+    "duplicateNoDoublePaid": true,
+    "raceOnePaid": true,
+    "mismatchesRejected": true,
+    "rewardPayoutsDelta": 0,
+    "concurrentMaxOnePaid": true,
+    "authority": "applyProviderConfirmation"
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

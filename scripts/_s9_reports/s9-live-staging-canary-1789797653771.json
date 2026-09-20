@@ -1,0 +1,572 @@
+{
+  "ok": true,
+  "campaign": "S9_LIVE_STAGING_CANARY",
+  "runId": "s9-live-1789797653771",
+  "target": "staging",
+  "supabaseRef": "oojshofrpbfwsiypcecr",
+  "productionRefUntouched": "mkgsrpsuvedwwlzmzmzh",
+  "author": {
+    "id": "778cfbf5-294e-4866-883f-71e3046566cb",
+    "idPrefix": "778cfbf5",
+    "role": "user",
+    "display_name": "Aventa Machine Supply (staging)",
+    "username": "aventa_machine_supply",
+    "distinctFromSeed": true
+  },
+  "cap": 2,
+  "hardCap": 5,
+  "phase0": {
+    "branch": "staging",
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "expectedRef": "oojshofrpbfwsiypcecr",
+    "stagingRefOk": true,
+    "productionRefForbidden": "mkgsrpsuvedwwlzmzmzh",
+    "isProductionRef": false,
+    "productionRuntime": false,
+    "hasServiceRole": true,
+    "authorId": "778cfbf5-294e-4866-883f-71e3046566cb",
+    "authorIdPrefix": "778cfbf5",
+    "authorOk": true,
+    "authorReason": null,
+    "seedAuthor": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+    "isSeedAuthor": false,
+    "flagsBeforeEnable": {
+      "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+      "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+      "machinePendingWritesEnabled": false,
+      "supplyAutomationEnabled": false,
+      "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+      "distributionEngineEnabled": false,
+      "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+      "settlementBridgeEnabled": false,
+      "MONEY_PATH_FROZEN": "true",
+      "moneyPathFrozen": true,
+      "REWARDS_PROGRAM_ACTIVE": "(unset)",
+      "rewardsActive": false,
+      "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+      "commissionActive": false
+    },
+    "machineWritesAlreadyOn": false,
+    "distributionAlreadyOn": false,
+    "settlementAlreadyOn": false,
+    "rewardsAlreadyOn": false,
+    "commissionAlreadyOn": false,
+    "moneyFrozen": true
+  },
+  "baseline": {
+    "offersTotal": 23,
+    "offersPending": 14,
+    "offersApproved": 9,
+    "offersRejected": 0,
+    "distributionPublications": 15,
+    "distributionEvents": 108,
+    "creatorRewards": 0,
+    "rewardOutboundClicks": 1,
+    "economicLedger": 0,
+    "affiliateLedger": 0,
+    "attributionEvents": 0,
+    "affiliateConversions": 0,
+    "affiliateCommissions": 0,
+    "errors": [],
+    "na": []
+  },
+  "afterLive": {
+    "offersTotal": 25,
+    "offersPending": 16,
+    "offersApproved": 9,
+    "offersRejected": 0,
+    "distributionPublications": 15,
+    "distributionEvents": 108,
+    "creatorRewards": 0,
+    "rewardOutboundClicks": 1,
+    "economicLedger": 0,
+    "affiliateLedger": 0,
+    "attributionEvents": 0,
+    "affiliateConversions": 0,
+    "affiliateCommissions": 0,
+    "errors": [],
+    "na": []
+  },
+  "afterRetry": {
+    "offersTotal": 25,
+    "offersPending": 16,
+    "offersApproved": 9,
+    "offersRejected": 0,
+    "distributionPublications": 15,
+    "distributionEvents": 108,
+    "creatorRewards": 0,
+    "rewardOutboundClicks": 1,
+    "economicLedger": 0,
+    "affiliateLedger": 0,
+    "attributionEvents": 0,
+    "affiliateConversions": 0,
+    "affiliateCommissions": 0,
+    "errors": [],
+    "na": []
+  },
+  "deltas": {
+    "offersTotal": 2,
+    "offersPending": 2,
+    "offersApproved": 0,
+    "offersRejected": 0,
+    "distributionPublications": 0,
+    "distributionEvents": 0,
+    "creatorRewards": 0,
+    "rewardOutboundClicks": 0,
+    "economicLedger": 0,
+    "affiliateLedger": 0,
+    "attributionEvents": 0,
+    "affiliateConversions": 0,
+    "affiliateCommissions": 0
+  },
+  "deltasAfterRetry": {
+    "offersTotal": 0,
+    "offersPending": 0,
+    "offersApproved": 0,
+    "offersRejected": 0,
+    "distributionPublications": 0,
+    "distributionEvents": 0,
+    "creatorRewards": 0,
+    "rewardOutboundClicks": 0,
+    "economicLedger": 0,
+    "affiliateLedger": 0,
+    "attributionEvents": 0,
+    "affiliateConversions": 0,
+    "affiliateCommissions": 0
+  },
+  "candidates": [
+    {
+      "key": "s9-live-1789797653771-1",
+      "url": "https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1",
+      "sourceId": "aventa_supply",
+      "hunterId": "s9_live_canary_fixture"
+    },
+    {
+      "key": "s9-live-1789797653771-2",
+      "url": "https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2",
+      "sourceId": "aventa_supply",
+      "hunterId": "s9_live_canary_fixture"
+    }
+  ],
+  "dry": {
+    "runId": "s9-live-1789797653771-dry",
+    "mode": "dry_run",
+    "metrics": {
+      "candidates_seen": 2,
+      "evaluated": 2,
+      "eligible": 2,
+      "suppressed": 0,
+      "duplicates": 0,
+      "budget_rejected": 0,
+      "write_attempted": 0,
+      "write_success": 0,
+      "write_failed": 0,
+      "provenance_rejected": 0,
+      "quality_rejected": 0,
+      "policy_rejected": 0,
+      "by_code": {
+        "ELIGIBLE": 2
+      }
+    },
+    "decisionFingerprint": "[{\"k\":\"s9-live-1789797653771-1\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1\",\"code\":\"ELIGIBLE\",\"reasons\":[\"s8_opportunity\",\"policy_pass\"],\"s8\":\"OPPORTUNITY\",\"score\":94,\"source\":\"aventa_supply\"},{\"k\":\"s9-live-1789797653771-2\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2\",\"code\":\"ELIGIBLE\",\"reasons\":[\"s8_opportunity\",\"policy_pass\"],\"s8\":\"OPPORTUNITY\",\"score\":94,\"source\":\"aventa_supply\"}]",
+    "outcomes": [
+      {
+        "key": "s9-live-1789797653771-1",
+        "url": "https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1",
+        "policyCode": "ELIGIBLE",
+        "policyReasons": [
+          "s8_opportunity",
+          "policy_pass"
+        ],
+        "finalCode": "ELIGIBLE",
+        "s8Decision": "OPPORTUNITY",
+        "s8Score": 94,
+        "s8Confidence": 0.95,
+        "writeAttempted": false,
+        "writeSuccess": false,
+        "offerId": null,
+        "writeError": null,
+        "duplicateKind": null,
+        "fingerprint": "ml:MLM97653772",
+        "provenance": {
+          "sale": {
+            "amount": 700,
+            "kind": "candidate_declared",
+            "source": "s9-live-1789797653771-1",
+            "observedAt": "2026-09-19T06:00:57.686Z",
+            "trusted": true
+          },
+          "reference": {
+            "amount": 1800,
+            "kind": "listing_card",
+            "source": "s9-live-1789797653771-1",
+            "observedAt": "2026-09-19T06:00:57.686Z",
+            "trusted": true
+          },
+          "hasImage": true,
+          "evidenceLevel": "history_backed"
+        }
+      },
+      {
+        "key": "s9-live-1789797653771-2",
+        "url": "https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2",
+        "policyCode": "ELIGIBLE",
+        "policyReasons": [
+          "s8_opportunity",
+          "policy_pass"
+        ],
+        "finalCode": "ELIGIBLE",
+        "s8Decision": "OPPORTUNITY",
+        "s8Score": 94,
+        "s8Confidence": 0.95,
+        "writeAttempted": false,
+        "writeSuccess": false,
+        "offerId": null,
+        "writeError": null,
+        "duplicateKind": null,
+        "fingerprint": "ml:MLM97653773",
+        "provenance": {
+          "sale": {
+            "amount": 750,
+            "kind": "candidate_declared",
+            "source": "s9-live-1789797653771-2",
+            "observedAt": "2026-09-19T06:00:58.547Z",
+            "trusted": true
+          },
+          "reference": {
+            "amount": 1900,
+            "kind": "listing_card",
+            "source": "s9-live-1789797653771-2",
+            "observedAt": "2026-09-19T06:00:58.547Z",
+            "trusted": true
+          },
+          "hasImage": true,
+          "evidenceLevel": "history_backed"
+        }
+      }
+    ]
+  },
+  "live": {
+    "runId": "s9-live-1789797653771-live",
+    "mode": "execute",
+    "metrics": {
+      "candidates_seen": 2,
+      "evaluated": 2,
+      "eligible": 2,
+      "suppressed": 0,
+      "duplicates": 0,
+      "budget_rejected": 0,
+      "write_attempted": 2,
+      "write_success": 2,
+      "write_failed": 0,
+      "provenance_rejected": 0,
+      "quality_rejected": 0,
+      "policy_rejected": 0,
+      "by_code": {
+        "ELIGIBLE": 2
+      }
+    },
+    "decisionFingerprint": "[{\"k\":\"s9-live-1789797653771-1\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1\",\"code\":\"ELIGIBLE\",\"reasons\":[\"s8_opportunity\",\"policy_pass\"],\"s8\":\"OPPORTUNITY\",\"score\":94,\"source\":\"aventa_supply\"},{\"k\":\"s9-live-1789797653771-2\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2\",\"code\":\"ELIGIBLE\",\"reasons\":[\"s8_opportunity\",\"policy_pass\"],\"s8\":\"OPPORTUNITY\",\"score\":94,\"source\":\"aventa_supply\"}]",
+    "outcomes": [
+      {
+        "key": "s9-live-1789797653771-1",
+        "url": "https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1",
+        "policyCode": "ELIGIBLE",
+        "policyReasons": [
+          "s8_opportunity",
+          "policy_pass"
+        ],
+        "finalCode": "ELIGIBLE",
+        "s8Decision": "OPPORTUNITY",
+        "s8Score": 94,
+        "s8Confidence": 0.95,
+        "writeAttempted": true,
+        "writeSuccess": true,
+        "offerId": "6878cebd-e636-4ec8-ae7b-eba7ae146450",
+        "writeError": null,
+        "duplicateKind": null,
+        "fingerprint": "ml:MLM97653772",
+        "provenance": {
+          "sale": {
+            "amount": 700,
+            "kind": "candidate_declared",
+            "source": "s9-live-1789797653771-1",
+            "observedAt": "2026-09-19T06:00:58.978Z",
+            "trusted": true
+          },
+          "reference": {
+            "amount": 1800,
+            "kind": "listing_card",
+            "source": "s9-live-1789797653771-1",
+            "observedAt": "2026-09-19T06:00:58.978Z",
+            "trusted": true
+          },
+          "hasImage": true,
+          "evidenceLevel": "history_backed"
+        }
+      },
+      {
+        "key": "s9-live-1789797653771-2",
+        "url": "https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2",
+        "policyCode": "ELIGIBLE",
+        "policyReasons": [
+          "s8_opportunity",
+          "policy_pass"
+        ],
+        "finalCode": "ELIGIBLE",
+        "s8Decision": "OPPORTUNITY",
+        "s8Score": 94,
+        "s8Confidence": 0.95,
+        "writeAttempted": true,
+        "writeSuccess": true,
+        "offerId": "7fb72be0-c68e-4663-bafb-e38f5a7b48fe",
+        "writeError": null,
+        "duplicateKind": null,
+        "fingerprint": "ml:MLM97653773",
+        "provenance": {
+          "sale": {
+            "amount": 750,
+            "kind": "candidate_declared",
+            "source": "s9-live-1789797653771-2",
+            "observedAt": "2026-09-19T06:01:00.021Z",
+            "trusted": true
+          },
+          "reference": {
+            "amount": 1900,
+            "kind": "listing_card",
+            "source": "s9-live-1789797653771-2",
+            "observedAt": "2026-09-19T06:01:00.021Z",
+            "trusted": true
+          },
+          "hasImage": true,
+          "evidenceLevel": "history_backed"
+        }
+      }
+    ]
+  },
+  "dryLiveFingerprintMatch": true,
+  "writeCount": 2,
+  "offerVerifications": [
+    {
+      "offerId": "6878cebd-e636-4ec8-ae7b-eba7ae146450",
+      "lookupError": null,
+      "row": {
+        "id": "6878cebd-e636-4ec8-ae7b-eba7ae146450",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "offer_url": "https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1",
+        "original_offer_url": "https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1",
+        "image_url": "https://http2.mlstatic.com/D_NQ_NP_2X_S9LIVE.jpg",
+        "product_fingerprint": "ml:MLM97653772",
+        "bot_meta": {
+          "v": 1,
+          "source": "s9_supply_automation",
+          "signals": {
+            "historyReady": true,
+            "cardDiscountSource": "card_strikethrough",
+            "originalPriceProvenance": "listing_card"
+          },
+          "capturedAt": "2026-09-19T06:00:59.861Z",
+          "dealQuality": {
+            "at": "2026-09-19T06:00:59.861Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Sin señales de Price Memory disponibles",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)"
+            ],
+            "decision": "POTENTIAL_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "HUMAN_REVIEW"
+          },
+          "sourceDetail": "aventa_supply:s9_live_canary_fixture",
+          "imageFromSource": true
+        },
+        "locked_by": null,
+        "moderator_comment": "[bot-ingest v3] score=94 (moderación) | [s9] run=s9-live-1789797653771-live key=s9-live-1789797653771-1"
+      },
+      "expectedCreatedBy": "778cfbf5-294e-4866-883f-71e3046566cb",
+      "createdByOk": true,
+      "statusOk": true,
+      "notSeed": true,
+      "hasImage": true,
+      "hasUrl": true,
+      "fingerprint": "ml:MLM97653772",
+      "policyCode": "ELIGIBLE",
+      "s8Decision": "OPPORTUNITY",
+      "s8Score": 94
+    },
+    {
+      "offerId": "7fb72be0-c68e-4663-bafb-e38f5a7b48fe",
+      "lookupError": null,
+      "row": {
+        "id": "7fb72be0-c68e-4663-bafb-e38f5a7b48fe",
+        "status": "pending",
+        "created_by": "778cfbf5-294e-4866-883f-71e3046566cb",
+        "offer_url": "https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2",
+        "original_offer_url": "https://articulo.mercadolibre.com.mx/MLM97653773-s9-live-canary-1789797653771-2",
+        "image_url": "https://http2.mlstatic.com/D_NQ_NP_2X_S9LIVE.jpg",
+        "product_fingerprint": "ml:MLM97653773",
+        "bot_meta": {
+          "v": 1,
+          "source": "s9_supply_automation",
+          "signals": {
+            "historyReady": true,
+            "cardDiscountSource": "card_strikethrough",
+            "originalPriceProvenance": "listing_card"
+          },
+          "capturedAt": "2026-09-19T06:01:00.900Z",
+          "dealQuality": {
+            "at": "2026-09-19T06:01:00.900Z",
+            "reasons": [
+              "Producto identificable",
+              "Precio actual válido",
+              "Sin señales de Price Memory disponibles",
+              "Qualification existente: señales parciales (POTENTIAL_DEAL)"
+            ],
+            "decision": "POTENTIAL_DEAL",
+            "confidence": "low",
+            "policyVersion": "deal_quality_v1",
+            "qualification": "POTENTIAL_DEAL",
+            "missingEvidence": [
+              "availability",
+              "price_history"
+            ],
+            "negativeSignals": [
+              "qualification_listing_card_original",
+              "qualification_missing_discount_evidence"
+            ],
+            "positiveSignals": [
+              "product_identifiable",
+              "current_price_valid",
+              "store_present",
+              "source_provenance",
+              "valid_image",
+              "qualification_potential"
+            ],
+            "recommendedAction": "HUMAN_REVIEW"
+          },
+          "sourceDetail": "aventa_supply:s9_live_canary_fixture",
+          "imageFromSource": true
+        },
+        "locked_by": null,
+        "moderator_comment": "[bot-ingest v3] score=94 (moderación) | [s9] run=s9-live-1789797653771-live key=s9-live-1789797653771-2"
+      },
+      "expectedCreatedBy": "778cfbf5-294e-4866-883f-71e3046566cb",
+      "createdByOk": true,
+      "statusOk": true,
+      "notSeed": true,
+      "hasImage": true,
+      "hasUrl": true,
+      "fingerprint": "ml:MLM97653773",
+      "policyCode": "ELIGIBLE",
+      "s8Decision": "OPPORTUNITY",
+      "s8Score": 94
+    },
+    {
+      "idempotency": {
+        "candidateKey": "s9-live-1789797653771-1",
+        "policyCode": "DUPLICATE",
+        "finalCode": "DUPLICATE",
+        "writeSuccess": false,
+        "secondInsertCreated": false,
+        "rowsForFingerprint": 1,
+        "fingerprint": "ml:MLM97653772"
+      }
+    }
+  ],
+  "retry": {
+    "runId": "s9-live-1789797653771-retry",
+    "mode": "execute",
+    "metrics": {
+      "candidates_seen": 1,
+      "evaluated": 1,
+      "eligible": 0,
+      "suppressed": 0,
+      "duplicates": 1,
+      "budget_rejected": 0,
+      "write_attempted": 0,
+      "write_success": 0,
+      "write_failed": 0,
+      "provenance_rejected": 0,
+      "quality_rejected": 0,
+      "policy_rejected": 0,
+      "by_code": {
+        "DUPLICATE": 1
+      }
+    },
+    "decisionFingerprint": "[{\"k\":\"s9-live-1789797653771-1\",\"url\":\"https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1\",\"code\":\"DUPLICATE\",\"reasons\":[\"duplicate:pending_fresh\"],\"s8\":\"OPPORTUNITY\",\"score\":94,\"source\":\"aventa_supply\"}]",
+    "outcomes": [
+      {
+        "key": "s9-live-1789797653771-1",
+        "url": "https://articulo.mercadolibre.com.mx/MLM97653772-s9-live-canary-1789797653771-1",
+        "policyCode": "DUPLICATE",
+        "policyReasons": [
+          "duplicate:pending_fresh"
+        ],
+        "finalCode": "DUPLICATE",
+        "s8Decision": "OPPORTUNITY",
+        "s8Score": 94,
+        "s8Confidence": 0.95,
+        "writeAttempted": false,
+        "writeSuccess": false,
+        "offerId": null,
+        "writeError": null,
+        "duplicateKind": "pending_fresh",
+        "fingerprint": "ml:MLM97653772",
+        "provenance": {
+          "sale": {
+            "amount": 700,
+            "kind": "candidate_declared",
+            "source": "s9-live-1789797653771-1",
+            "observedAt": "2026-09-19T06:01:04.650Z",
+            "trusted": true
+          },
+          "reference": {
+            "amount": 1800,
+            "kind": "listing_card",
+            "source": "s9-live-1789797653771-1",
+            "observedAt": "2026-09-19T06:01:04.650Z",
+            "trusted": true
+          },
+          "hasImage": true,
+          "evidenceLevel": "history_backed"
+        }
+      }
+    ]
+  },
+  "failureTests": {
+    "s9Off": "S9_DISABLED",
+    "s7Off": "S7_WRITES_DISABLED",
+    "invalidCandidate": "MALFORMED_INPUT",
+    "capExceeded": "BUDGET_REJECTED",
+    "ok": true
+  },
+  "anomaly": null,
+  "productionFirewall": {
+    "productionRuntime": false,
+    "productionRef": "mkgsrpsuvedwwlzmzmzh",
+    "connectedRef": "oojshofrpbfwsiypcecr",
+    "productionUntouched": true
+  },
+  "at": "2026-09-19T06:01:10.374Z"
+}

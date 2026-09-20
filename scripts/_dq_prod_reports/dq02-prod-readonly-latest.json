@@ -1,0 +1,5052 @@
+{
+  "meta": {
+    "phase": "DISCOVERY_QUALITY_02",
+    "environment": "production",
+    "supabaseRef": "mkgsrpsuvedwwlzmzmzh",
+    "readOnly": true,
+    "bounded": {
+      "MAX_OFFER_ROWS": 12000,
+      "offersFetched": 578,
+      "MAX_OUTCOMES": 8000,
+      "outcomesFetched": 222,
+      "MAX_REPORTS": 5000,
+      "spamReportsFetched": 0
+    },
+    "at": "2026-09-20T04:37:39.279Z",
+    "errors": [],
+    "note": "Sample is the most recent ml:* offers up to cap, not necessarily all-time full table."
+  },
+  "availability": {
+    "offers_ml_rows": 578,
+    "unique_fingerprints": 434,
+    "capped": false,
+    "spam_reports_ml_linked": 0,
+    "moderation_outcomes_rejects": 222,
+    "seed_known_share": 100,
+    "card_source_known_share": 0
+  },
+  "statusFunnel": {
+    "pending": 3,
+    "approved": 66,
+    "rejected": 509
+  },
+  "concentration": {
+    "products_for_80pct_appearances": 319,
+    "pct_of_unique_products": 73.5,
+    "is_pareto_80_20": false
+  },
+  "repeaterClasses": {
+    "repeated + spam": 22,
+    "repeated + never approved": 65,
+    "repeated + approved": 9
+  },
+  "quantitative": {
+    "q1_pct_offer_rows_from_repeated_products": 41.5,
+    "q1b_pct_unique_products_that_repeat": 22.1,
+    "q2_pct_repeated_products_with_any_reject": 100,
+    "q3_pct_repeated_products_with_approve_or_publish": 9.4,
+    "q4_products_rejected_then_reappeared": 96,
+    "q5_products_with_subsequent_rejection_after_first": 86,
+    "q5b_products_with_rejected_count_ge_2": 86,
+    "q6_top_seeds_by_repeat_rate": [
+      {
+        "key": "ml_api",
+        "candidate_count": 165,
+        "unique_products": 89,
+        "approved_rate": 0.182,
+        "published_rate": 0,
+        "spam_rate": 0.267,
+        "reject_rate": 0.8,
+        "repeat_rate": 0.36,
+        "average_discount": 35,
+        "useful_output_rate": 0.182
+      },
+      {
+        "key": "ml_worker",
+        "candidate_count": 413,
+        "unique_products": 345,
+        "approved_rate": 0.087,
+        "published_rate": 0,
+        "spam_rate": 0.002,
+        "reject_rate": 0.913,
+        "repeat_rate": 0.186,
+        "average_discount": 45,
+        "useful_output_rate": 0.087
+      }
+    ],
+    "q7_top_seeds_by_useful_output": [
+      {
+        "key": "ml_api",
+        "candidate_count": 165,
+        "unique_products": 89,
+        "approved_rate": 0.182,
+        "published_rate": 0,
+        "spam_rate": 0.267,
+        "reject_rate": 0.8,
+        "repeat_rate": 0.36,
+        "average_discount": 35,
+        "useful_output_rate": 0.182
+      },
+      {
+        "key": "ml_worker",
+        "candidate_count": 413,
+        "unique_products": 345,
+        "approved_rate": 0.087,
+        "published_rate": 0,
+        "spam_rate": 0.002,
+        "reject_rate": 0.913,
+        "repeat_rate": 0.186,
+        "average_discount": 45,
+        "useful_output_rate": 0.087
+      }
+    ],
+    "q8_top_categories": [
+      {
+        "key": "tecnologia",
+        "candidate_count": 223,
+        "unique_products": 147,
+        "approved_rate": 0.103,
+        "published_rate": 0,
+        "spam_rate": 0.152,
+        "reject_rate": 0.883,
+        "repeat_rate": 0.272,
+        "average_discount": 38,
+        "useful_output_rate": 0.103
+      },
+      {
+        "key": "hogar",
+        "candidate_count": 122,
+        "unique_products": 86,
+        "approved_rate": 0.033,
+        "published_rate": 0,
+        "spam_rate": 0.008,
+        "reject_rate": 0.967,
+        "repeat_rate": 0.314,
+        "average_discount": 49,
+        "useful_output_rate": 0.033
+      },
+      {
+        "key": "UNKNOWN",
+        "candidate_count": 55,
+        "unique_products": 43,
+        "approved_rate": 0.164,
+        "published_rate": 0,
+        "spam_rate": 0.036,
+        "reject_rate": 0.836,
+        "repeat_rate": 0.209,
+        "average_discount": 41,
+        "useful_output_rate": 0.164
+      },
+      {
+        "key": "belleza",
+        "candidate_count": 35,
+        "unique_products": 33,
+        "approved_rate": 0.257,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 0.743,
+        "repeat_rate": 0.061,
+        "average_discount": 45,
+        "useful_output_rate": 0.257
+      },
+      {
+        "key": "autos",
+        "candidate_count": 23,
+        "unique_products": 18,
+        "approved_rate": 0.13,
+        "published_rate": 0,
+        "spam_rate": 0.043,
+        "reject_rate": 0.87,
+        "repeat_rate": 0.278,
+        "average_discount": 45,
+        "useful_output_rate": 0.13
+      },
+      {
+        "key": "gaming",
+        "candidate_count": 23,
+        "unique_products": 19,
+        "approved_rate": 0.087,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 0.913,
+        "repeat_rate": 0.211,
+        "average_discount": 38,
+        "useful_output_rate": 0.087
+      },
+      {
+        "key": "deportes",
+        "candidate_count": 22,
+        "unique_products": 18,
+        "approved_rate": 0.182,
+        "published_rate": 0,
+        "spam_rate": 0.045,
+        "reject_rate": 0.818,
+        "repeat_rate": 0.222,
+        "average_discount": 41,
+        "useful_output_rate": 0.182
+      },
+      {
+        "key": "moda",
+        "candidate_count": 22,
+        "unique_products": 21,
+        "approved_rate": 0.182,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 0.818,
+        "repeat_rate": 0.048,
+        "average_discount": 49,
+        "useful_output_rate": 0.182
+      },
+      {
+        "key": "entretenimiento",
+        "candidate_count": 18,
+        "unique_products": 16,
+        "approved_rate": 0.278,
+        "published_rate": 0,
+        "spam_rate": 0.333,
+        "reject_rate": 0.722,
+        "repeat_rate": 0.125,
+        "average_discount": 44,
+        "useful_output_rate": 0.278
+      },
+      {
+        "key": "jardin",
+        "candidate_count": 18,
+        "unique_products": 16,
+        "approved_rate": 0.056,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 0.944,
+        "repeat_rate": 0.125,
+        "average_discount": 46,
+        "useful_output_rate": 0.056
+      },
+      {
+        "key": "supermercado",
+        "candidate_count": 11,
+        "unique_products": 11,
+        "approved_rate": 0.182,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 0.818,
+        "repeat_rate": 0,
+        "average_discount": 37,
+        "useful_output_rate": 0.182
+      },
+      {
+        "key": "viajes",
+        "candidate_count": 5,
+        "unique_products": 5,
+        "approved_rate": 0,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 1,
+        "repeat_rate": 0,
+        "average_discount": 38,
+        "useful_output_rate": 0
+      },
+      {
+        "key": "bebes",
+        "candidate_count": 1,
+        "unique_products": 1,
+        "approved_rate": 0,
+        "published_rate": 0,
+        "spam_rate": 0,
+        "reject_rate": 1,
+        "repeat_rate": 0,
+        "average_discount": 31,
+        "useful_output_rate": 0
+      }
+    ],
+    "q9_pdp_correlation": [
+      {
+        "cardDiscountSource": "UNKNOWN",
+        "count": 578,
+        "approved_rate": 0.114,
+        "published_rate": 0,
+        "rejected_rate": 0.881
+      }
+    ],
+    "q10_bottleneck_data_hint": {
+      "rows_from_repeats_pct": 41.5,
+      "never_approved_repeaters": 65,
+      "seed_unknown_pct": 0,
+      "card_unknown_pct": 100
+    }
+  },
+  "spamRecurrenceTop50": [
+    {
+      "product_fingerprint": "ml:MLM4343138394",
+      "title": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Mercado Libre",
+      "first_rejection_at": "2026-09-15T20:17:09.124618+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 6,
+      "subsequent_rejections": 6,
+      "subsequent_spam_rejects": 3,
+      "spam_rate": 0.429,
+      "rejection_rate": 1,
+      "appearance_count": 7
+    },
+    {
+      "product_fingerprint": "ml:MLM4837616144",
+      "title": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~33% en Mercado Libre",
+      "first_rejection_at": "2026-09-15T23:02:50.530472+00:00",
+      "first_rejection_bucket": "invalid",
+      "first_rejection_reason_sample": "El producto parece agotado o no disponible.",
+      "subsequent_appearances": 5,
+      "subsequent_rejections": 5,
+      "subsequent_spam_rejects": 2,
+      "spam_rate": 0.333,
+      "rejection_rate": 1,
+      "appearance_count": 6
+    },
+    {
+      "product_fingerprint": "ml:MLM4971112404",
+      "title": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~34% en Mercado Libre",
+      "first_rejection_at": "2026-09-15T21:02:42.358673+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 5,
+      "subsequent_rejections": 5,
+      "subsequent_spam_rejects": 3,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 6
+    },
+    {
+      "product_fingerprint": "ml:MLM2851918343",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "first_rejection_at": "2026-09-15T22:02:32.852689+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "Estafa",
+      "subsequent_appearances": 4,
+      "subsequent_rejections": 4,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 5
+    },
+    {
+      "product_fingerprint": "ml:MLM4830169030",
+      "title": "Smartwatch Huawei Band 11 Caja de Aleación de Aluminio, Gran Pantalla de 1.62\", Monitoreo de Sueño, Bienestar Emocional,",
+      "first_rejection_at": "2026-09-16T21:47:18.294777+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 4,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 2,
+      "spam_rate": 0.6,
+      "rejection_rate": 0.8,
+      "appearance_count": 5
+    },
+    {
+      "product_fingerprint": "ml:MLM2751763985",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB Teclado y pluma Verde — Ahorra ~36% en Mercado Libre",
+      "first_rejection_at": "2026-09-16T00:03:11.895942+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.25,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM5108540250",
+      "title": "Audífonos 1HORA Inalámbricos Bluetooth 6.0, In-ear con Pantalla LED, Micrófono y Manos Libres, Blanco — Ahorra ~37% en M",
+      "first_rejection_at": "2026-09-15T23:32:23.847271+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM2624476949",
+      "title": "Freidora De Aire Manual Oster® Diamondforce, 4l Ckstaf401mdf Color Negro — Ahorra ~30% en Mercado Libre",
+      "first_rejection_at": "2026-09-16T00:17:25.231485+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM6159705134",
+      "title": "Freidora Aire Oster 7.5L DiamondForce 10 Programas — Ahorra ~30% en Mercado Libre",
+      "first_rejection_at": "2026-09-16T00:03:12.988832+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM4568331450",
+      "title": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~33% en Mercado Libre",
+      "first_rejection_at": "2026-09-15T23:17:19.750857+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.25,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM5512176274",
+      "title": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercado Libre",
+      "first_rejection_at": "2026-09-15T22:47:22.896519+00:00",
+      "first_rejection_bucket": "duplicate",
+      "first_rejection_reason_sample": "Oferta duplicada o muy similar a otra ya publicada recientemente.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 2,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM2824363923",
+      "title": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~31% en Mercado Libre",
+      "first_rejection_at": "2026-09-16T05:47:12.12737+00:00",
+      "first_rejection_bucket": "duplicate",
+      "first_rejection_reason_sample": "Oferta duplicada o muy similar a otra ya publicada recientemente.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 2,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM3732634000",
+      "title": "Audífonos Inalámbrico In-ear Bluetooth gamer Anker Soundcore P20i con Manos Libres 10mm Diafragmas Bluetooth 5.3 Bass Po",
+      "first_rejection_at": "2026-09-15T21:17:33.989343+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM5167025228",
+      "title": "Espejo rectangular con luz LED, luz táctil, tocador de pared, baño, vestidor, 3 luces, 37,5 x 52,5 cm, Einnoe — Ahorra ~",
+      "first_rejection_at": "2026-09-16T03:47:10.756773+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM5341490272",
+      "title": "Audífonos In-ear Inalámbricos 1hora Auriculares Inalambricos Bluetooth 5.4 Con Microfono (blanco) — Ahorra ~42% en Merca",
+      "first_rejection_at": "2026-09-15T21:02:43.541267+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 3,
+      "subsequent_rejections": 3,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM1649534433",
+      "title": "Amazon Dot Echo Dot 5th Gen con asistente virtual Alexa color negro 127/220V — Ahorra ~41% en Mercado Libre",
+      "first_rejection_at": "2026-09-17T03:47:11.80553+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 2,
+      "spam_rate": 0.667,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM5082538244",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "first_rejection_at": "2026-09-15T23:47:17.060368+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.333,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM2162457985",
+      "title": "Oster Freidora de Aire Digital, Recubrimiento Oster DiamondForce, con Ventana y Luz Interna, 6L de Capacidad, con 10 Pro",
+      "first_rejection_at": "2026-09-16T00:47:30.806299+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.333,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM4349081564",
+      "title": "Cozylady Tiras De Led 40m Bluetooth Rgb Luz Led Inteligentes Música De Tiras De Luces Led App Control Para Cuarto,tv,bar",
+      "first_rejection_at": "2026-09-15T20:32:39.664585+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.333,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM43420119",
+      "title": "Terminal Point Smart 2 con Internet Gratis, Pago con Tarjetas — Ahorra ~71% en Mercado Libre",
+      "first_rejection_at": "2026-09-08T23:39:53.706962+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM22592548",
+      "title": "Beyond Vitamins | Magnesio Complex |citrato De Magnesio Polvo, Glicinato De Magnesio, Gluconato De Magnesio Y Óxido De M",
+      "first_rejection_at": "2026-09-07T12:49:24.210353+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM67079979",
+      "title": "Set 6 Sillas Plegables Plástico Resistente Fiesta Eventos Jardín — Ahorra ~66% en Mercado Libre",
+      "first_rejection_at": "2026-09-07T02:57:44.478672+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM43749884",
+      "title": "Silla Ejecutiva Vidita Ergonómica para Oficina y Gamer con Soporte Lumbar de 150 kg — Ahorra ~42% en Mercado Libre",
+      "first_rejection_at": "2026-09-07T06:14:47.936274+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 2,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM5416052470",
+      "title": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~30% en Mercado Libre",
+      "first_rejection_at": "2026-09-18T04:32:24.149672+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 2,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.667,
+      "rejection_rate": 0.667,
+      "appearance_count": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM2237142369",
+      "title": "Filamento Impresora 3d Pla Mate De 1,75 Mm Color Matte White — Ahorra ~26% en Mercado Libre",
+      "first_rejection_at": "2026-09-18T15:47:17.477333+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM4335601952",
+      "title": "Tablet SM-X133NZSEMXO Galaxy Tab A11 128Gb Plata Samsung — Ahorra ~27% en Mercado Libre",
+      "first_rejection_at": "2026-09-17T13:17:27.00337+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 1,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM6218817704",
+      "title": "Loho Tech Nuevos Auriculares Inalámbricos Bluetooth Mariposa Pendiente —Incluye accesorios con forma de mariposa y cuent",
+      "first_rejection_at": "2026-09-18T04:17:13.437644+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM6218817710",
+      "title": "Loho Tech Nuevos Auriculares Inalámbricos Bluetooth Mariposa Pendiente —Incluye accesorios con forma de mariposa y cuent",
+      "first_rejection_at": "2026-09-17T16:02:28.173567+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM5960952474",
+      "title": "Galaxy Tab A11, 64 GB, 4 GB de RAM, pantalla de 8,7, batería gris de 5100 mA — Ahorra ~43% en Mercado Libre",
+      "first_rejection_at": "2026-09-17T10:47:09.822559+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 1,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM3770553396",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB incluye accesorios — Ahorra ~32% en Mercado Libre",
+      "first_rejection_at": "2026-09-16T11:17:20.595996+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM2547177673",
+      "title": "Samsung Galaxy Tab A11 8Ram 128 Gb Gris — Ahorra ~27% en Mercado Libre",
+      "first_rejection_at": "2026-09-17T18:47:27.698656+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 1,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM2333700203",
+      "title": "Audífonos In-ear Bluetooth Inalámbrico Gamer Anker Soundcore P20i Con Manos Libres 10mm Diafragmas Bluetooth 5.3 IPX5 Ba",
+      "first_rejection_at": "2026-09-16T15:47:34.496335+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0.5,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM4487656948",
+      "title": "Bocina JBL Grip Bluetooth Portátil IP68 14 h Batería Azul — Ahorra ~37% en Mercado Libre",
+      "first_rejection_at": "2026-09-16T22:03:18.585482+00:00",
+      "first_rejection_bucket": "spam",
+      "first_rejection_reason_sample": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 1,
+      "spam_rate": 1,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM2333568643",
+      "title": "Audífonos In-ear Bluetooth Inalámbrico Gamer Anker Soundcore P20i Con Manos Libres 10mm Diafragmas Bluetooth 5.3 Bass Po",
+      "first_rejection_at": "2026-09-15T21:32:22.296553+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM44463715",
+      "title": "Plancha recta profesional Lizze Extreme 480 color Gris — Ahorra ~27% en Mercado Libre",
+      "first_rejection_at": "2026-09-13T06:45:58.343872+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "No es una buena oferta para publicar en Aventa.",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM29590545",
+      "title": "Cámara de seguridad 2PCS-288 Hd 1080p Foco 360° Alarma 2 Piezas con resolución 2MP visión nocturna incluida color blanco",
+      "first_rejection_at": "2026-09-07T12:49:26.502543+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM74580071",
+      "title": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 128 Gb Gris 6 Gb Ram (ampliable Hasta 12 Gb) 7000mah Android 16 — Ahorra ~3",
+      "first_rejection_at": "2026-09-07T12:49:23.640292+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM41704802",
+      "title": "Cubot Kingkong Es Dual Sim 128 Gb Negro Naranja 6 Gb Ram — Ahorra ~29% en Mercado Libre",
+      "first_rejection_at": "2026-09-07T06:14:47.368457+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM61868565",
+      "title": "Caminadora Eléctrica Plegable Con Pantalla Led 1.5hp 14 Km/h - Negro — Ahorra ~40% en Mercado Libre",
+      "first_rejection_at": "2026-09-09T14:04:24.759355+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM69617835",
+      "title": "Arrancador De Batería 10000A 30000mAh DE Auto cargador de baterias 12v y portatil DE Inflador Inteligente 150psi Con Pan",
+      "first_rejection_at": "2026-09-09T23:11:47.358377+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM67134843",
+      "title": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~37% en Mercado Libre",
+      "first_rejection_at": "2026-09-09T04:34:03.027504+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM48434598",
+      "title": "Llave de Impacto Inalámbrica LUCKSSY de 21V y 520Nm con Motor Sin Escobillas y Juego de Herramientas de 2 Baterías — Aho",
+      "first_rejection_at": "2026-09-09T09:10:34.283228+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLMU4148700486",
+      "title": "Silla Ejecutiva Oficina Ergonómica Escritorio Giratoria Negro Malla — Ahorra ~52% en Mercado Libre",
+      "first_rejection_at": "2026-09-08T18:52:58.710221+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM52937742",
+      "title": "Consola Nintendo Switch 2 256gb Bundle Internacional Mario Kart World Juego Físico — Ahorra ~25% en Mercado Libre",
+      "first_rejection_at": "2026-09-09T20:54:42.725234+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLMU3178496273",
+      "title": "Apple AirPods 4° Generación iPhone Y Android Cancelación Blanco — Ahorra ~42% en Mercado Libre",
+      "first_rejection_at": "2026-09-08T06:38:14.354184+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM38176139",
+      "title": "Audífonos Anker Soundcore P30i In-ear Bluetooth Inalámbrico Cancelación De Ruido adaptativa, 45 Horas de Reproducción, S",
+      "first_rejection_at": "2026-09-07T12:49:25.213548+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM66642083",
+      "title": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercado Libre",
+      "first_rejection_at": "2026-09-09T20:54:42.445928+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM41820947",
+      "title": "Set De 6 Sillas Plegables Plástico Reforzadas Styrka Negras Color Negro SIPL02 — Ahorra ~59% en Mercado Libre",
+      "first_rejection_at": "2026-09-09T20:54:43.018711+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM26951515",
+      "title": "Colchón Individual Kingshouse de Memory Foam Firmeza Media en Caja — Ahorra ~45% en Mercado Libre",
+      "first_rejection_at": "2026-09-08T06:38:13.614075+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM74580065",
+      "title": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 256 Gb Gris 12 Gb Ram (ampliable Hasta 24 Gb) 7000mah Android 16 — Ahorra ~",
+      "first_rejection_at": "2026-09-08T06:38:13.161882+00:00",
+      "first_rejection_bucket": "other",
+      "first_rejection_reason_sample": "auto_rejected_timeout",
+      "subsequent_appearances": 1,
+      "subsequent_rejections": 1,
+      "subsequent_spam_rejects": 0,
+      "spam_rate": 0,
+      "rejection_rate": 1,
+      "appearance_count": 2
+    }
+  ],
+  "top100Repeated": [
+    {
+      "product_fingerprint": "ml:MLM4343138394",
+      "item_id": "MLM4343138394",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4343138394",
+      "title": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T20:17:09.124618+00:00",
+      "last_seen": "2026-09-18T22:02:17.652574+00:00",
+      "appearance_count": 7,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 7,
+      "spam_related_count": 3,
+      "duplicate_count": 0,
+      "average_discount": 44,
+      "min_price": 1949,
+      "max_price": 1949,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4837616144",
+      "item_id": "MLM4837616144",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4837616144",
+      "title": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~33% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T23:02:50.530472+00:00",
+      "last_seen": "2026-09-18T22:47:20.598731+00:00",
+      "appearance_count": 6,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 6,
+      "spam_related_count": 2,
+      "duplicate_count": 1,
+      "average_discount": 34,
+      "min_price": 2649,
+      "max_price": 2699,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4971112404",
+      "item_id": "MLM4971112404",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4971112404",
+      "title": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~34% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T21:02:42.358673+00:00",
+      "last_seen": "2026-09-18T22:47:19.720255+00:00",
+      "appearance_count": 6,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 6,
+      "spam_related_count": 3,
+      "duplicate_count": 0,
+      "average_discount": 34,
+      "min_price": 1898,
+      "max_price": 1898,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4830169030",
+      "item_id": "MLM4830169030",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4830169030",
+      "title": "Smartwatch Huawei Band 11 Caja de Aleación de Aluminio, Gran Pantalla de 1.62\", Monitoreo de Sueño, Bienestar Emocional,",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T21:47:18.294777+00:00",
+      "last_seen": "2026-09-20T04:32:03.956082+00:00",
+      "appearance_count": 5,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 3,
+      "duplicate_count": 0,
+      "average_discount": 35,
+      "min_price": 763.42,
+      "max_price": 783.02,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2851918343",
+      "item_id": "MLM2851918343",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2851918343",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T22:02:32.852689+00:00",
+      "last_seen": "2026-09-18T23:02:28.700869+00:00",
+      "appearance_count": 5,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 5,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 124.64,
+      "max_price": 124.76,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2751763985",
+      "item_id": "MLM2751763985",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2751763985",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB Teclado y pluma Verde — Ahorra ~36% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T00:03:11.895942+00:00",
+      "last_seen": "2026-09-19T04:47:19.419489+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 1,
+      "duplicate_count": 1,
+      "average_discount": 36,
+      "min_price": 7999.36,
+      "max_price": 7999.36,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5108540250",
+      "item_id": "MLM5108540250",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5108540250",
+      "title": "Audífonos 1HORA Inalámbricos Bluetooth 6.0, In-ear con Pantalla LED, Micrófono y Manos Libres, Blanco — Ahorra ~37% en M",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T23:32:23.847271+00:00",
+      "last_seen": "2026-09-19T04:32:21.302163+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 37,
+      "min_price": 189,
+      "max_price": 189,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2624476949",
+      "item_id": "MLM2624476949",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2624476949",
+      "title": "Freidora De Aire Manual Oster® Diamondforce, 4l Ckstaf401mdf Color Negro — Ahorra ~30% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T00:17:25.231485+00:00",
+      "last_seen": "2026-09-19T00:17:20.295281+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 30,
+      "min_price": 1327,
+      "max_price": 1327,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6159705134",
+      "item_id": "MLM6159705134",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-6159705134",
+      "title": "Freidora Aire Oster 7.5L DiamondForce 10 Programas — Ahorra ~30% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T00:03:12.988832+00:00",
+      "last_seen": "2026-09-19T00:02:33.1818+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 30,
+      "min_price": 2381,
+      "max_price": 2381,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4568331450",
+      "item_id": "MLM4568331450",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4568331450",
+      "title": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~33% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T23:17:19.750857+00:00",
+      "last_seen": "2026-09-18T23:47:16.467214+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 1,
+      "duplicate_count": 1,
+      "average_discount": 33,
+      "min_price": 5499,
+      "max_price": 5499,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5512176274",
+      "item_id": "MLM5512176274",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5512176274",
+      "title": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T22:47:22.896519+00:00",
+      "last_seen": "2026-09-18T23:32:19.949845+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 2,
+      "duplicate_count": 2,
+      "average_discount": 26,
+      "min_price": 3723.99,
+      "max_price": 3723.99,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2824363923",
+      "item_id": "MLM2824363923",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2824363923",
+      "title": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~31% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T05:47:12.12737+00:00",
+      "last_seen": "2026-09-18T23:17:17.758461+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 2,
+      "duplicate_count": 2,
+      "average_discount": 31,
+      "min_price": 2749,
+      "max_price": 2749,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM3732634000",
+      "item_id": "MLM3732634000",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-3732634000",
+      "title": "Audífonos Inalámbrico In-ear Bluetooth gamer Anker Soundcore P20i con Manos Libres 10mm Diafragmas Bluetooth 5.3 Bass Po",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T21:17:33.989343+00:00",
+      "last_seen": "2026-09-18T23:02:29.359999+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 371.01,
+      "max_price": 371.01,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5167025228",
+      "item_id": "MLM5167025228",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5167025228",
+      "title": "Espejo rectangular con luz LED, luz táctil, tocador de pared, baño, vestidor, 3 luces, 37,5 x 52,5 cm, Einnoe — Ahorra ~",
+      "category": "hogar",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T03:47:10.756773+00:00",
+      "last_seen": "2026-09-18T22:17:15.785989+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 42,
+      "min_price": 199.64,
+      "max_price": 200.8,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5341490272",
+      "item_id": "MLM5341490272",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5341490272",
+      "title": "Audífonos In-ear Inalámbricos 1hora Auriculares Inalambricos Bluetooth 5.4 Con Microfono (blanco) — Ahorra ~42% en Merca",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T21:02:43.541267+00:00",
+      "last_seen": "2026-09-18T21:17:28.185918+00:00",
+      "appearance_count": 4,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 4,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 42,
+      "min_price": 198,
+      "max_price": 198,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5416052470",
+      "item_id": "MLM5416052470",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5416052470",
+      "title": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~30% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-18T04:32:24.149672+00:00",
+      "last_seen": "2026-09-20T04:32:06.523324+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 30,
+      "min_price": 13299,
+      "max_price": 13299,
+      "days_active": 2,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM1649534433",
+      "item_id": "MLM1649534433",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-1649534433",
+      "title": "Amazon Dot Echo Dot 5th Gen con asistente virtual Alexa color negro 127/220V — Ahorra ~41% en Mercado Libre",
+      "category": "UNKNOWN",
+      "seed": "ml_api",
+      "first_seen": "2026-09-17T03:47:11.80553+00:00",
+      "last_seen": "2026-09-19T21:47:01.900091+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 41,
+      "min_price": 929,
+      "max_price": 929,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5082538244",
+      "item_id": "MLM5082538244",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5082538244",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T23:47:17.060368+00:00",
+      "last_seen": "2026-09-18T23:47:17.064166+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 35,
+      "min_price": 154.24,
+      "max_price": 154.24,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2162457985",
+      "item_id": "MLM2162457985",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2162457985",
+      "title": "Oster Freidora de Aire Digital, Recubrimiento Oster DiamondForce, con Ventana y Luz Interna, 6L de Capacidad, con 10 Pro",
+      "category": "hogar",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T00:47:30.806299+00:00",
+      "last_seen": "2026-09-17T23:02:34.771586+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 25,
+      "min_price": 1195,
+      "max_price": 1195,
+      "days_active": 2,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4349081564",
+      "item_id": "MLM4349081564",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4349081564",
+      "title": "Cozylady Tiras De Led 40m Bluetooth Rgb Luz Led Inteligentes Música De Tiras De Luces Led App Control Para Cuarto,tv,bar",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T20:32:39.664585+00:00",
+      "last_seen": "2026-09-17T16:17:12.291168+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 44,
+      "min_price": 273.23,
+      "max_price": 273.23,
+      "days_active": 2,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM43420119",
+      "item_id": "MLM43420119",
+      "canonical_url": "https://www.mercadolibre.com.mx/terminal-point-smart-2-con-internet-gratis-pago-con-tarjetas/p/MLM43420119",
+      "title": "Terminal Point Smart 2 con Internet Gratis, Pago con Tarjetas — Ahorra ~71% en Mercado Libre",
+      "category": "UNKNOWN",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T23:39:53.706962+00:00",
+      "last_seen": "2026-09-15T17:48:29.38728+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 72,
+      "min_price": 499.33,
+      "max_price": 549,
+      "days_active": 7,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM22592548",
+      "item_id": "MLM22592548",
+      "canonical_url": "https://www.mercadolibre.com.mx/beyond-vitamins-magnesio-complex-citrato-de-magnesio-polvo-glicinato-de-magnesio-gluconato-de-magnesio-y-oxido-de-magnesio-vitaminas-mujer-hombre-magnesium-180-capsulas/p/MLM22592548",
+      "title": "Beyond Vitamins | Magnesio Complex |citrato De Magnesio Polvo, Glicinato De Magnesio, Gluconato De Magnesio Y Óxido De M",
+      "category": "UNKNOWN",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T12:49:24.210353+00:00",
+      "last_seen": "2026-09-15T17:48:28.67689+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 28,
+      "min_price": 358.97,
+      "max_price": 359,
+      "days_active": 8,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67079979",
+      "item_id": "MLM67079979",
+      "canonical_url": "https://www.mercadolibre.com.mx/set-6-sillas-plegables-plastico-resistente-fiesta-eventos-jardin/p/MLM67079979",
+      "title": "Set 6 Sillas Plegables Plástico Resistente Fiesta Eventos Jardín — Ahorra ~66% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:44.478672+00:00",
+      "last_seen": "2026-09-11T13:33:40.030841+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 66,
+      "min_price": 1349.52,
+      "max_price": 1349.52,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM43749884",
+      "item_id": "MLM43749884",
+      "canonical_url": "https://www.mercadolibre.com.mx/silla-ejecutiva-vidita-ergonomica-para-oficina-y-gamer-con-soporte-lumbar-de-150-kg/p/MLM43749884",
+      "title": "Silla Ejecutiva Vidita Ergonómica para Oficina y Gamer con Soporte Lumbar de 150 kg — Ahorra ~42% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:47.936274+00:00",
+      "last_seen": "2026-09-11T09:07:37.793877+00:00",
+      "appearance_count": 3,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 42,
+      "min_price": 1733.77,
+      "max_price": 1733.77,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6190388566",
+      "item_id": "MLM6190388566",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-6190388566",
+      "title": "Reloj inteligente Redmi Watch 5 Active Hyperos Bateria 18 Días — Ahorra ~36% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-19T08:17:01.20381+00:00",
+      "last_seen": "2026-09-20T04:17:01.257991+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 36,
+      "min_price": 639,
+      "max_price": 639,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2237142369",
+      "item_id": "MLM2237142369",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2237142369",
+      "title": "Filamento Impresora 3d Pla Mate De 1,75 Mm Color Matte White — Ahorra ~26% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-18T15:47:17.477333+00:00",
+      "last_seen": "2026-09-19T15:47:09.009728+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 26,
+      "min_price": 267.27,
+      "max_price": 267.27,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4335601952",
+      "item_id": "MLM4335601952",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4335601952",
+      "title": "Tablet SM-X133NZSEMXO Galaxy Tab A11 128Gb Plata Samsung — Ahorra ~27% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-17T13:17:27.00337+00:00",
+      "last_seen": "2026-09-19T15:02:11.327005+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 27,
+      "min_price": 2616.83,
+      "max_price": 2619,
+      "days_active": 2,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6218817704",
+      "item_id": "MLM6218817704",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-6218817704",
+      "title": "Loho Tech Nuevos Auriculares Inalámbricos Bluetooth Mariposa Pendiente —Incluye accesorios con forma de mariposa y cuent",
+      "category": "UNKNOWN",
+      "seed": "ml_api",
+      "first_seen": "2026-09-18T04:17:13.437644+00:00",
+      "last_seen": "2026-09-19T09:47:03.218212+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 39,
+      "min_price": 135,
+      "max_price": 135,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6218817710",
+      "item_id": "MLM6218817710",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-6218817710",
+      "title": "Loho Tech Nuevos Auriculares Inalámbricos Bluetooth Mariposa Pendiente —Incluye accesorios con forma de mariposa y cuent",
+      "category": "UNKNOWN",
+      "seed": "ml_api",
+      "first_seen": "2026-09-17T16:02:28.173567+00:00",
+      "last_seen": "2026-09-19T04:02:22.41831+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 39,
+      "min_price": 135,
+      "max_price": 135,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5960952474",
+      "item_id": "MLM5960952474",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-5960952474",
+      "title": "Galaxy Tab A11, 64 GB, 4 GB de RAM, pantalla de 8,7, batería gris de 5100 mA — Ahorra ~43% en Mercado Libre",
+      "category": "entretenimiento",
+      "seed": "ml_api",
+      "first_seen": "2026-09-17T10:47:09.822559+00:00",
+      "last_seen": "2026-09-19T03:47:14.715945+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 2279,
+      "max_price": 2279,
+      "days_active": 2,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM3770553396",
+      "item_id": "MLM3770553396",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-3770553396",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB incluye accesorios — Ahorra ~32% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T11:17:20.595996+00:00",
+      "last_seen": "2026-09-19T00:32:30.146297+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 32,
+      "min_price": 8799,
+      "max_price": 8799,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2547177673",
+      "item_id": "MLM2547177673",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2547177673",
+      "title": "Samsung Galaxy Tab A11 8Ram 128 Gb Gris — Ahorra ~27% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-17T18:47:27.698656+00:00",
+      "last_seen": "2026-09-19T00:17:21.349682+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 27,
+      "min_price": 2620,
+      "max_price": 2674,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2026817897",
+      "item_id": "MLM2026817897",
+      "canonical_url": "https://meli.la/2dhz8Pb",
+      "title": "Audífonos Inalámbricos Wh-ch520 Color Blanco — Ahorra ~33% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T10:47:20.382516+00:00",
+      "last_seen": "2026-09-17T16:08:32.291+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 1,
+      "average_discount": 33,
+      "min_price": 769,
+      "max_price": 769,
+      "days_active": 1,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM2333700203",
+      "item_id": "MLM2333700203",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2333700203",
+      "title": "Audífonos In-ear Bluetooth Inalámbrico Gamer Anker Soundcore P20i Con Manos Libres 10mm Diafragmas Bluetooth 5.3 IPX5 Ba",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T15:47:34.496335+00:00",
+      "last_seen": "2026-09-17T15:47:20.175108+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 371.01,
+      "max_price": 371.01,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4487656948",
+      "item_id": "MLM4487656948",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-4487656948",
+      "title": "Bocina JBL Grip Bluetooth Portátil IP68 14 h Batería Azul — Ahorra ~37% en Mercado Libre",
+      "category": "entretenimiento",
+      "seed": "ml_api",
+      "first_seen": "2026-09-16T22:03:18.585482+00:00",
+      "last_seen": "2026-09-17T03:17:15.53367+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "duplicate_count": 0,
+      "average_discount": 37,
+      "min_price": 939,
+      "max_price": 939,
+      "days_active": 0,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2333568643",
+      "item_id": "MLM2333568643",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2333568643",
+      "title": "Audífonos In-ear Bluetooth Inalámbrico Gamer Anker Soundcore P20i Con Manos Libres 10mm Diafragmas Bluetooth 5.3 Bass Po",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-15T21:32:22.296553+00:00",
+      "last_seen": "2026-09-17T03:02:21.337023+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 371.01,
+      "max_price": 371.01,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM45599134",
+      "item_id": "MLM45599134",
+      "canonical_url": "https://meli.la/1xFtAyk",
+      "title": "Creatina Monohidratada Micronizada en Polvo Quotidien | Alta Pureza Certificada | Con Scoop Dosificador - Creatine Monoh",
+      "category": "deportes",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T11:49:44.418518+00:00",
+      "last_seen": "2026-09-17T02:11:58.524+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 38,
+      "min_price": 289,
+      "max_price": 297,
+      "days_active": 9,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM20722265",
+      "item_id": "MLM20722265",
+      "canonical_url": "https://meli.la/2YB8bTw",
+      "title": "Creatina monohidratada micronizada en polvo 450g — Ahorra ~40% en Mercado Libre",
+      "category": "deportes",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T09:10:34.868659+00:00",
+      "last_seen": "2026-09-17T02:11:25.698+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 41,
+      "min_price": 292.06,
+      "max_price": 298,
+      "days_active": 8,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM47528966",
+      "item_id": "MLM47528966",
+      "canonical_url": "https://meli.la/26Gqde6",
+      "title": "Jeep Montable Eléctrico Enyz BCX-6 de 12V para Niño y Niña con Control Remoto, Bluetooth y Luces Frontales Rosa Chita — ",
+      "category": "autos",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-06T09:01:00.776556+00:00",
+      "last_seen": "2026-09-17T02:10:39.355+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 42,
+      "min_price": 2799.6,
+      "max_price": 2799.6,
+      "days_active": 11,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM29760702",
+      "item_id": "MLM29760702",
+      "canonical_url": "https://meli.la/341GWZ4",
+      "title": "Autoestéreo Hivoz M99 con Pantalla Táctil de 7\" y Bluetooth para Auto — Ahorra ~58% en Mercado Libre",
+      "category": "autos",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:47.0569+00:00",
+      "last_seen": "2026-09-17T02:07:35.106+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 58,
+      "min_price": 511.03,
+      "max_price": 532.15,
+      "days_active": 10,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM27217435",
+      "item_id": "MLM27217435",
+      "canonical_url": "https://meli.la/12x97BC",
+      "title": "Estufa De Mesa/parrilla De Gas 5 Quemadores Cristal Templado Color Negro — Ahorra ~43% en Mercado Libre",
+      "category": "jardin",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T20:54:40.931815+00:00",
+      "last_seen": "2026-09-17T01:43:14.06+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 1699.78,
+      "max_price": 1699.78,
+      "days_active": 7,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM44463715",
+      "item_id": "MLM44463715",
+      "canonical_url": "https://www.mercadolibre.com.mx/plancha-recta-profesional-lizze-extreme-480-color-gris/p/MLM44463715",
+      "title": "Plancha recta profesional Lizze Extreme 480 color Gris — Ahorra ~27% en Mercado Libre",
+      "category": "UNKNOWN",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-13T06:45:58.343872+00:00",
+      "last_seen": "2026-09-15T17:48:28.386748+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 27,
+      "min_price": 1399.17,
+      "max_price": 1399.17,
+      "days_active": 2,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM68738194",
+      "item_id": "MLM68738194",
+      "canonical_url": "https://www.mercadolibre.com.mx/p/MLM68738194",
+      "title": "Minoxidil 5% Anacastel 3x2 Pack Tratamiento Anticaida Crecimiento de Cabello, Barba y Bigote — Ahorra ~43% en Mercado Li",
+      "category": "belleza",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T20:39:35.243996+00:00",
+      "last_seen": "2026-09-15T17:45:56.932+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 379,
+      "max_price": 379,
+      "days_active": 7,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM44355459",
+      "item_id": "MLM44355459",
+      "canonical_url": "https://meli.la/2uCVtTT",
+      "title": "Horno De Microondas 7 Pies 20 Lts Acero Inox Espejo 120v — Ahorra ~50% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T21:28:52.338795+00:00",
+      "last_seen": "2026-09-15T17:43:15.554+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 50,
+      "min_price": 1452,
+      "max_price": 1452,
+      "days_active": 7,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM37178455",
+      "item_id": "MLM37178455",
+      "canonical_url": "https://meli.la/2FZ9TKZ",
+      "title": "Set 50 Ganchos Terciopelo Antideslizantes Negro Cuory Gancho Giratorio — Ahorra ~35% en Mercado Libre",
+      "category": "UNKNOWN",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T11:49:44.795493+00:00",
+      "last_seen": "2026-09-15T17:39:37.609+00:00",
+      "appearance_count": 2,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 35,
+      "min_price": 259,
+      "max_price": 259,
+      "days_active": 7,
+      "distinct_urls": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM29590545",
+      "item_id": "MLM29590545",
+      "canonical_url": "https://www.mercadolibre.com.mx/camara-de-seguridad-2pcs-288-hd-1080p-foco-360-alarma-2-piezas-con-resolucion-2mp-vision-nocturna-incluida-color-blanco/p/MLM29590545",
+      "title": "Cámara de seguridad 2PCS-288 Hd 1080p Foco 360° Alarma 2 Piezas con resolución 2MP visión nocturna incluida color blanco",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T12:49:26.502543+00:00",
+      "last_seen": "2026-09-14T16:34:22.357526+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 50,
+      "min_price": 340.29,
+      "max_price": 346.83,
+      "days_active": 7,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM74580071",
+      "item_id": "MLM74580071",
+      "canonical_url": "https://www.mercadolibre.com.mx/celular-cubot-kingkong-es-5-robusto-dual-sim-128-gb-gris-6-gb-ram-ampliable-hasta-12-gb-7000mah-android-16/p/MLM74580071",
+      "title": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 128 Gb Gris 6 Gb Ram (ampliable Hasta 12 Gb) 7000mah Android 16 — Ahorra ~3",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T12:49:23.640292+00:00",
+      "last_seen": "2026-09-14T16:34:21.510859+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 39,
+      "min_price": 2781.43,
+      "max_price": 2794.3,
+      "days_active": 7,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM41704802",
+      "item_id": "MLM41704802",
+      "canonical_url": "https://www.mercadolibre.com.mx/cubot-kingkong-es-dual-sim-128-gb-negro-naranja-6-gb-ram/p/MLM41704802",
+      "title": "Cubot Kingkong Es Dual Sim 128 Gb Negro Naranja 6 Gb Ram — Ahorra ~29% en Mercado Libre",
+      "category": "UNKNOWN",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:47.368457+00:00",
+      "last_seen": "2026-09-14T04:52:36.145056+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 29,
+      "min_price": 2323.9,
+      "max_price": 2334.63,
+      "days_active": 7,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM61868565",
+      "item_id": "MLM61868565",
+      "canonical_url": "https://www.mercadolibre.com.mx/caminadora-electrica-plegable-con-pantalla-led-15hp-14-kmh-negro/p/MLM61868565",
+      "title": "Caminadora Eléctrica Plegable Con Pantalla Led 1.5hp 14 Km/h - Negro — Ahorra ~40% en Mercado Libre",
+      "category": "deportes",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T14:04:24.759355+00:00",
+      "last_seen": "2026-09-14T00:08:18.986701+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 40,
+      "min_price": 3599.93,
+      "max_price": 3599.93,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM69617835",
+      "item_id": "MLM69617835",
+      "canonical_url": "https://www.mercadolibre.com.mx/arrancador-de-bateria-10000a-30000mah-de-auto-cargador-de-baterias-12v-y-portatil-de-inflador-inteligente-150psi-con-pantalla-digital-linterna-led-powerbank-smart-clip-para-auto-suv-moto-artrolin/p/MLM69617835",
+      "title": "Arrancador De Batería 10000A 30000mAh DE Auto cargador de baterias 12v y portatil DE Inflador Inteligente 150psi Con Pan",
+      "category": "autos",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T23:11:47.358377+00:00",
+      "last_seen": "2026-09-13T21:40:23.803505+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 50,
+      "min_price": 967.69,
+      "max_price": 971.11,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67134843",
+      "item_id": "MLM67134843",
+      "canonical_url": "https://www.mercadolibre.com.mx/laptop-asus-vivobook-15-ci5-120-16gb-512gb-ssd-mochila-y-mouse/p/MLM67134843",
+      "title": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~37% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T04:34:03.027504+00:00",
+      "last_seen": "2026-09-13T21:40:21.908582+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 37,
+      "min_price": 11959.27,
+      "max_price": 11959.58,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48434598",
+      "item_id": "MLM48434598",
+      "canonical_url": "https://www.mercadolibre.com.mx/llave-de-impacto-inalambrica-luckssy-de-21v-y-520nm-con-motor-sin-escobillas-y-juego-de-herramientas-de-2-baterias/p/MLM48434598",
+      "title": "Llave de Impacto Inalámbrica LUCKSSY de 21V y 520Nm con Motor Sin Escobillas y Juego de Herramientas de 2 Baterías — Aho",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T09:10:34.283228+00:00",
+      "last_seen": "2026-09-13T16:58:22.703392+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 72,
+      "min_price": 698.18,
+      "max_price": 698.18,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU4148700486",
+      "item_id": "MLMU4148700486",
+      "canonical_url": "https://www.mercadolibre.com.mx/silla-ejecutiva-oficina-ergonomica-escritorio-giratoria/up/MLMU4148700486",
+      "title": "Silla Ejecutiva Oficina Ergonómica Escritorio Giratoria Negro Malla — Ahorra ~52% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T18:52:58.710221+00:00",
+      "last_seen": "2026-09-13T16:58:22.243241+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 1,
+      "average_discount": 52,
+      "min_price": 676.09,
+      "max_price": 676.09,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM52937742",
+      "item_id": "MLM52937742",
+      "canonical_url": "https://www.mercadolibre.com.mx/consola-nintendo-switch-2-256gb-bundle-internacional-mario-kart-world-juego-fisico/p/MLM52937742",
+      "title": "Consola Nintendo Switch 2 256gb Bundle Internacional Mario Kart World Juego Físico — Ahorra ~25% en Mercado Libre",
+      "category": "gaming",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T20:54:42.725234+00:00",
+      "last_seen": "2026-09-13T16:58:21.395949+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 25,
+      "min_price": 11299.27,
+      "max_price": 11299.58,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU3178496273",
+      "item_id": "MLMU3178496273",
+      "canonical_url": "https://www.mercadolibre.com.mx/apple-airpods-4-generacion-iphone-y-android-cancelacion/up/MLMU3178496273",
+      "title": "Apple AirPods 4° Generación iPhone Y Android Cancelación Blanco — Ahorra ~42% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T06:38:14.354184+00:00",
+      "last_seen": "2026-09-13T12:43:24.261937+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 41,
+      "min_price": 286,
+      "max_price": 300.32,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM38176139",
+      "item_id": "MLM38176139",
+      "canonical_url": "https://www.mercadolibre.com.mx/audifonos-anker-soundcore-p30i-in-ear-bluetooth-inalambrico-cancelacion-de-ruido-adaptativa-45-horas-de-reproduccion-soporte-para-movil-superior-bajos-potentes-llamadas-claras-con-ia-color-negro/p/MLM38176139",
+      "title": "Audífonos Anker Soundcore P30i In-ear Bluetooth Inalámbrico Cancelación De Ruido adaptativa, 45 Horas de Reproducción, S",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T12:49:25.213548+00:00",
+      "last_seen": "2026-09-13T12:43:24.058423+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 46,
+      "min_price": 537.99,
+      "max_price": 538.01,
+      "days_active": 6,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM66642083",
+      "item_id": "MLM66642083",
+      "canonical_url": "https://www.mercadolibre.com.mx/pantalla-aiwa-43-pulgadas-qled-full-hd-smart-tv-con-wifi/p/MLM66642083",
+      "title": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T20:54:42.445928+00:00",
+      "last_seen": "2026-09-13T12:43:23.249057+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 26,
+      "min_price": 3723.27,
+      "max_price": 3723.27,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM41820947",
+      "item_id": "MLM41820947",
+      "canonical_url": "https://www.mercadolibre.com.mx/set-de-6-sillas-plegables-plastico-reforzadas-styrka-negras-color-negro-sipl02/p/MLM41820947",
+      "title": "Set De 6 Sillas Plegables Plástico Reforzadas Styrka Negras Color Negro SIPL02 — Ahorra ~59% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-09T20:54:43.018711+00:00",
+      "last_seen": "2026-09-13T06:45:58.832425+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 59,
+      "min_price": 1316.54,
+      "max_price": 1316.54,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM26951515",
+      "item_id": "MLM26951515",
+      "canonical_url": "https://www.mercadolibre.com.mx/colchon-individual-kingshouse-de-memory-foam-firmeza-media-en-caja/p/MLM26951515",
+      "title": "Colchón Individual Kingshouse de Memory Foam Firmeza Media en Caja — Ahorra ~45% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T06:38:13.614075+00:00",
+      "last_seen": "2026-09-12T21:26:19.712856+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 45,
+      "min_price": 1379.83,
+      "max_price": 1379.83,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM74580065",
+      "item_id": "MLM74580065",
+      "canonical_url": "https://www.mercadolibre.com.mx/celular-cubot-kingkong-es-5-robusto-dual-sim-256-gb-gris-12-gb-ram-ampliable-hasta-24-gb-7000mah-android-16/p/MLM74580065",
+      "title": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 256 Gb Gris 12 Gb Ram (ampliable Hasta 24 Gb) 7000mah Android 16 — Ahorra ~",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T06:38:13.161882+00:00",
+      "last_seen": "2026-09-12T21:26:19.300779+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 37,
+      "min_price": 3725.38,
+      "max_price": 3765.06,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM26373599",
+      "item_id": "MLM26373599",
+      "canonical_url": "https://www.mercadolibre.com.mx/hidrolavadora-electrica-portatil-con-ruedas-1600-psi-trent-1400w-alta-presion-60hz-para-lavar-carros/p/MLM26373599",
+      "title": "Hidrolavadora Electrica Portátil Con Ruedas 1600 Psi Trent 1400w Alta Presión 60Hz Para Lavar Carros — Ahorra ~65% en Me",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T11:49:43.207956+00:00",
+      "last_seen": "2026-09-12T18:44:18.604614+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 66,
+      "min_price": 1016.33,
+      "max_price": 1059.5,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM44007277",
+      "item_id": "MLM44007277",
+      "canonical_url": "https://www.mercadolibre.com.mx/audifonos-in-ear-bluetooth-para-celulares-tablets-y-laptops-conexion-automatica-resistente-al-agua-y-polvo-ip55-comodo-de-llevar-estuche-de-carga-gran-capacidad-marca-mvpsmart-r30-blanco/p/MLM44007277",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T18:52:59.841937+00:00",
+      "last_seen": "2026-09-12T16:18:36.766565+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 124.76,
+      "max_price": 124.76,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48469753",
+      "item_id": "MLM48469753",
+      "canonical_url": "https://www.mercadolibre.com.mx/arrancador-de-bateria-xiudeen-t-700-8000a-con-compresor-de-aire-y-power-bank-para-autos-y-camionetas/p/MLM48469753",
+      "title": "Arrancador de Batería Xiudeen T-700 8000A con Compresor de Aire y Power Bank para Autos y Camionetas — Ahorra ~46% en Me",
+      "category": "autos",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T18:52:58.517648+00:00",
+      "last_seen": "2026-09-12T13:07:30.900925+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 46,
+      "min_price": 594.69,
+      "max_price": 600.14,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM64576267",
+      "item_id": "MLM64576267",
+      "canonical_url": "https://www.mercadolibre.com.mx/vonkeep-silla-gamer-ergonomica-silla-oficina-silla-escritorio-reclinable-gaming-oficina-base-mas-grande-color-roja/p/MLM64576267",
+      "title": "VonKeep Silla Gamer Ergonómica Silla Oficina Silla Escritorio Reclinable Gaming Oficina Base Más Grande Color Roja — Aho",
+      "category": "gaming",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T06:38:13.475808+00:00",
+      "last_seen": "2026-09-12T09:15:50.864332+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 33,
+      "min_price": 1376.16,
+      "max_price": 1380.41,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM63135636",
+      "item_id": "MLM63135636",
+      "canonical_url": "https://www.mercadolibre.com.mx/caminadora-electrica-6-km-walking-pad-2-niveles-control-remo-negro/p/MLM63135636",
+      "title": "Caminadora Eléctrica 6 Km Walking Pad 2 Niveles Control Remo Negro — Ahorra ~62% en Mercado Libre",
+      "category": "deportes",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T21:28:51.698267+00:00",
+      "last_seen": "2026-09-12T05:01:53.767171+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 62,
+      "min_price": 1899,
+      "max_price": 1899,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47003664",
+      "item_id": "MLM47003664",
+      "canonical_url": "https://www.mercadolibre.com.mx/mesa-plegable-blanca-180-m-tipo-portafolio/p/MLM47003664",
+      "title": "Mesa Plegable Blanca 1.80 m tipo Portafolio — Ahorra ~49% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T18:52:59.271995+00:00",
+      "last_seen": "2026-09-12T05:01:53.506183+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 49,
+      "min_price": 669.43,
+      "max_price": 669.43,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM43439636",
+      "item_id": "MLM43439636",
+      "canonical_url": "https://www.mercadolibre.com.mx/silla-de-oficina-ergonomica-cuory-cuosorm3-negra-respaldo-de-malla-transpirable/p/MLM43439636",
+      "title": "Silla de Oficina Ergonómica Cuory CUOSORM3 Negra Respaldo de Malla Transpirable — Ahorra ~61% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T23:39:52.847077+00:00",
+      "last_seen": "2026-09-12T05:01:53.092306+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 61,
+      "min_price": 659.82,
+      "max_price": 659.82,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM75536993",
+      "item_id": "MLM75536993",
+      "canonical_url": "https://www.mercadolibre.com.mx/control-alambrico-gamesir-g7-pro-para-xbox-series-xs-y-xbox-one-gamepad-inalambrico-para-pc-y-android-con-palancas-tmr-gatillos-analogicos-hall-effect-y-tasa-de-sondeo-de-1000hz-violet/p/MLM75536993",
+      "title": "Control Alámbrico Gamesir G7 Pro Para Xbox Series X|s Y Xbox One, Gamepad Inalámbrico Para Pc Y Android Con Palancas Tmr",
+      "category": "gaming",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T06:38:12.849143+00:00",
+      "last_seen": "2026-09-12T05:01:52.823283+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 28,
+      "min_price": 1415.94,
+      "max_price": 1417.22,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM58085819",
+      "item_id": "MLM58085819",
+      "canonical_url": "https://www.mercadolibre.com.mx/par-de-llantas-19565-r15-mirage-mr-166-91h/p/MLM58085819",
+      "title": "Par De Llantas 195/65 R15 Mirage MR-166 91H — Ahorra ~26% en Mercado Libre",
+      "category": "autos",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T23:39:52.539873+00:00",
+      "last_seen": "2026-09-12T05:01:52.628826+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 26,
+      "min_price": 1861.49,
+      "max_price": 1861.49,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU2857394841",
+      "item_id": "MLMU2857394841",
+      "canonical_url": "https://www.mercadolibre.com.mx/tenis-para-mujer-adidas-vl-adidas-court-base-entrenar-id3716/up/MLMU2857394841",
+      "title": "Tenis Para Mujer adidas Vl adidas Court Base Entrenar Id3716 Ftwr White/core Black/grey One Liso 24 Mx — Ahorra ~29% en ",
+      "category": "moda",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T21:28:51.070537+00:00",
+      "last_seen": "2026-09-12T05:01:52.466901+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 29,
+      "min_price": 989.67,
+      "max_price": 989.67,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67666199",
+      "item_id": "MLM67666199",
+      "canonical_url": "https://www.mercadolibre.com.mx/bocina-jbl-partybox-130-bluetooth-15h-bateria-ipx4-auracast/p/MLM67666199",
+      "title": "Bocina Jbl Partybox 130 Bluetooth 15h Batería Ipx4 Auracast — Ahorra ~32% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T21:02:37.167147+00:00",
+      "last_seen": "2026-09-11T22:32:33.320148+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 33,
+      "min_price": 6349.27,
+      "max_price": 6499.27,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47700596",
+      "item_id": "MLM47700596",
+      "canonical_url": "https://www.mercadolibre.com.mx/hidrolavadora-inalambrica-electrica-hirlan-yn01-pistola-para-lavado-autos-portatil-color-negro/p/MLM47700596",
+      "title": "Hidrolavadora Inalámbrica Electrica HIRLAN YN01 Pistola Para Lavado Autos Portatil color negro — Ahorra ~54% en Mercado ",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T23:37:23.017815+00:00",
+      "last_seen": "2026-09-11T22:32:33.141014+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 54,
+      "min_price": 271.36,
+      "max_price": 272.64,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67134419",
+      "item_id": "MLM67134419",
+      "canonical_url": "https://www.mercadolibre.com.mx/laptop-asus-vivobook-16-ultra5225h-16gb-1tbssd-mochila-y-mouse/p/MLM67134419",
+      "title": "Laptop Asus Vivobook 16 Ultra5225H 16gb 1tbssd+ Mochila y Mouse — Ahorra ~38% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-08T01:40:09.454236+00:00",
+      "last_seen": "2026-09-11T20:01:46.887243+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 38,
+      "min_price": 14399,
+      "max_price": 14399,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU3718229861",
+      "item_id": "MLMU3718229861",
+      "canonical_url": "https://www.mercadolibre.com.mx/espejo-decorativo-touch-para-bano-con-luz-led-3-atenuaciones/up/MLMU3718229861",
+      "title": "Espejo Decorativo Touch Para Baño Con Luz Led 3 Atenuaciones — Ahorra ~75% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T17:58:49.263986+00:00",
+      "last_seen": "2026-09-11T20:01:46.674203+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 75,
+      "min_price": 196.76,
+      "max_price": 196.76,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM40732643",
+      "item_id": "MLM40732643",
+      "canonical_url": "https://www.mercadolibre.com.mx/kit-anti-imperfecciones-express-aclara-garnier-limpiador-facial-serum-facial-crema-hidratante-matificante/p/MLM40732643",
+      "title": "Kit Anti Imperfecciones Express Aclara Garnier: Limpiador Facial + Sérum Facial + Crema Hidratante Matificante — Ahorra ",
+      "category": "belleza",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T23:37:23.163016+00:00",
+      "last_seen": "2026-09-11T20:01:46.029877+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 48,
+      "min_price": 337.5,
+      "max_price": 337.7,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM63172085",
+      "item_id": "MLM63172085",
+      "canonical_url": "https://www.mercadolibre.com.mx/pantalla-smart-tv-aiwa-roku-50-pulgadas-qled-4k-ultra-hd/p/MLM63172085",
+      "title": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~43% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:43.038725+00:00",
+      "last_seen": "2026-09-11T20:01:43.853372+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 4857,
+      "max_price": 4857,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM29367002",
+      "item_id": "MLM29367002",
+      "canonical_url": "https://www.mercadolibre.com.mx/recipientes-24-pz-hermeticos-de-almacenamiento-de-cocina-transparente-raganet/p/MLM29367002",
+      "title": "Recipientes 24 Pz Herméticos De Almacenamiento De Cocina Transparente Raganet — Ahorra ~59% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:48.547469+00:00",
+      "last_seen": "2026-09-11T17:12:13.213995+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 59,
+      "min_price": 284,
+      "max_price": 284,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2035176986",
+      "item_id": "MLM2035176986",
+      "canonical_url": "https://www.mercadolibre.com.mx/apple-airpods-pro-3-color-blanco-con-cancelacion-de-ruido-nuevo-con-caja-abierta/p/MLM2035176986",
+      "title": "Apple AirPods Pro 3 Color Blanco Con Cancelación De Ruido (Nuevo con caja abierta) — Ahorra ~45% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:44.102302+00:00",
+      "last_seen": "2026-09-11T17:12:12.438112+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 58,
+      "min_price": 1333.17,
+      "max_price": 1814.61,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48940915",
+      "item_id": "MLM48940915",
+      "canonical_url": "https://www.mercadolibre.com.mx/parrilla-de-gas-empotrable-de-mesa-xiudeen-xd5001g-5-quemadores-de-gas-gn-glp-aplicables-cristal-templado-color-negro/p/MLM48940915",
+      "title": "Parrilla De Gas Empotrable de mesa XIUDEEN XD5001G 5 quemadores de gas GN GLP aplicables cristal templado color negro — ",
+      "category": "jardin",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T17:58:47.365566+00:00",
+      "last_seen": "2026-09-11T17:12:11.074717+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 28,
+      "min_price": 1797.59,
+      "max_price": 1799.71,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48596531",
+      "item_id": "MLM48596531",
+      "canonical_url": "https://www.mercadolibre.com.mx/tablet-lenovo-idea-tab-pro-8gb-256gb-teclado-y-pluma-verde/p/MLM48596531",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB Teclado y pluma Verde — Ahorra ~53% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T23:37:23.547253+00:00",
+      "last_seen": "2026-09-11T13:33:41.776429+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 53,
+      "min_price": 6099.6,
+      "max_price": 6099.6,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU488803900",
+      "item_id": "MLMU488803900",
+      "canonical_url": "https://www.mercadolibre.com.mx/calcetines-cortos-hombres-dama-unisex-comodo-12-pares/up/MLMU488803900",
+      "title": "Calcetines Cortos Hombres Dama Unisex Cómodo 12 Pares Gris L — Ahorra ~60% en Mercado Libre",
+      "category": "UNKNOWN",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T17:58:49.450822+00:00",
+      "last_seen": "2026-09-11T13:33:41.39383+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 60,
+      "min_price": 54,
+      "max_price": 54,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM68578528",
+      "item_id": "MLM68578528",
+      "canonical_url": "https://www.mercadolibre.com.mx/laptop-asus-tuf-a16-r7-170-16gb-512ssd-rtx4050/p/MLM68578528",
+      "title": "Laptop Asus Tuf A16 R7 170 16GB 512SSD RTX4050 — Ahorra ~36% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T23:37:23.682876+00:00",
+      "last_seen": "2026-09-11T13:33:41.097256+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 35,
+      "min_price": 19304,
+      "max_price": 19849,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM62369518",
+      "item_id": "MLM62369518",
+      "canonical_url": "https://www.mercadolibre.com.mx/pantalla-smart-tv-32-pulgadas-tfl-android-tv-dled-bluetooth/p/MLM62369518",
+      "title": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~33% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:46.596203+00:00",
+      "last_seen": "2026-09-11T13:33:39.64825+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 33,
+      "min_price": 1898.89,
+      "max_price": 1899,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM64539888",
+      "item_id": "MLM64539888",
+      "canonical_url": "https://www.mercadolibre.com.mx/vonkeep-silla-gamer-ergonomica-oficina-roja-con-reposapies-y-tira-led-de-5m-reclinable-giratoria-gaming-escritorio/p/MLM64539888",
+      "title": "VonKeep Silla Gamer Ergonómica Oficina Roja con Reposapiés y Tira LED de 5m Reclinable Giratoria Gaming Escritorio — Aho",
+      "category": "gaming",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:48.344776+00:00",
+      "last_seen": "2026-09-11T09:07:37.595958+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 38,
+      "min_price": 1388.93,
+      "max_price": 1389.98,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU3718209495",
+      "item_id": "MLMU3718209495",
+      "canonical_url": "https://www.mercadolibre.com.mx/espejo-luz-led-touch-pared-tocador-bano-vestidor---3-luces/up/MLMU3718209495",
+      "title": "Espejo Luz Led Touch Pared Tocador Baño Vestidor 3 Luces Rectangular Con Marco — Ahorra ~75% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T06:14:47.198643+00:00",
+      "last_seen": "2026-09-11T09:07:37.297236+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 75,
+      "min_price": 198.5,
+      "max_price": 198.5,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM50352916",
+      "item_id": "MLM50352916",
+      "canonical_url": "https://www.mercadolibre.com.mx/colchon-matrimonial-noite-plus-con-memory-adapt-gris/p/MLM50352916",
+      "title": "Colchón Matrimonial Noite Plus Con Memory Adapt Gris — Ahorra ~58% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T23:37:22.256881+00:00",
+      "last_seen": "2026-09-11T04:33:10.470277+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 58,
+      "min_price": 2499.6,
+      "max_price": 2499.6,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM45859658",
+      "item_id": "MLM45859658",
+      "canonical_url": "https://www.mercadolibre.com.mx/laptop-lenovo-loq-core-i5-12450hx-8gb-ram-512gb-rtx-3050-6gb-color-gris/p/MLM45859658",
+      "title": "Laptop Lenovo Loq Core I5-12450hx 8gb Ram 512gb Rtx 3050 6gb Color Gris — Ahorra ~40% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T21:02:35.570496+00:00",
+      "last_seen": "2026-09-11T04:33:08.875106+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 40,
+      "min_price": 13299,
+      "max_price": 13499,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM46689906",
+      "item_id": "MLM46689906",
+      "canonical_url": "https://www.mercadolibre.com.mx/coolsht-mesa-plegable-tipo-portafolio-plastico-mesa-portatil-180m-color-blanco/p/MLM46689906",
+      "title": "Coolsht Mesa Plegable Tipo Portafolio Plástico Mesa Portatil 1.80m Color Blanco — Ahorra ~42% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T12:49:26.193975+00:00",
+      "last_seen": "2026-09-11T00:05:15.739982+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 42,
+      "min_price": 699.24,
+      "max_price": 699.24,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM50224717",
+      "item_id": "MLM50224717",
+      "canonical_url": "https://www.mercadolibre.com.mx/colchon-individual-noite-basic-con-memory-adapt-gris/p/MLM50224717",
+      "title": "Colchón Individual Noite Basic Con Memory Adapt Gris — Ahorra ~59% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:44.61243+00:00",
+      "last_seen": "2026-09-11T00:05:15.549734+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 59,
+      "min_price": 1599.67,
+      "max_price": 1599.67,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM66836957",
+      "item_id": "MLM66836957",
+      "canonical_url": "https://www.mercadolibre.com.mx/2-mesas-plegables-plastico-tipo-portafolio-180m-jardin-blanco/p/MLM66836957",
+      "title": "2 Mesas Plegables Plástico Tipo Portafolio 1.80m Jardín Blanco — Ahorra ~40% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-06T09:01:01.059172+00:00",
+      "last_seen": "2026-09-10T21:52:10.893552+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 40,
+      "min_price": 1329.31,
+      "max_price": 1329.31,
+      "days_active": 5,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM42692829",
+      "item_id": "MLM42692829",
+      "canonical_url": "https://www.mercadolibre.com.mx/smart-tv-32-cuory-dled-hd-android-bluetooth-netflix-disney/p/MLM42692829",
+      "title": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:43.866722+00:00",
+      "last_seen": "2026-09-10T16:21:32.608829+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 44,
+      "min_price": 1949.56,
+      "max_price": 1949.56,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM58115878",
+      "item_id": "MLM58115878",
+      "canonical_url": "https://www.mercadolibre.com.mx/roborock-q7-l5-robot-aspiradora-y-trapeador-8000-pa-negro/p/MLM58115878",
+      "title": "Roborock Q7 L5 Robot Aspiradora Y Trapeador, 8,000 Pa Negro — Ahorra ~68% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:43.306983+00:00",
+      "last_seen": "2026-09-10T16:21:31.539817+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 68,
+      "min_price": 3799.27,
+      "max_price": 3799.27,
+      "days_active": 4,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM53177027",
+      "item_id": "MLM53177027",
+      "canonical_url": "https://www.mercadolibre.com.mx/hidrolavadora-electrica-portatil-1600-psi-1200w-alta-presion-amarillo-60hz-para-lavar-carros/p/MLM53177027",
+      "title": "Hidrolavadora Electrica Portátil 1600 Psi 1200w Alta Presion Amarillo 60hz Para Lavar Carros — Ahorra ~61% en Mercado Li",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:43.66231+00:00",
+      "last_seen": "2026-09-10T06:38:37.784908+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 61,
+      "min_price": 898.27,
+      "max_price": 899.33,
+      "days_active": 3,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47589514",
+      "item_id": "MLM47589514",
+      "canonical_url": "https://www.mercadolibre.com.mx/set-de-4-sillas-plegables-blanca/p/MLM47589514",
+      "title": "Set de 4 SIllas Plegables Blanca — Ahorra ~55% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T02:57:44.7473+00:00",
+      "last_seen": "2026-09-07T21:02:36.959307+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 55,
+      "min_price": 1385.69,
+      "max_price": 1385.69,
+      "days_active": 1,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM58600159",
+      "item_id": "MLM58600159",
+      "canonical_url": "https://www.mercadolibre.com.mx/silla-escritorio-ergonomica-emilia-plus-con-reposacabezas-negro-malla-transpirable/p/MLM58600159",
+      "title": "Silla Escritorio Ergonomica Emilia Plus Con Reposacabezas Negro Malla Transpirable — Ahorra ~55% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T17:58:48.551209+00:00",
+      "last_seen": "2026-09-07T21:02:36.793023+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 55,
+      "min_price": 1338.86,
+      "max_price": 1338.86,
+      "days_active": 0,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM59117483",
+      "item_id": "MLM59117483",
+      "canonical_url": "https://www.mercadolibre.com.mx/recipientes-hermeticos-de-vidrio-almacenamiento-cocina-5-pz-transparente/p/MLM59117483",
+      "title": "Recipientes Herméticos De Vidrio Almacenamiento Cocina 5 Pz. Transparente — Ahorra ~43% en Mercado Libre",
+      "category": "hogar",
+      "seed": "ml_worker",
+      "first_seen": "2026-09-07T12:49:23.949495+00:00",
+      "last_seen": "2026-09-07T21:02:34.761252+00:00",
+      "appearance_count": 2,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 43,
+      "min_price": 229,
+      "max_price": 229,
+      "days_active": 0,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM3182990909",
+      "item_id": "MLM3182990909",
+      "canonical_url": "https://meli.la/1dcRRyW",
+      "title": "Armaf Odyssey Aqua Perfume Men Eau De Parfum 60 Ml — Ahorra ~25% en Mercado Libre",
+      "category": "belleza",
+      "seed": "ml_api",
+      "first_seen": "2026-09-20T04:06:07.702+00:00",
+      "last_seen": "2026-09-20T04:06:07.702+00:00",
+      "appearance_count": 1,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 0,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 25,
+      "min_price": 662.03,
+      "max_price": 662.03,
+      "days_active": 0,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM3138313012",
+      "item_id": "MLM3138313012",
+      "canonical_url": "https://meli.la/1uaTwwR",
+      "title": "Limpiador Multiusos Pinol Aroma Floral 5.1 Litros — Ahorra ~27% en Mercado Libre",
+      "category": "supermercado",
+      "seed": "ml_api",
+      "first_seen": "2026-09-20T04:05:51.643+00:00",
+      "last_seen": "2026-09-20T04:05:51.643+00:00",
+      "appearance_count": 1,
+      "approved_count": 1,
+      "published_count": 0,
+      "rejected_count": 0,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 27,
+      "min_price": 103.05,
+      "max_price": 103.05,
+      "days_active": 0,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2546041533",
+      "item_id": "MLM2546041533",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2546041533",
+      "title": "Tableta Xiaomi Redmi Pad 2 11\" 256gb 8 Ram Wi-Fi de color gris verde — Ahorra ~29% en Mercado Libre",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-19T10:17:05.963579+00:00",
+      "last_seen": "2026-09-19T10:17:05.963579+00:00",
+      "appearance_count": 1,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "duplicate_count": 0,
+      "average_discount": 29,
+      "min_price": 4256.72,
+      "max_price": 4256.72,
+      "days_active": 0,
+      "distinct_urls": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6235983600",
+      "item_id": "MLM6235983600",
+      "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-6235983600",
+      "title": "Audífonos Inalámbricos 1HORA AUT205 In-Ear Bluetooth 6.0 con Micrófono, Auriculares Bluetooth Negro — Ahorra ~35% en Mer",
+      "category": "tecnologia",
+      "seed": "ml_api",
+      "first_seen": "2026-09-19T10:02:12.763995+00:00",
+      "last_seen": "2026-09-19T10:02:12.763995+00:00",
+      "appearance_count": 1,
+      "approved_count": 0,
+      "published_count": 0,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "duplicate_count": 0,
+      "average_discount": 35,
+      "min_price": 167.8,
+      "max_price": 167.8,
+      "days_active": 0,
+      "distinct_urls": 1
+    }
+  ],
+  "top100RejectedSpam": [
+    {
+      "product_fingerprint": "ml:MLM4343138394",
+      "title": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Mercado Libre",
+      "appearance_count": 7,
+      "rejected_count": 7,
+      "spam_related_count": 3,
+      "rejection_buckets": {
+        "spam": 3,
+        "other": 4
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 6
+    },
+    {
+      "product_fingerprint": "ml:MLM4971112404",
+      "title": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~34% en Mercado Libre",
+      "appearance_count": 6,
+      "rejected_count": 6,
+      "spam_related_count": 3,
+      "rejection_buckets": {
+        "spam": 3,
+        "other": 2,
+        "invalid": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 5
+    },
+    {
+      "product_fingerprint": "ml:MLM4830169030",
+      "title": "Smartwatch Huawei Band 11 Caja de Aleación de Aluminio, Gran Pantalla de 1.62\", Monitoreo de Sueño, Bienestar Emocional,",
+      "appearance_count": 5,
+      "rejected_count": 4,
+      "spam_related_count": 3,
+      "rejection_buckets": {
+        "spam": 3,
+        "other": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa.",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM4837616144",
+      "title": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~33% en Mercado Libre",
+      "appearance_count": 6,
+      "rejected_count": 6,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2,
+        "other": 1,
+        "duplicate": 1,
+        "invalid": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 5
+    },
+    {
+      "product_fingerprint": "ml:MLM5512176274",
+      "title": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercado Libre",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2,
+        "duplicate": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Oferta duplicada o muy similar a otra ya publicada recientemente."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM2824363923",
+      "title": "Hisense Smart TV Pantalla 32 Pulgadas LED 32A4NV Vidaa — Ahorra ~31% en Mercado Libre",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2,
+        "duplicate": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Oferta duplicada o muy similar a otra ya publicada recientemente."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM5341490272",
+      "title": "Audífonos In-ear Inalámbricos 1hora Auriculares Inalambricos Bluetooth 5.4 Con Microfono (blanco) — Ahorra ~42% en Merca",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "other": 2,
+        "spam": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM1649534433",
+      "title": "Amazon Dot Echo Dot 5th Gen con asistente virtual Alexa color negro 127/220V — Ahorra ~41% en Mercado Libre",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2,
+        "other": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM5416052470",
+      "title": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~30% en Mercado Libre",
+      "appearance_count": 3,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM4335601952",
+      "title": "Tablet SM-X133NZSEMXO Galaxy Tab A11 128Gb Plata Samsung — Ahorra ~27% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM5960952474",
+      "title": "Galaxy Tab A11, 64 GB, 4 GB de RAM, pantalla de 8,7, batería gris de 5100 mA — Ahorra ~43% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2547177673",
+      "title": "Samsung Galaxy Tab A11 8Ram 128 Gb Gris — Ahorra ~27% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM4487656948",
+      "title": "Bocina JBL Grip Bluetooth Portátil IP68 14 h Batería Azul — Ahorra ~37% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 2,
+      "rejection_buckets": {
+        "spam": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2751763985",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB Teclado y pluma Verde — Ahorra ~36% en Mercado Libre",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1,
+        "other": 2,
+        "duplicate": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa.",
+        "Oferta duplicada o muy similar a otra ya publicada recientemente."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM4568331450",
+      "title": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~33% en Mercado Libre",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1,
+        "other": 2,
+        "duplicate": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa.",
+        "Oferta duplicada o muy similar a otra ya publicada recientemente."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM5082538244",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1,
+        "other": 2
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM2162457985",
+      "title": "Oster Freidora de Aire Digital, Recubrimiento Oster DiamondForce, con Ventana y Luz Interna, 6L de Capacidad, con 10 Pro",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "other": 2,
+        "spam": 1
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM4349081564",
+      "title": "Cozylady Tiras De Led 40m Bluetooth Rgb Luz Led Inteligentes Música De Tiras De Luces Led App Control Para Cuarto,tv,bar",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "other": 2,
+        "spam": 1
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM2237142369",
+      "title": "Filamento Impresora 3d Pla Mate De 1,75 Mm Color Matte White — Ahorra ~26% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1,
+        "other": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM3770553396",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB incluye accesorios — Ahorra ~32% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1,
+        "other": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida).",
+        "El precio o el descuento resulta engañoso o no coincide con el enlace."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2333700203",
+      "title": "Audífonos In-ear Bluetooth Inalámbrico Gamer Anker Soundcore P20i Con Manos Libres 10mm Diafragmas Bluetooth 5.3 IPX5 Ba",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "other": 1,
+        "spam": 1
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6190388566",
+      "title": "Reloj inteligente Redmi Watch 5 Active Hyperos Bateria 18 Días — Ahorra ~36% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6235983600",
+      "title": "Audífonos Inalámbricos 1HORA AUT205 In-Ear Bluetooth 6.0 con Micrófono, Auriculares Bluetooth Negro — Ahorra ~35% en Mer",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM5910048536",
+      "title": "Galaxy Tab A11, 64 GB, 4 GB de RAM, pantalla de 8,7, batería gris de 5100 mA — Ahorra ~35% en Mercado Libre",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM2228421947",
+      "title": "Pantalla Smart Tv 32 Roku Aiwa Dled Hd, 720p, 3 Hdmi, Wifi — Ahorra ~31% en Mercado Libre",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM6231848974",
+      "title": "Tableta Galaxy Tab A9 8.7 128+8 con teclado Bluetooth y funda — Ahorra ~29% en Mercado Libre",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM4459333672",
+      "title": "Bocina JBL Grip Bluetooth Portátil IP68 14 h Batería Azul — Ahorra ~33% en Mercado Libre",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM6086817844",
+      "title": "Auriculares M90 Pro Tipo C Bt5.1 Slide Deportes Inalámbricos Color M90 Negro — Ahorra ~29% en Mercado Libre",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM77569368",
+      "title": "7500W Inversor Convertidor De Corriente Con 4 Enchufes Ac*2+usb-a*1+usb-c*1, Beaowink 4 En 1 Transformador Coche Sinusoi",
+      "appearance_count": 1,
+      "rejected_count": 1,
+      "spam_related_count": 1,
+      "rejection_buckets": {
+        "spam": 1
+      },
+      "rejection_samples": [
+        "Contenido que no cumple las normas de la comunidad (spam o promoción no permitida)."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 0
+    },
+    {
+      "product_fingerprint": "ml:MLM2851918343",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "appearance_count": 5,
+      "rejected_count": 5,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 5
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 4
+    },
+    {
+      "product_fingerprint": "ml:MLM5108540250",
+      "title": "Audífonos 1HORA Inalámbricos Bluetooth 6.0, In-ear con Pantalla LED, Micrófono y Manos Libres, Blanco — Ahorra ~37% en M",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 4
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM2624476949",
+      "title": "Freidora De Aire Manual Oster® Diamondforce, 4l Ckstaf401mdf Color Negro — Ahorra ~30% en Mercado Libre",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 4
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM6159705134",
+      "title": "Freidora Aire Oster 7.5L DiamondForce 10 Programas — Ahorra ~30% en Mercado Libre",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 4
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM3732634000",
+      "title": "Audífonos Inalámbrico In-ear Bluetooth gamer Anker Soundcore P20i con Manos Libres 10mm Diafragmas Bluetooth 5.3 Bass Po",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 4
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM5167025228",
+      "title": "Espejo rectangular con luz LED, luz táctil, tocador de pared, baño, vestidor, 3 luces, 37,5 x 52,5 cm, Einnoe — Ahorra ~",
+      "appearance_count": 4,
+      "rejected_count": 4,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 4
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 3
+    },
+    {
+      "product_fingerprint": "ml:MLM43420119",
+      "title": "Terminal Point Smart 2 con Internet Gratis, Pago con Tarjetas — Ahorra ~71% en Mercado Libre",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 3
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM22592548",
+      "title": "Beyond Vitamins | Magnesio Complex |citrato De Magnesio Polvo, Glicinato De Magnesio, Gluconato De Magnesio Y Óxido De M",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 3
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM67079979",
+      "title": "Set 6 Sillas Plegables Plástico Resistente Fiesta Eventos Jardín — Ahorra ~66% en Mercado Libre",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 3
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM43749884",
+      "title": "Silla Ejecutiva Vidita Ergonómica para Oficina y Gamer con Soporte Lumbar de 150 kg — Ahorra ~42% en Mercado Libre",
+      "appearance_count": 3,
+      "rejected_count": 3,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 3
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 2
+    },
+    {
+      "product_fingerprint": "ml:MLM6218817704",
+      "title": "Loho Tech Nuevos Auriculares Inalámbricos Bluetooth Mariposa Pendiente —Incluye accesorios con forma de mariposa y cuent",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM6218817710",
+      "title": "Loho Tech Nuevos Auriculares Inalámbricos Bluetooth Mariposa Pendiente —Incluye accesorios con forma de mariposa y cuent",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2333568643",
+      "title": "Audífonos In-ear Bluetooth Inalámbrico Gamer Anker Soundcore P20i Con Manos Libres 10mm Diafragmas Bluetooth 5.3 Bass Po",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM44463715",
+      "title": "Plancha recta profesional Lizze Extreme 480 color Gris — Ahorra ~27% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM29590545",
+      "title": "Cámara de seguridad 2PCS-288 Hd 1080p Foco 360° Alarma 2 Piezas con resolución 2MP visión nocturna incluida color blanco",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM74580071",
+      "title": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 128 Gb Gris 6 Gb Ram (ampliable Hasta 12 Gb) 7000mah Android 16 — Ahorra ~3",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM41704802",
+      "title": "Cubot Kingkong Es Dual Sim 128 Gb Negro Naranja 6 Gb Ram — Ahorra ~29% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM61868565",
+      "title": "Caminadora Eléctrica Plegable Con Pantalla Led 1.5hp 14 Km/h - Negro — Ahorra ~40% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "invalid": 1,
+        "other": 1
+      },
+      "rejection_samples": [
+        "El producto parece agotado o no disponible.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM69617835",
+      "title": "Arrancador De Batería 10000A 30000mAh DE Auto cargador de baterias 12v y portatil DE Inflador Inteligente 150psi Con Pan",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67134843",
+      "title": "Laptop Asus Vivobook 15 Ci5 120 16GB 512GB SSD+ Mochila y Mouse — Ahorra ~37% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "invalid": 1,
+        "other": 1
+      },
+      "rejection_samples": [
+        "El producto parece agotado o no disponible.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48434598",
+      "title": "Llave de Impacto Inalámbrica LUCKSSY de 21V y 520Nm con Motor Sin Escobillas y Juego de Herramientas de 2 Baterías — Aho",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU4148700486",
+      "title": "Silla Ejecutiva Oficina Ergonómica Escritorio Giratoria Negro Malla — Ahorra ~52% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "duplicate": 1,
+        "other": 1
+      },
+      "rejection_samples": [
+        "Oferta duplicada o muy similar a otra ya publicada recientemente.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM52937742",
+      "title": "Consola Nintendo Switch 2 256gb Bundle Internacional Mario Kart World Juego Físico — Ahorra ~25% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU3178496273",
+      "title": "Apple AirPods 4° Generación iPhone Y Android Cancelación Blanco — Ahorra ~42% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "producto engañoso",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM38176139",
+      "title": "Audífonos Anker Soundcore P30i In-ear Bluetooth Inalámbrico Cancelación De Ruido adaptativa, 45 Horas de Reproducción, S",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM66642083",
+      "title": "Pantalla Aiwa 43 Pulgadas Qled Full Hd Smart Tv Con Wifi — Ahorra ~26% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "invalid": 1,
+        "other": 1
+      },
+      "rejection_samples": [
+        "El producto parece agotado o no disponible.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM41820947",
+      "title": "Set De 6 Sillas Plegables Plástico Reforzadas Styrka Negras Color Negro SIPL02 — Ahorra ~59% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM26951515",
+      "title": "Colchón Individual Kingshouse de Memory Foam Firmeza Media en Caja — Ahorra ~45% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM74580065",
+      "title": "Celular Cubot Kingkong Es 5 Robusto Dual Sim 256 Gb Gris 12 Gb Ram (ampliable Hasta 24 Gb) 7000mah Android 16 — Ahorra ~",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM26373599",
+      "title": "Hidrolavadora Electrica Portátil Con Ruedas 1600 Psi Trent 1400w Alta Presión 60Hz Para Lavar Carros — Ahorra ~65% en Me",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM44007277",
+      "title": "Audífonos In-ear Bluetooth Para Celulares, Tablets y Laptops, Conexión Automática, Resistente al Agua y Polvo IP55, Cómo",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48469753",
+      "title": "Arrancador de Batería Xiudeen T-700 8000A con Compresor de Aire y Power Bank para Autos y Camionetas — Ahorra ~46% en Me",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM64576267",
+      "title": "VonKeep Silla Gamer Ergonómica Silla Oficina Silla Escritorio Reclinable Gaming Oficina Base Más Grande Color Roja — Aho",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM63135636",
+      "title": "Caminadora Eléctrica 6 Km Walking Pad 2 Niveles Control Remo Negro — Ahorra ~62% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47003664",
+      "title": "Mesa Plegable Blanca 1.80 m tipo Portafolio — Ahorra ~49% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM43439636",
+      "title": "Silla de Oficina Ergonómica Cuory CUOSORM3 Negra Respaldo de Malla Transpirable — Ahorra ~61% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "No es una buena oferta para publicar en Aventa.",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM75536993",
+      "title": "Control Alámbrico Gamesir G7 Pro Para Xbox Series X|s Y Xbox One, Gamepad Inalámbrico Para Pc Y Android Con Palancas Tmr",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM58085819",
+      "title": "Par De Llantas 195/65 R15 Mirage MR-166 91H — Ahorra ~26% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU2857394841",
+      "title": "Tenis Para Mujer adidas Vl adidas Court Base Entrenar Id3716 Ftwr White/core Black/grey One Liso 24 Mx — Ahorra ~29% en ",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67666199",
+      "title": "Bocina Jbl Partybox 130 Bluetooth 15h Batería Ipx4 Auracast — Ahorra ~32% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47700596",
+      "title": "Hidrolavadora Inalámbrica Electrica HIRLAN YN01 Pistola Para Lavado Autos Portatil color negro — Ahorra ~54% en Mercado ",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM67134419",
+      "title": "Laptop Asus Vivobook 16 Ultra5225H 16gb 1tbssd+ Mochila y Mouse — Ahorra ~38% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU3718229861",
+      "title": "Espejo Decorativo Touch Para Baño Con Luz Led 3 Atenuaciones — Ahorra ~75% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM40732643",
+      "title": "Kit Anti Imperfecciones Express Aclara Garnier: Limpiador Facial + Sérum Facial + Crema Hidratante Matificante — Ahorra ",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM63172085",
+      "title": "Pantalla Smart Tv Aiwa Roku 50 Pulgadas Qled 4k Ultra Hd — Ahorra ~43% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM29367002",
+      "title": "Recipientes 24 Pz Herméticos De Almacenamiento De Cocina Transparente Raganet — Ahorra ~59% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2035176986",
+      "title": "Apple AirPods Pro 3 Color Blanco Con Cancelación De Ruido (Nuevo con caja abierta) — Ahorra ~45% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48940915",
+      "title": "Parrilla De Gas Empotrable de mesa XIUDEEN XD5001G 5 quemadores de gas GN GLP aplicables cristal templado color negro — ",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM48596531",
+      "title": "Tablet Lenovo Idea Tab Pro 8GB + 256GB Teclado y pluma Verde — Ahorra ~53% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU488803900",
+      "title": "Calcetines Cortos Hombres Dama Unisex Cómodo 12 Pares Gris L — Ahorra ~60% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM68578528",
+      "title": "Laptop Asus Tuf A16 R7 170 16GB 512SSD RTX4050 — Ahorra ~36% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM62369518",
+      "title": "Pantalla Smart Tv 32 Pulgadas Tfl Android Tv Dled Bluetooth — Ahorra ~33% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM64539888",
+      "title": "VonKeep Silla Gamer Ergonómica Oficina Roja con Reposapiés y Tira LED de 5m Reclinable Giratoria Gaming Escritorio — Aho",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLMU3718209495",
+      "title": "Espejo Luz Led Touch Pared Tocador Baño Vestidor 3 Luces Rectangular Con Marco — Ahorra ~75% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM50352916",
+      "title": "Colchón Matrimonial Noite Plus Con Memory Adapt Gris — Ahorra ~58% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM45859658",
+      "title": "Laptop Lenovo Loq Core I5-12450hx 8gb Ram 512gb Rtx 3050 6gb Color Gris — Ahorra ~40% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM46689906",
+      "title": "Coolsht Mesa Plegable Tipo Portafolio Plástico Mesa Portatil 1.80m Color Blanco — Ahorra ~42% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM50224717",
+      "title": "Colchón Individual Noite Basic Con Memory Adapt Gris — Ahorra ~59% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM66836957",
+      "title": "2 Mesas Plegables Plástico Tipo Portafolio 1.80m Jardín Blanco — Ahorra ~40% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM42692829",
+      "title": "Smart TV 32\" Cuory DLED HD Android Bluetooth Netflix Disney+ — Ahorra ~44% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM58115878",
+      "title": "Roborock Q7 L5 Robot Aspiradora Y Trapeador, 8,000 Pa Negro — Ahorra ~68% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM53177027",
+      "title": "Hidrolavadora Electrica Portátil 1600 Psi 1200w Alta Presion Amarillo 60hz Para Lavar Carros — Ahorra ~61% en Mercado Li",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47589514",
+      "title": "Set de 4 SIllas Plegables Blanca — Ahorra ~55% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM58600159",
+      "title": "Silla Escritorio Ergonomica Emilia Plus Con Reposacabezas Negro Malla Transpirable — Ahorra ~55% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM59117483",
+      "title": "Recipientes Herméticos De Vidrio Almacenamiento Cocina 5 Pz. Transparente — Ahorra ~43% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 2,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 2
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout",
+        "No es una buena oferta para publicar en Aventa."
+      ],
+      "approved_count": 0,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM2026817897",
+      "title": "Audífonos Inalámbricos Wh-ch520 Color Blanco — Ahorra ~33% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "duplicate": 1
+      },
+      "rejection_samples": [
+        "Oferta duplicada o muy similar a otra ya publicada recientemente."
+      ],
+      "approved_count": 1,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM45599134",
+      "title": "Creatina Monohidratada Micronizada en Polvo Quotidien | Alta Pureza Certificada | Con Scoop Dosificador - Creatine Monoh",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 1
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 1,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM20722265",
+      "title": "Creatina monohidratada micronizada en polvo 450g — Ahorra ~40% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 1
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 1,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM47528966",
+      "title": "Jeep Montable Eléctrico Enyz BCX-6 de 12V para Niño y Niña con Control Remoto, Bluetooth y Luces Frontales Rosa Chita — ",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 1
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 1,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM29760702",
+      "title": "Autoestéreo Hivoz M99 con Pantalla Táctil de 7\" y Bluetooth para Auto — Ahorra ~58% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 1
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 1,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    },
+    {
+      "product_fingerprint": "ml:MLM27217435",
+      "title": "Estufa De Mesa/parrilla De Gas 5 Quemadores Cristal Templado Color Negro — Ahorra ~43% en Mercado Libre",
+      "appearance_count": 2,
+      "rejected_count": 1,
+      "spam_related_count": 0,
+      "rejection_buckets": {
+        "other": 1
+      },
+      "rejection_samples": [
+        "auto_rejected_timeout"
+      ],
+      "approved_count": 1,
+      "published_count": 0,
+      "subsequent_after_reject": 1
+    }
+  ],
+  "topUsefulSeeds": [
+    {
+      "key": "ml_api",
+      "candidate_count": 165,
+      "unique_products": 89,
+      "approved_rate": 0.182,
+      "published_rate": 0,
+      "spam_rate": 0.267,
+      "reject_rate": 0.8,
+      "repeat_rate": 0.36,
+      "average_discount": 35,
+      "useful_output_rate": 0.182
+    },
+    {
+      "key": "ml_worker",
+      "candidate_count": 413,
+      "unique_products": 345,
+      "approved_rate": 0.087,
+      "published_rate": 0,
+      "spam_rate": 0.002,
+      "reject_rate": 0.913,
+      "repeat_rate": 0.186,
+      "average_discount": 45,
+      "useful_output_rate": 0.087
+    }
+  ],
+  "byCategory": [
+    {
+      "key": "tecnologia",
+      "candidate_count": 223,
+      "unique_products": 147,
+      "approved_rate": 0.103,
+      "published_rate": 0,
+      "spam_rate": 0.152,
+      "reject_rate": 0.883,
+      "repeat_rate": 0.272,
+      "average_discount": 38,
+      "useful_output_rate": 0.103
+    },
+    {
+      "key": "hogar",
+      "candidate_count": 122,
+      "unique_products": 86,
+      "approved_rate": 0.033,
+      "published_rate": 0,
+      "spam_rate": 0.008,
+      "reject_rate": 0.967,
+      "repeat_rate": 0.314,
+      "average_discount": 49,
+      "useful_output_rate": 0.033
+    },
+    {
+      "key": "UNKNOWN",
+      "candidate_count": 55,
+      "unique_products": 43,
+      "approved_rate": 0.164,
+      "published_rate": 0,
+      "spam_rate": 0.036,
+      "reject_rate": 0.836,
+      "repeat_rate": 0.209,
+      "average_discount": 41,
+      "useful_output_rate": 0.164
+    },
+    {
+      "key": "belleza",
+      "candidate_count": 35,
+      "unique_products": 33,
+      "approved_rate": 0.257,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 0.743,
+      "repeat_rate": 0.061,
+      "average_discount": 45,
+      "useful_output_rate": 0.257
+    },
+    {
+      "key": "autos",
+      "candidate_count": 23,
+      "unique_products": 18,
+      "approved_rate": 0.13,
+      "published_rate": 0,
+      "spam_rate": 0.043,
+      "reject_rate": 0.87,
+      "repeat_rate": 0.278,
+      "average_discount": 45,
+      "useful_output_rate": 0.13
+    },
+    {
+      "key": "gaming",
+      "candidate_count": 23,
+      "unique_products": 19,
+      "approved_rate": 0.087,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 0.913,
+      "repeat_rate": 0.211,
+      "average_discount": 38,
+      "useful_output_rate": 0.087
+    },
+    {
+      "key": "deportes",
+      "candidate_count": 22,
+      "unique_products": 18,
+      "approved_rate": 0.182,
+      "published_rate": 0,
+      "spam_rate": 0.045,
+      "reject_rate": 0.818,
+      "repeat_rate": 0.222,
+      "average_discount": 41,
+      "useful_output_rate": 0.182
+    },
+    {
+      "key": "moda",
+      "candidate_count": 22,
+      "unique_products": 21,
+      "approved_rate": 0.182,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 0.818,
+      "repeat_rate": 0.048,
+      "average_discount": 49,
+      "useful_output_rate": 0.182
+    },
+    {
+      "key": "entretenimiento",
+      "candidate_count": 18,
+      "unique_products": 16,
+      "approved_rate": 0.278,
+      "published_rate": 0,
+      "spam_rate": 0.333,
+      "reject_rate": 0.722,
+      "repeat_rate": 0.125,
+      "average_discount": 44,
+      "useful_output_rate": 0.278
+    },
+    {
+      "key": "jardin",
+      "candidate_count": 18,
+      "unique_products": 16,
+      "approved_rate": 0.056,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 0.944,
+      "repeat_rate": 0.125,
+      "average_discount": 46,
+      "useful_output_rate": 0.056
+    },
+    {
+      "key": "supermercado",
+      "candidate_count": 11,
+      "unique_products": 11,
+      "approved_rate": 0.182,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 0.818,
+      "repeat_rate": 0,
+      "average_discount": 37,
+      "useful_output_rate": 0.182
+    },
+    {
+      "key": "viajes",
+      "candidate_count": 5,
+      "unique_products": 5,
+      "approved_rate": 0,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 1,
+      "repeat_rate": 0,
+      "average_discount": 38,
+      "useful_output_rate": 0
+    },
+    {
+      "key": "bebes",
+      "candidate_count": 1,
+      "unique_products": 1,
+      "approved_rate": 0,
+      "published_rate": 0,
+      "spam_rate": 0,
+      "reject_rate": 1,
+      "repeat_rate": 0,
+      "average_discount": 31,
+      "useful_output_rate": 0
+    }
+  ],
+  "bySeed": [
+    {
+      "key": "ml_worker",
+      "candidate_count": 413,
+      "unique_products": 345,
+      "approved_rate": 0.087,
+      "published_rate": 0,
+      "spam_rate": 0.002,
+      "reject_rate": 0.913,
+      "repeat_rate": 0.186,
+      "average_discount": 45,
+      "useful_output_rate": 0.087
+    },
+    {
+      "key": "ml_api",
+      "candidate_count": 165,
+      "unique_products": 89,
+      "approved_rate": 0.182,
+      "published_rate": 0,
+      "spam_rate": 0.267,
+      "reject_rate": 0.8,
+      "repeat_rate": 0.36,
+      "average_discount": 35,
+      "useful_output_rate": 0.182
+    }
+  ],
+  "bySource": [
+    {
+      "key": "UNKNOWN",
+      "candidate_count": 578,
+      "unique_products": 434,
+      "approved_rate": 0.114,
+      "published_rate": 0,
+      "spam_rate": 0.078,
+      "reject_rate": 0.881,
+      "repeat_rate": 0.221,
+      "average_discount": 42,
+      "useful_output_rate": 0.114
+    }
+  ],
+  "byHubLightning": [
+    {
+      "key": "other_seed",
+      "candidate_count": 578,
+      "unique_products": 434,
+      "approved_rate": 0.114,
+      "published_rate": 0,
+      "spam_rate": 0.078,
+      "reject_rate": 0.881,
+      "repeat_rate": 0.221,
+      "average_discount": 42,
+      "useful_output_rate": 0.114
+    }
+  ],
+  "spamReportByFpTop30": [],
+  "outcomeBuckets": {
+    "spam": 56,
+    "invalid": 18,
+    "other": 139,
+    "duplicate": 9
+  },
+  "outcomeRawTop30": [
+    {
+      "reason": "No es una buena oferta para publicar en Aventa.",
+      "n": 113
+    },
+    {
+      "reason": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitid",
+      "n": 56
+    },
+    {
+      "reason": "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+      "n": 24
+    },
+    {
+      "reason": "El producto parece agotado o no disponible.",
+      "n": 18
+    },
+    {
+      "reason": "Oferta duplicada o muy similar a otra ya publicada recientemente.",
+      "n": 9
+    },
+    {
+      "reason": "Estafa",
+      "n": 1
+    },
+    {
+      "reason": "producto engañoso",
+      "n": 1
+    }
+  ],
+  "familySignals": {
+    "product_fingerprint_ml_item": "HIGH — primary dedupe key",
+    "catalog_p_path": "PARTIAL — may appear in URL; not separate DB column for family join",
+    "seller": "UNKNOWN/LOW in offers sample — check bot_meta.signals if present",
+    "variation": "UNKNOWN — no dedicated column observed in select",
+    "sku": "UNKNOWN",
+    "gtin": "UNKNOWN",
+    "title": "EXISTS — free text; no similarity index",
+    "image": "EXISTS on offers typically — not used for family matching"
+  }
+}

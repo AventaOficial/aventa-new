@@ -247,14 +247,22 @@ export function createInMemoryDealPublicationRepository(): DealPublicationReposi
   };
 }
 
-export function createInMemoryAffiliateRevenueLedger(): AffiliateRevenueLedgerPort {
+export function createInMemoryAffiliateRevenueLedger(): AffiliateRevenueLedgerPort & {
+  size(): number;
+  /** Test-only: mutación prohibida. */
+  tryMutate(eventId: string): Promise<never>;
+  all(): readonly AffiliateRevenueEvent[];
+} {
   const byEventId = new Map<string, AffiliateRevenueEvent>();
+  const withKeyLock = createKeyedMutex();
 
   return {
     async append(event: AffiliateRevenueEvent) {
-      if (byEventId.has(event.eventId)) return { appended: false, duplicate: true };
-      byEventId.set(event.eventId, event);
-      return { appended: true, duplicate: false };
+      return withKeyLock(event.eventId, async () => {
+        if (byEventId.has(event.eventId)) return { appended: false, duplicate: true };
+        byEventId.set(event.eventId, event);
+        return { appended: true, duplicate: false };
+      });
     },
     async findByEventId(eventId: string) {
       return byEventId.get(eventId) ?? null;
@@ -262,6 +270,27 @@ export function createInMemoryAffiliateRevenueLedger(): AffiliateRevenueLedgerPo
     async listByDealId(dealId: string, limit: number) {
       const safeLimit = Math.max(1, Math.min(limit, 500));
       return [...byEventId.values()].filter((e) => e.dealId === dealId).slice(0, safeLimit);
+    },
+    async listByExternalReference(network, externalReference, limit) {
+      const safeLimit = Math.max(1, Math.min(limit, 500));
+      return [...byEventId.values()]
+        .filter((e) => e.network === network && e.externalReference === externalReference)
+        .slice(0, safeLimit);
+    },
+    async listByTrackingLabel(trackingLabel, limit) {
+      const safeLimit = Math.max(1, Math.min(limit, 500));
+      return [...byEventId.values()]
+        .filter((e) => e.trackingLabel === trackingLabel)
+        .slice(0, safeLimit);
+    },
+    size() {
+      return byEventId.size;
+    },
+    async tryMutate() {
+      throw new Error('caza.revenue_ledger.append_only:mutate_forbidden');
+    },
+    all() {
+      return [...byEventId.values()];
     },
   };
 }

@@ -1,0 +1,29 @@
+
+ RUN  v4.1.2 E:/AVENTA NEW/aventa-new
+
+·······························x······················
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/rewards/configAndEngine.test.ts > createRewardFromLedgerEntry — programa inactivo > no crea recompensa cuando REWARDS_PROGRAM_ACTIVE está ausente (aunque COMMISSION=true)
+AssertionError: expected 'money_path_frozen' to be 'program_inactive' // Object.is equality
+
+Expected: "program_inactive"
+Received: "money_path_frozen"
+
+ ❯ tests/rewards/configAndEngine.test.ts:103:48
+    101|     });
+    102|     expect(result.created).toBe(false);
+    103|     if (!result.created) expect(result.reason).toBe('program_inactive'…
+       |                                                ^
+    104|   });
+    105| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  1 failed | 53 passed (54)
+   Start at  10:29:03
+   Duration  4.31s (transform 1.13s, setup 0ms, import 1.65s, tests 92ms, environment 1ms)
+

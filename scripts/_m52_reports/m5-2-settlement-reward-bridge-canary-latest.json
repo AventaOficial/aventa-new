@@ -1,0 +1,283 @@
+{
+  "ok": true,
+  "campaign": "M5.2_settlement_reward_bridge_e2e",
+  "tag": "m52_1789844990986",
+  "realMoney": false,
+  "forbiddenRewardUnused": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "precheck": {
+    "moneyFrozen": true,
+    "rewardsOff": true,
+    "commissionOff": true,
+    "settlementOff": true
+  },
+  "countsBefore": {
+    "creator_rewards": 37,
+    "reward_payouts": 0,
+    "payout_intents": 36,
+    "ledger_settlements": 1
+  },
+  "prodBefore": null,
+  "fixtures": {
+    "ok": true,
+    "creatorId": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "clickerId": "d0903a8f-2e68-4d8a-b66a-59c18afc1b09",
+    "offerId": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278"
+  },
+  "chain": {
+    "ok": true,
+    "reason": null,
+    "clickId": "6ec4c54d-45d8-4be2-8ee7-a2b8c092b52b",
+    "conversionId": "7b3075b9-881e-43bf-aaf9-2e084ecf2d6e",
+    "commissionId": "0ef03e60-63ba-4d1e-a233-5fd66681a59c",
+    "ledgerEntryId": "6066a4be-e320-42be-a1db-fc92395299f1",
+    "ledgerAttribution": {
+      "click_id": "6ec4c54d-45d8-4be2-8ee7-a2b8c092b52b",
+      "offer_id": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+      "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+      "attributable": true,
+      "attribution_method": "sub_id",
+      "attribution_confidence": "high",
+      "tracking_tag": "av1.f5b35c36-4c59-42a8-bd62-1b3ba8b7a278.6ec4c54d-45d8-4be2-8ee7-a2b8c092b52b",
+      "amount_cents": 2500,
+      "currency": "MXN"
+    }
+  },
+  "negativeControl": {
+    "ledgerEntryId": "6066a4be-e320-42be-a1db-fc92395299f1",
+    "outcome": "deferred",
+    "reason": "money_path_frozen",
+    "attempt": 1,
+    "rewardId": null,
+    "commissionId": "0ef03e60-63ba-4d1e-a233-5fd66681a59c",
+    "terminal": false
+  },
+  "positive": {
+    "ledgerEntryId": "6066a4be-e320-42be-a1db-fc92395299f1",
+    "outcome": "created",
+    "reason": "created",
+    "attempt": 2,
+    "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+    "commissionId": "0ef03e60-63ba-4d1e-a233-5fd66681a59c",
+    "terminal": true
+  },
+  "reward": {
+    "id": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+    "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "offer_id": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+    "ledger_entry_id": "6066a4be-e320-42be-a1db-fc92395299f1",
+    "status": "VALIDATING",
+    "gross_commission_cents": 2500,
+    "creator_share_cents": 1000,
+    "currency": "MXN"
+  },
+  "rewardOk": true,
+  "ledgerSettlements": 1,
+  "rewardCreatedAudit": 1,
+  "idempotencyReplay": {
+    "ledgerEntryId": "6066a4be-e320-42be-a1db-fc92395299f1",
+    "outcome": "created",
+    "reason": "created",
+    "attempt": 2,
+    "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+    "commissionId": "0ef03e60-63ba-4d1e-a233-5fd66681a59c",
+    "terminal": true
+  },
+  "concurrent": [
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    },
+    {
+      "outcome": "created",
+      "reason": "created",
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "terminal": true
+    }
+  ],
+  "concurrentCounts": {
+    "rewardCount": 1,
+    "settlementCount": 1
+  },
+  "reconChain": {
+    "ok": true,
+    "reason": null,
+    "ledgerEntryId": "9f21c412-5085-4607-945e-67928191c1b5"
+  },
+  "reconcile": {
+    "scanned": 2,
+    "attempted": 1,
+    "created": 1,
+    "duplicate": 0,
+    "results": [
+      {
+        "outcome": "created",
+        "reason": "created",
+        "rewardId": "55f0cb32-4573-4cc5-81ad-159e479a924e"
+      }
+    ]
+  },
+  "reconCounts": {
+    "reconRewardCount": 1,
+    "reconSettlementCount": 1
+  },
+  "anonChain": {
+    "ok": true,
+    "reason": null,
+    "ledgerEntryId": "5f6d5804-dc81-4d67-ade9-151aa35aece6"
+  },
+  "terminalAnonymous": {
+    "ledgerEntryId": "5f6d5804-dc81-4d67-ade9-151aa35aece6",
+    "outcome": "rejected",
+    "reason": "anonymous_click_not_auto_rewardable",
+    "attempt": 1,
+    "rewardId": null,
+    "commissionId": "36dfd0ba-4945-4152-bd70-6d96b2f05ef1",
+    "terminal": true
+  },
+  "anonReconcileRetried": false,
+  "nonParticipatingOffer": {
+    "offerId": "b67861db-12dc-451a-8092-2986b827e3cc",
+    "participating": false
+  },
+  "npChain": {
+    "ok": true,
+    "reason": null,
+    "ledgerEntryId": "73a9efb4-662b-4463-b462-6fd0412ef838"
+  },
+  "terminalNonParticipating": {
+    "ledgerEntryId": "73a9efb4-662b-4463-b462-6fd0412ef838",
+    "outcome": "rejected",
+    "reason": "offer_not_participating",
+    "attempt": 1,
+    "rewardId": null,
+    "commissionId": "94f86acf-e076-48ad-a121-8d76f4a2bcb7",
+    "terminal": true
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "countsAfter": {
+    "creator_rewards": 39,
+    "reward_payouts": 0,
+    "payout_intents": 36,
+    "ledger_settlements": 3
+  },
+  "payoutIntact": true,
+  "prodIntact": "skipped_no_prod_key",
+  "rewardDelta": 2,
+  "evidence": {
+    "settlementToLedger": "6066a4be-e320-42be-a1db-fc92395299f1",
+    "bridgeAttempt": {
+      "ledgerEntryId": "6066a4be-e320-42be-a1db-fc92395299f1",
+      "outcome": "created",
+      "reason": "created",
+      "attempt": 2,
+      "rewardId": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+      "commissionId": "0ef03e60-63ba-4d1e-a233-5fd66681a59c",
+      "terminal": true
+    },
+    "creatorReward": "5323f1aa-6197-4ea1-9fbd-3158b907dc4e",
+    "reconcileRewardLedger": "9f21c412-5085-4607-945e-67928191c1b5"
+  },
+  "flagsFinal": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

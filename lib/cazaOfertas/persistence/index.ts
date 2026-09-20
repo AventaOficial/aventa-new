@@ -8,3 +8,6 @@ export * from './supabaseClient';
 export * from './postgresDealCandidateRepository';
 export * from './postgresPublicationRepository';
 export * from './postgresRevenueRepository';
+export * from './postgresRevenueAttributionRepository';
+export * from './affiliateMappingMappers';
+export * from './postgresAffiliateMappingRepository';

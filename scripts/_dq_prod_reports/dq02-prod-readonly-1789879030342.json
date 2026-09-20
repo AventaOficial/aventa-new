@@ -1,0 +1,111 @@
+{
+  "meta": {
+    "phase": "DISCOVERY_QUALITY_02",
+    "environment": "production",
+    "supabaseRef": "mkgsrpsuvedwwlzmzmzh",
+    "readOnly": true,
+    "bounded": {
+      "MAX_OFFER_ROWS": 12000,
+      "offersFetched": 0,
+      "MAX_OUTCOMES": 8000,
+      "outcomesFetched": 222,
+      "MAX_REPORTS": 5000,
+      "spamReportsFetched": 0
+    },
+    "at": "2026-09-20T04:37:10.340Z",
+    "errors": [
+      "offers:column offers.discount_percent does not exist"
+    ],
+    "note": "Sample is the most recent ml:* offers up to cap, not necessarily all-time full table."
+  },
+  "availability": {
+    "offers_ml_rows": 0,
+    "unique_fingerprints": 0,
+    "capped": false,
+    "spam_reports_ml_linked": 0,
+    "moderation_outcomes_rejects": 222,
+    "seed_known_share": 0,
+    "card_source_known_share": 0
+  },
+  "statusFunnel": {},
+  "concentration": {
+    "products_for_80pct_appearances": 0,
+    "pct_of_unique_products": null,
+    "is_pareto_80_20": false
+  },
+  "repeaterClasses": {},
+  "quantitative": {
+    "q1_pct_offer_rows_from_repeated_products": null,
+    "q1b_pct_unique_products_that_repeat": null,
+    "q2_pct_repeated_products_with_any_reject": null,
+    "q3_pct_repeated_products_with_approve_or_publish": null,
+    "q4_products_rejected_then_reappeared": 0,
+    "q5_products_with_subsequent_rejection_after_first": 0,
+    "q5b_products_with_rejected_count_ge_2": 0,
+    "q6_top_seeds_by_repeat_rate": [],
+    "q7_top_seeds_by_useful_output": [],
+    "q8_top_categories": [],
+    "q9_pdp_correlation": [],
+    "q10_bottleneck_data_hint": {
+      "rows_from_repeats_pct": null,
+      "never_approved_repeaters": 0,
+      "seed_unknown_pct": 100,
+      "card_unknown_pct": 100
+    }
+  },
+  "spamRecurrenceTop50": [],
+  "top100Repeated": [],
+  "top100RejectedSpam": [],
+  "topUsefulSeeds": [],
+  "byCategory": [],
+  "bySeed": [],
+  "bySource": [],
+  "byHubLightning": [],
+  "spamReportByFpTop30": [],
+  "outcomeBuckets": {
+    "spam": 56,
+    "invalid": 18,
+    "other": 139,
+    "duplicate": 9
+  },
+  "outcomeRawTop30": [
+    {
+      "reason": "No es una buena oferta para publicar en Aventa.",
+      "n": 113
+    },
+    {
+      "reason": "Contenido que no cumple las normas de la comunidad (spam o promoción no permitid",
+      "n": 56
+    },
+    {
+      "reason": "El precio o el descuento resulta engañoso o no coincide con el enlace.",
+      "n": 24
+    },
+    {
+      "reason": "El producto parece agotado o no disponible.",
+      "n": 18
+    },
+    {
+      "reason": "Oferta duplicada o muy similar a otra ya publicada recientemente.",
+      "n": 9
+    },
+    {
+      "reason": "Estafa",
+      "n": 1
+    },
+    {
+      "reason": "producto engañoso",
+      "n": 1
+    }
+  ],
+  "familySignals": {
+    "product_fingerprint_ml_item": "HIGH — primary dedupe key",
+    "catalog_p_path": "PARTIAL — may appear in URL; not separate DB column for family join",
+    "seller": "UNKNOWN/LOW in offers sample — check bot_meta.signals if present",
+    "variation": "UNKNOWN — no dedicated column observed in select",
+    "sku": "UNKNOWN",
+    "gtin": "UNKNOWN",
+    "title": "EXISTS — free text; no similarity index",
+    "image": "EXISTS on offers typically — not used for family matching"
+  }
+}

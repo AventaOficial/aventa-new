@@ -37,6 +37,12 @@ export {
   type SettlementStagingCanaryRejectReason,
 } from './stagingCanary';
 export {
+  projectLedgerAttributionFromEvidence,
+  resolveSettlementLedgerAttribution,
+  EMPTY_LEDGER_ATTRIBUTION,
+  type LedgerAttributionProjection,
+} from './projectLedgerAttribution';
+export {
   buildSettlementReversalContract,
   emitSettlementReversalRequired,
 } from './reversalContract';

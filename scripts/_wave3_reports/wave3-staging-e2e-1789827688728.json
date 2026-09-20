@@ -1,0 +1,162 @@
+{
+  "ok": false,
+  "mode": "execute",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "authorIdPrefix": "778cfbf5",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+    "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "(unset)",
+    "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "baseline": {
+    "counts": {
+      "offers": 29,
+      "distribution_publications": 19,
+      "distribution_events": 132,
+      "reward_outbound_clicks": 5,
+      "affiliate_conversions": 0,
+      "affiliate_commissions": 0,
+      "affiliate_ledger_entries": 0,
+      "creator_rewards": 0,
+      "offers_pending": 16
+    },
+    "na": []
+  },
+  "candidateUrl": "https://articulo.mercadolibre.com.mx/MLM27688728-wave3-e2e",
+  "seams": {
+    "S8→S9": {
+      "seam": "S8→S9",
+      "ok": true,
+      "code": "ELIGIBLE",
+      "identity": {
+        "url": "https://articulo.mercadolibre.com.mx/MLM27688728-wave3-e2e",
+        "fingerprint": "ml:MLM27688728",
+        "s8": "OPPORTUNITY"
+      },
+      "notes": [
+        "s8_opportunity",
+        "policy_pass"
+      ]
+    },
+    "S9→S7": {
+      "seam": "S9→S7",
+      "ok": true,
+      "code": "WRITE_OK",
+      "identity": {
+        "url": "https://articulo.mercadolibre.com.mx/MLM27688728-wave3-e2e",
+        "offerId": "c8475ad9-5165-4176-8824-ee41c8356579"
+      },
+      "notes": []
+    },
+    "S7→Moderation": {
+      "seam": "S7→Moderation",
+      "ok": true,
+      "code": "approved",
+      "identity": {
+        "offerId": "c8475ad9-5165-4176-8824-ee41c8356579"
+      },
+      "notes": []
+    },
+    "Mod→Dist": {
+      "seam": "Mod→Dist",
+      "ok": true,
+      "code": "ENQUEUED",
+      "identity": {
+        "offerId": "c8475ad9-5165-4176-8824-ee41c8356579"
+      },
+      "notes": []
+    },
+    "Dist→Click": {
+      "seam": "Dist→Click",
+      "ok": true,
+      "code": "CLICK_RECORDED",
+      "identity": {
+        "offerId": "c8475ad9-5165-4176-8824-ee41c8356579",
+        "clickId": "75cbc046-9bd8-436b-91ee-ab36e02708d3"
+      },
+      "notes": []
+    }
+  },
+  "settlement": "OFF_by_design",
+  "rewards": "OFF_by_design",
+  "offerId": "c8475ad9-5165-4176-8824-ee41c8356579",
+  "clickId": "75cbc046-9bd8-436b-91ee-ab36e02708d3",
+  "moneyFoundationSchema": {
+    "available": false,
+    "error": "Could not find the table 'public.affiliate_conversions' in the schema cache",
+    "blocker": "affiliate_conversions missing on staging — proven through Click. Do not invent DDL here."
+  },
+  "anomaly": "money_foundation_schema_missing",
+  "partialPass": {
+    "through": "Dist→Click",
+    "seamsOk": [
+      "S8→S9",
+      "S9→S7",
+      "S7→Moderation",
+      "Mod→Dist",
+      "Dist→Click"
+    ],
+    "blocked": [
+      "Click→Conversion",
+      "Conv→Commission",
+      "Comm→Settlement"
+    ]
+  },
+  "after": {
+    "counts": {
+      "offers": 30,
+      "distribution_publications": 20,
+      "distribution_events": 138,
+      "reward_outbound_clicks": 6,
+      "affiliate_conversions": 0,
+      "affiliate_commissions": 0,
+      "affiliate_ledger_entries": 0,
+      "creator_rewards": 0,
+      "offers_pending": 16
+    },
+    "na": []
+  },
+  "deltas": {
+    "offers": 1,
+    "distribution_publications": 1,
+    "distribution_events": 6,
+    "reward_outbound_clicks": 1,
+    "affiliate_conversions": 0,
+    "affiliate_commissions": 0,
+    "affiliate_ledger_entries": 0,
+    "creator_rewards": 0,
+    "offers_pending": 0
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

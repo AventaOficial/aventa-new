@@ -1,0 +1,154 @@
+{
+  "ok": true,
+  "mode": "execute",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "authorIdPrefix": "778cfbf5",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+    "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "(unset)",
+    "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "baseline": {
+    "counts": {
+      "offers": 25,
+      "distribution_publications": 15,
+      "distribution_events": 108,
+      "reward_outbound_clicks": 1,
+      "affiliate_conversions": 0,
+      "affiliate_commissions": 0,
+      "affiliate_ledger_entries": 0,
+      "creator_rewards": 0,
+      "offers_pending": 16
+    },
+    "na": []
+  },
+  "candidateUrl": "https://articulo.mercadolibre.com.mx/MLM27334625-wave3-e2e",
+  "seams": {
+    "S8→S9": {
+      "seam": "S8→S9",
+      "ok": true,
+      "code": "ELIGIBLE",
+      "identity": {
+        "url": "https://articulo.mercadolibre.com.mx/MLM27334625-wave3-e2e",
+        "fingerprint": "ml:MLM27334625",
+        "s8": "OPPORTUNITY"
+      },
+      "notes": [
+        "s8_opportunity",
+        "policy_pass"
+      ]
+    },
+    "S9→S7": {
+      "seam": "S9→S7",
+      "ok": true,
+      "code": "WRITE_OK",
+      "identity": {
+        "url": "https://articulo.mercadolibre.com.mx/MLM27334625-wave3-e2e",
+        "offerId": "6a992427-a1ac-4c8d-a796-64d88e9cfce2"
+      },
+      "notes": []
+    },
+    "S7→Moderation": {
+      "seam": "S7→Moderation",
+      "ok": true,
+      "code": "approved",
+      "identity": {
+        "offerId": "6a992427-a1ac-4c8d-a796-64d88e9cfce2"
+      },
+      "notes": []
+    },
+    "Mod→Dist": {
+      "seam": "Mod→Dist",
+      "ok": true,
+      "code": "ENQUEUED",
+      "identity": {
+        "offerId": "6a992427-a1ac-4c8d-a796-64d88e9cfce2"
+      },
+      "notes": []
+    },
+    "Dist→Click": {
+      "seam": "Dist→Click",
+      "ok": true,
+      "code": "CLICK_RECORDED",
+      "identity": {
+        "offerId": "6a992427-a1ac-4c8d-a796-64d88e9cfce2",
+        "clickId": "8b833c30-f1e2-4377-adb7-f1f7e11a19f4"
+      },
+      "notes": []
+    },
+    "Click→Conversion": {
+      "seam": "Click→Conversion",
+      "ok": false,
+      "code": "CONVERSION_FAILED",
+      "identity": {
+        "clickId": "8b833c30-f1e2-4377-adb7-f1f7e11a19f4",
+        "offerId": "6a992427-a1ac-4c8d-a796-64d88e9cfce2",
+        "conversionId": null,
+        "attribution": "attributed"
+      },
+      "notes": []
+    }
+  },
+  "settlement": "OFF_by_design",
+  "rewards": "OFF_by_design",
+  "offerId": "6a992427-a1ac-4c8d-a796-64d88e9cfce2",
+  "clickId": "8b833c30-f1e2-4377-adb7-f1f7e11a19f4",
+  "conversionId": null,
+  "after": {
+    "counts": {
+      "offers": 26,
+      "distribution_publications": 16,
+      "distribution_events": 114,
+      "reward_outbound_clicks": 2,
+      "affiliate_conversions": 0,
+      "affiliate_commissions": 0,
+      "affiliate_ledger_entries": 0,
+      "creator_rewards": 0,
+      "offers_pending": 16
+    },
+    "na": []
+  },
+  "deltas": {
+    "offers": 1,
+    "distribution_publications": 1,
+    "distribution_events": 6,
+    "reward_outbound_clicks": 1,
+    "affiliate_conversions": 0,
+    "affiliate_commissions": 0,
+    "affiliate_ledger_entries": 0,
+    "creator_rewards": 0,
+    "offers_pending": 0
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

@@ -1,0 +1,10 @@
+
+ RUN  v4.1.2 E:/AVENTA NEW/aventa-new
+
+······················································································
+
+ Test Files  8 passed (8)
+      Tests  86 passed (86)
+   Start at  10:42:51
+   Duration  5.13s (transform 4.54s, setup 0ms, import 7.05s, tests 210ms, environment 3ms)
+

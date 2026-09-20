@@ -1,0 +1,145 @@
+{
+  "ok": false,
+  "campaign": "M3.1",
+  "stagingRef": "oojshofrpbfwsiypcecr",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "stagingBefore": {
+    "creator_rewards": 0,
+    "reward_payouts": 0,
+    "ledger_settlements": 0,
+    "reward_audit_log": 0,
+    "affiliate_ledger_entries": 1,
+    "affiliate_commissions": 1,
+    "affiliate_conversions": 2,
+    "reward_outbound_clicks": 8
+  },
+  "prodBefore": null,
+  "negativeControl": {
+    "ok": true,
+    "result": {
+      "created": false,
+      "reason": "ambiguous_or_no_click"
+    },
+    "before": {
+      "cr": 0,
+      "rp": 0,
+      "ls": 0
+    },
+    "after": {
+      "cr": 0,
+      "rp": 0,
+      "ls": 0
+    },
+    "ledgerAttribution": {
+      "creator_id": null,
+      "offer_id": null,
+      "click_id": null,
+      "attributable": false,
+      "attribution_method": "none"
+    }
+  },
+  "realAttributableCanary": {
+    "ok": true,
+    "phase": "complete",
+    "offerId": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+    "creatorId": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "clickerId": "11a10a37-9c9f-49ed-ac54-945ff8eb1e43",
+    "clickId": "26ce648d-7720-4138-a151-c73ba1bdffa1",
+    "conversionId": "271f0e37-fe04-497f-8881-90d0d9f43b30",
+    "attributionStatus": "attributed",
+    "commissionId": "f2c839e7-16e3-4052-98c4-5f2a712556f5",
+    "ledgerEntryId": "20ab91e6-28e6-4ead-b0b4-6db76ebc857f",
+    "ledgerHasAttributionEvidence": false,
+    "ledgerSnapshot": {
+      "id": "20ab91e6-28e6-4ead-b0b4-6db76ebc857f",
+      "click_id": null,
+      "offer_id": null,
+      "creator_id": null,
+      "tracking_tag": null,
+      "metaKeys": [
+        "settlement"
+      ],
+      "amount_cents": 2500,
+      "status": "accrued",
+      "network": "amazon"
+    },
+    "conversionRow": {
+      "id": "271f0e37-fe04-497f-8881-90d0d9f43b30",
+      "click_id": "26ce648d-7720-4138-a151-c73ba1bdffa1",
+      "offer_id": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278",
+      "attribution_status": "attributed"
+    },
+    "subIdPresentOnClickPath": true
+  },
+  "rewardResult": {
+    "ok": false,
+    "result": {
+      "created": false,
+      "reason": "ambiguous_or_no_click"
+    },
+    "before": {
+      "cr": 0,
+      "rp": 0,
+      "ls": 0
+    },
+    "after": {
+      "cr": 0,
+      "rp": 0,
+      "ls": 0
+    },
+    "reward": null,
+    "ledgerSettlementsForLedger": 0,
+    "expectedCreatorShare": 1000
+  },
+  "reason": "phase_c_failed:ambiguous_or_no_click",
+  "blocker": {
+    "kind": "settlement_ledger_missing_attribution_evidence",
+    "detail": "settleCommission writes ledger meta.settlement only; no click_id/offer_id/tracking_tag/ascsubtag. createRewardFromLedgerEntry → resolveCommissionAttribution returns no_evidence. Conversion row HAS click_id/offer_id but matcher does not join commission→conversion.",
+    "ledgerHasAttributionEvidence": false,
+    "conversionHasClick": true,
+    "expectedReason": "no_evidence",
+    "actualReason": "ambiguous_or_no_click"
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "stagingAfter": {
+    "creator_rewards": 0,
+    "reward_payouts": 0,
+    "ledger_settlements": 0,
+    "reward_audit_log": 3,
+    "affiliate_ledger_entries": 2,
+    "affiliate_commissions": 2,
+    "affiliate_conversions": 3,
+    "reward_outbound_clicks": 9
+  },
+  "prodNote": "production service key unavailable — skipped live prod count (read-only intent preserved)"
+}

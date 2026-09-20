@@ -1,0 +1,129 @@
+{
+  "ok": true,
+  "target": "staging",
+  "ref": "oojshofrpbfwsiypcecr",
+  "productionRefUntouched": "mkgsrpsuvedwwlzmzmzh",
+  "at": "2026-09-19T14:43:59.402Z",
+  "results": [
+    {
+      "table": "reward_outbound_clicks",
+      "headCount": 6,
+      "headError": null,
+      "headCode": null,
+      "selectError": null,
+      "selectCode": null,
+      "insertError": "Could not find the '__wave31_probe' column of 'reward_outbound_clicks' in the schema cache",
+      "insertCode": "PGRST204",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_ledger_entries",
+      "headCount": 0,
+      "headError": null,
+      "headCode": null,
+      "selectError": null,
+      "selectCode": null,
+      "insertError": "Could not find the '__wave31_probe' column of 'affiliate_ledger_entries' in the schema cache",
+      "insertCode": "PGRST204",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_conversions",
+      "headCount": 0,
+      "headError": null,
+      "headCode": null,
+      "selectError": null,
+      "selectCode": null,
+      "insertError": "Could not find the '__wave31_probe' column of 'affiliate_conversions' in the schema cache",
+      "insertCode": "PGRST204",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_commissions",
+      "headCount": 0,
+      "headError": null,
+      "headCode": null,
+      "selectError": null,
+      "selectCode": null,
+      "insertError": "Could not find the '__wave31_probe' column of 'affiliate_commissions' in the schema cache",
+      "insertCode": "PGRST204",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_economic_events",
+      "headCount": 0,
+      "headError": null,
+      "headCode": null,
+      "selectError": null,
+      "selectCode": null,
+      "insertError": "Could not find the '__wave31_probe' column of 'affiliate_economic_events' in the schema cache",
+      "insertCode": "PGRST204",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_commission_revisions",
+      "headCount": null,
+      "headError": null,
+      "headCode": null,
+      "selectError": "Could not find the table 'public.affiliate_commission_revisions' in the schema cache",
+      "selectCode": "PGRST205",
+      "insertError": "Could not find the table 'public.affiliate_commission_revisions' in the schema cache",
+      "insertCode": "PGRST205",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_reconciliation_runs",
+      "headCount": null,
+      "headError": null,
+      "headCode": null,
+      "selectError": "Could not find the table 'public.affiliate_reconciliation_runs' in the schema cache",
+      "selectCode": "PGRST205",
+      "insertError": "Could not find the table 'public.affiliate_reconciliation_runs' in the schema cache",
+      "insertCode": "PGRST205",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "affiliate_reconciliation_findings",
+      "headCount": null,
+      "headError": null,
+      "headCode": null,
+      "selectError": "Could not find the table 'public.affiliate_reconciliation_findings' in the schema cache",
+      "selectCode": "PGRST205",
+      "insertError": "Could not find the table 'public.affiliate_reconciliation_findings' in the schema cache",
+      "insertCode": "PGRST205",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "creator_rewards",
+      "headCount": null,
+      "headError": null,
+      "headCode": null,
+      "selectError": "Could not find the table 'public.creator_rewards' in the schema cache",
+      "selectCode": "PGRST205",
+      "insertError": "Could not find the table 'public.creator_rewards' in the schema cache",
+      "insertCode": "PGRST205",
+      "schemaMissing": true,
+      "existsLikely": false
+    },
+    {
+      "table": "ledger_settlements",
+      "headCount": null,
+      "headError": null,
+      "headCode": null,
+      "selectError": "Could not find the table 'public.ledger_settlements' in the schema cache",
+      "selectCode": "PGRST205",
+      "insertError": "Could not find the table 'public.ledger_settlements' in the schema cache",
+      "insertCode": "PGRST205",
+      "schemaMissing": true,
+      "existsLikely": false
+    }
+  ]
+}

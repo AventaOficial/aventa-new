@@ -559,14 +559,17 @@ describe('FASE 11 shadow calibration', () => {
     }
     expect(src('app/api/admin/moderate-offer/route.ts')).toMatch(/captureHumanModerationOutcome/);
     expect(src('app/api/admin/moderate-offer/route.ts')).toMatch(/\.eq\('status', 'pending'\)/);
-    expect(src('lib/bots/ingest/runIngestCycle.ts')).toMatch(/recordShadowOutcomeFromAutonomous/);
+    // S9.1: legacy ingest is discovery-only; shadow outcome on mint lives in externalWorker / S9.
+    expect(src('lib/bots/ingest/runIngestCycle.ts')).toMatch(/discovery_only|S91_DISCOVERY_ONLY/);
+    expect(src('lib/bots/ingest/runIngestCycle.ts')).not.toMatch(/insertIngestedOffer\s*\(/);
+    expect(src('lib/bots/ingest/externalWorker.ts')).toMatch(/recordShadowOutcomeFromAutonomous/);
     expect(loadBotIngestConfig().legacyAutoApproveWriteEnabled).toBe(false);
     expect(DEAL_VERIFIER_THRESHOLDS.absurdDiscountCap).toBe(85);
     expect(AUTONOMOUS_POLICY_V1.minAutoApproveConfidence).toBe(0.7);
   });
 
   it('26. no cambia thresholds y wiring no re-decide', () => {
-    expect(src('lib/bots/ingest/runIngestCycle.ts')).toMatch(/recordShadowOutcomeFromAutonomous/);
+    expect(src('lib/bots/ingest/runIngestCycle.ts')).toMatch(/discovery_only|S91_DISCOVERY_ONLY/);
     expect(src('lib/bots/ingest/externalWorker.ts')).toMatch(/recordShadowOutcomeFromAutonomous/);
     expect(src('lib/bots/ingest/runIngestCycle.ts')).not.toMatch(/decideAutonomous\(/);
     expect(src('lib/bots/ingest/insertIngestedOffer.ts')).not.toMatch(/hunter_shadow_outcomes/);

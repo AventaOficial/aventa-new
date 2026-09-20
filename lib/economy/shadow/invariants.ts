@@ -25,7 +25,7 @@ export const MONEY_SYSTEM_PRESENT_INVARIANTS = [
  */
 export const MONEY_SYSTEM_MISSING_INVARIANTS = [
   'settlement_bridge_runtime_OFF: SETTLEMENT_BRIDGE_ENABLED default false (M1 code present)',
-  'no_auto_ledger→reward bridge (createRewardFromLedgerEntry not called by settleCommission)',
+  'ledger→reward auto-bridge owned by processLedgerRewardAttempt/reconcile (settleCommission still never calls createRewardFromLedgerEntry)',
   'no_currency_match CHECK between conversion.currency and commission.currency (app-level)',
   'no_COMMISSION_SETTLED status column (settlement is bridge/events, not commission enum)',
   'no_live_affiliate_network_ingest confirmation authority (adapters not_connected)',

@@ -1,0 +1,177 @@
+{
+  "ok": true,
+  "campaign": "M4.2_legacy_spei_behind_intent",
+  "tag": "m42_canary_1789839195057",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "false",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "false",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "false",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "doNotTouchReward": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "steps": {
+    "rpBefore": 0,
+    "m31Pre": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING",
+      "payout_id": null
+    },
+    "legacyRpcBypass": {
+      "data": null,
+      "error": "legacy_rpc_disabled_use_payout_intent",
+      "blocked": true
+    },
+    "seeds": {
+      "successSeed": {
+        "rewardId": "58687b55-d207-4ed2-8e42-5249553412dc",
+        "ledgerId": "41b6e238-97f4-40d2-b171-fb5748a5fc4f"
+      },
+      "unknownSeed": {
+        "rewardId": "00e19ae5-022e-4e0e-9d0b-638f0fe4b0dd",
+        "ledgerId": "ab515fcd-abf3-444b-93d9-ba644da62b8c"
+      },
+      "failSeed": {
+        "rewardId": "be3b9dc8-4a33-4138-89e7-e5796985fa7a",
+        "ledgerId": "72b7eaea-206b-4af3-a462-864bea100f48"
+      }
+    },
+    "manualSuccess": {
+      "ok": true,
+      "payoutId": "b05deedc-1731-42b4-b95f-50306220f18f",
+      "paidRewardIds": [
+        "58687b55-d207-4ed2-8e42-5249553412dc"
+      ],
+      "intentIds": [
+        "b05deedc-1731-42b4-b95f-50306220f18f"
+      ]
+    },
+    "successIntent": {
+      "id": "b05deedc-1731-42b4-b95f-50306220f18f",
+      "reward_id": "58687b55-d207-4ed2-8e42-5249553412dc",
+      "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+      "amount_cents": 20000,
+      "currency": "MXN",
+      "status": "SUCCEEDED",
+      "idempotency_key": "payout_intent:58687b55-d207-4ed2-8e42-5249553412dc:v1",
+      "provider": "manual_spei",
+      "meta": {
+        "external_ref": "manual_spei:stub_success",
+        "ledger_entry_id": "41b6e238-97f4-40d2-b171-fb5748a5fc4f"
+      },
+      "reserved_at": "2026-09-19T17:33:17.781+00:00",
+      "submitted_at": "2026-09-19T17:33:18.162+00:00",
+      "resolved_at": "2026-09-19T17:33:18.544+00:00",
+      "created_at": "2026-09-19T17:33:17.781+00:00",
+      "updated_at": "2026-09-19T17:33:18.78+00:00"
+    },
+    "successReward": {
+      "id": "58687b55-d207-4ed2-8e42-5249553412dc",
+      "status": "PAID",
+      "payout_id": null
+    },
+    "replayReject": {
+      "ok": false,
+      "error": "No hay recompensas disponibles para pagar",
+      "status": 400,
+      "code": "no_available_rewards"
+    },
+    "unknownFirst": {
+      "ok": false,
+      "error": "Pago manual en UNKNOWN; requiere reconciliación (no PAID)",
+      "status": 409,
+      "code": "intent_unknown"
+    },
+    "unknownSecondBlocked": {
+      "ok": false,
+      "error": "payout_intent en UNKNOWN; requiere reconciliación (no segundo pago)",
+      "status": 409,
+      "code": "intent_unknown"
+    },
+    "unknownIntentRows": 1,
+    "failure": {
+      "ok": false,
+      "error": "Pago manual fallido (intent FAILED; reward sigue AVAILABLE)",
+      "status": 409,
+      "code": "intent_failed"
+    },
+    "failureTerminal": {
+      "ok": false,
+      "error": "payout_intent FAILED (terminal para claim manual; no segundo pago)",
+      "status": 409,
+      "code": "intent_failed_terminal"
+    },
+    "rpAfter": 0,
+    "m31Post": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING",
+      "payout_id": null
+    },
+    "productionReadonly": {
+      "ref": "mkgsrpsuvedwwlzmzmzh",
+      "note": "CLI probe separately; no prod key in canary env"
+    }
+  },
+  "evidence": {
+    "singleAuthority": "payout_intents",
+    "legacyRpcBypassBlocked": true,
+    "successReward": {
+      "id": "58687b55-d207-4ed2-8e42-5249553412dc",
+      "status": "PAID",
+      "payout_id": null
+    },
+    "successIntent": {
+      "id": "b05deedc-1731-42b4-b95f-50306220f18f",
+      "reward_id": "58687b55-d207-4ed2-8e42-5249553412dc",
+      "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+      "amount_cents": 20000,
+      "currency": "MXN",
+      "status": "SUCCEEDED",
+      "idempotency_key": "payout_intent:58687b55-d207-4ed2-8e42-5249553412dc:v1",
+      "provider": "manual_spei",
+      "meta": {
+        "external_ref": "manual_spei:stub_success",
+        "ledger_entry_id": "41b6e238-97f4-40d2-b171-fb5748a5fc4f"
+      },
+      "reserved_at": "2026-09-19T17:33:17.781+00:00",
+      "submitted_at": "2026-09-19T17:33:18.162+00:00",
+      "resolved_at": "2026-09-19T17:33:18.544+00:00",
+      "created_at": "2026-09-19T17:33:17.781+00:00",
+      "updated_at": "2026-09-19T17:33:18.78+00:00"
+    },
+    "rpUnchanged": true,
+    "realMoney": false
+  },
+  "pass": true,
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

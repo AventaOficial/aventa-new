@@ -1,0 +1,17 @@
+{
+  "stamp": "2026-09-19T20:55:18.662Z",
+  "stagingRef": "oojshofrpbfwsiypcecr",
+  "migrationFile": "E:\\AVENTA NEW\\aventa-new\\supabase\\migrations\\20260919204823_deal_alert_subscriptions_s64.sql",
+  "moneyUntouched": true,
+  "tableExistsBefore": true,
+  "candidateQuery": {
+    "latencyMs": 463,
+    "returned": 0,
+    "limitReached": false,
+    "retrievalSource": "postgres_rpc",
+    "rpc": "deal_alert_find_candidates"
+  },
+  "repositoryFactory": "ok",
+  "ddlStatus": "APPLIED",
+  "result": "PASS"
+}

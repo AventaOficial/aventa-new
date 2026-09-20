@@ -1,0 +1,217 @@
+{
+  "ok": true,
+  "campaign": "M4.4_admin_confirm_api",
+  "tag": "m44_canary_1789840409610",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "false",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "false",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "false",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": false,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "httpRoute": "/api/admin/rewards/payouts/confirm",
+  "domainFn": "adminConfirmPayoutIntent",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "steps": {
+    "rpBefore": 0,
+    "adminActor": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+    "m31Pre": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING"
+    },
+    "selfReject": {
+      "ok": false,
+      "code": "FORBIDDEN_SELF",
+      "status": 403,
+      "error": "No puedes confirmar tu propio payout"
+    },
+    "confirm": {
+      "ok": true,
+      "code": "SUCCESS",
+      "intent": {
+        "id": "2256a367-613d-4014-b092-8574fd361e4d",
+        "reward_id": "9eb64c79-18d9-4f8e-a707-75ada0fb4e42",
+        "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+        "amount_cents": 20000,
+        "currency": "MXN",
+        "status": "SUCCEEDED",
+        "idempotency_key": "payout_intent:9eb64c79-18d9-4f8e-a707-75ada0fb4e42:v1",
+        "provider": "manual_spei",
+        "meta": {
+          "confirmed_at": "2026-09-19T17:53:35.634Z",
+          "external_ref": "SPEI-M44-m44_canary_1789840409610",
+          "initiated_at": "2026-09-19T17:53:34.968Z",
+          "ledger_entry_id": "f5f68b5d-eb1c-41c6-bbdf-40a56cf84691",
+          "provider_reference": "SPEI-M44-m44_canary_1789840409610",
+          "confirmation_status": "confirmed_success",
+          "awaiting_confirmation": false,
+          "initiated_external_ref": "SPEI-M44-m44_canary_1789840409610"
+        },
+        "reserved_at": "2026-09-19T17:53:34.025+00:00",
+        "submitted_at": "2026-09-19T17:53:34.662+00:00",
+        "resolved_at": "2026-09-19T17:53:35.634+00:00",
+        "created_at": "2026-09-19T17:53:34.025+00:00",
+        "updated_at": "2026-09-19T17:53:35.899+00:00"
+      },
+      "rewardId": "9eb64c79-18d9-4f8e-a707-75ada0fb4e42",
+      "rewardStatus": "PAID"
+    },
+    "paid": {
+      "id": "9eb64c79-18d9-4f8e-a707-75ada0fb4e42",
+      "status": "PAID"
+    },
+    "replay": {
+      "ok": true,
+      "code": "ALREADY_APPLIED",
+      "intent": {
+        "id": "2256a367-613d-4014-b092-8574fd361e4d",
+        "reward_id": "9eb64c79-18d9-4f8e-a707-75ada0fb4e42",
+        "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+        "amount_cents": 20000,
+        "currency": "MXN",
+        "status": "SUCCEEDED",
+        "idempotency_key": "payout_intent:9eb64c79-18d9-4f8e-a707-75ada0fb4e42:v1",
+        "provider": "manual_spei",
+        "meta": {
+          "confirmed_at": "2026-09-19T17:53:35.634Z",
+          "external_ref": "SPEI-M44-m44_canary_1789840409610",
+          "initiated_at": "2026-09-19T17:53:34.968Z",
+          "ledger_entry_id": "f5f68b5d-eb1c-41c6-bbdf-40a56cf84691",
+          "provider_reference": "SPEI-M44-m44_canary_1789840409610",
+          "confirmation_status": "confirmed_success",
+          "awaiting_confirmation": false,
+          "initiated_external_ref": "SPEI-M44-m44_canary_1789840409610"
+        },
+        "reserved_at": "2026-09-19T17:53:34.025+00:00",
+        "submitted_at": "2026-09-19T17:53:34.662+00:00",
+        "resolved_at": "2026-09-19T17:53:35.634+00:00",
+        "created_at": "2026-09-19T17:53:34.025+00:00",
+        "updated_at": "2026-09-19T17:53:35.899+00:00"
+      },
+      "rewardId": "9eb64c79-18d9-4f8e-a707-75ada0fb4e42",
+      "rewardStatus": "PAID"
+    },
+    "concurrent": {
+      "allOk": true,
+      "codes": [
+        "ALREADY_APPLIED",
+        "ALREADY_APPLIED",
+        "ALREADY_APPLIED"
+      ]
+    },
+    "invalidEvidence": {
+      "ok": false,
+      "code": "INVALID_EVIDENCE",
+      "status": 400,
+      "error": "Evidencia inválida (provider_reference_mismatch)",
+      "reason": "provider_reference_mismatch"
+    },
+    "reconcile": {
+      "ok": true,
+      "code": "SUCCESS",
+      "intent": {
+        "id": "3b98e1c7-0528-4764-b6fc-36900bf12dc3",
+        "reward_id": "273417ac-91a6-4865-86ff-94e36bd96b25",
+        "creator_id": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+        "amount_cents": 20000,
+        "currency": "MXN",
+        "status": "SUCCEEDED",
+        "idempotency_key": "payout_intent:273417ac-91a6-4865-86ff-94e36bd96b25:v1",
+        "provider": "manual_spei",
+        "meta": {
+          "confirmed_at": "2026-09-19T17:53:41.085Z",
+          "external_ref": "SPEI-M44-m44_canary_1789840409610-UNK",
+          "unknown_reason": "manual_spei_stub_unknown",
+          "ledger_entry_id": "8a80ed01-cba0-43b1-847a-afe0614f0665",
+          "provider_reference": "SPEI-M44-m44_canary_1789840409610-UNK",
+          "confirmation_status": "confirmed_success",
+          "awaiting_confirmation": false
+        },
+        "reserved_at": "2026-09-19T17:53:38.86+00:00",
+        "submitted_at": "2026-09-19T17:53:39.466+00:00",
+        "resolved_at": "2026-09-19T17:53:41.085+00:00",
+        "created_at": "2026-09-19T17:53:38.86+00:00",
+        "updated_at": "2026-09-19T17:53:41.467+00:00"
+      },
+      "rewardId": "273417ac-91a6-4865-86ff-94e36bd96b25",
+      "rewardStatus": "PAID"
+    },
+    "mainIntentRows": 1,
+    "audit": [
+      {
+        "event_type": "admin_payout_confirm",
+        "actor_id": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "entity_id": "2256a367-613d-4014-b092-8574fd361e4d"
+      },
+      {
+        "event_type": "admin_payout_confirm",
+        "actor_id": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "entity_id": "2256a367-613d-4014-b092-8574fd361e4d"
+      },
+      {
+        "event_type": "admin_payout_confirm",
+        "actor_id": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "entity_id": "2256a367-613d-4014-b092-8574fd361e4d"
+      },
+      {
+        "event_type": "admin_payout_confirm",
+        "actor_id": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "entity_id": "2256a367-613d-4014-b092-8574fd361e4d"
+      },
+      {
+        "event_type": "admin_payout_confirm",
+        "actor_id": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+        "entity_id": "2256a367-613d-4014-b092-8574fd361e4d"
+      }
+    ],
+    "rpAfter": 0,
+    "m31Post": {
+      "id": "0e12ab0d-a285-46eb-90e4-e7ff7dac6146",
+      "status": "VALIDATING"
+    },
+    "productionReadonly": {
+      "ref": "mkgsrpsuvedwwlzmzmzh",
+      "note": "CLI RO separately"
+    }
+  },
+  "evidence": {
+    "seam": "ADMIN_AUTH→adminConfirmPayoutIntent→applyProviderConfirmation→PAID",
+    "mainReward": "9eb64c79-18d9-4f8e-a707-75ada0fb4e42",
+    "mainIntent": "2256a367-613d-4014-b092-8574fd361e4d",
+    "adminActor": "6aa733d4-02cb-4c64-92fc-cf45fdcee344",
+    "intentCount": 1,
+    "rpUnchanged": true,
+    "realMoney": false
+  },
+  "pass": true,
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "ok": true,
+  "campaign": "M5.3_hold_availability",
+  "tag": "m53_1789845410832",
+  "realMoney": false,
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "payoutBefore": {
+    "reward_payouts": 0,
+    "payout_intents": 36
+  },
+  "fixtures": {
+    "ok": true,
+    "creatorId": "fd392640-64f7-4daa-b2d6-1c85a9fa36e1",
+    "clickerId": "d0903a8f-2e68-4d8a-b66a-59c18afc1b09",
+    "offerId": "f5b35c36-4c59-42a8-bd62-1b3ba8b7a278"
+  },
+  "caseA_create": {
+    "ok": true,
+    "rewardId": "f4f31d99-b213-4ed2-87d4-2f409bc46176",
+    "ledgerId": "4d62c9c3-fbc6-45f3-b8f5-ee94c31ddf5b"
+  },
+  "caseA": {
+    "rewardId": "f4f31d99-b213-4ed2-87d4-2f409bc46176",
+    "hold_until": "2026-10-19T19:16:58.417Z",
+    "processReleasedThisId": false,
+    "status": "VALIDATING"
+  },
+  "caseB_create": {
+    "ok": true,
+    "rewardId": "1577f253-1bb8-4865-b270-d8af045ef087",
+    "ledgerId": "8c89e753-9578-40dd-8686-43073cc7539a"
+  },
+  "caseB": {
+    "rewardId": "1577f253-1bb8-4865-b270-d8af045ef087",
+    "hold_until": "2026-09-18T19:17:04.183Z",
+    "processed": 1,
+    "released": true,
+    "status": "AVAILABLE",
+    "available_at": "2026-09-19T19:17:04.32+00:00"
+  },
+  "caseC": {
+    "rewardId": "1577f253-1bb8-4865-b270-d8af045ef087",
+    "releasedAgain": false,
+    "status": "AVAILABLE"
+  },
+  "caseD": {
+    "cancelOk": true,
+    "reverseOk": true,
+    "cancelledStatus": "CANCELLED",
+    "reversedStatus": "REVERSED",
+    "releasedCancelled": false,
+    "releasedReversed": false
+  },
+  "caseConcurrency": {
+    "rewardId": "f13069bd-f374-4a8a-8c58-1a1dabfa8ee7",
+    "availableTransitionCount": 1,
+    "status": "AVAILABLE"
+  },
+  "payoutAfter": {
+    "reward_payouts": 0,
+    "payout_intents": 36
+  },
+  "payoutIntact": true,
+  "payoutIntentsForAvailableReward": 0,
+  "evidence": {
+    "futureRemainsValidating": "f4f31d99-b213-4ed2-87d4-2f409bc46176",
+    "unlockedAvailable": "1577f253-1bb8-4865-b270-d8af045ef087",
+    "concurrentAvailable": "f13069bd-f374-4a8a-8c58-1a1dabfa8ee7"
+  },
+  "flagsFinal": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

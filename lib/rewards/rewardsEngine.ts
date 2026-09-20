@@ -297,26 +297,48 @@ export async function createRewardFromLedgerEntry(
   return { created: true, rewardId, status: 'VALIDATING' };
 }
 
-/** Mueve recompensas VALIDATING → AVAILABLE cuando venció el hold. */
+/** Mueve recompensas VALIDATING → AVAILABLE cuando venció el hold.
+ * Autoridad canónica única (CAS status=VALIDATING + hold_until<=now).
+ * Bounded batch via existing idx_creator_rewards_hold (status, hold_until).
+ * Never creates payout / payout_intent. Never VALIDATING→PAID.
+ */
+export type ProcessExpiredRewardHoldsOptions = {
+  /** Max rows to attempt this run (default 200). */
+  limit?: number;
+};
+
+export type ProcessExpiredRewardHoldsResult = {
+  processed: number;
+  scanned: number;
+  frozen?: boolean;
+  releasedIds: string[];
+};
+
 export async function processExpiredRewardHolds(
   supabase: SupabaseClient,
-): Promise<{ processed: number; frozen?: boolean }> {
+  options: ProcessExpiredRewardHoldsOptions = {},
+): Promise<ProcessExpiredRewardHoldsResult> {
   if (isMoneyPathFrozen()) {
-    return { processed: 0, frozen: true };
+    return { processed: 0, scanned: 0, frozen: true, releasedIds: [] };
   }
 
+  const limit = Math.max(1, Math.min(options.limit ?? 200, 500));
   const now = new Date().toISOString();
   const { data: rows, error } = await supabase
     .from('creator_rewards')
-    .select('id, status')
+    .select('id, status, hold_until')
     .eq('status', 'VALIDATING')
-    .lte('hold_until', now);
+    .lte('hold_until', now)
+    .order('hold_until', { ascending: true })
+    .limit(limit);
 
   if (error || !rows?.length) {
-    return { processed: 0 };
+    return { processed: 0, scanned: 0, releasedIds: [] };
   }
 
-  let processed = 0;
+  const scanned = rows.length;
+  const releasedIds: string[] = [];
+
   for (const row of rows) {
     const id = (row as { id: string }).id;
     const { data: updated, error: upd } = await supabase
@@ -328,6 +350,7 @@ export async function processExpiredRewardHolds(
       })
       .eq('id', id)
       .eq('status', 'VALIDATING')
+      .lte('hold_until', now)
       .select('id')
       .maybeSingle();
 
@@ -336,10 +359,11 @@ export async function processExpiredRewardHolds(
       continue;
     }
     if (!updated?.id) {
+      // Lost CAS race or hold extended — idempotent skip.
       continue;
     }
 
-    processed++;
+    releasedIds.push(id);
     await writeRewardAuditLog(supabase, {
       eventType: 'reward_available',
       actorId: null,
@@ -351,7 +375,7 @@ export async function processExpiredRewardHolds(
     });
   }
 
-  return { processed };
+  return { processed: releasedIds.length, scanned, releasedIds };
 }
 
 /** Estados que cancelReward puede transicionar a CANCELLED (CAS en UPDATE). */

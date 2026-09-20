@@ -12,9 +12,18 @@ import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { MSI_MONTHS_MAX, MSI_MONTHS_MIN, isValidMsiMonths } from '@/lib/offers/msiDisplay';
 import { BANK_COUPON_OPTIONS, normalizeBankCoupon } from '@/lib/bankCoupons';
 import { deriveOfferEditDiscountPercent } from '@/lib/moderation/offerEditContract';
+import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
 import { moderationUi } from '../moderation/moderationUi';
 
 export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description' | 'msi' | 'bank';
+
+function initialCategoryValue(raw: string | null | undefined): string {
+  return normalizeCategoryForStorage(raw) ?? '';
+}
+
+function initialMoneyDisplay(value: number | null | undefined): string {
+  return value != null && Number.isFinite(value) ? formatOfferMoneyInput(value) : '';
+}
 
 export type FixableOffer = {
   id: string;
@@ -60,16 +69,10 @@ export default function ModerationFixSheet({
   const [imageUrl, setImageUrl] = useState(offer.image_url ?? '');
   const [imageUrls, setImageUrls] = useState<string[]>(offer.image_urls ?? []);
   const [offerUrl, setOfferUrl] = useState(offer.offer_url ?? '');
-  const [category, setCategory] = useState(offer.category ?? '');
+  const [category, setCategory] = useState(() => initialCategoryValue(offer.category));
   const [title, setTitle] = useState(offer.title ?? '');
-  const [price, setPrice] = useState(
-    offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : ''
-  );
-  const [originalPrice, setOriginalPrice] = useState(
-    offer.original_price != null && Number.isFinite(offer.original_price)
-      ? String(offer.original_price)
-      : ''
-  );
+  const [price, setPrice] = useState(() => initialMoneyDisplay(offer.price));
+  const [originalPrice, setOriginalPrice] = useState(() => initialMoneyDisplay(offer.original_price));
   const [msiMonths, setMsiMonths] = useState(msiToInput(offer.msi_months));
   const [bankCoupon, setBankCoupon] = useState(
     normalizeBankCoupon(offer.bank_coupon) ?? ''
@@ -82,6 +85,9 @@ export default function ModerationFixSheet({
   const [successFlash, setSuccessFlash] = useState(false);
   const [previewBroken, setPreviewBroken] = useState(false);
   const saveLockRef = useRef(false);
+
+  const categoryOrphan =
+    Boolean(offer.category?.trim()) && !normalizeCategoryForStorage(offer.category);
 
   const photoRef = useRef<HTMLInputElement>(null);
   const linkRef = useRef<HTMLInputElement>(null);
@@ -115,12 +121,8 @@ export default function ModerationFixSheet({
   }, [focusField]);
 
   const dirty = useMemo(() => {
-    const prevPrice =
-      offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '';
-    const prevOriginal =
-      offer.original_price != null && Number.isFinite(offer.original_price)
-        ? String(offer.original_price)
-        : '';
+    const prevPrice = initialMoneyDisplay(offer.price);
+    const prevOriginal = initialMoneyDisplay(offer.original_price);
     const prevMsi = msiToInput(offer.msi_months);
     const prevBank = normalizeBankCoupon(offer.bank_coupon) ?? '';
     const prevExtras = offer.image_urls ?? [];
@@ -243,21 +245,19 @@ export default function ModerationFixSheet({
       const prevCategory = normalizeCategoryForStorage(offer.category ?? null);
       if (nextCategory !== prevCategory) body.category = nextCategory ?? '';
 
-      const prevPrice =
-        offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '';
+      const prevPrice = initialMoneyDisplay(offer.price);
       if (price.trim() !== prevPrice) {
         if (!price.trim()) {
           setMessage('El precio actual es obligatorio');
           return;
         }
-        body.price = price.trim();
+        // Enviar número canónico (sin comas); el API parsea con parseOfferEditMoney.
+        body.price = price.trim().replace(/,/g, '');
       }
-      const prevOriginal =
-        offer.original_price != null && Number.isFinite(offer.original_price)
-          ? String(offer.original_price)
-          : '';
+      const prevOriginal = initialMoneyDisplay(offer.original_price);
       if (originalPrice.trim() !== prevOriginal) {
-        body.original_price = originalPrice.trim() === '' ? null : originalPrice.trim();
+        body.original_price =
+          originalPrice.trim() === '' ? null : originalPrice.trim().replace(/,/g, '');
       }
       const prevMsi = msiToInput(offer.msi_months);
       if (msiMonths.trim() !== prevMsi) {
@@ -312,11 +312,9 @@ export default function ModerationFixSheet({
   );
   const detectedPriceLabel =
     offer.price != null && Number.isFinite(offer.price)
-      ? `$${Number(offer.price).toLocaleString('es-MX', { maximumFractionDigits: 2 })}`
+      ? `$${formatOfferMoneyInput(offer.price)}`
       : null;
-  const priceChanged =
-    price.trim() !==
-    (offer.price != null && Number.isFinite(offer.price) ? String(offer.price) : '');
+  const priceChanged = price.trim() !== initialMoneyDisplay(offer.price);
   const draftPriceNum = Number(String(price).trim().replace(/,/g, ''));
   const draftOriginalNum =
     originalPrice.trim() === ''
@@ -374,7 +372,11 @@ export default function ModerationFixSheet({
                 type="text"
                 inputMode="decimal"
                 value={price}
-                onChange={(e) => setPrice(e.target.value.slice(0, 20))}
+                onChange={(e) => setPrice(sanitizeOfferMoneyTyping(e.target.value).slice(0, 24))}
+                onBlur={() => {
+                  const n = Number(String(price).trim().replace(/,/g, ''));
+                  if (Number.isFinite(n) && price.trim()) setPrice(formatOfferMoneyInput(n));
+                }}
                 placeholder="0"
                 className={`w-full min-h-12 px-3 text-base tabular-nums font-semibold ${ui.input}`}
                 autoComplete="off"
@@ -393,7 +395,12 @@ export default function ModerationFixSheet({
                 type="text"
                 inputMode="decimal"
                 value={originalPrice}
-                onChange={(e) => setOriginalPrice(e.target.value.slice(0, 20))}
+                onChange={(e) => setOriginalPrice(sanitizeOfferMoneyTyping(e.target.value).slice(0, 24))}
+                onBlur={() => {
+                  if (!originalPrice.trim()) return;
+                  const n = Number(String(originalPrice).trim().replace(/,/g, ''));
+                  if (Number.isFinite(n)) setOriginalPrice(formatOfferMoneyInput(n));
+                }}
                 placeholder="Opcional"
                 className={`w-full min-h-12 px-3 text-sm tabular-nums ${ui.input}`}
                 autoComplete="off"
@@ -600,13 +607,18 @@ export default function ModerationFixSheet({
               className={`w-full min-h-12 px-3 text-sm ${ui.select}`}
             >
               <option value="">Sin categoría</option>
-              {ALL_CATEGORIES.filter((c) => c.value !== 'other').map((c) => (
+              {ALL_CATEGORIES.filter((c) => c.value !== 'other' || category === 'other').map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
                   {c.vital ? ' · Día a día' : ' · Top / Recientes'}
                 </option>
               ))}
             </select>
+            {categoryOrphan ? (
+              <p className={`mt-1 text-[11px] ${ui.muted}`}>
+                Categoría anterior no reconocida ({offer.category}). Elige una del catálogo.
+              </p>
+            ) : null}
           </div>
 
           <div>

@@ -38,6 +38,7 @@ describe('Rewards security invariants', () => {
     const adminOnlyMutations = [
       '/api/admin/rewards',
       '/api/admin/rewards/payouts',
+      '/api/admin/rewards/payouts/confirm',
     ];
     expect(meRoutes.every((r) => !r.includes('/admin/'))).toBe(true);
     expect(adminOnlyMutations.every((r) => r.startsWith('/api/admin/'))).toBe(true);

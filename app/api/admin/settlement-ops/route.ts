@@ -1,7 +1,8 @@
 /**
  * M1 Settlement ops — diagnostic surface (GET) + gated settle (POST).
  * Settlement remains OFF unless SETTLEMENT_BRIDGE_ENABLED=true and money path unfrozen.
- * Never creates rewards/payouts.
+ * Never creates rewards/payouts inside settleCommission.
+ * M5.1: after successful settle, schedules durable ledger→reward attempt (async; no sync create).
  */
 
 import { NextResponse } from 'next/server';
@@ -12,6 +13,7 @@ import {
   settleCommission,
   isSettlementBridgeEnabled,
 } from '@/lib/economy/settlement';
+import { scheduleLedgerRewardAttempt } from '@/lib/rewards/ledgerRewardBridge';
 
 export async function GET(request: Request) {
   const auth = await requireUsersLogs(request);
@@ -61,7 +63,20 @@ export async function POST(request: Request) {
     actor: 'admin_settlement_ops',
   });
 
-  return NextResponse.json(result, {
-    status: result.ok ? 200 : result.reason === 'commission_not_found' ? 404 : 409,
-  });
+  let rewardBridgeSchedule: Awaited<ReturnType<typeof scheduleLedgerRewardAttempt>> | null =
+    null;
+  if (result.ok && result.ledgerEntryId) {
+    // Orchestration only — does not call createRewardFromLedgerEntry.
+    rewardBridgeSchedule = await scheduleLedgerRewardAttempt(supabase, {
+      ledgerEntryId: result.ledgerEntryId,
+      commissionId,
+    });
+  }
+
+  return NextResponse.json(
+    { ...result, rewardBridgeSchedule },
+    {
+      status: result.ok ? 200 : result.reason === 'commission_not_found' ? 404 : 409,
+    },
+  );
 }

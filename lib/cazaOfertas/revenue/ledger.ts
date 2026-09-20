@@ -1,12 +1,10 @@
 /**
- * CazaOfertasss — FASE 0. Ledger de ingresos de afiliación (contrato aislado).
+ * CazaOfertasss — Ledger de ingresos de afiliación (FASE 0 + extensiones FASE 3).
  *
- * Autoridad: esta capa REGISTRA hechos económicos externos reportados por una
- * red de afiliados. NO calcula comisiones propias, NO paga y NO toca el money
- * path de Aventa (`CAZAOFERTAS_AVENTA_BOUNDARY`).
+ * Autoridad: REGISTRA hechos económicos externos. Append-only.
+ * NO calcula comisiones propias, NO paga, NO toca money path Aventa.
  *
- * Integración futura con Aventa: sólo vía contrato/evento, nunca tabla
- * compartida.
+ * FASE 3: campos opcionales de metadata (gross, batch, product) sin mutar hechos.
  */
 
 import { isValidTrackingLabel } from '../affiliate';
@@ -24,31 +22,35 @@ export type AffiliateRevenueEventType =
   | 'ORDER'
   | 'APPROVED_ORDER'
   | 'COMMISSION'
-  | 'REVERSAL';
+  | 'REVERSAL'
+  | 'CANCELLATION';
 
 export type AffiliateRevenueEventStatus = 'PENDING' | 'CONFIRMED' | 'REVERSED' | 'REJECTED';
 
 export interface AffiliateRevenueEvent {
   readonly eventId: string;
   readonly network: AffiliateNetworkId;
-  /** Referencia de la red (order id, click id). Es la clave de idempotencia. */
+  /** Referencia de la red. Parte de la clave de idempotencia. */
   readonly externalReference: string;
+  /** Siempre null en ingestión; la atribución vive aparte (FASE 3). */
   readonly dealId: string | null;
   readonly trackingLabel: string;
   readonly eventType: AffiliateRevenueEventType;
-  /** `null` para eventos sin monto (CLICK, ORDER sin valor reportado). */
+  /** Comisión (o monto del hecho); null para CLICK / órdenes sin valor. */
   readonly amount: MoneyAmount | null;
   readonly currency: MoneyAmount['currency'] | null;
   readonly occurredAt: IsoTimestamp;
   readonly status: AffiliateRevenueEventStatus;
-  /** Sólo para REVERSAL: evento que revierte. */
   readonly reversesEventId: string | null;
   readonly recordedAt: IsoTimestamp;
+  /** FASE 3 — opcional; no altera idempotencia. */
+  readonly grossAmount?: MoneyAmount | null;
+  readonly sourceBatchId?: string | null;
+  readonly productExternalId?: string | null;
+  readonly productReference?: string | null;
 }
 
-/** Eventos que NO pueden portar monto: un click no vale dinero por sí mismo. */
 const AMOUNTLESS_EVENT_TYPES: ReadonlySet<AffiliateRevenueEventType> = new Set(['CLICK']);
-/** Eventos que EXIGEN monto. */
 const AMOUNT_REQUIRED_EVENT_TYPES: ReadonlySet<AffiliateRevenueEventType> = new Set([
   'COMMISSION',
   'REVERSAL',
@@ -62,6 +64,7 @@ const STATUS_BY_EVENT_TYPE: Readonly<
   APPROVED_ORDER: ['CONFIRMED'],
   COMMISSION: ['PENDING', 'CONFIRMED', 'REVERSED'],
   REVERSAL: ['REVERSED'],
+  CANCELLATION: ['REJECTED'],
 };
 
 export function affiliateRevenueIdempotencyKey(input: {
@@ -84,12 +87,12 @@ export interface BuildAffiliateRevenueEventInput {
   readonly status: AffiliateRevenueEventStatus;
   readonly reversesEventId?: string | null;
   readonly recordedAt: IsoTimestamp;
+  readonly grossAmountValue?: number | string | null;
+  readonly sourceBatchId?: string | null;
+  readonly productExternalId?: string | null;
+  readonly productReference?: string | null;
 }
 
-/**
- * Construye un evento de ingreso validado. Todo viene de una red externa, así
- * que todo es no confiable.
- */
 export function buildAffiliateRevenueEvent(
   input: BuildAffiliateRevenueEventInput
 ): CazaResult<AffiliateRevenueEvent> {
@@ -110,10 +113,17 @@ export function buildAffiliateRevenueEvent(
   if (!STATUS_BY_EVENT_TYPE[input.eventType]?.includes(input.status)) {
     reasons.push(`revenue.status_invalid_for_type:${input.eventType}/${input.status}`);
   }
-  if (input.eventType === 'REVERSAL' && !input.reversesEventId) {
+  if (
+    (input.eventType === 'REVERSAL' || input.eventType === 'CANCELLATION') &&
+    !input.reversesEventId
+  ) {
     reasons.push('revenue.reversal_requires_reverses_event_id');
   }
-  if (input.eventType !== 'REVERSAL' && input.reversesEventId) {
+  if (
+    input.eventType !== 'REVERSAL' &&
+    input.eventType !== 'CANCELLATION' &&
+    input.reversesEventId
+  ) {
     reasons.push('revenue.reverses_event_id_not_allowed');
   }
 
@@ -135,13 +145,26 @@ export function buildAffiliateRevenueEvent(
     const value = normalizePrice(input.amountValue);
     if (!value.ok) {
       reasons.push(...value.reasons.map((r) => `revenue_amount_${r}`));
+    } else if (value.value <= 0) {
+      reasons.push(value.value === 0 ? 'revenue.zero_commission' : 'revenue.negative_commission');
     }
-    if (currency.ok && value.ok) {
+    if (currency.ok && value.ok && value.value > 0) {
       amount = { value: value.value, currency: currency.value };
     }
   } else if (hasAmountInput === false && input.currency) {
     const currency = normalizeCurrency(input.currency);
     if (!currency.ok) reasons.push(...currency.reasons.map((r) => `revenue_${r}`));
+  }
+
+  let grossAmount: MoneyAmount | null = null;
+  if (input.grossAmountValue !== null && input.grossAmountValue !== undefined) {
+    const currency = normalizeCurrency(input.currency);
+    const value = normalizePrice(input.grossAmountValue);
+    if (!currency.ok || !value.ok || value.value <= 0) {
+      reasons.push('revenue.gross_amount_invalid');
+    } else {
+      grossAmount = { value: value.value, currency: currency.value };
+    }
   }
 
   if (reasons.length > 0) return failResult(reasons);
@@ -159,6 +182,10 @@ export function buildAffiliateRevenueEvent(
     status: input.status,
     reversesEventId: input.reversesEventId ?? null,
     recordedAt: input.recordedAt,
+    grossAmount,
+    sourceBatchId: input.sourceBatchId ?? null,
+    productExternalId: input.productExternalId ?? null,
+    productReference: input.productReference ?? null,
   });
 }
 
@@ -167,11 +194,17 @@ export interface AffiliateRevenueLedgerPort {
   append(event: AffiliateRevenueEvent): Promise<{ appended: boolean; duplicate: boolean }>;
   findByEventId(eventId: string): Promise<AffiliateRevenueEvent | null>;
   listByDealId(dealId: string, limit: number): Promise<readonly AffiliateRevenueEvent[]>;
+  /** FASE 3 — listado acotado por referencia externa (reconciliación). */
+  listByExternalReference?(
+    network: AffiliateNetworkId,
+    externalReference: string,
+    limit: number
+  ): Promise<readonly AffiliateRevenueEvent[]>;
+  /** FASE 3 — listado acotado por tracking (atribución). */
+  listByTrackingLabel?(
+    trackingLabel: string,
+    limit: number
+  ): Promise<readonly AffiliateRevenueEvent[]>;
 }
 
-/**
- * Garantía estructural: el ledger de CazaOfertasss nunca escribe en el money
- * path de Aventa. Los tests de contrato la invocan.
- */
 export { assertAventaMoneyPathUntouched, assertCazaOfertasMoneyUntouched } from '../safety';
-

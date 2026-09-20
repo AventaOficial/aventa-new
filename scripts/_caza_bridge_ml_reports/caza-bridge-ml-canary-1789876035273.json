@@ -1,0 +1,96 @@
+{
+  "mode": "in_memory",
+  "accepted": true,
+  "reasonCodes": [
+    "score.grade:GOOD_DEAL"
+  ],
+  "source": "ml_worker:bridge_canary",
+  "externalProductId": "MLM9876543210",
+  "identityKey": "mercadolibre_mx:pid:MLM9876543210",
+  "affiliate": "FOUND",
+  "affiliateEligible": 1,
+  "prepared": 1,
+  "published": 1,
+  "messageId": "9001",
+  "bridgeReport": {
+    "received": 1,
+    "accepted": 1,
+    "rejected": 0,
+    "rejectReasonCounts": {}
+  },
+  "stages": [
+    {
+      "stage": "DISCOVER",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {}
+    },
+    {
+      "stage": "NORMALIZE",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {}
+    },
+    {
+      "stage": "VALIDATE",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {}
+    },
+    {
+      "stage": "SCORE",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {
+        "score.grade:GOOD_DEAL": 1
+      }
+    },
+    {
+      "stage": "AFFILIATE",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {}
+    },
+    {
+      "stage": "DEDUPE",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {
+        "dedupe.created": 1
+      }
+    },
+    {
+      "stage": "ELIGIBILITY",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {}
+    },
+    {
+      "stage": "PREPARE_PUBLICATION",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {
+        "prepare.inserted": 1
+      }
+    },
+    {
+      "stage": "RECOVER",
+      "successCount": 0,
+      "rejectedCount": 0,
+      "reasonCodes": {}
+    },
+    {
+      "stage": "PUBLISH",
+      "successCount": 1,
+      "rejectedCount": 0,
+      "reasonCodes": {
+        "publish.published": 1
+      }
+    }
+  ],
+  "urlRedacted": "https://mercadolibre.com.mx/MLM9876543210-audifonos",
+  "phase": "BRIDGE-01",
+  "at": "2026-09-20T03:47:15.273Z",
+  "stamp": 1789876035273,
+  "redacted": true
+}

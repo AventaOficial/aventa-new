@@ -1,0 +1,166 @@
+{
+  "ok": true,
+  "mode": "execute",
+  "guard": {
+    "ok": true,
+    "target": "staging",
+    "supabaseRef": "oojshofrpbfwsiypcecr",
+    "productionRuntime": false
+  },
+  "authorIdPrefix": "778cfbf5",
+  "flagsBefore": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+    "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "(unset)",
+    "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  },
+  "baseline": {
+    "counts": {
+      "offers": 30,
+      "distribution_publications": 20,
+      "distribution_events": 138,
+      "reward_outbound_clicks": 6,
+      "affiliate_conversions": 0,
+      "affiliate_commissions": 0,
+      "affiliate_ledger_entries": 0,
+      "creator_rewards": 0,
+      "offers_pending": 16
+    },
+    "na": []
+  },
+  "candidateUrl": "https://articulo.mercadolibre.com.mx/MLM29054277-wave3-e2e",
+  "seams": {
+    "S8→S9": {
+      "seam": "S8→S9",
+      "ok": true,
+      "code": "ELIGIBLE",
+      "identity": {
+        "url": "https://articulo.mercadolibre.com.mx/MLM29054277-wave3-e2e",
+        "fingerprint": "ml:MLM29054277",
+        "s8": "OPPORTUNITY"
+      },
+      "notes": [
+        "s8_opportunity",
+        "policy_pass"
+      ]
+    },
+    "S9→S7": {
+      "seam": "S9→S7",
+      "ok": true,
+      "code": "WRITE_OK",
+      "identity": {
+        "url": "https://articulo.mercadolibre.com.mx/MLM29054277-wave3-e2e",
+        "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc"
+      },
+      "notes": []
+    },
+    "S7→Moderation": {
+      "seam": "S7→Moderation",
+      "ok": true,
+      "code": "approved",
+      "identity": {
+        "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc"
+      },
+      "notes": []
+    },
+    "Mod→Dist": {
+      "seam": "Mod→Dist",
+      "ok": true,
+      "code": "ENQUEUED",
+      "identity": {
+        "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc"
+      },
+      "notes": []
+    },
+    "Dist→Click": {
+      "seam": "Dist→Click",
+      "ok": true,
+      "code": "CLICK_RECORDED",
+      "identity": {
+        "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc",
+        "clickId": "b1ab0c11-959b-4c3d-90a8-459834fa7a9a"
+      },
+      "notes": []
+    },
+    "Click→Conversion": {
+      "seam": "Click→Conversion",
+      "ok": true,
+      "code": "CONVERSION_RECORDED",
+      "identity": {
+        "clickId": "b1ab0c11-959b-4c3d-90a8-459834fa7a9a",
+        "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc",
+        "conversionId": "038406f8-42aa-4cc1-9d1d-527560a2b17b",
+        "attribution": "attributed"
+      },
+      "notes": []
+    },
+    "Conv→Commission": {
+      "seam": "Conv→Comm",
+      "ok": true,
+      "code": "COMMISSION_RECORDED",
+      "identity": {
+        "conversionId": "038406f8-42aa-4cc1-9d1d-527560a2b17b",
+        "commissionId": "0e13735a-0f5e-4038-9c45-daaa7f6408ae",
+        "ledgerEntryId": null
+      },
+      "notes": []
+    }
+  },
+  "settlement": "OFF_by_design",
+  "rewards": "OFF_by_design",
+  "offerId": "2e67a22b-ca58-4f18-9390-7fa29d2b0ddc",
+  "clickId": "b1ab0c11-959b-4c3d-90a8-459834fa7a9a",
+  "conversionId": "038406f8-42aa-4cc1-9d1d-527560a2b17b",
+  "commissionId": "0e13735a-0f5e-4038-9c45-daaa7f6408ae",
+  "after": {
+    "counts": {
+      "offers": 31,
+      "distribution_publications": 21,
+      "distribution_events": 144,
+      "reward_outbound_clicks": 7,
+      "affiliate_conversions": 1,
+      "affiliate_commissions": 1,
+      "affiliate_ledger_entries": 0,
+      "creator_rewards": 0,
+      "offers_pending": 16
+    },
+    "na": []
+  },
+  "deltas": {
+    "offers": 1,
+    "distribution_publications": 1,
+    "distribution_events": 6,
+    "reward_outbound_clicks": 1,
+    "affiliate_conversions": 1,
+    "affiliate_commissions": 1,
+    "affiliate_ledger_entries": 0,
+    "creator_rewards": 0,
+    "offers_pending": 0
+  },
+  "flagsAfter": {
+    "SUPPLY_AUTOMATION_ENABLED": "(unset)",
+    "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+    "DISTRIBUTION_ENGINE_ENABLED": "false",
+    "SETTLEMENT_BRIDGE_ENABLED": "false",
+    "MONEY_PATH_FROZEN": "true",
+    "REWARDS_PROGRAM_ACTIVE": "false",
+    "COMMISSION_PROGRAM_ACTIVE": "false",
+    "supplyOn": false,
+    "machineWritesOn": false,
+    "distributionOn": false,
+    "settlementOn": false,
+    "moneyFrozen": true,
+    "rewardsOn": false,
+    "commissionOn": false
+  }
+}

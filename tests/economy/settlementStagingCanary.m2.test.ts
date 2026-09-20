@@ -160,6 +160,37 @@ function makeMock(store: Store) {
         };
       }
 
+      if (table === 'affiliate_conversions') {
+        const conversionId =
+          (store.commission?.conversion_id as string | undefined) ??
+          '22222222-2222-2222-2222-222222222222';
+        return {
+          select: vi.fn(() => ({
+            eq: () => ({
+              maybeSingle: vi.fn(async () => ({
+                data: {
+                  id: conversionId,
+                  click_id: null,
+                  offer_id: null,
+                  attribution_status: 'unattributed',
+                },
+                error: null,
+              })),
+            }),
+          })),
+        };
+      }
+
+      if (table === 'offers' || table === 'reward_outbound_clicks') {
+        return {
+          select: vi.fn(() => ({
+            eq: () => ({
+              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+            }),
+          })),
+        };
+      }
+
       return {};
     }),
   };

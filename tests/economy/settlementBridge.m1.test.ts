@@ -18,6 +18,9 @@ import { splitCommissionCents, REWARDS_CREATOR_SHARE_BPS } from '@/lib/rewards/c
 
 type Store = {
   commission: Record<string, unknown> | null;
+  conversion: Record<string, unknown> | null;
+  clicks: Map<string, { id: string; offer_id: string }>;
+  offers: Map<string, { id: string; created_by: string }>;
   ledgers: Map<string, Record<string, unknown>>;
   ledgerByRef: Map<string, string>;
   events: Array<Record<string, unknown>>;
@@ -34,6 +37,30 @@ type Store = {
   uniqueOnLedgerInsert?: boolean;
   uniqueConsumed?: boolean;
 };
+
+function emptyStore(
+  overrides: Partial<Store> & { commission?: Record<string, unknown> | null } = {},
+): Store {
+  const commission =
+    'commission' in overrides ? (overrides.commission ?? null) : approvedCommission();
+  const { commission: _c, ...rest } = overrides;
+  return {
+    conversion: defaultConversion(),
+    clicks: new Map(),
+    offers: new Map(),
+    ledgers: new Map(),
+    ledgerByRef: new Map(),
+    events: [],
+    ledgerInserts: 0,
+    rewardInserts: 0,
+    payoutInserts: 0,
+    attributionMutations: 0,
+    supplyTouches: 0,
+    distributionTouches: 0,
+    ...rest,
+    commission,
+  };
+}
 
 function makeSettlementMock(store: Store) {
   const sb = {
@@ -74,6 +101,73 @@ function makeSettlementMock(store: Store) {
                 }),
               }),
             };
+          }),
+        };
+      }
+
+      if (table === 'affiliate_conversions') {
+        return {
+          select: vi.fn(() => {
+            const api: Record<string, unknown> = {};
+            const self = () => api;
+            api.eq = () => self();
+            api.maybeSingle = vi.fn(async () => ({
+              data: store.conversion,
+              error: null,
+            }));
+            return api;
+          }),
+          update: vi.fn(() => {
+            store.attributionMutations += 1;
+            return { eq: vi.fn(async () => ({ error: null })) };
+          }),
+          insert: vi.fn(() => {
+            store.attributionMutations += 1;
+            return { error: null };
+          }),
+        };
+      }
+
+      if (table === 'offers') {
+        return {
+          select: vi.fn(() => {
+            const api: Record<string, unknown> = {};
+            let offerId = '';
+            api.eq = (_c: string, v: string) => {
+              offerId = v;
+              return api;
+            };
+            api.maybeSingle = vi.fn(async () => ({
+              data: store.offers.get(offerId) ?? null,
+              error: null,
+            }));
+            return api;
+          }),
+        };
+      }
+
+      if (table === 'reward_outbound_clicks') {
+        return {
+          select: vi.fn(() => {
+            const api: Record<string, unknown> = {};
+            let clickId = '';
+            api.eq = (_c: string, v: string) => {
+              clickId = v;
+              return api;
+            };
+            api.maybeSingle = vi.fn(async () => ({
+              data: store.clicks.get(clickId) ?? null,
+              error: null,
+            }));
+            return api;
+          }),
+          update: vi.fn(() => {
+            store.attributionMutations += 1;
+            return { eq: vi.fn(async () => ({ error: null })) };
+          }),
+          insert: vi.fn(() => {
+            store.attributionMutations += 1;
+            return { error: null };
           }),
         };
       }
@@ -227,18 +321,6 @@ function makeSettlementMock(store: Store) {
           }),
         };
       }
-      if (table === 'reward_outbound_clicks' || table === 'affiliate_conversions') {
-        return {
-          update: vi.fn(() => {
-            store.attributionMutations += 1;
-            return { eq: vi.fn(async () => ({ error: null })) };
-          }),
-          insert: vi.fn(() => {
-            store.attributionMutations += 1;
-            return { error: null };
-          }),
-        };
-      }
       if (table.startsWith('supply') || table.includes('bot_ingest')) {
         store.supplyTouches += 1;
         return {};
@@ -270,6 +352,36 @@ function approvedCommission(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function defaultConversion(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '22222222-2222-2222-2222-222222222222',
+    click_id: null,
+    offer_id: null,
+    attribution_status: 'unattributed',
+    ...overrides,
+  };
+}
+
+function attributedFixture() {
+  const offerId = '33333333-3333-3333-3333-333333333333';
+  const clickId = '44444444-4444-4444-4444-444444444444';
+  const creatorId = '55555555-5555-5555-5555-555555555555';
+  const clicks = new Map([[clickId, { id: clickId, offer_id: offerId }]]);
+  const offers = new Map([[offerId, { id: offerId, created_by: creatorId }]]);
+  return {
+    offerId,
+    clickId,
+    creatorId,
+    conversion: defaultConversion({
+      click_id: clickId,
+      offer_id: offerId,
+      attribution_status: 'attributed',
+    }),
+    clicks,
+    offers,
+  };
+}
+
 describe('M1 Settlement Bridge', () => {
   const prevEnv = { ...process.env };
 
@@ -295,18 +407,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('A. approved → settlement creates one ledger', async () => {
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore();
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -336,18 +437,7 @@ describe('M1 Settlement Bridge', () => {
     ['pending', 'C'],
     ['rejected', 'D'],
   ] as const)('%s → rejected (%s)', async (status) => {
-    const store: Store = {
-      commission: approvedCommission({ status }),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission({ status }) });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -357,18 +447,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('E. reversed → rejected', async () => {
-    const store: Store = {
-      commission: approvedCommission({ status: 'reversed' }),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission({ status: 'reversed' }) });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -378,18 +457,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('F. duplicate settlement → reused', async () => {
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore();
     const sb = makeSettlementMock(store);
     const a = await settleCommission(sb as never, {
       commissionId: String(store.commission!.id),
@@ -406,19 +474,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('G. concurrent settlement → one ledger (unique race)', async () => {
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-      uniqueOnLedgerInsert: true,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission(), uniqueOnLedgerInsert: true });
     // Seed a "winner" ledger as if concurrent worker already inserted
     const ref = buildSettlementExternalRef(String(store.commission!.id));
     const winnerId = 'ledger-winner';
@@ -445,7 +501,7 @@ describe('M1 Settlement Bridge', () => {
   it('H. currency mismatch on reuse → fail closed', async () => {
     const id = '11111111-1111-1111-1111-111111111111';
     const ledgerId = 'ledger-bad-fx';
-    const store: Store = {
+    const store: Store = emptyStore({
       commission: approvedCommission({
         ledger_entry_id: ledgerId,
         currency: 'MXN',
@@ -463,15 +519,7 @@ describe('M1 Settlement Bridge', () => {
           },
         ],
       ]),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: id,
     });
@@ -480,18 +528,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('I. negative amount → fail closed', async () => {
-    const store: Store = {
-      commission: approvedCommission({ gross_commission_cents: -1 }),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission({ gross_commission_cents: -1 }) });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -501,18 +538,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('J. non-integer amount → fail closed', async () => {
-    const store: Store = {
-      commission: approvedCommission({ gross_commission_cents: 10.5 }),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission({ gross_commission_cents: 10.5 }) });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -529,19 +555,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('L. crash after ledger creation → retry safe', async () => {
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-      crashAfterLedger: true,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission(), crashAfterLedger: true });
     const sb = makeSettlementMock(store);
     const first = await settleCommission(sb as never, {
       commissionId: String(store.commission!.id),
@@ -563,18 +577,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('M. malformed commission → fail closed', async () => {
-    const store: Store = {
-      commission: approvedCommission({ network: 'not-a-network' }),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore({ commission: approvedCommission({ network: 'not-a-network' }) });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -583,18 +586,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('N. missing commission → fail closed', async () => {
-    const store: Store = {
-      commission: null,
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore({ commission: null });
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: '00000000-0000-0000-0000-000000000000',
     });
@@ -607,18 +599,7 @@ describe('M1 Settlement Bridge', () => {
     expect(isSettlementBridgeEnabled()).toBe(false);
     expect(ECONOMIC_LEDGER_BOUNDARY.settlementEnabled).toBe(false);
 
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore();
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -628,18 +609,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('P–Q. no creator reward / payout creation', async () => {
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore();
     const r = await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -660,18 +630,7 @@ describe('M1 Settlement Bridge', () => {
   });
 
   it('R–T. no attribution / supply / distribution mutation', async () => {
-    const store: Store = {
-      commission: approvedCommission(),
-      ledgers: new Map(),
-      ledgerByRef: new Map(),
-      events: [],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    const store: Store = emptyStore();
     await settleCommission(makeSettlementMock(store) as never, {
       commissionId: String(store.commission!.id),
     });
@@ -747,7 +706,7 @@ describe('M1 Settlement Bridge', () => {
 
   it('diagnostics surface returns expected fields', async () => {
     const id = '11111111-1111-1111-1111-111111111111';
-    const store: Store = {
+    const store: Store = emptyStore({
       commission: approvedCommission({ ledger_entry_id: 'ledger-1' }),
       ledgers: new Map([
         [
@@ -767,7 +726,6 @@ describe('M1 Settlement Bridge', () => {
           },
         ],
       ]),
-      ledgerByRef: new Map(),
       events: [
         {
           entity_type: 'settlement',
@@ -777,13 +735,7 @@ describe('M1 Settlement Bridge', () => {
           payload: {},
         },
       ],
-      ledgerInserts: 0,
-      rewardInserts: 0,
-      payoutInserts: 0,
-      attributionMutations: 0,
-      supplyTouches: 0,
-      distributionTouches: 0,
-    };
+    });
     const diag = await buildSettlementDiagnostics(
       makeSettlementMock(store) as never,
       id,
@@ -826,6 +778,77 @@ describe('M1 Settlement Bridge', () => {
       'utf8',
     );
     expect(doubleCredit).toMatch(/affiliate_commissions_conversion_unique/);
+  });
+
+  it('ATTR. attributed conversion → ledger keeps verified attribution', async () => {
+    const fx = attributedFixture();
+    const store = emptyStore({
+      conversion: fx.conversion,
+      clicks: fx.clicks,
+      offers: fx.offers,
+    });
+    const r = await settleCommission(makeSettlementMock(store) as never, {
+      commissionId: String(store.commission!.id),
+    });
+    expect(r.ok).toBe(true);
+    const ledger = store.ledgers.get(String(r.ledgerEntryId));
+    expect(ledger?.click_id).toBe(fx.clickId);
+    expect(ledger?.offer_id).toBe(fx.offerId);
+    expect(ledger?.creator_id).toBe(fx.creatorId);
+    expect(ledger?.attributable).toBe(true);
+    expect(ledger?.attribution_method).toBe('sub_id');
+    expect(ledger?.attribution_confidence).toBe('high');
+    expect(String(ledger?.tracking_tag)).toContain(fx.offerId);
+    expect(String(ledger?.tracking_tag)).toContain(fx.clickId);
+    expect(r.createdCreatorReward).toBe(false);
+  });
+
+  it('ATTR. missing click → ledger has no false attribution', async () => {
+    const store = emptyStore({
+      conversion: defaultConversion({
+        attribution_status: 'unattributed',
+        click_id: null,
+        offer_id: '33333333-3333-3333-3333-333333333333',
+      }),
+    });
+    const r = await settleCommission(makeSettlementMock(store) as never, {
+      commissionId: String(store.commission!.id),
+    });
+    expect(r.ok).toBe(true);
+    const ledger = store.ledgers.get(String(r.ledgerEntryId));
+    expect(ledger?.click_id).toBeNull();
+    expect(ledger?.creator_id).toBeNull();
+    expect(ledger?.attributable).toBe(false);
+    expect(ledger?.attribution_method).toBeNull();
+  });
+
+  it('ATTR. click/offer mismatch → fail-closed empty attribution', async () => {
+    const fx = attributedFixture();
+    const otherOffer = '66666666-6666-6666-6666-666666666666';
+    fx.clicks.set(fx.clickId, { id: fx.clickId, offer_id: otherOffer });
+    const store = emptyStore({
+      conversion: fx.conversion,
+      clicks: fx.clicks,
+      offers: fx.offers,
+    });
+    const r = await settleCommission(makeSettlementMock(store) as never, {
+      commissionId: String(store.commission!.id),
+    });
+    expect(r.ok).toBe(true);
+    const ledger = store.ledgers.get(String(r.ledgerEntryId));
+    expect(ledger?.attributable).toBe(false);
+    expect(ledger?.click_id).toBeNull();
+    expect(ledger?.creator_id).toBeNull();
+  });
+
+  it('ATTR. conversion missing → reject conversion_not_found', async () => {
+    const store = emptyStore({ conversion: null });
+    const r = await settleCommission(makeSettlementMock(store) as never, {
+      commissionId: String(store.commission!.id),
+    });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('conversion_not_found');
+    expect(store.ledgerInserts).toBe(0);
   });
 
   it('product boundary remains settlementEnabled=false', () => {
