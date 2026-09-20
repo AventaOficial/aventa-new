@@ -10,6 +10,7 @@ import LoadingState from '@/app/components/panel/LoadingState';
 import SectionHeader from '@/app/components/panel/SectionHeader';
 import StatusBadge from '@/app/components/panel/StatusBadge';
 import { HUNTER_MODULES, type HunterModuleStatus } from '@/lib/hunter/modules';
+import HunterLabPanel from './HunterLabPanel';
 
 type HunterStatus = {
   enabled: boolean;
@@ -1125,6 +1126,8 @@ export default function HunterPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
             Detalle operativo
           </p>
+
+          <HunterLabPanel />
 
           <GlassCard>
             <SectionHeader

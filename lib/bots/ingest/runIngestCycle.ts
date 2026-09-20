@@ -38,6 +38,14 @@ import {
   type QualificationCounts,
 } from '@/lib/hunter/supply/persistSnapshots';
 import { selectTopKByScore } from './candidateInsertGate';
+import {
+  assertZeroSilentDrops,
+  isHunterCandidateIntelligenceEnabled,
+  observeIngestBatch,
+  persistHunterCandidates,
+  persistHunterIntelligenceRun,
+  type ObservedResolved,
+} from '@/lib/hunter/candidateIntelligence';
 
 /** S9.1 — legacy cycle must not mint offers; live writes go through S9→S7. */
 export const S91_DISCOVERY_ONLY_SKIP_REASON =
@@ -251,6 +259,25 @@ export async function runIngestCycleForProfile(
   const slice = pool.slice(0, config.candidatePoolMax);
   stageCounts.collected = slice.length;
 
+  const metaByUrl = new Map<string, ParsedOfferMetadata>();
+  const resolvedByUrl = new Map<string, ObservedResolved>();
+  const discoverySkipUrls: Array<{
+    url: string;
+    title?: string | null;
+    reason?: string;
+    source?: string;
+  }> = [];
+  for (const [source, diagnostics] of Object.entries(collection.discoveryDiagnostics ?? {})) {
+    for (const skip of diagnostics?.skippedCandidates ?? []) {
+      discoverySkipUrls.push({
+        url: skip.url,
+        title: skip.title,
+        reason: skip.reason,
+        source,
+      });
+    }
+  }
+
   type Resolved = {
     item: IngestItem;
     meta: ParsedOfferMetadata;
@@ -308,6 +335,8 @@ export async function runIngestCycleForProfile(
         await sleep(randomIntInclusive(delayLo, delayHi));
         continue;
       }
+      metaByUrl.set(item.url, meta);
+      if (meta.canonicalUrl) metaByUrl.set(meta.canonicalUrl, meta);
 
       // Quality gates: NO observe (mismo contrato que processExternalWorkerBatch).
       const qualification = item.qualification ?? qualifyParsedOfferMetadata(meta);
@@ -378,6 +407,13 @@ export async function runIngestCycleForProfile(
         scoreRejected += 1;
         const reason =
           verified.reasons[0] ?? `score ${verified.score} < mínimo publicación`;
+        resolvedByUrl.set(item.url, {
+          meta,
+          decision: verified.ingestDecision,
+          total: verified.score,
+          breakdown: verified.breakdown,
+          dqeQualification: qualification.qualification,
+        });
         results.push({
           url: item.url,
           source: item.source,
@@ -396,6 +432,13 @@ export async function runIngestCycleForProfile(
         breakdown: verified.breakdown,
         autonomous,
       });
+      resolvedByUrl.set(item.url, {
+        meta,
+        decision: verified.ingestDecision,
+        total: verified.score,
+        breakdown: verified.breakdown,
+        dqeQualification: qualification.qualification,
+      });
       stageCounts.resolved += 1;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -410,6 +453,20 @@ export async function runIngestCycleForProfile(
     resolved.map((r) => ({ ...r, score: r.total })),
     targetMax,
   );
+  const insertQueueUrls = new Set(insertQueue.map((r) => r.item.url));
+  const topKCutUrls = resolved
+    .map((r) => r.item.url)
+    .filter((url) => !insertQueueUrls.has(url));
+  for (const url of topKCutUrls) {
+    const row = resolved.find((r) => r.item.url === url);
+    results.push({
+      url,
+      source: row?.item.source ?? 'ml_api',
+      status: 'skipped',
+      reason: 'score_shortlist_cut',
+    });
+    if (row) markSourceSkip(sourceStats, row.item.source, 'score_shortlist_cut');
+  }
 
   // S9.1: discovery-only. Never call insertIngestedOffer from legacy cron.
   // Canonical mint: S9 → withMachinePendingWritesEnabled → writePendingViaS7Bridge → S7.
@@ -442,7 +499,7 @@ export async function runIngestCycleForProfile(
 
   const duplicateKindCounts = countDuplicateKinds(results);
   const supplyOpportunities = countSupplyOpportunities(results);
-  const summary = {
+  const summary: IngestCycleReport['summary'] = {
     inserted: 0,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
     skipped: results.filter((r) => r.status === 'skipped').length,
@@ -459,7 +516,6 @@ export async function runIngestCycleForProfile(
     },
   };
 
-  // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
   const shadow = await persistShadowCycleSnapshot({ supabase: shadowDup.supabase });
   const finishedAt = new Date().toISOString();
   await persistIngestSupplyRuns({
@@ -473,6 +529,49 @@ export async function runIngestCycleForProfile(
     shadowCycleId: shadow.persisted ? shadow.cycleId : null,
     supabase: shadowDup.supabase ?? undefined,
   });
+
+  if (isHunterCandidateIntelligenceEnabled()) {
+    try {
+      const observed = observeIngestBatch({
+        runId: supplyRunId,
+        startedAt,
+        finishedAt,
+        dryRun: true,
+        source: 'ml_api',
+        rawCandidateUrls: discoverySkipUrls,
+        itemUrls: pool.map((i) => i.url),
+        sliceUrls: slice.map((i) => i.url),
+        results,
+        metaByUrl,
+        resolvedByUrl,
+        topKCutUrls,
+      });
+      summary.candidateIntelligence = observed.summary;
+      const recon = assertZeroSilentDrops(observed.summary);
+      if (!recon.ok) {
+        console.warn(
+          `[hunter_candidate_intelligence] reconciliation gap run=${supplyRunId} discovered=${recon.discovered} terminal=${recon.terminalSum} gap=${recon.gap}`,
+        );
+      }
+      const wrote = await persistHunterCandidates(shadowDup.supabase, observed.records);
+      if (!wrote.ok) {
+        console.warn('[hunter_candidate_intelligence] persist candidates failed', wrote.error);
+      }
+      const runWrote = await persistHunterIntelligenceRun(shadowDup.supabase, observed.summary);
+      if (!runWrote.ok) {
+        console.warn('[hunter_candidate_intelligence] persist run failed', runWrote.error);
+      } else {
+        console.info(
+          `[hunter_candidate_intelligence] cycle run=${supplyRunId} candidates=${observed.summary.candidateCount} rejected=${observed.summary.rejectedCount} would_insert=${observed.summary.wouldInsertCount} recon_ok=${recon.ok}`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        '[hunter_candidate_intelligence] cycle observe failed',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
 
   return {
     ok: summary.errors === 0,

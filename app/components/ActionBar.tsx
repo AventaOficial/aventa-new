@@ -12,7 +12,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { describeOfferIssue, OFFER_DESCRIPTION_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { describeOfferIssue, OFFER_DESCRIPTION_MAX, OFFER_HUNTER_COMMENT_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
 import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
@@ -80,6 +80,7 @@ export default function ActionBar() {
     title: '',
     offer_url: '',
     description: '',
+    hunter_comment: '',
     originalPrice: '',
     discountPrice: '',
     category: '',
@@ -127,6 +128,7 @@ export default function ActionBar() {
       title: '',
       offer_url: '',
       description: '',
+      hunter_comment: '',
       originalPrice: '',
       discountPrice: '',
       category: '',
@@ -584,6 +586,9 @@ export default function ActionBar() {
         offer_url: normalizePastedOfferUrl(formData.offer_url) || formData.offer_url.trim(),
       }),
       description: formData.description.trim().slice(0, OFFER_DESCRIPTION_MAX),
+      ...(formData.hunter_comment.trim() && {
+        hunter_comment: formData.hunter_comment.trim().slice(0, OFFER_HUNTER_COMMENT_MAX),
+      }),
       ...(stepsList.filter((s) => s.trim()).length > 0 && {
         steps: JSON.stringify(stepsList.map((s) => s.trim()).filter(Boolean)),
       }),
@@ -635,6 +640,7 @@ export default function ActionBar() {
                   ? Math.round((1 - price / originalPriceNum) * 100)
                   : 0,
               description: formData.description.trim() || undefined,
+              hunterComment: formData.hunter_comment.trim() || undefined,
               coupons: formData.coupons.trim() || undefined,
               upvotes: 0,
               downvotes: 0,
@@ -1307,6 +1313,33 @@ export default function ActionBar() {
                   </div>
 
                   <div>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Comentario del cazador
+                      </label>
+                      <span className="text-[11px] text-gray-400">
+                        {formData.hunter_comment.length}/{OFFER_HUNTER_COMMENT_MAX}
+                      </span>
+                    </div>
+                    <textarea
+                      value={formData.hunter_comment}
+                      onChange={(e) =>
+                        handleInputChange(
+                          'hunter_comment',
+                          e.target.value.slice(0, OFFER_HUNTER_COMMENT_MAX),
+                        )
+                      }
+                      placeholder="¿Por qué crees que vale la pena esta oferta?"
+                      rows={2}
+                      className="w-full min-h-[4.5rem] rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] leading-snug text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y break-words whitespace-pre-wrap transition-colors duration-200"
+                    />
+                    <p className="mt-1.5 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                      Este comentario aparecerá en la tarjeta de la oferta para ayudar a otros cazadores
+                      a entender rápidamente por qué la encontraste interesante.
+                    </p>
+                  </div>
+
+                  <div>
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                         ¿Dónde aplica la oferta?
                       </label>
@@ -1609,6 +1642,7 @@ export default function ActionBar() {
                                   return orig > 0 && disc > 0 ? Math.round((1 - disc / orig) * 100) : 0;
                                 })()}
                                 description={formData.description.trim() || undefined}
+                                hunterComment={formData.hunter_comment.trim() || undefined}
                                 image={imageUrl ?? undefined}
                                 upvotes={0}
                                 downvotes={0}

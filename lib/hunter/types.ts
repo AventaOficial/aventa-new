@@ -75,6 +75,13 @@ export type HunterCollectResult = {
   errorMessageSafe?: string | null;
   skipReasonCounts?: Record<string, number>;
   collectedCount?: number;
+  /** Per-URL discovery drops for Candidate Intelligence (when known). */
+  skippedCandidates?: Array<{
+    url: string;
+    title?: string | null;
+    reason: string;
+    itemId?: string | null;
+  }>;
   /** Muestra de qualification (incluye catálogo). No entra al ingest. */
   qualificationSamples?: Array<{
     title: string | null;
@@ -166,6 +173,12 @@ export type HunterEngineCollectResult = {
       {
         collectedCount?: number;
         skipReasonCounts?: Record<string, number>;
+        skippedCandidates?: Array<{
+          url: string;
+          title?: string | null;
+          reason: string;
+          itemId?: string | null;
+        }>;
       }
     >
   >;

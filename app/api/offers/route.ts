@@ -11,7 +11,7 @@ import {
 } from '@/lib/hunter/supply';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
-import { createOfferInputSchema, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { createOfferInputSchema, OFFER_MAX_IMAGES, sanitizeHunterComment } from '@/lib/contracts/offers';
 import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
@@ -39,6 +39,7 @@ type OfferInsertPayload = {
   original_offer_url?: string;
   product_fingerprint?: string;
   description?: string;
+  hunter_comment?: string;
   steps?: string;
   conditions?: string;
   coupons?: string;
@@ -236,6 +237,10 @@ export async function POST(request: Request) {
       ...(typeof input.description === 'string' && input.description.trim() && {
         description: input.description.trim(),
       }),
+      ...(() => {
+        const hunter = sanitizeHunterComment(input.hunter_comment);
+        return hunter ? { hunter_comment: hunter } : {};
+      })(),
       ...(typeof input.steps === 'string' && input.steps.trim() && { steps: input.steps.trim() }),
       ...(typeof input.conditions === 'string' && input.conditions.trim() && {
         conditions: input.conditions.trim(),
@@ -255,13 +260,15 @@ export async function POST(request: Request) {
       (hasMissingColumn(error, 'bank_coupon') ||
         hasMissingColumn(error, 'tags') ||
         hasMissingColumn(error, 'product_fingerprint') ||
-        hasMissingColumn(error, 'original_offer_url'))
+        hasMissingColumn(error, 'original_offer_url') ||
+        hasMissingColumn(error, 'hunter_comment'))
     ) {
       const fallbackPayload: OfferInsertPayload = { ...payload };
       if (hasMissingColumn(error, 'bank_coupon')) delete fallbackPayload.bank_coupon;
       if (hasMissingColumn(error, 'tags')) delete fallbackPayload.tags;
       if (hasMissingColumn(error, 'product_fingerprint')) delete fallbackPayload.product_fingerprint;
       if (hasMissingColumn(error, 'original_offer_url')) delete fallbackPayload.original_offer_url;
+      if (hasMissingColumn(error, 'hunter_comment')) delete fallbackPayload.hunter_comment;
       insertPayload = fallbackPayload;
       ({ data, error } = await supabase.from('offers').insert([insertPayload]).select('id').single());
     }

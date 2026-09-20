@@ -65,8 +65,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'http2.mlstatic.com', pathname: '/**' },
       { protocol: 'https', hostname: '**.mlstatic.com', pathname: '/**' },
       { protocol: 'https', hostname: 'm.media-amazon.com', pathname: '/**' },
+      { protocol: 'https', hostname: '**.media-amazon.com', pathname: '/**' },
       { protocol: 'https', hostname: 'images-na.ssl-images-amazon.com', pathname: '/**' },
       { protocol: 'https', hostname: 'images-eu.ssl-images-amazon.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'images-fe.ssl-images-amazon.com', pathname: '/**' },
+      { protocol: 'https', hostname: '**.ssl-images-amazon.com', pathname: '/**' },
     ],
   },
 };

@@ -6,6 +6,22 @@ export const OFFER_MAX_IMAGES = 8;
 /** Tope de descripción en «Subir oferta» (UI + schema create). Moderación puede usar hasta 2000. */
 export const OFFER_DESCRIPTION_MAX = 300;
 
+/** Comentario corto del cazador para la Offer Card (opcional; no sustituye description). */
+export const OFFER_HUNTER_COMMENT_MAX = 160;
+
+/** Sanitiza hunter_comment: sin HTML, colapsa espacios, acota longitud. */
+export function sanitizeHunterComment(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string') return null;
+  const stripped = raw
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/javascript:/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, OFFER_HUNTER_COMMENT_MAX);
+  return stripped.length > 0 ? stripped : null;
+}
+
 /**
  * Todos los campos llevan mensaje en español. Un error sin texto útil (el
  * «Invalid input» por defecto de Zod) deja al usuario sin saber qué arreglar y
@@ -92,6 +108,15 @@ export const createOfferInputSchema = z
       .trim()
       .min(1, 'Descripción requerida')
       .max(OFFER_DESCRIPTION_MAX, `La descripción no puede pasar de ${OFFER_DESCRIPTION_MAX} caracteres`),
+    hunter_comment: z
+      .string({ error: 'El comentario del cazador debe ser texto' })
+      .trim()
+      .max(
+        OFFER_HUNTER_COMMENT_MAX,
+        `El comentario del cazador no puede pasar de ${OFFER_HUNTER_COMMENT_MAX} caracteres`,
+      )
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : undefined)),
     steps: optionalTrimmedString,
     conditions: optionalTrimmedString,
     coupons: optionalTrimmedString,
@@ -175,6 +200,7 @@ const OFFER_FIELD_LABELS: Record<string, string> = {
   msi_months: 'Meses sin intereses',
   offer_url: 'Enlace de la oferta',
   description: 'Descripción',
+  hunter_comment: 'Comentario del cazador',
   steps: 'Pasos',
   conditions: 'Condiciones',
   coupons: 'Cupón',

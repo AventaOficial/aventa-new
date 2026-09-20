@@ -73,6 +73,14 @@ import {
   trackIngestQualification,
   type QualificationCounts,
 } from '@/lib/hunter/supply/persistSnapshots';
+import {
+  assertZeroSilentDrops,
+  isHunterCandidateIntelligenceEnabled,
+  observeExternalWorkerBatch,
+  persistHunterCandidates,
+  persistHunterIntelligenceRun,
+  type ObservedResolved,
+} from '@/lib/hunter/candidateIntelligence';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
 
@@ -512,20 +520,36 @@ export async function processExternalWorkerBatch(
   const discovery = toDiscoveryStats(payload.discovery);
   sourceStats.ml_worker.collected = rawCandidates.length;
 
+  /** Candidate Intelligence side-channel — never gates mint. */
+  const metaByUrl = new Map<string, ParsedOfferMetadata>();
+  const resolvedByUrl = new Map<string, ObservedResolved>();
+  const rawCandidateIntel: Array<{ url: string; title?: string | null; reason?: string }> = [];
+
   const seen = new Set<string>();
   const items: IngestItem[] = [];
   for (const candidate of rawCandidates) {
     const meta = toParsedMeta(candidate);
     if (!meta) {
       markSourceSkip(sourceStats, 'ml_worker', 'worker payload inválido');
+      rawCandidateIntel.push({
+        url: candidate.url?.trim() || '',
+        title: candidate.title?.trim() || null,
+        reason: 'worker payload inválido',
+      });
       continue;
     }
     const key = meta.canonicalUrl.toLowerCase();
     if (seen.has(key)) {
       markSourceSkip(sourceStats, 'ml_worker', 'duplicado dentro del lote worker');
+      rawCandidateIntel.push({
+        url: meta.canonicalUrl,
+        title: meta.title,
+        reason: 'duplicado dentro del lote worker',
+      });
       continue;
     }
     seen.add(key);
+    metaByUrl.set(meta.canonicalUrl, meta);
     items.push({
       url: meta.canonicalUrl,
       source: 'ml_worker',
@@ -596,6 +620,8 @@ export async function processExternalWorkerBatch(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
+      metaByUrl.set(item.url, meta);
+      metaByUrl.set(meta.canonicalUrl, meta);
       const qualification = item.qualification ?? qualifyParsedOfferMetadata(meta);
       trackIngestQualification(qualificationBySource, item.source, qualification.qualification);
       // Quality gates: NO observe. Shadow evaluated ≠ hunter found. Decisión documentada.
@@ -664,6 +690,13 @@ export async function processExternalWorkerBatch(
         scoreRejected += 1;
         const reason =
           verified.reasons[0] ?? `score ${verified.score} < mínimo publicación`;
+        resolvedByUrl.set(item.url, {
+          meta,
+          decision: verified.ingestDecision,
+          total: verified.score,
+          breakdown: verified.breakdown,
+          dqeQualification: qualification.qualification,
+        });
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;
@@ -693,6 +726,15 @@ export async function processExternalWorkerBatch(
       if (!machineGate.eligible) {
         opsSuppressed += 1;
         const reason = machineGateSkipReason(machineGate);
+        resolvedByUrl.set(item.url, {
+          meta,
+          decision: verified.ingestDecision,
+          total: verified.score,
+          breakdown: verified.breakdown,
+          machineQualityDecision: machineGate.gateReason ?? null,
+          dqeQualification: qualification.qualification,
+          reasonCodes: machineGate.reasonCodes ?? [],
+        });
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;
@@ -706,6 +748,15 @@ export async function processExternalWorkerBatch(
         breakdown: verified.breakdown,
         autonomous,
         machineGate,
+      });
+      resolvedByUrl.set(item.url, {
+        meta,
+        decision: verified.ingestDecision,
+        total: verified.score,
+        breakdown: verified.breakdown,
+        machineQualityDecision: machineGate.gateReason ?? null,
+        dqeQualification: qualification.qualification,
+        reasonCodes: machineGate.reasonCodes ?? [],
       });
       stageCounts.resolved += 1;
     } catch (error) {
@@ -770,6 +821,24 @@ export async function processExternalWorkerBatch(
       reason: `negative_memory:${s.reason}`,
     });
     opsSuppressed += 1;
+    const existing = resolvedByUrl.get(s.id);
+    if (existing) {
+      resolvedByUrl.set(s.id, { ...existing, negativeMemoryLevel: 'SUPPRESS' });
+    }
+  }
+  const shortlistIds = new Set(intel.shortlist.map((c) => c.id));
+  const suppressedIds = new Set(intel.suppressed.map((s) => s.id));
+  const diversityCutUrls = resolved
+    .map((row) => row.item.url)
+    .filter((url) => !shortlistIds.has(url) && !suppressedIds.has(url));
+  for (const url of diversityCutUrls) {
+    results.push({
+      url,
+      source: 'ml_worker',
+      status: 'skipped',
+      reason: 'diversity_cut',
+    });
+    markSourceSkip(sourceStats, 'ml_worker', 'diversity_cut');
   }
   const insertQueue = intel.shortlist
     .map((c) => {
@@ -925,7 +994,7 @@ export async function processExternalWorkerBatch(
   });
   console.info(formatSupplyOpsRunSummaryLog(ops));
 
-  const summary = {
+  const summary: IngestCycleReport['summary'] = {
     inserted: results.filter((r) => r.status === 'inserted').length,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
     skipped: results.filter((r) => r.status === 'skipped').length,
@@ -954,6 +1023,51 @@ export async function processExternalWorkerBatch(
     shadowCycleId: shadow.persisted ? shadow.cycleId : null,
     supabase: shadowDup.supabase ?? undefined,
   });
+
+  // Candidate Intelligence (observation): persist every analyzed candidate. Fail-soft.
+  if (isHunterCandidateIntelligenceEnabled()) {
+    try {
+      const observed = observeExternalWorkerBatch({
+        runId: supplyRunId,
+        startedAt,
+        finishedAt,
+        dryRun,
+        rawCandidateUrls: rawCandidateIntel,
+        itemUrls: items.map((i) => i.url),
+        sliceUrls: slice.map((i) => i.url),
+        results,
+        metaByUrl,
+        resolvedByUrl,
+        nmSuppressedUrls: suppressedIds,
+        diversityCutUrls,
+      });
+      const recon = assertZeroSilentDrops(observed.summary);
+      if (!recon.ok) {
+        console.warn(
+          `[hunter_candidate_intelligence] reconciliation gap run=${supplyRunId} discovered=${recon.discovered} terminal=${recon.terminalSum}`,
+        );
+      }
+      summary.candidateIntelligence = observed.summary;
+      const wrote = await persistHunterCandidates(shadowDup.supabase, observed.records);
+      if (!wrote.ok) {
+        console.warn('[hunter_candidate_intelligence] persist candidates failed', wrote.error);
+      }
+      const runWrote = await persistHunterIntelligenceRun(shadowDup.supabase, observed.summary);
+      if (!runWrote.ok) {
+        console.warn('[hunter_candidate_intelligence] persist run failed', runWrote.error);
+      } else {
+        console.info(
+          `[hunter_candidate_intelligence] run=${supplyRunId} candidates=${observed.summary.candidateCount} rejected=${observed.summary.rejectedCount} needs_review=${observed.summary.needsReviewCount} would_insert=${observed.summary.wouldInsertCount} recon_ok=${recon.ok}`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        '[hunter_candidate_intelligence] observe failed',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   const latencyMs = Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt));
   try {
     await recordExternalSourceBatchHealth({

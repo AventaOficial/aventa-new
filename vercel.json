@@ -30,19 +30,19 @@
     },
     {
       "path": "/api/cron/ledger-reward-bridge",
-      "schedule": "15 * * * *"
+      "schedule": "15 1 * * *"
     },
     {
       "path": "/api/cron/available-payout-intent",
-      "schedule": "45 * * * *"
+      "schedule": "45 1 * * *"
     },
     {
       "path": "/api/cron/reserved-payout-submit",
-      "schedule": "50 * * * *"
+      "schedule": "50 1 * * *"
     },
     {
       "path": "/api/cron/provider-payout-confirm",
-      "schedule": "55 * * * *"
+      "schedule": "55 1 * * *"
     },
     {
       "path": "/api/cron/supply-engine",

@@ -271,14 +271,38 @@ function passesMlHardFilters(
  * Descubre publicaciones vía API ML, enriquece con /items?ids= y valoraciones opcionales.
  * Rotación por `rotationWave` (trending / categorías / mixto).
  */
+export type MercadoLibreDiscoverySkip = {
+  url: string;
+  title?: string | null;
+  reason: string;
+  itemId?: string | null;
+};
+
 export type MercadoLibreDiscoveryResult = {
   items: IngestItem[];
   collectedCount: number;
   skipReasonCounts: Record<string, number>;
+  /** Per-candidate discovery drops with URLs when known (zero silent drops). */
+  skippedCandidates: MercadoLibreDiscoverySkip[];
 };
 
 function bumpReason(map: Record<string, number>, reason: string) {
   map[reason] = (map[reason] ?? 0) + 1;
+}
+
+function pushSkip(
+  skips: MercadoLibreDiscoverySkip[],
+  skipReasonCounts: Record<string, number>,
+  entry: MercadoLibreDiscoverySkip,
+) {
+  bumpReason(skipReasonCounts, entry.reason);
+  skips.push(entry);
+}
+
+function mlItemUrl(id: string, permalink?: string | null): string {
+  const p = typeof permalink === 'string' ? permalink.trim() : '';
+  if (p.startsWith('http')) return p;
+  return `https://www.mercadolibre.com.mx/p/${id}`;
 }
 
 export async function discoverMercadoLibreIngestItems(
@@ -286,7 +310,9 @@ export async function discoverMercadoLibreIngestItems(
   seenKeys: Set<string>,
   rotationWave: number
 ): Promise<MercadoLibreDiscoveryResult> {
-  if (!config.discoverMlEnabled) return { items: [], collectedCount: 0, skipReasonCounts: {} };
+  if (!config.discoverMlEnabled) {
+    return { items: [], collectedCount: 0, skipReasonCounts: {}, skippedCandidates: [] };
+  }
 
   const plan = buildMlSearchPlan(config, rotationWave);
   const idOrder: string[] = [];
@@ -298,6 +324,7 @@ export async function discoverMercadoLibreIngestItems(
   const limit = config.mlSearchLimitPerRequest;
   const maxIds = Math.min(config.mlMaxCollect * 3, 240);
   const skipReasonCounts: Record<string, number> = {};
+  const skippedCandidates: MercadoLibreDiscoverySkip[] = [];
   let searchForbidden = 0;
 
   for (const src of plan) {
@@ -392,7 +419,7 @@ export async function discoverMercadoLibreIngestItems(
 
   if (idOrder.length === 0 && highlightRows.length === 0) {
     bumpReason(skipReasonCounts, 'ml discovery: sin resultados de búsqueda');
-    return { items: [], collectedCount: 0, skipReasonCounts };
+    return { items: [], collectedCount: 0, skipReasonCounts, skippedCandidates };
   }
 
   const details =
@@ -433,17 +460,31 @@ export async function discoverMercadoLibreIngestItems(
   for (const id of idOrder) {
     const body = details.get(id);
     if (!body) {
-      bumpReason(skipReasonCounts, 'ml discovery: detalle de item no disponible');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: mlItemUrl(id),
+        itemId: id,
+        reason: 'ml discovery: detalle de item no disponible',
+      });
       continue;
     }
     const parse = itemToMetaDetailed(body);
     const meta = parse.meta;
     if (!meta) {
-      bumpReason(skipReasonCounts, parse.reason ?? 'ml discovery: sin metadatos');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: mlItemUrl(id, typeof body.permalink === 'string' ? body.permalink : null),
+        title: typeof body.title === 'string' ? body.title : null,
+        itemId: id,
+        reason: parse.reason ?? 'ml discovery: sin metadatos',
+      });
       continue;
     }
     if (isLowQualityTitle(meta.title, config)) {
-      bumpReason(skipReasonCounts, 'ml discovery: título de baja calidad');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: meta.canonicalUrl || mlItemUrl(id),
+        title: meta.title,
+        itemId: id,
+        reason: 'ml discovery: título de baja calidad',
+      });
       continue;
     }
 
@@ -453,7 +494,12 @@ export async function discoverMercadoLibreIngestItems(
 
   for (const row of highlightRows) {
     if (isLowQualityTitle(row.meta.title, config)) {
-      bumpReason(skipReasonCounts, 'ml discovery: título de baja calidad');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: 'ml discovery: título de baja calidad',
+      });
       continue;
     }
     candidates.push({ id: row.id, meta: row.meta, signals: row.signals });
@@ -490,41 +536,81 @@ export async function discoverMercadoLibreIngestItems(
   const out: IngestItem[] = [];
 
   for (const row of candidates) {
-    if (out.length >= config.mlMaxCollect) break;
+    if (out.length >= config.mlMaxCollect) {
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: 'ml discovery: candidate_pool_truncated',
+      });
+      continue;
+    }
     const rating = ratingMap.get(row.id);
     const signals = mergeSignals(row.signals, rating);
     const cond = (signals.condition ?? '').toLowerCase();
     if (row.meta.discountPercent < config.minDiscountPercent) {
-      bumpReason(skipReasonCounts, `ml discovery: descuento ${row.meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`);
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: `ml discovery: descuento ${row.meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`,
+      });
       continue;
     }
     if (row.meta.originalPrice == null || row.meta.originalPrice <= row.meta.discountPrice) {
-      bumpReason(skipReasonCounts, 'ml discovery: sin precio original verificable');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: 'ml discovery: sin precio original verificable',
+      });
       continue;
     }
     if (cond && cond !== 'new') {
-      bumpReason(skipReasonCounts, 'ml discovery: condición no es nueva');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: 'ml discovery: condición no es nueva',
+      });
       continue;
     }
     if (typeof signals.soldQuantity === 'number' && signals.soldQuantity < config.minSoldQuantityMl) {
-      bumpReason(
-        skipReasonCounts,
-        `ml discovery: vendidos ${signals.soldQuantity} < mínimo ${config.minSoldQuantityMl}`,
-      );
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: `ml discovery: vendidos ${signals.soldQuantity} < mínimo ${config.minSoldQuantityMl}`,
+      });
       continue;
     }
     if (rating && rating.total >= config.minRatingReviewsCount && rating.average < config.minRatingAverage) {
-      bumpReason(skipReasonCounts, `ml discovery: rating ${rating.average} < mínimo ${config.minRatingAverage}`);
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: `ml discovery: rating ${rating.average} < mínimo ${config.minRatingAverage}`,
+      });
       continue;
     }
     if (!passesMlHardFilters(row.meta, signals, rating, config)) {
-      bumpReason(skipReasonCounts, 'ml discovery: descartado por filtros duros');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: 'ml discovery: descartado por filtros duros',
+      });
       continue;
     }
 
     const key = canonicalKey(row.meta.canonicalUrl);
     if (seenKeys.has(key)) {
-      bumpReason(skipReasonCounts, 'ml discovery: duplicado por URL canónica');
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: row.meta.canonicalUrl || mlItemUrl(row.id),
+        title: row.meta.title,
+        itemId: row.id,
+        reason: 'ml discovery: duplicado por URL canónica',
+      });
       continue;
     }
     seenKeys.add(key);
@@ -545,5 +631,10 @@ export async function discoverMercadoLibreIngestItems(
     });
   }
 
-  return { items: out, collectedCount: idOrder.length + highlightRows.length, skipReasonCounts };
+  return {
+    items: out,
+    collectedCount: idOrder.length + highlightRows.length,
+    skipReasonCounts,
+    skippedCandidates,
+  };
 }

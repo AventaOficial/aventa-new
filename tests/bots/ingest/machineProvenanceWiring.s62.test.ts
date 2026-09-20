@@ -415,7 +415,12 @@ describe('S6.2 provenance wiring', () => {
 
 describe('S6.2 S5.5 real fixture provenance distribution', () => {
   it('reports distribution and does not invent provenance', async () => {
-    const fixturePath = resolve(process.cwd(), 'scripts/_smoke-gate-v2-discovery.json');
+    // Deterministic S5.5 scrape snapshot — versioned under tests/fixtures.
+    // Live regenerations still write scripts/_smoke-gate-v2-discovery.json (gitignored).
+    const fixturePath = resolve(
+      process.cwd(),
+      'tests/bots/ingest/fixtures/s55-smoke-gate-v2-discovery.json',
+    );
     const raw = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
       candidates: ExternalWorkerCandidate[];
     };

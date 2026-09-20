@@ -261,11 +261,12 @@ async function collectDistribution(
 async function collectAttribution(
   supabase: SupabaseClient,
   windowHours: number,
+  now: Date,
 ): Promise<PlatformPulseAttribution> {
   try {
     const [attrTruth, convTruth] = await Promise.all([
-      buildAttributionTruth(supabase, { windowHours }),
-      buildConversionCommissionTruth(supabase, { windowHours }),
+      buildAttributionTruth(supabase, { windowHours, now }),
+      buildConversionCommissionTruth(supabase, { windowHours, now }),
     ]);
 
     const clicks = attrTruth.attributedClicks;
@@ -316,10 +317,11 @@ async function collectMoney(
   windowHours: number,
   sinceIso: string,
   settlementBridgeEnabled: boolean,
+  now: Date,
 ): Promise<PlatformPulseMoney> {
   try {
     const [convTruth, ledgerRes, eligibleRes] = await Promise.all([
-      buildConversionCommissionTruth(supabase, { windowHours }),
+      buildConversionCommissionTruth(supabase, { windowHours, now }),
       supabase
         .from('affiliate_ledger_entries')
         .select('id', { count: 'exact', head: true })
@@ -423,8 +425,8 @@ export async function collectPlatformPulse(
   const [supply, distribution, attribution, money] = await Promise.all([
     collectSupply(supabase, sinceIso),
     collectDistribution(supabase, env),
-    collectAttribution(supabase, windowHours),
-    collectMoney(supabase, windowHours, sinceIso, settlementBridgeEnabled),
+    collectAttribution(supabase, windowHours, now),
+    collectMoney(supabase, windowHours, sinceIso, settlementBridgeEnabled, now),
   ]);
 
   return {

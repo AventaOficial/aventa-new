@@ -18,6 +18,7 @@ import {
   parseOfferEditMsiMonths,
   sanitizeOfferEditCoupons,
   sanitizeOfferEditDescription,
+  sanitizeOfferEditHunterComment,
 } from '@/lib/moderation/offerEditContract'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
@@ -47,7 +48,7 @@ export async function PATCH(request: Request) {
     const { data: offer } = await supabase
       .from('offers')
       .select(
-        'id, status, title, price, original_price, description, category, image_url, image_urls, offer_url, original_offer_url, coupons, bank_coupon, msi_months, locked_by, locked_at, link_mod_ok'
+        'id, status, title, price, original_price, description, hunter_comment, category, image_url, image_urls, offer_url, original_offer_url, coupons, bank_coupon, msi_months, locked_by, locked_at, link_mod_ok'
       )
       .eq('id', id)
       .single()
@@ -82,6 +83,7 @@ export async function PATCH(request: Request) {
       offer_url?: string | null
       original_offer_url?: string | null
       description?: string | null
+      hunter_comment?: string | null
       image_url?: string | null
       image_urls?: string[] | null
       category?: string | null
@@ -228,6 +230,10 @@ export async function PATCH(request: Request) {
       payload.description = sanitizeOfferEditDescription(body.description)
       afterSnapshot.description = payload.description
     }
+    if (body.hunter_comment !== undefined) {
+      payload.hunter_comment = sanitizeOfferEditHunterComment(body.hunter_comment)
+      afterSnapshot.hunter_comment = payload.hunter_comment
+    }
     if (body.coupons !== undefined) {
       payload.coupons = sanitizeOfferEditCoupons(body.coupons)
       afterSnapshot.coupons = payload.coupons
@@ -282,6 +288,7 @@ export async function PATCH(request: Request) {
         price: (offer as { price?: number | null }).price,
         original_price: (offer as { original_price?: number | null }).original_price,
         description: (offer as { description?: string | null }).description,
+        hunter_comment: (offer as { hunter_comment?: string | null }).hunter_comment,
         category: (offer as { category?: string | null }).category,
         image_url: (offer as { image_url?: string | null }).image_url,
         offer_url: (offer as { offer_url?: string | null }).offer_url,

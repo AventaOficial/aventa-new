@@ -172,10 +172,33 @@ export async function fetchMercadoLibrePublicOffer(
   if (product && !product.error) {
     title = title || (typeof product.name === 'string' ? product.name : null);
     permalink = permalink || (typeof product.permalink === 'string' ? product.permalink : null);
-    // FAIL CLOSED: never merge /products gallery into a listing.
-    // Catalog family pictures often belong to sibling SKUs / other models
-    // (wrong phone when PDP is an iPhone listing). Prefer empty over wrong.
-    // Only item + variation pictures for `id` are trusted here.
+    // Catalog family galleries often belong to sibling SKUs — never merge blindly.
+    // Safe exception: buy_box_winner.item_id matches THIS listing id → same SKU photos.
+    const winnerId =
+      typeof product.buy_box_winner?.item_id === 'string'
+        ? product.buy_box_winner.item_id.replace(/-/g, '').toUpperCase()
+        : null;
+    const selfId = id.replace(/-/g, '').toUpperCase();
+    if (
+      pictureCandidates.length === 0 &&
+      winnerId &&
+      winnerId === selfId &&
+      Array.isArray(product.pictures) &&
+      product.pictures.length > 0
+    ) {
+      pictureCandidates.push(
+        ...picturesFromMlApiBody(
+          {
+            pictures: product.pictures.map((p) => ({
+              id: p.id,
+              secure_url: p.url,
+              url: p.url,
+            })),
+          },
+          id,
+        ),
+      );
+    }
   }
 
   // Precio: resolver oficial único (prices → sale_price → products/items exact match).

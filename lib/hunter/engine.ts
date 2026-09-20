@@ -212,6 +212,7 @@ export async function runHunterCollect(
       diagnostics[ingestSource] = {
         collectedCount: result.collectedCount ?? result.itemsFound,
         skipReasonCounts: result.skipReasonCounts,
+        skippedCandidates: result.skippedCandidates,
       };
 
       if (!result.ok) {

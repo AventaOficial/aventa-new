@@ -15,7 +15,7 @@ import { deriveOfferEditDiscountPercent } from '@/lib/moderation/offerEditContra
 import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
 import { moderationUi } from '../moderation/moderationUi';
 
-export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description' | 'msi' | 'bank';
+export type FixField = 'photo' | 'link' | 'category' | 'title' | 'price' | 'description' | 'hunter_comment' | 'msi' | 'bank';
 
 function initialCategoryValue(raw: string | null | undefined): string {
   return normalizeCategoryForStorage(raw) ?? '';
@@ -31,6 +31,7 @@ export type FixableOffer = {
   price?: number | null;
   original_price?: number | null;
   description?: string | null;
+  hunter_comment?: string | null;
   coupons?: string | null;
   bank_coupon?: string | null;
   msi_months?: number | null;
@@ -78,6 +79,7 @@ export default function ModerationFixSheet({
     normalizeBankCoupon(offer.bank_coupon) ?? ''
   );
   const [description, setDescription] = useState(offer.description ?? '');
+  const [hunterComment, setHunterComment] = useState(offer.hunter_comment ?? '');
   const [coupons, setCoupons] = useState(offer.coupons ?? '');
   const [saving, setSaving] = useState(false);
   const [fetchingPhotos, setFetchingPhotos] = useState(false);
@@ -141,6 +143,7 @@ export default function ModerationFixSheet({
       msiMonths.trim() !== prevMsi ||
       bankCoupon !== prevBank ||
       description.trim() !== (offer.description ?? '').trim() ||
+      hunterComment.trim() !== (offer.hunter_comment ?? '').trim() ||
       coupons.trim() !== (offer.coupons ?? '').trim()
     );
   }, [
@@ -155,6 +158,7 @@ export default function ModerationFixSheet({
     msiMonths,
     bankCoupon,
     description,
+    hunterComment,
     coupons,
   ]);
 
@@ -269,6 +273,8 @@ export default function ModerationFixSheet({
       }
       const prevDesc = (offer.description ?? '').trim();
       if (description.trim() !== prevDesc) body.description = description.trim();
+      const prevHunter = (offer.hunter_comment ?? '').trim();
+      if (hunterComment.trim() !== prevHunter) body.hunter_comment = hunterComment.trim();
       const prevCoupons = (offer.coupons ?? '').trim();
       if (coupons.trim() !== prevCoupons) body.coupons = coupons.trim();
 
@@ -633,7 +639,23 @@ export default function ModerationFixSheet({
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
               rows={3}
-              placeholder="Texto corto para el feed (sin HTML)"
+              placeholder="Descripción completa (detalle de la oferta)"
+              className={`w-full px-3 py-2 text-sm ${ui.input}`}
+            />
+          </div>
+
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label className={`text-sm font-medium ${ui.body}`}>Comentario del cazador</label>
+              <span className={`text-[11px] tabular-nums ${ui.muted}`}>
+                {hunterComment.trim().length}/160
+              </span>
+            </div>
+            <textarea
+              value={hunterComment}
+              onChange={(e) => setHunterComment(e.target.value.slice(0, 160))}
+              rows={2}
+              placeholder="Comentario corto para la tarjeta (opcional)"
               className={`w-full px-3 py-2 text-sm ${ui.input}`}
             />
           </div>

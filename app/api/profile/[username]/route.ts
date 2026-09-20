@@ -14,6 +14,7 @@ type OfferRow = {
   store: string | null;
   offer_url: string | null;
   description: string | null;
+  hunter_comment?: string | null;
   steps: string | null;
   conditions: string | null;
   msi_months?: number | null;
@@ -102,7 +103,7 @@ export async function GET(
   const { data: rows, error: offersError } = await supabase
     .from('offers')
     .select(
-      'id, title, price, original_price, image_url, image_urls, store, offer_url, description, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum'
+      'id, title, price, original_price, image_url, image_urls, store, offer_url, description, hunter_comment, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum'
     )
     .eq('created_by', profileId)
     .is('deleted_at', null)
@@ -162,6 +163,7 @@ export async function GET(
       image: row.image_url ? row.image_url : undefined,
       imageUrls,
       description: row.description?.trim() || undefined,
+      hunterComment: row.hunter_comment?.trim() || undefined,
       steps: row.steps?.trim() || undefined,
       conditions: row.conditions?.trim() || undefined,
       offerScope: parseOfferScopeFromConditions(row.conditions),

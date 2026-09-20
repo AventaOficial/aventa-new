@@ -52,6 +52,7 @@ export const mlApiLegacySource: HunterSource = {
         errorMessageSafe: `ml discovery search HTTP ${httpStatus}`,
         skipReasonCounts: discovery.skipReasonCounts,
         collectedCount: discovery.collectedCount,
+        skippedCandidates: discovery.skippedCandidates,
       };
     }
 
@@ -61,6 +62,7 @@ export const mlApiLegacySource: HunterSource = {
       itemsFound: candidates.length,
       skipReasonCounts: discovery.skipReasonCounts,
       collectedCount: discovery.collectedCount,
+      skippedCandidates: discovery.skippedCandidates,
     };
   },
 };
