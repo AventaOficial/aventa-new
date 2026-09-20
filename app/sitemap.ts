@@ -6,6 +6,9 @@ import {
   getSitemapOffers,
 } from '@/lib/sitemap';
 
+/** Prefer runtime/ISR so preview builds without service-role still succeed. */
+export const revalidate = 3600;
+
 /**
  * Single sitemap for now. When URLs exceed SITEMAP_INDEX_THRESHOLD (50k),
  * consider switching to a sitemap index that references:
