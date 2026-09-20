@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { User, Store, Calendar, Eye, X, History, Pencil, Maximize2, Trash2, Tag, Link2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
@@ -9,6 +10,7 @@ import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupo
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
+import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 
 type ModerationOffer = {
   id: string;
@@ -121,12 +123,18 @@ export default function ModerationOfferCard({
       .finally(() => setHistoryLoading(false));
   }, [offer.id, historyLogs.length, session?.access_token]);
 
-  const authorName =
-    offer.profiles?.display_name?.trim() || 'Usuario';
+  const isBotOffer =
+    isBotUserId(offer.created_by) ||
+    (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
+    (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
+  const authorName = isBotOffer
+    ? BOT_AUTHOR_DISPLAY_NAME
+    : offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug =
-    offer.created_by != null
+    !isBotOffer && offer.created_by != null
       ? profileSlugFromDisplayName(offer.profiles?.display_name, offer.created_by)
       : '';
+  const authorAvatarUrl = isBotOffer ? null : offer.profiles?.avatar_url?.trim() || null;
 
   const categoryLabel = useMemo(() => {
     const n = normalizeCategoryForStorage(offer.category ?? null);
@@ -136,9 +144,6 @@ export default function ModerationOfferCard({
 
   const vital = isVitalCategory(offer.category ?? null);
   const bankCouponLabel = getBankCouponLabel(offer.bank_coupon);
-  const isBotOffer =
-    (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
-    (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
   const discountPercent =
     offer.original_price != null && Number(offer.original_price) > Number(offer.price)
       ? Math.round(((Number(offer.original_price) - Number(offer.price)) / Number(offer.original_price)) * 100)
@@ -304,7 +309,30 @@ export default function ModerationOfferCard({
               </span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-              <User className="h-3.5 w-3.5 shrink-0" />
+              {authorAvatarUrl ? (
+                <Image
+                  src={authorAvatarUrl}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 rounded-full object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                  unoptimized={
+                    authorAvatarUrl.startsWith('http') &&
+                    !authorAvatarUrl.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                  }
+                />
+              ) : (
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                    isBotOffer
+                      ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                      : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                  }`}
+                  title={isBotOffer ? 'Aventa Bot' : undefined}
+                >
+                  <User className="h-3 w-3" aria-hidden />
+                </span>
+              )}
               {authorSlug ? (
                 <Link
                   href={`/u/${authorSlug}`}
@@ -313,8 +341,13 @@ export default function ModerationOfferCard({
                   {authorName}
                 </Link>
               ) : (
-                <span className="font-medium">{authorName}</span>
+                <span className="font-medium truncate">{authorName}</span>
               )}
+              {isBotOffer ? (
+                <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">
+                  Bot
+                </span>
+              ) : null}
             </div>
             {offer.moderator_comment && offer.moderator_comment.trim() && (
               <div className="mt-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/80 dark:bg-violet-900/20 px-3 py-2 text-sm text-violet-800 dark:text-violet-200 line-clamp-3">

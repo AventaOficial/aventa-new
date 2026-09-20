@@ -105,6 +105,8 @@ export default function ModerationFocusWorkspace({
       if (tab === 'users') return '/equipo/moderacion/cazadores';
       return '/equipo/moderacion';
     }
+    if (tab === 'bot') return '/admin/moderation/bot';
+    if (tab === 'users') return '/admin/moderation/users';
     return '/admin/moderation';
   };
 
@@ -155,28 +157,26 @@ export default function ModerationFocusWorkspace({
 
       <ModerationWorkspaceStats />
 
-      {mode === 'workspace' ? (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {(
-            [
-              { id: 'all' as const, label: 'Por revisar', href: filterHref('all') },
-              { id: 'bot' as const, label: 'Bot', href: filterHref('bot') },
-              { id: 'users' as const, label: 'Cazadores', href: filterHref('users') },
-            ] as const
-          ).map((f) => (
-            <a
-              key={f.id}
-              href={f.href}
-              className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-semibold transition',
-                sourceTab === f.id ? ui.chipActive : cn(ui.btnGhost, 'border')
-              )}
-            >
-              {f.label}
-            </a>
-          ))}
-        </div>
-      ) : null}
+      <div className="mb-3 flex flex-wrap gap-2" data-moderation-origin-filter>
+        {(
+          [
+            { id: 'all' as const, label: 'TODAS', href: filterHref('all') },
+            { id: 'users' as const, label: 'USUARIOS', href: filterHref('users') },
+            { id: 'bot' as const, label: 'BOT', href: filterHref('bot') },
+          ] as const
+        ).map((f) => (
+          <a
+            key={f.id}
+            href={f.href}
+            className={cn(
+              'rounded-lg px-3.5 py-2 text-xs font-bold tracking-wide uppercase transition',
+              sourceTab === f.id ? ui.chipActive : cn(ui.btnGhost, 'border opacity-80')
+            )}
+          >
+            {f.label}
+          </a>
+        ))}
+      </div>
 
       {queue.error ? (
         <p

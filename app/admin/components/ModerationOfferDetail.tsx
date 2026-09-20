@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Calendar,
   ExternalLink,
@@ -23,6 +24,7 @@ import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets'
 import { initialAffiliatePasteUi } from '@/lib/moderation/affiliatePasteUi';
 import { mergeOfferImageUrls, normalizeOfferImageUrl } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
+import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
@@ -169,11 +171,15 @@ export default function ModerationOfferDetail({
     typeof offer.description === 'string' ? offer.description : ''
   );
   const [editImageUrl, setEditImageUrl] = useState(offer.image_url ?? '');
-  const [editCategory, setEditCategory] = useState(offer.category ?? '');
+  const [editCategory, setEditCategory] = useState(
+    () => normalizeCategoryForStorage(offer.category) ?? ''
+  );
   const [editSaving, setEditSaving] = useState(false);
   const [botImageUrl, setBotImageUrl] = useState(offer.image_url ?? '');
   const [botOfferUrl, setBotOfferUrl] = useState(offer.offer_url ?? '');
-  const [botCategory, setBotCategory] = useState(offer.category ?? '');
+  const [botCategory, setBotCategory] = useState(
+    () => normalizeCategoryForStorage(offer.category) ?? ''
+  );
   const [botQuickSaving, setBotQuickSaving] = useState(false);
   const [botQuickMsg, setBotQuickMsg] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -226,7 +232,8 @@ export default function ModerationOfferDetail({
     setModMessage('');
     setBotImageUrl(offer.image_url ?? '');
     setBotOfferUrl(offer.offer_url ?? '');
-    setBotCategory(offer.category ?? '');
+    setBotCategory(normalizeCategoryForStorage(offer.category) ?? '');
+    setEditCategory(normalizeCategoryForStorage(offer.category) ?? '');
     setBotQuickMsg(null);
     const pasteUi = initialAffiliatePasteUi(offer.link_mod_ok);
     setAffiliatePaste(pasteUi.affiliatePaste);
@@ -246,11 +253,19 @@ export default function ModerationOfferDetail({
     onRequestRejectHandled?.();
   }, [requestReject, readOnly, onRequestRejectHandled]);
 
-  const authorName = offer.profiles?.display_name?.trim() || 'Usuario';
+  const isBotOffer =
+    offer.is_bot === true ||
+    isBotUserId(offer.created_by) ||
+    (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
+    (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
+  const authorName = isBotOffer
+    ? BOT_AUTHOR_DISPLAY_NAME
+    : offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug =
-    offer.created_by != null
+    !isBotOffer && offer.created_by != null
       ? profileSlugFromDisplayName(offer.profiles?.display_name, offer.created_by)
       : '';
+  const authorAvatarUrl = isBotOffer ? null : offer.profiles?.avatar_url?.trim() || null;
 
   const categoryLabel = useMemo(() => {
     const n = normalizeCategoryForStorage(offer.category ?? null);
@@ -280,10 +295,6 @@ export default function ModerationOfferDetail({
 
   const vital = isVitalCategory(offer.category ?? null);
   const bankCouponLabel = getBankCouponLabel(offer.bank_coupon);
-  const isBotOffer =
-    offer.is_bot === true ||
-    (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
-    (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
   const discountPercent =
     offer.original_price != null && Number(offer.original_price) > Number(offer.price)
       ? Math.round(
@@ -454,7 +465,7 @@ export default function ModerationOfferDetail({
       setEditOfferUrl(offer.offer_url ?? '');
       setEditDescription(typeof offer.description === 'string' ? offer.description : '');
       setEditImageUrl(offer.image_url ?? '');
-      setEditCategory(offer.category ?? '');
+      setEditCategory(normalizeCategoryForStorage(offer.category) ?? '');
       setShowEdit(true);
       return;
     }
@@ -619,8 +630,31 @@ export default function ModerationOfferDetail({
                 minute: '2-digit',
               })}
             </span>
-            <span className="inline-flex min-w-0 items-center gap-1">
-              <User className="h-3.5 w-3.5 shrink-0" />
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              {authorAvatarUrl ? (
+                <Image
+                  src={authorAvatarUrl}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 rounded-full object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                  unoptimized={
+                    authorAvatarUrl.startsWith('http') &&
+                    !authorAvatarUrl.includes(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+                  }
+                />
+              ) : (
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                    isBotOffer
+                      ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                      : 'bg-gray-200/80 text-gray-500 dark:bg-white/10 dark:text-gray-400'
+                  }`}
+                  title={isBotOffer ? 'Aventa Bot' : undefined}
+                >
+                  <User className="h-3 w-3" aria-hidden />
+                </span>
+              )}
               {authorSlug ? (
                 <Link href={`/u/${authorSlug}`} className="truncate text-emerald-700 hover:underline dark:text-violet-300">
                   {authorName}
@@ -628,6 +662,11 @@ export default function ModerationOfferDetail({
               ) : (
                 <span className="truncate">{authorName}</span>
               )}
+              {isBotOffer ? (
+                <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">
+                  Sistema
+                </span>
+              ) : null}
             </span>
           </div>
 
@@ -674,13 +713,20 @@ export default function ModerationOfferDetail({
                   className={`w-full px-3 py-2 text-sm ${ui.select}`}
                 >
                   <option value="">Sin categoría</option>
-                  {ALL_CATEGORIES.filter((c) => c.value !== 'other').map((c) => (
+                  {ALL_CATEGORIES.filter(
+                    (c) => c.value !== 'other' || botCategory === 'other',
+                  ).map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.label}
                       {c.vital ? ' · Día a día' : ' · Top / Recientes'}
                     </option>
                   ))}
                 </select>
+                {offer.category?.trim() && !normalizeCategoryForStorage(offer.category) ? (
+                  <p className={`mt-1 text-[10px] ${ui.muted}`}>
+                    Categoría anterior no reconocida ({offer.category}). Elige una del catálogo.
+                  </p>
+                ) : null}
                 {suggestedCategoryLabel && !previewCategoryNorm ? (
                   <button
                     type="button"
@@ -790,7 +836,7 @@ export default function ModerationOfferDetail({
                 setEditOfferUrl(offer.offer_url ?? '');
                 setEditDescription(typeof offer.description === 'string' ? offer.description : '');
                 setEditImageUrl(offer.image_url ?? '');
-                setEditCategory(offer.category ?? '');
+                setEditCategory(normalizeCategoryForStorage(offer.category) ?? '');
                 setShowEdit(true);
               }}
               className={ui.btnGhostSm}
@@ -1147,6 +1193,11 @@ export default function ModerationOfferDetail({
                     </option>
                   ))}
                 </select>
+                {offer.category?.trim() && !normalizeCategoryForStorage(offer.category) ? (
+                  <p className={`mt-1 text-xs ${ui.soft}`}>
+                    Categoría anterior no reconocida ({offer.category}). Elige una del catálogo.
+                  </p>
+                ) : null}
               </div>
               <div className="flex gap-2">
                 <button

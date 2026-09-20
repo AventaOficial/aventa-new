@@ -10,6 +10,11 @@ import {
 } from '@/lib/moderation/offerEditContract';
 
 describe('offerEditContract', () => {
+  it('parsea precios con comas de miles', () => {
+    expect(parseOfferEditMoney('19,999.99')).toEqual({ ok: true, value: 19999.99 });
+    expect(parseOfferEditMoney('1,000')).toEqual({ ok: true, value: 1000 });
+  });
+
   it('parsea precios válidos y rechaza inválidos', () => {
     expect(parseOfferEditMoney('199.5')).toEqual({ ok: true, value: 199.5 });
     expect(parseOfferEditMoney(0)).toEqual({ ok: true, value: 0 });
