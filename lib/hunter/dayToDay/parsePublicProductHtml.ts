@@ -95,10 +95,29 @@ function extractOfferPrices(offers: unknown): {
     if (disc != null && disc > 0 && disc < 100) explicitDiscountPercent = explicitDiscountPercent ?? disc;
     if (typeof off.name === 'string') offerTexts.push(off.name);
     if (typeof off.description === 'string') offerTexts.push(off.description);
-    if (off.priceSpecification && typeof off.priceSpecification === 'object') {
-      const spec = off.priceSpecification as Record<string, unknown>;
-      price = price ?? finitePositive(spec.price);
+    // UnitPriceSpecification / priceSpecification (Liverpool, Coppel, Home Depot, etc.)
+    const specs = Array.isArray(off.priceSpecification)
+      ? off.priceSpecification
+      : off.priceSpecification
+        ? [off.priceSpecification]
+        : [];
+    for (const raw of specs) {
+      if (!raw || typeof raw !== 'object') continue;
+      const spec = raw as Record<string, unknown>;
+      const priceType = String(spec.priceType ?? '').toLowerCase();
+      const isList =
+        priceType.includes('listprice') ||
+        priceType.includes('regular') ||
+        priceType.includes('strikethrough');
+      const isSale =
+        priceType.includes('saleprice') ||
+        priceType.includes('sale') ||
+        priceType.includes('discount');
+      const specPrice = finitePositive(spec.price);
       if (typeof spec.priceCurrency === 'string') currency = currency ?? spec.priceCurrency;
+      if (isList && specPrice != null) originalPrice = originalPrice ?? specPrice;
+      else if (isSale && specPrice != null) price = price ?? specPrice;
+      else if (specPrice != null) price = price ?? specPrice;
       const ref = finitePositive(spec.referencePrice) ?? finitePositive(spec.listPrice);
       if (ref != null) originalPrice = originalPrice ?? ref;
     }

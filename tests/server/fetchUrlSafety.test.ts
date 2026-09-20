@@ -40,10 +40,25 @@ describe('allowlist del parser', () => {
     expect(isAllowedOfferParseHost('es.aliexpress.com')).toBe(true);
   });
 
+  it('acepta retail MX cotizado', () => {
+    expect(isAllowedOfferParseHost('www.liverpool.com.mx')).toBe(true);
+    expect(isAllowedOfferParseHost('www.coppel.com')).toBe(true);
+    expect(isAllowedOfferParseHost('www.elpalaciodehierro.com')).toBe(true);
+    expect(isAllowedOfferParseHost('www.bodegaaurrera.com.mx')).toBe(true);
+    expect(isAllowedOfferParseHost('www.homedepot.com.mx')).toBe(true);
+    expect(isAllowedOfferParseHost('www.cyberpuerta.mx')).toBe(true);
+    expect(isAllowedOfferParseHost('www.ebay.com.mx')).toBe(true);
+    expect(isAllowedOfferParseHost('ebay.to')).toBe(true);
+    expect(isAllowedOfferParseHost('temu.to')).toBe(true);
+    expect(isAllowedOfferParseHost('cost.co')).toBe(true);
+  });
+
   it('rechaza hosts ajenos aunque no sean privados', () => {
     expect(isAllowedOfferParseHost('evil.example.com')).toBe(false);
     expect(isAllowedOfferParseHost('evil-amazon.com')).toBe(false);
     expect(isAllowedOfferParseHost('amazon.com.evil.com')).toBe(false);
+    expect(isAllowedOfferParseHost('liverpool.com.mx.evil.com')).toBe(false);
+    expect(isAllowedOfferParseHost('bit.ly')).toBe(false);
     const gate = assertSafeOfferFetchUrl(new URL('https://evil.example.com/p'), {
       requireHttps: true,
       requireAllowlist: true,

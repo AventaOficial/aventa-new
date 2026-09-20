@@ -2,6 +2,7 @@ import {
   isOfferAmazonHost,
   isOfferMercadoLibreHost,
   isAllowedAffiliateNetworkHost,
+  isAllowedMxCommerceHost,
 } from '@/lib/offers/commerceHostAllowlist';
 
 const BLOCKED_HOSTNAMES = new Set(
@@ -109,7 +110,8 @@ export function isAllowedOfferParseHost(hostname: string): boolean {
   return (
     isOfferMercadoLibreHost(hostname) ||
     isOfferAmazonHost(hostname) ||
-    isAllowedAffiliateNetworkHost(hostname)
+    isAllowedAffiliateNetworkHost(hostname) ||
+    isAllowedMxCommerceHost(hostname)
   );
 }
 

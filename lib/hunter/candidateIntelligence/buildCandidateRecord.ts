@@ -20,13 +20,54 @@ export function candidateKeyForUrl(url: string): string {
 
 export function inferRetailer(url: string, source: string): string | null {
   const u = url.toLowerCase();
-  if (u.includes('mercadolibre.') || u.includes('mercadolivre.') || source.includes('ml')) {
+  if (u.includes('mercadolibre.') || u.includes('mercadolivre.') || u.includes('meli.la') || source.includes('ml')) {
     return 'mercadolibre_mx';
   }
-  if (u.includes('amazon.') || source.includes('amazon')) return 'amazon_mx';
-  if (u.includes('walmart.')) return 'walmart_mx';
+  if (u.includes('amazon.') || u.includes('amzn.to') || u.includes('a.co/') || source.includes('amazon')) {
+    return 'amazon_mx';
+  }
+  if (u.includes('walmart.') || u.includes('walmart.page.link')) return 'walmart_mx';
   if (u.includes('chedraui.')) return 'chedraui_mx';
-  if (u.includes('bodegaaurrera.') || u.includes('bodega')) return 'bodega_aurrera_mx';
+  if (u.includes('bodegaaurrera.') || u.includes('bodega-aurrera.')) return 'bodega_aurrera_mx';
+  if (u.includes('liverpool.')) return 'liverpool_mx';
+  if (u.includes('coppel.')) return 'coppel_mx';
+  if (u.includes('elpalaciodehierro.')) return 'palacio_hierro_mx';
+  if (u.includes('sears.com.mx')) return 'sears_mx';
+  if (u.includes('suburbia.')) return 'suburbia_mx';
+  if (u.includes('elektra.')) return 'elektra_mx';
+  if (u.includes('sanborns.')) return 'sanborns_mx';
+  if (u.includes('costco.') || u.includes('cost.co')) return 'costco_mx';
+  if (u.includes('sams.com.mx')) return 'sams_mx';
+  if (u.includes('officedepot.')) return 'office_depot_mx';
+  if (u.includes('officemax.')) return 'office_max_mx';
+  if (u.includes('soriana.')) return 'soriana_mx';
+  if (u.includes('cityclub.')) return 'city_club_mx';
+  if (u.includes('heb.com.mx')) return 'heb_mx';
+  if (u.includes('lacomer.')) return 'la_comer_mx';
+  if (u.includes('citymarket.com.mx')) return 'city_market_mx';
+  if (u.includes('fresko.com.mx')) return 'fresko_mx';
+  if (u.includes('superama.')) return 'superama_mx';
+  if (u.includes('homedepot.')) return 'home_depot_mx';
+  if (u.includes('sodimac.')) return 'sodimac_mx';
+  if (u.includes('cyberpuerta.')) return 'cyberpuerta_mx';
+  if (u.includes('ddtech.')) return 'ddtech_mx';
+  if (u.includes('pcel.com')) return 'pcel_mx';
+  if (u.includes('doto.com.mx')) return 'doto_mx';
+  if (u.includes('steren.')) return 'steren_mx';
+  if (u.includes('radioshack.')) return 'radioshack_mx';
+  if (u.includes('claroshop.')) return 'claroshop_mx';
+  if (u.includes('ebay.') || u.includes('ebay.to')) return 'ebay';
+  if (u.includes('shein.')) return 'shein';
+  if (u.includes('temu.')) return 'temu';
+  if (u.includes('aliexpress.')) return 'aliexpress';
+  if (u.includes('shopee.') || u.includes('shp.ee')) return 'shopee_mx';
+  if (u.includes('nike.com')) return 'nike';
+  if (u.includes('adidas.')) return 'adidas';
+  if (u.includes('apple.com')) return 'apple';
+  if (u.includes('ishopmixup.') || u.includes('mixup.com.mx')) return 'ishop_mixup_mx';
+  if (u.includes('innovasport.')) return 'innovasport_mx';
+  if (u.includes('priceshoes.')) return 'price_shoes_mx';
+  if (u.includes('andrea.com.mx')) return 'andrea_mx';
   return source || null;
 }
 

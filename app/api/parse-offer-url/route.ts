@@ -45,10 +45,35 @@ import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffilia
 import { recordMlQuality } from '@/lib/hunter/mlQuality/metrics';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
+import { enrichRetailOfferFromHtml } from '@/lib/offers/enrichRetailOfferFromHtml';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+/** ML anti-bot interstitial — not a product page; never parse as listing HTML. */
+function isMercadoLibreVerificationPage(finalUrl: string, html: string): boolean {
+  if (/account-verification|\/gz\/account/i.test(finalUrl)) return true;
+  if (/suspicious-traffic-frontend|account-verification-main/i.test(html)) return true;
+  return false;
+}
+
+/**
+ * Prefer the hop that still carries social `ref` / shortlink expansion over an
+ * over-stripped canonical when identity was not proven.
+ */
+function pickFetchHref(params: {
+  canonicalUrl: string | null;
+  resolvedUrl: string | null;
+  fallbackHref: string;
+  hasProductIdentity: boolean;
+}): string {
+  const { canonicalUrl, resolvedUrl, fallbackHref, hasProductIdentity } = params;
+  if (hasProductIdentity && canonicalUrl) return canonicalUrl;
+  if (resolvedUrl) return resolvedUrl;
+  if (canonicalUrl) return canonicalUrl;
+  return fallbackHref;
+}
 
 function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
   return {
@@ -84,6 +109,15 @@ function parseMercadoLibre(html: string, base: string): { title: string | null; 
 }
 
 function parseGeneric(html: string, base: string): { title: string | null; image: string | null; store: string | null } {
+  // Prefer Product JSON-LD (Liverpool / Coppel / Home Depot / …) over bare og tags.
+  const enriched = enrichRetailOfferFromHtml(html, base);
+  if (enriched.title || enriched.image || enriched.store) {
+    return {
+      title: enriched.title,
+      image: enriched.image,
+      store: enriched.store,
+    };
+  }
   const title = getMetaContent(html, 'og:title') || getMetaContent(html, 'twitter:title') || null;
   const rawImage = getMetaContent(html, 'og:image') || getMetaContent(html, 'twitter:image') || null;
   const store = getMetaContent(html, 'og:site_name') || getMetaContent(html, 'application-name') || null;
@@ -183,18 +217,21 @@ export async function POST(request: Request) {
 
     // Tracking fuera; params funcionales (wid, item_id, attributes, pdp_filters) se conservan.
     // OfferUrlResolver: shortlinks + identity + canonicalize (no inventa identidad).
+    // Social ML: keep resolved hop (ref=) for HTML fetch when identity is missing.
     const offerResolved = await resolveOfferUrl(rawUrl);
-    let workingHref =
-      offerResolved.canonicalUrl ||
-      offerResolved.resolvedUrl ||
-      stripOfferTrackingParams(httpsUrl.href);
     const wasMeliLa = isOfferMeliLaHost(url.hostname);
     const wasAmazonShort =
       isOfferAmazonHost(url.hostname) && !url.hostname.toLowerCase().includes('amazon.');
+    let workingHref = pickFetchHref({
+      canonicalUrl: offerResolved.canonicalUrl,
+      resolvedUrl: offerResolved.resolvedUrl,
+      fallbackHref: stripOfferTrackingParams(httpsUrl.href),
+      hasProductIdentity: Boolean(offerResolved.productIdentity || offerResolved.productFingerprint),
+    });
 
     // Fail-soft Amazon short: if resolver couldn't prove ASIN, keep trying fetch on resolved hop
     if (wasAmazonShort && offerResolved.resolvedUrl) {
-      workingHref = stripOfferTrackingParams(offerResolved.resolvedUrl);
+      workingHref = offerResolved.resolvedUrl;
     }
 
     let workingUrl: URL;
@@ -251,8 +288,26 @@ export async function POST(request: Request) {
 
     const [htmlResult, mlFirst] = await Promise.all([htmlPromise, mlPromise]);
 
-    const html = htmlResult?.html ?? '';
-    const pageUrl = htmlResult?.pageUrl ?? workingUrl;
+    let html = htmlResult?.html ?? '';
+    let pageUrl = htmlResult?.pageUrl ?? workingUrl;
+    if (html && isMercadoLibreVerificationPage(pageUrl.href, html)) {
+      // Anti-bot interstitial: discard so we do not treat captcha HTML as a listing.
+      // Prefer identity recovered from ?go= when present (keeps API / diagnostics honest).
+      try {
+        const go = pageUrl.searchParams.get('go');
+        if (go) {
+          const goUrl = new URL(go);
+          if (isOfferMercadoLibreHost(goUrl.hostname)) {
+            pageUrl = goUrl;
+            workingHref = goUrl.href;
+            workingUrl = goUrl;
+          }
+        }
+      } catch {
+        /* keep */
+      }
+      html = '';
+    }
     const base = pageUrl.origin + pageUrl.pathname;
     const flags = resolveOfferStoreFlags(url.hostname, pageUrl.hostname);
     const { isAmazon, isMercadoLibre } = flags;
@@ -384,9 +439,13 @@ export async function POST(request: Request) {
     }
 
     if (html && !isAmazon && !isMercadoLibre) {
-      const genericPrices = extractSuggestedPrices(html);
-      suggestedDiscount = genericPrices.discount;
-      suggestedOriginal = genericPrices.original;
+      const retail = enrichRetailOfferFromHtml(html, pageUrl.href);
+      suggestedDiscount = retail.suggestedDiscount;
+      suggestedOriginal = retail.suggestedOriginal;
+      // Prefer hostname label (Liverpool/Coppel/…) when JSON-LD/og site_name is noisy.
+      if (retail.store) data = { ...data, store: data.store || retail.store };
+      if (retail.title && !data.title) data = { ...data, title: retail.title };
+      if (retail.image && !data.image) data = { ...data, image: retail.image };
     }
 
     if (

@@ -39,6 +39,27 @@ describe('URL normalization contract', () => {
     expect(n).toContain('custom_flag=1');
     expect(n).not.toContain('utm_source');
   });
+  it('preserves social share ref + matt_* (product identity for /social/ pages)', () => {
+    const social =
+      'https://www.mercadolibre.com.mx/social/al20250918145239?matt_word=al20250918145239&matt_tool=40155088&forceInApp=true&ref=BP%2BEyLHsqlvfbrBrOpcL&utm_source=x&sid=share';
+    const n = normalizeOfferUrl(social);
+    expect(n).toContain('/social/');
+    expect(n).toContain('ref=');
+    expect(n).toContain('matt_word=');
+    expect(n).toContain('matt_tool=');
+    expect(n).toContain('forceInApp=true');
+    expect(n).not.toContain('utm_source');
+    expect(n).not.toContain('sid=');
+  });
+
+  it('still drops matt_* / ref on articulo product URLs', () => {
+    const n = normalizeOfferUrl(
+      'https://articulo.mercadolibre.com.mx/MLM-2936772026?matt_tool=1&ref=foo&attributes=COLOR:x',
+    );
+    expect(n).toContain('attributes=');
+    expect(n).not.toContain('matt_tool');
+    expect(n).not.toContain('ref=');
+  });
 });
 
 describe('Mercado Libre long share URL', () => {

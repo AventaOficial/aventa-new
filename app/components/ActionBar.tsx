@@ -445,7 +445,9 @@ export default function ActionBar() {
     const wasLoading = prevUrlParseLoadingRef.current;
     prevUrlParseLoadingRef.current = urlParseLoading;
     if (!wasLoading || urlParseLoading) return;
-    if (urlParseKind !== 'ok') return;
+    // Advance after parse settles: ok unlocks with autofill; extract_failed still
+    // unlocks so the user can complete fields manually with the pasted URL.
+    if (urlParseKind !== 'ok' && urlParseKind !== 'extract_failed') return;
     const t = window.setTimeout(() => setUploadLinkGatePassed(true), 350);
     return () => window.clearTimeout(t);
   }, [showUploadModal, uploadLinkGatePassed, formData.offer_url, urlParseLoading, urlParseKind, session?.access_token]);
@@ -950,7 +952,9 @@ export default function ActionBar() {
                         disabled={urlParseLoading}
                         className="w-full text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline py-1 disabled:opacity-50 disabled:no-underline"
                       >
-                        Continuar sin enlace
+                        {formData.offer_url.trim()
+                          ? 'Continuar y completar datos a mano'
+                          : 'Continuar sin enlace'}
                       </button>
                     </div>
                   </div>
