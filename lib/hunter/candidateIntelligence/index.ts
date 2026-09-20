@@ -33,6 +33,29 @@ export {
   type HunterHumanLabelInput,
 } from './humanLabels';
 export {
+  LAB_PRIMARY_LABELS,
+  LAB_FN_RATE_MIN_REVIEWED,
+  LAB_FN_RATE_MIN_FP_FN,
+  LAB_CANDIDATE_SELECT,
+  displayOrNd,
+  parseLabListFilters,
+  latestLabelsByCandidate,
+  computeLabLabelCounters,
+  computeLabReconciliation,
+  computeLabMetricsPrep,
+  derivePipelineStages,
+  type LabMetricKind,
+  type LabPipelineStage,
+  type LabPipelineStageName,
+  type LabStageStatus,
+  type LabCandidateRow,
+  type LabListFilters,
+  type LabLabelCounters,
+  type LabReconciliation,
+  type LabMetricsPrep,
+} from './labReview';
+export { fetchLatestLabelsForRun, fetchLabReviewPage } from './labReviewQuery';
+export {
   validateOfferImageUrl,
   IMAGE_VALIDATION_STATUSES,
   type ImageValidationResult,
