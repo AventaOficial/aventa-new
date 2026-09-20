@@ -150,11 +150,12 @@ function countBy(
 
 export async function buildConversionCommissionTruth(
   supabase?: SupabaseClient | null,
-  opts?: { windowHours?: number },
+  opts?: { windowHours?: number; now?: Date },
 ): Promise<ConversionCommissionTruth> {
   const windowHours = Math.max(1, Math.min(168 * 4, opts?.windowHours ?? 24 * 7));
-  const generatedAt = new Date().toISOString();
-  const sinceIso = new Date(Date.now() - windowHours * 3600_000).toISOString();
+  const now = opts?.now ?? new Date();
+  const generatedAt = now.toISOString();
+  const sinceIso = new Date(now.getTime() - windowHours * 3600_000).toISOString();
   const connected = isAnyAffiliateNetworkConnected();
 
   let client = supabase ?? null;
