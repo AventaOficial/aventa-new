@@ -70,6 +70,11 @@ const PRIMARY_BUTTONS: Array<{
     label: '🚨 AVENTA LA PERDIÓ',
     className: 'bg-orange-700 text-white hover:bg-orange-600',
   },
+  {
+    decision: LAB_PRIMARY_LABELS.FALSE_POSITIVE,
+    label: '📉 FP',
+    className: 'bg-violet-700 text-white hover:bg-violet-600',
+  },
 ];
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -140,6 +145,21 @@ export default function HunterLabPanel() {
   const [unreviewedOnly, setUnreviewedOnly] = useState(true);
   const [titleSearch, setTitleSearch] = useState('');
   const [missedView, setMissedView] = useState(false);
+  const [experimentId, setExperimentId] = useState('');
+  const [experimentVariant, setExperimentVariant] = useState('');
+  const [discountClass, setDiscountClass] = useState('');
+  const [unknownSort, setUnknownSort] = useState('');
+  const [novelty, setNovelty] = useState('');
+  const [rotationAxis, setRotationAxis] = useState('');
+  const [mcSince, setMcSince] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [mcUntil, setMcUntil] = useState(() => new Date().toISOString().slice(0, 10));
+  const [mcReport, setMcReport] = useState<Record<string, unknown> | null>(null);
+  const [mcBlocked, setMcBlocked] = useState<string | null>(null);
+  const [mcLoading, setMcLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
@@ -172,6 +192,37 @@ export default function HunterLabPanel() {
     }
   }, []);
 
+  const loadMissionControl = useCallback(async () => {
+    setMcLoading(true);
+    setMcBlocked(null);
+    setError(null);
+    try {
+      const since = `${mcSince}T00:00:00.000Z`;
+      const until = `${mcUntil}T23:59:59.999Z`;
+      const qs = new URLSearchParams({ since, until, view: 'report' });
+      if (source) qs.set('source', source);
+      if (discountClass) qs.set('discount_class', discountClass);
+      if (novelty) qs.set('novelty', novelty);
+      const res = await fetch(`/api/admin/hunter-mission-control?${qs}`, {
+        headers: await authHeaders(),
+      });
+      const data = await res.json();
+      if (!data.ok && data.error) {
+        setError(data.error);
+        setMcReport(null);
+        setMcBlocked(data.blocked ?? 'error');
+      } else {
+        setMcReport(data.report ?? null);
+        setMcBlocked(data.blocked ?? null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error Mission Control');
+      setMcReport(null);
+    } finally {
+      setMcLoading(false);
+    }
+  }, [mcSince, mcUntil, source, discountClass, novelty]);
+
   const loadCandidates = useCallback(
     async (runId: string, pageNum = 1, opts?: { missed?: boolean }) => {
       setSelectedRunId(runId);
@@ -193,6 +244,12 @@ export default function HunterLabPanel() {
         if (scoreMax) qs.set('score_max', scoreMax);
         if (humanLabel) qs.set('human_label', humanLabel);
         if (titleSearch) qs.set('q', titleSearch);
+        if (experimentId) qs.set('experiment_id', experimentId);
+        if (experimentVariant) qs.set('experiment_variant', experimentVariant);
+        if (discountClass) qs.set('discount_class', discountClass);
+        if (unknownSort) qs.set('unknown_sort', unknownSort);
+        if (novelty) qs.set('novelty', novelty);
+        if (rotationAxis) qs.set('rotation_axis', rotationAxis);
         if (opts?.missed ?? missedView) qs.set('missed', '1');
         else if (unreviewedOnly) qs.set('unreviewed_only', '1');
 
@@ -226,6 +283,12 @@ export default function HunterLabPanel() {
       scoreMax,
       humanLabel,
       titleSearch,
+      experimentId,
+      experimentVariant,
+      discountClass,
+      unknownSort,
+      novelty,
+      rotationAxis,
       missedView,
       unreviewedOnly,
     ],
@@ -343,6 +406,88 @@ export default function HunterLabPanel() {
         >
           Run producción
         </button>
+      </div>
+
+      {/* Mission Control — 7d universe answers */}
+      <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-950/20 p-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="text-[10px] text-white/40">since (UTC day)</label>
+            <input
+              type="date"
+              value={mcSince}
+              onChange={(e) => setMcSince(e.target.value)}
+              className="mt-0.5 block rounded border border-white/15 bg-black/30 px-2 py-1 text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-white/40">until (UTC day)</label>
+            <input
+              type="date"
+              value={mcUntil}
+              onChange={(e) => setMcUntil(e.target.value)}
+              className="mt-0.5 block rounded border border-white/15 bg-black/30 px-2 py-1 text-xs"
+            />
+          </div>
+          <button
+            type="button"
+            className="rounded bg-emerald-700/80 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600"
+            disabled={mcLoading}
+            onClick={() => void loadMissionControl()}
+          >
+            {mcLoading ? 'Cargando…' : 'Mission Control 7d'}
+          </button>
+          <a
+            className="text-[10px] text-emerald-300/80 underline"
+            href={`/api/admin/hunter-mission-control?since=${mcSince}T00:00:00.000Z&until=${mcUntil}T23:59:59.999Z&view=universe`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            abrir universo JSON
+          </a>
+        </div>
+        {mcBlocked ? (
+          <p className="text-[10px] text-amber-300/90">blocked: {mcBlocked}</p>
+        ) : null}
+            {mcReport && typeof mcReport === 'object' && 'answers' in mcReport ? (
+          <MissionControlSummary
+            report={
+              mcReport as {
+                answers: Record<string, unknown>;
+                novelty: Record<string, unknown>;
+                lossFunnel: {
+                  separated: Record<string, number>;
+                  reconciliation: { matchesTotal: boolean; gap: number };
+                  completePipeline?: Array<Record<string, unknown>>;
+                };
+                reconciliation: { ok: boolean; gap: number };
+                temporalNovelty?: Record<string, unknown> | null;
+                stickiness?: Record<string, unknown> | null;
+                labelAvailability?: Record<string, unknown> | null;
+                coverage?: Array<Record<string, unknown>> | null;
+                identityBreakdown?: Record<string, number> | null;
+                identityStrengthBreakdown?: Record<string, number> | null;
+                dataQuality?: Record<string, number> | null;
+                causalBottleneck?: {
+                  primary_bottleneck?: Record<string, unknown>;
+                  stages?: Array<Record<string, unknown>>;
+                } | null;
+                unknownBreakdown?: {
+                  unknown_count?: number;
+                  by_path?: Record<string, number>;
+                  recoverable_estimate?: Record<string, unknown>;
+                } | null;
+                discoveryEfficiency?: Record<string, unknown> | null;
+                discoveryStrategy?: Record<string, unknown> | null;
+              }
+            }
+          />
+        ) : (
+          <p className="text-[10px] text-white/40">
+            Carga Mission Control para responder A–H con evidencia persistida (novelty, loss funnel,
+            silent drops). Observation only.
+          </p>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -533,6 +678,59 @@ export default function HunterLabPanel() {
               ]}
             />
             <div>
+              <label className="text-[10px] text-white/40">experiment_id</label>
+              <input
+                value={experimentId}
+                onChange={(e) => setExperimentId(e.target.value)}
+                className="mt-0.5 w-36 rounded border border-white/15 bg-black/30 px-1 py-1 text-xs"
+                placeholder="discovery_exp_v2"
+              />
+            </div>
+            <FilterSelect
+              label="experiment_variant"
+              value={experimentVariant}
+              onChange={setExperimentVariant}
+              options={['baseline_sticky', 'multi_axis_rotation']}
+            />
+            <FilterSelect
+              label="discount_class"
+              value={discountClass}
+              onChange={setDiscountClass}
+              options={[
+                'DISCOUNT_REAL_GOOD',
+                'DISCOUNT_REAL_LOW',
+                'DISCOUNT_UNKNOWN',
+                'DISCOUNT_INVALID',
+                'DISCOUNT_MISSING_PRICE',
+              ]}
+            />
+            <FilterSelect
+              label="ordenar UNKNOWN"
+              value={unknownSort}
+              onChange={setUnknownSort}
+              options={[
+                'sale_price',
+                'brand',
+                'product_rating',
+                'review_count',
+                'historical_confidence',
+                'category',
+                'source',
+              ]}
+            />
+            <FilterSelect
+              label="novelty"
+              value={novelty}
+              onChange={setNovelty}
+              options={['novel', 'repeated']}
+            />
+            <FilterSelect
+              label="rotation_axis"
+              value={rotationAxis}
+              onChange={setRotationAxis}
+              options={['page', 'seed', 'category', 'query', 'brand', 'price_band']}
+            />
+            <div>
               <label className="text-[10px] text-white/40">título</label>
               <input
                 value={titleSearch}
@@ -628,7 +826,12 @@ export default function HunterLabPanel() {
                       <td className="p-1 tabular-nums">{money(c.sale_price)}</td>
                       <td className="p-1 tabular-nums">{money(c.original_price)}</td>
                       <td className="p-1 tabular-nums">
-                        {c.discount_percentage != null ? `${c.discount_percentage}%` : 'N/D'}
+                        {c.discount_percentage != null
+                          ? `${c.discount_percentage}%`
+                          : c.discount_class === 'DISCOUNT_UNKNOWN' ||
+                              c.discount_class === 'DISCOUNT_MISSING_PRICE'
+                            ? 'UNKNOWN'
+                            : 'N/D'}
                       </td>
                       <td className="p-1 tabular-nums">{nd(c.hunter_score)}</td>
                       <td className="p-1 font-mono text-[10px]">{c.decision}</td>
@@ -717,8 +920,52 @@ export default function HunterLabPanel() {
                     <dd>
                       {selected.discount_percentage != null
                         ? `${selected.discount_percentage}%`
-                        : 'N/D'}{' '}
+                        : selected.discount_class === 'DISCOUNT_UNKNOWN' ||
+                            selected.discount_class === 'DISCOUNT_MISSING_PRICE'
+                          ? 'UNKNOWN (N/D)'
+                          : selected.discount_class === 'DISCOUNT_REAL_LOW' &&
+                              selected.discount_percentage === 0
+                            ? 'REAL 0%'
+                            : 'N/D'}{' '}
                       / {nd(selected.product_rating)} / {nd(selected.review_count)}
+                    </dd>
+                    <dt className="text-gray-500">discount truth</dt>
+                    <dd className="font-mono text-[10px]">
+                      class={nd(selected.discount_class)} · conf=
+                      {nd(selected.discount_confidence)} · src=
+                      {nd(selected.discount_source)}
+                      {selected.price_evidence &&
+                      typeof selected.price_evidence === 'object' ? (
+                        <>
+                          <br />
+                          status=
+                          {nd(
+                            (selected.price_evidence as Record<string, unknown>)
+                              .calculationStatus as string | null,
+                          )}{' '}
+                          · supplied=
+                          {nd(
+                            (selected.price_evidence as Record<string, unknown>)
+                              .suppliedDiscountPercentage as number | null,
+                          )}{' '}
+                          · computed=
+                          {nd(
+                            (selected.price_evidence as Record<string, unknown>)
+                              .computedDiscountPercentage as number | null,
+                          )}
+                          {(selected.price_evidence as Record<string, unknown>)
+                            .reasonForDiscrepancy ? (
+                            <>
+                              <br />
+                              conflict=
+                              {nd(
+                                (selected.price_evidence as Record<string, unknown>)
+                                  .reasonForDiscrepancy as string | null,
+                              )}
+                            </>
+                          ) : null}
+                        </>
+                      ) : null}
                     </dd>
                     <dt className="text-gray-500">score / decision</dt>
                     <dd>
@@ -834,6 +1081,130 @@ export default function HunterLabPanel() {
         </div>
       ) : null}
     </GlassCard>
+  );
+}
+
+function MissionControlSummary({
+  report,
+}: {
+  report: {
+    answers: Record<string, unknown>;
+    novelty: Record<string, unknown>;
+    lossFunnel: {
+      separated: Record<string, number>;
+      reconciliation: { matchesTotal: boolean; gap: number };
+      completePipeline?: Array<Record<string, unknown>>;
+    };
+    reconciliation: { ok: boolean; gap: number };
+    temporalNovelty?: Record<string, unknown> | null;
+    stickiness?: Record<string, unknown> | null;
+    labelAvailability?: Record<string, unknown> | null;
+    coverage?: Array<Record<string, unknown>> | null;
+    identityBreakdown?: Record<string, number> | null;
+    dataQuality?: Record<string, number> | null;
+  };
+}) {
+  const a = report.answers.A_universe_breadth as Record<string, unknown> | undefined;
+  const b = report.answers.B_good_candidates_lost as Record<string, unknown> | undefined;
+  const c = report.answers.C_bottleneck as Record<string, unknown> | undefined;
+  const f = report.answers.F_quantified_losses as Record<string, number> | undefined;
+  const g = report.answers.G_zero_silent_drops as Record<string, unknown> | undefined;
+  const sep = f ?? report.lossFunnel.separated;
+  const tn = report.temporalNovelty;
+  const stick = report.stickiness;
+  const labels = report.labelAvailability;
+  const pct = (n: number) =>
+    a && typeof a.discovered === 'number' && a.discovered > 0
+      ? `${Math.round((n / (a.discovered as number)) * 1000) / 10}%`
+      : 'N/D';
+
+  return (
+    <div className="space-y-2 text-[11px] text-white/75">
+      <p className="font-semibold text-emerald-200/90">
+        A) Universo · discovered={nd(a?.discovered)} · unique_url={nd(a?.unique_urls)} ·
+        unique_id={nd(a?.unique_identities)} · unique_product={nd(a?.unique_products)} ·
+        repeat_id={nd(a?.repeat_identity_rate)} · jaccard_7d={nd(a?.jaccard_vs_7d)} ·
+        sticky={String(a?.sticky)}
+      </p>
+      <p className="font-mono text-[10px] text-white/60">
+        novelty_24h={nd(tn?.novelty_24h ?? a?.novelty_24h)} · novelty_7d=
+        {nd(tn?.novelty_7d ?? a?.novelty_7d)} · jaccard_24h={nd(tn?.jaccard_24h)} ·
+        jaccard_7d={nd(tn?.jaccard_7d)} · baseline24=
+        {nd(tn?.baseline_24h_size)} · baseline7d={nd(tn?.baseline_7d_size)}
+      </p>
+      <p className="font-mono text-[10px] text-white/60">
+        stickiness · repeat_url={nd(stick?.repeat_url_rate)} · repeat_id=
+        {nd(stick?.repeat_identity_rate)} · top10={nd(stick?.concentration_top10)} · flags=
+        {JSON.stringify(stick?.diagnostics ?? {})}
+      </p>
+      <p className="font-mono text-[10px] text-white/60">
+        identity · {JSON.stringify(report.identityBreakdown ?? {})}
+      </p>
+      <p>
+        B) WOULD_INSERT={nd(b?.would_insert)} · LABEL status=
+        <span className={labels?.status === 'BLOCKED' ? 'text-amber-300' : ''}>
+          {nd(labels?.status ?? b?.labelStatus)}
+        </span>{' '}
+        N={nd(labels?.labeled)} · precision={nd(labels?.precisionDisplay ?? 'unavailable')} ·
+        recall={nd(labels?.recallDisplay ?? 'unavailable')} · FN=
+        {nd(labels?.fnRateDisplay ?? 'unavailable')}
+      </p>
+      <p>
+        C) Bottleneck primario=<span className="text-amber-200">{nd(c?.primary)}</span>
+        {c?.causal_primary ? (
+          <>
+            {' '}
+            · causal=
+            {nd((c.causal_primary as Record<string, unknown>).stage)} (
+            {nd((c.causal_primary as Record<string, unknown>).classification)})
+          </>
+        ) : null}
+      </p>
+      <p className="font-mono text-[10px] text-white/55">
+        UNKNOWN paths · {JSON.stringify((report as { unknownBreakdown?: { by_path?: unknown } }).unknownBreakdown?.by_path ?? {})}
+        {' '}· recoverable=
+        {nd(
+          (report as { unknownBreakdown?: { recoverable_estimate?: { theoretically_recoverable_rate?: unknown } } })
+            .unknownBreakdown?.recoverable_estimate?.theoretically_recoverable_rate,
+        )}
+      </p>
+      <p className="font-mono text-[10px] text-white/55">
+        efficiency · DISCOVERY_EFFICIENCY=
+        {nd((report as { discoveryEfficiency?: { DISCOVERY_EFFICIENCY?: unknown } }).discoveryEfficiency?.DISCOVERY_EFFICIENCY)}
+        {' '}· page_policy=
+        {nd((report as { discoveryStrategy?: { page_policy?: unknown } }).discoveryStrategy?.page_policy)}
+      </p>
+      <p className="font-mono text-[10px] text-white/55">
+        F) discount_low={sep.REAL_LOW_DISCOUNT} ({pct(sep.REAL_LOW_DISCOUNT)}) · unknown=
+        {sep.UNKNOWN_DISCOUNT} ({pct(sep.UNKNOWN_DISCOUNT)}) · false_zero=
+        {sep.FALSE_ZERO_CORRECTED} · topK={sep.TOPK_CUT} · budget={sep.BUDGET_CUT} ·
+        diversity={sep.DIVERSITY_CUT} · quality={sep.QUALITY_REJECTED} · dup={sep.DUPLICATE} ·
+        nm={sep.NEGATIVE_MEMORY} · would_insert={sep.WOULD_INSERT}
+      </p>
+      <p>
+        G) silent_drops_ok={String(g?.ok ?? report.reconciliation.ok)} gap=
+        {nd(g?.gap ?? report.reconciliation.gap)} · loss_recon=
+        {String(report.lossFunnel.reconciliation.matchesTotal)}
+      </p>
+      {report.coverage && report.coverage.length > 0 ? (
+        <p className="font-mono text-[10px] text-white/50">
+          coverage ·{' '}
+          {report.coverage
+            .slice(0, 8)
+            .map((r) => `${r.source}:${r.status}/${r.events}`)
+            .join(' · ')}
+        </p>
+      ) : null}
+      {report.dataQuality ? (
+        <p className="font-mono text-[10px] text-white/50">
+          DQ · sampled={nd(report.dataQuality.sampled)} valid={nd(report.dataQuality.valid)}{' '}
+          unknown={nd(report.dataQuality.unknown)} invalid={nd(report.dataQuality.invalid)}{' '}
+          missing={nd(report.dataQuality.missing)}
+        </p>
+      ) : null}
+      <p className="text-[10px] text-white/40">{String(a?.note ?? '')}</p>
+      <p className="text-[10px] text-white/40">{String(labels?.note ?? b?.note ?? '')}</p>
+    </div>
   );
 }
 

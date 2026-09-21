@@ -4,6 +4,7 @@ import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { firstValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
+import { applyCanonicalDiscountToMetaFields } from './canonicalDiscount';
 
 export type PaapiItem = {
   ASIN?: string;
@@ -114,10 +115,13 @@ export function normalizePaapiItem(item: PaapiItem): ParsedOfferMetadata | null 
       ? discountPrice + savingsAmount
       : null;
   if (!title || !canonicalUrl || discountPrice == null || discountPrice <= 0) return null;
-  const discountPercent =
-    originalPrice && originalPrice > 0
-      ? Math.round((1 - discountPrice / originalPrice) * 100)
-      : listing?.Price?.Savings?.Percentage ?? 0;
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: discountPrice,
+    originalPrice,
+    existingDiscountPercent: listing?.Price?.Savings?.Percentage ?? null,
+    recordShadow: false,
+  });
+  const discountPercent = applied.discountPercent;
 
   return {
     canonicalUrl,
@@ -134,7 +138,26 @@ export function normalizePaapiItem(item: PaapiItem): ParsedOfferMetadata | null 
   };
 }
 
-export async function discoverAmazonPaapiIngestItems(config: BotIngestConfig): Promise<IngestItem[]> {
+export type AmazonPaapiDiscoveryResult = {
+  items: IngestItem[];
+  skippedCandidates: Array<{
+    url: string;
+    title?: string | null;
+    reason: string;
+    itemId?: string | null;
+  }>;
+  skipReasonCounts: Record<string, number>;
+};
+
+export async function discoverAmazonPaapiIngestItems(
+  config: BotIngestConfig,
+): Promise<AmazonPaapiDiscoveryResult> {
+  const empty = (): AmazonPaapiDiscoveryResult => ({
+    items: [],
+    skippedCandidates: [],
+    skipReasonCounts: {},
+  });
+
   if (
     !config.amazonPaapiEnabled ||
     config.amazonSource !== 'paapi' ||
@@ -143,11 +166,28 @@ export async function discoverAmazonPaapiIngestItems(config: BotIngestConfig): P
     !config.amazonPaapiPartnerTag ||
     config.amazonAsins.length === 0
   ) {
-    return [];
+    return empty();
+  }
+
+  const asins = config.amazonAsins.slice(0, 10);
+  const truncated = config.amazonAsins.slice(10);
+  const skippedCandidates: AmazonPaapiDiscoveryResult['skippedCandidates'] = [];
+  const skipReasonCounts: Record<string, number> = {};
+  const bump = (reason: string) => {
+    skipReasonCounts[reason] = (skipReasonCounts[reason] ?? 0) + 1;
+  };
+  for (const asin of truncated) {
+    skippedCandidates.push({
+      url: `https://www.amazon.com.mx/dp/${asin}`,
+      title: null,
+      reason: 'amazon paapi: asin_cap truncated',
+      itemId: asin,
+    });
+    bump('amazon paapi: asin_cap truncated');
   }
 
   const body = JSON.stringify({
-    ItemIds: config.amazonAsins.slice(0, 10),
+    ItemIds: asins,
     ItemIdType: 'ASIN',
     LanguagesOfPreference: ['es_MX'],
     Marketplace: 'www.amazon.com.mx',
@@ -184,21 +224,34 @@ export async function discoverAmazonPaapiIngestItems(config: BotIngestConfig): P
       timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
     });
   } catch {
-    return [];
+    return { items: [], skippedCandidates, skipReasonCounts };
   }
-  if (!res.ok) return [];
+  if (!res.ok) return { items: [], skippedCandidates, skipReasonCounts };
 
   let json: PaapiResponse;
   try {
     json = (await res.json()) as PaapiResponse;
   } catch {
-    return [];
+    return { items: [], skippedCandidates, skipReasonCounts };
   }
 
   const out: IngestItem[] = [];
   for (const row of json.ItemsResult?.Items ?? []) {
+    const detailUrl = row.DetailPageURL?.trim() || null;
+    const asin = row.ASIN?.trim() || null;
     const meta = normalizePaapiItem(row);
-    if (!meta) continue;
+    if (!meta) {
+      if (detailUrl) {
+        skippedCandidates.push({
+          url: detailUrl,
+          title: row.ItemInfo?.Title?.DisplayValue?.trim() ?? null,
+          reason: 'amazon paapi: normalize failed',
+          itemId: asin,
+        });
+        bump('amazon paapi: normalize failed');
+      }
+      continue;
+    }
     out.push({
       url: meta.canonicalUrl,
       source: 'amazon_asin',
@@ -206,5 +259,5 @@ export async function discoverAmazonPaapiIngestItems(config: BotIngestConfig): P
       sourceDetail: 'amazon:paapi',
     });
   }
-  return out;
+  return { items: out, skippedCandidates, skipReasonCounts };
 }

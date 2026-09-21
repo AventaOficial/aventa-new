@@ -28,6 +28,7 @@ import {
 } from '@/lib/offers/resolveMercadoLibreItem';
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { preserveMachinePriceProvenance } from '@/lib/bots/ingest/machinePriceProvenance';
+import { applyCanonicalDiscountToMetaFields } from '@/lib/bots/ingest/canonicalDiscount';
 import type {
   SourceAdapter,
   SourceDiscoverContext,
@@ -146,15 +147,21 @@ export function normalizeMlWorkerListing(
     return { ok: false, reason: 'missing_external_id', inputSummary: summary };
   }
 
-  const computedDiscount =
-    originalPrice != null && originalPrice > discountPrice
-      ? Math.round((1 - discountPrice / originalPrice) * 100)
-      : 0;
-  const rawPercent =
-    candidate.discountPercent != null && Number.isFinite(Number(candidate.discountPercent))
-      ? Math.round(Number(candidate.discountPercent))
-      : computedDiscount;
-  const discountPercent = Math.max(0, Math.min(95, rawPercent));
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: discountPrice,
+    originalPrice,
+    existingDiscountPercent:
+      candidate.discountPercent != null && Number.isFinite(Number(candidate.discountPercent))
+        ? Number(candidate.discountPercent)
+        : null,
+    originalPriceProvenance:
+      typeof candidate.signals?.originalPriceProvenance === 'string'
+        ? candidate.signals.originalPriceProvenance
+        : null,
+    cardDiscountSource: candidate.cardDiscountSource ?? null,
+    maxPercentCap: 95,
+  });
+  const discountPercent = applied.discountPercent;
 
   const imageUrl = normalizeOfferImageUrl(candidate.imageUrl) ?? '';
   const store = candidate.store?.trim() || 'Mercado Libre';
@@ -170,6 +177,26 @@ export function normalizeMlWorkerListing(
     signals: {
       listingTypeId: 'worker_card',
       ...(candidate.signals ?? {}),
+      discountPercentProvenance:
+        applied.canonical.source === 'computed_from_prices'
+          ? 'derived'
+          : applied.canonical.source === 'supplied_by_source'
+            ? 'source_explicit'
+            : candidate.signals?.discountPercentProvenance,
+      discountCalculationStatus: applied.canonical.calculationStatus,
+      discountTruthSource: applied.canonical.source,
+      discountTruthConfidence: applied.canonical.confidence,
+      ...(applied.shadow.falseZero ? { discountFalseZeroCorrected: true } : {}),
+      ...(applied.canonical.calculationStatus === 'conflict'
+        ? {
+            discountConflict: {
+              supplied: applied.canonical.evidence.suppliedDiscountPercentage,
+              computed: applied.canonical.evidence.computedDiscountPercentage,
+              delta: applied.canonical.evidence.delta,
+              reason: applied.canonical.evidence.reasonForDiscrepancy,
+            },
+          }
+        : {}),
     },
     cardDiscountSource: candidate.cardDiscountSource ?? null,
     cardBadgePercent: candidate.cardBadgePercent ?? null,

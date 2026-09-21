@@ -12,14 +12,21 @@ export const LAB_FN_RATE_MIN_REVIEWED = 20;
 export const LAB_FN_RATE_MIN_FP_FN = 5;
 
 export const LAB_PRIMARY_LABELS = {
-  GOOD: 'GOOD_DEAL',
-  BAD: 'BAD_DEAL',
+  GOOD: 'GOOD',
+  BAD: 'BAD',
   UNCERTAIN: 'UNCERTAIN',
-  FALSE_NEGATIVE: 'FALSE_NEGATIVE',
+  FALSE_NEGATIVE: 'FN',
+  FALSE_POSITIVE: 'FP',
 } as const satisfies Record<string, HunterHumanDecision>;
 
-export const LAB_GOOD_DECISIONS = new Set<string>(['GOOD_DEAL', 'GREAT_DEAL', 'PUBLISH']);
+export const LAB_GOOD_DECISIONS = new Set<string>([
+  'GOOD',
+  'GOOD_DEAL',
+  'GREAT_DEAL',
+  'PUBLISH',
+]);
 export const LAB_BAD_DECISIONS = new Set<string>([
+  'BAD',
   'BAD_DEAL',
   'REJECT',
   'FALSE_DEAL',
@@ -95,6 +102,33 @@ export type LabCandidateRow = {
   human_label?: string | null;
   human_reviewed_at?: string | null;
   label_outcome?: string | null;
+  /** Discovery Experiment (optional / shadow). */
+  experiment_id?: string | null;
+  experiment_variant?: string | null;
+  discount_class?: string | null;
+  discount_class_v1?: string | null;
+  discount_confidence?: string | null;
+  discount_source?: string | null;
+  historical_price_confidence?: string | null;
+  price_evidence?: Record<string, unknown> | null;
+  current_decision?: string | null;
+  hypothetical_decision?: string | null;
+  funnel_stage?: string | null;
+  funnel_reason?: string | null;
+  would_topk_cut?: boolean | null;
+  would_diversity_cut?: boolean | null;
+  discovery_count_in_run?: number | null;
+  persisted_pre_gate?: boolean | null;
+  first_price_sale?: number | null;
+  last_price_sale?: number | null;
+  price_change_in_run?: number | null;
+  rot_page?: number | null;
+  rot_seed_id?: string | null;
+  rot_category_id?: string | null;
+  rot_query?: string | null;
+  rot_brand?: string | null;
+  rot_price_band?: string | null;
+  axis_bitmap?: Record<string, boolean> | null;
 };
 
 export type LabListFilters = {
@@ -110,6 +144,31 @@ export type LabListFilters = {
   reviewed?: 'reviewed' | 'unreviewed' | 'all';
   titleSearch?: string | null;
   missedOpportunities?: boolean;
+  /** Discovery Experiment filters. */
+  experimentId?: string | null;
+  experimentVariant?: string | null;
+  discountClass?: string | null;
+  /** Sort key when browsing UNKNOWN (sale_price|brand|product_rating|…). */
+  unknownSort?:
+    | 'sale_price'
+    | 'brand'
+    | 'product_rating'
+    | 'review_count'
+    | 'historical_confidence'
+    | 'category'
+    | 'source'
+    | null;
+  /** novel = discovery_count_in_run === 1; repeated = > 1 */
+  novelty?: 'novel' | 'repeated' | null;
+  /** Active rotation axis column not-null filter. */
+  rotationAxis?:
+    | 'page'
+    | 'seed'
+    | 'category'
+    | 'query'
+    | 'brand'
+    | 'price_band'
+    | null;
   page?: number;
   pageSize?: number;
 };
@@ -195,6 +254,32 @@ export const LAB_CANDIDATE_SELECT = [
   'validation_errors',
   'evidence',
   'discovered_at',
+  'experiment_id',
+  'experiment_variant',
+  'discount_class',
+  'discount_class_v1',
+  'discount_confidence',
+  'discount_source',
+  'historical_price_confidence',
+  'price_evidence',
+  'current_decision',
+  'hypothetical_decision',
+  'funnel_stage',
+  'funnel_reason',
+  'would_topk_cut',
+  'would_diversity_cut',
+  'discovery_count_in_run',
+  'persisted_pre_gate',
+  'first_price_sale',
+  'last_price_sale',
+  'price_change_in_run',
+  'rot_page',
+  'rot_seed_id',
+  'rot_category_id',
+  'rot_query',
+  'rot_brand',
+  'rot_price_band',
+  'axis_bitmap',
 ].join(',');
 
 export function displayOrNd(value: unknown): string {
@@ -219,6 +304,38 @@ export function parseLabListFilters(searchParams: URLSearchParams): LabListFilte
   if (unreviewedOnly || reviewedRaw === 'unreviewed') reviewed = 'unreviewed';
   else if (reviewedRaw === 'reviewed') reviewed = 'reviewed';
 
+  const noveltyRaw = (searchParams.get('novelty') ?? searchParams.get('novel_repeated') ?? '')
+    .trim()
+    .toLowerCase();
+  let novelty: LabListFilters['novelty'] = null;
+  if (noveltyRaw === 'novel' || noveltyRaw === 'new') novelty = 'novel';
+  else if (noveltyRaw === 'repeated' || noveltyRaw === 'repeat') novelty = 'repeated';
+
+  const rotAxisRaw = (searchParams.get('rotation_axis') ?? searchParams.get('rot_axis') ?? '')
+    .trim()
+    .toLowerCase();
+  const rotationAxis: LabListFilters['rotationAxis'] =
+    rotAxisRaw === 'page' ||
+    rotAxisRaw === 'seed' ||
+    rotAxisRaw === 'category' ||
+    rotAxisRaw === 'query' ||
+    rotAxisRaw === 'brand' ||
+    rotAxisRaw === 'price_band'
+      ? rotAxisRaw
+      : null;
+
+  const unknownSortRaw = (searchParams.get('unknown_sort') ?? '').trim().toLowerCase();
+  const unknownSort: LabListFilters['unknownSort'] =
+    unknownSortRaw === 'sale_price' ||
+    unknownSortRaw === 'brand' ||
+    unknownSortRaw === 'product_rating' ||
+    unknownSortRaw === 'review_count' ||
+    unknownSortRaw === 'historical_confidence' ||
+    unknownSortRaw === 'category' ||
+    unknownSortRaw === 'source'
+      ? unknownSortRaw
+      : null;
+
   return {
     runId,
     source: searchParams.get('source')?.trim() || null,
@@ -233,6 +350,12 @@ export function parseLabListFilters(searchParams: URLSearchParams): LabListFilte
     titleSearch: searchParams.get('q')?.trim() || searchParams.get('title')?.trim() || null,
     missedOpportunities:
       searchParams.get('missed') === '1' || searchParams.get('view') === 'missed_opportunities',
+    experimentId: searchParams.get('experiment_id')?.trim() || null,
+    experimentVariant: searchParams.get('experiment_variant')?.trim() || null,
+    discountClass: searchParams.get('discount_class')?.trim() || null,
+    unknownSort,
+    novelty,
+    rotationAxis,
     page,
     pageSize,
   };

@@ -7,6 +7,7 @@
 import { sleep } from '@/lib/bots/ingest/ingestHttp';
 import type { BotIngestConfig } from '@/lib/bots/ingest/config';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
+import { applyCanonicalDiscountToMetaFields } from '@/lib/bots/ingest/canonicalDiscount';
 import {
   computeMlPriceIntel,
   loadMlDailyHistory,
@@ -490,10 +491,13 @@ export async function observeStickySkuViaServer(opts: {
   );
 
   const offerMeta = await lookupMeta(productId, opts.supabase ?? null);
-  const discountPercent =
-    apiOriginal != null && apiOriginal > current
-      ? Math.round((1 - current / apiOriginal) * 100)
-      : 0;
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: current,
+    originalPrice: apiOriginal,
+    existingDiscountPercent: null,
+    recordShadow: false,
+  });
+  const discountPercent = applied.discountPercent;
 
   const titleSeed = (quote.titleHint ?? offerMeta?.title ?? '').trim();
   const imageSeed = quote.imageHint || offerMeta?.imageUrl || '';
@@ -513,7 +517,7 @@ export async function observeStickySkuViaServer(opts: {
     signals: {
       currentPriceProvenance: 'source_explicit',
       originalPriceProvenance: apiOriginal != null ? 'source_explicit' : 'unknown',
-      discountPercentProvenance: discountPercent > 0 ? 'derived' : 'unknown',
+      discountPercentProvenance: discountPercent != null ? 'derived' : 'unknown',
       categoryId: quote.categoryId,
     },
   };
@@ -549,10 +553,12 @@ export async function observeStickySkuViaServer(opts: {
   meta = {
     ...meta,
     originalPrice: original,
-    discountPercent:
-      original != null && original > meta.discountPrice
-        ? Math.round((1 - meta.discountPrice / original) * 100)
-        : 0,
+    discountPercent: applyCanonicalDiscountToMetaFields({
+      salePrice: meta.discountPrice,
+      originalPrice: original,
+      existingDiscountPercent: meta.discountPercent,
+      recordShadow: false,
+    }).discountPercent,
     imageUrl: imageUrl ?? '',
     title: title ?? '',
   };

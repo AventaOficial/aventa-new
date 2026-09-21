@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-09-21T15:50:40.536Z",
+  "mission": "hunter_closure_mission",
+  "discountStatic": {
+    "ok": true,
+    "criticalViolations": [],
+    "allowlistedFindings": 0
+  },
+  "experimentSafety": {
+    "mintScan": {
+      "ok": true,
+      "violations": []
+    },
+    "insertWall": {
+      "ok": true,
+      "violations": []
+    }
+  },
+  "areas": [
+    {
+      "area": "silent_drops",
+      "status": "PASS",
+      "evidence": "assertZeroSilentDrops + reconcileDiscoveryCompleteness + earlyPersist skippedCandidates; tests zeroSilentDrops + discoverySilentDrops + hunterClosureMission",
+      "risk": "low"
+    },
+    {
+      "area": "discount_truth",
+      "status": "PASS",
+      "evidence": "scanDiscountTruthStatic ok=true criticalViolations=0 findings=0",
+      "risk": "low"
+    },
+    {
+      "area": "identity",
+      "status": "PASS",
+      "evidence": "resolveCandidateIdentity identity_type=ml_item|asin|fingerprint|product_identifier|url|unknown; wired in buildCandidateRecord + Mission Control",
+      "risk": "low"
+    },
+    {
+      "area": "url_accounting",
+      "status": "PASS",
+      "evidence": "unique URL vs typed identityKey; urlOnly flag when fingerprint falls back to URL",
+      "risk": "low"
+    },
+    {
+      "area": "candidate_accounting",
+      "status": "PASS",
+      "evidence": "DISCOVERED = rejected+skipped+would_insert+inserted+other; gap/conflict checks",
+      "risk": "low"
+    },
+    {
+      "area": "experiment_safety",
+      "status": "PASS",
+      "evidence": "insertedAttempted=0 hard wall; scanSourceForForbiddenMint ok=true violations=[]",
+      "risk": "low"
+    },
+    {
+      "area": "money_path",
+      "status": "INTENTIONAL",
+      "evidence": "No changes to commission/settlement; observation boundary forbids liquidateReward/settleCommission",
+      "risk": "none"
+    },
+    {
+      "area": "publish_path",
+      "status": "INTENTIONAL",
+      "evidence": "No publishOffer/autoPublish wiring in experiment; HUNTER_AUTO_PUBLISH abort",
+      "risk": "none"
+    },
+    {
+      "area": "reward_path",
+      "status": "INTENTIONAL",
+      "evidence": "No reward liquidations touched",
+      "risk": "none"
+    },
+    {
+      "area": "attribution",
+      "status": "INTENTIONAL",
+      "evidence": "Attribution untouched",
+      "risk": "none"
+    },
+    {
+      "area": "topK",
+      "status": "INTENTIONAL",
+      "evidence": "Policy limits unchanged; only wouldTopkCut observability",
+      "risk": "none"
+    },
+    {
+      "area": "diversity",
+      "status": "INTENTIONAL",
+      "evidence": "Diversity policy unchanged; wouldDiversityCut observability only",
+      "risk": "none"
+    },
+    {
+      "area": "negative_memory",
+      "status": "INTENTIONAL",
+      "evidence": "NM policy unchanged; loss funnel bucket only",
+      "risk": "none"
+    },
+    {
+      "area": "false_zero_historical",
+      "status": "UNKNOWN",
+      "evidence": "Audit SQL docs/supabase-migrations/20260921_false_zero_historical_audit.sql written; NOT executed against production",
+      "risk": "medium — historical rows may still store 0 without price_evidence"
+    },
+    {
+      "area": "live_7d_mission_control",
+      "status": "UNKNOWN",
+      "evidence": "Requires authenticated Mission Control API / Supabase credentials at runtime; prior confirmed window: 3695 events, gap=0",
+      "risk": "low for code path; live refresh BLOCKED_EXTERNAL without DB session in this agent run"
+    }
+  ]
+}

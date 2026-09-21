@@ -26,14 +26,15 @@ export const ML_SEED_REGISTRY = [
     url: 'https://www.mercadolibre.com.mx/ofertas?page=2',
     group: 'general',
     category: null,
-    enabled: true,
+    // FACT: page>=2 produced 0 new products in discovery experiments — keep disabled.
+    enabled: false,
   },
   {
     id: 'ofertas_hub_p3',
     url: 'https://www.mercadolibre.com.mx/ofertas?page=3',
     group: 'general',
     category: null,
-    enabled: true,
+    enabled: false,
   },
   {
     id: 'lightning',
@@ -110,6 +111,27 @@ export const ML_SEED_REGISTRY = [
     url: 'https://www.mercadolibre.com.mx/ofertas?category=MLM1168',
     group: 'category',
     category: 'MLM1168',
+    enabled: true,
+  },
+  {
+    id: 'cat_MLM1575',
+    url: 'https://www.mercadolibre.com.mx/ofertas?category=MLM1575',
+    group: 'category',
+    category: 'MLM1575',
+    enabled: true,
+  },
+  {
+    id: 'cat_MLM1132',
+    url: 'https://www.mercadolibre.com.mx/ofertas?category=MLM1132',
+    group: 'category',
+    category: 'MLM1132',
+    enabled: true,
+  },
+  {
+    id: 'cat_MLM1051',
+    url: 'https://www.mercadolibre.com.mx/ofertas?category=MLM1051',
+    group: 'category',
+    category: 'MLM1051',
     enabled: true,
   },
 ];

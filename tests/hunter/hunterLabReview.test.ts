@@ -56,23 +56,34 @@ describe('Hunter Lab Production Review — filters', () => {
     });
   });
 
-  it('missed opportunities view flag', () => {
+  it('parseLabListFilters maps experiment filters', () => {
     const f = parseLabListFilters(
       new URLSearchParams({
         run_id: '229de9f1-3364-4f9a-9175-7b97c1567997',
-        missed: '1',
+        experiment_id: 'discovery_exp_v1',
+        experiment_variant: 'multi_axis_rotation',
+        discount_class: 'DISCOUNT_REAL_GOOD',
+        novelty: 'repeated',
+        rotation_axis: 'price_band',
       }),
     );
-    expect(f?.missedOpportunities).toBe(true);
+    expect(f).toMatchObject({
+      experimentId: 'discovery_exp_v1',
+      experimentVariant: 'multi_axis_rotation',
+      discountClass: 'DISCOUNT_REAL_GOOD',
+      novelty: 'repeated',
+      rotationAxis: 'price_band',
+    });
   });
 });
 
 describe('Hunter Lab — label persistence helpers / FN detection', () => {
   it('primary buttons map to existing CHECK enum values', () => {
-    expect(LAB_PRIMARY_LABELS.GOOD).toBe('GOOD_DEAL');
-    expect(LAB_PRIMARY_LABELS.BAD).toBe('BAD_DEAL');
+    expect(LAB_PRIMARY_LABELS.GOOD).toBe('GOOD');
+    expect(LAB_PRIMARY_LABELS.BAD).toBe('BAD');
     expect(LAB_PRIMARY_LABELS.UNCERTAIN).toBe('UNCERTAIN');
-    expect(LAB_PRIMARY_LABELS.FALSE_NEGATIVE).toBe('FALSE_NEGATIVE');
+    expect(LAB_PRIMARY_LABELS.FALSE_NEGATIVE).toBe('FN');
+    expect(LAB_PRIMARY_LABELS.FALSE_POSITIVE).toBe('FP');
   });
 
   it('latestLabelsByCandidate keeps newest append-only label', () => {

@@ -23,6 +23,18 @@ import {
 } from './labReview';
 import { classifyLabelOutcome } from './humanLabels';
 
+const ROTATION_AXIS_COLUMN: Record<
+  NonNullable<LabListFilters['rotationAxis']>,
+  string
+> = {
+  page: 'rot_page',
+  seed: 'rot_seed_id',
+  category: 'rot_category_id',
+  query: 'rot_query',
+  brand: 'rot_brand',
+  price_band: 'rot_price_band',
+};
+
 function applyCandidateFilters(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   q: any,
@@ -43,6 +55,20 @@ function applyCandidateFilters(
   }
   if (filters.titleSearch) {
     query = query.ilike('title', `%${filters.titleSearch.replace(/%/g, '\\%')}%`);
+  }
+  if (filters.experimentId) query = query.eq('experiment_id', filters.experimentId);
+  if (filters.experimentVariant) {
+    query = query.eq('experiment_variant', filters.experimentVariant);
+  }
+  if (filters.discountClass) query = query.eq('discount_class', filters.discountClass);
+  if (filters.novelty === 'novel') {
+    query = query.eq('discovery_count_in_run', 1);
+  } else if (filters.novelty === 'repeated') {
+    query = query.gt('discovery_count_in_run', 1);
+  }
+  if (filters.rotationAxis) {
+    const col = ROTATION_AXIS_COLUMN[filters.rotationAxis];
+    if (col) query = query.not(col, 'is', null);
   }
   return query;
 }
@@ -293,7 +319,26 @@ export async function fetchLabReviewPage(
   }
 
   const orderCol = missed || humanFilter === 'FALSE_NEGATIVE' ? 'hunter_score' : 'discovered_at';
-  listQ = listQ.order(orderCol, { ascending: false, nullsFirst: false }).range(from, to);
+  let orderAscending = false;
+  let listOrderCol = orderCol;
+  if (
+    filters.discountClass === 'DISCOUNT_UNKNOWN' &&
+    filters.unknownSort &&
+    !(missed || humanFilter === 'FALSE_NEGATIVE')
+  ) {
+    const sortMap: Record<NonNullable<LabListFilters['unknownSort']>, string> = {
+      sale_price: 'sale_price',
+      brand: 'brand',
+      product_rating: 'product_rating',
+      review_count: 'review_count',
+      historical_confidence: 'historical_price_confidence',
+      category: 'category',
+      source: 'source',
+    };
+    listOrderCol = sortMap[filters.unknownSort] ?? 'discovered_at';
+    orderAscending = filters.unknownSort === 'brand' || filters.unknownSort === 'category' || filters.unknownSort === 'source';
+  }
+  listQ = listQ.order(listOrderCol, { ascending: orderAscending, nullsFirst: false }).range(from, to);
 
   const { data: rows, error, count } = await listQ;
   if (error) {

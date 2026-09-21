@@ -1,0 +1,39 @@
+{
+  "mission": "hunter_discovery_final_system_decision",
+  "generatedAt": "2026-09-21T15:52:00.000Z",
+  "verdict": "READY_FOR_REVIEW",
+  "strategy_decision": {
+    "page_policy": "page_1_only",
+    "primary_axes": ["query", "category", "seed"],
+    "disabled_axes_default": ["page"],
+    "adaptive_flag": "HUNTER_ADAPTIVE_DISCOVERY=1 or experiment multi_axis_rotation",
+    "topK_diversity_change": "NONE — not justified",
+    "threshold_25_change": "NONE",
+    "money_publish_rewards": "UNTOUCHED"
+  },
+  "root_causes": {
+    "repeat_93_8": {
+      "classification": "FACT+INFERENCE",
+      "fact": "Fixed query/category/seed surfaces + clock rotation re-observe same ML inventory; unique_url≈unique_identity=228/3695",
+      "inference": "Page depth is not the driver; page>=2 novelty≈0"
+    },
+    "unknown_27": {
+      "classification": "FACT",
+      "fact": "Missing original/list price evidence at adapter/PDP — not classifier bug"
+    },
+    "topk_13": {
+      "classification": "FACT",
+      "fact": "Post-discount shortlist on sticky pool; increasing topK does not expand universe"
+    },
+    "diversity_3_8": {
+      "classification": "FACT",
+      "fact": "Worker diversity cut secondary to REAL_LOW+UNKNOWN"
+    }
+  },
+  "tests": {
+    "vitest_passed": 3123,
+    "vitest_skipped": 8,
+    "tsc": "ok"
+  },
+  "deploy": { "commit": false, "push": false, "deploy": false }
+}

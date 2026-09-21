@@ -10,17 +10,20 @@ import { isLowQualityTitle } from './isLowQualityTitle';
 import type { OfferQualitySignals } from './offerQualitySignals';
 import { firstValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { fetchMlApi } from '@/lib/integrations/mercadolibre/apiClient';
+import { applyCanonicalDiscountToMetaFields } from './canonicalDiscount';
+import {
+  buildAdaptiveDiscoveryPlan,
+  formatMlSourceDetail,
+  nextSchedulerState,
+  type AdaptiveSearchCall,
+} from '@/lib/hunter/candidateIntelligence/discoveryScheduler';
+import {
+  loadSchedulerState,
+  saveSchedulerState,
+} from '@/lib/hunter/candidateIntelligence/schedulerStateStore';
 
 const ML_SITE = 'MLM';
 const ML_FETCH_DELAY_MS = 300;
-
-type MlSearchHit = {
-  id: string;
-};
-
-type MlSearchResponse = {
-  results?: MlSearchHit[];
-};
 
 function canonicalKey(url: string): string {
   try {
@@ -31,9 +34,50 @@ function canonicalKey(url: string): string {
   }
 }
 
-type SearchCall = { kind: 'q' | 'cat' | 'hl'; value: string; sort: string };
+type SearchCall = { kind: 'q' | 'cat' | 'hl'; value: string; sort: string; page?: number; axis?: string };
 
-function buildMlSearchPlan(config: BotIngestConfig, rotationWave: number): SearchCall[] {
+/**
+ * Adaptive discovery ON by default (evidence: fixed BOT_INGEST_ML_QUERIES = sticky pot).
+ * Opt out: HUNTER_ADAPTIVE_DISCOVERY=0
+ */
+export function isAdaptiveDiscoveryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = (env.HUNTER_ADAPTIVE_DISCOVERY ?? '1').trim().toLowerCase();
+  if (raw === '0' || raw === 'false' || raw === 'off' || raw === 'no') return false;
+  return true;
+}
+
+function buildMlSearchPlan(
+  config: BotIngestConfig,
+  rotationWave: number,
+  priorState?: Parameters<typeof buildAdaptiveDiscoveryPlan>[0]['priorState'],
+): SearchCall[] {
+  if (isAdaptiveDiscoveryEnabled()) {
+    const plan = buildAdaptiveDiscoveryPlan({
+      runSlot: rotationWave,
+      priorState: priorState ?? null,
+      exploitQueries: config.mlQueries.length > 0 ? config.mlQueries : undefined,
+      exploitCategories:
+        config.mlCategoryIds.length > 0
+          ? config.mlCategoryIds
+          : config.techCategoryIds.length > 0
+            ? config.techCategoryIds
+            : undefined,
+      trendingSort: config.mlSortTrending || 'sold_quantity_desc',
+      maxCalls: 14,
+      pageStrategy: 'page_1_only',
+      // 35% explore when exploit list is the sticky ≤12 pot
+      explorationShare: config.mlQueries.length > 0 && config.mlQueries.length <= 12 ? 0.4 : 0.3,
+    });
+    return plan.calls.map((c: AdaptiveSearchCall) => ({
+      kind: c.kind,
+      value: c.value,
+      sort: c.sort,
+      page: c.page,
+      axis: c.axis,
+    }));
+  }
+
+  // Legacy opt-out path — still rotates page-1 only (no page≥2).
   const profile = rotationWave % 3;
   const trendingSort = config.mlSortTrending || 'sold_quantity_desc';
   const relevanceSort = 'relevance';
@@ -51,26 +95,26 @@ function buildMlSearchPlan(config: BotIngestConfig, rotationWave: number): Searc
 
   if (profile === 0) {
     for (const q of queries.slice(0, 8)) {
-      calls.push({ kind: 'q', value: q, sort: trendingSort });
+      calls.push({ kind: 'q', value: q, sort: trendingSort, page: 1, axis: 'exploit' });
     }
     for (const c of config.techCategoryIds.slice(0, 4)) {
-      calls.push({ kind: 'cat', value: c, sort: trendingSort });
+      calls.push({ kind: 'cat', value: c, sort: trendingSort, page: 1, axis: 'exploit' });
     }
   } else if (profile === 1) {
     const cats =
       config.mlCategoryIds.length > 0 ? config.mlCategoryIds : config.techCategoryIds;
     for (const c of cats.slice(0, 10)) {
-      calls.push({ kind: 'cat', value: c, sort: relevanceSort });
+      calls.push({ kind: 'cat', value: c, sort: relevanceSort, page: 1, axis: 'exploit' });
     }
     for (const q of queries.slice(0, 4)) {
-      calls.push({ kind: 'q', value: q, sort: relevanceSort });
+      calls.push({ kind: 'q', value: q, sort: relevanceSort, page: 1, axis: 'exploit' });
     }
   } else {
     for (const c of config.techCategoryIds.slice(0, 6)) {
-      calls.push({ kind: 'cat', value: c, sort: relevanceSort });
+      calls.push({ kind: 'cat', value: c, sort: relevanceSort, page: 1, axis: 'exploit' });
     }
     for (const q of queries.slice(0, 6)) {
-      calls.push({ kind: 'q', value: q, sort: trendingSort });
+      calls.push({ kind: 'q', value: q, sort: trendingSort, page: 1, axis: 'exploit' });
     }
   }
 
@@ -119,54 +163,118 @@ async function resolveCategoryFromQuery(query: string): Promise<string | null> {
 }
 
 /**
- * Fallback cuando /sites/.../search y /items están forbidden (403).
- * highlights(category) → products/{id} + products/{id}/items (precio/original disponibles).
+ * Resuelve catalog product IDs → listings con precio vía /products/{id}/items.
+ * (GET /items/{id} y /sites/.../search genérico están forbidden en ML desde 2025.)
+ * URL-bearing drops se reportan vía onSkip (zero silent drops).
  */
-async function collectListingsFromHighlights(opts: {
-  categoryId: string;
+async function collectListingsFromProductIds(opts: {
+  productIds: string[];
   attribution: string;
   budget: number;
   seenId: Set<string>;
-  productsCap?: number;
   itemsPerProduct?: number;
+  onSkip?: (entry: MercadoLibreDiscoverySkip) => void;
 }): Promise<HighlightListing[]> {
-  const productsCap = opts.productsCap ?? 8;
   const itemsPerProduct = opts.itemsPerProduct ?? 2;
-  const hl = await fetchMlApi(
-    `/highlights/${ML_SITE}/category/${encodeURIComponent(opts.categoryId)}`,
-  );
-  if (!hl.ok || !hl.data || typeof hl.data !== 'object') return [];
-  const content =
-    (hl.data as { content?: HighlightsContent[] }).content?.map((c) => c.id?.trim()).filter(Boolean) ??
-    [];
-  const productIds = content.slice(0, productsCap) as string[];
   const out: HighlightListing[] = [];
+  const skip = opts.onSkip;
 
-  for (const productId of productIds) {
+  for (const productIdRaw of opts.productIds) {
     if (out.length >= opts.budget) break;
+    const productId = productIdRaw?.trim();
+    if (!productId) continue;
+    const productUrl = `https://www.mercadolibre.com.mx/p/${productId}`;
     await sleep(ML_FETCH_DELAY_MS);
     const product = await fetchMlApi(`/products/${encodeURIComponent(productId)}`);
-    if (!product.ok || !product.data || typeof product.data !== 'object') continue;
+    if (!product.ok || !product.data || typeof product.data !== 'object') {
+      skip?.({
+        url: productUrl,
+        title: null,
+        itemId: productId,
+        reason: 'ml discovery: product lookup failed',
+      });
+      continue;
+    }
     const pdata = product.data as {
       name?: string;
+      parent_id?: string | null;
       pictures?: Array<{ url?: string; secure_url?: string }>;
     };
     const title = sanitizeOfferTitle(pdata.name) ?? pdata.name?.trim() ?? '';
-    if (!title) continue;
+    if (!title) {
+      skip?.({
+        url: productUrl,
+        title: null,
+        itemId: productId,
+        reason: 'ml discovery: product sin título',
+      });
+      continue;
+    }
     const pics = (pdata.pictures ?? [])
       .map((p) => (p.secure_url || p.url || '').replace(/^http:\/\//i, 'https://').trim())
       .filter(Boolean);
     const imageUrl = firstValidOfferImage(pics) ?? pics[0] ?? '';
 
-    await sleep(ML_FETCH_DELAY_MS);
-    const items = await fetchMlApi(`/products/${encodeURIComponent(productId)}/items`);
-    if (!items.ok || !items.data || typeof items.data !== 'object') continue;
-    const results = (items.data as ProductItemsResponse).results ?? [];
-    for (const row of results.slice(0, itemsPerProduct)) {
-      const itemId = row.item_id?.trim();
+    const candidateIds = [productId];
+    const parentId = typeof pdata.parent_id === 'string' ? pdata.parent_id.trim() : '';
+    if (parentId && parentId !== productId) candidateIds.push(parentId);
+
+    let results: NonNullable<ProductItemsResponse['results']> = [];
+    let resolvedProductId = productId;
+    for (const tryId of candidateIds) {
+      await sleep(ML_FETCH_DELAY_MS);
+      const items = await fetchMlApi(`/products/${encodeURIComponent(tryId)}/items`);
+      if (!items.ok || !items.data || typeof items.data !== 'object') continue;
+      const rows = (items.data as ProductItemsResponse).results ?? [];
+      if (rows.length === 0) continue;
+      results = rows;
+      resolvedProductId = tryId;
+      break;
+    }
+    if (results.length === 0) {
+      skip?.({
+        url: productUrl,
+        title,
+        itemId: productId,
+        reason: 'ml discovery: product sin listings',
+      });
+      continue;
+    }
+
+    const capped = results.slice(0, itemsPerProduct);
+    for (let i = itemsPerProduct; i < results.length; i++) {
+      const itemId = results[i]?.item_id?.trim();
       if (!itemId || opts.seenId.has(itemId)) continue;
+      skip?.({
+        url: permalinkFromMlItemId(itemId),
+        title,
+        itemId,
+        reason: 'ml discovery: items_per_product truncated',
+      });
+    }
+
+    for (const row of capped) {
+      const itemId = row.item_id?.trim();
+      if (!itemId) continue;
+      if (opts.seenId.has(itemId)) {
+        skip?.({
+          url: permalinkFromMlItemId(itemId),
+          title,
+          itemId,
+          reason: 'ml discovery: item duplicado en lote',
+        });
+        continue;
+      }
       const price = typeof row.price === 'number' ? row.price : null;
-      if (price == null || !Number.isFinite(price) || price <= 0) continue;
+      if (price == null || !Number.isFinite(price) || price <= 0) {
+        skip?.({
+          url: permalinkFromMlItemId(itemId),
+          title,
+          itemId,
+          reason: 'ml discovery: listing sin precio',
+        });
+        continue;
+      }
       const original =
         typeof row.original_price === 'number' && row.original_price > price
           ? row.original_price
@@ -174,7 +282,7 @@ async function collectListingsFromHighlights(opts: {
       opts.seenId.add(itemId);
       out.push({
         itemId,
-        productId,
+        productId: resolvedProductId,
         title,
         price,
         originalPrice: original,
@@ -189,6 +297,107 @@ async function collectListingsFromHighlights(opts: {
     }
   }
   return out;
+}
+
+/**
+ * Fallback / path categórico: highlights(category) → products/{id}/items.
+ */
+async function collectListingsFromHighlights(opts: {
+  categoryId: string;
+  attribution: string;
+  budget: number;
+  seenId: Set<string>;
+  productsCap?: number;
+  itemsPerProduct?: number;
+  onSkip?: (entry: MercadoLibreDiscoverySkip) => void;
+}): Promise<HighlightListing[]> {
+  const productsCap = opts.productsCap ?? 8;
+  const hl = await fetchMlApi(
+    `/highlights/${ML_SITE}/category/${encodeURIComponent(opts.categoryId)}`,
+  );
+  if (!hl.ok || !hl.data || typeof hl.data !== 'object') return [];
+  const content =
+    (hl.data as { content?: HighlightsContent[] }).content?.map((c) => c.id?.trim()).filter(Boolean) ??
+    [];
+  const productIds = content.slice(0, productsCap) as string[];
+  for (let i = productsCap; i < content.length; i++) {
+    const pid = content[i];
+    if (!pid) continue;
+    opts.onSkip?.({
+      url: `https://www.mercadolibre.com.mx/p/${pid}`,
+      title: null,
+      itemId: pid,
+      reason: 'ml discovery: products_cap truncated',
+    });
+  }
+  return collectListingsFromProductIds({
+    productIds,
+    attribution: opts.attribution,
+    budget: opts.budget,
+    seenId: opts.seenId,
+    itemsPerProduct: opts.itemsPerProduct,
+    onSkip: opts.onSkip,
+  });
+}
+
+type ProductsSearchHit = { id?: string; catalog_product_id?: string };
+type ProductsSearchResponse = {
+  results?: ProductsSearchHit[];
+  paging?: { total?: number; offset?: number; limit?: number };
+};
+
+function pushHighlightRows(
+  highlightRows: Array<{ id: string; meta: ParsedOfferMetadata; signals: OfferQualitySignals; src: SearchCall }>,
+  idToSearch: Map<string, SearchCall>,
+  listings: HighlightListing[],
+  src: SearchCall,
+  skipReasonCounts: Record<string, number>,
+  skippedCandidates: MercadoLibreDiscoverySkip[],
+) {
+  for (const listing of listings) {
+    if (listing.originalPrice == null) {
+      pushSkip(skippedCandidates, skipReasonCounts, {
+        url: listing.permalink || mlItemUrl(listing.itemId),
+        title: listing.title,
+        itemId: listing.itemId,
+        reason: 'ml discovery: highlights sin precio original',
+      });
+      continue;
+    }
+    const applied = applyCanonicalDiscountToMetaFields({
+      salePrice: listing.price,
+      originalPrice: listing.originalPrice,
+      existingDiscountPercent: null,
+      originalPriceProvenance: 'source_explicit',
+    });
+    const discountPercent = applied.discountPercent;
+    highlightRows.push({
+      id: listing.itemId,
+      src,
+      meta: {
+        canonicalUrl: listing.permalink,
+        title: listing.title,
+        store: 'Mercado Libre',
+        imageUrl: listing.imageUrl,
+        discountPrice: listing.price,
+        originalPrice: listing.originalPrice,
+        discountPercent,
+      },
+      signals: {
+        condition: listing.condition,
+        categoryId: listing.categoryId,
+        listingTypeId: listing.listingTypeId,
+        soldQuantity: null,
+        currentPriceProvenance: 'source_explicit',
+        originalPriceProvenance: 'source_explicit',
+        discountPercentProvenance: 'derived',
+        discountCalculationStatus: applied.canonical.calculationStatus,
+        discountTruthSource: applied.canonical.source,
+        discountTruthConfidence: applied.canonical.confidence,
+      },
+    });
+    idToSearch.set(listing.itemId, src);
+  }
 }
 
 function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | null; reason?: string } {
@@ -214,7 +423,13 @@ function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | 
     .filter(Boolean);
   const imageUrl = firstValidOfferImage(pics) ?? '';
 
-  const discountPercent = Math.round((1 - price / originalPrice) * 100);
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: price,
+    originalPrice,
+    existingDiscountPercent: null,
+    originalPriceProvenance: 'source_explicit',
+  });
+  const discountPercent = applied.discountPercent;
 
   return {
     meta: {
@@ -225,6 +440,14 @@ function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | 
       discountPrice: price,
       originalPrice,
       discountPercent,
+      signals: {
+        discountCalculationStatus: applied.canonical.calculationStatus,
+        discountTruthSource: applied.canonical.source,
+        discountTruthConfidence: applied.canonical.confidence,
+        discountPercentProvenance: 'derived',
+        currentPriceProvenance: 'source_explicit',
+        originalPriceProvenance: 'source_explicit',
+      },
     },
   };
 }
@@ -247,14 +470,17 @@ function passesMlHardFilters(
   rating: MlRatingSummary | undefined,
   config: BotIngestConfig
 ): boolean {
-  if (meta.discountPercent < config.minDiscountPercent) return false;
+  // null = UNKNOWN — reject (same outcome as below-threshold under existing policy).
+  if (
+    meta.discountPercent == null ||
+    meta.discountPercent < config.minDiscountPercent
+  ) {
+    return false;
+  }
   if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) return false;
 
   const cond = (signals.condition ?? '').toLowerCase();
   const sold = signals.soldQuantity ?? 0;
-  if (meta.discountPercent < config.minDiscountPercent) return false;
-  if (meta.originalPrice == null || meta.originalPrice <= meta.discountPrice) return false;
-
   if (cond && cond !== 'new') return false;
 
   // soldQuantity ausente ≠ rechazo (p.ej. highlights path). Solo filtrar cuando hay dato.
@@ -314,7 +540,42 @@ export async function discoverMercadoLibreIngestItems(
     return { items: [], collectedCount: 0, skipReasonCounts: {}, skippedCandidates: [] };
   }
 
-  const plan = buildMlSearchPlan(config, rotationWave);
+  let supabase: import('@supabase/supabase-js').SupabaseClient | null = null;
+  if (isAdaptiveDiscoveryEnabled()) {
+    try {
+      const { createServerClient } = await import('@/lib/supabase/server');
+      supabase = createServerClient();
+    } catch {
+      supabase = null;
+    }
+  }
+  const priorState = isAdaptiveDiscoveryEnabled()
+    ? await loadSchedulerState({ supabase })
+    : null;
+
+  const plan = buildMlSearchPlan(config, rotationWave, priorState);
+
+  // Advance cursors so the next process does not re-hit the same explore window.
+  if (isAdaptiveDiscoveryEnabled()) {
+    const adaptivePlan = buildAdaptiveDiscoveryPlan({
+      runSlot: rotationWave,
+      priorState,
+      exploitQueries: config.mlQueries.length > 0 ? config.mlQueries : undefined,
+      exploitCategories:
+        config.mlCategoryIds.length > 0
+          ? config.mlCategoryIds
+          : config.techCategoryIds.length > 0
+            ? config.techCategoryIds
+            : undefined,
+      trendingSort: config.mlSortTrending || 'sold_quantity_desc',
+      maxCalls: 14,
+      pageStrategy: 'page_1_only',
+      explorationShare: config.mlQueries.length > 0 && config.mlQueries.length <= 12 ? 0.4 : 0.3,
+    });
+    const next = nextSchedulerState(adaptivePlan, priorState);
+    await saveSchedulerState({ supabase, state: next });
+  }
+
   const idOrder: string[] = [];
   const seenId = new Set<string>();
   /** Primera query/cat/hl que descubrió el item (atribución de telemetría). */
@@ -327,33 +588,158 @@ export async function discoverMercadoLibreIngestItems(
   const skippedCandidates: MercadoLibreDiscoverySkip[] = [];
   let searchForbidden = 0;
 
-  for (const src of plan) {
-    if (idOrder.length >= maxIds) break;
-    const path =
-      src.kind === 'q'
-        ? `/sites/${ML_SITE}/search?q=${encodeURIComponent(src.value)}&limit=${limit}&sort=${encodeURIComponent(src.sort)}`
-        : `/sites/${ML_SITE}/search?category=${encodeURIComponent(src.value)}&limit=${limit}&sort=${encodeURIComponent(src.sort)}`;
+  // Discovery Experiment: optional page/offset depth ONLY when page axis explicitly enabled.
+  // FACT: page>=2 produced 0 new products — default is single page (offset=0).
+  const experimentOn = ['1', 'true', 'on', 'yes'].includes(
+    (process.env.HUNTER_DISCOVERY_EXPERIMENT ?? '0').trim().toLowerCase(),
+  );
+  const experimentVariant = (process.env.HUNTER_DISCOVERY_EXPERIMENT_VARIANT ?? 'baseline_sticky')
+    .trim()
+    .toLowerCase();
+  const enablePageAxis = ['1', 'true', 'on', 'yes'].includes(
+    (process.env.HUNTER_DISCOVERY_ENABLE_PAGE_AXIS ?? '0').trim().toLowerCase(),
+  );
+  const useExperimentDepth =
+    experimentOn &&
+    enablePageAxis &&
+    experimentVariant !== 'baseline_sticky' &&
+    experimentVariant !== '';
+  const experimentOffsets: number[] = (() => {
+    if (!useExperimentDepth) return [0];
+    const maxPages = Math.min(
+      5,
+      Math.max(1, Number.parseInt(process.env.HUNTER_DISCOVERY_EXPERIMENT_MAX_PAGES ?? '2', 10) || 2),
+    );
+    const pages: number[] = [];
+    for (let p = 0; p < maxPages; p += 1) pages.push(p * limit);
+    return pages;
+  })();
+  let experiment403 = 0;
+  let experimentCalls = 0;
 
-    await sleep(ML_FETCH_DELAY_MS);
-    const api = await fetchMlApi(path);
-    if (!api.ok) {
-      bumpReason(skipReasonCounts, `ml discovery: search HTTP ${api.status}`);
-      if (api.status === 403) searchForbidden += 1;
+  // Primary discovery (post-2025):
+  // - kind=q  → official /products/search (sites/.../search genérico → 403 forever)
+  // - kind=cat → highlights(category) (mismo canal sellable que el fallback histórico)
+  // Listings se resuelven con /products/{id}/items — /items?ids= también 403.
+  for (const src of plan) {
+    if (idOrder.length + highlightRows.length >= maxIds) break;
+
+    if (src.kind === 'cat') {
+      await sleep(ML_FETCH_DELAY_MS);
+      const remaining = maxIds - (idOrder.length + highlightRows.length);
+      const listings = await collectListingsFromHighlights({
+        categoryId: src.value,
+        attribution: `cat:${src.value}`,
+        budget: Math.min(remaining, Math.max(6, Math.floor(config.mlMaxCollect / 2))),
+        seenId,
+        onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
+      });
+      const hlSrc: SearchCall = {
+        kind: 'hl',
+        value: `${src.value}|cat:${src.value}`,
+        sort: 'highlights',
+        page: src.page ?? 1,
+        axis: src.axis ?? 'exploit',
+      };
+      pushHighlightRows(highlightRows, idToSearch, listings, hlSrc, skipReasonCounts, skippedCandidates);
+      if (listings.length === 0) {
+        bumpReason(skipReasonCounts, `ml discovery: highlights vacíos ${src.value}`);
+      }
       continue;
     }
 
-    const json = api.data as MlSearchResponse;
-    for (const hit of json.results ?? []) {
-      if (!hit?.id || seenId.has(hit.id)) continue;
-      seenId.add(hit.id);
-      idOrder.push(hit.id);
-      idToSearch.set(hit.id, src);
-      if (idOrder.length >= maxIds) break;
+    const offsets = useExperimentDepth ? experimentOffsets : [0];
+    for (const offset of offsets) {
+      if (idOrder.length + highlightRows.length >= maxIds) break;
+      const pageNum = useExperimentDepth ? Math.floor(offset / Math.max(limit, 1)) + 1 : (src.page ?? 1);
+      const pageSrc: SearchCall = {
+        ...src,
+        page: pageNum,
+        axis: src.axis ?? 'exploit',
+      };
+      const offsetQs = useExperimentDepth ? `&offset=${offset}` : '';
+      // Official catalog search — replaces deprecated /sites/{SITE}/search?q=
+      const path = `/products/search?status=active&site_id=${ML_SITE}&q=${encodeURIComponent(src.value)}&limit=${limit}${offsetQs}`;
+
+      await sleep(ML_FETCH_DELAY_MS);
+      if (useExperimentDepth) experimentCalls += 1;
+      const api = await fetchMlApi(path);
+      if (!api.ok) {
+        bumpReason(skipReasonCounts, `ml discovery: search HTTP ${api.status}`);
+        if (api.status === 403) {
+          searchForbidden += 1;
+          if (useExperimentDepth) experiment403 += 1;
+        }
+        continue;
+      }
+
+      const json = api.data as ProductsSearchResponse;
+      const productIds = (json.results ?? [])
+        .map((hit) => (hit.id || hit.catalog_product_id || '').trim())
+        .filter(Boolean);
+      if (productIds.length === 0) {
+        bumpReason(skipReasonCounts, 'ml discovery: products_search vacío');
+        if (!useExperimentDepth) break;
+        continue;
+      }
+
+      const remaining = maxIds - (idOrder.length + highlightRows.length);
+      let listings = await collectListingsFromProductIds({
+        productIds,
+        attribution: `q:${src.value}`,
+        budget: Math.min(remaining, Math.max(6, Math.floor(config.mlMaxCollect / 2))),
+        seenId,
+        onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
+      });
+
+      // Catalog search often returns products without /items. Secondary: map query →
+      // category highlights (official) so q-seeds still yield sellable listings.
+      const withOriginal = listings.filter((l) => l.originalPrice != null).length;
+      if (withOriginal === 0) {
+        bumpReason(skipReasonCounts, `ml discovery: products_search sin listings ${src.value}`);
+        await sleep(ML_FETCH_DELAY_MS);
+        const cat = await resolveCategoryFromQuery(src.value);
+        if (cat) {
+          listings = await collectListingsFromHighlights({
+            categoryId: cat,
+            attribution: `q:${src.value}`,
+            budget: Math.min(
+              maxIds - (idOrder.length + highlightRows.length),
+              Math.max(6, Math.floor(config.mlMaxCollect / 2)),
+            ),
+            seenId,
+            onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
+          });
+          if (listings.length === 0) {
+            bumpReason(skipReasonCounts, `ml discovery: highlights vacíos ${cat}`);
+          }
+        } else {
+          bumpReason(skipReasonCounts, 'ml discovery: domain_discovery sin categoría');
+        }
+      }
+
+      // Keep kind=q so telemetry reflects query search (not global highlights_fallback).
+      pushHighlightRows(highlightRows, idToSearch, listings, pageSrc, skipReasonCounts, skippedCandidates);
+      // Baseline: only one page per search source.
+      if (!useExperimentDepth) break;
     }
   }
 
-  // Fallback: search/items ML forbidden (403). Highlights + product items traen precio/original.
-  if (idOrder.length === 0 || searchForbidden >= Math.max(1, Math.floor(plan.length * 0.5))) {
+  if (useExperimentDepth && experimentCalls > 0) {
+    const abort403Rate = Math.min(
+      1,
+      Math.max(
+        0.1,
+        Number.parseFloat(process.env.HUNTER_DISCOVERY_EXPERIMENT_ABORT_403_RATE ?? '0.5') || 0.5,
+      ),
+    );
+    if (experiment403 / experimentCalls >= abort403Rate) {
+      bumpReason(skipReasonCounts, 'ml discovery: experiment_403_abort');
+    }
+  }
+
+  // Fallback only if primary yielded nothing (should be rare with products/search + highlights cats).
+  if (idOrder.length === 0 && highlightRows.length === 0) {
     bumpReason(skipReasonCounts, 'ml discovery: highlights_fallback');
     const categoryBudget = new Map<string, string>();
     for (const c of config.mlCategoryIds.slice(0, 6)) categoryBudget.set(c, `cat:${c}`);
@@ -379,42 +765,19 @@ export async function discoverMercadoLibreIngestItems(
         attribution: label,
         budget: Math.min(remaining, Math.max(6, Math.floor(config.mlMaxCollect / 2))),
         seenId,
+        onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
       });
       const src: SearchCall = { kind: 'hl', value: `${categoryId}|${label}`, sort: 'highlights' };
-      for (const listing of listings) {
-        if (listing.originalPrice == null) {
-          bumpReason(skipReasonCounts, 'ml discovery: highlights sin precio original');
-          continue;
-        }
-        const discountPercent = Math.round((1 - listing.price / listing.originalPrice) * 100);
-        highlightRows.push({
-          id: listing.itemId,
-          src,
-          meta: {
-            canonicalUrl: listing.permalink,
-            title: listing.title,
-            store: 'Mercado Libre',
-            imageUrl: listing.imageUrl,
-            discountPrice: listing.price,
-            originalPrice: listing.originalPrice,
-            discountPercent,
-          },
-          signals: {
-            condition: listing.condition,
-            categoryId: listing.categoryId,
-            listingTypeId: listing.listingTypeId,
-            soldQuantity: null,
-            currentPriceProvenance: 'source_explicit',
-            originalPriceProvenance: 'source_explicit',
-            discountPercentProvenance: 'derived',
-          },
-        });
-        idToSearch.set(listing.itemId, src);
-      }
+      pushHighlightRows(highlightRows, idToSearch, listings, src, skipReasonCounts, skippedCandidates);
       if (listings.length === 0) {
         bumpReason(skipReasonCounts, `ml discovery: highlights vacíos ${categoryId}`);
       }
     }
+  }
+
+  // Silence unused when searchForbidden never increments under healthy products/search.
+  if (searchForbidden > 0) {
+    bumpReason(skipReasonCounts, `ml discovery: products_search_forbidden_count ${searchForbidden}`);
   }
 
   if (idOrder.length === 0 && highlightRows.length === 0) {
@@ -548,12 +911,18 @@ export async function discoverMercadoLibreIngestItems(
     const rating = ratingMap.get(row.id);
     const signals = mergeSignals(row.signals, rating);
     const cond = (signals.condition ?? '').toLowerCase();
-    if (row.meta.discountPercent < config.minDiscountPercent) {
+    if (
+      row.meta.discountPercent == null ||
+      row.meta.discountPercent < config.minDiscountPercent
+    ) {
       pushSkip(skippedCandidates, skipReasonCounts, {
         url: row.meta.canonicalUrl || mlItemUrl(row.id),
         title: row.meta.title,
         itemId: row.id,
-        reason: `ml discovery: descuento ${row.meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`,
+        reason:
+          row.meta.discountPercent == null
+            ? 'ml discovery: descuento desconocido (sin evidencia calculable)'
+            : `ml discovery: descuento ${row.meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`,
       });
       continue;
     }
@@ -616,8 +985,16 @@ export async function discoverMercadoLibreIngestItems(
     seenKeys.add(key);
 
     const search = idToSearch.get(row.id);
+    const page = search?.page ?? 1;
+    const axis = search?.axis ?? 'exploit';
     const sourceDetail = search
-      ? `ml:${search.kind}:${search.value}|sort:${search.sort}`
+      ? formatMlSourceDetail({
+          kind: search.kind,
+          value: search.value,
+          sort: search.sort,
+          page,
+          axis,
+        })
       : 'ml:unknown';
 
     out.push({

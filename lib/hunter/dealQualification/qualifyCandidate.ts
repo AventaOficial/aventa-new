@@ -9,6 +9,7 @@ import type {
   PriceProvenance,
   PromotionKind,
 } from './types';
+import { resolveCanonicalDiscount } from '@/lib/bots/ingest/canonicalDiscount';
 
 function asFiniteNumber(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -39,9 +40,13 @@ function isStrongPriceProvenance(p: PriceProvenance): boolean {
   return p === 'source_explicit' || p === 'trusted_enrichment';
 }
 
+/** Single math authority — ingest path must not reimplement (1 - current/original)*100. */
 function derivedPercent(current: number, original: number): number | null {
-  if (!(original > current)) return null;
-  return Math.round((1 - current / original) * 10000) / 100;
+  const truth = resolveCanonicalDiscount({
+    salePrice: current,
+    originalPrice: original,
+  });
+  return truth.discountPercentage;
 }
 
 function promotionReasons(kind: PromotionKind | null | undefined): DealQualificationReasonCode[] {

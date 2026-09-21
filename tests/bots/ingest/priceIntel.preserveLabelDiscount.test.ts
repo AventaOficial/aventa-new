@@ -146,15 +146,51 @@ describe('applyMlPriceIntelToMeta — preserveLabelDiscount (ml_worker)', () => 
     expect(passesHardDiscountFilter(out)).toBe(false);
   });
 
-  it('sin preserveLabelDiscount: effective 0 sigue pisando (regresión ml_api)', () => {
+  it('P0: sin preserveLabelDiscount NO pisa con effective=0 si precios implican descuento', () => {
     const meta = cardMeta({ discountPercent: 67 });
     const out = applyMlPriceIntelToMeta(
       meta,
-      { quote: quote(), intel: intel({ effectiveDiscountPercent: 0 }) },
+      {
+        quote: quote({ current: 1000, listPrice: 3000 }),
+        intel: intel({
+          current: 1000,
+          listPrice: 3000,
+          effectiveDiscountPercent: 0,
+          suspectedArtificialListPrice: true,
+        }),
+      },
       { preserveLabelDiscount: false }
     );
-    expect(out.discountPercent).toBe(0);
-    expect(passesHardDiscountFilter(out)).toBe(false);
+    // Truth from prices — effective=0 stays in signals only (FALSE_ZERO fix)
+    expect(out.discountPercent).toBe(67);
+    expect(out.signals?.effectiveDiscountPercent).toBe(0);
+    expect(out.signals?.discountFalseZeroCorrected || out.discountPercent).toBeTruthy();
+    expect(passesHardDiscountFilter(out)).toBe(true);
+  });
+
+  it('P0: supplied 0 + prices 699/1999 → conflict corrected to ~65%', () => {
+    const meta = cardMeta({
+      discountPercent: 0,
+      discountPrice: 699,
+      originalPrice: 1999,
+    });
+    const out = applyMlPriceIntelToMeta(
+      meta,
+      {
+        quote: quote({ current: 699, listPrice: 1999 }),
+        intel: intel({
+          current: 699,
+          listPrice: 1999,
+          effectiveDiscountPercent: 0,
+          suspectedArtificialListPrice: true,
+        }),
+      },
+      { preserveLabelDiscount: true }
+    );
+    expect(out.discountPercent).toBe(65);
+    expect(out.signals?.discountCalculationStatus).toBe('conflict');
+    expect(out.signals?.discountFalseZeroCorrected).toBe(true);
+    expect(passesHardDiscountFilter(out, 25)).toBe(true);
   });
 
   it('Caso 6: card >= minDiscount puede pasar hard filter hacia insert', () => {

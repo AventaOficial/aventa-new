@@ -1,0 +1,45 @@
+{
+  "mission": "hunter_closure_mission",
+  "generatedAt": "2026-09-21T06:12:00.000Z",
+  "verdict": "READY_FOR_REVIEW",
+  "blockers": [
+    {
+      "id": "live_7d_refresh",
+      "status": "BLOCKED_EXTERNAL",
+      "dependency": "Authenticated Supabase / Mission Control session in this agent environment",
+      "implemented": "Code path paginated + temporal baselines + identity/stickiness/coverage/funnel/labels",
+      "unverified_live": "Fresh 7d counts; using last confirmed production window evidence",
+      "prior_confirmed_window": {
+        "discovered": 3695,
+        "unique_url": 228,
+        "unique_identity": 228,
+        "repeat_rate": 0.938,
+        "REAL_LOW": 1921,
+        "UNKNOWN": 1004,
+        "TOPK": 490,
+        "DIVERSITY": 141,
+        "WOULD_INSERT": 139,
+        "silent_drop_gap": 0,
+        "human_labels": 0,
+        "FALSE_ZERO_CORRECTED": 0
+      }
+    },
+    {
+      "id": "false_zero_backfill_execution",
+      "status": "BLOCKED_EXTERNAL",
+      "dependency": "Human ops approval to run reversible SQL against production",
+      "implemented": "docs/supabase-migrations/20260921_false_zero_historical_audit.sql (audit + commented transactional backfill)",
+      "unverified_live": "Actual FALSE_ZERO historical count/distribution"
+    }
+  ],
+  "tests": {
+    "vitest": { "passed": 3111, "skipped": 8, "failed": 0, "files_passed": 287, "files_skipped": 2 },
+    "tsc": "ok",
+    "build": "ok"
+  },
+  "deploy": {
+    "commit": false,
+    "push": false,
+    "deploy": false
+  }
+}

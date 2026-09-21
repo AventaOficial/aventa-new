@@ -48,6 +48,17 @@ export type OfferQualitySignals = {
   cardDiscountSource?: 'badge_reconstructed' | 'card_strikethrough' | 'pdp' | 'unknown' | null;
   /** Badge % de la card: señal de discovery, no prueba de deal. */
   cardBadgePercent?: number | null;
+  /** Canonical discount engine (P0) — observation + truth wiring. */
+  discountCalculationStatus?: string | null;
+  discountTruthSource?: string | null;
+  discountTruthConfidence?: string | null;
+  discountFalseZeroCorrected?: boolean | null;
+  discountConflict?: {
+    supplied: number | null;
+    computed: number | null;
+    delta: number | null;
+    reason: string | null;
+  } | null;
   /**
    * Provenance of the product image URL (≠ originalPriceProvenance).
    * listing_card = captured from search/listing card DOM.

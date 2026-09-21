@@ -46,6 +46,12 @@ import {
   persistHunterIntelligenceRun,
   type ObservedResolved,
 } from '@/lib/hunter/candidateIntelligence';
+import {
+  applyWouldCutAnnotations,
+  earlyPersistDiscoverySightings,
+  isHunterDiscoveryExperimentEnabled,
+} from '@/lib/hunter/candidateIntelligence/discoveryExperimentPublic';
+import { parseDiscoverySourceDetail } from '@/lib/hunter/candidateIntelligence/discoveryScheduler';
 
 /** S9.1 — legacy cycle must not mint offers; live writes go through S9→S7. */
 export const S91_DISCOVERY_ONLY_SKIP_REASON =
@@ -297,6 +303,62 @@ export async function runIngestCycleForProfile(
   const rejectedBySource: Partial<Record<IngestSourceId, number>> = {};
   const pendingBySource: Partial<Record<IngestSourceId, number>> = {};
 
+  // Discovery Experiment: early persist pool URLs + discovery skips (zero silent drops).
+  if (isHunterDiscoveryExperimentEnabled()) {
+    try {
+      const sightings = [
+        ...pool.map((item) => {
+          const detail = item.sourceDetail ?? null;
+          const parsed = parseDiscoverySourceDetail(detail);
+          return {
+            canonicalUrl: item.url,
+            source: item.source,
+            title: item.precomputedMeta?.title ?? null,
+            salePrice: item.precomputedMeta?.discountPrice ?? null,
+            originalPrice: item.precomputedMeta?.originalPrice ?? null,
+            discountPct: item.precomputedMeta?.discountPercent ?? null,
+            rotCategoryId:
+              item.precomputedMeta?.signals?.categoryId ?? parsed.rotCategoryId ?? null,
+            rotQuery: parsed.rotQuery,
+            rotSeedId: parsed.rotSeedId,
+            rotPage: parsed.page,
+            rawMetadata: { sourceDetail: detail },
+          };
+        }),
+        ...discoverySkipUrls
+          .filter((s) => Boolean(s.url?.trim()))
+          .map((s) => ({
+            canonicalUrl: s.url,
+            source: s.source ?? 'ml_api',
+            title: s.title ?? null,
+            salePrice: null as number | null,
+            originalPrice: null as number | null,
+            discountPct: null as number | null,
+            rotCategoryId: null as string | null,
+            rawMetadata: { discoverySkip: true, reason: s.reason ?? null },
+          })),
+      ];
+      const early = await earlyPersistDiscoverySightings({
+        supabase: shadowDup.supabase,
+        runId: supplyRunId,
+        sightings,
+        minDiscountPercent: config.minDiscountPercent,
+      });
+      if (early.error) {
+        console.warn('[hunter_discovery_experiment] early persist', early.error);
+      } else if (early.enabled) {
+        console.info(
+          `[hunter_discovery_experiment] early run=${supplyRunId} variant=${early.variant} events=${early.eventsWritten} candidates=${early.candidatesWritten}`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        '[hunter_discovery_experiment] early persist failed',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   for (const item of slice) {
     sourceStats[item.source].evaluated += 1;
     stageCounts.evaluated += 1;
@@ -362,8 +424,11 @@ export async function runIngestCycleForProfile(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
-      if (meta.discountPercent < config.minDiscountPercent) {
-        const reason = `descuento ${meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`;
+      if (meta.discountPercent == null || meta.discountPercent < config.minDiscountPercent) {
+        const reason =
+          meta.discountPercent == null
+            ? 'descuento desconocido (sin evidencia calculable)'
+            : `descuento ${meta.discountPercent}% < mínimo ${config.minDiscountPercent}%`;
         results.push({
           url: item.url,
           source: item.source,
@@ -553,7 +618,17 @@ export async function runIngestCycleForProfile(
           `[hunter_candidate_intelligence] reconciliation gap run=${supplyRunId} discovered=${recon.discovered} terminal=${recon.terminalSum} gap=${recon.gap}`,
         );
       }
-      const wrote = await persistHunterCandidates(shadowDup.supabase, observed.records);
+      const topKSet = new Set(topKCutUrls.map((u) => u.toLowerCase()));
+      const annotated = isHunterDiscoveryExperimentEnabled()
+        ? applyWouldCutAnnotations(observed.records, { topKUrls: topKSet }).map((r) => ({
+            ...r,
+            experimentId: r.experimentId ?? 'discovery_exp_v2',
+            wouldTopkCut:
+              r.wouldTopkCut === true || topKSet.has(r.canonicalUrl.toLowerCase()),
+            persistedPreGate: r.persistedPreGate === true,
+          }))
+        : observed.records;
+      const wrote = await persistHunterCandidates(shadowDup.supabase, annotated);
       if (!wrote.ok) {
         console.warn('[hunter_candidate_intelligence] persist candidates failed', wrote.error);
       }

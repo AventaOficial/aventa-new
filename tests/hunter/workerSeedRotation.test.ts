@@ -45,8 +45,9 @@ describe('FASE 5 rotación determinista de seeds', () => {
     expect(new Set([first, second, third]).size).toBe(3);
   });
 
-  it('E. la rotación recorre el registro completo sin repetir antes de tiempo', () => {
-    const total = ML_SEED_REGISTRY.length;
+  it('E. la rotación recorre el registro ENABLED completo sin repetir antes de tiempo', () => {
+    const enabled = ML_SEED_REGISTRY.filter((s: { enabled?: boolean }) => s.enabled !== false);
+    const total = enabled.length;
     const firstSeeds = new Set<string>();
     for (let cycle = 0; cycle < total; cycle++) {
       firstSeeds.add(resolveSeeds({ cycleIndex: cycle })[0]!.id);
@@ -54,17 +55,31 @@ describe('FASE 5 rotación determinista de seeds', () => {
     expect(firstSeeds.size).toBe(total);
   });
 
-  it('F. la rotación nunca pierde ni duplica seeds', () => {
+  it('F. la rotación nunca pierde ni duplica seeds enabled', () => {
+    const enabledCount = ML_SEED_REGISTRY.filter((s: { enabled?: boolean }) => s.enabled !== false)
+      .length;
     for (const cycle of [0, 1, 5, 13, 99, 1000]) {
       const rotated = resolveSeeds({ cycleIndex: cycle });
-      expect(rotated).toHaveLength(ML_SEED_REGISTRY.length);
-      expect(new Set(ids(rotated)).size).toBe(ML_SEED_REGISTRY.length);
+      expect(rotated).toHaveLength(enabledCount);
+      expect(new Set(ids(rotated)).size).toBe(enabledCount);
     }
   });
 
   it('G. índices negativos o inválidos no rompen la rotación', () => {
-    expect(ids(resolveSeeds({ cycleIndex: -3 }))).toHaveLength(ML_SEED_REGISTRY.length);
-    expect(ids(resolveSeeds({ cycleIndex: Number.NaN }))).toHaveLength(ML_SEED_REGISTRY.length);
+    const enabledCount = ML_SEED_REGISTRY.filter((s: { enabled?: boolean }) => s.enabled !== false)
+      .length;
+    expect(ids(resolveSeeds({ cycleIndex: -3 }))).toHaveLength(enabledCount);
+    expect(ids(resolveSeeds({ cycleIndex: Number.NaN }))).toHaveLength(enabledCount);
+  });
+
+  it('E2. page≥2 hub seeds están disabled (FACT zero novelty)', () => {
+    const p2 = ML_SEED_REGISTRY.find((s: { id: string }) => s.id === 'ofertas_hub_p2');
+    const p3 = ML_SEED_REGISTRY.find((s: { id: string }) => s.id === 'ofertas_hub_p3');
+    expect(p2?.enabled).toBe(false);
+    expect(p3?.enabled).toBe(false);
+    const enabledIds = new Set(ids(resolveSeeds({ cycleIndex: 0 })));
+    expect(enabledIds.has('ofertas_hub_p2')).toBe(false);
+    expect(enabledIds.has('ofertas_hub_p3')).toBe(false);
   });
 
   it('H. el stride es coprimo con el total, que es lo que garantiza cobertura', () => {
@@ -96,10 +111,10 @@ describe('FASE 5 rotación determinista de seeds', () => {
   });
 
   it('K. un override vacío cae al registro en vez de dejar el worker sin seeds', () => {
-    expect(resolveSeeds({ override: [], cycleIndex: 0 })).toHaveLength(ML_SEED_REGISTRY.length);
-    expect(resolveSeeds({ override: ['', '   '], cycleIndex: 0 })).toHaveLength(
-      ML_SEED_REGISTRY.length
-    );
+    const enabledCount = ML_SEED_REGISTRY.filter((s: { enabled?: boolean }) => s.enabled !== false)
+      .length;
+    expect(resolveSeeds({ override: [], cycleIndex: 0 })).toHaveLength(enabledCount);
+    expect(resolveSeeds({ override: ['', '   '], cycleIndex: 0 })).toHaveLength(enabledCount);
   });
 
   it('L. rotateSeeds tolera listas vacías o de un solo elemento', () => {

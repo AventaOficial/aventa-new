@@ -63,6 +63,34 @@ export type HunterCandidateRecord = {
   validationErrors?: string[];
   diversityCut?: boolean;
   negativeMemoryMatch?: string | null;
+  /** Discovery Experiment (optional / shadow). */
+  experimentId?: string | null;
+  experimentVariant?: string | null;
+  discountClass?: string | null;
+  /** Dual-label v1 for A/C comparison. */
+  discountClassV1?: string | null;
+  discountConfidence?: string | null;
+  discountSource?: string | null;
+  historicalPriceConfidence?: string | null;
+  priceEvidence?: Record<string, unknown> | null;
+  currentDecision?: string | null;
+  hypotheticalDecision?: string | null;
+  funnelStage?: string | null;
+  funnelReason?: string | null;
+  wouldTopkCut?: boolean;
+  wouldDiversityCut?: boolean;
+  persistedPreGate?: boolean;
+  discoveryCountInRun?: number;
+  firstPriceSale?: number | null;
+  lastPriceSale?: number | null;
+  priceChangeInRun?: number | null;
+  rotPage?: number | null;
+  rotSeedId?: string | null;
+  rotCategoryId?: string | null;
+  rotQuery?: string | null;
+  rotBrand?: string | null;
+  rotPriceBand?: string | null;
+  axisBitmap?: Record<string, boolean> | null;
 };
 
 export type HunterIntelligenceRunSummary = {
