@@ -45,6 +45,7 @@ import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffilia
 import { recordMlQuality } from '@/lib/hunter/mlQuality/metrics';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
+import { enrichRetailOfferFromHtml } from '@/lib/offers/enrichRetailOfferFromHtml';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
@@ -108,6 +109,15 @@ function parseMercadoLibre(html: string, base: string): { title: string | null; 
 }
 
 function parseGeneric(html: string, base: string): { title: string | null; image: string | null; store: string | null } {
+  // Prefer Product JSON-LD (Liverpool / Coppel / Home Depot / …) over bare og tags.
+  const enriched = enrichRetailOfferFromHtml(html, base);
+  if (enriched.title || enriched.image || enriched.store) {
+    return {
+      title: enriched.title,
+      image: enriched.image,
+      store: enriched.store,
+    };
+  }
   const title = getMetaContent(html, 'og:title') || getMetaContent(html, 'twitter:title') || null;
   const rawImage = getMetaContent(html, 'og:image') || getMetaContent(html, 'twitter:image') || null;
   const store = getMetaContent(html, 'og:site_name') || getMetaContent(html, 'application-name') || null;
@@ -429,9 +439,13 @@ export async function POST(request: Request) {
     }
 
     if (html && !isAmazon && !isMercadoLibre) {
-      const genericPrices = extractSuggestedPrices(html);
-      suggestedDiscount = genericPrices.discount;
-      suggestedOriginal = genericPrices.original;
+      const retail = enrichRetailOfferFromHtml(html, pageUrl.href);
+      suggestedDiscount = retail.suggestedDiscount;
+      suggestedOriginal = retail.suggestedOriginal;
+      // Prefer hostname label (Liverpool/Coppel/…) when JSON-LD/og site_name is noisy.
+      if (retail.store) data = { ...data, store: data.store || retail.store };
+      if (retail.title && !data.title) data = { ...data, title: retail.title };
+      if (retail.image && !data.image) data = { ...data, image: retail.image };
     }
 
     if (
