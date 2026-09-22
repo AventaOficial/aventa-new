@@ -39,7 +39,11 @@ export function isRejectedMercadoLibreImage(url: string, sourceItemId: string | 
   if (/\/logo\.(?:png|webp|jpg|jpeg|svg)(?:$|[?#])/i.test(path)) return true;
   if (/\/storage\/splinter/i.test(path)) return true;
   // Non-product mlstatic paths (admin UI tiles, icons) without product stem.
-  if (/mlstatic\.com/i.test(lower) && !/D_(?:NQ_)?(?:NP_|Q_NP_)/i.test(path)) {
+  // Accept modern CDN: D_NQ_NP_…, D_NQ_915700-…-OO.webp, D_Q_NP_… (docs/PARSE_OFFER_MELI_LA_GALERIA.md).
+  if (
+    /mlstatic\.com/i.test(lower) &&
+    !/\/D_[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png)(?:$|[?#])/i.test(path)
+  ) {
     return true;
   }
   if (/D_Q_NP_|-I\.(?:jpg|webp|jpeg|png)/i.test(path) && !/-O\.|-F\.|-G\./i.test(path)) {

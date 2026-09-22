@@ -26,6 +26,7 @@ import {
   absoluteUrl,
   extractBreadcrumbs,
   extractMercadoLibreProductScopedImages,
+  extractMercadoLibreDomPrices,
   extractMercadoLibreStructuredPrices,
   extractOfferImages,
   extractOfferMetaImages,
@@ -55,6 +56,11 @@ import { recordMlQuality } from '@/lib/hunter/mlQuality/metrics';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
 import { enrichRetailOfferFromHtml } from '@/lib/offers/enrichRetailOfferFromHtml';
+import {
+  amazonHtmlScrapeUrl,
+  isAmazonBotWallHtml,
+} from '@/lib/offers/amazonProductScrapeUrl';
+import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const USER_AGENT =
@@ -99,8 +105,23 @@ function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
   };
 }
 
+function amazonTitleFromHtml(html: string): string | null {
+  const og = getMetaContent(html, 'og:title');
+  if (og && og.trim()) return og.trim();
+  const productTitle = getById(html, 'productTitle', 'text');
+  if (productTitle && productTitle.trim()) return productTitle.trim();
+  // Mobile `/gp/aw/d/` often has no og:title — use <title> without marketplace suffix.
+  const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
+  if (!titleTag) return null;
+  const cleaned = titleTag
+    .replace(/\s*[:|\-–—]\s*Amazon\.[^<]*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 function parseAmazon(html: string, base: string): { title: string | null; image: string | null; store: string } {
-  const title = getMetaContent(html, 'og:title') || getById(html, 'productTitle', 'text') || null;
+  const title = amazonTitleFromHtml(html);
   const rawImage = getMetaContent(html, 'og:image') || getById(html, 'landingImage', 'src') || null;
   return {
     title: title && title.length > 0 ? title : null,
@@ -298,7 +319,21 @@ export async function POST(request: Request) {
       }
     }
 
-    const htmlPromise = fetchHtml(workingHref);
+    // Amazon: scrape mobile product HTML (`/gp/aw/d/`) — `/dp/` is often a bot wall from server IPs.
+    const amazonAsinHint =
+      extractAmazonAsin(workingHref) ||
+      extractAmazonAsin(offerResolved.canonicalUrl || '') ||
+      extractAmazonAsin(rawUrl);
+    const htmlFetchHref =
+      offerResolved.provider === 'amazon' || isAmazonExpandableHost(workingUrl.hostname)
+        ? amazonHtmlScrapeUrl(
+            offerResolved.canonicalUrl && amazonAsinHint
+              ? offerResolved.canonicalUrl
+              : workingHref,
+          )
+        : workingHref;
+
+    const htmlPromise = fetchHtml(htmlFetchHref);
     const mlPromise =
       inputIsMl && mlIdOnMlHost
         ? fetchMercadoLibrePublicOffer(workingHref).catch(() => null)
@@ -308,6 +343,25 @@ export async function POST(request: Request) {
 
     let html = htmlResult?.html ?? '';
     let pageUrl = htmlResult?.pageUrl ?? workingUrl;
+
+    // If we still landed on a bot wall, retry once via /gp/aw/d/{ASIN}.
+    if (html && amazonAsinHint && isAmazonBotWallHtml(html)) {
+      const scrapeRetry = amazonHtmlScrapeUrl(
+        `https://www.amazon.com.mx/dp/${amazonAsinHint}`,
+      );
+      if (scrapeRetry !== htmlFetchHref) {
+        const retry = await fetchHtml(scrapeRetry);
+        if (retry?.html && !isAmazonBotWallHtml(retry.html)) {
+          html = retry.html;
+          pageUrl = retry.pageUrl;
+        } else {
+          html = '';
+        }
+      } else {
+        html = '';
+      }
+    }
+
     if (html && isMercadoLibreVerificationPage(pageUrl.href, html)) {
       // Anti-bot interstitial: discard so we do not treat captcha HTML as a listing.
       // Prefer identity recovered from ?go= when present (keeps API / diagnostics honest).
@@ -467,13 +521,12 @@ export async function POST(request: Request) {
         });
         mlCategoryId = ml.categoryId;
         mlPathNames = ml.pathNames;
-        if (ml.source === 'ml_api') {
-          if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
-          if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
-            suggestedOriginal = ml.originalPrice;
-          } else {
-            suggestedOriginal = null;
-          }
+        // Precio resuelto (auth o público) — no exigir ml_api solo; anonymous + price>0 también cuenta.
+        if (typeof ml.price === 'number' && ml.price > 0) suggestedDiscount = ml.price;
+        if (typeof ml.originalPrice === 'number' && ml.originalPrice > 0) {
+          suggestedOriginal = ml.originalPrice;
+        } else if (suggestedDiscount != null) {
+          suggestedOriginal = null;
         }
       } else {
         // Fail closed: sin API del item, solo meta de confianza (og/twitter). Nunca scrape CDN.
@@ -502,14 +555,18 @@ export async function POST(request: Request) {
         recordMlQuality({ usedHtmlFallback: true, imagesFromFallback: trustedHtmlImages.length });
       }
       const structured = extractMercadoLibreStructuredPrices(html);
+      // Social/meli.la often lacks JSON-LD price but exposes andes-money-amount in DOM.
+      const domPrices = extractMercadoLibreDomPrices(html);
       if (suggestedDiscount == null) {
         suggestedDiscount =
           structured.discount ??
+          domPrices.discount ??
           (typeof ml?.price === 'number' && ml.price > 0 ? ml.price : null);
       }
       if (suggestedOriginal == null) {
         suggestedOriginal =
           structured.original ??
+          domPrices.original ??
           (typeof ml?.originalPrice === 'number' && ml.originalPrice > 0 ? ml.originalPrice : null);
       }
     }
