@@ -5,6 +5,7 @@
  */
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
+import { applyCanonicalDiscountToMetaFields } from '@/lib/bots/ingest/canonicalDiscount';
 import type { IngestItem, IngestSourceId } from '@/lib/bots/ingest/types';
 import { observeAutonomousDecision, buildAutonomousInput } from '@/lib/autonomous/observe';
 import type { AutonomousDecision, AutonomousDecisionResult } from '@/lib/autonomous/types';
@@ -54,8 +55,13 @@ export type CommunityQualityEvaluation = {
 
 function userMeta(input: CommunitySubmissionInput, canonicalUrl: string): ParsedOfferMetadata {
   const original = input.originalPrice != null && input.originalPrice > input.price ? input.originalPrice : null;
-  const discountPercent =
-    original != null && input.price > 0 ? Math.round((1 - input.price / original) * 100) : 0;
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: input.price,
+    originalPrice: original,
+    existingDiscountPercent: null,
+    recordShadow: false,
+  });
+  const discountPercent = applied.discountPercent;
   const promo = scanProductBoundPromotionText(
     [input.title, input.description, input.coupons].filter(Boolean).join(' · '),
   );
@@ -70,7 +76,7 @@ function userMeta(input: CommunitySubmissionInput, canonicalUrl: string): Parsed
     signals: {
       currentPriceProvenance: input.price > 0 ? 'user_declared' : 'unknown',
       originalPriceProvenance: original != null ? 'user_declared' : 'unknown',
-      discountPercentProvenance: original != null ? 'user_declared' : 'unknown',
+      discountPercentProvenance: discountPercent != null ? 'user_declared' : 'unknown',
       explicitDiscountPercent: null,
       promotionType: promo.kind,
       promotionBoundToProduct: promo.kind != null,

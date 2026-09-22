@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
 import type { ScoreBreakdown } from '@/lib/bots/ingest/scoreIngestCandidate';
+import { resolveCanonicalDiscount } from '@/lib/bots/ingest/canonicalDiscount';
 import { strongProductFingerprintForUrl } from '@/lib/offers/findDuplicateOffer';
 import { validateOfferImageUrl } from '@/lib/offers/imageValidation';
+import { resolveCandidateIdentity } from './candidateIdentity';
 import { explainScoreBreakdown } from './scoreExplanation';
 import { classifyIngestDisposition, type Disposition } from './taxonomy';
 import type { HunterCandidateRecord } from './types';
@@ -112,6 +114,23 @@ export function buildHunterCandidateRecord(input: {
     titleHint: meta?.title,
   });
 
+  const identity = resolveCandidateIdentity({
+    canonicalUrl: canonical || input.url,
+    sourceUrl: input.url,
+    productFingerprint: fp,
+    source: input.source,
+    sourceItemId:
+      typeof input.evidence?.sourceItemId === 'string' ? input.evidence.sourceItemId : null,
+  });
+
+  const truth = resolveCanonicalDiscount({
+    salePrice: meta?.discountPrice,
+    originalPrice: meta?.originalPrice,
+    suppliedDiscountPercentage: meta?.discountPercent,
+    originalPriceProvenance: meta?.signals?.originalPriceProvenance ?? null,
+    cardDiscountSource: meta?.signals?.cardDiscountSource ?? null,
+  });
+
   return {
     runId: input.runId,
     candidateKey: candidateKeyForUrl(canonical || input.url),
@@ -134,10 +153,23 @@ export function buildHunterCandidateRecord(input: {
       meta?.discountPrice != null && Number.isFinite(meta.discountPrice)
         ? meta.discountPrice
         : null,
-    discountPercentage:
-      meta?.discountPercent != null && Number.isFinite(meta.discountPercent)
-        ? Math.round(meta.discountPercent)
-        : null,
+    // null when UNKNOWN — never persist 0 as stand-in for missing evidence
+    discountPercentage: truth.discountPercentage,
+    discountClass: truth.discountClass,
+    discountClassV1: truth.discountClassV1 ?? null,
+    discountConfidence: truth.confidence,
+    discountSource: truth.source,
+    priceEvidence: {
+      calculationStatus: truth.calculationStatus,
+      salePrice: truth.evidence.salePrice,
+      originalPrice: truth.evidence.originalPrice,
+      suppliedDiscountPercentage: truth.evidence.suppliedDiscountPercentage,
+      computedDiscountPercentage: truth.evidence.computedDiscountPercentage,
+      delta: truth.evidence.delta,
+      reasonForDiscrepancy: truth.evidence.reasonForDiscrepancy,
+      effectiveDiscountPercent: meta?.signals?.effectiveDiscountPercent ?? null,
+      discountConflict: meta?.signals?.discountConflict ?? null,
+    },
     coupon: null,
     shippingCost: null,
     currency: 'MXN',
@@ -161,6 +193,12 @@ export function buildHunterCandidateRecord(input: {
     evidence: {
       scoreSummary: explanation.summary,
       sourceDetail: input.sourceDetail ?? null,
+      identityType: identity.identityType,
+      identityKey: identity.identityKey,
+      sourceItemId: identity.sourceItemId,
+      productIdentity: identity.productIdentity,
+      variantIdentity: identity.variantIdentity,
+      urlOnly: identity.urlOnly,
       ...(input.evidence ?? {}),
     },
     rawMetadata: {
@@ -183,7 +221,7 @@ export function buildHunterCandidateRecord(input: {
     imageUrlResolved: imageValidation.normalizedUrl,
     imageValidationStatus: imageValidation.status,
     imageValidationReason: imageValidation.reason,
-    productIdentifier: fp,
+    productIdentifier: identity.productIdentity ?? identity.sourceItemId ?? fp,
     urlDiagnosis: {},
     validationErrors: imageValidation.needsReview ? [imageValidation.reason] : [],
     diversityCut: input.diversityCut === true,

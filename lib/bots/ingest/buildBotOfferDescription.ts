@@ -1,5 +1,6 @@
 import { ALL_CATEGORIES, normalizeCategoryForStorage, type CategoryId } from '@/lib/categories';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
+import { applyCanonicalDiscountToMetaFields } from './canonicalDiscount';
 
 function fmt(n: number): string {
   return Number(n).toLocaleString('es-MX', { maximumFractionDigits: 0 });
@@ -26,9 +27,16 @@ export function buildBotOfferDescription(
   const hasOriginal =
     meta.originalPrice != null && meta.originalPrice > meta.discountPrice;
   const original = hasOriginal ? fmt(meta.originalPrice!) : null;
-  const pct = hasOriginal
-    ? Math.round((1 - meta.discountPrice / meta.originalPrice!) * 100)
-    : null;
+  const pct =
+    meta.discountPercent != null && Number.isFinite(meta.discountPercent)
+      ? Math.round(meta.discountPercent)
+      : hasOriginal
+        ? applyCanonicalDiscountToMetaFields({
+            salePrice: meta.discountPrice,
+            originalPrice: meta.originalPrice,
+            recordShadow: false,
+          }).discountPercent
+        : null;
 
   const parts: string[] = [];
   if (title) {

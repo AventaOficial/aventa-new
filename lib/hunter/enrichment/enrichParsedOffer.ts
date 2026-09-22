@@ -1,4 +1,5 @@
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
+import { applyCanonicalDiscountToMetaFields } from '@/lib/bots/ingest/canonicalDiscount';
 import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
 import {
   fetchMercadoLibrePublicOffer,
@@ -56,6 +57,7 @@ function isComplete(meta: ParsedOfferMetadata): boolean {
     hasTitle(meta) &&
     hasPrice(meta) &&
     hasOriginal(meta) &&
+    meta.discountPercent != null &&
     Number.isFinite(meta.discountPercent) &&
     meta.discountPercent > 0 &&
     Boolean(meta.store?.trim()) &&
@@ -63,9 +65,14 @@ function isComplete(meta: ParsedOfferMetadata): boolean {
   );
 }
 
-function recomputeDiscount(price: number, original: number | null): number {
-  if (original == null || !Number.isFinite(original) || original <= price) return 0;
-  return Math.round((1 - price / original) * 100);
+function recomputeDiscount(price: number, original: number | null): number | null {
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: price,
+    originalPrice: original,
+    existingDiscountPercent: null,
+    recordShadow: false,
+  });
+  return applied.discountPercent;
 }
 
 function pickImage(current: string, incoming: Array<string | null | undefined>): string {
@@ -86,14 +93,14 @@ function mergeTrusted(
   const discount =
     hasOriginal(current) && hasPrice(current)
       ? current.discountPercent
-      : recomputeDiscount(price, original ?? null) || current.discountPercent;
+      : recomputeDiscount(price, original ?? null) ?? current.discountPercent;
 
   const filledOriginal = !hasOriginal(current) && original != null && original > price;
   const filledDiscount =
     !(hasOriginal(current) && hasPrice(current)) &&
     original != null &&
     original > price &&
-    recomputeDiscount(price, original) > 0;
+    (recomputeDiscount(price, original) ?? 0) > 0;
 
   return {
     ...current,

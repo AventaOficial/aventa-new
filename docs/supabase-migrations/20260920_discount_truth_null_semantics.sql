@@ -1,0 +1,43 @@
+-- Discount Truth Consolidation — non-destructive documentation / optional audit.
+-- NO destructive changes. hunter_offer_candidates.discount_percentage is already NULL-capable.
+--
+-- Semantics (CI / ingest):
+--   NULL  = UNKNOWN (no calculable evidence)
+--   0     = REAL zero percent (sale == original with valid prices)
+--   >0    = computed/supplied truth from resolveCanonicalDiscount()
+--
+-- Optional observational backfill (run manually; do NOT invent originals):
+-- Only correct rows where sale+original are present, discount_percentage = 0,
+-- and prices imply a real discount (>= 25%). Leaves UNKNOWN (null original) alone.
+--
+-- SELECT count(*) AS false_zero_candidates
+-- FROM public.hunter_offer_candidates
+-- WHERE discount_percentage = 0
+--   AND sale_price IS NOT NULL AND original_price IS NOT NULL
+--   AND original_price > sale_price
+--   AND sale_price > 0
+--   AND ROUND((1 - sale_price / original_price) * 100) >= 25;
+--
+-- UPDATE public.hunter_offer_candidates
+-- SET
+--   discount_percentage = ROUND((1 - sale_price / original_price) * 100)::integer,
+--   discount_class = CASE
+--     WHEN ROUND((1 - sale_price / original_price) * 100) >= 25 THEN 'DISCOUNT_REAL_GOOD'
+--     ELSE 'DISCOUNT_REAL_LOW'
+--   END,
+--   discount_source = 'computed_from_prices',
+--   discount_confidence = 'high',
+--   price_evidence = COALESCE(price_evidence, '{}'::jsonb) || jsonb_build_object(
+--     'backfill', 'false_zero_correction_v1',
+--     'calculationStatus', 'conflict',
+--     'computedDiscountPercentage', ROUND((1 - sale_price / original_price) * 100)
+--   )
+-- WHERE discount_percentage = 0
+--   AND sale_price IS NOT NULL AND original_price IS NOT NULL
+--   AND original_price > sale_price
+--   AND sale_price > 0
+--   AND ROUND((1 - sale_price / original_price) * 100) >= 25;
+--
+-- DO NOT run the UPDATE until reviewed. Prefer new writes via buildCandidateRecord.
+
+SELECT 1;

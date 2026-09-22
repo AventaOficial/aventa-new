@@ -39,7 +39,20 @@ export function scoreIngestCandidate(
   signals: OfferQualitySignals | undefined,
   config: BotIngestConfig
 ): ScoreResult {
-  const d = clamp(signals?.effectiveDiscountPercent ?? meta.discountPercent, 0, 80);
+  // Card truth drives discount scoring. effectiveDiscountPercent is intel-only —
+  // when card is UNKNOWN (null), do not invent discount points from effective.
+  const cardPct = meta.discountPercent;
+  const d =
+    cardPct == null || !Number.isFinite(cardPct)
+      ? 0
+      : clamp(
+          signals?.effectiveDiscountPercent != null &&
+            Number.isFinite(signals.effectiveDiscountPercent)
+            ? signals.effectiveDiscountPercent
+            : cardPct,
+          0,
+          80,
+        );
   const discountPts = clamp((d / 80) * 100, 0, 100);
 
   const sold = signals?.soldQuantity ?? null;

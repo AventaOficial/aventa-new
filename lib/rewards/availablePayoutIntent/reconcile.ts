@@ -18,6 +18,44 @@ export type ReconcileAvailablePayoutIntentOptions = {
   fetchMultiplier?: number;
 };
 
+export const PAYOUT_BATCH_GATE_ENV_KEY = 'PAYOUT_BATCH_GATE_ENABLED';
+
+export function isPayoutBatchGateEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const v = (env[PAYOUT_BATCH_GATE_ENV_KEY] ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
+
+/** reward_ids incluidos en líneas `pass` de lotes `approved`. Fail-closed: error/tabla ausente → set vacío. */
+async function loadApprovedBatchRewardIds(
+  supabase: SupabaseClient,
+  candidateIds: string[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  try {
+    const { data: batches, error } = await supabase
+      .from('payout_batches')
+      .select('id')
+      .eq('status', 'approved');
+    if (error || !batches?.length) return out;
+    const { data: lines } = await supabase
+      .from('payout_batch_lines')
+      .select('reward_ids')
+      .in('batch_id', batches.map((b) => String(b.id)))
+      .eq('decision', 'pass');
+    const candidates = new Set(candidateIds);
+    for (const l of lines ?? []) {
+      const ids = Array.isArray(l.reward_ids) ? l.reward_ids : [];
+      for (const id of ids) {
+        const s = String(id);
+        if (candidates.has(s)) out.add(s);
+      }
+    }
+  } catch {
+    /* fail-closed */
+  }
+  return out;
+}
+
 function empty(): ReconcileAvailablePayoutIntentResult {
   return {
     scanned: 0,
@@ -68,10 +106,20 @@ export async function reconcileAvailablePayoutIntents(
       .filter(Boolean),
   );
 
+  // Centro de Pagos V3/V5: si el gate de lotes está activo, solo se reservan rewards
+  // que estén en una línea `pass` de un lote `approved`. Default OFF (comportamiento legacy).
+  const approvedRewardIds = isPayoutBatchGateEnabled()
+    ? await loadApprovedBatchRewardIds(supabase, ids)
+    : null;
+
   const toProcess: string[] = [];
   for (const row of rows) {
     const id = String(row.id);
     if (claimed.has(id)) {
+      out.skipped += 1;
+      continue;
+    }
+    if (approvedRewardIds && !approvedRewardIds.has(id)) {
       out.skipped += 1;
       continue;
     }

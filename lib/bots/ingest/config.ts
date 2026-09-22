@@ -13,6 +13,12 @@ export const DEFAULT_ML_DISCOVERY_QUERIES = [
   'teclado mecanico',
   'nintendo switch juego',
   'monitor 27 pulgadas',
+  // Anti-sticky breadth (defaults only used when BOT_INGEST_ML_QUERIES empty)
+  'perfume mujer oferta',
+  'serum facial oferta',
+  'papel higienico oferta',
+  'detergente oferta',
+  'samsung galaxy oferta',
 ] as const;
 
 /** Categorías MLM típicas de tecnología / gaming (sobrescribibles por env). */

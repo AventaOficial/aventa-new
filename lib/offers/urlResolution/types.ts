@@ -3,7 +3,15 @@
  * Does not reimplement ML identity (resolveMercadoLibreItem) or SSRF (fetchUrlSafety).
  */
 
-export type OfferUrlProvider = 'amazon' | 'mercado_libre' | 'unknown';
+export type OfferUrlProvider =
+  | 'amazon'
+  | 'mercado_libre'
+  | 'walmart'
+  | 'liverpool'
+  | 'coppel'
+  | 'elektra'
+  | 'unknown';
+
 
 export type QueryParamClass =
   | 'identity-bearing'

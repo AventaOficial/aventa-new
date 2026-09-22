@@ -28,7 +28,31 @@ export const AMAZON_REGISTERED_DOMAINS = [
   'a.co',
   /** Amazon mobile / Branch deep-link hop used by a.co shares */
   'amazon.app.link',
+  /**
+   * Amazon share / affiliate hop (not under amazon.com).
+   * Must expand → amazon.* + ASIN before product fetch; never persist as canonical alone.
+   */
+  'link.amazon',
 ] as const;
+
+/**
+ * Hosts that are Amazon share/short hops — resolve redirects before product identity.
+ * Not product pages themselves.
+ */
+export function isAmazonExpandableHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^www\./, '');
+  if (!h) return false;
+  return (
+    h === 'a.co' ||
+    h.endsWith('.a.co') ||
+    h === 'amzn.to' ||
+    h.endsWith('.amzn.to') ||
+    h === 'link.amazon' ||
+    h.endsWith('.link.amazon') ||
+    h === 'amazon.app.link' ||
+    h.endsWith('.amazon.app.link')
+  );
+}
 
 export const MERCADOLIBRE_REGISTERED_DOMAINS = [
   'mercadolibre.com',
@@ -69,6 +93,59 @@ export const WALMART_REGISTERED_DOMAINS = [
   /** Firebase Dynamic Links de la app Walmart MX */
   'walmart.page.link',
 ] as const;
+
+export function isOfferWalmartHost(hostname: string): boolean {
+  return isHostUnderAnyRegisteredDomain(hostname, WALMART_REGISTERED_DOMAINS);
+}
+
+/** Short/deep-link hops that must expand before product identity. */
+export function isWalmartExpandableHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^www\./, '');
+  return h === 'walmart.page.link' || h.endsWith('.walmart.page.link');
+}
+
+export const LIVERPOOL_REGISTERED_DOMAINS = [
+  'liverpool.com.mx',
+  'liverpool.com',
+  'liverpool.app.link',
+] as const;
+
+export function isOfferLiverpoolHost(hostname: string): boolean {
+  return isHostUnderAnyRegisteredDomain(hostname, LIVERPOOL_REGISTERED_DOMAINS);
+}
+
+export function isLiverpoolExpandableHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^www\./, '');
+  return h === 'liverpool.app.link' || h.endsWith('.liverpool.app.link');
+}
+
+export const COPPEL_REGISTERED_DOMAINS = [
+  'coppel.com',
+  'coppel.com.mx',
+  'coppel.app.link',
+] as const;
+
+export function isOfferCoppelHost(hostname: string): boolean {
+  return isHostUnderAnyRegisteredDomain(hostname, COPPEL_REGISTERED_DOMAINS);
+}
+
+export function isCoppelExpandableHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^www\./, '');
+  return h === 'coppel.app.link' || h.endsWith('.coppel.app.link');
+}
+
+export const ELEKTRA_REGISTERED_DOMAINS = [
+  'elektra.mx',
+  'elektra.com.mx',
+] as const;
+
+export function isOfferElektraHost(hostname: string): boolean {
+  return isHostUnderAnyRegisteredDomain(hostname, ELEKTRA_REGISTERED_DOMAINS);
+}
+
+export function isElektraExpandableHost(_hostname: string): boolean {
+  return false;
+}
 
 export const SHEIN_REGISTERED_DOMAINS = ['shein.com', 'shein.com.mx'] as const;
 

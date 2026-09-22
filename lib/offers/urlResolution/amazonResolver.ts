@@ -1,5 +1,5 @@
 import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
-import { isOfferAmazonHost } from '@/lib/offers/commerceHostAllowlist';
+import { isAmazonExpandableHost, isOfferAmazonHost } from '@/lib/offers/commerceHostAllowlist';
 import { normalizeOfferUrl } from './normalizeOfferUrl';
 import type { OfferUrlResolveResult } from './types';
 
@@ -8,11 +8,6 @@ const BROWSER_UA =
 
 const RESOLVE_TIMEOUT_MS = 14_000;
 const MAX_AMAZON_SHORT_REDIRECTS = 8;
-
-function isAmazonShortHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  return h === 'a.co' || h === 'amzn.to' || h.endsWith('.a.co') || h.endsWith('.amzn.to');
-}
 
 function siteFromHost(hostname: string): string {
   const h = hostname.toLowerCase().replace(/^www\./, '');
@@ -26,9 +21,27 @@ function productIdentityForAsin(hostname: string, asin: string): string {
   return `${siteFromHost(hostname)}:asin:${asin}`;
 }
 
+function preferMarketplaceHost(workingUrl: string, inputUrl: string): string {
+  try {
+    const w = new URL(workingUrl);
+    if (isOfferAmazonHost(w.hostname) && !isAmazonExpandableHost(w.hostname)) {
+      return w.hostname;
+    }
+  } catch {
+    /* fallthrough */
+  }
+  try {
+    return new URL(inputUrl).hostname;
+  } catch {
+    return 'www.amazon.com';
+  }
+}
+
 /**
- * Expand Amazon shortlinks with browser UA + allowlisted hops.
- * Fail-closed: returns original short URL if ASIN cannot be proven.
+ * Expand Amazon short/share hops with browser UA + allowlisted redirects.
+ * Fail-closed: returns without product identity if ASIN cannot be proven.
+ *
+ * Covers a.co, amzn.to, amazon.app.link, link.amazon — same strategy, no per-URL hacks.
  */
 export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlResolveResult> {
   const inputUrl = normalizeOfferUrl(rawUrl) || rawUrl.trim();
@@ -37,7 +50,7 @@ export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlRes
   let working = inputUrl;
   try {
     const host = new URL(working).hostname;
-    if (!isOfferAmazonHost(host) && !isAmazonShortHost(host)) {
+    if (!isOfferAmazonHost(host) && !isAmazonExpandableHost(host)) {
       return {
         provider: 'unknown',
         canonicalUrl: working,
@@ -51,7 +64,13 @@ export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlRes
       };
     }
 
-    if (isAmazonShortHost(host)) {
+    // Path may already carry ASIN (e.g. link.amazon/B0XXXXXXXX) — capture before expand.
+    const asinBeforeExpand = extractAmazonAsin(working);
+    if (asinBeforeExpand) {
+      provenance.push('asin_from_input_path');
+    }
+
+    if (isAmazonExpandableHost(host)) {
       provenance.push('shortlink_expand');
       const { fetchFollowingRedirectsSafely } = await import('@/lib/server/fetchUrlSafety');
       const controller = new AbortController();
@@ -83,9 +102,8 @@ export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlRes
       }
     }
 
-    const asin = extractAmazonAsin(working);
+    const asin = extractAmazonAsin(working) ?? asinBeforeExpand;
     if (!asin) {
-      // Fail-closed: do not invent identity from short URL shape
       return {
         provider: 'amazon',
         canonicalUrl: normalizeOfferUrl(working) || working,
@@ -99,23 +117,26 @@ export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlRes
       };
     }
 
-    let resolvedHost = 'www.amazon.com';
-    try {
-      resolvedHost = new URL(working).hostname;
-    } catch {
-      /* keep default */
-    }
+    const resolvedHost = preferMarketplaceHost(working, inputUrl);
 
-    // Prefer /dp/{ASIN} path when we have a full amazon host
+    // Prefer /dp/{ASIN} on a real marketplace host (never leave link.amazon as canonical).
     let canonicalUrl = normalizeOfferUrl(working) || working;
     try {
       const u = new URL(working);
-      if (isOfferAmazonHost(u.hostname) && !isAmazonShortHost(u.hostname)) {
+      if (isOfferAmazonHost(u.hostname) && !isAmazonExpandableHost(u.hostname)) {
         u.pathname = `/dp/${asin}`;
         u.search = '';
         u.hash = '';
         canonicalUrl = u.toString();
         provenance.push('canonical_dp');
+      } else {
+        // Hop still expandable, or ASIN only from input path: synthesize marketplace /dp/.
+        let marketHost = 'www.amazon.com.mx';
+        if (isOfferAmazonHost(resolvedHost) && !isAmazonExpandableHost(resolvedHost)) {
+          marketHost = resolvedHost.startsWith('www.') ? resolvedHost : `www.${resolvedHost}`;
+        }
+        canonicalUrl = `https://${marketHost}/dp/${asin}`;
+        provenance.push('canonical_dp_synthesized');
       }
     } catch {
       /* keep */
@@ -125,7 +146,16 @@ export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlRes
       provider: 'amazon',
       canonicalUrl,
       productFingerprint: `amz:${asin}`,
-      productIdentity: productIdentityForAsin(resolvedHost, asin),
+      productIdentity: productIdentityForAsin(
+        (() => {
+          try {
+            return new URL(canonicalUrl).hostname;
+          } catch {
+            return resolvedHost;
+          }
+        })(),
+        asin,
+      ),
       variantIdentity: null,
       resolvedUrl: working !== inputUrl ? working : null,
       confidence: 'high',

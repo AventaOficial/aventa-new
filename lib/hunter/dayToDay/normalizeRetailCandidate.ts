@@ -1,5 +1,6 @@
 import type { IngestItem, IngestSourceId } from '@/lib/bots/ingest/types';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
+import { applyCanonicalDiscountToMetaFields } from '@/lib/bots/ingest/canonicalDiscount';
 import { isValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import type { PublicProductCandidate } from './parsePublicProductHtml';
 
@@ -22,9 +23,14 @@ export type NormalizedRetailDraft = {
   promotionBoundToProduct: boolean;
 };
 
-function recomputeDiscount(price: number, original: number | null): number {
-  if (original == null || !Number.isFinite(original) || original <= price) return 0;
-  return Math.round((1 - price / original) * 100);
+function recomputeDiscount(price: number, original: number | null): number | null {
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: price,
+    originalPrice: original,
+    existingDiscountPercent: null,
+    recordShadow: false,
+  });
+  return applied.discountPercent;
 }
 
 /** Mínimo: URL + title. Precio preferido pero no obligatorio aquí. */
@@ -73,7 +79,7 @@ export function draftToIngestItem(draft: NormalizedRetailDraft): IngestItem | nu
     imageUrl: draft.image ?? '',
     discountPrice: hasPrice ? draft.price! : 0,
     originalPrice: draft.originalPrice,
-    discountPercent: hasPrice ? recomputeDiscount(draft.price!, draft.originalPrice) : 0,
+    discountPercent: hasPrice ? recomputeDiscount(draft.price!, draft.originalPrice) : null,
     signals: {
       categoryId: draft.category,
       ...(draft.productId ? { listingTypeId: `retail:${draft.productId}` } : {}),

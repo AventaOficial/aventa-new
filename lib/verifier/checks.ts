@@ -55,9 +55,10 @@ export function checkPrice(meta: ParsedOfferMetadata): DealCheckResult {
 
 /** Gap card vs effective cuando ambos son números finitos. */
 export function discountGap(meta: ParsedOfferMetadata): number | null {
-  const card = Number(meta.discountPercent);
+  // null card = UNKNOWN — no gap vs effective (price intel must not invent card truth).
+  if (meta.discountPercent == null || !Number.isFinite(meta.discountPercent)) return null;
+  const card = meta.discountPercent;
   const effective = meta.signals?.effectiveDiscountPercent;
-  if (!Number.isFinite(card)) return null;
   if (effective == null || !Number.isFinite(Number(effective))) return null;
   return card - Number(effective);
 }
@@ -69,8 +70,11 @@ export function hasSuspiciousDiscountGap(meta: ParsedOfferMetadata): boolean {
 }
 
 export function checkDiscount(meta: ParsedOfferMetadata, config: BotIngestConfig): DealCheckResult {
-  const d = Number(meta.discountPercent);
-  if (!Number.isFinite(d)) return fail('Descuento no numérico');
+  // UNKNOWN ≠ 0 — explicit fail (existing policy: not an offer without calculable %).
+  if (meta.discountPercent == null || !Number.isFinite(meta.discountPercent)) {
+    return fail('Descuento desconocido (sin evidencia calculable)');
+  }
+  const d = meta.discountPercent;
   if (d <= 0) return fail('Descuento 0% — no es oferta');
   if (d < config.minDiscountPercent) {
     return fail(`Descuento ${d}% < mínimo ${config.minDiscountPercent}%`);

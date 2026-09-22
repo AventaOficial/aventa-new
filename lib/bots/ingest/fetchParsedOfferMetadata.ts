@@ -19,6 +19,7 @@ import {
   extractMercadoLibreItemId,
   resolveMercadoLibreItem,
 } from '@/lib/offers/resolveMercadoLibreItem';
+import { applyCanonicalDiscountToMetaFields } from './canonicalDiscount';
 
 function getDomain(hostname: string): string {
   return hostname.replace(/^www\./, '').toLowerCase();
@@ -337,7 +338,12 @@ export type ParsedOfferMetadata = {
   imageUrl: string;
   discountPrice: number;
   originalPrice: number | null;
-  discountPercent: number;
+  /**
+   * Card discount truth from resolveCanonicalDiscount.
+   * null = UNKNOWN (never encode unknown as 0).
+   * 0 = real zero discount only (valid_zero).
+   */
+  discountPercent: number | null;
   signals?: OfferQualitySignals;
 };
 
@@ -452,10 +458,13 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
     return { meta: null, diagnostic: 'missing_discount_price' };
   }
 
-  const discountPercent =
-    originalPrice != null && originalPrice > 0
-      ? Math.round((1 - discountPrice / originalPrice) * 100)
-      : 0;
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: discountPrice,
+    originalPrice,
+    existingDiscountPercent: null,
+  });
+  // UNKNOWN = null (never collapse to 0). Gates check originalPrice first.
+  const discountPercent = applied.discountPercent;
 
   const ldSignals = extractQualitySignalsFromLdJson(html);
   const hasSignal =
@@ -463,6 +472,13 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
     ldSignals.ratingCount != null ||
     ldSignals.soldQuantity != null ||
     ldSignals.condition != null;
+
+  const truthSignals = {
+    ...ldSignals,
+    discountCalculationStatus: applied.canonical.calculationStatus,
+    discountTruthSource: applied.canonical.source,
+    discountTruthConfidence: applied.canonical.confidence,
+  };
 
   return {
     meta: {
@@ -475,7 +491,7 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
       discountPrice,
       originalPrice,
       discountPercent,
-      ...(hasSignal ? { signals: ldSignals } : {}),
+      signals: truthSignals,
     },
     diagnostic:
       originalPrice == null || originalPrice <= discountPrice ? 'missing_original_price' : 'ok',

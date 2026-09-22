@@ -21,7 +21,8 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 | [SUPABASE_CONTEXTO.md](./SUPABASE_CONTEXTO.md) | Schema public, funciones, triggers y extensiones Supabase |
 | [COMO_LLEVAR_AVENTA.md](./COMO_LLEVAR_AVENTA.md) | CÃ³mo llevar el dÃ­a a dÃ­a (automÃ¡tizar, simplificar, menos fricciÃ³n) |
 | [SISTEMA_SUBIR_OFERTA.md](./SISTEMA_SUBIR_OFERTA.md) | Flujo de subir oferta (parse URL, fotos, categorÃ­a) |
-| [PARSE_OFFER_MELI_LA_GALERIA.md](./PARSE_OFFER_MELI_LA_GALERIA.md) | Fix galerÃ­a `meli.la` / pÃ¡ginas social ML (parser + mobile) |
+| [PARSE_OFFER_MELI_LA_GALERIA.md](./PARSE_OFFER_MELI_LA_GALERIA.md) | Fix galería `meli.la` / páginas social ML (parser + mobile) |
+| [SYSTEMS/SYSTEM_offer_url_extraction.md](./SYSTEMS/SYSTEM_offer_url_extraction.md) | **Canónico:** parse URL → identidad → imágenes → success/partial; cómo añadir tiendas |
 | [SYSTEMS/SYSTEM_mercadolibre_affiliate.md](./SYSTEMS/SYSTEM_mercadolibre_affiliate.md) | ML Afiliados: capability matrix + fail-closed ingest |
 | [SYSTEMS/RESEARCH_affiliate_economic_intelligence.md](./SYSTEMS/RESEARCH_affiliate_economic_intelligence.md) | Research: Amazon+ML economic ingest evidence (FASE 1) |
 | [SYSTEMS/AMAZON_EVIDENCE_HARVEST.md](./SYSTEMS/AMAZON_EVIDENCE_HARVEST.md) | Amazon MX export harvest checklist + NO-GO until IDs verified |
@@ -32,6 +33,7 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 | [SYSTEMS/ADR_price_observation_read_bridge.md](./SYSTEMS/ADR_price_observation_read_bridge.md) | ADR P0.2: SoT → PriceObservation read-only adapters |
 | [SYSTEMS/AUDIT_moderation_offer_card_p03.md](./SYSTEMS/AUDIT_moderation_offer_card_p03.md) | Audit P0.3: Moderation OS + Offer Card (pre-implementation) |
 | [SYSTEMS/SYSTEM_economy.md](./SYSTEMS/SYSTEM_economy.md) | Economy: adapter, revisions, reconciliation (sin settlement) |
+| [SYSTEMS/SYSTEM_payout_operations.md](./SYSTEMS/SYSTEM_payout_operations.md) | **Centro de Pagos** (owner + finance): 6 cajas, gates payee, lote, runbook, score de automatización |
 | [SYSTEMS/SYSTEM_conversion_commission.md](./SYSTEMS/SYSTEM_conversion_commission.md) | Detalle Conversion + Commission (alias de economy) |
 | [README.md](./README.md) | Este Ã­ndice |
 

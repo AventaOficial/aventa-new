@@ -65,6 +65,7 @@ export type MachineQualityReasonCode =
   | 'ORIGINAL_PRICE_UNTRUSTED'
   | 'BADGE_RECONSTRUCTED'
   | 'DISCOUNT_BELOW_THRESHOLD'
+  | 'DISCOUNT_UNKNOWN'
   | 'LOW_QUALITY_TITLE'
   | 'VERIFIER_BELOW_THRESHOLD'
   | 'DUPLICATE'
@@ -330,13 +331,24 @@ export function evaluateMachineCandidateGate(
     });
   }
 
-  if (meta.discountPercent < input.config.minDiscountPercent) {
+  // null = UNKNOWN (existing policy: treat like unqualified discount — reject after original check).
+  // Do NOT use ?? 0 (that reintroduces UNKNOWN→0).
+  if (
+    meta.discountPercent == null ||
+    meta.discountPercent < input.config.minDiscountPercent
+  ) {
     return result({
       action: 'suppress',
-      reason: `descuento ${meta.discountPercent}% < mínimo ${input.config.minDiscountPercent}%`,
+      reason:
+        meta.discountPercent == null
+          ? 'descuento desconocido (sin evidencia calculable)'
+          : `descuento ${meta.discountPercent}% < mínimo ${input.config.minDiscountPercent}%`,
       processingStatus: 'suppressed',
       qualityDecision: 'SUPPRESSED',
-      reasonCodes: ['DISCOUNT_BELOW_THRESHOLD'],
+      reasonCodes:
+        meta.discountPercent == null
+          ? ['DISCOUNT_UNKNOWN']
+          : ['DISCOUNT_BELOW_THRESHOLD'],
       evidenceLevel: deriveEvidenceLevel({ signals, verified: false }),
       confidence: 0.25,
     });

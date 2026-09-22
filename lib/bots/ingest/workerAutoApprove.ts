@@ -22,9 +22,13 @@ export function shouldAutoApproveWorkerCandidate(opts: {
   if (scoreTotal < config.autoApproveWorkerMinScore) return false;
   if (meta.signals?.suspectedArtificialListPrice) return false;
 
-  const discount = Number(meta.discountPercent ?? 0);
+  // UNKNOWN (null) cannot auto-approve — explicit, not ?? 0.
+  if (meta.discountPercent == null || !Number.isFinite(meta.discountPercent)) {
+    return false;
+  }
+  const discount = meta.discountPercent;
   const minDiscount = Math.max(config.minDiscountPercent, config.autoApproveWorkerMinDiscountPercent);
-  if (!Number.isFinite(discount) || discount < minDiscount || discount > ABSURD_DISCOUNT_CAP) {
+  if (discount < minDiscount || discount > ABSURD_DISCOUNT_CAP) {
     return false;
   }
 

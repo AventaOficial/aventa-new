@@ -129,6 +129,16 @@ describe('parseOfferPageHtml', () => {
     expect(imgs.some((u) => u.includes('791619-MLA99904952681'))).toBe(true);
   });
 
+  it('CDN D_NQ_915700… sin meta og (formato social meli.la)', () => {
+    const html = `
+      https://http2.mlstatic.com/D_NQ_915700-MLA116764501833_082026-OO.webp
+      https://http2.mlstatic.com/D_NQ_NP_857412-MLA109806180229_032026-G.webp
+    `;
+    const imgs = extractOfferImages(html, 'https://www.mercadolibre.com.mx/social/test');
+    expect(imgs.some((u) => u.includes('915700-MLA116764501833'))).toBe(true);
+    expect(imgs.some((u) => u.includes('857412-MLA109806180229'))).toBe(true);
+  });
+
   it('strip tracking conserva wid / item_id / pdp_filters', () => {
     const raw =
       'https://www.mercadolibre.com.mx/x/p/MLM1?wid=MLM2&utm_source=a&matt_tool=1&tag=aventa&pdp_filters=item_id:MLM3';

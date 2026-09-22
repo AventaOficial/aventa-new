@@ -26,9 +26,9 @@ export const amazonPaapiSource: HunterSource = {
     if (!hasPaapiCredentials(ctx)) {
       return { ok: true, candidates: [], itemsFound: 0 };
     }
-    const items = await discoverAmazonPaapiIngestItems(ctx.config);
+    const discovery = await discoverAmazonPaapiIngestItems(ctx.config);
     const detectedAt = (ctx.now ?? new Date()).toISOString();
-    const candidates = items.map((item) =>
+    const candidates = discovery.items.map((item) =>
       ingestItemToCandidate(item, 'amazon_paapi', detectedAt)
     );
     return {
@@ -36,6 +36,8 @@ export const amazonPaapiSource: HunterSource = {
       candidates,
       itemsFound: candidates.length,
       collectedCount: candidates.length,
+      skippedCandidates: discovery.skippedCandidates,
+      skipReasonCounts: discovery.skipReasonCounts,
     };
   },
 };

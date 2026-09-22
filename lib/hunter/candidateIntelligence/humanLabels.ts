@@ -8,7 +8,16 @@ import { HUNTER_CANDIDATE_LABELS_TABLE } from './persist';
 import { isHunterCandidateIntelligenceEnabled } from './flags';
 import { LABEL_SCHEMA_VERSION } from './versions';
 
+/** Canonical Lab labels (Mission Control). Legacy aliases remain for compatibility. */
+export const LAB_CANONICAL_LABELS = ['GOOD', 'BAD', 'UNCERTAIN', 'FN', 'FP'] as const;
+export type LabCanonicalLabel = (typeof LAB_CANONICAL_LABELS)[number];
+
 export const HUNTER_HUMAN_DECISIONS = [
+  'GOOD',
+  'BAD',
+  'UNCERTAIN',
+  'FN',
+  'FP',
   'PUBLISH',
   'REJECT',
   'WATCH',
@@ -27,7 +36,6 @@ export const HUNTER_HUMAN_DECISIONS = [
   'BROKEN_LINK',
   'BAD_PRICE',
   'BAD_DISCOUNT',
-  'UNCERTAIN',
   'OTHER',
 ] as const;
 
@@ -60,15 +68,20 @@ export function classifyLabelOutcome(input: {
     input.hunterDecision === 'PUBLISHED' ||
     input.hunterDecision === 'NEEDS_REVIEW';
 
-  if (input.humanDecision === 'FALSE_NEGATIVE') return 'false_negative';
-  if (input.humanDecision === 'FALSE_POSITIVE') return 'false_positive';
-  if (input.humanDecision === 'WATCH') return 'watch';
+  if (input.humanDecision === 'FALSE_NEGATIVE' || input.humanDecision === 'FN') {
+    return 'false_negative';
+  }
+  if (input.humanDecision === 'FALSE_POSITIVE' || input.humanDecision === 'FP') {
+    return 'false_positive';
+  }
+  if (input.humanDecision === 'WATCH' || input.humanDecision === 'UNCERTAIN') return 'watch';
 
   if (
     rejected &&
     (input.humanDecision === 'PUBLISH' ||
       input.humanDecision === 'GREAT_DEAL' ||
-      input.humanDecision === 'GOOD_DEAL')
+      input.humanDecision === 'GOOD_DEAL' ||
+      input.humanDecision === 'GOOD')
   ) {
     return 'false_negative';
   }
@@ -77,6 +90,7 @@ export function classifyLabelOutcome(input: {
     (input.humanDecision === 'REJECT' ||
       input.humanDecision === 'FALSE_DEAL' ||
       input.humanDecision === 'BAD_DEAL' ||
+      input.humanDecision === 'BAD' ||
       input.humanDecision === 'LOW_VALUE' ||
       input.humanDecision === 'PRICE_ERROR' ||
       input.humanDecision === 'BAD_PRICE' ||

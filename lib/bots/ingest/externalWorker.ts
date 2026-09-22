@@ -21,6 +21,7 @@ import { isLowQualityTitle } from './isLowQualityTitle';
 import { type ScoreBreakdown } from './scoreIngestCandidate';
 import { classifyBotCategoryForStorage } from './classifyBotCategory';
 import { enrichWithPriceIntel, nicheIdFromSourceDetail } from './priceIntel';
+import { applyCanonicalDiscountToMetaFields } from './canonicalDiscount';
 import { evaluateDealSafe } from '@/lib/verifier';
 import { computeDealScore } from '@/lib/dealIntelligence';
 import {
@@ -81,6 +82,11 @@ import {
   persistHunterIntelligenceRun,
   type ObservedResolved,
 } from '@/lib/hunter/candidateIntelligence';
+import {
+  earlyPersistDiscoverySightings,
+  applyWouldCutAnnotations,
+  isHunterDiscoveryExperimentEnabled,
+} from '@/lib/hunter/candidateIntelligence/discoveryExperimentPublic';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
 
@@ -325,15 +331,23 @@ export function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMet
     return null;
   }
 
-  const computedDiscount =
-    originalPrice != null && originalPrice > discountPrice
-      ? Math.round((1 - discountPrice / originalPrice) * 100)
-      : 0;
-  const rawPercent =
-    candidate.discountPercent != null && Number.isFinite(Number(candidate.discountPercent))
-      ? Math.round(Number(candidate.discountPercent))
-      : computedDiscount;
-  const discountPercent = Math.max(0, Math.min(MAX_WORKER_DISCOUNT_PERCENT, rawPercent));
+  const applied = applyCanonicalDiscountToMetaFields({
+    salePrice: discountPrice,
+    originalPrice,
+    existingDiscountPercent:
+      candidate.discountPercent != null && Number.isFinite(Number(candidate.discountPercent))
+        ? Number(candidate.discountPercent)
+        : null,
+    originalPriceProvenance:
+      typeof candidate.signals?.originalPriceProvenance === 'string'
+        ? candidate.signals.originalPriceProvenance
+        : null,
+    cardDiscountSource: candidate.cardDiscountSource ?? null,
+    maxPercentCap: MAX_WORKER_DISCOUNT_PERCENT,
+  });
+
+  // UNKNOWN must not become 0 — null = unknown; gate checks original first.
+  const discountPercent = applied.discountPercent;
 
   const baseSignals = normalizeSignals(candidate.signals) ?? {};
   const preserved = preserveMachinePriceProvenance({
@@ -342,6 +356,26 @@ export function toParsedMeta(candidate: ExternalWorkerCandidate): ParsedOfferMet
     signals: {
       ...baseSignals,
       listingTypeId: baseSignals.listingTypeId ?? 'worker_card',
+      discountPercentProvenance:
+        applied.canonical.source === 'computed_from_prices'
+          ? 'derived'
+          : applied.canonical.source === 'supplied_by_source'
+            ? 'source_explicit'
+            : baseSignals.discountPercentProvenance,
+      discountCalculationStatus: applied.canonical.calculationStatus,
+      discountTruthSource: applied.canonical.source,
+      discountTruthConfidence: applied.canonical.confidence,
+      ...(applied.shadow.falseZero ? { discountFalseZeroCorrected: true } : {}),
+      ...(applied.canonical.calculationStatus === 'conflict'
+        ? {
+            discountConflict: {
+              supplied: applied.canonical.evidence.suppliedDiscountPercentage,
+              computed: applied.canonical.evidence.computedDiscountPercentage,
+              delta: applied.canonical.evidence.delta,
+              reason: applied.canonical.evidence.reasonForDiscrepancy,
+            },
+          }
+        : {}),
     },
     cardDiscountSource: candidate.cardDiscountSource ?? null,
     cardBadgePercent: candidate.cardBadgePercent ?? null,
@@ -591,6 +625,62 @@ export async function processExternalWorkerBatch(
   const shadowSourceHealth = await readShadowSourceHealth(slice);
   const enrichCache = new Map<string, ParsedOfferMetadata>();
 
+  // Discovery Experiment v1: early persist ALL URLs before discount/topK/diversity.
+  // Shadow only — never mints. No-op when HUNTER_DISCOVERY_EXPERIMENT=0.
+  if (isHunterDiscoveryExperimentEnabled()) {
+    try {
+      const sightings = rawCandidates
+        .map((c) => {
+          const url = (c.canonicalUrl ?? c.url)?.trim();
+          if (!url) return null;
+          const sale =
+            typeof c.discountPrice === 'number' && Number.isFinite(c.discountPrice)
+              ? c.discountPrice
+              : null;
+          const original =
+            c.originalPrice != null && Number.isFinite(Number(c.originalPrice))
+              ? Number(c.originalPrice)
+              : null;
+          return {
+            canonicalUrl: url,
+            source: 'ml_worker' as const,
+            title: c.title?.trim() || null,
+            salePrice: sale,
+            originalPrice: original,
+            discountPct:
+              typeof c.discountPercent === 'number' ? c.discountPercent : null,
+            rotSeedId: c.sourceDetail?.trim() || null,
+            imageUrl: c.imageUrl ?? null,
+            originalPriceProvenance:
+              typeof c.signals?.originalPriceProvenance === 'string'
+                ? c.signals.originalPriceProvenance
+                : null,
+            cardDiscountSource: c.cardDiscountSource ?? null,
+            rawMetadata: { worker: true },
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s != null);
+      const early = await earlyPersistDiscoverySightings({
+        supabase: shadowDup.supabase,
+        runId: supplyRunId,
+        sightings,
+        minDiscountPercent: config.minDiscountPercent,
+      });
+      if (early.error) {
+        console.warn('[hunter_discovery_experiment] early persist', early.error);
+      } else if (early.enabled) {
+        console.info(
+          `[hunter_discovery_experiment] early run=${supplyRunId} variant=${early.variant} events=${early.eventsWritten} candidates=${early.candidatesWritten}`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        '[hunter_discovery_experiment] early persist failed',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   for (const item of slice) {
     sourceStats[item.source].evaluated += 1;
     stageCounts.evaluated += 1;
@@ -637,8 +727,15 @@ export async function processExternalWorkerBatch(
         markSourceSkip(sourceStats, item.source, reason);
         continue;
       }
-      if (meta.discountPercent < config.minDiscountPercent || meta.discountPercent > MAX_WORKER_DISCOUNT_PERCENT) {
-        const reason = `descuento ${meta.discountPercent}% fuera de rango`;
+      if (
+        meta.discountPercent == null ||
+        meta.discountPercent < config.minDiscountPercent ||
+        meta.discountPercent > MAX_WORKER_DISCOUNT_PERCENT
+      ) {
+        const reason =
+          meta.discountPercent == null
+            ? 'descuento desconocido (sin evidencia calculable)'
+            : `descuento ${meta.discountPercent}% fuera de rango`;
         results.push({ url: item.url, source: item.source, status: 'skipped', reason });
         markSourceSkip(sourceStats, item.source, reason);
         continue;
@@ -1048,7 +1145,19 @@ export async function processExternalWorkerBatch(
         );
       }
       summary.candidateIntelligence = observed.summary;
-      const wrote = await persistHunterCandidates(shadowDup.supabase, observed.records);
+      const diversitySet = new Set(diversityCutUrls.map((u) => u.toLowerCase()));
+      const annotated = isHunterDiscoveryExperimentEnabled()
+        ? applyWouldCutAnnotations(observed.records, {
+            diversityUrls: diversitySet,
+          }).map((r) => ({
+            ...r,
+            experimentId: r.experimentId ?? 'discovery_exp_v2',
+            experimentVariant: r.experimentVariant ?? undefined,
+            wouldDiversityCut: r.wouldDiversityCut === true || diversitySet.has(r.canonicalUrl.toLowerCase()),
+            persistedPreGate: r.persistedPreGate === true,
+          }))
+        : observed.records;
+      const wrote = await persistHunterCandidates(shadowDup.supabase, annotated);
       if (!wrote.ok) {
         console.warn('[hunter_candidate_intelligence] persist candidates failed', wrote.error);
       }

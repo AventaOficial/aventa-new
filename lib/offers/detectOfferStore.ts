@@ -7,9 +7,15 @@ import {
   isOfferAmazonHost,
   isOfferMercadoLibreHost,
   isOfferMeliLaHost,
+  isAmazonExpandableHost,
 } from '@/lib/offers/commerceHostAllowlist';
 
-export { isOfferAmazonHost, isOfferMercadoLibreHost, isOfferMeliLaHost };
+export {
+  isOfferAmazonHost,
+  isOfferMercadoLibreHost,
+  isOfferMeliLaHost,
+  isAmazonExpandableHost,
+};
 
 export type OfferStoreFlags = { isAmazon: boolean; isMercadoLibre: boolean };
 

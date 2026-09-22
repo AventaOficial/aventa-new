@@ -46,7 +46,8 @@ export function qualificationInputFromParsedMeta(
     discountPercentProvenance: discountProvenance,
     derivedDiscountPercent:
       discountProvenance === 'price_intel_derivation'
-        ? (signals.effectiveDiscountPercent ?? meta.discountPercent)
+        ? (signals.effectiveDiscountPercent ??
+          (meta.discountPercent != null ? meta.discountPercent : null))
         : null,
   };
 }

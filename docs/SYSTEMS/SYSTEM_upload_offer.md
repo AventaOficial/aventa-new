@@ -5,10 +5,11 @@
 - **Frontend:** Modal dentro de ActionBar (client component). Formulario controlado con estado local; envío vía fetch a /api/offers. Imágenes previas desde parse-offer-url (URL externa) o upload a Supabase Storage.
 - **Backend:** Next.js Route Handlers (app/api/offers, upload-offer-image, parse-offer-url). Supabase como BD y Storage; RPC para contadores de perfil.
 - **Entrada alternativa:** Ruta /subir recibe query params (extensión o deep link) y redirige a /?upload=1&...; home abre el modal y ActionBar prellena desde params.
+- **Extracción de URL / imágenes (canónico):** [`SYSTEM_offer_url_extraction.md`](./SYSTEM_offer_url_extraction.md) — resolvers, allowlist SSRF, galería ML/Amazon, `extraction_status`, cómo añadir tiendas.
 
 ## Data flow
 
-1. Usuario abre modal → opcionalmente pega URL → parse-offer-url devuelve title, image, store → se rellenan campos (sin pisar los ya rellenados).
+1. Usuario abre modal → opcionalmente pega URL → parse-offer-url devuelve title, image(s), store, `extraction_status` → se rellenan campos (sin pisar los ya rellenados).
 2. Usuario sube imagen → POST /api/upload-offer-image → Storage devuelve URL → se asigna a image_url / image_urls.
 3. Submit → POST /api/offers con body JSON → API valida auth, rate limit, bans, campos → insert en `offers` → RPC increment_offers_submitted_count → respuesta { id, ok }.
 4. Modal se cierra; cooldown 60 s.
