@@ -33,6 +33,12 @@ export {
   type ConversionCommissionTruth,
 } from './buildConversionCommissionTruth';
 export { appendEconomicEvent } from './appendEconomicEvent';
+export type { AppendEconomicEventResult } from './appendEconomicEvent';
+export {
+  evaluateControlledActivationReadiness,
+  type ControlledActivationReport,
+  type ActivationCheck,
+} from './controlledActivationReadiness';
 export {
   createNotConnectedAdapter,
   DEFAULT_NOT_CONNECTED_ADAPTER,
