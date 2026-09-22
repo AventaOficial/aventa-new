@@ -251,6 +251,13 @@ export type PayeeProfileLite = {
   displayName: string | null;
 };
 
+export type AutoReleaseSummary = {
+  enabled: boolean;
+  eligible: boolean;
+  blockers: string[];
+  policy: string[];
+};
+
 export type PayoutOpsSnapshot = {
   generatedAt: string;
   role: string;
@@ -261,5 +268,6 @@ export type PayoutOpsSnapshot = {
   runbook: RunbookStep[];
   batch: BatchPreview;
   exceptions: ExceptionItem[];
+  autoRelease: AutoReleaseSummary;
   tables: Record<string, boolean>;
 };

@@ -9,6 +9,7 @@ import {
   REWARDS_MIN_PAYOUT_CENTS,
   REWARDS_TERMS_VERSION,
 } from '@/lib/rewards/config';
+import { evaluateAutoRelease } from './autoRelease';
 import { computeAutomationScore } from './automationScore';
 import { buildPayoutBatchPreview } from './batchPreview';
 import { buildExceptionQueue } from './exceptions';
@@ -20,6 +21,7 @@ export function composePayoutOpsSnapshot(
   data: PayoutOpsData,
   runtime: PayoutOpsRuntime,
   role: string,
+  env: NodeJS.ProcessEnv = process.env,
 ): PayoutOpsSnapshot {
   const config = {
     creatorShareBps: REWARDS_CREATOR_SHARE_BPS,
@@ -42,6 +44,7 @@ export function composePayoutOpsSnapshot(
   const score = computeAutomationScore(stages);
   const runbook = buildRunbook(data, runtime, batch);
   const exceptions = buildExceptionQueue(data, batch);
+  const autoRelease = evaluateAutoRelease(runtime, batch, stages, env);
 
   return {
     generatedAt: data.now,
@@ -53,6 +56,7 @@ export function composePayoutOpsSnapshot(
     runbook,
     batch,
     exceptions,
+    autoRelease,
     tables: data.tables,
   };
 }

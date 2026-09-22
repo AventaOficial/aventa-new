@@ -164,15 +164,54 @@ declara `nextUnlock` (qué hace falta para subir de nivel).
 | Fase | Entrega | Efecto en score |
 |------|---------|-----------------|
 | **V1 (hecho)** | Centro read-only, gates, lote preview, runbook, excepciones, score | Visibilidad |
-| **V2** | Evidence Capture Amazon: parser CSV Orders/Earnings → `affiliate_commissions` con `external_commission_id` | ingest → `semi` real |
-| **V3** | Acción "Preparar lote" persistida (tabla `payout_batches`, idempotente) + aprobación owner/finance con doble confirmación | batch → `auto` prep |
+| **V2 (hecho)** | Evidence Capture Amazon: parser CSV Orders/Earnings (EN/ES) → `affiliate_conversions` + `affiliate_commissions` con huella idempotente; preview → confirmar en la UI | ingest → `semi` real |
+| **V3 (hecho)** | Lotes persistidos (`payout_batches` + `payout_batch_lines`): preparar → aprobar (dos personas) → liberar (reserva intents); gate opcional del cron `PAYOUT_BATCH_GATE_ENABLED` | batch → `auto` prep |
 | **V4** | Proveedor SPEI real (STP / PSP) vía `PAYOUT_PROVIDER=real` + webhook firmado | disburse → `semi`, reconcile → `semi` |
-| **V5** | Auto-release de lote si todos los gates pasan + fondos + match rate ≥ umbral | 95 %+ interno |
-| **V6** | Export contable (CSV/CFDI helper) para contador externo | fiscal |
+| **V5 (política hecha, ejecución pendiente de V4)** | `evaluateAutoRelease`: elegible solo con `PAYOUT_AUTO_RELEASE_ENABLED`, money path abierto, proveedor real, evidencia del periodo y cero `review`. Se muestra en la UI; no ejecuta hasta V4 | 95 %+ interno |
+| **V6 (hecho)** | Export contable CSV (lote actual / pagados por periodo) con nombre legal, RFC y CLABE enmascarada | fiscal |
 
 Reglas que no cambian: primer pago y cambio de CLABE siempre `review`; SPEI asentado no se
 revierte (un clawback es una **nueva** transferencia o descuento futuro); una sola fuente de
 verdad contable (`affiliate_ledger_entries`).
+
+### 9.1 V2 — Evidencia Amazon: cómo funciona
+
+1. Descargar en Amazon Associates MX → Reportes → **Earnings** (comisiones confirmadas por
+   envíos) y/o **Orders** (pedidos, aún sin comisión). Exportar CSV (o XLSX → guardar como CSV).
+2. En el Centro → "Evidencia Amazon": subir/pegar → **Previsualizar** (no escribe nada) → revisar
+   filas, tracking IDs, devoluciones → **Confirmar importación**.
+3. Cada fila se guarda como `affiliate_conversions` (`source=csv_import`, `network=amazon`) y,
+   si es Earnings con comisión > 0, `affiliate_commissions` en `approved`. Orders quedan en
+   `pending` sin comisión (nunca se inventa comisión = precio × %).
+4. Id externo: Amazon **no** exporta order id. Se usa una huella determinista
+   `amz-rep:{tipo}:{sha256(tracking|asin|fecha|qty|revenue|fees|n)}`. Reimportar el mismo reporte
+   es idempotente (`reused`). Filas con devolución/comisión negativa se cuentan como
+   `revisionsNeeded` y **no** se escriben: se resuelven a mano (clawback).
+5. Atribución a creador: `profiles.amazon_tracking_tag` = Tracking ID. Filas sin match quedan
+   como evidencia no atribuible (se ve en la previsualización).
+6. De ahí en adelante actúa el pipeline existente: settlement bridge (gated) → ledger → rewards.
+
+### 9.2 V3 — Lotes: estados y reglas
+
+- `draft` → `approved` → `released` | `cancelled`. Un solo lote vivo por periodo (índice único).
+- **Dos personas**: `approved_by ≠ prepared_by`. El owner puede forzar (`force`) y queda
+  `meta.self_approved=true` + audit `payout_batch_approved`.
+- **Liberar** (solo owner): por cada línea `pass` llama `processAvailableRewardPayoutIntent`
+  por recompensa. Los guards viven ahí (`REWARDS_PROGRAM_ACTIVE`, `MONEY_PATH_FROZEN`,
+  elegibilidad). En producción congelada todo sale `deferred` y el lote sigue `approved`; el
+  resultado por línea queda en `release_status` / `release_reason`. Nunca marca PAID.
+- **Gate del cron** (`PAYOUT_BATCH_GATE_ENABLED=true`, default off): el cron
+  `available-payout-intent` solo reserva rewards que estén en líneas `pass` de lotes
+  `approved`. Fail-closed: sin lotes → no reserva nada. Es el paso que convierte el lote en la
+  autoridad de "quién cobra".
+- Migración: `docs/supabase-migrations/20260922_payout_batches_v3.sql`.
+
+### 9.3 Variables de entorno nuevas
+
+| Var | Default | Efecto |
+|-----|---------|--------|
+| `PAYOUT_BATCH_GATE_ENABLED` | off | Cron reserva solo rewards de lotes aprobados |
+| `PAYOUT_AUTO_RELEASE_ENABLED` | off | Habilita la política de auto-release (evaluación; ejecución llega con V4) |
 
 ---
 
@@ -187,18 +226,33 @@ verdad contable (`affiliate_ledger_entries`).
 | `lib/finance/payoutOps/automationScore.ts` | Score heurístico |
 | `lib/finance/payoutOps/exceptions.ts` | Cola de excepciones |
 | `lib/finance/payoutOps/runbook.ts` | Pasos del periodo |
-| `lib/finance/payoutOps/buildPayoutOpsSnapshot.ts` | Loader Supabase tolerante a tablas ausentes |
+| `lib/finance/payoutOps/loadPayoutOpsData.ts` | Loader Supabase tolerante a tablas ausentes |
+| `lib/finance/payoutOps/composeSnapshot.ts` | Composición pura del snapshot (+ autoRelease) |
+| `lib/finance/payoutOps/batches.ts` | V3: preparar / aprobar / cancelar / liberar lotes |
+| `lib/finance/payoutOps/autoRelease.ts` | V5: política pura de auto-release |
+| `lib/finance/payoutOps/exportCsv.ts` | V6: CSV contable (lote / pagados) |
+| `lib/finance/evidence/amazonReport.ts` | V2: parser Orders/Earnings + huella idempotente |
+| `lib/finance/evidence/applyAmazonEvidence.ts` | V2: persistencia vía `recordConversion` / `recordCommission` |
+| `lib/rewards/availablePayoutIntent/reconcile.ts` | Gate opcional de lotes aprobados en el cron |
 | `lib/staff/requireFinanceStaff.ts` | `requirePayoutOps` (owner + finance) |
-| `app/api/staff/finance/payout-ops/route.ts` | `GET` snapshot |
+| `app/api/staff/finance/payout-ops/route.ts` | `GET` snapshot (+ lotes, viewerId) |
+| `app/api/staff/finance/payout-ops/evidence/amazon/route.ts` | `POST` preview / commit de evidencia Amazon |
+| `app/api/staff/finance/payout-ops/batches/route.ts` | `GET` lista · `POST` preparar lote |
+| `app/api/staff/finance/payout-ops/batches/[id]/route.ts` | `PATCH` approve / cancel / release |
+| `app/api/staff/finance/payout-ops/export/route.ts` | `GET` CSV `kind=batch|paid&period=YYYY-MM` |
 | `app/equipo/contabilidad/centro-pagos/page.tsx` | Página |
-| `app/equipo/contabilidad/components/PayoutOpsPanel.tsx` | UI |
-| `tests/finance/payoutOps.*.test.ts` | Contratos |
+| `app/equipo/contabilidad/components/PayoutOpsPanel.tsx` | UI (snapshot) |
+| `app/equipo/contabilidad/components/PayoutOpsActions.tsx` | UI (evidencia, lotes, auto-release, export) |
+| `docs/supabase-migrations/20260922_payout_batches_v3.sql` | Tablas de lotes |
+| `tests/finance/payoutOps.*.test.ts`, `tests/finance/amazonReport.parse.test.ts`, `tests/rewards/availablePayoutIntent.batchGate.test.ts` | Contratos |
 
 ---
 
 ## 11. Lo que el Centro NO hace (a propósito)
 
-- No llama crons de escritura ni `createManualRewardPayout` / `settleCommission`.
+- No llama crons de escritura ni `createManualRewardPayout` / `settleCommission`. Las únicas
+  escrituras son: evidencia (conversions/commissions), lotes (`payout_batches*`) y la reserva
+  de `payout_intents` al liberar, que reutiliza el mismo camino gated del cron.
 - No cambia flags de entorno.
 - No inventa comisión = precio × %. Solo lee comisión confirmada.
 - No paga a compradores (cashback): la unidad es el **creador de la oferta**.

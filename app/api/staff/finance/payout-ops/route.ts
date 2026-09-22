@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requirePayoutOps } from '@/lib/staff/requireFinanceStaff';
 import {
   composePayoutOpsSnapshot,
+  listPayoutBatches,
   loadPayoutOpsData,
   resolvePayoutOpsRuntime,
 } from '@/lib/finance/payoutOps';
@@ -19,10 +20,21 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createServerClient();
-    const data = await loadPayoutOpsData(supabase);
+    const [data, batchesRes] = await Promise.all([
+      loadPayoutOpsData(supabase),
+      listPayoutBatches(supabase, 12),
+    ]);
     const runtime = resolvePayoutOpsRuntime();
     const snapshot = composePayoutOpsSnapshot(data, runtime, auth.role);
-    return NextResponse.json(snapshot, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      {
+        ...snapshot,
+        viewerId: auth.user.id,
+        batches: batchesRes.batches,
+        tables: { ...snapshot.tables, payout_batches: batchesRes.tableAvailable },
+      },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (e) {
     console.error('[staff/finance/payout-ops]', e);
     return NextResponse.json({ error: 'No se pudo cargar el Centro de Pagos' }, { status: 500 });

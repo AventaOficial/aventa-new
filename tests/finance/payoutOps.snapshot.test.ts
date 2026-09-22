@@ -172,10 +172,20 @@ describe('stages + automation score', () => {
       ],
     });
     expect(classifyIngest(csv).level).toBe('semi');
+    // Evidencia Amazon importada por el Centro de Pagos (V2) llega como commissions csv_import → semi.
+    const csvCommissions = data({
+      commissions: [{ id: 'c0', status: 'approved', gross_commission_cents: 5196, ledger_entry_id: null, source: 'csv_import', created_at: NOW }],
+    });
+    expect(classifyIngest(csvCommissions).level).toBe('semi');
+    expect(classifyIngest(csvCommissions).reason).toContain('Amazon');
     const api = data({
-      commissions: [{ id: 'c1', status: 'approved', gross_commission_cents: 1000, ledger_entry_id: 'l1', source: 'amazon_csv_adapter', created_at: NOW }],
+      commissions: [{ id: 'c1', status: 'approved', gross_commission_cents: 1000, ledger_entry_id: 'l1', source: 'api', created_at: NOW }],
     });
     expect(classifyIngest(api).level).toBe('auto');
+    const manual = data({
+      commissions: [{ id: 'c2', status: 'approved', gross_commission_cents: 1000, ledger_entry_id: null, source: 'manual', created_at: NOW }],
+    });
+    expect(classifyIngest(manual).level).toBe('blocked');
   });
 
   it('disburse depende del proveedor', () => {

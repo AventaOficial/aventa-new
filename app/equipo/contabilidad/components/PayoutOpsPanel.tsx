@@ -20,6 +20,8 @@ import LoadingState from '@/app/components/panel/LoadingState';
 import StatusBadge from '@/app/components/panel/StatusBadge';
 import { cn } from '@/app/components/panel/utils';
 import { centsToMx } from '@/lib/finance/hubConfig';
+import type { PayoutBatchWithLines } from '@/lib/finance/payoutOps/batches';
+import { BatchesCard, EvidenceImportCard } from './PayoutOpsActions';
 import type {
   AutomationLevel,
   BatchPayeeLine,
@@ -157,9 +159,14 @@ function StageCard({ stage }: { stage: PipelineStage }) {
   );
 }
 
+type PayoutOpsResponse = PayoutOpsSnapshot & {
+  viewerId?: string | null;
+  batches?: PayoutBatchWithLines[];
+};
+
 export default function PayoutOpsPanel() {
   const { session } = useAuth();
-  const [data, setData] = useState<PayoutOpsSnapshot | null>(null);
+  const [data, setData] = useState<PayoutOpsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -185,7 +192,7 @@ export default function PayoutOpsPanel() {
         setError(typeof body?.error === 'string' ? body.error : 'Error al cargar');
         return;
       }
-      setData(body as PayoutOpsSnapshot);
+      setData(body as PayoutOpsResponse);
     } catch {
       setError('Error de red');
     } finally {
@@ -462,6 +469,19 @@ export default function PayoutOpsPanel() {
           </div>
         )}
       </section>
+
+      {/* Acciones operativas: evidencia (V2), lotes (V3), auto-release (V5), export (V6) */}
+      <EvidenceImportCard headers={headers} onChanged={() => void load()} />
+      <BatchesCard
+        headers={headers}
+        role={data.role}
+        viewerId={data.viewerId ?? null}
+        batch={batch}
+        batches={data.batches ?? []}
+        batchesTableAvailable={data.tables.payout_batches !== false}
+        autoRelease={data.autoRelease}
+        onChanged={() => void load()}
+      />
 
       <p className="text-xs text-gray-500 text-center">
         Fuentes: ledger canónico, creator_rewards, payout_intents, reward_payouts, clawbacks, perfiles fiscales.

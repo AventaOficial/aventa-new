@@ -76,7 +76,10 @@ export function classifyIngest(data: PayoutOpsData): {
   const prodLedger = data.ledger.filter(isProdRow);
   const apiRows = prodLedger.filter((r) => r.source === 'api').length;
   const csvRows = prodLedger.filter((r) => r.source === 'csv_import').length;
-  const apiCommissions = data.commissions.filter((c) => c.source && c.source !== 'manual').length;
+  const apiCommissions = data.commissions.filter(
+    (c) => c.source === 'api' || c.source === 'webhook',
+  ).length;
+  const csvCommissions = data.commissions.filter((c) => c.source === 'csv_import').length;
 
   if (apiRows > 0 || apiCommissions > 0) {
     return {
@@ -86,11 +89,20 @@ export function classifyIngest(data: PayoutOpsData): {
       live: true,
     };
   }
+  if (csvCommissions > 0) {
+    return {
+      level: 'semi',
+      reason:
+        'Evidencia Amazon (Orders/Earnings) importada al Centro de Pagos: parser, huella idempotente y estados automáticos; la descarga sigue siendo manual.',
+      next: 'Repetir cada periodo (día 1–3). Amazon no expone API de comisiones: esto es el techo real de "Entra".',
+      live: true,
+    };
+  }
   if (csvRows > 0) {
     return {
       level: 'semi',
       reason: 'La evidencia entra por CSV importado a mano; el parseo y la idempotencia son automáticos.',
-      next: 'Parser Amazon Orders/Earnings → affiliate_commissions con external_commission_id (V2).',
+      next: 'Usar el importador Amazon del Centro de Pagos (V2) para que la evidencia llegue como commissions.',
       live: true,
     };
   }

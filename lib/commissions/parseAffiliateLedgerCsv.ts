@@ -24,7 +24,7 @@ export type ParsedLedgerCsvRow = {
   raw_line: string;
 };
 
-function splitCsvLine(line: string): string[] {
+export function splitCsvLine(line: string): string[] {
   const out: string[] = [];
   let cur = '';
   let inQuotes = false;
@@ -50,7 +50,7 @@ function splitCsvLine(line: string): string[] {
   return out;
 }
 
-function normHeader(h: string): string {
+export function normHeader(h: string): string {
   return h
     .trim()
     .toLowerCase()

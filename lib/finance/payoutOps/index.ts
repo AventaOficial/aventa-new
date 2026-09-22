@@ -17,3 +17,27 @@ export { buildRunbook } from './runbook';
 export { describePayoutProvider, resolvePayoutOpsRuntime } from './runtime';
 export { composePayoutOpsSnapshot } from './composeSnapshot';
 export { loadPayoutOpsData } from './loadPayoutOpsData';
+export { AUTO_RELEASE_ENV_KEY, evaluateAutoRelease, isAutoReleaseEnabled } from './autoRelease';
+export {
+  buildBatchExportCsv,
+  buildPaidExportCsv,
+  csvEscape,
+  maskClabe,
+  type PaidExportRow,
+} from './exportCsv';
+export {
+  approvePayoutBatch,
+  buildBatchInsert,
+  canApproveBatch,
+  cancelPayoutBatch,
+  createPayoutBatch,
+  getPayoutBatch,
+  listPayoutBatches,
+  releaseBlockersFor,
+  releasePayoutBatch,
+  type BatchActor,
+  type PayoutBatchLineRow,
+  type PayoutBatchRow,
+  type PayoutBatchStatus,
+  type PayoutBatchWithLines,
+} from './batches';
