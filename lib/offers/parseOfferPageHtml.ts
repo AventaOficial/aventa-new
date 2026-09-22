@@ -560,7 +560,12 @@ export function extractMercadoLibreDomPrices(html: string): ExtractedPrices {
   const previous = html.match(
     /andes-money-amount--previous[\s\S]{0,500}?andes-money-amount__fraction[^>]*>([0-9.]+)/i,
   )?.[1];
-  const current = html.match(/andes-money-amount__fraction[^>]*>([0-9.]+)/i)?.[1];
+  // Drop strikethrough blocks so the "current" fraction is not the previous price.
+  const withoutPrevious = html.replace(
+    /class=["'][^"']*andes-money-amount--previous[^"']*["'][\s\S]{0,800}?<\/(?:span|div|s)>/gi,
+    '',
+  );
+  const current = withoutPrevious.match(/andes-money-amount__fraction[^>]*>([0-9.]+)/i)?.[1];
   const mxnPrice = html.match(/"price"\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*"currency_id"\s*:\s*"MXN"/i)?.[1];
   const mxnOriginal = html.match(/"original_price"\s*:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1];
   return {

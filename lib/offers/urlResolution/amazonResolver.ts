@@ -92,6 +92,24 @@ export async function resolveAmazonOfferUrl(rawUrl: string): Promise<OfferUrlRes
         if (result.ok && result.finalUrl) {
           working = result.finalUrl;
           provenance.push('shortlink_resolved');
+          // amzlinks.in / Button often serve HTML with JS or intent:// → amazon.*/dp/{ASIN}
+          // instead of an HTTP Location. Recover ASIN from the body when the hop stayed expandable.
+          try {
+            const hopHost = new URL(working).hostname;
+            if (isAmazonExpandableHost(hopHost) && !extractAmazonAsin(working)) {
+              const body = await result.response.text();
+              const fromBody =
+                body.match(/https?:\/\/(?:www\.)?amazon\.[^"'\\\s]+\/(?:dp|gp\/(?:product|aw\/d))\/([A-Z0-9]{10})\b/i)?.[1] ||
+                body.match(/["']asin["']\s*[:=]\s*["']([A-Z0-9]{10})["']/i)?.[1] ||
+                body.match(/\/dp\/([A-Z0-9]{10})\b/i)?.[1];
+              if (fromBody) {
+                working = `https://www.amazon.com.mx/dp/${fromBody.toUpperCase()}`;
+                provenance.push('asin_from_shortlink_html');
+              }
+            }
+          } catch {
+            /* keep hop URL */
+          }
         } else {
           provenance.push(`shortlink_failed:${result.ok === false ? 'blocked_or_error' : 'empty'}`);
         }
