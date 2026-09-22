@@ -33,7 +33,6 @@ export {
   type ConversionCommissionTruth,
 } from './buildConversionCommissionTruth';
 export { appendEconomicEvent } from './appendEconomicEvent';
-export type { AppendEconomicEventResult } from './appendEconomicEvent';
 export {
   evaluateControlledActivationReadiness,
   type ControlledActivationReport,
