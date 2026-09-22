@@ -18,6 +18,7 @@ import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
 import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
 import { logClientError } from '@/lib/utils/handleError';
 import { normalizePastedOfferUrl } from '@/lib/offerUrl';
+import { offerExtractionUserMessage } from '@/lib/offers/productExtraction/classifyExtraction';
 import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
@@ -104,7 +105,7 @@ export default function ActionBar() {
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [urlParseLoading, setUrlParseLoading] = useState(false);
   const [urlParseStatus, setUrlParseStatus] = useState<string | null>(null);
-  const [urlParseKind, setUrlParseKind] = useState<'ok' | 'invalid_url' | 'extract_failed' | null>(null);
+  const [urlParseKind, setUrlParseKind] = useState<'ok' | 'partial' | 'invalid_url' | 'extract_failed' | null>(null);
   /** En móvil: 1 = lo que Aventa encontró, 2 = completar y publicar. Desktop ignora y muestra todo. */
   const [uploadStep, setUploadStep] = useState<1 | 2>(1);
   const prevUrlParseLoadingRef = useRef(false);
@@ -323,23 +324,48 @@ export default function ActionBar() {
         if (!res.ok || !data) {
           if (data?.reason === 'invalid_url') {
             setUrlParseKind('invalid_url');
-            setUrlParseStatus('Este enlace no es válido. Revisa que sea una URL de tienda (https://…).');
+            setUrlParseStatus(
+              offerExtractionUserMessage({
+                status: 'failed',
+                reason: 'invalid_url',
+                url,
+                serverError: typeof data?.error === 'string' ? data.error : null,
+              }),
+            );
             return;
           }
           if (typeof data?.error === 'string' && res.status !== 500 && res.status !== 502) {
             setUrlParseKind('extract_failed');
-            setUrlParseStatus(data.error);
+            setUrlParseStatus(
+              offerExtractionUserMessage({
+                status: 'failed',
+                reason: 'extract_failed',
+                url,
+                serverError: data.error,
+              }),
+            );
             return;
           }
           setUrlParseKind('extract_failed');
           setUrlParseStatus(
-            'No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.',
+            offerExtractionUserMessage({
+              status: 'failed',
+              reason: 'extract_failed',
+              url,
+            }),
           );
           return;
         }
         if (data.reason === 'invalid_url') {
           setUrlParseKind('invalid_url');
-          setUrlParseStatus('Este enlace no es válido. Revisa que sea una URL de tienda (https://…).');
+          setUrlParseStatus(
+            offerExtractionUserMessage({
+              status: 'failed',
+              reason: 'invalid_url',
+              url,
+              serverError: typeof data.error === 'string' ? data.error : null,
+            }),
+          );
           return;
         }
         const edited = userEditedFieldsRef.current;
@@ -413,20 +439,71 @@ export default function ActionBar() {
         if (galleryCount > 0) bits.push(`${galleryCount} foto${galleryCount > 1 ? 's' : ''}`);
         if (typeof data.suggested_discount_price === 'number') bits.push('precio');
         if (data.suggested_category) bits.push('categoría');
-        if (data.reason === 'extract_failed' || bits.length === 0) {
+        const extractionStatus =
+          data.extraction_status === 'success' ||
+          data.extraction_status === 'partial' ||
+          data.extraction_status === 'failed'
+            ? data.extraction_status
+            : null;
+        const missing = Array.isArray(data.missing)
+          ? (data.missing as unknown[]).filter((m): m is string => typeof m === 'string')
+          : [];
+        const diagCode =
+          data?.diagnostics &&
+          typeof data.diagnostics === 'object' &&
+          data.diagnostics !== null &&
+          'extractionErrorCode' in data.diagnostics
+            ? String((data.diagnostics as { extractionErrorCode?: unknown }).extractionErrorCode ?? '')
+            : null;
+
+        if (data.reason === 'extract_failed' || extractionStatus === 'failed' || bits.length === 0) {
           setUrlParseKind('extract_failed');
           setUrlParseStatus(
-            typeof data.error === 'string' && data.error.trim()
-              ? data.error
-              : 'No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.',
+            offerExtractionUserMessage({
+              status: 'failed',
+              reason: 'extract_failed',
+              url,
+              bits,
+              missing,
+              errorCode: diagCode,
+              serverError: typeof data.error === 'string' ? data.error : null,
+            }),
+          );
+        } else if (extractionStatus === 'partial' || galleryCount === 0) {
+          setUrlParseKind('partial');
+          const miss =
+            missing.length > 0 ? missing : galleryCount === 0 ? ['imágenes'] : ['algunos datos'];
+          setUrlParseStatus(
+            offerExtractionUserMessage({
+              status: 'partial',
+              url,
+              bits,
+              missing: miss,
+              errorCode: diagCode,
+            }),
           );
         } else {
           setUrlParseKind('ok');
-          setUrlParseStatus(`Listo: ${bits.join(', ')}. Revisa y completa lo que falte.`);
+          setUrlParseStatus(
+            offerExtractionUserMessage({
+              status: 'success',
+              url,
+              bits,
+              missing,
+            }),
+          );
         }
       } catch {
-        if (!cancelled) setUrlParseStatus('No pudimos obtener automáticamente la información de esta tienda. Completa los datos y puedes publicar igual.');
-        if (!cancelled) setUrlParseKind('extract_failed');
+        if (!cancelled) {
+          setUrlParseKind('extract_failed');
+          setUrlParseStatus(
+            offerExtractionUserMessage({
+              status: 'failed',
+              reason: 'extract_failed',
+              url,
+            }),
+          );
+        }
       } finally {
         if (!cancelled) setUrlParseLoading(false);
       }
@@ -447,7 +524,7 @@ export default function ActionBar() {
     if (!wasLoading || urlParseLoading) return;
     // Advance after parse settles: ok unlocks with autofill; extract_failed still
     // unlocks so the user can complete fields manually with the pasted URL.
-    if (urlParseKind !== 'ok' && urlParseKind !== 'extract_failed') return;
+    if (urlParseKind !== 'ok' && urlParseKind !== 'partial' && urlParseKind !== 'extract_failed') return;
     const t = window.setTimeout(() => setUploadLinkGatePassed(true), 350);
     return () => window.clearTimeout(t);
   }, [showUploadModal, uploadLinkGatePassed, formData.offer_url, urlParseLoading, urlParseKind, session?.access_token]);
@@ -928,7 +1005,9 @@ export default function ActionBar() {
                       {urlParseStatus ? (
                         <p
                           className={`rounded-lg px-3 py-2 text-xs leading-snug ${
-                            urlParseKind === 'invalid_url' || urlParseKind === 'extract_failed'
+                            urlParseKind === 'invalid_url' ||
+                            urlParseKind === 'extract_failed' ||
+                            urlParseKind === 'partial'
                               ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200'
                               : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
                           }`}
@@ -1055,7 +1134,9 @@ export default function ActionBar() {
                     {urlParseStatus ? (
                       <p
                         className={`mt-2 rounded-lg px-3 py-2 text-xs leading-snug ${
-                          urlParseKind === 'invalid_url' || urlParseKind === 'extract_failed'
+                          urlParseKind === 'invalid_url' ||
+                          urlParseKind === 'extract_failed' ||
+                          urlParseKind === 'partial'
                             ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200'
                             : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
                         }`}

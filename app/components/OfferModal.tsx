@@ -18,6 +18,7 @@ import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
+import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { useRouter } from 'next/navigation';
@@ -25,6 +26,7 @@ import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import OfferPriceInsightBlock from './OfferPriceInsightBlock';
 import OfferImageThumbs from './OfferImageThumbs';
+import OfferImageGallery from './OfferImageGallery';
 
 interface OfferModalProps {
   isOpen: boolean;
@@ -160,7 +162,13 @@ export default function OfferModal({
   const outboundSentRef = useRef(false);
   const allImages = mergeOfferImageUrls(image, imageUrls);
   const [imageIndex, setImageIndex] = useState(0);
-  const currentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const rawCurrentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
+  const currentImage = isNextImageAllowedSrc(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
+  const openGalleryAt = (idx: number) => {
+    setImageIndex(idx);
+    setGalleryOpen(true);
+  };
   const authorProfileHref =
     author?.username ? publicProfilePath(author.username, author.userId, author.slug) : null;
   const baseWeightedScore =
@@ -592,21 +600,49 @@ export default function OfferModal({
           <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
           {/* Desktop: imagen izquierda */}
           <div className="hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] flex-col p-4">
-            <div className="relative flex-1 min-h-[240px]">
+            <button
+              type="button"
+              className="relative flex-1 min-h-[240px] text-left"
+              onClick={() => openGalleryAt(imageIndex)}
+              aria-label="Ampliar imagen"
+            >
               <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
-            </div>
-            <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
+            </button>
+            <OfferImageThumbs
+              images={allImages}
+              activeIndex={imageIndex}
+              onSelect={setImageIndex}
+              onOpenGallery={openGalleryAt}
+            />
           </div>
 
           {/* Columna derecha: scroll (mobile imagen hero + contenido; desktop solo contenido) */}
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col md:min-w-0">
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
             <div className="md:hidden shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] p-3">
-              <div className="relative w-full aspect-[4/5] overflow-hidden rounded-xl">
+              <button
+                type="button"
+                className="relative w-full aspect-[4/5] overflow-hidden rounded-xl text-left"
+                onClick={() => openGalleryAt(imageIndex)}
+                aria-label="Ampliar imagen"
+              >
                 <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
-              </div>
-              <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
+              </button>
+              <OfferImageThumbs
+                images={allImages}
+                activeIndex={imageIndex}
+                onSelect={setImageIndex}
+                onOpenGallery={openGalleryAt}
+              />
             </div>
+            <OfferImageGallery
+              images={allImages}
+              index={imageIndex}
+              open={galleryOpen}
+              onClose={() => setGalleryOpen(false)}
+              onIndexChange={setImageIndex}
+              alt={title}
+            />
 
             <div className="p-4 pt-3 md:p-8 md:pt-7 md:pb-12 pb-10 space-y-5 md:space-y-7 min-h-[min(60vh,600px)]">
               <div className="flex flex-col gap-3 md:gap-4">
@@ -1063,9 +1099,6 @@ export default function OfferModal({
                   <Share2 className="h-4 w-4 md:h-4 md:w-4" />
                 </button>
               )}
-            </div>
-            <div className="mt-2">
-              <AffiliateDisclosure variant="badge" />
             </div>
           </div>
 

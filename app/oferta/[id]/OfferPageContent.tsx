@@ -34,9 +34,11 @@ import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import OfferImageThumbs from '@/app/components/OfferImageThumbs';
+import OfferImageGallery from '@/app/components/OfferImageGallery';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
+import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 
@@ -186,6 +188,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [votePending, setVotePending] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const reportModalRef = useRef<HTMLDivElement>(null);
 
@@ -220,7 +223,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const savings = offer.originalPrice - offer.discountPrice;
   const remainingLabel = formatRemainingTime(offer.createdAt);
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
-  const currentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
+  const rawCurrentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
+  const currentImage = isNextImageAllowedSrc(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
   const publicPath = buildOfferPublicPath(offer.id, offer.title);
   const offerAuthorProfileHref =
     offer.author?.username ? publicProfilePath(offer.author.username, offer.author.userId, offer.author.slug) : null;
@@ -647,7 +651,12 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
           <div className="flex flex-col md:flex-row">
             <div className="md:w-[45%] bg-gray-50 dark:bg-[#1a1a1a] p-4">
-              <div className="relative aspect-square w-full overflow-hidden rounded-xl">
+              <button
+                type="button"
+                className="relative aspect-square w-full overflow-hidden rounded-xl text-left"
+                onClick={() => setGalleryOpen(true)}
+                aria-label="Ampliar imagen"
+              >
                 <Image
                   src={currentImage}
                   alt=""
@@ -657,8 +666,24 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   priority
                   unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
                 />
-              </div>
-              <OfferImageThumbs images={allImages} activeIndex={imageIndex} onSelect={setImageIndex} />
+              </button>
+              <OfferImageThumbs
+                images={allImages}
+                activeIndex={imageIndex}
+                onSelect={setImageIndex}
+                onOpenGallery={(idx) => {
+                  setImageIndex(idx);
+                  setGalleryOpen(true);
+                }}
+              />
+              <OfferImageGallery
+                images={allImages}
+                index={imageIndex}
+                open={galleryOpen}
+                onClose={() => setGalleryOpen(false)}
+                onIndexChange={setImageIndex}
+                alt={offer.title}
+              />
             </div>
             <div className="p-6 md:p-8 flex-1">
               <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
@@ -872,12 +897,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   ) : null}
                 </div>
               )}
-
-              {ctaUrl ? (
-                <div className="mt-2">
-                  <AffiliateDisclosure variant="badge" />
-                </div>
-              ) : null}
 
               <div className="mt-4 flex items-center gap-3">
                 <button

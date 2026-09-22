@@ -21,7 +21,8 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 | [SUPABASE_CONTEXTO.md](./SUPABASE_CONTEXTO.md) | Schema public, funciones, triggers y extensiones Supabase |
 | [COMO_LLEVAR_AVENTA.md](./COMO_LLEVAR_AVENTA.md) | CÃ³mo llevar el dÃ­a a dÃ­a (automÃ¡tizar, simplificar, menos fricciÃ³n) |
 | [SISTEMA_SUBIR_OFERTA.md](./SISTEMA_SUBIR_OFERTA.md) | Flujo de subir oferta (parse URL, fotos, categorÃ­a) |
-| [PARSE_OFFER_MELI_LA_GALERIA.md](./PARSE_OFFER_MELI_LA_GALERIA.md) | Fix galerÃ­a `meli.la` / pÃ¡ginas social ML (parser + mobile) |
+| [PARSE_OFFER_MELI_LA_GALERIA.md](./PARSE_OFFER_MELI_LA_GALERIA.md) | Fix galería `meli.la` / páginas social ML (parser + mobile) |
+| [SYSTEMS/SYSTEM_offer_url_extraction.md](./SYSTEMS/SYSTEM_offer_url_extraction.md) | **Canónico:** parse URL → identidad → imágenes → success/partial; cómo añadir tiendas |
 | [SYSTEMS/SYSTEM_mercadolibre_affiliate.md](./SYSTEMS/SYSTEM_mercadolibre_affiliate.md) | ML Afiliados: capability matrix + fail-closed ingest |
 | [SYSTEMS/RESEARCH_affiliate_economic_intelligence.md](./SYSTEMS/RESEARCH_affiliate_economic_intelligence.md) | Research: Amazon+ML economic ingest evidence (FASE 1) |
 | [SYSTEMS/AMAZON_EVIDENCE_HARVEST.md](./SYSTEMS/AMAZON_EVIDENCE_HARVEST.md) | Amazon MX export harvest checklist + NO-GO until IDs verified |

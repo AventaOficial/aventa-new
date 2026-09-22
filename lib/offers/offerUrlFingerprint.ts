@@ -38,6 +38,12 @@ import {
   extractMercadoLibreUserProductId,
 } from '@/lib/offers/resolveMercadoLibreItem';
 
+const ASIN_RE = /^[A-Z0-9]{10}$/i;
+
+/**
+ * Extrae ASIN de URLs Amazon (path /dp/, query, o path corto en hops como link.amazon/{ASIN}).
+ * No inventa identidad: solo acepta tokens de 10 chars alfanuméricos.
+ */
 export function extractAmazonAsin(rawUrl: string): string | null {
   try {
     const upper = rawUrl.toUpperCase();
@@ -45,8 +51,16 @@ export function extractAmazonAsin(rawUrl: string): string | null {
     if (dp?.[1]) return dp[1];
     const u = new URL(rawUrl);
     const asinParam = u.searchParams.get('asin') || u.searchParams.get('ASIN');
-    if (asinParam && /^[A-Z0-9]{10}$/i.test(asinParam.trim())) {
+    if (asinParam && ASIN_RE.test(asinParam.trim())) {
       return asinParam.trim().toUpperCase();
+    }
+    // Share/short hops: https://link.amazon/B0XXXXXXXX or /d/B0XXXXXXXX
+    const pathSeg = u.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+    for (let i = pathSeg.length - 1; i >= 0; i--) {
+      const seg = pathSeg[i] ?? '';
+      if (ASIN_RE.test(seg)) return seg.toUpperCase();
+      // Skip single-letter path prefixes like /d/ on a.co
+      if (seg.length === 1) continue;
     }
     return null;
   } catch {
@@ -82,7 +96,13 @@ function isMercadoLibreHost(hostname: string): boolean {
 
 function isAmazonHost(hostname: string): boolean {
   const host = hostKey(hostname);
-  return host.includes('amazon.') || host === 'amzn.to' || host === 'a.co';
+  return (
+    host.includes('amazon.') ||
+    host === 'amzn.to' ||
+    host === 'a.co' ||
+    host === 'link.amazon' ||
+    host.endsWith('.link.amazon')
+  );
 }
 
 /**

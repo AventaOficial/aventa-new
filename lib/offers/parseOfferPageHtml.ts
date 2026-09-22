@@ -381,6 +381,46 @@ function unescapeJsonUrl(raw: string): string {
   return raw.replace(/\\u002F/g, '/').replace(/\\\//g, '/').replace(/\\"/g, '"');
 }
 
+/**
+ * Galería ligada al producto ML (JSON-LD Product + pictures[] embebidos).
+ * No hace scrape CDN global de similares — usar para enriquecer cuando la API trae pocas fotos.
+ */
+export function extractMercadoLibreProductScopedImages(html: string, base: string): string[] {
+  const images: string[] = [];
+  if (!html) return images;
+
+  for (const parsed of collectLdJson(html)) {
+    walkLd(parsed, (o, typeStr) => {
+      if (!typeStr.includes('Product')) return;
+      const img = o.image;
+      const add = (v: unknown) => {
+        if (typeof v === 'string') pushUnique(images, absoluteUrl(base, v));
+        else if (v && typeof v === 'object' && 'url' in (v as object)) {
+          pushUnique(images, absoluteUrl(base, String((v as { url?: unknown }).url ?? '')));
+        }
+      };
+      if (Array.isArray(img)) img.forEach(add);
+      else add(img);
+    });
+  }
+
+  const picBlockRe = /"pictures"\s*:\s*\[((?:[^[\]]|\[[^\]]*\]){0,80000})\]/gi;
+  let bm: RegExpExecArray | null;
+  while ((bm = picBlockRe.exec(html)) !== null) {
+    const block = bm[1] ?? '';
+    const urlRe = /"(?:secure_url|url)"\s*:\s*"(https?:\\?\/\\?\/[^"]*mlstatic[^"]+)"/gi;
+    let um: RegExpExecArray | null;
+    while ((um = urlRe.exec(block)) !== null) {
+      const u = unescapeJsonUrl(um[1]);
+      if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter/i.test(u)) continue;
+      pushUnique(images, absoluteUrl(base, u));
+    }
+    if (images.length >= OFFER_IMAGE_CANDIDATE_CAP) break;
+  }
+
+  return images;
+}
+
 export function extractOfferImages(html: string, base: string): string[] {
   const images: string[] = [];
 
@@ -417,19 +457,24 @@ export function extractOfferImages(html: string, base: string): string[] {
     pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
   }
 
-  const mlPicRe = /"secure_url"\s*:\s*"(https?:\\?\/\\?\/[^"]*mlstatic[^"]*D_(?:NQ_)?(?:NP_|Q_NP_)[^"]+)"/gi;
+  const mlPicRe = /"secure_url"\s*:\s*"(https?:\\?\/\\?\/[^"]*mlstatic[^"]+)"/gi;
   while ((hm = mlPicRe.exec(html)) !== null) {
-    pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
+    const u = unescapeJsonUrl(hm[1]);
+    if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter|aventaofertas/i.test(u)) continue;
+    pushUnique(images, absoluteUrl(base, u));
   }
-  const mlUrlRe = /"url"\s*:\s*"(https?:\\?\/\\?\/http2\.mlstatic\.com[^"]*D_(?:NQ_)?(?:NP_|Q_NP_)[^"]+)"/gi;
+  const mlUrlRe = /"url"\s*:\s*"(https?:\\?\/\\?\/http2\.mlstatic\.com[^"]+)"/gi;
   while ((hm = mlUrlRe.exec(html)) !== null) {
-    pushUnique(images, absoluteUrl(base, unescapeJsonUrl(hm[1])));
+    const u = unescapeJsonUrl(hm[1]);
+    if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter|aventaofertas/i.test(u)) continue;
+    pushUnique(images, absoluteUrl(base, u));
   }
 
-  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_(?:NQ_)?(?:NP_|Q_NP_)[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
+  // Formatos ML nuevos: D_NQ_915700-…-OO.webp y D_NQ_NP_…-G.webp (ver docs/PARSE_OFFER_MELI_LA_GALERIA.md)
+  const mlCdnRe = /(https?:\/\/http2\.mlstatic\.com\/D_[A-Za-z0-9_-]+\.(?:jpg|jpeg|webp|png))/gi;
   while ((hm = mlCdnRe.exec(html)) !== null) {
     const u = hm[1];
-    if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter/i.test(u)) continue;
+    if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter|aventaofertas/i.test(u)) continue;
     pushUnique(images, absoluteUrl(base, u));
   }
 

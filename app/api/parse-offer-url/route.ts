@@ -16,7 +16,7 @@ import {
 } from '@/lib/offerUrl';
 import { resolveOfferUrl } from '@/lib/offers/urlResolution';
 import {
-  isOfferAmazonHost,
+  isAmazonExpandableHost,
   isOfferMeliLaHost,
   isOfferMercadoLibreHost,
   offerStoreLabelFromFlags,
@@ -25,6 +25,7 @@ import {
 import {
   absoluteUrl,
   extractBreadcrumbs,
+  extractMercadoLibreProductScopedImages,
   extractMercadoLibreStructuredPrices,
   extractOfferImages,
   extractOfferMetaImages,
@@ -33,6 +34,14 @@ import {
   getMetaContent,
   stripOfferTrackingParams,
 } from '@/lib/offers/parseOfferPageHtml';
+import { extractWalmartProduct } from '@/lib/offers/productExtraction/walmartExtract';
+import { extractLiverpoolProduct } from '@/lib/offers/productExtraction/liverpoolExtract';
+import { extractCoppelProduct } from '@/lib/offers/productExtraction/coppelExtract';
+import { extractElektraProduct } from '@/lib/offers/productExtraction/elektraExtract';
+import {
+  classifyOfferExtraction,
+  type OfferExtractionStatus,
+} from '@/lib/offers/productExtraction/classifyExtraction';
 import {
   extractMercadoLibreItemId,
   resolveMercadoLibreItem,
@@ -85,6 +94,8 @@ function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
     suggested_original_price: null as number | null,
     suggested_category: null as string | null,
     reason,
+    extraction_status: (reason === 'invalid_url' ? 'failed' : reason === 'extract_failed' ? 'failed' : 'failed') as OfferExtractionStatus,
+    missing: [] as string[],
   };
 }
 
@@ -220,8 +231,7 @@ export async function POST(request: Request) {
     // Social ML: keep resolved hop (ref=) for HTML fetch when identity is missing.
     const offerResolved = await resolveOfferUrl(rawUrl);
     const wasMeliLa = isOfferMeliLaHost(url.hostname);
-    const wasAmazonShort =
-      isOfferAmazonHost(url.hostname) && !url.hostname.toLowerCase().includes('amazon.');
+    const wasAmazonShort = isAmazonExpandableHost(url.hostname);
     let workingHref = pickFetchHref({
       canonicalUrl: offerResolved.canonicalUrl,
       resolvedUrl: offerResolved.resolvedUrl,
@@ -270,8 +280,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // Amazon: fetch /dp/{ASIN} when identity proven
-    if (offerResolved.provider === 'amazon' && offerResolved.canonicalUrl) {
+    // Amazon / retail full: fetch canónica cuando identidad probada
+    if (
+      (offerResolved.provider === 'amazon' ||
+        offerResolved.provider === 'walmart' ||
+        offerResolved.provider === 'liverpool' ||
+        offerResolved.provider === 'coppel' ||
+        offerResolved.provider === 'elektra') &&
+      offerResolved.canonicalUrl &&
+      (offerResolved.productIdentity || offerResolved.productFingerprint)
+    ) {
       workingHref = offerResolved.canonicalUrl;
       try {
         workingUrl = new URL(workingHref);
@@ -311,6 +329,18 @@ export async function POST(request: Request) {
     const base = pageUrl.origin + pageUrl.pathname;
     const flags = resolveOfferStoreFlags(url.hostname, pageUrl.hostname);
     const { isAmazon, isMercadoLibre } = flags;
+    const isWalmart =
+      offerResolved.provider === 'walmart' ||
+      pageUrl.hostname.toLowerCase().includes('walmart.');
+    const isLiverpool =
+      offerResolved.provider === 'liverpool' ||
+      pageUrl.hostname.toLowerCase().includes('liverpool.');
+    const isCoppel =
+      offerResolved.provider === 'coppel' ||
+      pageUrl.hostname.toLowerCase().includes('coppel.');
+    const isElektra =
+      offerResolved.provider === 'elektra' ||
+      pageUrl.hostname.toLowerCase().includes('elektra.');
     const storeFromHost = offerStoreLabelFromFlags(flags);
 
     if (wasMeliLa && isOfferMeliLaHost(pageUrl.hostname) && !extractMercadoLibreItemId(pageUrl.href) && !html) {
@@ -329,22 +359,58 @@ export async function POST(request: Request) {
     };
     let htmlImages: string[] = [];
     let trustedHtmlImages: string[] = [];
+    let productScopedHtmlImages: string[] = [];
     let breadcrumbs: string[] = [];
-
-    if (html) {
-      htmlImages = extractOfferImages(html, base);
-      trustedHtmlImages = extractOfferMetaImages(html, base);
-      breadcrumbs = extractBreadcrumbs(html);
-      if (isAmazon) data = parseAmazon(html, base);
-      else if (isMercadoLibre) data = parseMercadoLibre(html, base);
-      else data = parseGeneric(html, base);
-    }
-
-    let candidates = collectCandidates(data.image, htmlImages);
+    let candidates: string[] = [];
     let mlCategoryId: string | null = null;
     let mlPathNames: string[] = [];
     let suggestedDiscount: number | null = null;
     let suggestedOriginal: number | null = null;
+    let retailExtractHandled = false;
+
+    if (html) {
+      htmlImages = extractOfferImages(html, base);
+      trustedHtmlImages = extractOfferMetaImages(html, base);
+      if (isMercadoLibre) {
+        productScopedHtmlImages = extractMercadoLibreProductScopedImages(html, base);
+      }
+      breadcrumbs = extractBreadcrumbs(html);
+      if (isAmazon) data = parseAmazon(html, base);
+      else if (isMercadoLibre) data = parseMercadoLibre(html, base);
+      else if (isWalmart) {
+        const w = extractWalmartProduct(html, pageUrl.href);
+        data = { title: w.title, image: w.image, store: w.store };
+        candidates = collectCandidates(w.image, w.images);
+        suggestedDiscount = w.suggestedDiscount;
+        suggestedOriginal = w.suggestedOriginal;
+        retailExtractHandled = true;
+      } else if (isLiverpool) {
+        const lv = extractLiverpoolProduct(html, pageUrl.href);
+        data = { title: lv.title, image: lv.image, store: lv.store };
+        candidates = collectCandidates(lv.image, lv.images);
+        suggestedDiscount = lv.suggestedDiscount;
+        suggestedOriginal = lv.suggestedOriginal;
+        retailExtractHandled = true;
+      } else if (isCoppel) {
+        const cp = extractCoppelProduct(html, pageUrl.href);
+        data = { title: cp.title, image: cp.image, store: cp.store };
+        candidates = collectCandidates(cp.image, cp.images);
+        suggestedDiscount = cp.suggestedDiscount;
+        suggestedOriginal = cp.suggestedOriginal;
+        retailExtractHandled = true;
+      } else if (isElektra) {
+        const el = extractElektraProduct(html, pageUrl.href);
+        data = { title: el.title, image: el.image, store: el.store };
+        candidates = collectCandidates(el.image, el.images);
+        suggestedDiscount = el.suggestedDiscount;
+        suggestedOriginal = el.suggestedOriginal;
+        retailExtractHandled = true;
+      } else data = parseGeneric(html, base);
+    }
+
+    if (!retailExtractHandled) {
+      candidates = collectCandidates(data.image, htmlImages);
+    }
 
     if (html && isAmazon) {
       const amazonPrices = extractSuggestedPrices(html);
@@ -364,6 +430,12 @@ export async function POST(request: Request) {
     }
 
     // API ML autenticada = fuente de verdad para precio/título/imágenes/categoría.
+    // CDN HTML amplio solo en meli.la /social (docs/PARSE_OFFER_MELI_LA_GALERIA.md).
+    const allowHtmlCdnFallback =
+      wasMeliLa ||
+      /\/social\//i.test(pageUrl.pathname) ||
+      /\/social\//i.test(workingUrl.pathname);
+
     if (isMercadoLibre) {
       if (ml) {
         data = {
@@ -376,6 +448,8 @@ export async function POST(request: Request) {
           apiPictures: ml.pictures,
           htmlImages,
           trustedHtmlImages,
+          productScopedHtmlImages,
+          allowHtmlCdnFallback,
           mlSource: ml.source,
           sourceItemId: ml.itemId ?? mlIdOnMlHost,
         });
@@ -405,8 +479,10 @@ export async function POST(request: Request) {
         // Fail closed: sin API del item, solo meta de confianza (og/twitter). Nunca scrape CDN.
         candidates = mergeMercadoLibreImageCandidates({
           apiPictures: [],
-          htmlImages: [],
+          htmlImages,
           trustedHtmlImages,
+          productScopedHtmlImages,
+          allowHtmlCdnFallback,
           sourceItemId: mlIdOnMlHost,
         });
         data = {
@@ -438,7 +514,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (html && !isAmazon && !isMercadoLibre) {
+    if (html && !isAmazon && !isMercadoLibre && !retailExtractHandled) {
       const retail = enrichRetailOfferFromHtml(html, pageUrl.href);
       suggestedDiscount = retail.suggestedDiscount;
       suggestedOriginal = retail.suggestedOriginal;
@@ -475,7 +551,21 @@ export async function POST(request: Request) {
       data.store ??
       storeFromHost ??
       inferStoreFromHostname(pageUrl.hostname);
-    const extracted = Boolean(title) || images.length > 0 || suggestedDiscount != null;
+
+    const classification = classifyOfferExtraction({
+      title,
+      imageCount: images.length,
+      hasPrice: suggestedDiscount != null,
+      hasCategory: Boolean(suggestedCategory),
+      productIdentity: Boolean(
+        offerResolved.productIdentity ||
+          offerResolved.productFingerprint ||
+          mlIdOnMlHost ||
+          (isAmazon && offerResolved.productFingerprint),
+      ),
+    });
+
+    const extracted = classification.status !== 'failed';
 
     // Observability for broken paste flow (no secrets). Helps Hunter Lab / support.
     const extractDiagnostics = {
@@ -485,14 +575,19 @@ export async function POST(request: Request) {
       mlItemId: ml?.itemId ?? mlIdOnMlHost,
       imageCandidateCount: candidates.length,
       selectedImageCount: images.length,
+      productScopedImageCount: productScopedHtmlImages.length,
       offerResolvedConfidence: offerResolved.confidence,
       offerResolvedProvenance: offerResolved.provenance?.slice(0, 12) ?? [],
+      extractionStatus: classification.status,
+      extractionErrorCode: classification.errorCode,
     };
 
     if (wasMeliLa && !extracted && isMercadoLibre) {
       return NextResponse.json({
         ...emptyPayload('extract_failed'),
         store: 'Mercado Libre',
+        extraction_status: 'failed' as OfferExtractionStatus,
+        missing: classification.missing,
         error:
           'No pudimos obtener el producto desde este enlace corto. Pega la URL completa de Mercado Libre y puedes completar los datos a mano.',
         diagnostics: extractDiagnostics,
@@ -507,7 +602,9 @@ export async function POST(request: Request) {
       suggested_discount_price: suggestedDiscount,
       suggested_original_price: suggestedOriginal,
       suggested_category: suggestedCategory,
-      reason: extracted ? null : 'extract_failed',
+      reason: classification.status === 'failed' ? 'extract_failed' : null,
+      extraction_status: classification.status,
+      missing: classification.missing,
       diagnostics: extractDiagnostics,
     });
   } catch {

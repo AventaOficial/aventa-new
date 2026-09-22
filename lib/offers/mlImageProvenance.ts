@@ -152,7 +152,15 @@ export function mergeMlImageCandidates(
             mercadoLibreImageResourceId(c.url) != null &&
             mercadoLibreImageResourceId(c.url) === mercadoLibreImageResourceId(cover.url))),
     );
-    pool = [cover, ...sameResource];
+    // Product-scoped JSON-LD / embedded pictures[] may supply additional gallery slots.
+    const productScoped = flat.filter(
+      (c) =>
+        belongsToItem(c) &&
+        c.source === 'product_jsonld' &&
+        (mercadoLibreImageResourceId(c.url) ?? c.url) !==
+          (mercadoLibreImageResourceId(cover.url) ?? cover.url),
+    );
+    pool = [cover, ...sameResource, ...productScoped];
   } else if (trusted.length > 0) {
     pool = trusted.filter(belongsToItem);
   } else {

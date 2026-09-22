@@ -34,6 +34,18 @@ describe('mergeMercadoLibreImageCandidates', () => {
     expect(merged).not.toContain(OG);
   });
 
+  it('CASO B2: API 1 + product-scoped → completa galería sin relacionados', () => {
+    const merged = mergeMercadoLibreImageCandidates({
+      apiPictures: [ITEM_A],
+      htmlImages: [RELATED_C],
+      productScopedHtmlImages: [ITEM_A, ITEM_B],
+      mlSource: 'ml_api',
+    });
+    expect(merged).toContain(ITEM_A);
+    expect(merged).toContain(ITEM_B);
+    expect(merged).not.toContain(RELATED_C);
+  });
+
   it('CASO C: API 0 → solo trusted meta, nunca scrape CDN amplio', () => {
     const merged = mergeMercadoLibreImageCandidates({
       apiPictures: [],
@@ -43,6 +55,18 @@ describe('mergeMercadoLibreImageCandidates', () => {
     });
     expect(merged).toEqual([OG]);
     expect(merged).not.toContain(RELATED_C);
+  });
+
+  it('CASO C-social: API 0 + allowHtmlCdnFallback → CDN HTML permitido (meli.la)', () => {
+    const merged = mergeMercadoLibreImageCandidates({
+      apiPictures: [],
+      htmlImages: [ITEM_A, ITEM_B],
+      trustedHtmlImages: [OG],
+      allowHtmlCdnFallback: true,
+      mlSource: null,
+    });
+    expect(merged.length).toBeGreaterThanOrEqual(2);
+    expect(merged).toContain(ITEM_A);
   });
 
   it('CASO C sin trusted → vacío (mejor vacío que contaminado)', () => {

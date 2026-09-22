@@ -1,5 +1,11 @@
 # Parse de ofertas Mercado Libre — `meli.la`, galería e imágenes
 
+Documento de **incidente / fix histórico**.  
+**Contrato vigente del sistema completo (Amazon + ML + retail MX):**  
+→ [`docs/SYSTEMS/SYSTEM_offer_url_extraction.md`](./SYSTEMS/SYSTEM_offer_url_extraction.md)
+
+---
+
 Documento de referencia: qué fallaba, por qué en PC parecía funcionar y en mobile no, y qué se corrigió.
 
 **Commit principal:** `19c0fb4` — *Fix ML social-page gallery extraction for meli.la links.*
