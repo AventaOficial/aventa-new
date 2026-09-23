@@ -499,7 +499,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           </span>
         </nav>
 
-        {offer.freshness && offer.freshness.state !== 'healthy' && offer.freshness.state !== 'expired' ? (
+        {offer.freshness?.announce ? (
           <div
             className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40"
             role="status"
