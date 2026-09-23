@@ -115,7 +115,7 @@ function trustedMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetada
       listingTypeId: 'worker_card',
       originalPriceProvenance: 'listing_card',
       cardDiscountSource: 'card_strikethrough',
-      historyReady: false,
+      historyReady: true,
       ...(overSignals ?? {}),
     },
     ...rest,
