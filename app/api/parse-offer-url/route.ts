@@ -60,6 +60,11 @@ import {
   amazonHtmlScrapeUrl,
   isAmazonBotWallHtml,
 } from '@/lib/offers/amazonProductScrapeUrl';
+import {
+  isWalmartBotWallHtml,
+  walmartHtmlScrapeUrl,
+  WALMART_MOBILE_UA,
+} from '@/lib/offers/walmartProductScrapeUrl';
 import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -170,7 +175,10 @@ function collectCandidates(primary: string | null, extras: string[]): string[] {
   return out;
 }
 
-async function fetchHtml(target: string): Promise<{ html: string; pageUrl: URL } | null> {
+async function fetchHtml(
+  target: string,
+  opts?: { userAgent?: string },
+): Promise<{ html: string; pageUrl: URL } | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -180,7 +188,7 @@ async function fetchHtml(target: string): Promise<{ html: string; pageUrl: URL }
       requireAllowlist: true,
       signal: controller.signal,
       headers: {
-        'User-Agent': USER_AGENT,
+        'User-Agent': opts?.userAgent || USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
       },
@@ -320,10 +328,14 @@ export async function POST(request: Request) {
     }
 
     // Amazon: scrape mobile product HTML (`/gp/aw/d/`) — `/dp/` is often a bot wall from server IPs.
+    // Walmart: mobile Safari UA — desktop Chrome often hits PerimeterX `/blocked`.
     const amazonAsinHint =
       extractAmazonAsin(workingHref) ||
       extractAmazonAsin(offerResolved.canonicalUrl || '') ||
       extractAmazonAsin(rawUrl);
+    const isWalmartProvider =
+      offerResolved.provider === 'walmart' ||
+      workingUrl.hostname.toLowerCase().includes('walmart.');
     const htmlFetchHref =
       offerResolved.provider === 'amazon' || isAmazonExpandableHost(workingUrl.hostname)
         ? amazonHtmlScrapeUrl(
@@ -331,9 +343,12 @@ export async function POST(request: Request) {
               ? offerResolved.canonicalUrl
               : workingHref,
           )
-        : workingHref;
+        : isWalmartProvider
+          ? walmartHtmlScrapeUrl(rawUrl, offerResolved.canonicalUrl || workingHref)
+          : workingHref;
+    const htmlFetchUa = isWalmartProvider ? WALMART_MOBILE_UA : USER_AGENT;
 
-    const htmlPromise = fetchHtml(htmlFetchHref);
+    const htmlPromise = fetchHtml(htmlFetchHref, { userAgent: htmlFetchUa });
     const mlPromise =
       inputIsMl && mlIdOnMlHost
         ? fetchMercadoLibrePublicOffer(workingHref).catch(() => null)
@@ -357,6 +372,21 @@ export async function POST(request: Request) {
         } else {
           html = '';
         }
+      } else {
+        html = '';
+      }
+    }
+
+    // Walmart: if mobile UA still hit captcha (or first hop redirected to /blocked), clear HTML.
+    if (isWalmartProvider && html && isWalmartBotWallHtml(html, pageUrl.href)) {
+      const retryHref = walmartHtmlScrapeUrl(
+        offerResolved.canonicalUrl || workingHref,
+        offerResolved.canonicalUrl,
+      );
+      const retry = await fetchHtml(retryHref, { userAgent: WALMART_MOBILE_UA });
+      if (retry?.html && !isWalmartBotWallHtml(retry.html, retry.pageUrl.href)) {
+        html = retry.html;
+        pageUrl = retry.pageUrl;
       } else {
         html = '';
       }

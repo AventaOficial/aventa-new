@@ -54,12 +54,13 @@ function toCandidates(
  *
  * - API >= 2: solo API (no HTML global / similares).
  * - API === 1: API + variantes mismo recurso + galería product-scoped (JSON-LD / pictures[]).
- * - API === 0: trusted/og (+ product-scoped). CDN amplio solo si `allowHtmlCdnFallback`
- *   (meli.la /social — docs/PARSE_OFFER_MELI_LA_GALERIA.md).
+ * - API === 0: trusted/og (+ product-scoped). Nunca dump CDN global (similares/recomendados).
+ * - `allowHtmlCdnFallback` (meli.la /social): solo variantes same-resource del cover trusted/API
+ *   y galería product-scoped — no mezcla fotos de otros listings.
  */
 export function mergeMercadoLibreImageCandidates(params: {
   apiPictures: string[];
-  /** Scrape amplio (puede incluir similares). Solo same-resource salvo allowHtmlCdnFallback. */
+  /** Scrape amplio (puede incluir similares). Solo same-resource del cover. */
   htmlImages?: string[];
   /** Meta de alta confianza (og/twitter). Usado cuando API = 0. */
   trustedHtmlImages?: string[];
@@ -69,8 +70,8 @@ export function mergeMercadoLibreImageCandidates(params: {
    */
   productScopedHtmlImages?: string[];
   /**
-   * true en meli.la / páginas /social/: permite HTML CDN amplio (fix 19c0fb4).
-   * false en fichas /p/ o articulo (evita similares).
+   * true en meli.la / páginas /social/: permite completar con same-resource del cover
+   * y product-scoped. Nunca acepta CDN de otros productos.
    */
   allowHtmlCdnFallback?: boolean;
   /** Preferir 'ml_api' cuando vino de /items|/products autenticado. */
@@ -97,28 +98,28 @@ export function mergeMercadoLibreImageCandidates(params: {
   if (api.length === 1) {
     const cover = api[0];
     const sameResourceVariants = html.filter((h) => sameMlProductResource(cover, h));
+    // Solo product-scoped (primer Product / pictures del listing). Nunca CDN de otros items.
     const scopedExtra = scoped.filter((s) => !sameMlProductResource(cover, s) || s === cover);
-    // En social/meli.la, si API solo trae 1, completar con CDN HTML (doc galería).
-    const cdnExtra = allowCdn
-      ? html.filter((h) => !sameMlProductResource(cover, h))
-      : [];
     return mergeMlImageCandidates(
       [
         toCandidates(api, 'ml_api', itemId),
         toCandidates(sameResourceVariants, 'same_resource', itemId),
         toCandidates(scopedExtra, 'product_jsonld', itemId),
-        toCandidates(cdnExtra, 'product_jsonld', itemId),
       ],
       { minApiToSkipFallback: minApi, sourceItemId: itemId },
     ).map((c) => c.url);
   }
 
-  // API === 0
+  // API === 0 — fail closed frente a similares: scoped + trusted (+ same-resource del cover).
   const lists: MlImageCandidate[][] = [];
   if (scoped.length > 0) lists.push(toCandidates(scoped, 'product_jsonld', itemId));
   if (trusted.length > 0) lists.push(toCandidates(trusted, 'og', itemId));
   if (allowCdn && html.length > 0) {
-    lists.push(toCandidates(html, 'product_jsonld', itemId));
+    const cover = trusted[0] ?? scoped[0] ?? null;
+    const sameOnly = cover ? html.filter((h) => sameMlProductResource(cover, h)) : [];
+    if (sameOnly.length > 0) {
+      lists.push(toCandidates(sameOnly, 'same_resource', itemId));
+    }
   }
   if (lists.length === 0) return [];
 

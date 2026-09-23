@@ -117,7 +117,20 @@ export async function resolveWalmartOfferUrl(rawUrl: string): Promise<OfferUrlRe
       /* keep mx */
     }
 
-    const canonicalUrl = `https://${marketHost}/ip/${itemId}`;
+    // Prefer slug path when present (better SSR); else bare /ip/{id}.
+    let canonicalUrl = `https://${marketHost}/ip/${itemId}`;
+    try {
+      const pathParts = new URL(working).pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+      const ipIdx = pathParts.findIndex((p) => p.toLowerCase() === 'ip');
+      if (ipIdx >= 0 && pathParts.length >= ipIdx + 2) {
+        const slug = pathParts[ipIdx + 1];
+        if (slug && slug !== itemId && !/^\d+$/.test(slug)) {
+          canonicalUrl = `https://${marketHost}/ip/${encodeURIComponent(slug)}/${itemId}`;
+        }
+      }
+    } catch {
+      /* bare /ip/{id} */
+    }
     provenance.push('canonical_ip');
 
     return {
