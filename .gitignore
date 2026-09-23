@@ -69,3 +69,11 @@ next-env.d.ts
 # Research / competitive offer corpora (local-only; never push)
 docs/SYSTEMS/AVENTA_OFFER_STANDARD_v1.md
 docs/SYSTEMS/AVENTA_OFFER_CORPUS_v1.md
+
+# Private research (competitive / offer corpora) — never push
+docs/_private/
+docs/SYSTEMS/AVENTA_OFFER_STANDARD_v1.md
+docs/SYSTEMS/AVENTA_OFFER_CORPUS_v1.md
+docs/hse/competitive/
+docs/SYSTEMS/RESEARCH_supply_intelligence_engine.md
+docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
