@@ -123,6 +123,8 @@ function candidate(url: string, over: Partial<ExternalWorkerCandidate> = {}): Ex
       originalPriceProvenance: 'listing_card',
       cardDiscountSource: 'card_strikethrough',
       imageProvenance: 'listing_card',
+      // S6.1: listing_card is mint-trusted only with historyReady (dry ≡ live uses same gate).
+      historyReady: true,
     },
     ...over,
   };
@@ -237,6 +239,9 @@ describe('S6.8 live ↔ dry identity reconciliation', () => {
     const liveMeta = toParsedMeta(c);
     expect(dry.ok && liveMeta).toBeTruthy();
     if (!dry.ok || !liveMeta) return;
+    // Both paths must see mint-valid historyReady (S6.1 price-truth).
+    expect(dry.value.meta.signals?.historyReady).toBe(true);
+    expect(liveMeta.signals?.historyReady).toBe(true);
     const config = baseConfig();
     const gate = evaluateMachineCandidateGate({
       url: dry.value.meta.canonicalUrl,
@@ -254,5 +259,6 @@ describe('S6.8 live ↔ dry identity reconciliation', () => {
     expect(live.wouldInsert).toBe(gate.wouldInsert);
     expect(live.eligible).toBe(gate.wouldInsert);
     expect(gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
+    expect(live.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
   });
 });

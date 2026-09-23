@@ -105,9 +105,12 @@ function trustedMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetada
       ratingAverage: 4.6,
       ratingCount: 80,
       listingTypeId: 'worker_card',
-      originalPriceProvenance: 'listing_card',
-      cardDiscountSource: 'card_strikethrough',
-      historyReady: false,
+      // Mint-trusted baseline: source_explicit (listing_card alone needs historyReady).
+      originalPriceProvenance: 'source_explicit',
+      cardDiscountSource: 'pdp',
+      historyReady: true,
+      effectiveDiscountPercent: 50,
+      suspectedArtificialListPrice: false,
       ...(overSignals ?? {}),
     },
     ...rest,
@@ -279,13 +282,18 @@ describe('S6.6 live gate unification', () => {
     const { gate, live } = assertEquivalence(
       sameCandidateInput({
         meta: trustedMeta({
-          signals: { historyReady: false },
+          signals: {
+            originalPriceProvenance: 'listing_card',
+            cardDiscountSource: 'card_strikethrough',
+            historyReady: false,
+          },
         }),
       }),
     );
     expect(live.qualityDecision).toBe(gate.qualityDecision);
     expect(live.wouldInsert).toBe(gate.wouldInsert);
-    expect(gate.reasonCodes).toContain('PARTIAL_NO_HISTORY');
+    expect(gate.wouldInsert).toBe(false);
+    expect(gate.reasonCodes).toContain('INSUFFICIENT_HISTORY');
   });
 
   it('9. low DealScore advisory → same S6.1 (DealScore does not block)', () => {
@@ -293,13 +301,16 @@ describe('S6.6 live gate unification', () => {
       discountPrice: 1800,
       originalPrice: 2000,
       discountPercent: 10,
+      signals: {
+        effectiveDiscountPercent: 10,
+      },
     });
     // Below minDiscount → suppressed by discount threshold, not DealScore
     const lowDiscount = assertEquivalence(sameCandidateInput({ meta }));
     expect(lowDiscount.gate.reasonCodes).toContain('DISCOUNT_BELOW_THRESHOLD');
     expect(lowDiscount.live.eligible).toBe(false);
 
-    // Trusted card with high discount but weak social signals — DealScore low, gate still VERIFIED
+    // Trusted provenance with high discount but weak social signals — DealScore low, gate still VERIFIED
     const weakSocial = assertEquivalence(
       sameCandidateInput({
         meta: trustedMeta({
@@ -308,9 +319,11 @@ describe('S6.6 live gate unification', () => {
             ratingAverage: 0,
             ratingCount: 0,
             listingTypeId: 'worker_card',
-            originalPriceProvenance: 'listing_card',
-            cardDiscountSource: 'card_strikethrough',
-            historyReady: false,
+            originalPriceProvenance: 'source_explicit',
+            cardDiscountSource: 'pdp',
+            historyReady: true,
+            effectiveDiscountPercent: 50,
+            suspectedArtificialListPrice: false,
           },
         }),
       }),

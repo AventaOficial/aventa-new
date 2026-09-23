@@ -300,6 +300,13 @@ function normalizeSignals(
     out.cardBadgePercent = signals.cardBadgePercent;
   }
 
+  // S6.1 price-truth: live path must preserve historyReady (dry adapter already spreads signals).
+  if (signals.historyReady === true) {
+    out.historyReady = true;
+  } else if (signals.historyReady === false) {
+    out.historyReady = false;
+  }
+
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

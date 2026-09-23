@@ -182,7 +182,15 @@ describe('S6.4 worker_card score diagnostics', () => {
   });
 
   it('7. S6.1 gate unchanged (uses actual verifier)', () => {
-    const meta = workerMeta();
+    const meta = workerMeta({
+      signals: {
+        listingTypeId: 'worker_card',
+        cardDiscountSource: 'card_strikethrough',
+        originalPriceProvenance: 'listing_card',
+        imageProvenance: 'listing_card',
+        historyReady: true,
+      },
+    });
     const scored = scoreIngestCandidate(meta, meta.signals, cfg);
     const direct = evaluateMachineCandidateGate({
       url: meta.canonicalUrl,
@@ -229,15 +237,33 @@ describe('S6.4 worker_card score diagnostics', () => {
         listingTypeId: 'worker_card',
         originalPriceProvenance: 'listing_card',
         cardDiscountSource: 'card_strikethrough',
-        historyReady: false,
+        // Mint-valid evidence so DealScore (low without rich intel) is the variable under test.
+        historyReady: true,
       },
     });
     const decomp = decomposeIngestScores({ meta, config: cfg });
-    // DealScore advisory — low without history is expected; gate may still verify.
+    // DealScore advisory — low without rich history signals is expected; gate still verifies.
     expect(decomp.dealScore).toBeLessThanOrEqual(35);
     expect(decomp.verifierDecision).not.toBe('reject');
     expect(decomp.gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(decomp.gate.wouldInsert).toBe(true);
+  });
+
+  it('9b. listing_card without historyReady → SUPPRESSED (not a DealScore reject)', () => {
+    const meta = workerMeta({
+      discountPercent: 25,
+      signals: {
+        listingTypeId: 'worker_card',
+        originalPriceProvenance: 'listing_card',
+        cardDiscountSource: 'card_strikethrough',
+        historyReady: false,
+      },
+    });
+    const decomp = decomposeIngestScores({ meta, config: cfg });
+    expect(decomp.verifierDecision).not.toBe('reject');
+    expect(decomp.gate.qualityDecision).toBe('SUPPRESSED');
+    expect(decomp.gate.wouldInsert).toBe(false);
+    expect(decomp.gate.reasonCodes).toContain('INSUFFICIENT_HISTORY');
   });
 
   it('10. UGC path untouched — diagnostics module is ingest-only', async () => {

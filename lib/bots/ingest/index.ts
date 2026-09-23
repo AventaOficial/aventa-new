@@ -19,7 +19,9 @@ export type {
   MachineQualityReasonCode,
   MachineEvidenceLevel,
 } from './candidateInsertGate';
-export { isTrustedOriginalPriceProvenance } from './candidateInsertGate';
+export { isTrustedOriginalPriceProvenance, mintTrustedOriginalPrice } from './candidateInsertGate';
+export { buildHunterDecisionTrace, labelFromGateAndDqe } from './hunterDecisionTrace';
+export type { HunterDecisionTrace, HunterFinalLabel } from './hunterDecisionTrace';
 export {
   preserveMachinePriceProvenance,
   isLegalProvenanceTransition,

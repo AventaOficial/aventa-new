@@ -136,7 +136,7 @@ function gateFromNormalized(candidate: ExternalWorkerCandidate, pdpBlocked?: boo
 }
 
 describe('S6.2 provenance wiring', () => {
-  it('CASE A — card strikethrough → listing_card → may verify', () => {
+  it('CASE A — card strikethrough → listing_card preserved; mint needs historyReady', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -149,11 +149,36 @@ describe('S6.2 provenance wiring', () => {
         originalPriceProvenance: 'listing_card',
         currentPriceProvenance: 'source_explicit',
         listingTypeId: 'worker_card',
+        // S6.1 price-truth: listing_card alone is STORE_REPORTED, not mint-trusted.
+        historyReady: false,
       },
     });
     const { normalized, gate } = gateFromNormalized(candidate);
     expect(normalized.meta.signals?.originalPriceProvenance).toBe('listing_card');
     expect(normalized.meta.signals?.cardDiscountSource).toBe('card_strikethrough');
+    expect(gate.qualityDecision).toBe('SUPPRESSED');
+    expect(gate.wouldInsert).toBe(false);
+    expect(gate.reasonCodes).toContain('INSUFFICIENT_HISTORY');
+  });
+
+  it('CASE A2 — listing_card + historyReady → VERIFIED_OPPORTUNITY', () => {
+    const candidate = workerCandidate({
+      discountPrice: 698,
+      originalPrice: 2492,
+      discountPercent: 72,
+      cardDiscountSource: 'card_strikethrough',
+      cardBadgePercent: 72,
+      signals: {
+        cardDiscountSource: 'card_strikethrough',
+        cardBadgePercent: 72,
+        originalPriceProvenance: 'listing_card',
+        currentPriceProvenance: 'source_explicit',
+        listingTypeId: 'worker_card',
+        historyReady: true,
+      },
+    });
+    const { normalized, gate } = gateFromNormalized(candidate);
+    expect(normalized.meta.signals?.originalPriceProvenance).toBe('listing_card');
     expect(gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(gate.wouldInsert).toBe(true);
     expect(gate.reasonCodes).toContain('VERIFIED_CARD_PRICE');
@@ -216,7 +241,7 @@ describe('S6.2 provenance wiring', () => {
     expect(gate.reasonCodes).toContain('ORIGINAL_PRICE_UNTRUSTED');
   });
 
-  it('CASE E — trusted card + null image → verified with PARTIAL_NO_IMAGE', () => {
+  it('CASE E — history-backed card + null image → verified with PARTIAL_NO_IMAGE', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -227,6 +252,7 @@ describe('S6.2 provenance wiring', () => {
         cardDiscountSource: 'card_strikethrough',
         originalPriceProvenance: 'listing_card',
         listingTypeId: 'worker_card',
+        historyReady: true,
       },
     });
     const { gate } = gateFromNormalized(candidate);
@@ -235,7 +261,7 @@ describe('S6.2 provenance wiring', () => {
     expect(gate.reasonCodes).toContain('PARTIAL_NO_IMAGE');
   });
 
-  it('CASE F — trusted card + pdpBlocked → PDP warning only', () => {
+  it('CASE F — history-backed card + pdpBlocked → PDP warning only', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -246,6 +272,7 @@ describe('S6.2 provenance wiring', () => {
         cardDiscountSource: 'card_strikethrough',
         originalPriceProvenance: 'listing_card',
         listingTypeId: 'worker_card',
+        historyReady: true,
       },
     });
     const { normalized, gate } = gateFromNormalized(candidate, true);
@@ -333,6 +360,7 @@ describe('S6.2 provenance wiring', () => {
         cardDiscountSource: 'card_strikethrough',
         originalPriceProvenance: 'listing_card',
         listingTypeId: 'worker_card',
+        historyReady: true,
       },
     });
 
@@ -464,13 +492,17 @@ describe('S6.2 S5.5 real fixture provenance distribution', () => {
       config: baseConfig({ maxPerRun: 50, candidatePoolMax: 50 }),
     });
 
-    expect(report.wouldInsertCount).toBe(15);
+    expect(report.wouldInsertCount).toBe(0);
     expect(report.items.every((i) => i.offerInserted === false)).toBe(true);
-    expect(report.items.every((i) => i.status === 'WOULD_INSERT')).toBe(true);
-    // S6.3: card images now present on real fixtures — no PARTIAL_NO_IMAGE required.
-    // Gate policy unchanged: verified card price still admits.
+    expect(report.items.every((i) => i.status !== 'WOULD_INSERT')).toBe(true);
+    // S6.1 price-truth: listing_card without historyReady is not mintable.
+    // Provenance distribution above still proves wiring; mint is separate.
     expect(
-      report.items.every((i) => i.reasonCodes.includes('VERIFIED_CARD_PRICE')),
+      report.items.every(
+        (i) =>
+          i.reasonCodes.includes('INSUFFICIENT_HISTORY') ||
+          i.reasonCodes.includes('ORIGINAL_PRICE_UNTRUSTED'),
+      ),
     ).toBe(true);
   });
 });

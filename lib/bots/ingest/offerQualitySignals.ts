@@ -18,6 +18,8 @@ export type OfferQualitySignals = {
   suspectedArtificialListPrice?: boolean | null;
   /** True cuando Price Memory tiene días suficientes (mlPriceEngine). */
   historyReady?: boolean | null;
+  /** Días distintos en ventana 90d (incl. observación de hoy fusionada). */
+  samples90d?: number | null;
   priceIntelSource?: 'keepa' | 'aventa_ml' | 'other' | null;
   currentPriceProvenance?:
     | 'source_explicit'
