@@ -47,13 +47,16 @@ describe('ML social CDN gallery (D_NQ_…-OO) + Dom prices', () => {
         modern,
         classic,
         'https://http2.mlstatic.com/D_Q_NP_2X_632943-MLA108307328738_032026-V.webp',
+        'https://http2.mlstatic.com/D_NQ_NP_2X_OTHER999-MLA999-O.webp',
       ],
       trustedHtmlImages: [classic],
+      productScopedHtmlImages: [modern, classic],
       allowHtmlCdnFallback: true,
       sourceItemId: 'MLM3138313012',
     });
     expect(merged.length).toBeGreaterThanOrEqual(2);
     expect(merged.some((u) => u.includes('950189'))).toBe(true);
+    expect(merged.some((u) => u.includes('OTHER999'))).toBe(false);
   });
 
   it('extractMercadoLibreDomPrices reads andes fractions', () => {
@@ -66,5 +69,25 @@ describe('ML social CDN gallery (D_NQ_…-OO) + Dom prices', () => {
     const p = extractMercadoLibreDomPrices(html);
     expect(p.discount).toBe(141);
     expect(p.original).toBe(199);
+  });
+});
+
+describe('walmartProductScrapeUrl', () => {
+  it('detects PerimeterX blocked HTML', async () => {
+    const { isWalmartBotWallHtml, walmartHtmlScrapeUrl } = await import(
+      '@/lib/offers/walmartProductScrapeUrl'
+    );
+    expect(
+      isWalmartBotWallHtml(
+        '<html><body><div id="px-captcha"></div><h1>Verifica tu identidad</h1></body></html>',
+        'https://www.walmart.com.mx/blocked?url=x',
+      ),
+    ).toBe(true);
+    expect(
+      walmartHtmlScrapeUrl(
+        'https://www.walmart.com.mx/ip/Atun-Dolores/00750104540314?athena=true',
+        'https://www.walmart.com.mx/ip/00750104540314',
+      ),
+    ).toBe('https://www.walmart.com.mx/ip/Atun-Dolores/00750104540314');
   });
 });

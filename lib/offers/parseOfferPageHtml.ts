@@ -382,16 +382,20 @@ function unescapeJsonUrl(raw: string): string {
 }
 
 /**
- * Galería ligada al producto ML (JSON-LD Product + pictures[] embebidos).
+ * Galería ligada al producto ML (primer Product JSON-LD + primer pictures[] embebido).
  * No hace scrape CDN global de similares — usar para enriquecer cuando la API trae pocas fotos.
+ * Solo el primer Product / primer bloque pictures evita mezclar carouseles de relacionados.
  */
 export function extractMercadoLibreProductScopedImages(html: string, base: string): string[] {
   const images: string[] = [];
   if (!html) return images;
 
+  let productSeen = false;
   for (const parsed of collectLdJson(html)) {
     walkLd(parsed, (o, typeStr) => {
+      if (productSeen) return;
       if (!typeStr.includes('Product')) return;
+      productSeen = true;
       const img = o.image;
       const add = (v: unknown) => {
         if (typeof v === 'string') pushUnique(images, absoluteUrl(base, v));
@@ -402,20 +406,22 @@ export function extractMercadoLibreProductScopedImages(html: string, base: strin
       if (Array.isArray(img)) img.forEach(add);
       else add(img);
     });
+    if (productSeen) break;
   }
 
-  const picBlockRe = /"pictures"\s*:\s*\[((?:[^[\]]|\[[^\]]*\]){0,80000})\]/gi;
-  let bm: RegExpExecArray | null;
-  while ((bm = picBlockRe.exec(html)) !== null) {
-    const block = bm[1] ?? '';
+  // Primer bloque pictures[] del HTML (galería del listing), no todos los carouseles.
+  const picBlockRe = /"pictures"\s*:\s*\[((?:[^[\]]|\[[^\]]*\]){0,80000})\]/i;
+  const bm = picBlockRe.exec(html);
+  if (bm?.[1]) {
+    const block = bm[1];
     const urlRe = /"(?:secure_url|url)"\s*:\s*"(https?:\\?\/\\?\/[^"]*mlstatic[^"]+)"/gi;
     let um: RegExpExecArray | null;
     while ((um = urlRe.exec(block)) !== null) {
       const u = unescapeJsonUrl(um[1]);
       if (/placeholder|pixel|1x1|sprite|grey-pixel|storage\/splinter/i.test(u)) continue;
       pushUnique(images, absoluteUrl(base, u));
+      if (images.length >= OFFER_IMAGE_CANDIDATE_CAP) break;
     }
-    if (images.length >= OFFER_IMAGE_CANDIDATE_CAP) break;
   }
 
   return images;
