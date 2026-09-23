@@ -165,14 +165,14 @@ Leyenda: 🟢 operativo · 🟡 incompleto · 🟠 desalineado · 🔴 solo docs
 | Payouts | 🟡 | rewards payout SPEI manual | Gated | freeze | |
 | Owner economy | 🟢 | `lib/owner/estimatedEconomy.ts` | Sí (estimado) | ledger+clicks | |
 | **OPS** | | | | | |
-| Cron (Vercel) | 🟢 | `vercel.json` | Sí | | Digests, integrity, health, write-queue, rewards-holds, ml-oauth |
+| Cron (Vercel) | 🟢 | `vercel.json` | Sí | | Incluye offer-health cada 2 h y purge de cuentas |
 | Worker scheduler | 🟢 | `.github/workflows/mercadolibre-worker.yml` | Sí | cron `7,37` | |
 | Health | 🟢 | hunter-health, offer-health, integrity | Sí | | |
 | Alerts | 🟡 | SYSTEM_ALERT_*, Resend, webhooks | Depende env | | NO VERIFICADO cableado prod en este doc |
 | Observability | 🟡 | metricUniverses, Supply Truth | Parcial | | Memory metrics por isolate |
 | CI/CD | 🟢 | `.github/workflows/ci.yml` | Sí | | |
 | Migrations | 🟡 | `docs/supabase-migrations/` | Aplicadas a mano | | `supabase/migrations/` vacío |
-| Backups | 🔴 | checklists | Sin pipeline repo | Supabase | |
+| Backups | 🔴 | checklists | Sin pipeline repo | Supabase | EXTERNAL. Ver `docs/LAUNCH_EXTERNAL_CONFIG.md`. No inventar RPO. |
 | Staging | 🟡 | `oojshofrpbfwsiypcecr` (legacy→staging) | Contract + guards; local still often on prod until founder rekeys | `STAGING_ENVIRONMENT_CONTRACT.md` | Preview env TBD in Vercel |
 | Security | 🟡 | middleware, cron Bearer, RLS | Sí con WARN advisors | | |
 | **UX** | | | | | |
@@ -547,10 +547,14 @@ Decisiones **verificadas** en código (no aspiracionales):
 8. **Supply Router no inserta ofertas** (`persist: false`).  
 9. **Dedupe timeout cooldown** existe (`timeout_cooldown` tras `auto_rejected_timeout`).  
 10. **Price Memory a nivel producto existe** (`product_price_snapshots`).  
-11. **Decision Engine opera en shadow** — no publica.  
-12. **Comunidades in-app están retiradas del runtime** (redirect permanente).  
-13. **Top (feed) ≠ motor Top Deals de supply.**  
-14. **Día a Día retailers permanecen OFF** hasta flags + compliance.  
+11. **Freshness es una cola** (`next_check_at`, lote máx 50, cron `15 */2 * * *`). Una oferta `available` sin check reciente no se presenta como verificada. Migración: `docs/supabase-migrations/20260923_launch_hardening.sql` (MANUAL VERIFICATION).  
+12. **Rate limit crítico en producción es fail-closed** sin Upstash (`lib/server/rateLimitPolicy.ts`).  
+13. **`COMMISSION_PROGRAM_ACTIVE` no activa Rewards.** Cualquier checklist que diga lo contrario está obsoleto.  
+14. **Backups/PITR siguen EXTERNAL** — no hay evidencia en el repo. Ver `docs/LAUNCH_EXTERNAL_CONFIG.md`.  
+15. **Decision Engine opera en shadow** — no publica.  
+16. **Comunidades in-app están retiradas del runtime** (redirect permanente).  
+17. **Top (feed) ≠ motor Top Deals de supply.**  
+18. **Día a Día retailers permanecen OFF** hasta flags + compliance.  
 
 ---
 

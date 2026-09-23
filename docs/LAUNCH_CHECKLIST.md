@@ -99,12 +99,17 @@ Sin estas cuatro, producción no funciona correctamente.
 
 ## 6. Variables que DEBEN permanecer OFF
 
-| Variable | Valor seguro |
-|----------|--------------|
-| `REWARDS_PROGRAM_ACTIVE` | **Ausente** o `false` |
-| `COMMISSION_PROGRAM_ACTIVE` | **`false`** o ausente |
+| Variable | Valor seguro | CODE GUARANTEE |
+|----------|--------------|----------------|
+| `REWARDS_PROGRAM_ACTIVE` | **Ausente** o `false` | Única llave de Rewards (`lib/rewards/programStatus.ts`) |
+| `COMMISSION_PROGRAM_ACTIVE` | **`false`** o ausente | No enciende Rewards |
+| `MONEY_PATH_FROZEN` | Ausente o `true` en producción | Ausente en producción = congelado |
+| `SETTLEMENT_BRIDGE_ENABLED` | Ausente o `false` | No liquida a ledger |
+| `BOT_INGEST_MACHINE_PENDING_WRITES` | Ausente o `false` | Machine mint no es parte de este launch |
 
-⚠️ Si `COMMISSION_PROGRAM_ACTIVE=true`, el fallback en `isRewardsProgramActive()` también activaría Rewards.
+`COMMISSION_PROGRAM_ACTIVE=true` **no** activa Rewards. El fallback que decía lo contrario era documentación obsoleta.
+
+Ver también `docs/LAUNCH_EXTERNAL_CONFIG.md` y `docs/INCIDENT_RESPONSE.md`.
 
 ---
 
