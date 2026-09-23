@@ -17,9 +17,9 @@ import { OUTBOUND_EVENT_TYPE } from '@/lib/analytics/outboundClickContract';
  */
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rl = await enforceRateLimit(ip);
+  const rl = await enforceRateLimit(`outbound:${ip}`, { critical: true });
   if (!rl.success) {
-    return new NextResponse(null, { status: 429 });
+    return new NextResponse(null, { status: rl.status });
   }
   try {
     const body = await request.json().catch(() => ({}));

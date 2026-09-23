@@ -21,6 +21,8 @@ import {
 } from '@/lib/server/requireCommunityUser';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
 import { getUploadCooldownStatus } from '@/lib/server/uploadCooldown';
+import { evaluateAbusePolicy } from '@/lib/abuse/risk';
+import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 import { recordShadowOutcomeFromAutonomous } from '@/lib/autonomous';
 
 type OfferInsertPayload = {
@@ -61,8 +63,8 @@ export async function POST(request: Request) {
     const rl = await enforceRateLimitCustom(ip, 'offers');
     if (!rl.success) {
       return NextResponse.json(
-        { error: 'Demasiadas ofertas. Espera un minuto antes de subir otra.' },
-        { status: 429 }
+        { error: 'Demasiadas ofertas. Espera un minuto antes de subir otra.', code: rl.code },
+        { status: rl.status }
       );
     }
 
@@ -72,6 +74,13 @@ export async function POST(request: Request) {
     }
     const { user, supabase } = authResult;
     const createdBy = user.id;
+    const abuse = evaluateAbusePolicy({
+      action: 'submission',
+      accountCreatedAt: user.created_at,
+    });
+    if (!abuse.allow) {
+      return NextResponse.json({ error: abuse.message, code: abuse.code }, { status: 403 });
+    }
 
     const cooldown = await getUploadCooldownStatus(supabase, user);
     if (!cooldown.canUpload) {
@@ -334,6 +343,7 @@ export async function POST(request: Request) {
       await supabase.rpc('increment_offers_submitted_count', { uuid: createdBy });
     } catch {}
 
+    void recordProductEvent({ event: 'submission', userId: createdBy, offerId: data?.id ?? null, source: 'api/offers' });
     return NextResponse.json({ id: data?.id, ok: true, status: offerStatus });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));

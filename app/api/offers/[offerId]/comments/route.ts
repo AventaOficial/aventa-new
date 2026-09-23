@@ -10,6 +10,8 @@ import {
   communityAuthFailureResponse,
 } from '@/lib/server/requireCommunityUser';
 import { getCommentableOffer, validateCommentParent } from '@/lib/server/commentOfferGuard';
+import { evaluateAbusePolicy } from '@/lib/abuse/risk';
+import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 
 type CommentRow = {
   id: string;
@@ -145,10 +147,13 @@ export async function POST(
   }
 
   const ip = getClientIp(request);
-  const rl = await enforceRateLimitCustom(ip, 'comments');
-  if (!rl.success) {
-    return NextResponse.json({ error: 'Demasiados comentarios. Espera un momento.' }, { status: 429 });
-  }
+    const rl = await enforceRateLimitCustom(ip, 'comments');
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'Demasiados comentarios. Espera un momento.', code: rl.code },
+        { status: rl.status }
+      );
+    }
 
   const authResult = await requireBearerCommunityUser(request);
   if ('error' in authResult) {
@@ -156,6 +161,13 @@ export async function POST(
   }
   const { user, supabase } = authResult;
   const userId = user.id;
+  const abuse = evaluateAbusePolicy({
+    action: 'comment',
+    accountCreatedAt: user.created_at,
+  });
+  if (!abuse.allow) {
+    return NextResponse.json({ error: abuse.message, code: abuse.code }, { status: 403 });
+  }
 
   const offer = await getCommentableOffer(supabase, offerId);
   if (!offer) {
@@ -250,6 +262,7 @@ export async function POST(
         console.error('[comments] POST insert:', retry.error.message);
         return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
       }
+      void recordProductEvent({ event: 'comment', userId, offerId, source: 'api/comments' });
       return NextResponse.json({
         comment: toComment({ ...(retry.data as CommentRow), image_url: null }, 0, false, userId),
         status: (retry.data as { status?: string })?.status ?? commentStatus,
@@ -284,6 +297,7 @@ export async function POST(
     like_count: 0,
     liked_by_me: false,
   };
+  void recordProductEvent({ event: 'comment', userId, offerId, source: 'api/comments' });
   return NextResponse.json({
     ...comment,
     status: commentStatus,

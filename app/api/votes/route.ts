@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getClientIp, enforceRateLimit } from '@/lib/server/rateLimit'
+import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit'
+import { recordProductEvent } from '@/lib/analytics/recordProductEvent'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { voteInputSchema } from '@/lib/contracts/votes'
@@ -75,11 +76,11 @@ function shouldCountAsNewUpvote(targetVal: number, existingVal: number | null | 
 
 export async function POST(request: Request) {
   const ip = getClientIp(request)
-  const limitResult = await enforceRateLimit(ip)
+  const limitResult = await enforceRateLimit(`vote:${ip}`, { critical: true })
   if (!limitResult.success) {
     return NextResponse.json(
-      { ok: false, error: 'Demasiadas peticiones. Espera un minuto.' },
-      { status: 429 }
+      { ok: false, error: 'Demasiadas peticiones. Espera un minuto.', code: limitResult.code },
+      { status: limitResult.status }
     )
   }
   try {
@@ -235,6 +236,7 @@ export async function POST(request: Request) {
       )
     }
 
+    void recordProductEvent({ event: 'vote', userId, offerId, source: 'api/votes' })
     return NextResponse.json({ ok: true }, { status: 200 })
   } catch (e) {
     console.error('[votes] error:', e)

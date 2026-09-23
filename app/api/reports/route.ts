@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
+import { evaluateAbusePolicy } from '@/lib/abuse/risk'
 import {
   requireBearerCommunityUser,
   communityAuthFailureResponse,
@@ -13,7 +14,10 @@ export async function POST(request: Request) {
     const ip = getClientIp(request)
     const rl = await enforceRateLimitCustom(ip, 'reports')
     if (!rl.success) {
-      return NextResponse.json({ error: 'Demasiados reportes. Espera un momento.' }, { status: 429 })
+      return NextResponse.json(
+        { error: 'Demasiados reportes. Espera un momento.', code: rl.code },
+        { status: rl.status },
+      )
     }
 
     const authResult = await requireBearerCommunityUser(request)
@@ -22,6 +26,13 @@ export async function POST(request: Request) {
     }
     const { user, supabase } = authResult
     const reporterId = user.id
+    const abuse = evaluateAbusePolicy({
+      action: 'report',
+      accountCreatedAt: user.created_at,
+    })
+    if (!abuse.allow) {
+      return NextResponse.json({ error: abuse.message, code: abuse.code }, { status: 403 })
+    }
 
     const body = await request.json().catch(() => ({}))
     const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null
@@ -35,6 +46,19 @@ export async function POST(request: Request) {
     }
     if (!comment || comment.length < 100) {
       return NextResponse.json({ error: 'Escribe al menos 100 caracteres describiendo el problema para evitar spam.' }, { status: 400 })
+    }
+
+    const { data: targetOffer } = await supabase
+      .from('offers')
+      .select('created_by')
+      .eq('id', offerId)
+      .maybeSingle()
+    const selfReport = evaluateAbusePolicy({
+      action: 'report',
+      isSelfTarget: (targetOffer as { created_by?: string } | null)?.created_by === reporterId,
+    })
+    if (!selfReport.allow) {
+      return NextResponse.json({ error: selfReport.message, code: selfReport.code }, { status: 403 })
     }
 
     const { data: existing } = await supabase

@@ -1,5 +1,8 @@
 import { Ratelimit, type Duration } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { isProductionRuntime } from '@/lib/server/moneyPathFreeze';
+import { decideRateLimitBackend } from '@/lib/server/rateLimitPolicy';
+import { incrementLaunchMetric } from '@/lib/observability/launchMetrics';
 
 const limiters: Record<string, Ratelimit> = {};
 
@@ -31,7 +34,7 @@ function memoryAllow(key: string, limit: number, windowMs: number): boolean {
     }
   }
   const now = Date.now();
-  let b = memoryStore.get(key);
+  const b = memoryStore.get(key);
   if (!b || now > b.resetAt) {
     memoryStore.set(key, { count: 1, resetAt: now + windowMs });
     return true;
@@ -51,7 +54,7 @@ function getRatelimit(key: string, limit: number, window: Duration): Ratelimit |
     if (!hasWarnedNoRedis && process.env.NODE_ENV === 'production') {
       hasWarnedNoRedis = true;
       console.warn(
-        '[rateLimit] Sin Upstash Redis: se usa límite en memoria por instancia. Configura UPSTASH_* para escala multi-región y límites coherentes.'
+        '[rateLimit] Sin Upstash Redis. Rutas no críticas usan memoria por instancia. Rutas críticas en producción responden 503 hasta configurar UPSTASH_*.'
       );
     }
     return null;
@@ -79,7 +82,79 @@ function applyAdaptiveMultiplier(baseLimit: number): number {
 
 export type EnforceResult =
   | { success: true }
-  | { success: false; status: 429 };
+  | { success: false; status: 429 | 503; code?: 'rate_limited' | 'rate_limit_backend_unavailable' };
+
+const REDIS_LIMIT_TIMEOUT_MS = 1200;
+
+function hasDistributedBackend(): boolean {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+async function limitWithTimeout(rl: Ratelimit, identifier: string): Promise<'ok' | 'blocked' | 'timeout'> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([
+      rl.limit(identifier).then((value) => (value.success ? 'ok' : 'blocked') as 'ok' | 'blocked'),
+      new Promise<'timeout'>((resolve) => {
+        timer = setTimeout(() => resolve('timeout'), REDIS_LIMIT_TIMEOUT_MS);
+      }),
+    ]);
+    return result;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function enforceWithPolicy(
+  identifier: string,
+  presetKey: string,
+  limit: number,
+  window: Duration,
+  critical: boolean
+): Promise<EnforceResult> {
+  const backend = decideRateLimitBackend({
+    hasDistributedBackend: hasDistributedBackend(),
+    production: isProductionRuntime(),
+    critical,
+  });
+
+  if (backend === 'deny') {
+    incrementLaunchMetric('rate_limit_backend_denied');
+    incrementLaunchMetric('critical_errors');
+    return { success: false, status: 503, code: 'rate_limit_backend_unavailable' };
+  }
+
+  if (backend === 'distributed') {
+    const rl = getRatelimit(presetKey, limit, window);
+    if (rl) {
+      const outcome = await limitWithTimeout(rl, identifier);
+      if (outcome === 'ok') return { success: true };
+      if (outcome === 'blocked') {
+        incrementLaunchMetric('rate_limit_blocks');
+        return { success: false, status: 429, code: 'rate_limited' };
+      }
+      if (critical && isProductionRuntime()) {
+        incrementLaunchMetric('rate_limit_backend_denied');
+        return { success: false, status: 503, code: 'rate_limit_backend_unavailable' };
+      }
+    }
+  }
+
+  incrementLaunchMetric('rate_limit_memory_fallback');
+  const ok = memoryAllow(`${presetKey}:${identifier}`, limit, durationToMs(window));
+  if (ok) return { success: true };
+  incrementLaunchMetric('rate_limit_blocks');
+  return { success: false, status: 429, code: 'rate_limited' };
+}
+
+/** Límite por defecto: 30 req/min. critical=true en producción exige Upstash. */
+export async function enforceRateLimit(
+  identifier: string,
+  opts?: { critical?: boolean }
+): Promise<EnforceResult> {
+  const defaultLimit = applyAdaptiveMultiplier(readPositiveIntEnv('RATE_LIMIT_DEFAULT_PER_MIN') ?? 30);
+  return enforceWithPolicy(identifier, 'default', defaultLimit, '1 m', opts?.critical === true);
+}
 
 export function getClientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -89,17 +164,7 @@ export function getClientIp(request: Request): string {
   return 'unknown';
 }
 
-/** Límite por defecto: 30 req/min (track-view, votes, upload) */
-export async function enforceRateLimit(identifier: string): Promise<EnforceResult> {
-  const defaultLimit = applyAdaptiveMultiplier(readPositiveIntEnv('RATE_LIMIT_DEFAULT_PER_MIN') ?? 30);
-  const rl = getRatelimit('default', defaultLimit, '1 m');
-  if (rl) {
-    const { success } = await rl.limit(identifier);
-    return success ? { success: true } : { success: false, status: 429 };
-  }
-  const ok = memoryAllow(`def:${identifier}`, defaultLimit, durationToMs('1 m'));
-  return ok ? { success: true } : { success: false, status: 429 };
-}
+const CRITICAL_PRESETS = new Set(['reports', 'comments', 'offers']);
 
 /** reports | comments | events | offers | parseOffer | feed | telemetryView | telemetryOutbound | clientEvents | clientEventAlerts | similarOffers | uploadImage */
 export async function enforceRateLimitCustom(
@@ -125,7 +190,6 @@ export async function enforceRateLimitCustom(
     offers: [5, '1 m', 'RATE_LIMIT_OFFERS_PER_MIN'],
     parseOffer: [20, '1 m', 'RATE_LIMIT_PARSE_OFFER_PER_MIN'],
     feed: [120, '1 m', 'RATE_LIMIT_FEED_PER_MIN'],
-    // 1 evento por ventana: dedupe de telemetría (no es rate limit de abuso)
     telemetryView: [1, '30 m', 'RATE_LIMIT_TELEMETRY_VIEW_PER_WINDOW'],
     telemetryOutbound: [1, '10 m', 'RATE_LIMIT_TELEMETRY_OUTBOUND_PER_WINDOW'],
     clientEvents: [20, '1 m', 'RATE_LIMIT_CLIENT_EVENTS_PER_MIN'],
@@ -135,11 +199,5 @@ export async function enforceRateLimitCustom(
   };
   const [baseLimit, window, envName] = configs[preset];
   const limit = applyAdaptiveMultiplier(readPositiveIntEnv(envName) ?? baseLimit);
-  const rl = getRatelimit(`rl:${preset}`, limit, window);
-  if (rl) {
-    const { success } = await rl.limit(identifier);
-    return success ? { success: true } : { success: false, status: 429 };
-  }
-  const ok = memoryAllow(`c:${preset}:${identifier}`, limit, durationToMs(window));
-  return ok ? { success: true } : { success: false, status: 429 };
+  return enforceWithPolicy(identifier, `rl:${preset}`, limit, window, CRITICAL_PRESETS.has(preset));
 }
