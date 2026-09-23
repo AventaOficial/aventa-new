@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import {
   CheckCircle,
   ClipboardList,
+  ClipboardPaste,
   Flag,
   MessageCircle,
   PackageX,
@@ -24,6 +25,7 @@ export type ModerationTabDef = {
 
 export const ADMIN_MODERATION_TABS: ModerationTabDef[] = [
   { id: 'pending', href: '/admin/moderation', label: 'Pendientes', icon: ClipboardList, exact: true },
+  { id: 'lote', href: '/admin/moderation/lote', label: 'Lote', icon: ClipboardPaste },
   { id: 'approved', href: '/admin/moderation/approved', label: 'Aprobadas', icon: CheckCircle },
   { id: 'rejected', href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
   { id: 'comments', href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
@@ -35,6 +37,7 @@ export const WORKSPACE_MODERATION_TABS: ModerationTabDef[] = [
   { id: 'all', href: '/equipo/moderacion', label: 'Todas', icon: ClipboardList, exact: true },
   { id: 'bot', href: '/equipo/moderacion/bot', label: 'Bot', icon: Bot },
   { id: 'hunters', href: '/equipo/moderacion/cazadores', label: 'Cazadores', icon: Users },
+  { id: 'lote', href: '/equipo/moderacion/lote', label: 'Lote', icon: ClipboardPaste },
   { id: 'reports', href: '/equipo/moderacion/reportes', label: 'Reportes', icon: Flag },
   { id: 'price', href: '/equipo/moderacion/precio', label: 'Precio', icon: TrendingDown },
   { id: 'oos', href: '/equipo/moderacion/agotadas', label: 'Agotadas', icon: PackageX },
@@ -48,18 +51,19 @@ export function getModerationTabs(mode: ModerationHubMode): ModerationTabDef[] {
 }
 
 export function resolveModerationTabId(pathname: string, mode: ModerationHubMode): string {
-  const tabs = getModerationTabs(mode);
   if (mode === 'admin') {
     if (pathname === '/admin/reports' || pathname.startsWith('/admin/moderation/reports')) return 'reports';
     if (pathname.startsWith('/admin/moderation/social')) return 'social';
     if (pathname.startsWith('/admin/moderation/approved')) return 'approved';
     if (pathname.startsWith('/admin/moderation/rejected')) return 'rejected';
     if (pathname.startsWith('/admin/moderation/comments')) return 'comments';
+    if (pathname.startsWith('/admin/moderation/lote')) return 'lote';
     return 'pending';
   }
 
   if (pathname.startsWith('/equipo/moderacion/bot')) return 'bot';
   if (pathname.startsWith('/equipo/moderacion/cazadores')) return 'hunters';
+  if (pathname.startsWith('/equipo/moderacion/lote')) return 'lote';
   if (pathname.startsWith('/equipo/moderacion/reportes')) return 'reports';
   if (pathname.startsWith('/equipo/moderacion/precio')) return 'price';
   if (pathname.startsWith('/equipo/moderacion/agotadas')) return 'oos';

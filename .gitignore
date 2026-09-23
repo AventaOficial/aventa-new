@@ -65,3 +65,7 @@ next-env.d.ts
 .vercel
 .env*.local
 .env.vercel.check
+
+# Research / competitive offer corpora (local-only; never push)
+docs/SYSTEMS/AVENTA_OFFER_STANDARD_v1.md
+docs/SYSTEMS/AVENTA_OFFER_CORPUS_v1.md
