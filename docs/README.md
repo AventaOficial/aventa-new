@@ -12,7 +12,6 @@ Documentos activos en `docs/` (secundarios; si contradicen el SoT, gana el SoT):
 |---------|-------------|
 | [GUIA_AVENTA.md](./GUIA_AVENTA.md) | Estado, roadmap y checklist del dÃ­a a dÃ­a (puede estar desfasado vs SoT) |
 | [hunter/supply-orchestration.md](./hunter/supply-orchestration.md) | Supply Router / Truth (alineado con cÃ³digo FASE 10) |
-| [SYSTEMS/RESEARCH_supply_intelligence_engine.md](./SYSTEMS/RESEARCH_supply_intelligence_engine.md) | Investigación científica Supply Intelligence Engine (2026-09-16) |
 | [hunter/day-to-day-sources.md](./hunter/day-to-day-sources.md) | Fuentes DÃ­a a DÃ­a y flags |
 | [HUNTER_INFRA_Y_ROADMAP.md](./HUNTER_INFRA_Y_ROADMAP.md) | Hunter infra histÃ³rica â€” **parcialmente obsoleta** (GHA worker es el camino real; ver SoT) |
 | [CRON_EXTERNO_BOT.md](./CRON_EXTERNO_BOT.md) | CÃ³mo configurar cron-job.org â†’ `/api/cron/bot-ingest` |
