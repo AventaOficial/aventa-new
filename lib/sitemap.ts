@@ -91,11 +91,23 @@ export async function getSitemapOffers(
       .from('offers')
       .select('id, title, updated_at, created_at')
       .eq('status', 'approved')
+      .is('deleted_at', null)
       .or(`expires_at.is.null,expires_at.gte.${now}`)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    return (rows ?? []).map(
+    const { data: unavailable } = await supabase
+      .from('offer_health_state')
+      .select('offer_id')
+      .eq('status', 'out_of_stock')
+      .limit(2000);
+    const unavailableIds = new Set(
+      (unavailable ?? []).map((row: { offer_id: string }) => row.offer_id)
+    );
+
+    return (rows ?? [])
+      .filter((row: { id: string }) => !unavailableIds.has(row.id))
+      .map(
       (row: {
         id: string;
         title?: string | null;
@@ -127,6 +139,7 @@ export async function getOffersCount(): Promise<number> {
       .from('offers')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'approved')
+      .is('deleted_at', null)
       .or(`expires_at.is.null,expires_at.gte.${now}`);
     return count ?? 0;
   } catch {

@@ -22,6 +22,7 @@ import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
+import type { OfferFreshnessPresentation } from '@/lib/offers/freshness/present';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -150,6 +151,7 @@ type OfferPayload = {
   expiresAt?: string | null;
   /** Lifecycle flag: expired ≠ inaccessible. */
   isExpired?: boolean;
+  freshness?: OfferFreshnessPresentation;
   categorySlug?: string;
   categoryLabel?: string;
   storeSlug?: string;
@@ -496,6 +498,23 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             {offer.title}
           </span>
         </nav>
+
+        {offer.freshness && offer.freshness.state !== 'healthy' && offer.freshness.state !== 'expired' ? (
+          <div
+            className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40"
+            role="status"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{offer.freshness.label}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                {offer.freshness.detail}
+                {offer.freshness.lastCheckedAt
+                  ? ` Última revisión: ${new Date(offer.freshness.lastCheckedAt).toLocaleString('es-MX')}.`
+                  : ''}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {offer.isExpired ? (
           <div
@@ -857,7 +876,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 ) : null}
               </div>
 
-              {ctaUrl && (
+              {ctaUrl && offer.freshness && !offer.freshness.ctaEnabled ? (
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-300 px-6 py-3 font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                  >
+                    {offer.freshness.label}
+                  </button>
+                </div>
+              ) : ctaUrl ? (
                 <div className="mt-6 flex flex-wrap items-stretch gap-2">
                   <a
                     href={ctaUrl}
@@ -876,7 +905,11 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
                   >
-                    {offer.isExpired ? 'Ver oferta' : 'Cazar oferta'}
+                    {offer.freshness?.state === 'price_changed'
+                      ? 'Ver precio actual'
+                      : offer.isExpired
+                        ? 'Ver oferta'
+                        : 'Cazar oferta'}
                     <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                   {showCtaCouponChip ? (
@@ -896,7 +929,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     </div>
                   ) : null}
                 </div>
-              )}
+              ) : null}
 
               <div className="mt-4 flex items-center gap-3">
                 <button
