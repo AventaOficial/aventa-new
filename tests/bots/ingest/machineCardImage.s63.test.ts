@@ -223,6 +223,8 @@ describe('S6.3 image propagation + regressions', () => {
       cardDiscountSource: 'card_strikethrough',
       originalPriceProvenance: 'listing_card',
       imageProvenance: 'listing_card',
+      // S6.1 price-truth: mint-eligible card requires historyReady.
+      historyReady: true,
     },
   });
 
@@ -255,6 +257,7 @@ describe('S6.3 image propagation + regressions', () => {
     const n = normalizeMlWorkerListing(trustedCandidate());
     expect(n.ok).toBe(true);
     if (!n.ok) return;
+    expect(n.value.meta.signals?.historyReady).toBe(true);
     const gate = evaluateMachineCandidateGate({
       url: n.value.meta.canonicalUrl,
       meta: n.value.meta,
@@ -275,6 +278,7 @@ describe('S6.3 image propagation + regressions', () => {
     expect(n.ok).toBe(true);
     if (!n.ok) return;
     expect(n.value.meta.imageUrl).toBe('');
+    expect(n.value.meta.signals?.historyReady).toBe(true);
     const gate = evaluateMachineCandidateGate({
       url: n.value.meta.canonicalUrl,
       meta: n.value.meta,
@@ -282,6 +286,7 @@ describe('S6.3 image propagation + regressions', () => {
       verifierDecision: 'pending',
     });
     expect(gate.wouldInsert).toBe(true);
+    expect(gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(gate.reasonCodes).toContain('PARTIAL_NO_IMAGE');
   });
 
