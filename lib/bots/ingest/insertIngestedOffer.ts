@@ -11,11 +11,9 @@ import { buildBotOfferDescription } from './buildBotOfferDescription';
 import type { DealScore } from '@/lib/dealIntelligence';
 import type { RawObservationProvenanceSlice } from '@/lib/dealIntelligence/rawObservation';
 import { buildBotMeta } from './buildBotMeta';
-import {
-  evaluateDealQualityFromParsedMeta,
-  recordDealQualityDecision,
-  toDealQualityTelemetry,
-} from '@/lib/hunter/dealQuality';
+import { evaluateDealQualityFromParsedMeta, recordDealQualityDecision, toDealQualityTelemetry } from '@/lib/hunter/dealQuality';
+import { buildHunterDecisionTrace } from './hunterDecisionTrace';
+import type { CandidateGateResult } from './candidateInsertGate';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import { resolveBotInsertPublication } from './resolveBotInsertPublication';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
@@ -26,6 +24,8 @@ import {
 } from './machineWriteAuth';
 import { formatOfferScopeCondition, inferBotOfferScope } from '@/lib/offerScope';
 import { isSuppressedByNegativeMemory } from '@/lib/discovery/negativeMemory';
+import { evaluateMachineLiveInsertEligibility } from './machineLiveInsertEligibility';
+import type { HunterDecisionTrace } from './hunterDecisionTrace';
 
 /** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
 const OPTIONAL_COLUMNS = [
@@ -56,6 +56,9 @@ export type InsertIngestOptions = {
   rawObservation?: RawObservationProvenanceSlice | null;
   gateAction?: string | null;
   gateReason?: string | null;
+  gateReasonCodes?: string[] | null;
+  /** Full S6.1 gate result for decision trace (optional). */
+  gate?: CandidateGateResult | null;
 };
 
 export type InsertIngestResult =
@@ -67,7 +70,13 @@ export type InsertIngestResult =
       /** El candidato descartado venía más barato que la oferta que bloquea. Solo métrica. */
       supplyOpportunity?: boolean;
     }
-  | { ok: false; error: string; code?: 'NEGATIVE_MEMORY' };
+  | {
+      ok: false;
+      error: string;
+      code?: 'NEGATIVE_MEMORY' | 'S61_BLOCKED';
+      gate?: CandidateGateResult;
+      hunterDecisionTrace?: HunterDecisionTrace;
+    };
 
 function buildModeratorComment(opts: InsertIngestOptions | undefined): string {
   if (opts?.ingestScore == null) {
@@ -140,6 +149,60 @@ export async function insertIngestedOffer(
   }
   const productFingerprint = strongProductFingerprintForUrl(offerUrl);
 
+  // S6.1 write-boundary (defense-in-depth): re-evaluate DQE + canonical eligibility here.
+  // Do not trust caller-provided gate / wouldInsert. Missing evidence or evaluator errors → REJECT.
+  let botQuality: ReturnType<typeof evaluateDealQualityFromParsedMeta>;
+  let live: ReturnType<typeof evaluateMachineLiveInsertEligibility>;
+  let hunterDecisionTrace: HunterDecisionTrace;
+  try {
+    botQuality = evaluateDealQualityFromParsedMeta(meta, {
+      source: opts?.ingestSource ?? null,
+      productFingerprint: productFingerprint ?? null,
+    });
+    recordDealQualityDecision(botQuality);
+
+    // Caller score decision may tighten (reject) but cannot invent eligibility.
+    const verifierDecision =
+      opts?.decision === 'reject' ||
+      opts?.decision === 'auto_approve' ||
+      opts?.decision === 'pending'
+        ? opts.decision
+        : 'pending';
+    live = evaluateMachineLiveInsertEligibility({
+      url: offerUrl || meta.canonicalUrl,
+      meta,
+      config,
+      verifierDecision,
+      verifierReasons: [],
+      duplicate: null,
+      dealScore: opts?.dealScore ?? null,
+      dealQuality: botQuality,
+    });
+    hunterDecisionTrace = buildHunterDecisionTrace({
+      meta,
+      gate: live.gate,
+      dealQuality: botQuality,
+      dealScore: opts?.dealScore ?? null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      error: `s61_blocked:fail_closed_evaluator_error:${message.slice(0, 120)}`,
+      code: 'S61_BLOCKED',
+    };
+  }
+
+  if (!live.eligible || live.wouldInsert !== true) {
+    return {
+      ok: false,
+      error: `s61_blocked:${live.gateReason}`,
+      code: 'S61_BLOCKED',
+      gate: live.gate,
+      hunterDecisionTrace,
+    };
+  }
+
   const categoryFromEnv =
     config.category && config.category.trim()
       ? normalizeCategoryForStorage(config.category.trim())
@@ -180,12 +243,6 @@ export async function insertIngestedOffer(
     moderatorNote: `${opts?.moderatorNote ?? ''}${catNote}`.trim() || undefined,
   });
 
-  const botQuality = evaluateDealQualityFromParsedMeta(meta, {
-    source: opts?.ingestSource ?? null,
-    productFingerprint: productFingerprint ?? null,
-  });
-  recordDealQualityDecision(botQuality);
-
   const botMeta = buildBotMeta({
     meta,
     scoreBreakdown: opts?.scoreBreakdown,
@@ -195,8 +252,27 @@ export async function insertIngestedOffer(
     dealQuality: toDealQualityTelemetry(botQuality),
     dealScore: opts?.dealScore ?? null,
     rawObservation: opts?.rawObservation ?? null,
-    gateAction: opts?.gateAction ?? null,
-    gateReason: opts?.gateReason ?? null,
+    gateAction: opts?.gateAction ?? live.gateAction ?? null,
+    gateReason: opts?.gateReason ?? live.gateReason ?? null,
+    hunterDecisionTrace: {
+      reportedDiscountPercent: hunterDecisionTrace.reportedDiscountPercent,
+      verifiedDiscountPercent: hunterDecisionTrace.verifiedDiscountPercent,
+      historicalBaseline: hunterDecisionTrace.historicalBaseline,
+      historicalBaselinePrice: hunterDecisionTrace.historicalBaselinePrice,
+      currentPrice: hunterDecisionTrace.currentPrice,
+      historicalObservationCount: hunterDecisionTrace.historicalObservationCount,
+      effectiveDiscountPercent: hunterDecisionTrace.effectiveDiscountPercent,
+      artificialListPrice: hunterDecisionTrace.artificialListPrice,
+      originalPriceClass: hunterDecisionTrace.originalPriceClass,
+      dqeDecision: hunterDecisionTrace.dqeDecision,
+      dqeRecommendedAction: hunterDecisionTrace.dqeRecommendedAction,
+      dealScore: hunterDecisionTrace.dealScore,
+      s61Decision: hunterDecisionTrace.s61Decision,
+      s61ReasonCodes: hunterDecisionTrace.s61ReasonCodes,
+      finalLabel: hunterDecisionTrace.finalLabel,
+      primaryReason: hunterDecisionTrace.primaryReason,
+      whyPassedOrFailed: hunterDecisionTrace.whyPassedOrFailed,
+    },
   });
 
   const payload: Record<string, unknown> = {
