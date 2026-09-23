@@ -27,7 +27,8 @@ describe('Walmart URL resolution', () => {
     expect(r.provider).toBe('walmart');
     expect(r.productFingerprint).toBe('wmt:99887766');
     expect(r.productIdentity).toBe('walmart_mx:item:99887766');
-    expect(r.canonicalUrl).toBe('https://www.walmart.com.mx/ip/99887766');
+    // Keep slug when present — better SSR than bare /ip/{id}.
+    expect(r.canonicalUrl).toBe('https://www.walmart.com.mx/ip/producto-demo/99887766');
     expect(r.confidence).toBe('high');
   });
 
@@ -57,7 +58,7 @@ describe('Walmart URL resolution', () => {
     const r = await resolveWalmartOfferUrl('https://walmart.page.link/abc123');
     if (r.productFingerprint) {
       expect(r.productFingerprint).toBe('wmt:55554444');
-      expect(r.canonicalUrl).toContain('/ip/55554444');
+      expect(r.canonicalUrl).toContain('/ip/demo-prod/55554444');
     } else {
       expect(r.confidence).toBe('low');
     }
