@@ -40,17 +40,17 @@ export async function fetchOfferHealthSummary(): Promise<OfferHealthSummary> {
   const [availRes, changedRes, oosRes, healthRowsRes] = await Promise.all([
     supabase
       .from('offer_health_state')
-      .select('id', { count: 'exact', head: true })
+      .select('offer_id', { count: 'exact', head: true })
       .eq('status', 'available'),
     supabase
       .from('offer_health_state')
-      .select('id', { count: 'exact', head: true })
+      .select('offer_id', { count: 'exact', head: true })
       .eq('status', 'price_changed'),
     supabase
       .from('offer_health_state')
-      .select('id', { count: 'exact', head: true })
+      .select('offer_id', { count: 'exact', head: true })
       .eq('status', 'out_of_stock'),
-    supabase.from('offer_health_state').select('offer_id'),
+    supabase.from('offer_health_state').select('offer_id', { count: 'exact', head: true }),
   ]);
 
   const firstErr = availRes.error ?? changedRes.error ?? oosRes.error ?? healthRowsRes.error;
@@ -62,11 +62,11 @@ export async function fetchOfferHealthSummary(): Promise<OfferHealthSummary> {
       outOfStock: 0,
       activeWithoutCheck: active,
       lastScanNote:
-        'Ejecuta la migración offer_health_state.sql en Supabase. Cron: cada 4 h, hasta 25 ofertas por ciclo.',
+        'Ejecuta docs/supabase-migrations/20260923_launch_hardening.sql. La cola usa next_check_at; el cron corre cada 2 h con lote acotado.',
     };
   }
 
-  const checked = healthRowsRes.data?.length ?? 0;
+  const checked = healthRowsRes.count ?? 0;
   const activeWithoutCheck = Math.max(0, active - checked);
 
   return {
@@ -76,6 +76,6 @@ export async function fetchOfferHealthSummary(): Promise<OfferHealthSummary> {
     outOfStock: oosRes.count ?? 0,
     activeWithoutCheck,
     lastScanNote:
-      'Verificación automática cada 4 horas (hasta 25 ofertas con más clics / cambios de precio).',
+      'Cola de frescura: cada 2 horas, lote acotado (default 30, máximo 50), prioridad por clics, recencia y estado.',
   };
 }
