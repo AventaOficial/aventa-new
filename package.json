@@ -9,9 +9,11 @@
     "lint": "eslint",
     "test": "npm run test:contracts",
     "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase tests/cazaOfertas",
+    "test:launch": "vitest run tests/launch",
     "test:cazaofertas": "vitest run tests/cazaOfertas",
+    "typecheck": "tsc --noEmit",
     "build:extension": "tsc -p browser-extension/tsconfig.json",
-    "ci:verify": "npm run test:contracts && npm run build"
+    "ci:verify": "npm run typecheck && npm run test:contracts && npm run test:launch && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
