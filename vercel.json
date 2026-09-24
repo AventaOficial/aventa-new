@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/offer-health-scan",
-      "schedule": "15 */2 * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/weekly-digest",
