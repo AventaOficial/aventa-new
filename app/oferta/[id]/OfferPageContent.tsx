@@ -186,6 +186,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [couponCards, setCouponCards] = useState<
     { code: string; publicLabel: string; headline: string | null; restrictions: string | null }[]
   >([]);
+  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
 
   useEffect(() => {
     if (!offer.id) return;
@@ -902,7 +903,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     <div key={coupon.code} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                          {coupon.publicLabel === 'VERIFICADO' ? 'Cupón disponible' : coupon.publicLabel}
+                          {coupon.publicLabel === 'VERIFICADO' ? '🎟️ Cupón disponible' : coupon.publicLabel}
                         </p>
                         {coupon.headline ? (
                           <p className="text-sm text-gray-700 dark:text-gray-300">{coupon.headline}</p>
@@ -921,6 +922,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                             void navigator.clipboard.writeText(coupon.code).then(
                               () => {
                                 showToast?.('Cupón copiado. Pégalo al pagar en la tienda.');
+                                setCopiedCoupon(coupon.code);
                                 void fetch(`/api/offers/${offer.id}/coupon-events`, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
@@ -938,7 +940,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                             );
                           }}
                         >
-                          Copiar cupón
+                          {copiedCoupon === coupon.code ? 'Cupón copiado' : 'Copiar cupón'}
                         </button>
                         {ctaUrl ? (
                           <button

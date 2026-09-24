@@ -17,11 +17,22 @@ type CouponRow = {
   expires_at: string | null;
 };
 
+type HistoryEvent = {
+  event_type: string;
+  changes: string[] | null;
+  actor_role: string | null;
+  observed_at: string;
+};
+
 export default function AdminCouponsPage() {
   const { session } = useAuth();
   const [rows, setRows] = useState<CouponRow[]>([]);
   const [note, setNote] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ events: HistoryEvent[]; first: string | null; last: string | null } | null>(
+    null,
+  );
 
   useEffect(() => {
     const token = session?.access_token;
@@ -46,6 +57,22 @@ export default function AdminCouponsPage() {
       cancelled = true;
     };
   }, [session?.access_token, reload]);
+
+  async function openHistory(canonicalKey: string) {
+    const token = session?.access_token;
+    if (!token) return;
+    setOpenKey(canonicalKey);
+    const res = await fetch(`/api/admin/coupons?canonicalKey=${encodeURIComponent(canonicalKey)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => null);
+    const coupon = data?.coupon as { first_seen_at?: string; last_seen_at?: string } | null;
+    setHistory({
+      events: data?.events ?? [],
+      first: coupon?.first_seen_at ?? null,
+      last: coupon?.last_seen_at ?? null,
+    });
+  }
 
   async function act(canonicalKey: string, action: 'verify' | 'invalidate') {
     const token = session?.access_token;
@@ -72,13 +99,13 @@ export default function AdminCouponsPage() {
             className="rounded-xl border border-gray-200 px-4 py-3 text-sm dark:border-gray-800"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
+              <button type="button" className="text-left" onClick={() => void openHistory(row.canonical_key)}>
                 <p className="font-mono text-gray-900 dark:text-gray-100">{row.code}</p>
                 <p className="text-gray-500 dark:text-gray-400">
                   {row.store} · {row.status} · {row.verification_status} · {row.applies_to}
                   {row.discount_value != null ? ` · ${row.discount_value} ${row.currency ?? ''}`.trim() : ''}
                 </p>
-              </div>
+              </button>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -96,6 +123,21 @@ export default function AdminCouponsPage() {
                 </button>
               </div>
             </div>
+            {openKey === row.canonical_key && history ? (
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                <p>Primera vez: {history.first ?? '—'}</p>
+                <p>Última vez: {history.last ?? '—'}</p>
+                <ul className="mt-1 space-y-1">
+                  {history.events.map((event, index) => (
+                    <li key={`${event.observed_at}-${index}`}>
+                      {event.event_type}
+                      {event.actor_role ? ` · ${event.actor_role}` : ''}
+                      {event.changes?.length ? ` · ${event.changes.join(', ')}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

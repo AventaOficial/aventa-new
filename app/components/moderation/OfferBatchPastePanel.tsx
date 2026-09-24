@@ -86,16 +86,6 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
     if (drafts.length === 0) setBanner(null);
   }
 
-  function reviewCoupons() {
-    const parsed = parseCouponPaste(paste);
-    setCouponDrafts([...parsed.drafts, ...parsed.failures]);
-    setCouponNote(
-      parsed.drafts.length === 0
-        ? 'No hay cupones con código y tienda. Nada se guardó.'
-        : 'Revisa antes de guardar. Una mención queda por verificar.',
-    );
-  }
-
   async function saveReviewedCoupons() {
     const headers = await authHeaders();
     if (!headers) return;
@@ -318,14 +308,7 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
             onClick={detect}
             className={cn('rounded-full px-4 py-2 text-sm font-medium', ui.chipActive)}
           >
-            Detectar enlaces
-          </button>
-          <button
-            type="button"
-            onClick={reviewCoupons}
-            className={cn(ui.btnGhost, 'rounded-full px-4 py-2 text-sm font-medium')}
-          >
-            Revisar cupones
+            Revisar pegado
           </button>
           <span className={cn('text-xs', ui.muted)}>Máximo {OFFER_BATCH_MAX} por pegado</span>
         </div>
