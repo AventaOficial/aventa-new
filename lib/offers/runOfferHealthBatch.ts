@@ -7,9 +7,10 @@ import {
 } from '@/lib/server/offerAutoApprove';
 import { captureAutomaticExpireOutcome } from '@/lib/autonomous';
 import {
-  compareFreshnessCandidates,
   freshnessPriorityScore,
+  freshnessStoreKey,
   scheduleNextCheckAt,
+  selectFairFreshnessBatch,
   type FreshnessPersistedStatus,
 } from '@/lib/offers/freshness/priority';
 import {
@@ -134,11 +135,13 @@ type DueRow = {
   status: string | null;
   last_checked_at: string | null;
   consecutive_failures: number | null;
+  next_check_at: string | null;
 };
 
 export async function selectOfferIdsForHealthScan(limit: number): Promise<{
   ids: string[];
   selector: 'due_queue' | 'legacy_hot';
+  storeCapped: number;
 }> {
   const supabase = createServerClient();
   const now = new Date();
@@ -153,20 +156,20 @@ export async function selectOfferIdsForHealthScan(limit: number): Promise<{
     .limit(pool);
 
   if (error || !data) {
-    return { ids: await legacySelect(limit), selector: 'legacy_hot' };
+    return { ids: await legacySelect(limit), selector: 'legacy_hot', storeCapped: 0 };
   }
 
   const due = data as DueRow[];
-  if (due.length === 0) return { ids: [], selector: 'due_queue' };
+  if (due.length === 0) return { ids: [], selector: 'due_queue', storeCapped: 0 };
 
   const ids = due.map((row) => row.offer_id);
   const { data: offers, error: offerErr } = await supabase
     .from('offers')
-    .select('id, created_at, offer_url, status, expires_at, deleted_at')
+    .select('id, created_at, offer_url, status, expires_at, deleted_at, store')
     .in('id', ids);
 
   if (offerErr || !offers) {
-    return { ids: await legacySelect(limit), selector: 'legacy_hot' };
+    return { ids: await legacySelect(limit), selector: 'legacy_hot', storeCapped: 0 };
   }
 
   const offerById = new Map(
@@ -177,6 +180,7 @@ export async function selectOfferIdsForHealthScan(limit: number): Promise<{
       status: string | null;
       expires_at: string | null;
       deleted_at: string | null;
+      store: string | null;
     }[]).map((row) => [row.id, row])
   );
 
@@ -205,11 +209,14 @@ export async function selectOfferIdsForHealthScan(limit: number): Promise<{
           lastCheckedAt: health?.last_checked_at ?? null,
           now,
         }),
+        storeKey: freshnessStoreKey(offer?.store, id),
+        dueAt: health?.next_check_at ?? null,
       };
-    })
-    .sort(compareFreshnessCandidates);
+    });
 
-  return { ids: ranked.slice(0, limit).map((row) => row.id), selector: 'due_queue' };
+  const fair = selectFairFreshnessBatch(ranked, limit);
+  if (fair.storeCapped > 0) incrementLaunchMetric('freshness_store_capped', fair.storeCapped);
+  return { ids: fair.ids, selector: 'due_queue', storeCapped: fair.storeCapped };
 }
 
 async function rememberScan(result: OfferHealthBatchResult): Promise<void> {

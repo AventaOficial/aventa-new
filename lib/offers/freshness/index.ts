@@ -9,7 +9,10 @@ export {
 export {
   compareFreshnessCandidates,
   freshnessPriorityScore,
+  freshnessStoreKey,
   scheduleNextCheckAt,
+  selectFairFreshnessBatch,
   type FreshnessPersistedStatus,
+  type FreshnessQueueCandidate,
 } from '@/lib/offers/freshness/priority';
 export { presentOfferFreshness, type OfferFreshnessPresentation, type PublicFreshnessState } from '@/lib/offers/freshness/present';

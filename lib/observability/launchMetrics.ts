@@ -5,6 +5,7 @@
 
 export const LAUNCH_METRIC_NAMES = [
   'freshness_checked',
+  'freshness_store_capped',
   'freshness_failed',
   'freshness_skipped',
   'stale_offers_seen',

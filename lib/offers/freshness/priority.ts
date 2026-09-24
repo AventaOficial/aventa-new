@@ -74,3 +74,86 @@ export function compareFreshnessCandidates(
   if (b.score !== a.score) return b.score - a.score;
   return a.id.localeCompare(b.id);
 }
+
+/** One store may occupy at most this share of a batch before other due stores are considered. */
+export const FRESHNESS_MAX_STORE_SHARE = 0.25;
+/** Share of the batch reserved for the oldest due rows, so hot traffic cannot starve them. */
+export const FRESHNESS_STARVATION_SHARE = 0.2;
+
+export type FreshnessQueueCandidate = {
+  id: string;
+  score: number;
+  storeKey: string;
+  dueAt: string | null;
+};
+
+export function freshnessStoreKey(store: string | null | undefined, offerId: string): string {
+  const key = store?.trim().toLowerCase();
+  return key || `missing:${offerId}`;
+}
+
+function takeFair(
+  sorted: FreshnessQueueCandidate[],
+  slots: number,
+  counts: Map<string, number>,
+  cap: number,
+  chosen: Set<string>,
+): string[] {
+  const picked: string[] = [];
+  for (const row of sorted) {
+    if (picked.length >= slots) break;
+    if (chosen.has(row.id)) continue;
+    const used = counts.get(row.storeKey) ?? 0;
+    if (used >= cap) continue;
+    counts.set(row.storeKey, used + 1);
+    chosen.add(row.id);
+    picked.push(row.id);
+  }
+  return picked;
+}
+
+/**
+ * Due queue selection.
+ * A single retailer cannot fill the batch while another due retailer is waiting,
+ * unless the pool has no remaining store under the cap.
+ */
+export function selectFairFreshnessBatch(
+  candidates: FreshnessQueueCandidate[],
+  limit: number,
+): { ids: string[]; storeCapped: number; starvationIds: string[] } {
+  if (limit <= 0 || candidates.length === 0) {
+    return { ids: [], storeCapped: 0, starvationIds: [] };
+  }
+
+  const cap = Math.max(1, Math.floor(limit * FRESHNESS_MAX_STORE_SHARE));
+  const starvationSlots = limit >= 5 ? Math.max(1, Math.floor(limit * FRESHNESS_STARVATION_SHARE)) : 0;
+  const counts = new Map<string, number>();
+  const chosen = new Set<string>();
+  const byDue = [...candidates].sort((a, b) => {
+    if (a.dueAt === b.dueAt) return a.id.localeCompare(b.id);
+    if (a.dueAt == null) return -1;
+    if (b.dueAt == null) return 1;
+    return a.dueAt.localeCompare(b.dueAt);
+  });
+  const byScore = [...candidates].sort(compareFreshnessCandidates);
+  const starvationIds = takeFair(byDue, starvationSlots, counts, cap, chosen);
+  const priorityIds = takeFair(byScore, limit - starvationIds.length, counts, cap, chosen);
+  const ids = [...starvationIds, ...priorityIds];
+
+  const diversityLeft = candidates.some(
+    (row) => !chosen.has(row.id) && (counts.get(row.storeKey) ?? 0) < cap,
+  );
+  if (!diversityLeft) {
+    for (const row of byScore) {
+      if (ids.length >= limit) break;
+      if (chosen.has(row.id)) continue;
+      chosen.add(row.id);
+      ids.push(row.id);
+    }
+  }
+
+  const uncappedTop = new Set(byScore.slice(0, limit).map((row) => row.id));
+  const kept = new Set(ids);
+  const storeCapped = [...uncappedTop].filter((id) => !kept.has(id)).length;
+  return { ids: ids.slice(0, limit), storeCapped, starvationIds };
+}
