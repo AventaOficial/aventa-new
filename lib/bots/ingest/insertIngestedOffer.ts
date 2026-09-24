@@ -1,3 +1,9 @@
+/**
+ * Machine pending writer facade.
+ * Authorization + negative-memory gates stay here.
+ * Persistence goes solely through ingestOfferObservation (no direct offers.insert).
+ */
+
 import { createServerClient } from '@/lib/supabase/server';
 import { resolveAndNormalizeAffiliateOfferUrl } from '@/lib/affiliate';
 import { normalizeCategoryForStorage } from '@/lib/categories';
@@ -16,7 +22,6 @@ import {
   recordDealQualityDecision,
   toDealQualityTelemetry,
 } from '@/lib/hunter/dealQuality';
-import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import { resolveBotInsertPublication } from './resolveBotInsertPublication';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 import { isSupplyOpportunity } from '@/lib/offers/supplyOpportunity';
@@ -26,20 +31,8 @@ import {
 } from './machineWriteAuth';
 import { formatOfferScopeCondition, inferBotOfferScope } from '@/lib/offerScope';
 import { isSuppressedByNegativeMemory } from '@/lib/discovery/negativeMemory';
-
-/** Columnas opcionales: si el esquema aún no las tiene, el insert se reintenta sin ellas. */
-const OPTIONAL_COLUMNS = [
-  'bot_meta',
-  'link_mod_ok',
-  'moderator_comment',
-  'product_fingerprint',
-  'original_offer_url',
-] as const;
-
-function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
-  const msg = (error?.message ?? '').toLowerCase();
-  return msg.includes(columnName.toLowerCase());
-}
+import { ingestOfferObservation } from '@/lib/offers/ingestion/ingestOfferObservation';
+import { classifyDuplicateOfferRow } from '@/lib/offers/findDuplicateOffer';
 
 export type InsertIngestOptions = {
   status: 'pending' | 'approved';
@@ -50,9 +43,7 @@ export type InsertIngestOptions = {
   ingestSource?: string;
   ingestSourceDetail?: string;
   decision?: ScoreDecision;
-  /** DealScore v1 advisory — never publishes. */
   dealScore?: DealScore | null;
-  /** Compact RawObservation provenance for audit (hash/meta only). */
   rawObservation?: RawObservationProvenanceSlice | null;
   gateAction?: string | null;
   gateReason?: string | null;
@@ -64,7 +55,6 @@ export type InsertIngestResult =
       ok: false;
       duplicate: true;
       duplicateKind: DuplicateOfferKind;
-      /** El candidato descartado venía más barato que la oferta que bloquea. Solo métrica. */
       supplyOpportunity?: boolean;
     }
   | { ok: false; error: string; code?: 'NEGATIVE_MEMORY' };
@@ -84,10 +74,8 @@ function buildModeratorComment(opts: InsertIngestOptions | undefined): string {
 export async function insertIngestedOffer(
   meta: ParsedOfferMetadata,
   config: BotIngestConfig,
-  opts?: InsertIngestOptions
+  opts?: InsertIngestOptions,
 ): Promise<InsertIngestResult> {
-  // S9.1 defense-in-depth: sole machine writer requires explicit write auth.
-  // AUTO_APPROVE decision never bypasses this gate.
   const writeAuth = assertMachineOfferWriteAuthorized();
   if (!writeAuth.ok) {
     return { ok: false, error: writeAuth.error };
@@ -105,11 +93,10 @@ export async function insertIngestedOffer(
   const rawCanonical = (meta.canonicalUrl ?? '').trim();
   const originalOfferUrl = rawCanonical || null;
   const offerUrl = await resolveAndNormalizeAffiliateOfferUrl(
-    rawCanonical || meta.canonicalUrl
+    rawCanonical || meta.canonicalUrl,
   );
   const supabase = createServerClient();
 
-  // Defense-in-depth: SUPPRESS must not be bypassed by any machine insert path.
   const nm = await isSuppressedByNegativeMemory({ supabase, url: offerUrl });
   if (nm.suppressed) {
     return {
@@ -119,25 +106,11 @@ export async function insertIngestedOffer(
     };
   }
 
-  const {
-    findDuplicateOfferByUrl,
-    strongProductFingerprintForUrl,
-    isUniqueViolation,
-    releaseExpiredFingerprintSlot,
-  } = await import('@/lib/offers/findDuplicateOffer');
-  const duplicate = await findDuplicateOfferByUrl(supabase, offerUrl);
-  if (duplicate) {
-    return {
-      ok: false,
-      duplicate: true,
-      duplicateKind: duplicate.kind,
-      // Se descarta igual: medir no es actuar. Ver lib/offers/supplyOpportunity.ts.
-      supplyOpportunity: isSupplyOpportunity({
-        candidatePrice: meta.discountPrice,
-        existingPrice: duplicate.price,
-      }),
-    };
-  }
+  // Pre-check is telemetry/classification only. Dedupe authority = UNIQUE ingestion_identity_key + ingestOfferObservation.
+  const { findDuplicateOfferByUrl, strongProductFingerprintForUrl } = await import(
+    '@/lib/offers/findDuplicateOffer'
+  );
+  const preDup = await findDuplicateOfferByUrl(supabase, offerUrl);
   const productFingerprint = strongProductFingerprintForUrl(offerUrl);
 
   const categoryFromEnv =
@@ -147,7 +120,6 @@ export async function insertIngestedOffer(
   const categoryInferred = classifyBotCategoryForStorage(meta, config.techCategoryIdSet);
   const categoryBase = categoryFromEnv ?? categoryInferred;
   const hasOriginal = meta.originalPrice != null && meta.originalPrice > meta.discountPrice;
-  // S9.1: approval *decision* may be auto_approve; mint is always pending.
   const requestedStatus = resolveMachineInsertStatus(opts?.status);
   const publication = resolveBotInsertPublication({
     requestedStatus,
@@ -156,14 +128,6 @@ export async function insertIngestedOffer(
   const status = publication.status;
   const title = (opts?.titleOverride ?? meta.title).slice(0, 500);
   const description = buildBotOfferDescription(meta, categoryBase).slice(0, 2000);
-  const autogroup = inferOfferAutogroup({
-    title,
-    store: meta.store,
-    category: categoryBase,
-    description,
-  });
-  const category = autogroup.category ?? categoryBase;
-  const tags = autogroup.tags;
   const imageNormalized = normalizeOfferImageUrl(meta.imageUrl) ?? '';
   const botScope = inferBotOfferScope({ store: meta.store, url: offerUrl });
   const conditions = botScope ? formatOfferScopeCondition(botScope) : null;
@@ -171,7 +135,7 @@ export async function insertIngestedOffer(
   const expiresAt =
     status === 'approved' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined;
 
-  const catNote = category ? ` cat=${category}` : '';
+  const catNote = categoryBase ? ` cat=${categoryBase}` : '';
   const moderatorComment = buildModeratorComment({
     status,
     titleOverride: opts?.titleOverride,
@@ -199,66 +163,73 @@ export async function insertIngestedOffer(
     gateReason: opts?.gateReason ?? null,
   });
 
-  const payload: Record<string, unknown> = {
-    title,
-    price: meta.discountPrice,
-    original_price: hasOriginal ? meta.originalPrice : null,
-    store: meta.store.slice(0, 200),
-    ...(category ? { category } : {}),
-    ...(tags.length > 0 ? { tags } : {}),
-    status,
-    created_by: authorId,
-    image_url: imageNormalized.slice(0, 2048),
-    offer_url: offerUrl,
-    ...(originalOfferUrl ? { original_offer_url: originalOfferUrl.slice(0, 2048) } : {}),
-    ...(productFingerprint ? { product_fingerprint: productFingerprint } : {}),
-    description,
-    ...(conditions ? { conditions } : {}),
-    moderator_comment: moderatorComment,
-    ...(botMeta ? { bot_meta: botMeta } : {}),
-    ...(expiresAt ? { expires_at: expiresAt } : {}),
-    ...(publication.linkModOk ? { link_mod_ok: true } : {}),
-  };
+  const result = await ingestOfferObservation(supabase, {
+    createdBy: authorId,
+    source: opts?.ingestSource ?? 'bot',
+    onDuplicate: 'reuse',
+    forceLoteTag: false,
+    allowMissingUrl: false,
+    recordSubmissionCount: false,
+    recordPriceSnapshot: false,
+    extractionMethod: opts?.ingestSourceDetail ?? 'bot_ingest',
+    confidence: typeof opts?.ingestScore === 'number' ? Math.min(1, opts.ingestScore / 100) : null,
+    seller: typeof meta.store === 'string' ? meta.store : null,
+    offerExtras: {
+      bot_meta: botMeta,
+      moderator_comment: moderatorComment,
+      link_mod_ok: publication.linkModOk ? true : null,
+      conditions,
+      expires_at: expiresAt ?? null,
+    },
+    body: {
+      title,
+      store: meta.store.slice(0, 200),
+      hasDiscount: hasOriginal,
+      price: meta.discountPrice,
+      original_price: hasOriginal ? meta.originalPrice : null,
+      image_url: imageNormalized.slice(0, 2048) || '/placeholder.png',
+      offer_url: originalOfferUrl || offerUrl,
+      description,
+      category: categoryBase || undefined,
+      conditions: conditions || undefined,
+    },
+  });
 
-  const attempt: Record<string, unknown> = { ...payload };
-  let { data, error } = await supabase.from('offers').insert([attempt]).select('id').single();
-
-  for (let retry = 0; error && retry < OPTIONAL_COLUMNS.length; retry += 1) {
-    const missing = OPTIONAL_COLUMNS.find(
-      (column) => column in attempt && hasMissingColumn(error, column)
-    );
-    if (!missing) break;
-    delete attempt[missing];
-    ({ data, error } = await supabase.from('offers').insert([attempt]).select('id').single());
-  }
-
-  if (error && isUniqueViolation(error)) {
-    let releasedExpired = false;
-    if (productFingerprint) {
-      releasedExpired = await releaseExpiredFingerprintSlot(supabase, productFingerprint);
-      if (releasedExpired) {
-        ({ data, error } = await supabase.from('offers').insert([attempt]).select('id').single());
-      }
-    }
-    if (error && isUniqueViolation(error)) {
-      // Liberamos una caducada y aun así choca → el bloqueo venía de una fila caducada.
-      // Si no liberamos nada es una carrera TOCTOU: la fila ganadora no se leyó.
+  if (!result.ok) {
+    if (result.httpStatus === 409) {
+      const kind =
+        preDup?.kind ??
+        classifyDuplicateOfferRow({ status: result.duplicate_status ?? 'pending' });
       return {
         ok: false,
         duplicate: true,
-        duplicateKind: releasedExpired ? 'expired' : 'unknown',
+        duplicateKind: kind,
+        supplyOpportunity: isSupplyOpportunity({
+          candidatePrice: meta.discountPrice,
+          existingPrice: preDup?.price ?? null,
+        }),
       };
     }
+    return { ok: false, error: result.error };
   }
 
-  if (error) {
-    return { ok: false, error: error.message };
+  if (!result.created) {
+    const kind =
+      preDup?.kind ??
+      classifyDuplicateOfferRow({
+        status: result.status,
+        created_at: new Date().toISOString(),
+      });
+    return {
+      ok: false,
+      duplicate: true,
+      duplicateKind: kind,
+      supplyOpportunity: isSupplyOpportunity({
+        candidatePrice: meta.discountPrice,
+        existingPrice: preDup?.price ?? null,
+      }),
+    };
   }
 
-  const id = (data as { id?: string })?.id;
-  if (!id) {
-    return { ok: false, error: 'Sin id tras insert' };
-  }
-
-  return { ok: true, offerId: id };
+  return { ok: true, offerId: result.offerId };
 }

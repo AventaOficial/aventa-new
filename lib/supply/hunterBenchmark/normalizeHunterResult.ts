@@ -56,6 +56,17 @@ function parsePriceQuote(
   raw: unknown,
   observedAtFallback: string,
 ): HunterPriceQuote | null {
+  // Bare number / numeric string from hunters (e.g. price: 21699).
+  if (typeof raw === 'number' || typeof raw === 'string') {
+    const amount = readFiniteNumber(raw);
+    if (amount === null || amount <= 0) return null;
+    return {
+      amount,
+      currency: 'MXN',
+      provenance: 'unknown',
+      observedAt: observedAtFallback,
+    };
+  }
   if (!isRecord(raw)) return null;
   const amount = readFiniteNumber(raw.amount ?? raw.price ?? raw.value);
   if (amount === null || amount <= 0) return null;
@@ -184,6 +195,12 @@ function parseCandidate(
   if (typeof raw.category === 'string' && raw.category.trim()) {
     metadata.category = raw.category.trim();
   }
+  const imageUrl =
+    readString(raw.imageUrl) ??
+    readString(raw.image) ??
+    readString(raw.image_url) ??
+    (isRecord(raw.metadata) ? readString(raw.metadata.imageUrl) ?? readString(raw.metadata.image) : null);
+  if (imageUrl) metadata.imageUrl = imageUrl;
 
   return {
     candidate: {

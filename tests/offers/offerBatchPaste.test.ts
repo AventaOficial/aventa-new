@@ -70,13 +70,15 @@ describe('offer batch paste', () => {
     expect(actionBar).not.toContain('buildOfferBatchDrafts');
   });
 
-  it('la API de lote exige moderación y pending', () => {
+  it('la API de lote exige moderación y pending vía ingest', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/admin/offer-batch/item/route.ts'), 'utf8');
     expect(route).toContain('requireModeration');
-    expect(route).toContain('createCommunityOfferPending');
+    expect(route).toContain('ingestOfferObservation');
+    expect(route).not.toMatch(/\.from\(['"]offers['"]\)\.insert/);
     const helper = readFileSync(join(process.cwd(), 'lib/offers/createCommunityOffer.ts'), 'utf8');
-    expect(helper).toContain('communityPersistStatus');
+    expect(helper).toContain('ingestOfferObservation');
     expect(helper).not.toContain("status: 'approved'");
+    expect(helper).not.toMatch(/\.from\(['"]offers['"]\)\.insert/);
   });
 
   it('la pestaña Lote vive en el hub de moderación', () => {
