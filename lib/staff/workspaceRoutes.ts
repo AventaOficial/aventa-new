@@ -4,6 +4,7 @@
 export const WORKSPACE_HUB_ROUTES = [
   '/equipo',
   '/equipo/moderacion',
+  '/equipo/moderacion/lote',
   '/equipo/moderacion/bot',
   '/equipo/moderacion/cazadores',
   '/equipo/moderacion/reportes',

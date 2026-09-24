@@ -1,5 +1,5 @@
 import { mergeDiscoveryWithEnrichment } from '@/lib/offers/ingestion/mergeFields';
-import { evaluateOfferQuality } from '@/lib/offers/ingestion/qualityGate';
+import { evaluateOfferQuality, explainOfferReadiness } from '@/lib/offers/ingestion/qualityGate';
 import type { DiscoveryOfferInput, EnrichmentSnapshot } from '@/lib/offers/ingestion/types';
 import { processOfferUrl } from '@/lib/offers/ingestion/urlPipeline';
 
@@ -17,6 +17,11 @@ export function enrichmentFromParseResponse(data: Record<string, unknown>): Enri
     price: typeof data.suggested_discount_price === 'number' ? data.suggested_discount_price : null,
     originalPrice: typeof data.suggested_original_price === 'number' ? data.suggested_original_price : null,
     category: typeof data.suggested_category === 'string' ? data.suggested_category : null,
+    seller: typeof data.seller === 'string' ? data.seller : null,
+    availability: typeof data.availability === 'string' ? data.availability : null,
+    brand: typeof data.brand === 'string' ? data.brand : null,
+    rating: typeof data.rating === 'number' ? data.rating : null,
+    reviewCount: typeof data.review_count === 'number' ? data.review_count : null,
     extractionStatus:
       data.extraction_status === 'success' ||
       data.extraction_status === 'partial' ||
@@ -51,5 +56,16 @@ export function buildLotRowFromDiscoveryAndParse(input: {
     conflicts: merged.conflicts,
     pdpAttempted: input.pdpAttempted,
   });
-  return { url, merged, quality };
+  const summary = explainOfferReadiness({
+    title: merged.title.value,
+    image: merged.image.value,
+    price: merged.price.value,
+    urlOk: Boolean(url.canonicalUrl) && !url.urlUncertain,
+    seller: merged.seller.value,
+    store: merged.store.value ?? url.store,
+    availability: merged.availability.value,
+    previousPrice: merged.originalPrice.value,
+    conflicts: merged.conflicts,
+  });
+  return { url, merged, quality, summary };
 }

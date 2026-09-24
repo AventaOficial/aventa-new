@@ -1,3 +1,4 @@
+import { canonicalAvailability, recalculatedDiscount } from '@/lib/offers/ingestion/pdpFacts';
 import type {
   DiscoveryOfferInput,
   EnrichmentSnapshot,
@@ -5,6 +6,7 @@ import type {
   FieldSource,
   MergedField,
 } from '@/lib/offers/ingestion/types';
+import { isHighConfidenceJunkImage } from '@/lib/offers/selectOfferImages';
 
 function evidence<T>(
   field: string,
@@ -84,10 +86,10 @@ function mergeScalar<T extends string | number | null>(input: {
       evidence: list,
     };
   }
-  // Conflict: keep discovery as display candidate, mark conflict. Do not invent a winner.
+  // Conflict: PDP/enrichment is the canonical value. Both sides stay on the field.
   return {
-    value: input.discovery,
-    source: input.discoverySource,
+    value: input.enrichment,
+    source: input.enrichmentSource,
     conflict: true,
     discoveryValue: input.discovery,
     enrichmentValue: input.enrichment,
@@ -123,7 +125,43 @@ export function preferStrongerEvidence<T>(
   return current;
 }
 
-/** Merge hunter/paste discovery with PDP enrichment without silent overwrite. */
+function usableProductImage(url: string | null | undefined): string | null {
+  const t = url?.trim() ?? '';
+  if (!t) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(t);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+  if (isHighConfidenceJunkImage(t)) return null;
+  return t;
+}
+
+function formatMergeConflicts(fields: {
+  title: MergedField<string | null>;
+  price: MergedField<number | null>;
+  originalPrice: MergedField<number | null>;
+  image: MergedField<string | null>;
+  seller: MergedField<string | null>;
+}): string {
+  const lines: string[] = [];
+  if (fields.price.conflict) {
+    lines.push(`Precio: Hunter ${fields.price.discoveryValue} · PDP ${fields.price.enrichmentValue} · Usado ${fields.price.value}`);
+  }
+  if (fields.originalPrice.conflict) {
+    lines.push(`Anterior: Hunter ${fields.originalPrice.discoveryValue} · PDP ${fields.originalPrice.enrichmentValue} · Usado ${fields.originalPrice.value}`);
+  }
+  if (fields.title.conflict) lines.push('Título distinto entre Hunter y PDP. Usado: PDP.');
+  if (fields.image.conflict) lines.push('Imagen distinta entre Hunter y PDP. Usada: PDP.');
+  if (fields.seller.conflict) {
+    lines.push(`Seller: Hunter ${fields.seller.discoveryValue} · PDP ${fields.seller.enrichmentValue} · Usado ${fields.seller.value}`);
+  }
+  return lines.join(' ');
+}
+
+/** Merge hunter/paste discovery with PDP enrichment. PDP wins conflicts; both values stay. */
 export function mergeDiscoveryWithEnrichment(
   discovery: DiscoveryOfferInput,
   enrichment: EnrichmentSnapshot,
@@ -168,8 +206,32 @@ export function mergeDiscoveryWithEnrichment(
   });
   const image = mergeScalar({
     field: 'image',
-    discovery: discovery.image?.trim() || null,
-    enrichment: enrichment.image?.trim() || null,
+    discovery: usableProductImage(discovery.image),
+    enrichment: usableProductImage(enrichment.image),
+    discoverySource,
+    enrichmentSource,
+    observedAt: nowIso,
+  });
+  const seller = mergeScalar({
+    field: 'seller',
+    discovery: discovery.seller?.trim() || null,
+    enrichment: enrichment.seller?.trim() || null,
+    discoverySource,
+    enrichmentSource,
+    observedAt: nowIso,
+  });
+  const availability = mergeScalar({
+    field: 'availability',
+    discovery: canonicalAvailability(discovery.availability),
+    enrichment: canonicalAvailability(enrichment.availability),
+    discoverySource,
+    enrichmentSource,
+    observedAt: nowIso,
+  });
+  const brand = mergeScalar({
+    field: 'brand',
+    discovery: discovery.brand?.trim() || null,
+    enrichment: enrichment.brand?.trim() || null,
     discoverySource,
     enrichmentSource,
     observedAt: nowIso,
@@ -181,10 +243,19 @@ export function mergeDiscoveryWithEnrichment(
     price,
     originalPrice,
     image,
+    seller,
+    availability,
+    brand,
+    rating: enrichment.rating ?? null,
+    reviewCount: enrichment.reviewCount ?? null,
+    discount: recalculatedDiscount(price.value, originalPrice.value),
+    conflictNote: formatMergeConflicts({ title, price, originalPrice, image, seller }),
     images: enrichment.images ?? (image.value ? [String(image.value)] : []),
     category: enrichment.category ?? null,
     extractionStatus: enrichment.extractionStatus ?? null,
     missing: enrichment.missing ?? [],
-    conflicts: [title, store, price, originalPrice, image].filter((field) => field.conflict).map((field) => field.evidence[0]?.field ?? 'field'),
+    conflicts: [title, store, price, originalPrice, image, seller, availability, brand]
+      .filter((field) => field.conflict)
+      .map((field) => field.evidence[0]?.field ?? 'field'),
   };
 }

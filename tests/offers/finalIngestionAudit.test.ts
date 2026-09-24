@@ -247,6 +247,9 @@ describe('FINAL AUDIT — identity A–F', () => {
     expect(obsCount).toBe(1);
     expect(db.counts().observations).toBe(1);
     expect(resolveIngestionIdentity('https://www.amazon.com.mx/dp/B0AUDIT001').key).toBe('amz:B0AUDIT001');
+    expect(
+      resolveIngestionIdentity('https://www.amazon.com.mx/dp/B0AUDIT001?tag=aventa-20&utm_source=x').key,
+    ).toBe('amz:B0AUDIT001');
   });
 
   it('B. Amazon mismo ASIN precio diferente → 1 offer, 2 observations, conflict', async () => {
@@ -379,7 +382,7 @@ describe('FINAL AUDIT — concurrency + merge safety', () => {
     const db = createMemoryDb();
     const body = amazonBody();
     const results = await Promise.all(
-      Array.from({ length: 20 }, () =>
+      Array.from({ length: 100 }, () =>
         ingestOfferObservation(db.client as never, {
           createdBy: 'user-1',
           source: 'audit',

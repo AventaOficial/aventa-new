@@ -8,7 +8,8 @@ export type {
 } from '@/lib/offers/ingestion/types';
 export { processOfferUrl, offerIngestionIdentityKey } from '@/lib/offers/ingestion/urlPipeline';
 export { mergeDiscoveryWithEnrichment, preferStrongerEvidence } from '@/lib/offers/ingestion/mergeFields';
-export { evaluateOfferQuality } from '@/lib/offers/ingestion/qualityGate';
+export { evaluateOfferQuality, explainOfferReadiness } from '@/lib/offers/ingestion/qualityGate';
+export { canonicalAvailability, recalculatedDiscount } from '@/lib/offers/ingestion/pdpFacts';
 export {
   enrichmentFromParseResponse,
   buildLotRowFromDiscoveryAndParse,

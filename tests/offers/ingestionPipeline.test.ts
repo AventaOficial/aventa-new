@@ -145,7 +145,7 @@ describe('offer ingestion — merge, conflicts, gates', () => {
       { price: 22999, source: 'json_ld' },
     );
     expect(merged.price.conflict).toBe(true);
-    expect(merged.price.value).toBe(21699);
+    expect(merged.price.value).toBe(22999);
     expect(merged.price.discoveryValue).toBe(21699);
     expect(merged.price.enrichmentValue).toBe(22999);
     expect(merged.price.evidence).toHaveLength(2);

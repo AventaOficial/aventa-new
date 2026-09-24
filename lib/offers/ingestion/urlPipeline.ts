@@ -1,3 +1,4 @@
+import { stripTrackingNoise } from '@/lib/affiliate/stripTrackingNoise';
 import { resolveOutbound } from '@/lib/affiliate/resolveOutbound';
 import { normalizePastedOfferUrl } from '@/lib/offerUrl';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
@@ -31,10 +32,13 @@ export function processOfferUrl(
       /* keep affiliateUrl */
     }
   }
+  const clean = outbound.urlUncertain
+    ? outbound.normalizedUrl
+    : stripTrackingNoise(outbound.normalizedUrl).url;
   return {
     rawUrl: trimmed,
-    normalizedUrl: outbound.normalizedUrl,
-    canonicalUrl: outbound.normalizedUrl,
+    normalizedUrl: clean,
+    canonicalUrl: clean,
     affiliateUrl,
     store: outbound.store,
     urlUncertain: outbound.urlUncertain,

@@ -45,6 +45,22 @@ describe('offer batch paste', () => {
     ]);
   });
 
+  it('lee Producto y Precio sin encabezado ### Oferta', () => {
+    const hunter = `Corrida DEAL HUNTER 01
+Tienda: Amazon México
+Producto: Samsung Galaxy S26 Ultra
+Precio: $21,699
+Precio anterior: $37,999
+URL: https://www.amazon.com.mx/dp/B0G4B54DR1?utm_source=hunter
+`;
+    const drafts = buildOfferBatchDrafts(hunter);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.title).toMatch(/Samsung Galaxy/);
+    expect(drafts[0]?.price).toBe('21699');
+    expect(drafts[0]?.originalPrice).toBe('37999');
+    expect(drafts[0]?.url).toContain('utm_source');
+  });
+
   it('lee título y precios one-time del bloque cazador', () => {
     const hints = parsePastedOfferDump(GROK_DUMP);
     expect(hints[0]?.title).toMatch(/Colgate Pasta Dental Total/i);
@@ -74,6 +90,8 @@ describe('offer batch paste', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/admin/offer-batch/item/route.ts'), 'utf8');
     expect(route).toContain('requireModeration');
     expect(route).toContain('ingestOfferObservation');
+    const panel = readFileSync(join(process.cwd(), 'app/components/moderation/OfferBatchPastePanel.tsx'), 'utf8');
+    expect(panel).toContain('offer_url: row.rawUrl || row.url');
     expect(route).not.toMatch(/\.from\(['"]offers['"]\)\.insert/);
     const helper = readFileSync(join(process.cwd(), 'lib/offers/createCommunityOffer.ts'), 'utf8');
     expect(helper).toContain('ingestOfferObservation');
@@ -81,9 +99,12 @@ describe('offer batch paste', () => {
     expect(helper).not.toMatch(/\.from\(['"]offers['"]\)\.insert/);
   });
 
-  it('la pestaña Lote vive en el hub de moderación', () => {
+  it('la pestaña Lote vive en el hub y en el sidebar', () => {
     expect(resolveModerationTabId('/admin/moderation/lote', 'admin')).toBe('lote');
     expect(resolveModerationTabId('/equipo/moderacion/lote', 'workspace')).toBe('lote');
+    const nav = readFileSync(join(process.cwd(), 'lib/admin/navigation.ts'), 'utf8');
+    expect(nav).toContain("href: '/admin/moderation/lote'");
+    expect(nav).toContain("label: 'Lote'");
   });
 
   it('Amazon/ML se etiquetan al crear; Walmart se pega en cola', () => {

@@ -9,6 +9,7 @@ import {
   batchAffiliatePlan,
   batchAffiliatePlanLabel,
   buildOfferBatchDrafts,
+  classifyEnrichmentFailure,
   OFFER_BATCH_MAX,
   type OfferBatchDraft,
 } from '@/lib/offers/batchPaste';
@@ -39,6 +40,9 @@ type Row = OfferBatchDraft & {
   outboundUrl: string;
   conflictNote: string;
   readiness: string;
+  brand: string;
+  discountLabel: string;
+  readinessNote: string;
 };
 
 function draftsToRows(drafts: OfferBatchDraft[]): Row[] {
@@ -50,8 +54,8 @@ function draftsToRows(drafts: OfferBatchDraft[]): Row[] {
       url: url.canonicalUrl || d.url,
       id: `${i}-${url.canonicalUrl || d.url}`,
       selected: true,
-      image: '',
-      images: [],
+      image: d.image,
+      images: d.image ? [d.image] : [],
       parseStatus: d.title && d.price ? 'partial' : 'idle',
       parseNote: d.title ? 'Datos del pegado; falta leer la ficha' : '',
       createStatus: 'idle',
@@ -60,6 +64,9 @@ function draftsToRows(drafts: OfferBatchDraft[]): Row[] {
       outboundUrl: url.affiliateUrl || url.canonicalUrl || d.url,
       conflictNote: '',
       readiness: 'discovered',
+      brand: '',
+      discountLabel: '',
+      readinessNote: '',
     };
   });
 }
@@ -110,27 +117,42 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   async function enrichRows(targets: Row[]) {
     const headers = await authHeaders();
     if (!headers) return;
+    const auth = headers;
     setBusy('parse');
-    for (const row of targets.filter((item) => item.selected)) {
+    let ready = 0;
+    let partial = 0;
+    let blocked = 0;
+    let failed = 0;
+    let retryable = 0;
+    const selected = targets.filter((item) => item.selected);
+    const queue = [...selected];
+    const workerCount = Math.min(3, queue.length);
+    async function takeNext(): Promise<void> {
+      const row = queue.shift();
+      if (!row) return;
       setRows((prev) =>
         prev.map((r) => (r.id === row.id ? { ...r, parseStatus: 'loading', parseNote: 'Leyendo ficha…' } : r)),
       );
       try {
         const res = await fetch('/api/parse-offer-url', {
           method: 'POST',
-          headers,
+          headers: auth,
           body: JSON.stringify({ url: row.url }),
         });
-        if (res.status === 429) {
+        if (res.status === 429 || res.status >= 500) {
+          const fail = classifyEnrichmentFailure(res.status);
+          retryable += 1;
+          partial += 1;
           setRows((prev) =>
             prev.map((r) =>
               r.id === row.id
-                ? { ...r, parseStatus: 'partial', parseNote: 'Límite de lectura; espera un minuto y reintenta.' }
+                ? { ...r, parseStatus: 'partial', parseNote: fail.message }
                 : r,
             ),
           );
-          await sleep(2500);
-          continue;
+          if (res.status === 429) await sleep(2500);
+          await takeNext();
+          return;
         }
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         const built = buildLotRowFromDiscoveryAndParse({
@@ -141,16 +163,18 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
             price: row.price ? Number(row.price) : null,
             originalPrice: row.originalPrice ? Number(row.originalPrice) : null,
             image: row.image || null,
+            seller: row.seller || null,
+            availability: row.availability || null,
             why: row.why || null,
             source: 'paste',
           },
           parseData: data,
           pdpAttempted: true,
         });
-        const conflictNote =
-          built.merged.conflicts.length > 0
-            ? `Conflicto: ${built.merged.conflicts.join(', ')}. Revisa antes de crear.`
-            : '';
+        const conflictNote = built.merged.conflictNote;
+        if (built.quality.readiness === 'blocked') blocked += 1;
+        else if (built.quality.readyForReview && built.merged.conflicts.length === 0) ready += 1;
+        else partial += 1;
         setRows((prev) =>
           prev.map((r) =>
             r.id === row.id
@@ -164,12 +188,23 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
                     built.merged.originalPrice.value != null
                       ? String(built.merged.originalPrice.value)
                       : r.originalPrice,
-                  image: built.merged.image.value ?? r.image,
+                  image: built.merged.image.value ?? '',
                   images: built.merged.images,
+                  seller: built.merged.seller.value ?? '',
+                  availability: built.merged.availability.value ?? '',
+                  brand: built.merged.brand.value ?? '',
+                  discountLabel:
+                    built.merged.discount != null ? `${built.merged.discount}%` : '',
                   outboundUrl: built.url.affiliateUrl || built.url.canonicalUrl || r.url,
                   url: built.url.canonicalUrl || r.url,
                   conflictNote,
                   readiness: built.quality.readiness,
+                  readinessNote: [
+                    built.summary.checks.map((item) => `✓ ${item}`).join(' '),
+                    built.summary.warnings.map((item) => `⚠ ${item}`).join(' '),
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
                   parseStatus: built.quality.readyForReview
                     ? built.merged.conflicts.length > 0
                       ? 'partial'
@@ -185,17 +220,27 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
           ),
         );
       } catch {
+        retryable += 1;
+        failed += 1;
         setRows((prev) =>
           prev.map((r) =>
             r.id === row.id
-              ? { ...r, parseStatus: r.title && r.price ? 'partial' : 'fail', parseNote: 'No se pudo leer la página' }
+              ? {
+                  ...r,
+                  parseStatus: r.title && r.price ? 'partial' : 'fail',
+                  parseNote: 'Error de red. Se puede reintentar.',
+                }
               : r,
           ),
         );
       }
+      await takeNext();
     }
+    await Promise.all(Array.from({ length: workerCount }, () => takeNext()));
     setBusy('idle');
-    setBanner(null);
+    setBanner(
+      `TOTAL ${selected.length} · READY ${ready} · PARTIAL ${partial} · BLOCKED ${blocked} · FAILED ${failed} · RETRYABLE ${retryable}`,
+    );
   }
 
   async function saveReviewedCoupons() {
@@ -265,11 +310,13 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
             hasDiscount,
             price,
             original_price: hasDiscount ? original : null,
-            offer_url: row.url,
+            offer_url: row.rawUrl || row.url,
             image_url: row.image || '/placeholder.png',
             image_urls: row.images.slice(0, 8),
             description,
             ...(why ? { hunter_comment: why } : {}),
+            ...(row.seller.trim() ? { seller: row.seller.trim() } : {}),
+            ...(row.availability.trim() ? { availability: row.availability.trim() } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -500,9 +547,13 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
                       >
                         Copiar canónica
                       </button>
+                      {row.seller ? <span className={cn('text-xs', ui.muted)}>Vendido por {row.seller}</span> : null}
+                      {row.availability ? <span className={cn('text-xs', ui.muted)}>{row.availability}</span> : null}
+                      {row.discountLabel ? <span className={cn('text-xs', ui.muted)}>{row.discountLabel}</span> : null}
                       {row.conflictNote ? (
                         <span className="text-xs text-amber-700 dark:text-amber-300">{row.conflictNote}</span>
                       ) : null}
+                      {row.readinessNote ? <span className={cn('text-xs', ui.muted)}>{row.readinessNote}</span> : null}
                     </div>
                     {row.why ? <p className={cn('text-xs', ui.muted)}>{row.why}</p> : null}
                     {row.offerId ? (

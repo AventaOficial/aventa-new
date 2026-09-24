@@ -30,6 +30,9 @@ export type DiscoveryOfferInput = {
   price?: number | null;
   originalPrice?: number | null;
   image?: string | null;
+  seller?: string | null;
+  availability?: string | null;
+  brand?: string | null;
   why?: string | null;
   discoveredAt?: string | null;
   source?: FieldSource;
@@ -43,6 +46,11 @@ export type EnrichmentSnapshot = {
   price?: number | null;
   originalPrice?: number | null;
   category?: string | null;
+  seller?: string | null;
+  availability?: string | null;
+  brand?: string | null;
+  rating?: number | null;
+  reviewCount?: number | null;
   extractionStatus?: 'success' | 'partial' | 'failed' | null;
   missing?: string[];
   source?: FieldSource;

@@ -88,3 +88,43 @@ export function evaluateOfferQuality(input: OfferQualityInput): OfferQualityResu
     readyForReview: true,
   };
 }
+
+export type ReadinessSummary = {
+  checks: string[];
+  warnings: string[];
+  conflicts: string[];
+};
+
+/** Explicación compacta para moderación. No es un score. */
+export function explainOfferReadiness(input: {
+  title: string | null;
+  image: string | null;
+  price: number | null;
+  urlOk: boolean;
+  seller: string | null;
+  store: string | null;
+  availability: string | null;
+  previousPrice: number | null;
+  conflicts: string[];
+}): ReadinessSummary {
+  const checks: string[] = [];
+  const warnings: string[] = [];
+  if (input.title?.trim()) checks.push('title');
+  if (input.image?.trim()) checks.push('image');
+  if (input.price != null && input.price > 0) checks.push('price');
+  if (input.urlOk) checks.push('url');
+  if (input.seller?.trim()) checks.push('seller');
+  else warnings.push('seller unavailable');
+  if (!input.previousPrice || !(input.previousPrice > 0)) warnings.push('previous price unavailable');
+  if (input.availability === 'unknown') warnings.push('availability unknown');
+  const seller = input.seller?.trim().toLowerCase() ?? '';
+  const store = input.store?.trim().toLowerCase() ?? '';
+  if (seller && store && !seller.includes(store) && !store.includes(seller)) {
+    warnings.push('seller marketplace');
+  }
+  return {
+    checks,
+    warnings,
+    conflicts: input.conflicts,
+  };
+}
