@@ -12,11 +12,23 @@ const TRACKED = [
   'status',
 ] as const;
 
+export type CouponFieldDiff = {
+  field: string;
+  before: string | null;
+  after: string | null;
+};
+
 export type CouponHistoryEvent = {
   eventType: 'discovered' | 'reseen' | 'field_changed' | 'verified' | 'invalidated' | 'expired';
   changes: string[];
+  diff: CouponFieldDiff[];
   idempotencyKey: string;
 };
+
+function asText(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  return String(value);
+}
 
 export function couponHistoryEvent(input: {
   previous: CouponSnapshot | null;
@@ -27,14 +39,23 @@ export function couponHistoryEvent(input: {
     return {
       eventType: 'discovered',
       changes: [],
+      diff: [],
       idempotencyKey: `${input.next.canonicalKey}:discovered:${input.day}`,
     };
   }
-  const changes = TRACKED.filter((field) => input.previous?.[field] !== input.next[field]).map(String);
+  const diff: CouponFieldDiff[] = TRACKED.filter((field) => input.previous?.[field] !== input.next[field]).map(
+    (field) => ({
+      field,
+      before: asText(input.previous?.[field]),
+      after: asText(input.next[field]),
+    }),
+  );
+  const changes = diff.map((row) => `${row.field}:${row.before ?? '∅'}→${row.after ?? '∅'}`);
   if (input.next.status === 'expired' && input.previous.status !== 'expired') {
     return {
       eventType: 'expired',
       changes,
+      diff,
       idempotencyKey: `${input.next.canonicalKey}:expired:${input.day}`,
     };
   }
@@ -42,6 +63,7 @@ export function couponHistoryEvent(input: {
     return {
       eventType: 'verified',
       changes,
+      diff,
       idempotencyKey: `${input.next.canonicalKey}:verified:${input.day}`,
     };
   }
@@ -49,6 +71,7 @@ export function couponHistoryEvent(input: {
     return {
       eventType: 'invalidated',
       changes,
+      diff,
       idempotencyKey: `${input.next.canonicalKey}:invalidated:${input.day}`,
     };
   }
@@ -56,12 +79,14 @@ export function couponHistoryEvent(input: {
     return {
       eventType: 'reseen',
       changes: [],
+      diff: [],
       idempotencyKey: `${input.next.canonicalKey}:reseen:${input.day}`,
     };
   }
   return {
     eventType: 'field_changed',
     changes,
-    idempotencyKey: `${input.next.canonicalKey}:changed:${changes.join(',')}:${input.day}`,
+    diff,
+    idempotencyKey: `${input.next.canonicalKey}:changed:${changes.join('|')}:${input.day}`,
   };
 }

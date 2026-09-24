@@ -11,7 +11,12 @@ export type CouponPriceContext = {
   effectiveBelowMedian: boolean | null;
   effectiveNearHistoricalLow: boolean | null;
   effectiveNewLow: boolean | null;
+  couponImprovesPrice: boolean | null;
+  couponBelowMedian: boolean | null;
+  couponNearHistoricalLow: boolean | null;
+  couponPriceUnknown: boolean;
   publishes: false;
+  appliedToFeed: false;
 };
 
 /** Read-only signals. A low effective price is not a verified opportunity. */
@@ -36,6 +41,11 @@ export function couponPriceContext(input: {
     effectiveNearHistoricalLow:
       usable && history?.min != null ? effective! <= history.min * 1.02 : null,
     effectiveNewLow: usable && history?.min != null ? effective! < history.min : null,
+    couponImprovesPrice: usable && input.currentPrice != null ? effective! < input.currentPrice : null,
+    couponBelowMedian: usable && history?.median != null ? effective! < history.median : null,
+    couponNearHistoricalLow: usable && history?.min != null ? effective! <= history.min * 1.02 : null,
+    couponPriceUnknown: effective == null || !usable,
     publishes: false,
+    appliedToFeed: false,
   };
 }

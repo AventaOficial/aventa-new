@@ -11,8 +11,35 @@ export async function GET(request: Request) {
   const auth = await requireModeration(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const url = new URL(request.url);
-  const store = url.searchParams.get('store')?.trim().toLowerCase() || null;
   const supabase = createServerClient();
+  const key = url.searchParams.get('canonicalKey')?.trim() || null;
+  if (key) {
+    const { data: coupon, error: couponError } = await supabase
+      .from('coupons')
+      .select(
+        'id, canonical_key, store, code, discount_type, discount_value, minimum_purchase, currency, applies_to, restrictions, expires_at, status, verification_status, first_seen_at, last_seen_at, last_verified_at',
+      )
+      .eq('canonical_key', key)
+      .maybeSingle();
+    if (couponError) return NextResponse.json({ error: 'migration_pending', coupons: [] }, { status: 503 });
+    if (!coupon) return NextResponse.json({ coupon: null, events: [], links: [] });
+    const couponId = (coupon as { id: string }).id;
+    const [{ data: events }, { data: links }] = await Promise.all([
+      supabase
+        .from('coupon_events')
+        .select('event_type, changes, diff, actor_role, actor_id, observed_at')
+        .eq('coupon_id', couponId)
+        .order('observed_at', { ascending: false })
+        .limit(80),
+      supabase
+        .from('coupon_links')
+        .select('target_type, target_key, eligibility, matched, uncertain')
+        .eq('coupon_id', couponId)
+        .limit(40),
+    ]);
+    return NextResponse.json({ coupon, events: events ?? [], links: links ?? [], publishesOffers: false });
+  }
+  const store = url.searchParams.get('store')?.trim().toLowerCase() || null;
   let query = supabase
     .from('coupons')
     .select(
@@ -45,6 +72,8 @@ export async function POST(request: Request) {
       canonicalKey: body.canonicalKey,
       action: body.action,
       offerId: body.offerId,
+      actorId: auth.user.id,
+      actorRole: auth.role,
     });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.error === 'not_found' ? 404 : 503 });
     return NextResponse.json({ ok: true, publishesOffers: false });

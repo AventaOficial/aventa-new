@@ -140,6 +140,8 @@ export async function saveCouponText(
         coupon_id: (upserted as { id: string }).id,
         event_type: event.eventType,
         changes: event.changes,
+        diff: event.diff,
+        source_class: next.sourceClass,
         idempotency_key: event.idempotencyKey,
         observed_at: now.toISOString(),
       },
@@ -170,7 +172,14 @@ export async function saveCouponText(
 
 export async function setCouponVerification(
   supabase: SupabaseClient,
-  input: { canonicalKey: string; action: 'verify' | 'invalidate'; offerId?: string | null; now?: Date },
+  input: {
+    canonicalKey: string;
+    action: 'verify' | 'invalidate';
+    offerId?: string | null;
+    actorId?: string | null;
+    actorRole?: string | null;
+    now?: Date;
+  },
 ): Promise<{ ok: boolean; error: string | null }> {
   const now = input.now ?? new Date();
   const { data, error } = await supabase
@@ -209,6 +218,10 @@ export async function setCouponVerification(
       coupon_id: (data as CouponRow).id,
       event_type: event.eventType,
       changes: event.changes,
+      diff: event.diff,
+      source_class: 'admin',
+      actor_role: input.actorRole ?? null,
+      actor_id: input.actorId ?? null,
       idempotency_key: event.idempotencyKey,
       observed_at: now.toISOString(),
     },
@@ -216,12 +229,17 @@ export async function setCouponVerification(
   );
   recordCouponMetric(input.action === 'verify' ? 'coupon_verified' : 'coupon_rejected');
   if (input.action === 'verify' && input.offerId) {
-    await supabase
-      .from('coupon_links')
-      .update({ eligibility: 'verified_for_offer', matched: true, uncertain: false })
-      .eq('coupon_id', (data as CouponRow).id)
-      .eq('target_type', 'offer')
-      .eq('target_key', input.offerId);
+    await supabase.from('coupon_links').upsert(
+      {
+        coupon_id: (data as CouponRow).id,
+        target_type: 'offer',
+        target_key: input.offerId,
+        matched: true,
+        uncertain: false,
+        eligibility: 'verified_for_offer',
+      },
+      { onConflict: 'coupon_id,target_type,target_key' },
+    );
   }
   return { ok: true, error: null };
 }
