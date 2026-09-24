@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { resolveOutbound } from '@/lib/affiliate/resolveOutbound';
 import { computeCouponEffectivePrice } from '@/lib/intelligence/coupon/effectivePrice';
 import { couponHistoryEvent } from '@/lib/intelligence/coupon/history';
@@ -295,5 +297,94 @@ describe('coupon evidence', () => {
       }).relation,
     ).toBe('ambiguous');
     expect(couponConversionContract('c1').infersFromClick).toBe(false);
+  });
+
+  it('records 20 to 15 as history on the same coupon', () => {
+    const changed = couponHistoryEvent({
+      previous: snap({ discountType: 'percent', discountValue: 20 }),
+      next: snap({ discountType: 'percent', discountValue: 15 }),
+      day: '2026-09-23',
+    });
+    expect(changed.eventType).toBe('field_changed');
+    expect(changed.diff).toEqual([{ field: 'discountValue', before: '20', after: '15' }]);
+    const later = couponHistoryEvent({
+      previous: snap({ discountType: 'percent', discountValue: 15 }),
+      next: snap({ discountType: 'percent', discountValue: 10 }),
+      day: '2026-09-23',
+    });
+    expect(later.idempotencyKey).not.toBe(changed.idempotencyKey);
+  });
+});
+
+describe('effective price stays null without evidence', () => {
+  const base = {
+    basePrice: 10000,
+    currency: 'MXN',
+    appliesTo: 'store' as const,
+    scopeMatched: true,
+    maxDiscount: null,
+    minimumPurchase: null,
+    couponCurrency: 'MXN',
+  };
+
+  it('prices the known mechanics and refuses the rest', () => {
+    expect(
+      computeCouponEffectivePrice({ ...base, discountType: 'percent', discountValue: 20, couponCurrency: null }).effectivePrice,
+    ).toBe(8000);
+    expect(
+      computeCouponEffectivePrice({
+        ...base,
+        discountType: 'percent',
+        discountValue: 20,
+        maxDiscount: 1000,
+        couponCurrency: null,
+      }).effectivePrice,
+    ).toBe(9000);
+    expect(computeCouponEffectivePrice({ ...base, discountType: 'fixed', discountValue: 1500 }).effectivePrice).toBe(8500);
+    expect(
+      computeCouponEffectivePrice({ ...base, discountType: 'fixed', discountValue: 1500, minimumPurchase: 8000 })
+        .effectivePrice,
+    ).toBe(8500);
+    expect(
+      computeCouponEffectivePrice({ ...base, discountType: 'fixed', discountValue: 1500, couponCurrency: null }).reason,
+    ).toBe('currency_unmatched');
+    expect(computeCouponEffectivePrice({ ...base, discountType: 'bogo', discountValue: null }).effectivePrice).toBeNull();
+    expect(
+      computeCouponEffectivePrice({
+        ...base,
+        discountType: 'percent',
+        discountValue: 20,
+        appliesTo: 'product',
+        scopeMatched: false,
+        couponCurrency: null,
+      }).reason,
+    ).toBe('scope_unmatched');
+    expect(
+      computeCouponEffectivePrice({ ...base, discountType: 'unknown', discountValue: null, couponCurrency: null }).reason,
+    ).toBe('mechanic_not_priced');
+  });
+
+  it('hides an expired coupon and does not publish a price signal', () => {
+    expect(classifyCoupon(snap({ status: 'expired', expiresAt: '2020-01-01T00:00:00.000Z' }), now).showAsAvailable).toBe(
+      false,
+    );
+    const priced = computeCouponEffectivePrice({ ...base, discountType: 'percent', discountValue: 20, couponCurrency: null });
+    const context = couponPriceContext({
+      currentPrice: 10000,
+      priced,
+      history: { median: 9500, min: 8000, max: 12000, confidence: 0.8, currency: 'MXN' },
+    });
+    expect(context.couponBelowMedian).toBe(true);
+    expect(context.publishes).toBe(false);
+    expect(context.appliedToFeed).toBe(false);
+  });
+
+  it('does not let the client name the moderator or mark a coupon verified', () => {
+    const admin = readFileSync(resolve(process.cwd(), 'app/api/admin/coupons/route.ts'), 'utf8');
+    const publicEvents = readFileSync(resolve(process.cwd(), 'app/api/offers/[id]/coupon-events/route.ts'), 'utf8');
+    expect(admin).toContain('actorId: auth.user.id');
+    expect(admin).not.toContain('body.actorId');
+    expect(publicEvents).not.toContain('verified_for_offer');
+    expect(publicEvents).toContain("const TYPES = new Set(['coupon_view', 'coupon_copy'])");
   });
 });
