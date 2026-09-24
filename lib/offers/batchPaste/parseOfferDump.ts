@@ -1,3 +1,4 @@
+import { classifyPastedUrl } from './classifyPastedUrl';
 import { extractOfferUrlsFromText, isEmbeddedAssetUrl, offerBatchIdentityKey } from './extractOfferUrls';
 
 export type PastedOfferHint = {
@@ -56,10 +57,17 @@ function lineValue(block: string, labelRe: RegExp): string | null {
   return null;
 }
 
-function firstUrl(block: string): string | null {
-  const m = block.match(/https?:\/\/[^\s<>"'`)\]\}]+/i);
-  if (!m?.[0]) return null;
-  return m[0].replace(/[.,;:!?)]+$/g, '').replace(/^http:/i, 'https:');
+function firstProductUrl(block: string): string | null {
+  const labeled = block.match(/^(?:[-*]\s*)?(?:url|enlace|link)\s*:\s*(https?:\/\/\S+)/im);
+  const candidates = [
+    labeled?.[1],
+    ...(block.match(/https?:\/\/[^\s<>"'`)\]\}]+/gi) ?? []),
+  ].filter((value): value is string => Boolean(value));
+  for (const raw of candidates) {
+    const href = raw.replace(/[.,;:!?)]+$/g, '').replace(/^http:/i, 'https:');
+    if (classifyPastedUrl(href) === 'product') return href;
+  }
+  return null;
 }
 
 /** Bloques estilo cazador (`### Oferta N` + viñetas). Si no hay bloques, devuelve []. */
@@ -68,7 +76,7 @@ export function parsePastedOfferDump(text: string): PastedOfferHint[] {
   const out: PastedOfferHint[] = [];
   const seen = new Set<string>();
   for (const chunk of chunks) {
-    const url = firstUrl(chunk);
+    const url = firstProductUrl(chunk);
     if (!url) continue;
     const key = offerBatchIdentityKey(url);
     if (seen.has(key)) continue;
@@ -117,12 +125,55 @@ function hintFromContext(text: string, url: string): PastedOfferHint {
   };
 }
 
-/** HTTP failures of PDP enrichment. 429/5xx can be retried. 4xx cannot. */
-export function classifyEnrichmentFailure(status: number): { retryable: boolean; message: string } {
-  if (status === 429 || status >= 500) {
-    return { retryable: true, message: 'La ficha no respondió. Se puede reintentar.' };
+export type EnrichmentFailureKind =
+  | 'UPSTREAM_RETRYABLE'
+  | 'UPSTREAM_NOT_FOUND'
+  | 'UPSTREAM_BLOCKED'
+  | 'INTERNAL_ERROR'
+  | 'INVALID_PRODUCT_URL'
+  | 'PARSE_PARTIAL';
+
+/**
+ * 429 and upstream 5xx can be retried.
+ * A 500 from Aventa itself is INTERNAL_ERROR, not a dead product page.
+ */
+export function classifyEnrichmentFailure(
+  status: number,
+  source: 'upstream' | 'internal' = 'upstream',
+): { retryable: boolean; kind: EnrichmentFailureKind; message: string } {
+  if (source === 'internal') {
+    return {
+      retryable: false,
+      kind: 'INTERNAL_ERROR',
+      message: 'Error interno de Aventa. No es un fallo de la ficha.',
+    };
   }
-  return { retryable: false, message: 'Este enlace no se pudo leer. No reintentes el mismo URL.' };
+  if (status === 429 || status >= 500) {
+    return {
+      retryable: true,
+      kind: 'UPSTREAM_RETRYABLE',
+      message: 'La ficha no respondió. Se puede reintentar.',
+    };
+  }
+  if (status === 404) {
+    return {
+      retryable: false,
+      kind: 'UPSTREAM_NOT_FOUND',
+      message: 'La tienda no tiene esa ficha.',
+    };
+  }
+  if (status === 401 || status === 403) {
+    return {
+      retryable: false,
+      kind: 'UPSTREAM_BLOCKED',
+      message: 'La tienda bloqueó la lectura de la ficha.',
+    };
+  }
+  return {
+    retryable: false,
+    kind: 'INVALID_PRODUCT_URL',
+    message: 'Este enlace no se pudo leer. No reintentes el mismo URL.',
+  };
 }
 
 function moneyToInput(n: number | null): string {

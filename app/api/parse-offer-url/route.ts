@@ -225,7 +225,10 @@ export async function POST(request: Request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) {
-      return NextResponse.json({ error: 'Configuración inválida' }, { status: 500 });
+      return NextResponse.json(
+        { ...emptyPayload('extract_failed'), failureClass: 'INTERNAL_ERROR', error: 'Configuración inválida' },
+        { status: 500 },
+      );
     }
 
     const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
@@ -706,7 +709,15 @@ export async function POST(request: Request) {
       missing: classification.missing,
       diagnostics: extractDiagnostics,
     });
-  } catch {
-    return NextResponse.json(emptyPayload('extract_failed'));
+  } catch (error) {
+    console.error('[parse-offer-url]', error instanceof Error ? error.message : 'internal');
+    return NextResponse.json(
+      {
+        ...emptyPayload('extract_failed'),
+        failureClass: 'INTERNAL_ERROR',
+        error: 'Error interno de Aventa al leer la ficha.',
+      },
+      { status: 500 },
+    );
   }
 }
