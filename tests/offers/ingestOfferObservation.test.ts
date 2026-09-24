@@ -538,6 +538,59 @@ describe('ingestOfferObservation idempotency', () => {
   });
 });
 
+describe('identity schema fail-closed', () => {
+  it('does not insert an offer when ingestion_identity_key cannot be stored', async () => {
+    const payloads: Record<string, unknown>[] = [];
+    const client = {
+      from(table: string) {
+        if (table !== 'offers') {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: async () => ({ data: null, error: { message: 'relation offer_observations does not exist', code: '42P01' } }),
+              }),
+            }),
+          };
+        }
+        return {
+          insert(rows: Record<string, unknown>[]) {
+            payloads.push(rows[0]);
+            return {
+              select: () => ({
+                single: async () => ({
+                  data: null,
+                  error: { message: 'column ingestion_identity_key does not exist', code: '42703' },
+                }),
+              }),
+            };
+          },
+        };
+      },
+      rpc: async () => ({ data: null, error: null }),
+    };
+
+    const result = await ingestOfferObservation(client as never, {
+      createdBy: 'user-1',
+      source: 'audit',
+      body: {
+        title: 'Fail closed',
+        store: 'Amazon',
+        hasDiscount: true,
+        price: 100,
+        original_price: 200,
+        image_url: 'https://img.example/a.jpg',
+        offer_url: 'https://www.amazon.com.mx/dp/B0BHTTDBC2',
+        description: 'schema',
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.httpStatus).toBe(500);
+    expect(payloads.length).toBe(1);
+    expect(payloads[0]?.ingestion_identity_key).toBe('amz:B0BHTTDBC2');
+  });
+});
+
 describe('observation idempotency key stability', () => {
   it('same inputs → same key', () => {
     const a = buildObservationIdempotencyKey({

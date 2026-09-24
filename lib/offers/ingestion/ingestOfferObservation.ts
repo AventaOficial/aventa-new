@@ -251,6 +251,10 @@ async function insertOfferWithOptionalColumns(
       (column) => column in attempt && hasMissingColumn(error, column),
     );
     if (!missing) break;
+    // Identity is the uniqueness authority. Never persist the offer without it.
+    if (missing === 'ingestion_identity_key') {
+      return { data: null, error };
+    }
     delete attempt[missing];
     ({ data, error } = await supabase.from('offers').insert([attempt]).select('id, status').single());
   }
@@ -536,6 +540,14 @@ export async function ingestOfferObservation(
     },
   });
   schemaDegraded = schemaDegraded || obs.degraded;
+
+  if (obs.degraded && identity.key) {
+    return {
+      ok: false,
+      httpStatus: 500,
+      error: 'No se pudo guardar la evidencia de la oferta. Reintenta cuando el esquema esté listo.',
+    };
+  }
 
   if (!created && onDuplicate === 'reject') {
     return {
