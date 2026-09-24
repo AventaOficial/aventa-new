@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
+import { deletionPurgeAfter } from '@/lib/privacy/accountDeletionPlan';
 
 /**
  * POST: solicitar eliminación de cuenta desde Configuración.
@@ -12,9 +13,9 @@ export async function POST(request: Request) {
   if ('error' in auth) return meAuthFailureResponse(auth);
   const { user, supabase } = auth;
 
-  const rl = await enforceRateLimit(`account-deletion:${user.id}`);
+  const rl = await enforceRateLimit(`account-deletion:${user.id}`, { critical: true });
   if (!rl.success) {
-    return NextResponse.json({ error: 'Demasiados intentos. Intenta más tarde.' }, { status: 429 });
+    return NextResponse.json({ error: 'Demasiados intentos. Intenta más tarde.', code: rl.code }, { status: rl.status });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -57,10 +58,25 @@ export async function POST(request: Request) {
     });
   }
 
-  const { error: updateError } = await supabase
+  const purgeAfter = deletionPurgeAfter(new Date(now)).toISOString();
+  let { error: updateError } = await supabase
     .from('profiles')
-    .update({ account_deletion_requested_at: now })
+    .update({
+      account_deletion_requested_at: now,
+      deletion_purge_after: purgeAfter,
+    })
     .eq('id', user.id);
+
+  if (
+    updateError &&
+    (updateError.message?.includes('deletion_purge_after') || updateError.code === 'PGRST204')
+  ) {
+    const retry = await supabase
+      .from('profiles')
+      .update({ account_deletion_requested_at: now })
+      .eq('id', user.id);
+    updateError = retry.error;
+  }
 
   if (updateError) {
     console.error('[request-account-deletion] update failed:', updateError.message);
@@ -71,7 +87,8 @@ export async function POST(request: Request) {
     ok: true,
     requestedAt: now,
     message:
-      'Solicitud registrada. Procesaremos la eliminación conforme a la Política de Privacidad. ' +
+      'Solicitud registrada. La cuenta se anonimiza y se elimina el acceso después de 14 días, conservando registros financieros y de auditoría. ' +
       'Puedes escribir a aventasoportelegal@gmail.com si necesitas seguimiento.',
+    purgeAfter,
   });
 }

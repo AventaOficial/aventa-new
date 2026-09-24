@@ -46,6 +46,12 @@ export function opportunityCandidateFromHunterHandoff(
     url,
     canonicalUrl: url,
     title: handoff.title ?? null,
+    imageUrl:
+      typeof handoff.metadata?.imageUrl === 'string' && handoff.metadata.imageUrl.trim()
+        ? handoff.metadata.imageUrl.trim()
+        : typeof handoff.metadata?.image === 'string' && handoff.metadata.image.trim()
+          ? handoff.metadata.image.trim()
+          : null,
     salePrice: sale,
     declaredOriginalPrice: declared,
     currency: handoff.currency ?? null,

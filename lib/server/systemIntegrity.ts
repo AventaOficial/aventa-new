@@ -170,6 +170,58 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
       ok: feedRes.success,
       detail: feedRes.success ? `items=${feedRes.data.length}` : feedRes.error,
     });
+
+    const overdueBefore = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { count: freshnessOverdue, error: freshnessError } = await supabase
+      .from('offer_health_state')
+      .select('offer_id', { count: 'exact', head: true })
+      .lte('next_check_at', overdueBefore);
+    const freshnessMissing =
+      freshnessError?.message?.includes('next_check_at') ||
+      freshnessError?.code === 'PGRST204' ||
+      freshnessError?.message?.toLowerCase().includes('does not exist');
+    checks.push({
+      name: 'freshness.overdue',
+      ok: Boolean(freshnessMissing) || (!freshnessError && (freshnessOverdue ?? 0) < 400),
+      detail: freshnessMissing
+        ? 'migration 20260923_launch_hardening.sql pending'
+        : freshnessError
+          ? freshnessError.message
+          : `overdue_gt_6h=${freshnessOverdue ?? 0}`,
+    });
+
+    const { count: pendingCount, error: pendingError } = await supabase
+      .from('offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    checks.push({
+      name: 'moderation.queue_depth',
+      ok: !pendingError && (pendingCount ?? 0) < 1000,
+      detail: pendingError ? pendingError.message : `pending=${pendingCount ?? 0}`,
+    });
+
+    const { data: supplyRun, error: supplyError } = await supabase
+      .from('hunter_supply_runs')
+      .select('started_at')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const supplyMissing = supplyError?.message?.toLowerCase().includes('does not exist') === true;
+    const startedAt = (supplyRun as { started_at?: string } | null)?.started_at;
+    const supplyStale =
+      startedAt != null && Date.now() - new Date(startedAt).getTime() > 12 * 60 * 60 * 1000;
+    checks.push({
+      name: 'supply.worker_recent',
+      ok: supplyMissing || (!supplyError && !supplyStale),
+      detail: supplyMissing
+        ? 'hunter_supply_runs missing'
+        : supplyError
+          ? supplyError.message
+          : startedAt
+            ? `last_started_at=${startedAt}`
+            : 'no runs yet',
+    });
+
     checks.push({
       name: 'runtime.exception',
       ok: true,

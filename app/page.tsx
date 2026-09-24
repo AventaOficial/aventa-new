@@ -13,7 +13,6 @@ import { HomeDesktopRail, SponsoredSlot } from './components/HomeSponsored';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { createClient } from '@/lib/supabase/client';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
 import {
   fetchBatchUserData,
@@ -22,7 +21,6 @@ import {
   type FavoriteMap,
 } from '@/lib/offers/batchUserData';
 import { ALL_CATEGORIES } from '@/lib/categories';
-import { buildOfferSearchOrFilter } from '@/lib/offers/inferOfferTags';
 import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
 import {
   mapOfferToCard,
@@ -33,7 +31,6 @@ import {
 import { notifyUserError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
-import { homeSearchCategoryInList } from '@/lib/offers/homeFeedFilters';
 import {
   applyVitalesFeedTransform,
   fetchHomeFeedFromAPI,
@@ -397,43 +394,27 @@ function HomeContent() {
 
     setLoading(true);
     if (debouncedQuery.trim()) {
-      const supabase = createClient();
-      const nowISO = new Date().toISOString();
-      const searchConditions = buildOfferSearchOrFilter(debouncedQuery.trim());
-      // Búsqueda en título, tienda, descripción y tags; grupos en lib/searchGroups
-      let searchQueryBuilder = supabase
-        .from('ofertas_ranked_general')
-        .select(
-          'id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, hunter_comment, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, ranking_momentum, ranking_blend, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
-        )
-        .or('status.eq.approved,status.eq.published')
-        .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-        .or(searchConditions)
-        .order('ranking_blend', { ascending: false })
-        .limit(effectiveLimit);
-      if (storeFilter?.trim()) {
-        searchQueryBuilder = searchQueryBuilder.eq('store', storeFilter.trim());
-      }
-      const searchCatIn = homeSearchCategoryInList(viewMode, categoryFilter);
-      if (searchCatIn != null && searchCatIn.length > 0) {
-        searchQueryBuilder =
-          searchCatIn.length === 1
-            ? searchQueryBuilder.eq('category', searchCatIn[0])
-            : searchQueryBuilder.in('category', searchCatIn);
-      }
-      Promise.resolve(searchQueryBuilder)
-        .then(({ data, error }) => {
+      const params = new URLSearchParams({
+        q: debouncedQuery.trim(),
+        limit: String(effectiveLimit),
+        view: viewMode === 'personalized' ? 'latest' : viewMode,
+      });
+      if (storeFilter?.trim()) params.set('store', storeFilter.trim());
+      if (categoryFilter?.trim()) params.set('category', categoryFilter.trim());
+      fetch(`/api/search/offers?${params.toString()}`)
+        .then(async (res) => {
           setLoading(false);
-          if (error) {
+          if (!res.ok) {
             recordFeedLoadFailure({ branch: 'search' });
-            notifyUserError(showToast, 'No pudimos cargar la búsqueda. Revisa tu conexión.', 'feed:search', error);
+            notifyUserError(showToast, 'No pudimos cargar la búsqueda. Revisa tu conexión.', 'feed:search');
             setFeedError('load');
             setOffers([]);
             return;
           }
+          const json = (await res.json()) as { offers?: RankedOfferSource[] };
           setFeedError(null);
-          const searchRows = data ?? [];
-          setOffers(searchRows.map((r) => mapOfferToCard(r as RankedOfferSource)));
+          const searchRows = json.offers ?? [];
+          setOffers(searchRows.map((r) => mapOfferToCard(r)));
           recordFeedLoadSuccess();
           logEvent({
             type: 'view',

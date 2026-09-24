@@ -22,6 +22,7 @@ import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
+import type { OfferFreshnessPresentation } from '@/lib/offers/freshness/present';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -150,6 +151,7 @@ type OfferPayload = {
   expiresAt?: string | null;
   /** Lifecycle flag: expired ≠ inaccessible. */
   isExpired?: boolean;
+  freshness?: OfferFreshnessPresentation;
   categorySlug?: string;
   categoryLabel?: string;
   storeSlug?: string;
@@ -181,6 +183,26 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [likingId, setLikingId] = useState<string | null>(null);
 
   const [showReportModal, setShowReportModal] = useState(false);
+  const [couponCards, setCouponCards] = useState<
+    { code: string; publicLabel: string; headline: string | null; restrictions: string | null }[]
+  >([]);
+  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!offer.id) return;
+    let cancelled = false;
+    fetch(`/api/offers/${offer.id}/coupons`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setCouponCards(Array.isArray(data?.coupons) ? data.coupons : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCouponCards([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [offer.id]);
   const [reportType, setReportType] = useState('');
   const [reportComment, setReportComment] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -191,6 +213,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const reportModalRef = useRef<HTMLDivElement>(null);
+  const couponCorrelationRef = useRef<{ id: string; code: string } | null>(null);
 
   const closeReportModal = useCallback(() => {
     if (reportSubmitting) return;
@@ -496,6 +519,23 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             {offer.title}
           </span>
         </nav>
+
+        {offer.freshness?.announce ? (
+          <div
+            className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40"
+            role="status"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{offer.freshness.label}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                {offer.freshness.detail}
+                {offer.freshness.lastCheckedAt
+                  ? ` Última revisión: ${new Date(offer.freshness.lastCheckedAt).toLocaleString('es-MX')}.`
+                  : ''}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {offer.isExpired ? (
           <div
@@ -857,7 +897,89 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 ) : null}
               </div>
 
-              {ctaUrl && (
+              {couponCards.length > 0 ? (
+                <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-900/60 dark:bg-violet-950/40">
+                  {couponCards.map((coupon) => (
+                    <div key={coupon.code} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {coupon.publicLabel === 'VERIFICADO' ? '🎟️ Cupón disponible' : coupon.publicLabel}
+                        </p>
+                        {coupon.headline ? (
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{coupon.headline}</p>
+                        ) : null}
+                        <p className="font-mono text-xs text-gray-800 dark:text-gray-200">{coupon.code}</p>
+                        {coupon.restrictions ? (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{coupon.restrictions}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl border border-violet-300 px-3 py-2 text-sm font-semibold text-violet-700 dark:border-violet-800 dark:text-violet-300"
+                          onClick={() => {
+                            const idempotencyKey = `${offer.id}:${coupon.code}:copy`;
+                            void navigator.clipboard.writeText(coupon.code).then(
+                              () => {
+                                showToast?.('Cupón copiado. Pégalo al pagar en la tienda.');
+                                setCopiedCoupon(coupon.code);
+                                void fetch(`/api/offers/${offer.id}/coupon-events`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ code: coupon.code, eventType: 'coupon_copy', idempotencyKey }),
+                                })
+                                  .then((res) => res.json())
+                                  .then((data: { correlationId?: string }) => {
+                                    if (data?.correlationId) {
+                                      couponCorrelationRef.current = { id: data.correlationId, code: coupon.code };
+                                    }
+                                  })
+                                  .catch(() => undefined);
+                              },
+                              () => undefined,
+                            );
+                          }}
+                        >
+                          {copiedCoupon === coupon.code ? 'Cupón copiado' : 'Copiar cupón'}
+                        </button>
+                        {ctaUrl ? (
+                          <button
+                            type="button"
+                            className="rounded-xl bg-violet-600 px-3 py-2 text-sm font-semibold text-white dark:bg-violet-500"
+                            onClick={() => {
+                              if (offer.id && offer.offerUrl?.trim()) {
+                                void trackAndOpenOfferUrl({
+                                  offerId: offer.id,
+                                  offerUrl: offer.offerUrl,
+                                  accessToken: session?.access_token,
+                                  couponCorrelationId: couponCorrelationRef.current?.code === coupon.code
+                                    ? couponCorrelationRef.current.id
+                                    : null,
+                                  couponCode: coupon.code,
+                                });
+                              }
+                            }}
+                          >
+                            Abrir oferta
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {ctaUrl && offer.freshness && !offer.freshness.ctaEnabled ? (
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-300 px-6 py-3 font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                  >
+                    {offer.freshness.label}
+                  </button>
+                </div>
+              ) : ctaUrl ? (
                 <div className="mt-6 flex flex-wrap items-stretch gap-2">
                   <a
                     href={ctaUrl}
@@ -876,7 +998,11 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
                   >
-                    {offer.isExpired ? 'Ver oferta' : 'Cazar oferta'}
+                    {offer.freshness?.state === 'price_changed'
+                      ? 'Ver precio actual'
+                      : offer.isExpired
+                        ? 'Ver oferta'
+                        : 'Cazar oferta'}
                     <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                   {showCtaCouponChip ? (
@@ -896,7 +1022,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     </div>
                   ) : null}
                 </div>
-              )}
+              ) : null}
 
               <div className="mt-4 flex items-center gap-3">
                 <button

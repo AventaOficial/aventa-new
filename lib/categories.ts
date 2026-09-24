@@ -193,6 +193,10 @@ function foldCategoryKey(value: string): string {
     .replace(/\p{M}/gu, '');
 }
 
+/**
+ * Canonical category write path for feed, search, SEO and analytics.
+ * Storage value is CategoryId. Legacy aliases live in LEGACY_CATEGORY_MAP.
+ */
 export function normalizeCategoryForStorage(category: string | null | undefined): CategoryId | null {
   if (!category?.trim()) return null;
   const lower = category.trim().toLowerCase();

@@ -16,7 +16,10 @@ export type PublicProductCandidate = {
   image: string | null;
   productId: string | null;
   brand: string | null;
+  seller: string | null;
   availability: string | null;
+  rating: number | null;
+  reviewCount: number | null;
   category: string | null;
   explicitDiscountPercent?: number | null;
   explicitSavings?: number | null;
@@ -50,6 +53,30 @@ function walk(node: unknown, visit: (o: Record<string, unknown>) => void) {
   if (o.item) walk(o.item, visit);
 }
 
+function organizationName(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const name = value.trim();
+    return name || null;
+  }
+  if (value && typeof value === 'object' && typeof (value as { name?: unknown }).name === 'string') {
+    const name = (value as { name: string }).name.trim();
+    return name || null;
+  }
+  return null;
+}
+
+function ratingValue(aggregate: unknown): number | null {
+  if (!aggregate || typeof aggregate !== 'object') return null;
+  return finitePositive((aggregate as { ratingValue?: unknown }).ratingValue);
+}
+
+function reviewCountValue(aggregate: unknown): number | null {
+  if (!aggregate || typeof aggregate !== 'object') return null;
+  const raw = aggregate as { reviewCount?: unknown; ratingCount?: unknown };
+  const n = finitePositive(raw.reviewCount ?? raw.ratingCount);
+  return n == null ? null : Math.round(n);
+}
+
 function typeStr(o: Record<string, unknown>): string {
   const t = o['@type'];
   return Array.isArray(t) ? t.map(String).join(',') : String(t ?? '');
@@ -60,6 +87,7 @@ function extractOfferPrices(offers: unknown): {
   originalPrice: number | null;
   currency: string | null;
   availability: string | null;
+  seller: string | null;
   explicitDiscountPercent: number | null;
   priceValidUntil: string | null;
   offerText: string;
@@ -69,6 +97,7 @@ function extractOfferPrices(offers: unknown): {
   let originalPrice: number | null = null;
   let currency: string | null = null;
   let availability: string | null = null;
+  let seller: string | null = null;
   let explicitDiscountPercent: number | null = null;
   let priceValidUntil: string | null = null;
   let priceReliable = true;
@@ -87,6 +116,8 @@ function extractOfferPrices(offers: unknown): {
     }
     if (typeof off.priceCurrency === 'string') currency = currency ?? off.priceCurrency;
     if (typeof off.availability === 'string') availability = availability ?? off.availability;
+    const namedSeller = organizationName(off.seller);
+    if (namedSeller) seller = seller ?? namedSeller;
     if (typeof off.priceValidUntil === 'string') priceValidUntil = priceValidUntil ?? off.priceValidUntil;
     const disc =
       finitePositive(off.discount) ??
@@ -128,6 +159,7 @@ function extractOfferPrices(offers: unknown): {
     originalPrice,
     currency,
     availability,
+    seller,
     explicitDiscountPercent,
     priceValidUntil,
     offerText: '',
@@ -145,6 +177,7 @@ function extractOfferPrices(offers: unknown): {
       originalPrice = originalPrice ?? nested.originalPrice;
       currency = currency ?? nested.currency;
       availability = availability ?? nested.availability;
+      seller = seller ?? nested.seller;
       explicitDiscountPercent = explicitDiscountPercent ?? nested.explicitDiscountPercent;
       priceValidUntil = priceValidUntil ?? nested.priceValidUntil;
       if (nested.offerText) offerTexts.push(nested.offerText);
@@ -157,6 +190,7 @@ function extractOfferPrices(offers: unknown): {
     originalPrice,
     currency,
     availability,
+    seller,
     explicitDiscountPercent,
     priceValidUntil,
     offerText: offerTexts.join(' · '),
@@ -226,7 +260,10 @@ export function parseJsonLdProducts(html: string, pageUrl: string): PublicProduc
         image,
         productId,
         brand,
+        seller: offer.seller,
         availability: offer.availability,
+        rating: ratingValue(o.aggregateRating),
+        reviewCount: reviewCountValue(o.aggregateRating),
         category: typeof o.category === 'string' ? o.category : null,
         explicitDiscountPercent: offer.explicitDiscountPercent ?? promo.explicitDiscountPercent,
         explicitSavings: promo.explicitSavings,

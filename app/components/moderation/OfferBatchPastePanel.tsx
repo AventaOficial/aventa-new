@@ -9,9 +9,16 @@ import {
   batchAffiliatePlan,
   batchAffiliatePlanLabel,
   buildOfferBatchDrafts,
+  classifyEnrichmentFailure,
   OFFER_BATCH_MAX,
   type OfferBatchDraft,
 } from '@/lib/offers/batchPaste';
+import {
+  buildLotRowFromDiscoveryAndParse,
+  processOfferUrl,
+} from '@/lib/offers/ingestion';
+import { parseCouponPaste } from '@/lib/intelligence/coupon/parse';
+import type { CouponDraft } from '@/lib/intelligence/coupon/types';
 import { pendingBasePath, type ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { cn } from '@/app/components/panel/utils';
@@ -22,6 +29,7 @@ type CreateStatus = 'idle' | 'loading' | 'ok' | 'dup' | 'error';
 type Row = OfferBatchDraft & {
   id: string;
   selected: boolean;
+  rawUrl: string;
   image: string;
   images: string[];
   parseStatus: ParseStatus;
@@ -29,21 +37,38 @@ type Row = OfferBatchDraft & {
   createStatus: CreateStatus;
   createNote: string;
   offerId: string | null;
+  outboundUrl: string;
+  conflictNote: string;
+  readiness: string;
+  brand: string;
+  discountLabel: string;
+  readinessNote: string;
 };
 
 function draftsToRows(drafts: OfferBatchDraft[]): Row[] {
-  return drafts.map((d, i) => ({
-    ...d,
-    id: `${i}-${d.url}`,
-    selected: true,
-    image: '',
-    images: [],
-    parseStatus: d.title && d.price ? 'partial' : 'idle',
-    parseNote: d.title ? 'Datos del pegado; falta leer la ficha' : '',
-    createStatus: 'idle',
-    createNote: '',
-    offerId: null,
-  }));
+  return drafts.map((d, i) => {
+    const url = processOfferUrl(d.url, d.store || null);
+    return {
+      ...d,
+      rawUrl: d.url,
+      url: url.canonicalUrl || d.url,
+      id: `${i}-${url.canonicalUrl || d.url}`,
+      selected: true,
+      image: d.image,
+      images: d.image ? [d.image] : [],
+      parseStatus: d.title && d.price ? 'partial' : 'idle',
+      parseNote: d.title ? 'Datos del pegado; falta leer la ficha' : '',
+      createStatus: 'idle',
+      createNote: '',
+      offerId: null,
+      outboundUrl: url.affiliateUrl || url.canonicalUrl || d.url,
+      conflictNote: '',
+      readiness: 'discovered',
+      brand: '',
+      discountLabel: '',
+      readinessNote: '',
+    };
+  });
 }
 
 function sleep(ms: number) {
@@ -55,6 +80,8 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   const { session } = useAuth();
   const [paste, setPaste] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
+  const [couponDrafts, setCouponDrafts] = useState<CouponDraft[]>([]);
+  const [couponNote, setCouponNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<'idle' | 'parse' | 'create'>('idle');
   const [banner, setBanner] = useState<string | null>(null);
   const pendingHref = pendingBasePath(mode);
@@ -66,12 +93,170 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   function detect() {
     setBanner(null);
     const drafts = buildOfferBatchDrafts(paste);
-    if (drafts.length === 0) {
-      setRows([]);
-      setBanner('No encontré URLs https en el texto.');
+    const parsed = parseCouponPaste(paste);
+    setCouponDrafts([...parsed.drafts, ...parsed.failures]);
+    const nextRows = drafts.length > 0 ? draftsToRows(drafts) : [];
+    setRows(nextRows);
+    if (drafts.length === 0 && parsed.drafts.length === 0) {
+      setBanner('No encontré URLs ni cupones con código y tienda.');
+      setCouponNote(null);
       return;
     }
-    setRows(draftsToRows(drafts));
+    setCouponNote(
+      parsed.drafts.length > 0
+        ? 'Cupones detectados. Guardar no los verifica ni los publica.'
+        : null,
+    );
+    if (drafts.length === 0) setBanner(null);
+    else if (nextRows.some((row) => !row.title || !row.price || !row.image)) {
+      setBanner('Enlaces listos. Leyendo fichas automáticamente…');
+      void enrichRows(nextRows);
+    }
+  }
+
+  async function enrichRows(targets: Row[]) {
+    const headers = await authHeaders();
+    if (!headers) return;
+    const auth = headers;
+    setBusy('parse');
+    let ready = 0;
+    let partial = 0;
+    let blocked = 0;
+    let failed = 0;
+    let retryable = 0;
+    const selected = targets.filter((item) => item.selected);
+    const queue = [...selected];
+    const workerCount = Math.min(3, queue.length);
+    async function takeNext(): Promise<void> {
+      const row = queue.shift();
+      if (!row) return;
+      setRows((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, parseStatus: 'loading', parseNote: 'Leyendo ficha…' } : r)),
+      );
+      try {
+        const res = await fetch('/api/parse-offer-url', {
+          method: 'POST',
+          headers: auth,
+          body: JSON.stringify({ url: row.url }),
+        });
+        if (res.status === 429 || res.status >= 500) {
+          const fail = classifyEnrichmentFailure(res.status);
+          retryable += 1;
+          partial += 1;
+          setRows((prev) =>
+            prev.map((r) =>
+              r.id === row.id
+                ? { ...r, parseStatus: 'partial', parseNote: fail.message }
+                : r,
+            ),
+          );
+          if (res.status === 429) await sleep(2500);
+          await takeNext();
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        const built = buildLotRowFromDiscoveryAndParse({
+          discovery: {
+            rawUrl: row.rawUrl || row.url,
+            title: row.title || null,
+            store: row.store || null,
+            price: row.price ? Number(row.price) : null,
+            originalPrice: row.originalPrice ? Number(row.originalPrice) : null,
+            image: row.image || null,
+            seller: row.seller || null,
+            availability: row.availability || null,
+            why: row.why || null,
+            source: 'paste',
+          },
+          parseData: data,
+          pdpAttempted: true,
+        });
+        const conflictNote = built.merged.conflictNote;
+        if (built.quality.readiness === 'blocked') blocked += 1;
+        else if (built.quality.readyForReview && built.merged.conflicts.length === 0) ready += 1;
+        else partial += 1;
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? {
+                  ...r,
+                  title: built.merged.title.value ?? r.title,
+                  store: built.merged.store.value ?? r.store,
+                  price:
+                    built.merged.price.value != null ? String(built.merged.price.value) : r.price,
+                  originalPrice:
+                    built.merged.originalPrice.value != null
+                      ? String(built.merged.originalPrice.value)
+                      : r.originalPrice,
+                  image: built.merged.image.value ?? '',
+                  images: built.merged.images,
+                  seller: built.merged.seller.value ?? '',
+                  availability: built.merged.availability.value ?? '',
+                  brand: built.merged.brand.value ?? '',
+                  discountLabel:
+                    built.merged.discount != null ? `${built.merged.discount}%` : '',
+                  outboundUrl: built.url.affiliateUrl || built.url.canonicalUrl || r.url,
+                  url: built.url.canonicalUrl || r.url,
+                  conflictNote,
+                  readiness: built.quality.readiness,
+                  readinessNote: [
+                    built.summary.checks.map((item) => `✓ ${item}`).join(' '),
+                    built.summary.warnings.map((item) => `⚠ ${item}`).join(' '),
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+                  parseStatus: built.quality.readyForReview
+                    ? built.merged.conflicts.length > 0
+                      ? 'partial'
+                      : 'ok'
+                    : 'partial',
+                  parseNote:
+                    conflictNote ||
+                    (built.quality.readyForReview
+                      ? `Ficha ${built.quality.readiness}`
+                      : `Falta: ${[...built.quality.requiredMissing, ...built.quality.strongMissing].join(', ') || 'revisión'}`),
+                }
+              : r,
+          ),
+        );
+      } catch {
+        retryable += 1;
+        failed += 1;
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? {
+                  ...r,
+                  parseStatus: r.title && r.price ? 'partial' : 'fail',
+                  parseNote: 'Error de red. Se puede reintentar.',
+                }
+              : r,
+          ),
+        );
+      }
+      await takeNext();
+    }
+    await Promise.all(Array.from({ length: workerCount }, () => takeNext()));
+    setBusy('idle');
+    setBanner(
+      `TOTAL ${selected.length} · READY ${ready} · PARTIAL ${partial} · BLOCKED ${blocked} · FAILED ${failed} · RETRYABLE ${retryable}`,
+    );
+  }
+
+  async function saveReviewedCoupons() {
+    const headers = await authHeaders();
+    if (!headers) return;
+    const acceptKeys = couponDrafts.filter((draft) => draft.ok && draft.canonicalKey).map((draft) => draft.canonicalKey as string);
+    if (acceptKeys.length === 0) return;
+    setBusy('create');
+    const res = await fetch('/api/admin/coupons', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: paste, sourceClass: 'user_paste', acceptKeys }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy('idle');
+    setCouponNote(res.ok ? `Guardados: ${data.saved?.length ?? 0}. Siguen sin verificar.` : 'No se pudo guardar. Si falta la migración, aplícala primero.');
   }
 
   async function authHeaders(): Promise<Record<string, string> | null> {
@@ -87,73 +272,7 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   }
 
   async function readPages() {
-    const headers = await authHeaders();
-    if (!headers) return;
-    setBusy('parse');
-    setBanner(null);
-    const targets = rows.filter((r) => r.selected);
-    for (const row of targets) {
-      setRows((prev) =>
-        prev.map((r) => (r.id === row.id ? { ...r, parseStatus: 'loading', parseNote: 'Leyendo ficha…' } : r)),
-      );
-      try {
-        const res = await fetch('/api/parse-offer-url', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ url: row.url }),
-        });
-        if (res.status === 429) {
-          setRows((prev) =>
-            prev.map((r) =>
-              r.id === row.id
-                ? { ...r, parseStatus: 'partial', parseNote: 'Límite de lectura; espera un minuto y reintenta.' }
-                : r,
-            ),
-          );
-          await sleep(2500);
-          continue;
-        }
-        const data = await res.json().catch(() => ({}));
-        const parsedTitle = typeof data.title === 'string' ? data.title.trim() : '';
-        const parsedStore = typeof data.store === 'string' ? data.store.trim() : '';
-        const parsedPrice =
-          typeof data.suggested_discount_price === 'number' ? String(data.suggested_discount_price) : '';
-        const parsedOriginal =
-          typeof data.suggested_original_price === 'number' ? String(data.suggested_original_price) : '';
-        const image = typeof data.image === 'string' ? data.image : '';
-        const images = Array.isArray(data.images)
-          ? data.images.filter((u: unknown): u is string => typeof u === 'string' && u.trim().length > 0)
-          : [];
-        const gotPrice = Boolean(parsedPrice || row.price);
-        const gotTitle = Boolean(parsedTitle || row.title);
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === row.id
-              ? {
-                  ...r,
-                  title: parsedTitle || r.title,
-                  store: parsedStore || r.store || 'Amazon',
-                  price: parsedPrice || r.price,
-                  originalPrice: parsedOriginal || r.originalPrice,
-                  image: image || r.image,
-                  images,
-                  parseStatus: gotTitle && gotPrice ? 'ok' : 'partial',
-                  parseNote: gotTitle && gotPrice ? 'Ficha lista' : 'Ficha incompleta; revisa título y precio',
-                }
-              : r,
-          ),
-        );
-      } catch {
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === row.id
-              ? { ...r, parseStatus: r.title && r.price ? 'partial' : 'fail', parseNote: 'No se pudo leer la página' }
-              : r,
-          ),
-        );
-      }
-    }
-    setBusy('idle');
+    await enrichRows(rows.filter((r) => r.selected));
   }
 
   async function createPending() {
@@ -191,11 +310,13 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
             hasDiscount,
             price,
             original_price: hasDiscount ? original : null,
-            offer_url: row.url,
+            offer_url: row.rawUrl || row.url,
             image_url: row.image || '/placeholder.png',
             image_urls: row.images.slice(0, 8),
             description,
             ...(why ? { hunter_comment: why } : {}),
+            ...(row.seller.trim() ? { seller: row.seller.trim() } : {}),
+            ...(row.availability.trim() ? { availability: row.availability.trim() } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -280,12 +401,37 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
             onClick={detect}
             className={cn('rounded-full px-4 py-2 text-sm font-medium', ui.chipActive)}
           >
-            Detectar enlaces
+            Revisar pegado
           </button>
           <span className={cn('text-xs', ui.muted)}>Máximo {OFFER_BATCH_MAX} por pegado</span>
         </div>
         {banner ? <p className={cn('mt-3 text-sm', ui.soft)}>{banner}</p> : null}
       </section>
+
+      {couponDrafts.length > 0 ? (
+        <section className={cn(ui.card, 'p-4 md:p-5')}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className={cn('text-sm', ui.body)}>{couponNote}</p>
+            <button
+              type="button"
+              disabled={busy !== 'idle'}
+              onClick={() => void saveReviewedCoupons()}
+              className={cn('rounded-full px-4 py-1.5 text-sm font-medium disabled:opacity-50', ui.chipActive)}
+            >
+              Guardar cupones revisados
+            </button>
+          </div>
+          <ul className="space-y-2">
+            {couponDrafts.map((draft) => (
+              <li key={draft.canonicalKey ?? draft.raw.slice(0, 40)} className={cn('text-sm', ui.body)}>
+                {draft.ok
+                  ? `${draft.store} · ${draft.code} · ${draft.discountType} · por verificar`
+                  : draft.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {rows.length > 0 ? (
         <section className={cn(ui.card, 'p-4 md:p-5')}>
@@ -374,13 +520,40 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
                         className={cn(ui.input, 'px-2 py-1.5 text-sm')}
                       />
                       <a
-                        href={row.url}
+                        href={row.outboundUrl || row.url}
                         target="_blank"
                         rel="noreferrer"
                         className={cn('truncate px-2 py-1.5 text-xs underline', ui.soft)}
                       >
-                        {row.url}
+                        Abrir
                       </a>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={cn(ui.btnGhost, 'rounded-full px-3 py-1 text-xs')}
+                        onClick={() => {
+                          void navigator.clipboard.writeText(row.outboundUrl || row.url);
+                        }}
+                      >
+                        Copiar outbound
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(ui.btnGhost, 'rounded-full px-3 py-1 text-xs')}
+                        onClick={() => {
+                          void navigator.clipboard.writeText(row.url);
+                        }}
+                      >
+                        Copiar canónica
+                      </button>
+                      {row.seller ? <span className={cn('text-xs', ui.muted)}>Vendido por {row.seller}</span> : null}
+                      {row.availability ? <span className={cn('text-xs', ui.muted)}>{row.availability}</span> : null}
+                      {row.discountLabel ? <span className={cn('text-xs', ui.muted)}>{row.discountLabel}</span> : null}
+                      {row.conflictNote ? (
+                        <span className="text-xs text-amber-700 dark:text-amber-300">{row.conflictNote}</span>
+                      ) : null}
+                      {row.readinessNote ? <span className={cn('text-xs', ui.muted)}>{row.readinessNote}</span> : null}
                     </div>
                     {row.why ? <p className={cn('text-xs', ui.muted)}>{row.why}</p> : null}
                     {row.offerId ? (

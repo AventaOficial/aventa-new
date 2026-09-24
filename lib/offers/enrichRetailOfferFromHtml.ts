@@ -3,6 +3,7 @@
  * Prefers Product JSON-LD (shared with Hunter Day-to-Day); falls back to og/twitter + heuristics.
  */
 import { parseJsonLdProducts } from '@/lib/hunter/dayToDay/parsePublicProductHtml';
+import { canonicalAvailability, type CanonicalAvailability } from '@/lib/offers/ingestion/pdpFacts';
 import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
 import {
   absoluteUrl,
@@ -17,7 +18,35 @@ export type RetailOfferEnrichment = {
   suggestedDiscount: number | null;
   suggestedOriginal: number | null;
   usedJsonLd: boolean;
+  seller: string | null;
+  brand: string | null;
+  availability: CanonicalAvailability | null;
+  rating: number | null;
+  reviewCount: number | null;
 };
+
+/** Hechos verificados del JSON-LD ya parseado. Sin dato → null. */
+export function pdpVerifiedFacts(html: string, pageUrl: string) {
+  const primary = parseJsonLdProducts(html, pageUrl)[0] ?? null;
+  if (!primary) {
+    return {
+      seller: null,
+      brand: null,
+      availability: null,
+      rating: null,
+      reviewCount: null,
+      category: null,
+    };
+  }
+  return {
+    seller: primary.seller?.trim() || null,
+    brand: primary.brand?.trim() || null,
+    availability: canonicalAvailability(primary.availability),
+    rating: primary.rating,
+    reviewCount: primary.reviewCount,
+    category: primary.category?.trim() || null,
+  };
+}
 
 function normalizePair(
   discount: number | null,
@@ -67,5 +96,10 @@ export function enrichRetailOfferFromHtml(html: string, pageUrl: string): Retail
     suggestedDiscount: pair.discount,
     suggestedOriginal: pair.original,
     usedJsonLd: Boolean(primary),
+    seller: primary?.seller?.trim() || null,
+    brand: primary?.brand?.trim() || null,
+    availability: canonicalAvailability(primary?.availability),
+    rating: primary?.rating ?? null,
+    reviewCount: primary?.reviewCount ?? null,
   };
 }

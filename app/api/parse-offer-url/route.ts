@@ -55,7 +55,7 @@ import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffilia
 import { recordMlQuality } from '@/lib/hunter/mlQuality/metrics';
 import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
-import { enrichRetailOfferFromHtml } from '@/lib/offers/enrichRetailOfferFromHtml';
+import { enrichRetailOfferFromHtml, pdpVerifiedFacts } from '@/lib/offers/enrichRetailOfferFromHtml';
 import {
   amazonHtmlScrapeUrl,
   isAmazonBotWallHtml,
@@ -104,6 +104,11 @@ function emptyPayload(reason: 'invalid_url' | 'extract_failed' | null = null) {
     suggested_discount_price: null as number | null,
     suggested_original_price: null as number | null,
     suggested_category: null as string | null,
+    seller: null as string | null,
+    availability: null as string | null,
+    brand: null as string | null,
+    rating: null as number | null,
+    review_count: null as number | null,
     reason,
     extraction_status: (reason === 'invalid_url' ? 'failed' : reason === 'extract_failed' ? 'failed' : 'failed') as OfferExtractionStatus,
     missing: [] as string[],
@@ -681,6 +686,8 @@ export async function POST(request: Request) {
       });
     }
 
+    const facts = html ? pdpVerifiedFacts(html, pageUrl.href) : null;
+
     return NextResponse.json({
       title,
       image: images[0] ?? null,
@@ -688,7 +695,12 @@ export async function POST(request: Request) {
       store,
       suggested_discount_price: suggestedDiscount,
       suggested_original_price: suggestedOriginal,
-      suggested_category: suggestedCategory,
+      suggested_category: suggestedCategory || facts?.category || null,
+      seller: facts?.seller ?? null,
+      availability: facts?.availability ?? null,
+      brand: facts?.brand ?? null,
+      rating: facts?.rating ?? null,
+      review_count: facts?.reviewCount ?? null,
       reason: classification.status === 'failed' ? 'extract_failed' : null,
       extraction_status: classification.status,
       missing: classification.missing,

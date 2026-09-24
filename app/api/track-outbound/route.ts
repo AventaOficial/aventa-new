@@ -17,9 +17,9 @@ import { OUTBOUND_EVENT_TYPE } from '@/lib/analytics/outboundClickContract';
  */
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rl = await enforceRateLimit(ip);
+  const rl = await enforceRateLimit(`outbound:${ip}`, { critical: true });
   if (!rl.success) {
-    return new NextResponse(null, { status: 429 });
+    return new NextResponse(null, { status: rl.status });
   }
   try {
     const body = await request.json().catch(() => ({}));
@@ -77,6 +77,17 @@ export async function POST(request: Request) {
         referer: request.headers.get('referer'),
       },
     });
+
+    const couponCorrelationId = typeof body?.couponCorrelationId === 'string' ? body.couponCorrelationId.trim() : '';
+    const couponCode = typeof body?.couponCode === 'string' ? body.couponCode.trim() : '';
+    if (couponCorrelationId && couponCode) {
+      const { recordCouponOutbound } = await import('@/lib/intelligence/coupon/store');
+      await recordCouponOutbound(supabase, {
+        offerId,
+        code: couponCode,
+        correlationId: couponCorrelationId,
+      }).catch(() => null);
+    }
 
     // Serializa dominio canónico (NEW y REUSED vienen de recordAttributedClick SoT).
     // reused=true → campos de attribution desde fila persistida, nunca del body.

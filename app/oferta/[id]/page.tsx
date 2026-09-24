@@ -8,6 +8,7 @@ import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
+import { presentOfferFreshness } from '@/lib/offers/freshness/present';
 import OfferPageContent from './OfferPageContent';
 import { stringifyJsonLd } from '@/lib/seo/jsonLd';
 
@@ -32,6 +33,7 @@ type OfferRow = {
   created_at: string | null;
   created_by: string | null;
   expires_at: string | null;
+  deleted_at: string | null;
   upvotes_count: number | null;
   downvotes_count: number | null;
   ranking_momentum: number | null;
@@ -68,7 +70,7 @@ async function getOffer(id: string) {
     .from('offers')
     .select(`
       id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon,
-      store, offer_url, description, steps, conditions, coupons, expires_at,
+      store, offer_url, description, steps, conditions, coupons, expires_at, deleted_at,
       created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)
     `)
@@ -80,12 +82,36 @@ async function getOffer(id: string) {
   return data as unknown as OfferRow;
 }
 
+async function loadOfferHealth(id: string): Promise<{ status: string; last_checked_at: string | null } | null> {
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('offer_health_state')
+      .select('status, last_checked_at')
+      .eq('offer_id', id)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data as { status: string; last_checked_at: string | null };
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: rawSegment } = await params;
   const id = extractOfferIdFromPathSegment(rawSegment);
   if (!id) return { title: 'Oferta no encontrada | AVENTA' };
   const offer = await getOffer(id);
-  if (!offer) return { title: 'Oferta no encontrada | AVENTA' };
+  if (!offer) return { title: 'Oferta no encontrada | AVENTA', robots: { index: false, follow: false } };
+  if (offer.deleted_at) return { title: 'Oferta no encontrada | AVENTA', robots: { index: false, follow: false } };
+
+  const health = await loadOfferHealth(id);
+  const freshness = presentOfferFreshness({
+    expiresAt: offer.expires_at,
+    deletedAt: offer.deleted_at,
+    healthStatus: health?.status ?? null,
+    lastCheckedAt: health?.last_checked_at ?? null,
+  });
 
   const title = `${offer.title} | AVENTA`;
   const store = formatStoreDisplayName(offer.store) || 'Tienda';
@@ -100,6 +126,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title,
     description: desc,
     alternates: { canonical },
+    robots: freshness.indexable
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     openGraph: {
       title,
       description: desc,
@@ -122,7 +151,14 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   const id = extractOfferIdFromPathSegment(rawSegment);
   if (!id) notFound();
   const offer = await getOffer(id);
-  if (!offer) notFound();
+  if (!offer || offer.deleted_at) notFound();
+  const health = await loadOfferHealth(id);
+  const freshness = presentOfferFreshness({
+    expiresAt: offer.expires_at,
+    deletedAt: offer.deleted_at,
+    healthStatus: health?.status ?? null,
+    lastCheckedAt: health?.last_checked_at ?? null,
+  });
 
   const canonicalPath = buildOfferPublicPath(id, offer.title);
   if (rawSegment !== canonicalPath.replace(/^\/oferta\//, '')) {
@@ -184,6 +220,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     createdAt: offer.created_at ?? null,
     expiresAt: offer.expires_at ?? null,
     isExpired,
+    freshness,
     categorySlug: categorySlugForUrl,
     categoryLabel: categorySlugForUrl ? categorySlugToLabel(categorySlugForUrl) : undefined,
     storeSlug: storeSlug || undefined,
@@ -205,9 +242,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
       url: `${BASE_URL}${canonicalPath}`,
       price: discountPrice,
       priceCurrency: 'MXN',
-      availability: isExpired
-        ? 'https://schema.org/OutOfStock'
-        : 'https://schema.org/InStock',
+      availability: freshness.schemaAvailability,
       seller: {
         '@type': 'Organization',
         name: formatStoreDisplayName(offer.store) || offer.store?.trim() || 'Tienda',

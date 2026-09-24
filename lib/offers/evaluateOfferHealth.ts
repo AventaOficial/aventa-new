@@ -1,6 +1,6 @@
 import { fetchParsedOfferMetadataDetailed } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
 
-export type OfferHealthStatus = 'available' | 'price_changed' | 'out_of_stock';
+export type OfferHealthStatus = 'available' | 'price_changed' | 'out_of_stock' | 'unknown' | 'error';
 
 const PRICE_DELTA_PCT_THRESHOLD = 5;
 const PRICE_DELTA_MXN_THRESHOLD = 50;
