@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts",
-    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase tests/cazaOfertas",
+    "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase tests/cazaOfertas tests/intelligence",
     "test:launch": "vitest run tests/launch",
     "test:cazaofertas": "vitest run tests/cazaOfertas",
     "typecheck": "tsc --noEmit",
