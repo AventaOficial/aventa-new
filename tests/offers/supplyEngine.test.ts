@@ -33,14 +33,14 @@ describe('supply engine — hunter paste', () => {
   it('título y precio sin encabezado de producto', () => {
     const [row] = buildOfferBatchDrafts(`Título: Audífonos
 Precio: MX$1,299.00 MXN
-URL: https://www.amazon.com.mx/dp/B00TESTASIN`);
+URL: https://www.amazon.com.mx/dp/B0TESTAS01`);
     expect(row?.title).toBe('Audífonos');
     expect(row?.price).toBe('1299');
   });
 
   it('4-6. URL suelta no hereda el título del bloque anterior', () => {
     const text = `${HUNTER}
-https://www.amazon.com.mx/dp/B00OTHERASIN
+https://www.amazon.com.mx/dp/B0OTHER001
 `;
     const drafts = buildOfferBatchDrafts(text);
     expect(drafts).toHaveLength(2);

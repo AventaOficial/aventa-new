@@ -381,7 +381,7 @@ describe('effective price stays null without evidence', () => {
 
   it('does not let the client name the moderator or mark a coupon verified', () => {
     const admin = readFileSync(resolve(process.cwd(), 'app/api/admin/coupons/route.ts'), 'utf8');
-    const publicEvents = readFileSync(resolve(process.cwd(), 'app/api/offers/[id]/coupon-events/route.ts'), 'utf8');
+    const publicEvents = readFileSync(resolve(process.cwd(), 'app/api/offers/[offerId]/coupon-events/route.ts'), 'utf8');
     expect(admin).toContain('actorId: auth.user.id');
     expect(admin).not.toContain('body.actorId');
     expect(publicEvents).not.toContain('verified_for_offer');

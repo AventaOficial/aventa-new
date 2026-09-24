@@ -5,11 +5,11 @@ import { createServerClient } from '@/lib/supabase/server';
 
 const TYPES = new Set(['coupon_view', 'coupon_copy']);
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ offerId: string }> }) {
   const rl = await enforceRateLimit(`coupons:${getClientIp(request)}`);
   if (!rl.success) return NextResponse.json({ recorded: false }, { status: 429 });
-  const { id } = await context.params;
-  if (!id || id.length > 80) return NextResponse.json({ recorded: false }, { status: 400 });
+  const { offerId } = await context.params;
+  if (!offerId || offerId.length > 80) return NextResponse.json({ recorded: false }, { status: 400 });
   const body = (await request.json().catch(() => null)) as {
     code?: string;
     eventType?: string;
@@ -22,7 +22,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ recorded: false }, { status: 400 });
   }
   const result = await recordCouponInteraction(createServerClient(), {
-    offerId: id,
+    offerId,
     code,
     eventType: eventType as 'coupon_view' | 'coupon_copy',
     idempotencyKey,

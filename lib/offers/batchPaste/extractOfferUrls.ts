@@ -1,33 +1,16 @@
 import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 import { extractMercadoLibreItemId } from '@/lib/offers/resolveMercadoLibreItem';
+import { classifyPastedUrl, isEmbeddedAssetUrl } from './classifyPastedUrl';
 
-/** Tope de un pegado. Suficiente para un dump de cazador; evita timeouts. */
-export const OFFER_BATCH_MAX = 25;
+export { isEmbeddedAssetUrl };
+
+/** Tope de un pegado. El enriquecimiento sigue acotado; el parser no cambia de modelo. */
+export const OFFER_BATCH_MAX = 10_000;
 
 const URL_RE = /https?:\/\/[^\s<>"'`)\]\}]+/gi;
 
 function stripTrailingJunk(raw: string): string {
   return raw.trim().replace(/[.,;:!?)]+$/g, '');
-}
-
-/** Imágenes pegadas junto a la oferta no son una segunda oferta. */
-export function isEmbeddedAssetUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    const host = u.hostname.toLowerCase();
-    if (
-      host.includes('media-amazon.') ||
-      host.includes('images-amazon.') ||
-      host.includes('ssl-images-amazon.') ||
-      host.includes('mlstatic.com') ||
-      host.includes('fbcdn.net')
-    ) {
-      return true;
-    }
-    return /\.(?:jpg|jpeg|png|webp|gif|avif)(?:$)/i.test(u.pathname);
-  } catch {
-    return false;
-  }
 }
 
 export function offerBatchIdentityKey(url: string): string {
@@ -43,30 +26,53 @@ export function offerBatchIdentityKey(url: string): string {
   }
 }
 
+const COPY_LIST_RE = /^#{0,3}\s*urls?\s+listas(?:\s+para\s+copiar)?\b/i;
+const CITATION_HEADING_RE = /^#{0,3}\s*(?:fuentes|referencias|bibliograf[ií]a|sources)\b/i;
+const CITATION_MARK_RE = /^\[\d+\]/;
+const OFFER_HEADING_RE = /^#{1,3}\s*oferta\b/i;
+
+function normalizeHref(raw: string): string | null {
+  const href = stripTrailingJunk(raw).replace(/^http:/i, 'https:');
+  if (!href.startsWith('https://')) return null;
+  return href;
+}
+
 /**
- * Saca URLs de un texto mezclado (dump de cazador, lista, o párrafo).
- * Dedup por ASIN / id ML / path. No valida tienda: eso lo hace parse + create.
+ * Solo URLs de producto. Citas y bibliografía no entran.
+ * Dedup por ASIN / id ML / path.
  */
 export function extractOfferUrlsFromText(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  const matches = String(text ?? '').match(URL_RE) ?? [];
-  for (const raw of matches) {
-    const href = stripTrailingJunk(raw).replace(/^http:/i, 'https:');
-    if (!href.startsWith('https://')) continue;
-    try {
-      const u = new URL(href);
-      if (u.protocol !== 'https:') continue;
-      if (!u.hostname.includes('.')) continue;
-      if (isEmbeddedAssetUrl(u.toString())) continue;
-    } catch {
+  let mode: 'offer' | 'citation' | 'copy' = 'offer';
+
+  for (const rawLine of String(text ?? '').split(/\r?\n/)) {
+    const line = rawLine.replace(/^\s*[-*]\s*/, '').trim();
+    if (COPY_LIST_RE.test(line)) {
+      mode = 'copy';
       continue;
     }
-    const key = offerBatchIdentityKey(href);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(href);
-    if (out.length >= OFFER_BATCH_MAX) break;
+    if (CITATION_HEADING_RE.test(line) || CITATION_MARK_RE.test(line)) {
+      mode = 'citation';
+    } else if (OFFER_HEADING_RE.test(line)) {
+      mode = 'offer';
+    } else if (mode === 'citation' && line === '') {
+      mode = 'offer';
+    }
+
+    if (mode === 'citation') continue;
+
+    const matches = line.match(URL_RE) ?? [];
+    for (const raw of matches) {
+      const href = normalizeHref(raw);
+      if (!href) continue;
+      if (classifyPastedUrl(href) !== 'product') continue;
+      const key = offerBatchIdentityKey(href);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(href);
+      if (out.length >= OFFER_BATCH_MAX) return out;
+    }
   }
   return out;
 }

@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import {
   batchAffiliatePlan,
   buildOfferBatchDrafts,
+  classifyEnrichmentFailure,
+  classifyPastedUrl,
   extractOfferUrlsFromText,
   OFFER_BATCH_MAX,
   parsePastedOfferDump,
@@ -77,7 +79,8 @@ URL: https://www.amazon.com.mx/dp/B0G4B54DR1?utm_source=hunter
     expect(drafts[2]?.title).toBe('');
 
     const many = Array.from({ length: 40 }, (_, i) => `https://www.amazon.com.mx/dp/B0${String(i).padStart(8, '0')}`);
-    expect(extractOfferUrlsFromText(many.join('\n'))).toHaveLength(OFFER_BATCH_MAX);
+    expect(extractOfferUrlsFromText(many.join('\n'))).toHaveLength(40);
+    expect(OFFER_BATCH_MAX).toBeGreaterThanOrEqual(10_000);
   });
 
   it('el formulario público no importa el lote', () => {
@@ -105,6 +108,80 @@ URL: https://www.amazon.com.mx/dp/B0G4B54DR1?utm_source=hunter
     const nav = readFileSync(join(process.cwd(), 'lib/admin/navigation.ts'), 'utf8');
     expect(nav).toContain("href: '/admin/moderation/lote'");
     expect(nav).toContain("label: 'Lote'");
+  });
+
+  const REAL_DUMP = `### Oferta 1
+Producto: Razer Barracuda X
+URL: https://www.amazon.com.mx/dp/B09XZZQK6Q
+[1]
+https://news.jointly.mx/razer-barracuda
+
+### Oferta 2
+Producto: Sony WH-CH520
+URL: https://www.amazon.com.mx/dp/B0CFSKN2LW
+[2]
+https://www.debate.com.mx/sony-ch520
+
+### Oferta 3
+Producto: Soundcore Liberty 5 Pro
+URL: https://www.amazon.com.mx/dp/B0GWLKRWH7
+[3]
+https://www.xataka.com.mx/liberty-5-pro
+
+### Oferta 4
+Producto: Soundcore Liberty 5 Pro Max
+Precio actual: $1,999
+URL: https://www.amazon.com.mx/dp/B0GWLN2Y14
+[4]
+https://www.debate.com.mx/liberty-5-pro-max
+
+### Oferta 5
+Producto: Motorola Signature
+Precio actual: $9,999
+URL: https://meli.la/2dPwmy1
+
+URLs listas para copiar
+https://www.amazon.com.mx/dp/B09XZZQK6Q
+https://www.amazon.com.mx/dp/B0CFSKN2LW
+https://www.amazon.com.mx/dp/B0GWLKRWH7
+https://www.amazon.com.mx/dp/B0GWLN2Y14
+https://meli.la/2dPwmy1
+https://m.media-amazon.com/images/I/71example.jpg
+`;
+
+  it('el dump real deja 5 productos y 0 referencias', () => {
+    const urls = extractOfferUrlsFromText(REAL_DUMP);
+    expect(urls).toEqual([
+      'https://www.amazon.com.mx/dp/B09XZZQK6Q',
+      'https://www.amazon.com.mx/dp/B0CFSKN2LW',
+      'https://www.amazon.com.mx/dp/B0GWLKRWH7',
+      'https://www.amazon.com.mx/dp/B0GWLN2Y14',
+      'https://meli.la/2dPwmy1',
+    ]);
+    const drafts = buildOfferBatchDrafts(REAL_DUMP);
+    expect(drafts).toHaveLength(5);
+    expect(drafts[0]?.title).toMatch(/Barracuda/);
+    expect(drafts[3]?.price).toBe('1999');
+    expect(drafts[4]?.title).toMatch(/Motorola/);
+    expect(drafts[4]?.price).toBe('9999');
+    expect(drafts[0]?.price).not.toBe('1999');
+  });
+
+  it('clasifica imagen, social, referencia e inválida', () => {
+    expect(classifyPastedUrl('https://m.media-amazon.com/images/I/71abc.jpg')).toBe('image');
+    expect(classifyPastedUrl('https://x.com/aventa/status/1')).toBe('social');
+    expect(classifyPastedUrl('https://www.xataka.com.mx/articulo')).toBe('reference');
+    expect(classifyPastedUrl('http://[')).toBe('invalid');
+    expect(classifyPastedUrl('https://www.amazon.com.mx/dp/B09XZZQK6Q')).toBe('product');
+    expect(classifyPastedUrl('https://meli.la/2dPwmy1')).toBe('product');
+  });
+
+  it('500 interno no se disfraza de ficha; 503 upstream sí se reintenta', () => {
+    expect(classifyEnrichmentFailure(503).kind).toBe('UPSTREAM_RETRYABLE');
+    expect(classifyEnrichmentFailure(503).retryable).toBe(true);
+    expect(classifyEnrichmentFailure(500, 'internal').kind).toBe('INTERNAL_ERROR');
+    expect(classifyEnrichmentFailure(500, 'internal').retryable).toBe(false);
+    expect(classifyEnrichmentFailure(500, 'internal').message).not.toMatch(/ficha no respondió/i);
   });
 
   it('Amazon/ML se etiquetan al crear; Walmart se pega en cola', () => {

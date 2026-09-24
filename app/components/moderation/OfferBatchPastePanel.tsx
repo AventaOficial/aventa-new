@@ -139,14 +139,21 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
           headers: auth,
           body: JSON.stringify({ url: row.url }),
         });
-        if (res.status === 429 || res.status >= 500) {
-          const fail = classifyEnrichmentFailure(res.status);
-          retryable += 1;
-          partial += 1;
+        const contentType = res.headers.get('content-type') ?? '';
+        const internalFailure = res.status >= 500 || contentType.includes('text/html');
+        if (res.status === 429 || internalFailure) {
+          const fail = classifyEnrichmentFailure(res.status, internalFailure ? 'internal' : 'upstream');
+          if (fail.retryable) retryable += 1;
+          else failed += 1;
+          partial += fail.kind === 'INTERNAL_ERROR' ? 0 : 1;
           setRows((prev) =>
             prev.map((r) =>
               r.id === row.id
-                ? { ...r, parseStatus: 'partial', parseNote: fail.message }
+                ? {
+                    ...r,
+                    parseStatus: fail.kind === 'INTERNAL_ERROR' ? 'fail' : 'partial',
+                    parseNote: fail.message,
+                  }
                 : r,
             ),
           );
