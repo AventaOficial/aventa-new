@@ -183,6 +183,25 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [likingId, setLikingId] = useState<string | null>(null);
 
   const [showReportModal, setShowReportModal] = useState(false);
+  const [couponCards, setCouponCards] = useState<
+    { code: string; publicLabel: string; headline: string | null; restrictions: string | null }[]
+  >([]);
+
+  useEffect(() => {
+    if (!offer.id) return;
+    let cancelled = false;
+    fetch(`/api/offers/${offer.id}/coupons`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setCouponCards(Array.isArray(data?.coupons) ? data.coupons : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCouponCards([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [offer.id]);
   const [reportType, setReportType] = useState('');
   const [reportComment, setReportComment] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -193,6 +212,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const reportModalRef = useRef<HTMLDivElement>(null);
+  const couponCorrelationRef = useRef<{ id: string; code: string } | null>(null);
 
   const closeReportModal = useCallback(() => {
     if (reportSubmitting) return;
@@ -875,6 +895,77 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   </Link>
                 ) : null}
               </div>
+
+              {couponCards.length > 0 ? (
+                <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-900/60 dark:bg-violet-950/40">
+                  {couponCards.map((coupon) => (
+                    <div key={coupon.code} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {coupon.publicLabel === 'VERIFICADO' ? 'Cupón disponible' : coupon.publicLabel}
+                        </p>
+                        {coupon.headline ? (
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{coupon.headline}</p>
+                        ) : null}
+                        <p className="font-mono text-xs text-gray-800 dark:text-gray-200">{coupon.code}</p>
+                        {coupon.restrictions ? (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{coupon.restrictions}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl border border-violet-300 px-3 py-2 text-sm font-semibold text-violet-700 dark:border-violet-800 dark:text-violet-300"
+                          onClick={() => {
+                            const idempotencyKey = `${offer.id}:${coupon.code}:copy`;
+                            void navigator.clipboard.writeText(coupon.code).then(
+                              () => {
+                                showToast?.('Cupón copiado. Pégalo al pagar en la tienda.');
+                                void fetch(`/api/offers/${offer.id}/coupon-events`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ code: coupon.code, eventType: 'coupon_copy', idempotencyKey }),
+                                })
+                                  .then((res) => res.json())
+                                  .then((data: { correlationId?: string }) => {
+                                    if (data?.correlationId) {
+                                      couponCorrelationRef.current = { id: data.correlationId, code: coupon.code };
+                                    }
+                                  })
+                                  .catch(() => undefined);
+                              },
+                              () => undefined,
+                            );
+                          }}
+                        >
+                          Copiar cupón
+                        </button>
+                        {ctaUrl ? (
+                          <button
+                            type="button"
+                            className="rounded-xl bg-violet-600 px-3 py-2 text-sm font-semibold text-white dark:bg-violet-500"
+                            onClick={() => {
+                              if (offer.id && offer.offerUrl?.trim()) {
+                                void trackAndOpenOfferUrl({
+                                  offerId: offer.id,
+                                  offerUrl: offer.offerUrl,
+                                  accessToken: session?.access_token,
+                                  couponCorrelationId: couponCorrelationRef.current?.code === coupon.code
+                                    ? couponCorrelationRef.current.id
+                                    : null,
+                                  couponCode: coupon.code,
+                                });
+                              }
+                            }}
+                          >
+                            Abrir oferta
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               {ctaUrl && offer.freshness && !offer.freshness.ctaEnabled ? (
                 <div className="mt-6">

@@ -12,6 +12,8 @@ import {
   OFFER_BATCH_MAX,
   type OfferBatchDraft,
 } from '@/lib/offers/batchPaste';
+import { parseCouponPaste } from '@/lib/intelligence/coupon/parse';
+import type { CouponDraft } from '@/lib/intelligence/coupon/types';
 import { pendingBasePath, type ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { cn } from '@/app/components/panel/utils';
@@ -55,6 +57,8 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   const { session } = useAuth();
   const [paste, setPaste] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
+  const [couponDrafts, setCouponDrafts] = useState<CouponDraft[]>([]);
+  const [couponNote, setCouponNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<'idle' | 'parse' | 'create'>('idle');
   const [banner, setBanner] = useState<string | null>(null);
   const pendingHref = pendingBasePath(mode);
@@ -66,12 +70,46 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   function detect() {
     setBanner(null);
     const drafts = buildOfferBatchDrafts(paste);
-    if (drafts.length === 0) {
-      setRows([]);
-      setBanner('No encontré URLs https en el texto.');
+    const parsed = parseCouponPaste(paste);
+    setCouponDrafts([...parsed.drafts, ...parsed.failures]);
+    setRows(drafts.length > 0 ? draftsToRows(drafts) : []);
+    if (drafts.length === 0 && parsed.drafts.length === 0) {
+      setBanner('No encontré URLs ni cupones con código y tienda.');
+      setCouponNote(null);
       return;
     }
-    setRows(draftsToRows(drafts));
+    setCouponNote(
+      parsed.drafts.length > 0
+        ? 'Cupones detectados. Guardar no los verifica ni los publica.'
+        : null,
+    );
+    if (drafts.length === 0) setBanner(null);
+  }
+
+  function reviewCoupons() {
+    const parsed = parseCouponPaste(paste);
+    setCouponDrafts([...parsed.drafts, ...parsed.failures]);
+    setCouponNote(
+      parsed.drafts.length === 0
+        ? 'No hay cupones con código y tienda. Nada se guardó.'
+        : 'Revisa antes de guardar. Una mención queda por verificar.',
+    );
+  }
+
+  async function saveReviewedCoupons() {
+    const headers = await authHeaders();
+    if (!headers) return;
+    const acceptKeys = couponDrafts.filter((draft) => draft.ok && draft.canonicalKey).map((draft) => draft.canonicalKey as string);
+    if (acceptKeys.length === 0) return;
+    setBusy('create');
+    const res = await fetch('/api/admin/coupons', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: paste, sourceClass: 'user_paste', acceptKeys }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy('idle');
+    setCouponNote(res.ok ? `Guardados: ${data.saved?.length ?? 0}. Siguen sin verificar.` : 'No se pudo guardar. Si falta la migración, aplícala primero.');
   }
 
   async function authHeaders(): Promise<Record<string, string> | null> {
@@ -282,10 +320,42 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
           >
             Detectar enlaces
           </button>
+          <button
+            type="button"
+            onClick={reviewCoupons}
+            className={cn(ui.btnGhost, 'rounded-full px-4 py-2 text-sm font-medium')}
+          >
+            Revisar cupones
+          </button>
           <span className={cn('text-xs', ui.muted)}>Máximo {OFFER_BATCH_MAX} por pegado</span>
         </div>
         {banner ? <p className={cn('mt-3 text-sm', ui.soft)}>{banner}</p> : null}
       </section>
+
+      {couponDrafts.length > 0 ? (
+        <section className={cn(ui.card, 'p-4 md:p-5')}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className={cn('text-sm', ui.body)}>{couponNote}</p>
+            <button
+              type="button"
+              disabled={busy !== 'idle'}
+              onClick={() => void saveReviewedCoupons()}
+              className={cn('rounded-full px-4 py-1.5 text-sm font-medium disabled:opacity-50', ui.chipActive)}
+            >
+              Guardar cupones revisados
+            </button>
+          </div>
+          <ul className="space-y-2">
+            {couponDrafts.map((draft) => (
+              <li key={draft.canonicalKey ?? draft.raw.slice(0, 40)} className={cn('text-sm', ui.body)}>
+                {draft.ok
+                  ? `${draft.store} · ${draft.code} · ${draft.discountType} · por verificar`
+                  : draft.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {rows.length > 0 ? (
         <section className={cn(ui.card, 'p-4 md:p-5')}>

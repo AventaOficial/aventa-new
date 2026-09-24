@@ -5,6 +5,8 @@ export async function trackAndOpenOfferUrl(input: {
   offerId: string;
   offerUrl: string;
   accessToken?: string | null;
+  couponCorrelationId?: string | null;
+  couponCode?: string | null;
 }): Promise<void> {
   const trimmed = input.offerUrl.trim();
   if (!trimmed) return;
@@ -17,7 +19,11 @@ export async function trackAndOpenOfferUrl(input: {
         'Content-Type': 'application/json',
         ...(input.accessToken ? { Authorization: `Bearer ${input.accessToken}` } : {}),
       },
-      body: JSON.stringify({ offerId: input.offerId, offerUrl: trimmed }),
+      body: JSON.stringify({
+        offerId: input.offerId,
+        offerUrl: trimmed,
+        ...(input.couponCorrelationId ? { couponCorrelationId: input.couponCorrelationId, couponCode: input.couponCode ?? null } : {}),
+      }),
     });
     if (res.ok) {
       const data = (await res.json().catch(() => null)) as { clickId?: string | null } | null;
