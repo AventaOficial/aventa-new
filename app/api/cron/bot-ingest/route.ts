@@ -3,7 +3,11 @@ import { after } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { runIngestCycleForProfile } from '@/lib/bots/ingest/runIngestCycle';
 import { runContinuousDiscoveryCycle } from '@/lib/hunter/discovery';
-import { scheduledContinuousCycleId } from '@/lib/hunter/discovery/continuousCronContract';
+import {
+  scheduledContinuousCycleId,
+  SCHEDULED_CONTINUOUS_DEADLINE_MS,
+  SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
+} from '@/lib/hunter/discovery/continuousCronContract';
 import { runPriceMemoryFreshnessCycle } from '@/lib/hunter/priceMemory';
 
 /**
@@ -63,6 +67,8 @@ export async function GET(request: NextRequest) {
           includeStickyNearReady: true,
           cycleId: scheduledContinuousCycleId(new Date()),
           persistTruth: true,
+          maxPrioritized: SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
+          deadlineMs: SCHEDULED_CONTINUOUS_DEADLINE_MS,
         });
         console.log(
           '[bot-ingest:continuous:after]',

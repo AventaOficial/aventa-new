@@ -140,6 +140,49 @@ export async function persistContinuousDiscoveryTruth(
   };
 }
 
+/**
+ * Upsert a minimal row as soon as cycle_id is known so a Vercel timeout
+ * still leaves durable evidence. Final persist overwrites the same cycle_id.
+ */
+export async function seedDiscoveryCycleSnapshot(input: {
+  cycleId: string;
+  startedAt: string;
+  dryRun: boolean;
+}): Promise<{ persisted: boolean; reason?: string }> {
+  let client;
+  try {
+    client = createServerClient();
+  } catch {
+    return { persisted: false, reason: 'no_client' };
+  }
+
+  const { error } = await client.from(DISCOVERY_CYCLE_SNAPSHOT_TABLE).upsert(
+    {
+      cycle_id: input.cycleId,
+      started_at: input.startedAt,
+      // finished_at is NOT NULL — use start until final upsert replaces it.
+      finished_at: input.startedAt,
+      dry_run: input.dryRun,
+      payload: {
+        cycle_id: input.cycleId,
+        phase: 'started',
+        dry_run: input.dryRun,
+        mint_attempted: false,
+      },
+    },
+    { onConflict: 'cycle_id' },
+  );
+
+  if (error) {
+    const msg = (error.message ?? '').toLowerCase();
+    if (error.code === '42P01' || msg.includes('does not exist')) {
+      return { persisted: false, reason: 'table_missing' };
+    }
+    return { persisted: false, reason: error.message?.slice(0, 160) ?? 'error' };
+  }
+  return { persisted: true };
+}
+
 async function persistDiscoveryCycleSnapshot(
   report: DiscoveryCycleReport,
 ): Promise<{ persisted: boolean; reason?: string }> {

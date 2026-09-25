@@ -6,6 +6,8 @@ import { requireCronSecret } from '@/lib/server/cronAuth';
 import {
   resolveContinuousExecutionMode,
   scheduledContinuousCycleId,
+  SCHEDULED_CONTINUOUS_DEADLINE_MS,
+  SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
 } from '@/lib/hunter/discovery/continuousCronContract';
 import { ML_PRICE_MIN_HISTORY_DAYS } from '@/lib/bots/ingest/mlPriceEngine';
 import {
@@ -113,7 +115,15 @@ describe('Day8 scheduler wiring', () => {
     expect(src).toMatch(/cronSafe:\s*true/);
     expect(src).toMatch(/scheduledContinuousCycleId/);
     expect(src).toMatch(/allowStagingMint:\s*false/);
+    expect(src).toMatch(/SCHEDULED_CONTINUOUS_MAX_PRIORITIZED/);
+    expect(src).toMatch(/SCHEDULED_CONTINUOUS_DEADLINE_MS/);
     expect(src).not.toMatch(/withMachinePendingWritesEnabled/);
+  });
+
+  it('cronSafe defaults maxPrioritized and deadline for budget', () => {
+    expect(SCHEDULED_CONTINUOUS_MAX_PRIORITIZED).toBe(8);
+    expect(SCHEDULED_CONTINUOUS_DEADLINE_MS).toBe(240_000);
+    expect(SCHEDULED_CONTINUOUS_DEADLINE_MS).toBeLessThan(300_000);
   });
 
   it('sole writer remains the only offers.insert', () => {
