@@ -290,14 +290,15 @@ describe('resolveIngestionIdentity', () => {
     expect(a.strategy).toBe('ml_item');
   });
 
-  it('4. canonical URL equivalent → same url fingerprint', () => {
+  it('4. Liverpool PDP SKU equivalent across tracking', () => {
     const a = resolveIngestionIdentity(
       'https://www.liverpool.com.mx/tienda/pdp/camisa/12345?utm_source=x',
     );
     const b = resolveIngestionIdentity('https://www.liverpool.com.mx/tienda/pdp/camisa/12345');
-    expect(a.strategy).toBe('url_fingerprint');
+    expect(a.strategy).toBe('liverpool_sku');
+    expect(a.key).toBe('liv:12345');
     expect(a.key).toBe(b.key);
-    expect(a.key).toContain('url:');
+    expect(a.productFingerprint).toBe('liv:12345');
   });
 
   it('13. malformed identity → none', () => {
