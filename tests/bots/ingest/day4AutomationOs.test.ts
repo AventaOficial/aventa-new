@@ -78,12 +78,13 @@ describe('automation KPI durability', () => {
   });
 
   it('blocked source outcome is not auto success', () => {
+    // Day 7: external source blocks classify as blocked_external (not auto, not quality)
     expect(
       classifyAutomationOutcome({
         status: 'skipped',
         skipReason: 'source_blocked',
       }),
-    ).toBe('retryable');
+    ).toBe('blocked_external');
   });
 });
 

@@ -17,8 +17,11 @@ import {
   buildAutomationCycleMetrics,
   emptyAutomationCycleCounts,
   accumulateAutomationOutcome,
+  classifyAutomationOutcome,
   type AutomationCycleMetrics,
+  type AutomationCycleOutcome,
 } from '@/lib/bots/ingest/automationCycleMetrics';
+import { ML_PRICE_MIN_HISTORY_DAYS } from '@/lib/bots/ingest/mlPriceEngine';
 import { evaluateMachineCandidateGate } from '@/lib/bots/ingest/candidateInsertGate';
 import { enrichWithPriceIntel } from '@/lib/bots/ingest/priceIntel';
 import { withMachinePendingWritesEnabled } from '@/lib/bots/ingest/machineInsertCanary';
@@ -39,6 +42,18 @@ import type {
   HunterSource,
 } from '@/lib/hunter/types';
 import { observeStickySkuViaServer } from '@/lib/hunter/supply/observeStickySkus';
+import { selectNearReadyStickyTargets } from '@/lib/hunter/supply/nearReadySticky';
+import {
+  assignPrimaryTerminalReason,
+  type VerifiedYieldCandidateTrace,
+  type VerifiedYieldTerminalReason,
+} from './verifiedYieldTerminal';
+import {
+  bumpTerminalReason,
+  emptyVerifiedYieldFunnel,
+  finalizeVerifiedYieldRates,
+  type VerifiedYieldFunnel,
+} from './verifiedYieldFunnel';
 import { strongProductFingerprintForUrl } from '@/lib/offers/findDuplicateOffer';
 import { extractMercadoLibreItemId, extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 import { extractLiverpoolProductId } from '@/lib/offers/urlResolution/liverpoolResolver';
@@ -144,6 +159,9 @@ export type DiscoveryCycleReport = {
   operator_verdict: string;
   /** Day 6 — per-source funnel stages. */
   bySource: Record<string, SourceFunnelStageCounts>;
+  /** Day 7 — VERIFIED-yield funnel + terminal diagnosis. */
+  verifiedYield: VerifiedYieldFunnel;
+  terminalTraces: VerifiedYieldCandidateTrace[];
 };
 
 export type RunContinuousDiscoveryCycleOptions = {
@@ -262,12 +280,44 @@ function selectContinuousSources(excludeEnvUrls: boolean): HunterSource[] {
   });
 }
 
+type EnrichCandidateResult = {
+  meta: ParsedOfferMetadata | null;
+  fetchBlocked: boolean;
+};
+
+function pushTerminalTrace(
+  traces: VerifiedYieldCandidateTrace[],
+  trace: VerifiedYieldCandidateTrace,
+): void {
+  if (traces.length < 50) traces.push(trace);
+}
+
+function automationOutcomeFromTerminal(
+  terminal: VerifiedYieldTerminalReason,
+  reasonCodes: string[],
+  opts?: { dryRun?: boolean; fetchBlocked?: boolean },
+): AutomationCycleOutcome {
+  const skipReason = [
+    opts?.fetchBlocked ? 'fetch_blocked' : '',
+    terminal.toLowerCase(),
+    ...reasonCodes,
+  ]
+    .filter(Boolean)
+    .join('|');
+  return classifyAutomationOutcome({
+    status: 'skipped',
+    skipReason,
+    dryRun: opts?.dryRun,
+  });
+}
+
 async function enrichCandidateMeta(
   cand: HunterCandidate,
   config: BotIngestConfig,
   funnel: DiscoveryCycleFunnel,
-): Promise<ParsedOfferMetadata | null> {
+): Promise<EnrichCandidateResult> {
   let meta = cand.ingestItem.precomputedMeta ?? null;
+  let fetchBlocked = false;
   const productId =
     typeof cand.rawMetadata?.productId === 'string'
       ? cand.rawMetadata.productId
@@ -285,6 +335,7 @@ async function enrichCandidateMeta(
       });
       if (obs.observationStatus === 'source_blocked') {
         funnel.fetch_blocked += 1;
+        fetchBlocked = true;
       } else if (obs.meta) {
         funnel.fetch_success += 1;
         meta = obs.meta;
@@ -306,14 +357,14 @@ async function enrichCandidateMeta(
     }
   }
 
-  if (!meta) return null;
+  if (!meta) return { meta: null, fetchBlocked };
 
   try {
     meta = await enrichWithPriceIntel(meta, config, { preserveLabelDiscount: true });
   } catch {
     /* keep meta */
   }
-  return meta;
+  return { meta, fetchBlocked };
 }
 
 /**
@@ -337,6 +388,20 @@ export async function runContinuousDiscoveryCycle(
   const sources: DiscoverySourceOutcome[] = [];
   const allCandidates: HunterCandidate[] = [];
   let hunterSourceRuns: HunterRunMetrics[] = [];
+  const terminalTraces: VerifiedYieldCandidateTrace[] = [];
+  const verifiedYield = emptyVerifiedYieldFunnel(cycleId);
+
+  const nearReadyMeasure = await selectNearReadyStickyTargets({
+    // Measure the same eligibility window as sticky acquisition (short cooldown).
+    config: { maxTargets: 0, cooldownHours: 1 },
+    now,
+  });
+  verifiedYield.near_ready = {
+    one_day_away: nearReadyMeasure.poolOneDayAway,
+    two_days_away: nearReadyMeasure.poolTwoDaysAway,
+    three_days_away: nearReadyMeasure.poolThreeDaysAway,
+    pool_near_ready: nearReadyMeasure.poolNearReady,
+  };
 
   // --- 1) Hunter multi-source collect (isolated) ---
   const hunterSources = selectContinuousSources(excludeEnvUrls);
@@ -437,6 +502,7 @@ export async function runContinuousDiscoveryCycle(
   }
 
   funnel.candidates_discovered = allCandidates.length;
+  verifiedYield.discovered = funnel.candidates_discovered;
 
   // --- 3) Canonicalize / quality filter / dedupe ---
   let invalid = 0;
@@ -473,6 +539,8 @@ export async function runContinuousDiscoveryCycle(
       Boolean(extractAmazonAsin(c.url)) ||
       Boolean(extractLiverpoolProductId(c.url)),
   ).length;
+  verifiedYield.canonicalized = funnel.candidates_canonicalized;
+  verifiedYield.identity_valid = funnel.identified;
 
   // --- 4) Prioritize: sticky near-ready first, then Offer Standard (+ Day 6 health/PM boost) ---
   const stickyFirst = [...deduped].sort((a, b) => {
@@ -510,6 +578,7 @@ export async function runContinuousDiscoveryCycle(
     daysUntilReadyByUrl,
   }).slice(0, maxPrioritized);
   funnel.offer_standard_pass = ranked.length;
+  verifiedYield.offer_standard_pass = ranked.length;
 
   const rankedCandidates = ranked
     .map((item) => {
@@ -518,18 +587,58 @@ export async function runContinuousDiscoveryCycle(
     })
     .filter((c): c is HunterCandidate => Boolean(c));
 
+  verifiedYield.pm_ready = rankedCandidates.filter(
+    (c) => c.rawMetadata?.priceMemoryDriven === true,
+  ).length;
+
   // --- 5) Enrich + DQE + S6.1 (no mint yet) ---
   const gateSamples: DiscoveryCycleReport['gateSamples'] = [];
   const mintable: Array<{ candidate: HunterCandidate; meta: ParsedOfferMetadata }> = [];
   let automationCounts = emptyAutomationCycleCounts();
 
   for (const cand of rankedCandidates) {
-    const meta = await enrichCandidateMeta(cand, config, funnel);
+    const productId =
+      typeof cand.rawMetadata?.productId === 'string'
+        ? cand.rawMetadata.productId
+        : extractMercadoLibreItemId(cand.url);
+    const priorDays =
+      typeof cand.rawMetadata?.priorDays === 'number' ? cand.rawMetadata.priorDays : null;
+    const daysUntilReady =
+      typeof cand.rawMetadata?.daysUntilReady === 'number'
+        ? cand.rawMetadata.daysUntilReady
+        : null;
+
+    const enriched = await enrichCandidateMeta(cand, config, funnel);
+    const meta = enriched.meta;
     if (!meta || !meta.title?.trim() || !(meta.discountPrice > 0)) {
       funnel.dqe_failed += 1;
-      automationCounts = accumulateAutomationOutcome(automationCounts, 'failed', {
+      const terminal = assignPrimaryTerminalReason({
         dryRun,
+        extracted: false,
+        fetchBlocked: enriched.fetchBlocked,
+        identityValid: false,
       });
+      bumpTerminalReason(verifiedYield, terminal);
+      pushTerminalTrace(terminalTraces, {
+        url: cand.url,
+        sourceId: String(cand.source),
+        productId,
+        daysUntilReady,
+        priorDays,
+        historyReady: false,
+        dqeDecision: null,
+        s61Decision: null,
+        reasonCodes: enriched.fetchBlocked ? ['FETCH_BLOCKED'] : ['EXTRACTION_FAILED'],
+        primaryTerminalReason: terminal,
+      });
+      automationCounts = accumulateAutomationOutcome(
+        automationCounts,
+        automationOutcomeFromTerminal(terminal, [], {
+          dryRun,
+          fetchBlocked: enriched.fetchBlocked,
+        }),
+        { dryRun },
+      );
       continue;
     }
     funnel.extracted += 1;
@@ -543,9 +652,13 @@ export async function runContinuousDiscoveryCycle(
       productFingerprint: strongProductFingerprintForUrl(meta.canonicalUrl),
     });
     const dqeVerified = dealQuality.decision === 'VERIFIED_DEAL';
-    if (dqeVerified) funnel.dqe_verified += 1;
-    else if (dealQuality.decision === 'POTENTIAL_DEAL') funnel.dqe_potential += 1;
-    else if (
+    if (dqeVerified) {
+      funnel.dqe_verified += 1;
+      verifiedYield.dqe_verified += 1;
+    } else if (dealQuality.decision === 'POTENTIAL_DEAL') {
+      funnel.dqe_potential += 1;
+      verifiedYield.dqe_potential += 1;
+    } else if (
       dealQuality.decision === 'NO_VERIFIED_DEAL' ||
       dealQuality.decision === 'REJECT'
     ) {
@@ -573,15 +686,49 @@ export async function runContinuousDiscoveryCycle(
       reasonCodes: gate.reasonCodes,
     });
 
+    const s61Pass =
+      gate.wouldInsert === true && gate.qualityDecision === 'VERIFIED_OPPORTUNITY';
+    const terminal = assignPrimaryTerminalReason({
+      dryRun,
+      identityValid: true,
+      extracted: true,
+      // Live fetch may fail while PM tip still yields evaluable meta — do not override DQE/S6.1.
+      fetchBlocked: false,
+      historyReady,
+      dqeDecision: dealQuality.decision,
+      s61WouldInsert: gate.wouldInsert,
+      s61QualityDecision: gate.qualityDecision,
+      reasonCodes: gate.reasonCodes,
+    });
+    bumpTerminalReason(verifiedYield, terminal);
+    pushTerminalTrace(terminalTraces, {
+      url: meta.canonicalUrl,
+      sourceId: String(cand.source),
+      productId,
+      daysUntilReady,
+      priorDays,
+      historyReady,
+      dqeDecision: dealQuality.decision,
+      s61Decision: gate.qualityDecision,
+      reasonCodes: gate.reasonCodes,
+      primaryTerminalReason: terminal,
+    });
+
     const enrichOpts = {
       dryRun,
       enriched: true,
       dqeVerified,
-      s61Passed: gate.wouldInsert === true && gate.qualityDecision === 'VERIFIED_OPPORTUNITY',
+      s61Passed: s61Pass,
     };
 
-    if (gate.wouldInsert && gate.qualityDecision === 'VERIFIED_OPPORTUNITY') {
+    const autoOutcome = automationOutcomeFromTerminal(terminal, gate.reasonCodes, {
+      dryRun,
+      fetchBlocked: false,
+    });
+
+    if (s61Pass) {
       funnel.s61_pass += 1;
+      verifiedYield.s61_pass += 1;
       mintable.push({ candidate: cand, meta });
       if (dryRun || !allowMint) {
         automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked', enrichOpts);
@@ -589,7 +736,8 @@ export async function runContinuousDiscoveryCycle(
       // else: counted at mint time
     } else {
       funnel.s61_blocked += 1;
-      automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked', enrichOpts);
+      verifiedYield.s61_blocked += 1;
+      automationCounts = accumulateAutomationOutcome(automationCounts, autoOutcome, enrichOpts);
     }
   }
 
@@ -613,6 +761,29 @@ export async function runContinuousDiscoveryCycle(
           funnel.s7_pass += 1;
           funnel.pending_created += 1;
           funnel.observations_created += 1;
+          const terminal = assignPrimaryTerminalReason({ mintOk: true, dryRun: false });
+          bumpTerminalReason(verifiedYield, terminal);
+          pushTerminalTrace(terminalTraces, {
+            url: row.meta.canonicalUrl,
+            sourceId: String(row.candidate.source),
+            productId:
+              typeof row.candidate.rawMetadata?.productId === 'string'
+                ? row.candidate.rawMetadata.productId
+                : extractMercadoLibreItemId(row.meta.canonicalUrl),
+            daysUntilReady:
+              typeof row.candidate.rawMetadata?.daysUntilReady === 'number'
+                ? row.candidate.rawMetadata.daysUntilReady
+                : null,
+            priorDays:
+              typeof row.candidate.rawMetadata?.priorDays === 'number'
+                ? row.candidate.rawMetadata.priorDays
+                : null,
+            historyReady: row.meta.signals?.historyReady === true,
+            dqeDecision: 'VERIFIED_DEAL',
+            s61Decision: 'VERIFIED_OPPORTUNITY',
+            reasonCodes: [],
+            primaryTerminalReason: terminal,
+          });
           mintResults.push({
             url: row.meta.canonicalUrl,
             ok: true,
@@ -629,6 +800,23 @@ export async function runContinuousDiscoveryCycle(
           });
         } else if ('duplicate' in result && result.duplicate) {
           funnel.s7_blocked += 1;
+          const terminal = assignPrimaryTerminalReason({ mintDuplicate: true, dryRun: false });
+          bumpTerminalReason(verifiedYield, terminal);
+          pushTerminalTrace(terminalTraces, {
+            url: row.meta.canonicalUrl,
+            sourceId: String(row.candidate.source),
+            productId:
+              typeof row.candidate.rawMetadata?.productId === 'string'
+                ? row.candidate.rawMetadata.productId
+                : extractMercadoLibreItemId(row.meta.canonicalUrl),
+            daysUntilReady: null,
+            priorDays: null,
+            historyReady: row.meta.signals?.historyReady === true,
+            dqeDecision: 'VERIFIED_DEAL',
+            s61Decision: 'VERIFIED_OPPORTUNITY',
+            reasonCodes: ['DUPLICATE'],
+            primaryTerminalReason: terminal,
+          });
           mintResults.push({
             url: row.meta.canonicalUrl,
             ok: false,
@@ -644,16 +832,37 @@ export async function runContinuousDiscoveryCycle(
         } else {
           funnel.s7_blocked += 1;
           const err = 'error' in result ? String(result.error) : 's7_blocked';
+          const terminal = assignPrimaryTerminalReason({
+            s61WouldInsert: true,
+            dryRun: false,
+          });
+          bumpTerminalReason(verifiedYield, terminal);
+          pushTerminalTrace(terminalTraces, {
+            url: row.meta.canonicalUrl,
+            sourceId: String(row.candidate.source),
+            productId: null,
+            daysUntilReady: null,
+            priorDays: null,
+            historyReady: row.meta.signals?.historyReady === true,
+            dqeDecision: 'VERIFIED_DEAL',
+            s61Decision: 'VERIFIED_OPPORTUNITY',
+            reasonCodes: ['WRITER_BLOCK', err],
+            primaryTerminalReason: terminal,
+          });
           mintResults.push({
             url: row.meta.canonicalUrl,
             ok: false,
             error: err,
           });
-          automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked', {
-            dryRun: false,
-            enriched: true,
-            s61Passed: true,
-          });
+          automationCounts = accumulateAutomationOutcome(
+            automationCounts,
+            classifyAutomationOutcome({ status: 'skipped', skipReason: 'writes_blocked' }),
+            {
+              dryRun: false,
+              enriched: true,
+              s61Passed: true,
+            },
+          );
         }
       }
     };
@@ -734,6 +943,11 @@ export async function runContinuousDiscoveryCycle(
     console.log(sourceFunnelLog);
   }
 
+  finalizeVerifiedYieldRates(verifiedYield);
+  console.log(
+    `[day7] cycle=${cycleId.slice(0, 8)} minHistory=${ML_PRICE_MIN_HISTORY_DAYS} verified_yield=${verifiedYield.rates.verified_yield} s61_yield=${verifiedYield.rates.s61_yield} hist_block=${verifiedYield.rates.history_block_rate} near_ready=${verifiedYield.near_ready.pool_near_ready}`,
+  );
+
   const automation = buildAutomationCycleMetrics(automationCounts);
   const finished = new Date();
   const operator_verdict = explainDiscoveryCycleVerdict({
@@ -741,6 +955,7 @@ export async function runContinuousDiscoveryCycle(
     sources,
     dryRun,
     allowMint,
+    verifiedYield,
   });
 
   const cycleFunnel = buildCycleFunnelSummaryFromDiscovery({
@@ -768,6 +983,8 @@ export async function runContinuousDiscoveryCycle(
     hunterSourceRuns,
     operator_verdict,
     bySource,
+    verifiedYield,
+    terminalTraces,
   };
 }
 
@@ -776,23 +993,33 @@ export function explainDiscoveryCycleVerdict(input: {
   sources: DiscoverySourceOutcome[];
   dryRun: boolean;
   allowMint: boolean;
+  verifiedYield?: VerifiedYieldFunnel;
 }): string {
-  const { funnel, sources } = input;
+  const { funnel, sources, verifiedYield } = input;
+  const nearReadySuffix =
+    verifiedYield != null
+      ? ` nearReady=${verifiedYield.near_ready.pool_near_ready} (1d=${verifiedYield.near_ready.one_day_away}).`
+      : '';
+  const histBlockSuffix =
+    verifiedYield?.rates.history_block_rate != null
+      ? ` hist_block=${verifiedYield.rates.history_block_rate}.`
+      : '';
+
   if (funnel.pending_created > 0) {
-    return `Continuous discovery minted ${funnel.pending_created} pending offer(s); cycle_id=${funnel.cycle_id.slice(0, 8)}.`;
+    return `Continuous discovery minted ${funnel.pending_created} pending offer(s); cycle_id=${funnel.cycle_id.slice(0, 8)}.${nearReadySuffix}${histBlockSuffix}`;
   }
   if (funnel.candidates_discovered === 0) {
     const blocked = sources.filter((s) => s.status === 'blocked' || s.status === 'retryable');
     if (blocked.length > 0 && sources.some((s) => s.status === 'success' || s.status === 'empty' || s.status === 'skipped')) {
-      return `No candidates this cycle; ${blocked.length} source(s) blocked/retryable but cycle continued (isolation OK).`;
+      return `No candidates this cycle; ${blocked.length} source(s) blocked/retryable but cycle continued (isolation OK).${nearReadySuffix}${histBlockSuffix}`;
     }
     if (blocked.length === sources.length && sources.length > 0) {
-      return `All discovery sources blocked/retryable — no usable candidates.`;
+      return `All discovery sources blocked/retryable — no usable candidates.${nearReadySuffix}${histBlockSuffix}`;
     }
-    return `Discovery returned 0 candidates (sources empty or skipped).`;
+    return `Discovery returned 0 candidates (sources empty or skipped).${nearReadySuffix}${histBlockSuffix}`;
   }
   if (input.dryRun || !input.allowMint) {
-    return `Discovered ${funnel.candidates_discovered} → prioritized ${funnel.offer_standard_pass} → s61_pass=${funnel.s61_pass} (dry-run / no mint).`;
+    return `Discovered ${funnel.candidates_discovered} → prioritized ${funnel.offer_standard_pass} → s61_pass=${funnel.s61_pass} (dry-run / no mint).${nearReadySuffix}${histBlockSuffix}`;
   }
-  return `Discovered ${funnel.candidates_discovered}; s61_pass=${funnel.s61_pass}; no pending minted (gates or duplicates).`;
+  return `Discovered ${funnel.candidates_discovered}; s61_pass=${funnel.s61_pass}; no pending minted (gates or duplicates).${nearReadySuffix}${histBlockSuffix}`;
 }

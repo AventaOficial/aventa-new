@@ -33,6 +33,14 @@ export const PM_EVIDENCE_SOURCE_ID = 'pm_evidence_backed' as const;
 
 export type StickyNearReadySourceId = typeof STICKY_NEAR_READY_SOURCE_ID;
 
+export type NearReadyBucket = '1d' | '2d' | '3d_plus';
+
+export function nearReadyBucketForDays(daysUntilReady: number): NearReadyBucket {
+  if (daysUntilReady === 1) return '1d';
+  if (daysUntilReady === 2) return '2d';
+  return '3d_plus';
+}
+
 function mlProductUrl(productId: string): string {
   const id = productId.trim().toUpperCase();
   if (/^MLM\d+$/i.test(id) && id.length > 12) {
@@ -123,7 +131,7 @@ export async function collectStickyNearReadyCandidates(
   try {
     const report = await selectNearReadyStickyTargets({
       config: {
-        maxTargets: opts?.maxTargets ?? 12,
+        maxTargets: opts?.maxTargets ?? 24,
         cooldownHours: opts?.cooldownHours ?? 1,
       },
     });
@@ -139,6 +147,7 @@ export async function collectStickyNearReadyCandidates(
         productId: t.productId,
         priorDays: t.priorDays,
         daysUntilReady: t.daysUntilReady,
+        nearReadyBucket: nearReadyBucketForDays(t.daysUntilReady),
         priceMemoryDriven: true,
       };
       candidates.push(cand);
@@ -152,7 +161,12 @@ export async function collectStickyNearReadyCandidates(
       skipReasonCounts:
         report.poolNearReady === 0
           ? { empty_near_ready_pool: 1 }
-          : undefined,
+          : {
+              pool_one_day: report.poolOneDayAway,
+              pool_two: report.poolTwoDaysAway,
+              pool_three: report.poolThreeDaysAway,
+              budget_limited: report.budgetLimited,
+            },
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

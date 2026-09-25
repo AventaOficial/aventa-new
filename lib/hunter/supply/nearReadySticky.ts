@@ -12,6 +12,7 @@ import {
   ML_PRICE_TZ,
 } from '@/lib/bots/ingest/mlPriceEngine';
 import { formatYmdInTz } from '@/lib/bots/ingest/ingestZonedTime';
+import { allocateNearReadyBudget } from '@/lib/hunter/discovery/verifiedYieldFunnel';
 
 export type NearReadyStickyTarget = {
   productId: string;
@@ -35,6 +36,9 @@ export type NearReadyStickyReport = {
   targets: NearReadyStickyTarget[];
   poolNearReady: number;
   poolOneDayAway: number;
+  poolTwoDaysAway: number;
+  poolThreeDaysAway: number;
+  budgetAllocation: { one: number; two: number; threePlus: number };
   cooldownSkipped: number;
   alreadyReadySkipped: number;
   observedTodaySkipped: number;
@@ -45,7 +49,7 @@ export type NearReadyStickyReport = {
 export const DEFAULT_NEAR_READY_STICKY_CONFIG: NearReadyStickyConfig = {
   minHistoryDays: ML_PRICE_MIN_HISTORY_DAYS,
   cooldownHours: Number.parseInt(process.env.SUPPLY_STICKY_COOLDOWN_HOURS ?? '20', 10) || 20,
-  maxTargets: Number.parseInt(process.env.SUPPLY_NEAR_READY_MAX ?? '12', 10) || 12,
+  maxTargets: Number.parseInt(process.env.SUPPLY_NEAR_READY_MAX ?? '24', 10) || 24,
   historyWindowDays: 89,
 };
 
@@ -110,6 +114,9 @@ export async function selectNearReadyStickyTargets(opts?: {
     targets: [],
     poolNearReady: 0,
     poolOneDayAway: 0,
+    poolTwoDaysAway: 0,
+    poolThreeDaysAway: 0,
+    budgetAllocation: { one: 0, two: 0, threePlus: 0 },
     cooldownSkipped: 0,
     alreadyReadySkipped: 0,
     observedTodaySkipped: 0,
@@ -211,12 +218,30 @@ export async function selectNearReadyStickyTargets(opts?: {
   }
 
   const ranked = rankNearReadyTargets(eligible);
-  const { picked, budgetLimited } = pickNearReadyTargets(ranked, cfg.maxTargets);
+  const oneDayAway = ranked.filter((t) => t.daysUntilReady === 1);
+  const twoDaysAway = ranked.filter((t) => t.daysUntilReady === 2);
+  const threePlusDaysAway = ranked.filter((t) => t.daysUntilReady >= 3);
+
+  const { pickedIds, allocation } = allocateNearReadyBudget({
+    oneDayAway,
+    twoDaysAway,
+    threePlusDaysAway,
+    maxTargets: cfg.maxTargets,
+  });
+
+  const byProductId = new Map(ranked.map((t) => [t.productId, t]));
+  const picked = pickedIds
+    .map((id) => byProductId.get(id))
+    .filter((t): t is NearReadyStickyTarget => Boolean(t));
+  const budgetLimited = Math.max(0, eligible.length - picked.length);
 
   return {
     targets: picked,
     poolNearReady: eligible.length,
-    poolOneDayAway: eligible.filter((t) => t.daysUntilReady === 1).length,
+    poolOneDayAway: oneDayAway.length,
+    poolTwoDaysAway: twoDaysAway.length,
+    poolThreeDaysAway: threePlusDaysAway.length,
+    budgetAllocation: allocation,
     cooldownSkipped,
     alreadyReadySkipped,
     observedTodaySkipped,

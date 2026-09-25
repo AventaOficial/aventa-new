@@ -4,8 +4,33 @@ export {
   collectStickyNearReadyCandidates,
   collectPmEvidenceBackedCandidates,
   nearReadyTargetToIngestItem,
+  nearReadyBucketForDays,
 } from './stickyNearReadySource';
-export type { StickyNearReadySourceId } from './stickyNearReadySource';
+export type { StickyNearReadySourceId, NearReadyBucket } from './stickyNearReadySource';
+
+export {
+  VERIFIED_YIELD_TERMINAL_REASONS,
+  assignPrimaryTerminalReason,
+  isQualityBlockedTerminal,
+  isExternalBlockedTerminal,
+} from './verifiedYieldTerminal';
+export type {
+  VerifiedYieldTerminalReason,
+  VerifiedYieldCandidateTrace,
+} from './verifiedYieldTerminal';
+
+export {
+  emptyNearReadyBuckets,
+  emptyVerifiedYieldFunnel,
+  bumpTerminalReason,
+  finalizeVerifiedYieldRates,
+  allocateNearReadyBudget,
+} from './verifiedYieldFunnel';
+export type {
+  NearReadyDayBuckets,
+  VerifiedYieldRates,
+  VerifiedYieldFunnel,
+} from './verifiedYieldFunnel';
 
 export {
   metaFromDiscoveryEvidenceForProduct,

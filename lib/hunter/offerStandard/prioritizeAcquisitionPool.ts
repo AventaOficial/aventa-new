@@ -33,12 +33,15 @@ function priceOf(item: IngestItem): number | null {
 }
 
 /**
- * Documented priority boosts (advisory only — never bypasses DQE/S6.1):
+ * Documented priority boosts (advisory only — acquisition demand ranking;
+ * never bypasses DQE/S6.1 gates):
  * - source healthy: +8
  * - source degraded: +0
  * - source down/disabled/unknown: −12
- * - daysUntilReady 0–1: +15
- * - daysUntilReady 2–3: +8
+ * - daysUntilReady 0: +20
+ * - daysUntilReady 1: +18
+ * - daysUntilReady 2: +12
+ * - daysUntilReady 3: +8
  * - daysUntilReady ≥4 or unknown: +0
  */
 export function computeAcquisitionPriorityBoost(
@@ -54,8 +57,10 @@ export function computeAcquisitionPriorityBoost(
   const url = item.precomputedMeta?.canonicalUrl || item.url;
   const days = ctx?.daysUntilReadyByUrl?.[url];
   if (typeof days === 'number' && Number.isFinite(days)) {
-    if (days <= 1) boost += 15;
-    else if (days <= 3) boost += 8;
+    if (days === 0) boost += 20;
+    else if (days === 1) boost += 18;
+    else if (days === 2) boost += 12;
+    else if (days === 3) boost += 8;
   }
   return boost;
 }

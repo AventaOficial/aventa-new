@@ -20,6 +20,8 @@ export type AutomationCycleOutcome =
   | 'auto_processed'
   | 'human_required'
   | 'blocked'
+  | 'blocked_quality'
+  | 'blocked_external'
   | 'retryable'
   | 'failed'
   | 'duplicate';
@@ -30,6 +32,8 @@ export type AutomationCycleCounts = {
   auto_processed: number;
   human_required: number;
   blocked: number;
+  blocked_quality: number;
+  blocked_external: number;
   retryable: number;
   failed: number;
   pending_created: number;
@@ -60,6 +64,8 @@ export function emptyAutomationCycleCounts(): AutomationCycleCounts {
     auto_processed: 0,
     human_required: 0,
     blocked: 0,
+    blocked_quality: 0,
+    blocked_external: 0,
     retryable: 0,
     failed: 0,
     pending_created: 0,
@@ -98,10 +104,30 @@ export function classifyAutomationOutcome(input: {
     return 'duplicate';
   }
   if (
+    reason.includes('source_blocked') ||
+    reason.includes('fetch_blocked') ||
+    reason.includes('oauth') ||
+    reason.includes('captcha') ||
+    reason.includes('anti_bot')
+  ) {
+    return 'blocked_external';
+  }
+  if (
+    reason.includes('insufficient_history') ||
+    reason.includes('artificial') ||
+    reason.includes('s61_') ||
+    reason.includes('dqe_') ||
+    reason.includes('provenance') ||
+    reason.includes('availability') ||
+    reason.includes('confidence') ||
+    reason.includes('suppress')
+  ) {
+    return 'blocked_quality';
+  }
+  if (
     reason.includes('retry') ||
     reason.includes('rate_limit') ||
-    reason.includes('timeout') ||
-    reason.includes('source_blocked')
+    reason.includes('timeout')
   ) {
     return 'retryable';
   }
@@ -115,8 +141,6 @@ export function classifyAutomationOutcome(input: {
   if (
     reason.includes('writes') ||
     reason.includes('production_blocked') ||
-    reason.includes('s61_') ||
-    reason.includes('suppress') ||
     reason.includes('dry_run') ||
     reason.includes('budget') ||
     status === 'skipped'
@@ -196,6 +220,14 @@ export function accumulateAutomationOutcome(
       break;
     case 'blocked':
       next.blocked += 1;
+      break;
+    case 'blocked_quality':
+      next.blocked += 1;
+      next.blocked_quality += 1;
+      break;
+    case 'blocked_external':
+      next.blocked += 1;
+      next.blocked_external += 1;
       break;
     case 'retryable':
       next.retryable += 1;
