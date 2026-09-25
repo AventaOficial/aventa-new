@@ -42,7 +42,7 @@ export function applyVitalesFeedTransform<T extends Pick<CardOffer, 'votes'>>(
   list: T[],
   effectiveLimit: number,
 ): T[] {
-  let filtered = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
+  const filtered = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
   filtered.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
   const half = Math.ceil(filtered.length / 2);
   const high = filtered.slice(0, half);
