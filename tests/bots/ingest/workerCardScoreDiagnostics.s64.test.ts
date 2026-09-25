@@ -1,5 +1,5 @@
-/**
- * S6.4 — Worker_card empirical diagnostics tests.
+﻿/**
+ * S6.4 ÔÇö Worker_card empirical diagnostics tests.
  * Does not change scorer weights / thresholds / gate policy.
  */
 
@@ -97,7 +97,7 @@ function workerMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetadat
   const { signals: overSignals, ...rest } = over;
   return {
     canonicalUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-s64',
-    title: 'Audífonos Bluetooth noise cancelling oferta S64',
+    title: 'Aud├¡fonos Bluetooth noise cancelling oferta S64',
     store: 'Mercado Libre',
     imageUrl: CDN,
     discountPrice: 698,
@@ -182,7 +182,15 @@ describe('S6.4 worker_card score diagnostics', () => {
   });
 
   it('7. S6.1 gate unchanged (uses actual verifier)', () => {
-    const meta = workerMeta();
+    const meta = workerMeta({
+      signals: {
+        listingTypeId: 'worker_card',
+        cardDiscountSource: 'card_strikethrough',
+        originalPriceProvenance: 'listing_card',
+        imageProvenance: 'listing_card',
+        historyReady: true,
+      },
+    });
     const scored = scoreIngestCandidate(meta, meta.signals, cfg);
     const direct = evaluateMachineCandidateGate({
       url: meta.canonicalUrl,
@@ -229,18 +237,36 @@ describe('S6.4 worker_card score diagnostics', () => {
         listingTypeId: 'worker_card',
         originalPriceProvenance: 'listing_card',
         cardDiscountSource: 'card_strikethrough',
-        historyReady: false,
+        // Mint-valid evidence so DealScore (low without rich intel) is the variable under test.
+        historyReady: true,
       },
     });
     const decomp = decomposeIngestScores({ meta, config: cfg });
-    // DealScore advisory — low without history is expected; gate may still verify.
+    // DealScore advisory ÔÇö low without rich history signals is expected; gate still verifies.
     expect(decomp.dealScore).toBeLessThanOrEqual(35);
     expect(decomp.verifierDecision).not.toBe('reject');
     expect(decomp.gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(decomp.gate.wouldInsert).toBe(true);
   });
 
-  it('10. UGC path untouched — diagnostics module is ingest-only', async () => {
+  it('9b. listing_card without historyReady ÔåÆ SUPPRESSED (not a DealScore reject)', () => {
+    const meta = workerMeta({
+      discountPercent: 25,
+      signals: {
+        listingTypeId: 'worker_card',
+        originalPriceProvenance: 'listing_card',
+        cardDiscountSource: 'card_strikethrough',
+        historyReady: false,
+      },
+    });
+    const decomp = decomposeIngestScores({ meta, config: cfg });
+    expect(decomp.verifierDecision).not.toBe('reject');
+    expect(decomp.gate.qualityDecision).toBe('SUPPRESSED');
+    expect(decomp.gate.wouldInsert).toBe(false);
+    expect(decomp.gate.reasonCodes).toContain('INSUFFICIENT_HISTORY');
+  });
+
+  it('10. UGC path untouched ÔÇö diagnostics module is ingest-only', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const ugc = fs.readFileSync(
@@ -281,7 +307,7 @@ describe('S6.4 worker_card score diagnostics', () => {
 
   it('control: without worker_card, popularity/rating stay at baseline defaults', () => {
     const meta = workerMeta();
-    // Explicitly remove heuristic — do not leave default worker_card from helper.
+    // Explicitly remove heuristic ÔÇö do not leave default worker_card from helper.
     if (meta.signals) {
       const { listingTypeId: _removed, ...rest } = meta.signals;
       meta.signals = rest;

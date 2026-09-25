@@ -113,14 +113,20 @@ function trustedMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetada
       ratingAverage: 4.6,
       ratingCount: 80,
       listingTypeId: 'worker_card',
-      originalPriceProvenance: 'listing_card',
-      cardDiscountSource: 'card_strikethrough',
+      originalPriceProvenance: 'source_explicit',
+      cardDiscountSource: 'pdp',
       historyReady: false,
       ...(overSignals ?? {}),
     },
     ...rest,
   };
 }
+
+const VERIFIED_DQE = {
+  decision: 'VERIFIED_DEAL' as const,
+  recommendedAction: 'PUBLISH_CANDIDATE' as const,
+  reasons: ['ok'],
+};
 
 function row(over: Partial<CanarySelectionRow> & { index: number }): CanarySelectionRow {
   return {
@@ -181,12 +187,14 @@ describe('S6.7 machine insert canary', () => {
       meta,
       config,
       verifierDecision: 'pending',
+      dealQuality: VERIFIED_DQE,
     });
     const live = evaluateMachineLiveInsertEligibility({
       url: meta.canonicalUrl,
       meta,
       config,
       verifierDecision: 'pending',
+      dealQuality: VERIFIED_DQE,
     });
     expect(live.qualityDecision).toBe(gate.qualityDecision);
     expect(live.wouldInsert).toBe(gate.wouldInsert);
@@ -199,6 +207,7 @@ describe('S6.7 machine insert canary', () => {
       meta: trustedMeta(),
       config: baseConfig(),
       verifierDecision: 'pending',
+      dealQuality: VERIFIED_DQE,
     });
     expect(live.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(live.eligible).toBe(true);
@@ -235,6 +244,7 @@ describe('S6.7 machine insert canary', () => {
       meta: trustedMeta(),
       config: baseConfig(),
       verifierDecision: 'pending',
+      dealQuality: VERIFIED_DQE,
       duplicate: { kind: 'product_fingerprint', price: 999 },
     });
     expect(live.qualityDecision).toBe('DUPLICATE');

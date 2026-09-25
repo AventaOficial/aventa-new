@@ -76,6 +76,7 @@ export function applyMlPriceIntelToMeta(
     priceIntelSource: 'aventa_ml',
     suspectedArtificialListPrice: ml.intel.suspectedArtificialListPrice,
     historyReady: ml.intel.historyReady,
+    samples90d: ml.intel.samples90d,
   };
 
   const preserve =
