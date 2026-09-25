@@ -53,7 +53,7 @@
       "schedule": "45 15 * * *"
     },
     {
-      "path": "/api/cron/bot-ingest?mode=continuous",
+      "path": "/api/cron/continuous-discovery",
       "schedule": "0 * * * *"
     },
     {

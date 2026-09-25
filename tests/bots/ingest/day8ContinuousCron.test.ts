@@ -99,14 +99,15 @@ describe('Day8 scheduled cycle idempotency key', () => {
 describe('Day8 scheduler wiring', () => {
   it('registers hourly continuous discovery without removing existing crons', () => {
     const vercel = readFileSync(join(ROOT, 'vercel.json'), 'utf8');
-    expect(vercel).toMatch(/\/api\/cron\/bot-ingest\?mode=continuous/);
+    expect(vercel).toMatch(/\/api\/cron\/continuous-discovery/);
     expect(vercel).toMatch(/"schedule": "0 \* \* \* \*"/);
+    expect(vercel).not.toMatch(/bot-ingest\?mode=continuous/);
     expect(vercel).toMatch(/\/api\/cron\/pm-freshness/);
     expect(vercel).toMatch(/\/api\/cron\/supply-engine/);
   });
 
-  it('route uses existing cron auth and cronSafe fail-closed', () => {
-    const src = readFileSync(join(ROOT, 'app/api/cron/bot-ingest/route.ts'), 'utf8');
+  it('dedicated cron route is cronSafe and uses existing auth', () => {
+    const src = readFileSync(join(ROOT, 'app/api/cron/continuous-discovery/route.ts'), 'utf8');
     expect(src).toMatch(/requireCronSecret/);
     expect(src).toMatch(/cronSafe:\s*true/);
     expect(src).toMatch(/scheduledContinuousCycleId/);
