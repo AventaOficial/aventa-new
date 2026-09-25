@@ -223,17 +223,25 @@ export async function transitionCommissionStatus(
     return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
   }
 
-  // M1: reversal with existing ledger → contract event only (no silent void / money move).
+  // Compensating reversal when ledger link exists (gated by MONEY_PATH_FROZEN inside).
   if (
     input.toStatus === 'reversed' &&
     typeof existing.ledger_entry_id === 'string' &&
     existing.ledger_entry_id.trim()
   ) {
-    await emitSettlementReversalRequired(supabase, {
+    const reversal = await emitSettlementReversalRequired(supabase, {
       commissionId: input.commissionId,
       ledgerEntryId: existing.ledger_entry_id.trim(),
       actor: input.actor ?? 'system',
     });
+    if (!reversal.ok) {
+      return {
+        ok: false,
+        from,
+        to: input.toStatus,
+        error: reversal.reason ?? 'settlement_reversal_failed',
+      };
+    }
   }
 
   return { ok: true, from, to: input.toStatus };

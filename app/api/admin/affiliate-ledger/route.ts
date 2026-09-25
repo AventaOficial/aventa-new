@@ -231,19 +231,24 @@ export async function POST(request: Request) {
   });
 }
 
-/** PATCH: actualizar estado ledger (void) y reconciliar rewards. */
+/** PATCH: actualizar estado ledger (void only — CHECK constraint) y reconciliar rewards. */
 export async function PATCH(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
+
   const body = await request.json().catch(() => ({}));
   const id = typeof body?.id === 'string' ? body.id.trim() : '';
-  const status = body?.status === 'void' || body?.status === 'reversed' ? body.status : null;
+  // Schema CHECK: pending|accrued|paid|void — 'reversed' is invalid on ledger rows.
+  const status = body?.status === 'void' ? 'void' : null;
   const reason = typeof body?.reason === 'string' ? body.reason.trim() : 'ledger_status_update';
 
   if (!id) return NextResponse.json({ error: 'id obligatorio' }, { status: 400 });
   if (!status) {
-    return NextResponse.json({ error: 'status void|reversed requerido' }, { status: 400 });
+    return NextResponse.json({ error: 'status void requerido' }, { status: 400 });
   }
 
   const supabase = createServerClient();

@@ -170,7 +170,7 @@ describe('executeSettlementReversal compensating movement', () => {
       network: 'mercadolibre',
       amount_cents: -100,
       currency: 'MXN',
-      status: 'reversed',
+      status: 'accrued',
       external_ref: revRef,
       meta: {},
     };

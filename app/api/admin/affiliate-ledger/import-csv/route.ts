@@ -218,12 +218,17 @@ export async function POST(request: Request) {
       },
     });
     if (!audit.ok) {
+      // Fail-closed: remove rows that lack complete audit trail.
+      if (insertedLedgerIds.length > 0) {
+        await supabase.from('affiliate_ledger_entries').delete().in('id', insertedLedgerIds);
+      }
       return NextResponse.json(
         {
           error: 'audit_append_failed',
           detail: audit.error,
-          inserted,
-          note: 'Ledger rows may exist without complete audit — investigate before retry',
+          inserted: 0,
+          rolled_back: insertedLedgerIds.length,
+          note: 'Ledger evidence rows rolled back because audit append failed',
         },
         { status: 500 },
       );

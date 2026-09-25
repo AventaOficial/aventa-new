@@ -167,11 +167,13 @@ export async function executeSettlementReversal(
   }
 
   const compensatingAmount = -amountCents;
+  // CHECK on affiliate_ledger_entries allows only pending|accrued|paid|void.
+  // Compensating -N is a real economic row (not void); use accrued like settlement mint.
   const row = {
     network,
     amount_cents: compensatingAmount,
     currency: String(original.currency ?? 'MXN'),
-    status: 'reversed' as const,
+    status: 'accrued' as const,
     external_ref: reversalExternalRef,
     notes: 'settlement_reversal_compensating',
     source: 'api' as const,
@@ -322,6 +324,7 @@ export async function executeSettlementReversal(
 /**
  * Called after commission → reversed when a ledger link exists.
  * Creates compensating ledger entry (or reuses) so net economic effect is 0.
+ * Fail-closed: callers MUST inspect `ok` (do not discard).
  */
 export async function emitSettlementReversalRequired(
   supabase: SupabaseClient,
@@ -330,7 +333,6 @@ export async function emitSettlementReversalRequired(
     ledgerEntryId: string;
     actor?: string;
   },
-): Promise<SettlementReversalContract> {
-  const result = await executeSettlementReversal(supabase, input);
-  return result.contract;
+): Promise<SettlementReversalResult> {
+  return executeSettlementReversal(supabase, input);
 }
