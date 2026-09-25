@@ -83,6 +83,35 @@ function collectLiverpoolCdnImages(html: string, base: string): string[] {
   return out;
 }
 
+function liverpoolTestIdBlock(html: string, testId: 'discounted' | 'original'): string | null {
+  const marker = `data-testid="${testId}"`;
+  const start = html.indexOf(marker);
+  if (start < 0) return null;
+  const rest = html.slice(start, start + 900);
+  const next = rest.slice(marker.length).search(/data-testid="/);
+  return next >= 0 ? rest.slice(0, next + marker.length) : rest;
+}
+
+/** Precio SSR de Liverpool: `$<!-- -->2,969` + centavos en `<span class="invisible">.</span>10`. */
+function moneyFromLiverpoolBlock(block: string | null): number | null {
+  if (!block) return null;
+  const major = block.match(/\$\s*(?:<!--\s*-->)?\s*(\d{1,3}(?:,\d{3})+|\d+)/);
+  if (!major?.[1]) return null;
+  const cents = block.match(/invisible">\.<\/span>\s*(\d{2})/);
+  const n = Number(`${major[1].replace(/,/g, '')}${cents?.[1] ? `.${cents[1]}` : ''}`);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+}
+
+export function extractLiverpoolDomPrices(html: string): {
+  discount: number | null;
+  original: number | null;
+} {
+  return {
+    discount: moneyFromLiverpoolBlock(liverpoolTestIdBlock(html, 'discounted')),
+    original: moneyFromLiverpoolBlock(liverpoolTestIdBlock(html, 'original')),
+  };
+}
+
 /**
  * Extracción Liverpool estilo Amazon: JSON-LD multi-image → CDN estructurado → meta.
  */
@@ -101,19 +130,21 @@ export function extractLiverpoolProduct(html: string, pageUrl: string): Liverpoo
     preferredCover: retail.image || primary?.image || null,
   });
 
-  let discount = retail.suggestedDiscount ?? primary?.price ?? null;
-  let original = retail.suggestedOriginal ?? primary?.originalPrice ?? null;
+  const dom = extractLiverpoolDomPrices(html);
+  const discount = retail.suggestedDiscount ?? primary?.price ?? dom.discount;
+  let original = retail.suggestedOriginal ?? primary?.originalPrice ?? dom.original;
   if (original != null && discount != null && original <= discount) original = null;
 
   const title =
-    retail.title ||
-    primary?.title ||
+    (typeof retail.title === 'string' ? retail.title : null) ||
+    (typeof primary?.title === 'string' ? primary.title : null) ||
     getMetaContent(html, 'og:title') ||
     getMetaContent(html, 'twitter:title') ||
+    html.match(/<title>([^<]+)<\/title>/i)?.[1]?.trim() ||
     null;
 
   return {
-    title: title && title.trim() ? title.trim() : null,
+    title: typeof title === 'string' && title.trim() ? title.trim() : null,
     image: selected[0] ?? null,
     images: selected,
     store: 'Liverpool',

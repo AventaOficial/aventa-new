@@ -211,6 +211,9 @@ Descuento: 10%
     expect(offer?.price).toBe('21699');
     const coupons = parseCouponPaste(text);
     expect(coupons.drafts.some((draft) => draft.code === 'AHORRA' && draft.ok)).toBe(true);
+    const offerOnly = parseCouponPaste(`Producto: JBL\nPrecio actual: $2,969\nPrecio con cupón: —\nURL: https://www.liverpool.com.mx/tienda/pdp/x/1`);
+    expect(offerOnly.drafts).toHaveLength(0);
+    expect(offerOnly.failures).toHaveLength(0);
     expect(coupons.drafts.every((draft) => draft.confidence <= 0.25)).toBe(true);
   });
 });

@@ -29,6 +29,16 @@ describe('offer ingestion — URL pipeline', () => {
     expect(result.rawUrl).toContain('utm_source');
   });
 
+  it('no sustituye un PDP por el origen de la tienda', () => {
+    const raw =
+      'https://www.liverpool.com.mx/tienda/pdp/audifonos-over-ear-jbl-live-780nc-inalambrica-con-cancelacion-de-ruido/1199845185';
+    const result = processOfferUrl(raw);
+    expect(result.rawUrl).toBe(raw);
+    expect(result.canonicalUrl).toContain('/tienda/pdp/');
+    expect(result.canonicalUrl).not.toBe('https://www.liverpool.com.mx/');
+    expect(result.affiliateUrl).toContain('/1199845185');
+  });
+
   it('2. Mercado Libre URL with tracking: identity stable', () => {
     const noisy =
       'https://www.mercadolibre.com.mx/x/p/MLMX123?utm_campaign=x&fbclid=y&sid=share';
