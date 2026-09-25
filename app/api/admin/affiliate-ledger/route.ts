@@ -3,8 +3,12 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
 import { affiliateLedgerInsertSchema } from '@/lib/commissions/affiliateLedger';
 import { fingerprintLedgerRow } from '@/lib/commissions/ledgerFingerprint';
-import { tryCreateRewardFromLedgerRow, type LedgerRowForReward } from '@/lib/rewards/processLedger';
-import type { AffiliateNetworkId } from '@/lib/rewards/adapters/types';
+import { appendEconomicEvent } from '@/lib/economy/appendEconomicEvent';
+import {
+  NETWORK_EVIDENCE_REWARDS_DISABLED,
+  assertNetworkEvidenceExternalRefAllowed,
+} from '@/lib/economy/ledger/canonicalLedgerAuthority';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -88,10 +92,15 @@ export async function GET(request: Request) {
   return NextResponse.json({ entries: data ?? [], total: count ?? null, limit, offset });
 }
 
-/** POST: alta manual de un movimiento (reporte descargado de Amazon, ML, etc.). */
+/** POST: alta manual de evidencia de red (reporte) al ledger canónico — sin mint de rewards. */
 export async function POST(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
+  void NETWORK_EVIDENCE_REWARDS_DISABLED;
 
   const raw = await request.json().catch(() => ({}));
   const parsed = affiliateLedgerInsertSchema.safeParse(raw);
@@ -128,6 +137,11 @@ export async function POST(request: Request) {
     });
   }
 
+  const reserved = assertNetworkEvidenceExternalRefAllowed(externalRef);
+  if (!reserved.ok) {
+    return NextResponse.json({ error: reserved.error }, { status: 400 });
+  }
+
   const supabase = createServerClient();
   const payload = {
     network: row.network,
@@ -139,7 +153,11 @@ export async function POST(request: Request) {
     external_ref: externalRef,
     notes: row.notes ?? null,
     source: row.source,
-    meta: row.meta ?? {},
+    meta: {
+      ...(row.meta ?? {}),
+      evidence_ingest: true,
+      imported_by: auth.user.id,
+    },
     creator_id: row.creator_id ?? null,
     tracking_tag: row.tracking_tag ?? null,
     offer_id: row.offer_id ?? null,
@@ -183,27 +201,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No se pudo guardar' }, { status: 500 });
   }
 
-  let rewardCreated = false;
   if (data?.id) {
-    const row = data as LedgerRowForReward;
-    const reward = await tryCreateRewardFromLedgerRow(supabase, {
-      id: row.id,
-      network: row.network as AffiliateNetworkId,
-      amount_cents: Number(row.amount_cents),
-      status: row.status,
-      external_ref: row.external_ref,
-      notes: row.notes,
-      meta: row.meta as Record<string, unknown>,
-      created_at: row.created_at,
-      tracking_tag: row.tracking_tag,
-      offer_id: (row as { offer_id?: string | null }).offer_id ?? null,
-      creator_id: (row as { creator_id?: string | null }).creator_id ?? null,
-      click_id: (row as { click_id?: string | null }).click_id ?? null,
+    const audit = await appendEconomicEvent(supabase, {
+      entityType: 'settlement',
+      entityId: String(data.id),
+      eventType: 'network_report_evidence_ingested',
+      toStatus: row.status,
+      actor: `admin:${auth.user.id}`,
+      payload: {
+        source: 'manual_post',
+        rewardsCreated: false,
+        note: 'evidence_ingest_not_settlement_bridge',
+      },
     });
-    rewardCreated = reward.created;
+    if (!audit.ok) {
+      await supabase.from('affiliate_ledger_entries').delete().eq('id', data.id);
+      return NextResponse.json(
+        { error: 'audit_append_failed', detail: audit.error },
+        { status: 500 },
+      );
+    }
   }
 
-  return NextResponse.json({ ok: true, id: data?.id, reward_created: rewardCreated });
+  return NextResponse.json({
+    ok: true,
+    id: data?.id,
+    reward_created: false,
+    rewards_path: 'disabled_network_evidence_ingest',
+  });
 }
 
 /** PATCH: actualizar estado ledger (void) y reconciliar rewards. */

@@ -122,7 +122,7 @@ export async function recordCommission(
     .maybeSingle();
 
   if (!error && data?.id) {
-    await appendEconomicEvent(supabase, {
+    const audit = await appendEconomicEvent(supabase, {
       entityType: 'commission',
       entityId: String(data.id),
       eventType: 'created',
@@ -136,6 +136,14 @@ export async function recordCommission(
         ledgerBoundary: ECONOMIC_LEDGER_BOUNDARY.note,
       },
     });
+    if (!audit.ok) {
+      await supabase.from('affiliate_commissions').delete().eq('id', data.id);
+      console.error(
+        '[economy/recordCommission] audit_append_failed — rolled back create',
+        audit.error,
+      );
+      return null;
+    }
     return mapRow(data as Record<string, unknown>, false);
   }
 
@@ -202,7 +210,7 @@ export async function transitionCommissionStatus(
     return { ok: false, from, to: input.toStatus, error: upErr.message };
   }
 
-  await appendEconomicEvent(supabase, {
+  const audit = await appendEconomicEvent(supabase, {
     entityType: 'commission',
     entityId: input.commissionId,
     eventType: 'status_transition',
@@ -211,6 +219,9 @@ export async function transitionCommissionStatus(
     actor: input.actor ?? 'system',
     payload: { reason: input.reason ?? null },
   });
+  if (!audit.ok) {
+    return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
+  }
 
   // M1: reversal with existing ledger → contract event only (no silent void / money move).
   if (

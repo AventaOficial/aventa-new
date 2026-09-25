@@ -10,7 +10,11 @@ export const SETTLEMENT_EVENT_TYPES = [
   'settlement_reused',
   'settlement_rejected',
   'settlement_failed',
-  /** Future reversal campaign — no money movement in M1. */
+  /** Compensating ledger entry created (or reused). */
+  'settlement_reversed',
+  'settlement_reversal_reused',
+  'settlement_reversal_blocked',
+  /** @deprecated kept for historical audit rows; new path uses settlement_reversed */
   'settlement_reversal_required',
 ] as const;
 
@@ -64,14 +68,30 @@ export type SettlementBridgeResult = {
 
 export const SETTLEMENT_EXTERNAL_REF_PREFIX = 'settlement:commission:' as const;
 
-/** Future reversal campaign contract — reconstructable, no silent void. */
+/** Compensating reversal — net ledger movement to zero. */
 export type SettlementReversalContract = {
-  kind: 'settlement_reversal_required';
+  kind: 'settlement_reversal_executed';
   commissionId: string;
   ledgerEntryId: string;
   externalRef: string;
+  reversalExternalRef: string;
   reversedAt: string;
-  /** M1 does not move money; future campaign reconciles. */
-  moneyMovement: 'none_m1';
-  note: 'commission_reversed_with_existing_ledger_requires_reconciliation';
+  moneyMovement: 'compensating_ledger_entry';
+  compensatingLedgerEntryId: string | null;
+  amountCents: number | null;
+  note: 'commission_reversed_with_compensating_ledger_entry';
+};
+
+export type SettlementReversalResult = {
+  ok: boolean;
+  reason:
+    | 'money_path_frozen'
+    | 'original_ledger_not_found'
+    | 'invalid_original_amount'
+    | 'ledger_write_failed'
+    | 'audit_append_failed'
+    | null;
+  contract: SettlementReversalContract;
+  reused: boolean;
+  compensatingLedgerEntryId: string | null;
 };

@@ -75,8 +75,8 @@ async function audit(
     payload?: Record<string, unknown>;
     actor?: string;
   },
-): Promise<void> {
-  await appendEconomicEvent(supabase, {
+): Promise<{ ok: boolean; error?: string }> {
+  const result = await appendEconomicEvent(supabase, {
     entityType: 'settlement',
     entityId: input.commissionId,
     eventType: input.eventType,
@@ -87,6 +87,10 @@ async function audit(
       ...(input.payload ?? {}),
     },
   });
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+  return { ok: true };
 }
 
 function validateGross(raw: unknown): number | null {

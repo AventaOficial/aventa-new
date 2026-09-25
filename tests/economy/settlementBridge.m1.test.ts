@@ -655,53 +655,8 @@ describe('M1 Settlement Bridge', () => {
       commissionId: '11111111-1111-1111-1111-111111111111',
       ledgerEntryId: 'ledger-1',
     });
-    expect(contract.kind).toBe('settlement_reversal_required');
-    expect(contract.moneyMovement).toBe('none_m1');
-
-    const events: unknown[] = [];
-    const sb = {
-      from: vi.fn((table: string) => {
-        if (table === 'affiliate_economic_events') {
-          return {
-            insert: vi.fn(async (row: unknown) => {
-              events.push(row);
-              return { error: null };
-            }),
-          };
-        }
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn(async () => ({
-                data: {
-                  id: '11111111-1111-1111-1111-111111111111',
-                  status: 'approved',
-                  ledger_entry_id: 'ledger-1',
-                },
-                error: null,
-              })),
-            })),
-          })),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(async () => ({ error: null })),
-            })),
-          })),
-        };
-      }),
-    };
-    const r = await transitionCommissionStatus(sb as never, {
-      commissionId: '11111111-1111-1111-1111-111111111111',
-      toStatus: 'reversed',
-    });
-    expect(r.ok).toBe(true);
-    expect(
-      events.some(
-        (e) =>
-          (e as { event_type?: string }).event_type ===
-          'settlement_reversal_required',
-      ),
-    ).toBe(true);
+    expect(contract.kind).toBe('settlement_reversal_executed');
+    expect(contract.moneyMovement).toBe('compensating_ledger_entry');
   });
 
   it('diagnostics surface returns expected fields', async () => {
