@@ -931,7 +931,6 @@ export async function processExternalWorkerBatch(
   const maxInsertsThisBatch = resolveCanaryInsertCap(budgetCap, payload.canaryCap);
 
   const autoApproved = 0;
-  let insertedThisRun = 0;
 
   // Discovery intelligence: negative memory → source quality → category policy → diversity
   const fingerprints = resolved
@@ -1029,16 +1028,14 @@ export async function processExternalWorkerBatch(
     );
 
     if (payload.dryRun) {
-      insertedThisRun += 1;
       opsDryRunSimulated += 1;
       results.push({
         url: row.item.url,
         source: row.item.source,
         status: 'dry_run_would_insert',
-        offerId: `dry-run-${insertedThisRun}`,
+        offerId: `dry-run-${opsDryRunSimulated}`,
       });
-      // Do not increment sourceStats.inserted — that means real mint only.
-      pendingBySource[row.item.source] = (pendingBySource[row.item.source] ?? 0) + 1;
+      // Observation only — do not inflate pendingBySource / sourceStats.inserted.
       continue;
     }
 
@@ -1078,7 +1075,6 @@ export async function processExternalWorkerBatch(
         gate: row.machineGate.gate,
       });
       if (ins.ok) {
-        insertedThisRun += 1;
         opsWriteSuccess += 1;
         void recordShadowOutcomeFromAutonomous({
           offerId: ins.offerId,

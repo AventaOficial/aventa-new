@@ -17,4 +17,10 @@ describe('resolveHomeFeedPeriod — Recientes semantics', () => {
     expect(resolveHomeFeedPeriod('top', 'week')).toBe('week');
     expect(resolveHomeFeedPeriod('top', 'month')).toBe('month');
   });
+
+  it('home-feed Recientes remapping does not redefine Top day semantics', () => {
+    // Isolation contract: /api/feed/home period helper must not collapse Top→week.
+    expect(resolveHomeFeedPeriod('latest', 'day')).toBe('week');
+    expect(resolveHomeFeedPeriod('top', 'day')).toBe('day');
+  });
 });
