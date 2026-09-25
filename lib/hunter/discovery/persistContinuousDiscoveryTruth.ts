@@ -149,6 +149,74 @@ export async function seedDiscoveryCycleSnapshot(input: {
   startedAt: string;
   dryRun: boolean;
 }): Promise<{ persisted: boolean; reason?: string }> {
+  return upsertDiscoveryCycleSnapshotRow({
+    cycleId: input.cycleId,
+    startedAt: input.startedAt,
+    finishedAt: input.startedAt,
+    dryRun: input.dryRun,
+    payload: {
+      cycle_id: input.cycleId,
+      phase: 'started',
+      dry_run: input.dryRun,
+      mint_attempted: false,
+    },
+  });
+}
+
+/**
+ * Force a durable cycle row when the soft deadline fires before the full
+ * funnel finishes. Upserts the same cycle_id (idempotent with seed/final).
+ */
+export async function persistDeadlineDiscoverySnapshot(input: {
+  cycleId: string;
+  startedAt: string;
+  dryRun: boolean;
+  reason?: string;
+}): Promise<{ persisted: boolean; reason?: string }> {
+  const finishedAt = new Date().toISOString();
+  return upsertDiscoveryCycleSnapshotRow({
+    cycleId: input.cycleId,
+    startedAt: input.startedAt,
+    finishedAt,
+    dryRun: input.dryRun,
+    payload: {
+      cycle_id: input.cycleId,
+      phase: 'deadline',
+      dry_run: input.dryRun,
+      mint_attempted: false,
+      deadline_reason: input.reason ?? 'soft_deadline',
+      verified_yield: {
+        cycle_id: input.cycleId,
+        discovered: 0,
+        identity_valid: 0,
+        pm_ready: 0,
+        dqe_verified: 0,
+        dqe_potential: 0,
+        s61_pass: 0,
+        s61_blocked: 0,
+        terminal_reason_counts: { SOFT_DEADLINE: 1 },
+        rates: { verified_yield: 0, s61_yield: 0 },
+      },
+      automation: {
+        candidate_count: 0,
+        auto_processed: 0,
+        automation_rate: 0,
+        blocked_quality: 0,
+        blocked_external: 0,
+      },
+      by_source: {},
+      terminal_reason_counts: { SOFT_DEADLINE: 1 },
+    },
+  });
+}
+
+async function upsertDiscoveryCycleSnapshotRow(input: {
+  cycleId: string;
+  startedAt: string;
+  finishedAt: string;
+  dryRun: boolean;
+  payload: Record<string, unknown>;
+}): Promise<{ persisted: boolean; reason?: string }> {
   let client;
   try {
     client = createServerClient();
@@ -160,15 +228,9 @@ export async function seedDiscoveryCycleSnapshot(input: {
     {
       cycle_id: input.cycleId,
       started_at: input.startedAt,
-      // finished_at is NOT NULL — use start until final upsert replaces it.
-      finished_at: input.startedAt,
+      finished_at: input.finishedAt,
       dry_run: input.dryRun,
-      payload: {
-        cycle_id: input.cycleId,
-        phase: 'started',
-        dry_run: input.dryRun,
-        mint_attempted: false,
-      },
+      payload: input.payload,
     },
     { onConflict: 'cycle_id' },
   );
@@ -186,15 +248,9 @@ export async function seedDiscoveryCycleSnapshot(input: {
 async function persistDiscoveryCycleSnapshot(
   report: DiscoveryCycleReport,
 ): Promise<{ persisted: boolean; reason?: string }> {
-  let client;
-  try {
-    client = createServerClient();
-  } catch {
-    return { persisted: false, reason: 'no_client' };
-  }
-
   const payload = {
     cycle_id: report.cycle_id,
+    phase: 'complete',
     started_at: report.startedAt,
     finished_at: report.finishedAt,
     dry_run: report.dryRun,
@@ -222,23 +278,11 @@ async function persistDiscoveryCycleSnapshot(
     near_ready: report.verifiedYield.near_ready,
   };
 
-  const { error } = await client.from(DISCOVERY_CYCLE_SNAPSHOT_TABLE).upsert(
-    {
-      cycle_id: report.cycle_id,
-      started_at: report.startedAt,
-      finished_at: report.finishedAt,
-      dry_run: report.dryRun,
-      payload,
-    },
-    { onConflict: 'cycle_id' },
-  );
-
-  if (error) {
-    const msg = (error.message ?? '').toLowerCase();
-    if (error.code === '42P01' || msg.includes('does not exist')) {
-      return { persisted: false, reason: 'table_missing' };
-    }
-    return { persisted: false, reason: error.message?.slice(0, 160) ?? 'error' };
-  }
-  return { persisted: true };
+  return upsertDiscoveryCycleSnapshotRow({
+    cycleId: report.cycle_id,
+    startedAt: report.startedAt,
+    finishedAt: report.finishedAt,
+    dryRun: report.dryRun,
+    payload,
+  });
 }

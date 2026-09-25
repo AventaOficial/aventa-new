@@ -78,6 +78,7 @@ import {
 } from '@/lib/bots/ingest/sourceFunnelMetrics';
 import {
   persistContinuousDiscoveryTruth,
+  persistDeadlineDiscoverySnapshot,
   seedDiscoveryCycleSnapshot,
 } from './persistContinuousDiscoveryTruth';
 import {
@@ -435,6 +436,32 @@ export async function runContinuousDiscoveryCycle(
     }
   }
 
+  // Watchdog: if the cycle hangs before final persist, still upsert a deadline row.
+  let cycleFinalized = false;
+  let deadlineWatchdog: ReturnType<typeof setTimeout> | null = null;
+  if (deadlineAt !== null && options.persistTruth !== false) {
+    const ms = Math.max(1_000, deadlineAt - Date.now());
+    deadlineWatchdog = setTimeout(() => {
+      void (async () => {
+        if (cycleFinalized) return;
+        try {
+          await persistDeadlineDiscoverySnapshot({
+            cycleId,
+            startedAt: started.toISOString(),
+            dryRun,
+            reason: 'soft_deadline_watchdog',
+          });
+          console.warn(
+            `[day8] deadline_watchdog cycle=${cycleId.slice(0, 12)} snapshot upserted`,
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.warn(`[day8] deadline_watchdog_failed ${message.slice(0, 120)}`);
+        }
+      })();
+    }, ms);
+  }
+
   const funnel = emptyFunnel(cycleId, dryRun);
   const sources: DiscoverySourceOutcome[] = [];
   const allCandidates: HunterCandidate[] = [];
@@ -442,11 +469,37 @@ export async function runContinuousDiscoveryCycle(
   const terminalTraces: VerifiedYieldCandidateTrace[] = [];
   const verifiedYield = emptyVerifiedYieldFunnel(cycleId);
 
-  const nearReadyMeasure = await selectNearReadyStickyTargets({
+  const nearReadyPromise = selectNearReadyStickyTargets({
     // Measure the same eligibility window as sticky acquisition (short cooldown).
     config: { maxTargets: 0, cooldownHours: 1 },
     now,
   });
+  const nearReadyMeasure =
+    deadlineAt !== null
+      ? await Promise.race([
+          nearReadyPromise,
+          new Promise<Awaited<typeof nearReadyPromise>>((resolve) => {
+            const ms = Math.max(500, Math.min(15_000, deadlineAt - Date.now()));
+            setTimeout(
+              () =>
+                resolve({
+                  targets: [],
+                  poolNearReady: 0,
+                  poolOneDayAway: 0,
+                  poolTwoDaysAway: 0,
+                  poolThreeDaysAway: 0,
+                  budgetAllocation: { one: 0, two: 0, threePlus: 0 },
+                  cooldownSkipped: 0,
+                  alreadyReadySkipped: 0,
+                  observedTodaySkipped: 0,
+                  budgetLimited: 0,
+                  todayYmd: '',
+                }),
+              ms,
+            );
+          }),
+        ])
+      : await nearReadyPromise;
   verifiedYield.near_ready = {
     one_day_away: nearReadyMeasure.poolOneDayAway,
     two_days_away: nearReadyMeasure.poolTwoDaysAway,
@@ -500,7 +553,7 @@ export async function runContinuousDiscoveryCycle(
   }
 
   // --- 2) Sticky near-ready (Price Memory driven) ---
-  if (includeSticky) {
+  if (includeSticky && !pastDeadline()) {
     funnel.sources_requested += 1;
     try {
       const sticky = await collectStickyNearReadyCandidates(
@@ -1075,6 +1128,9 @@ export async function runContinuousDiscoveryCycle(
       };
     }
   }
+
+  cycleFinalized = true;
+  if (deadlineWatchdog) clearTimeout(deadlineWatchdog);
 
   return { ...reportBase, truthPersist };
 }

@@ -60,6 +60,7 @@ export type { SourceDiscoveryStatus } from './sourceDiscoveryStatus';
 export {
   persistContinuousDiscoveryTruth,
   seedDiscoveryCycleSnapshot,
+  persistDeadlineDiscoverySnapshot,
   supplyInputsFromDiscoveryReport,
   DISCOVERY_CYCLE_SNAPSHOT_TABLE,
 } from './persistContinuousDiscoveryTruth';
