@@ -45,12 +45,25 @@ export {
   classifyAutomationOutcome,
   metricsFromWorkerResults,
   emptyAutomationCycleCounts,
+  AUTOMATION_KPI_FORMULAS,
 } from './automationCycleMetrics';
 export type {
   AutomationCycleMetrics,
   AutomationCycleCounts,
   AutomationCycleOutcome,
 } from './automationCycleMetrics';
+export {
+  AUTOMATION_LIFECYCLE_STAGES,
+  PIPELINE_LOSS_CODES,
+  classifyTerminalFromGate,
+  emptyStageCounts,
+  recordStage,
+} from './automationLifecycle';
+export type {
+  AutomationLifecycleStage,
+  LifecycleActor,
+  PipelineLossCode,
+} from './automationLifecycle';
 export {
   classifyDay2Candidate,
   assertDay2StagingWritable,

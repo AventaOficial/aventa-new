@@ -531,7 +531,9 @@ export async function runContinuousDiscoveryCycle(
     const meta = await enrichCandidateMeta(cand, config, funnel);
     if (!meta || !meta.title?.trim() || !(meta.discountPrice > 0)) {
       funnel.dqe_failed += 1;
-      automationCounts = accumulateAutomationOutcome(automationCounts, 'failed');
+      automationCounts = accumulateAutomationOutcome(automationCounts, 'failed', {
+        dryRun,
+      });
       continue;
     }
     funnel.extracted += 1;
@@ -544,7 +546,8 @@ export async function runContinuousDiscoveryCycle(
       source: 'continuous_discovery',
       productFingerprint: strongProductFingerprintForUrl(meta.canonicalUrl),
     });
-    if (dealQuality.decision === 'VERIFIED_DEAL') funnel.dqe_verified += 1;
+    const dqeVerified = dealQuality.decision === 'VERIFIED_DEAL';
+    if (dqeVerified) funnel.dqe_verified += 1;
     else if (dealQuality.decision === 'POTENTIAL_DEAL') funnel.dqe_potential += 1;
     else if (
       dealQuality.decision === 'NO_VERIFIED_DEAL' ||
@@ -574,15 +577,23 @@ export async function runContinuousDiscoveryCycle(
       reasonCodes: gate.reasonCodes,
     });
 
+    const enrichOpts = {
+      dryRun,
+      enriched: true,
+      dqeVerified,
+      s61Passed: gate.wouldInsert === true && gate.qualityDecision === 'VERIFIED_OPPORTUNITY',
+    };
+
     if (gate.wouldInsert && gate.qualityDecision === 'VERIFIED_OPPORTUNITY') {
       funnel.s61_pass += 1;
       mintable.push({ candidate: cand, meta });
       if (dryRun || !allowMint) {
-        automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked');
+        automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked', enrichOpts);
       }
+      // else: counted at mint time
     } else {
       funnel.s61_blocked += 1;
-      automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked');
+      automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked', enrichOpts);
     }
   }
 
@@ -613,6 +624,12 @@ export async function runContinuousDiscoveryCycle(
           });
           automationCounts = accumulateAutomationOutcome(automationCounts, 'auto_processed', {
             pendingCreated: true,
+            dryRun: false,
+            enriched: true,
+            dqeVerified: true,
+            s61Passed: true,
+            s7Passed: true,
+            written: true,
           });
         } else if ('duplicate' in result && result.duplicate) {
           funnel.s7_blocked += 1;
@@ -622,7 +639,12 @@ export async function runContinuousDiscoveryCycle(
             duplicate: true,
             error: 'duplicate',
           });
-          automationCounts = accumulateAutomationOutcome(automationCounts, 'duplicate');
+          automationCounts = accumulateAutomationOutcome(automationCounts, 'duplicate', {
+            dryRun: false,
+            enriched: true,
+            dqeVerified: true,
+            s61Passed: true,
+          });
         } else {
           funnel.s7_blocked += 1;
           const err = 'error' in result ? String(result.error) : 's7_blocked';
@@ -631,7 +653,11 @@ export async function runContinuousDiscoveryCycle(
             ok: false,
             error: err,
           });
-          automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked');
+          automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked', {
+            dryRun: false,
+            enriched: true,
+            s61Passed: true,
+          });
         }
       }
     };

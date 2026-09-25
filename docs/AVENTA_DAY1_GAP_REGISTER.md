@@ -39,26 +39,26 @@ Severity:
 
 | | |
 |--|--|
-| **Problem** | Most products lack ≥4 prior days. |
-| **Evidence** | **Day 3 re-measure (prod):** still 4911 obs / 388 ready / 157 nearReady / last_day **2026-09-24 unchanged**. Staging continuous discovery uses near-ready + PM evidence sources. |
-| **Impact** | DQE VERIFIED via history remains scarce; prod PM not accumulating. |
-| **Done when** | ≥50% of daily evaluated ML candidates historyReady — **OPEN** (prod stagnant). |
+| **Problem** | Most products lack ≥4 prior days; daily cadence risk. |
+| **Evidence** | **Day 4:** prod last_day=2026-09-24 (= MX today); supply runs collapsed 100+→12→1; `ml_api_legacy` DEGRADED `ML_OAUTH_TOKEN_READ_FAILED`; `ml_worker` healthy. PM persist ≠ DQE. Added `runPriceMemoryFreshnessCycle` + `?mode=pm_freshness`. |
+| **Impact** | historyReady still ~24%; cadence/OAuth is the freshness risk. |
+| **Done when** | Daily MX calendar tip reliably written + ≥50% historyReady on evaluated cohort — **OPEN** (mechanism ready; prod OAuth/cadence gate). |
 
 ### P0-4 — No live automation % KPI
 
 | | |
 |--|--|
-| **Problem** | Automation % not durable. |
-| **Evidence** | **Day 2:** module. **Day 3:** wired into `runContinuousDiscoveryCycle` + funnel extension. |
-| **Done when** | KPI used by continuous cycle — **PASS (Day 3)**. Dashboard/SQL 7d rollup still open. |
+| **Problem** | Automation % not durable / easily inflated. |
+| **Evidence** | **Day 4:** hardened `automationCycleMetrics` (dry-run/duplicate resistant) + lifecycle contract + `terminal_rate`. Staging proof `automation_rate=0`, `terminal_rate=1`. |
+| **Done when** | KPI durable and tested — **PASS (Day 4)**. Dashboard rollup still open. |
 
 ### P0-5 — Continuous discovery required operator URL paste
 
 | | |
 |--|--|
-| **Problem** | Hunter depended on env_urls / pasted candidates for staging demos. |
-| **Evidence** | **Day 3:** `runContinuousDiscoveryCycle` + sticky/PM evidence sources; cron `?mode=continuous`; staging funnel without paste. |
-| **Done when** | Cycle starts without URL paste — **PASS (Day 3)**. |
+| **Problem** | Hunter depended on env_urls / pasted candidates. |
+| **Evidence** | Day 3 continuous cycle. Day 4 human matrix marks URL paste **removed**. |
+| **Done when** | Cycle starts without URL paste — **PASS**. |
 
 ---
 
