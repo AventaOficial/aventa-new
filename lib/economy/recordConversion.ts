@@ -4,10 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  resolveConversionAttribution,
-  resolveConversionAttributionStrict,
-} from '@/lib/attribution/resolveConversionAttribution';
+import { resolveConversionAttributionStrict } from '@/lib/attribution/resolveConversionAttribution';
 import { evaluateConversionAttributionFraudSignals } from '@/lib/attribution/fraudSignals';
 import { appendEconomicEvent } from './appendEconomicEvent';
 import {
