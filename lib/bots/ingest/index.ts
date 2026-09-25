@@ -41,6 +41,24 @@ export type {
   WorkerCardContribution,
 } from './workerCardScoreDiagnostics';
 export {
+  buildAutomationCycleMetrics,
+  classifyAutomationOutcome,
+  metricsFromWorkerResults,
+  emptyAutomationCycleCounts,
+} from './automationCycleMetrics';
+export type {
+  AutomationCycleMetrics,
+  AutomationCycleCounts,
+  AutomationCycleOutcome,
+} from './automationCycleMetrics';
+export {
+  classifyDay2Candidate,
+  assertDay2StagingWritable,
+  readDay2SafetySnapshot,
+  emptyDay2FunnelCounts,
+} from './day2StagingCanary';
+export type { Day2CandidateClass, Day2FunnelCounts, Day2SafetySnapshot } from './day2StagingCanary';
+export {
   evaluateMachineLiveInsertEligibility,
   isMachinePendingWriteEnabled,
   machineGateSkipReason,

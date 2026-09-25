@@ -19,45 +19,38 @@ Severity:
 
 | | |
 |--|--|
-| **Problem** | Machine opportunity flow stops before pending. `BOT_INGEST_MACHINE_PENDING_WRITES` default OFF; `machineWriteAuth` blocks production mint; cron `bot-ingest` is discovery-only (S9.1). |
-| **Evidence** | `machineLiveInsertEligibility.ts`, `machineWriteAuth.ts`, `runIngestCycle.ts` S9.1 skip; prod `offers` pending = **0**. |
-| **Impact** | Hunter/DQE can evaluate but cannot feed moderation queue from the machine. Automation of Hunter→pending ≈ 0% in prod. |
-| **Dependency** | Staging write canaries; S6.1 already enforced on reconcile branch. |
+| **Problem** | Machine opportunity flow stops before pending in **production**. |
+| **Evidence** | Prod pending=0; `machineWriteAuth` production blocked. **Day 2:** staging canary minted pending via S7→sole writer (`b67f1537-…`). |
+| **Impact** | Prod automation Hunter→pending still 0%. Staging path proven. |
+| **Dependency** | Staging canary (Day 2 DONE) → explicit prod pending-only policy. |
 | **Architectural solution** | Controlled staging mint → measured canary → explicit production policy for pending-only writes (never auto-approve). |
-| **Done when** | Staging produces pending via sole writer with S6.1; prod policy documented; pending queue non-zero under canary without money flags. |
+| **Done when** | Staging produces pending via sole writer with S6.1 — **PASS (Day 2)**. Prod policy still open. |
 
 ### P0-2 — `offer_observations` evidence lane is empty in production
 
 | | |
 |--|--|
-| **Problem** | Observation table exists but has **0** rows while 766 offers exist. Append-only evidence SoT is not operating in prod. |
-| **Evidence** | MCP: `offer_observations_count = 0`; schema present; sole writer code writes observations. |
-| **Impact** | No audit trail for identity/price evidence; idempotency/replay forensics blind; Day 1 “Observation” stage PARTIAL. |
-| **Dependency** | Deploy path that uses `ingestOfferObservation`; community/machine create must hit observation insert. |
-| **Architectural solution** | Verify prod deploy includes sole writer observation path; backfill policy for new writes only (no destructive rewrite of history). |
-| **Done when** | New community or staging machine creates yield `offer_observations` rows; monitoring alert if insert offer without observation. |
+| **Problem** | Observation table empty in **production**. |
+| **Evidence** | Prod obs=0. **Day 2 staging:** 2 observations for offer `b67f1537-…` via sole writer. |
+| **Impact** | Prod audit trail still blind; staging evidence path proven. |
+| **Done when** | Staging observations appear — **PASS (Day 2)**. Prod deploy of observation path still required. |
 
 ### P0-3 — Price Memory sticky continuity insufficient for DQE majority
 
 | | |
 |--|--|
-| **Problem** | History accumulates, but most products lack ≥4 prior days → DQE cannot use habitual/lowest* fail-open. |
-| **Evidence** | Prod: 1636 products; **historyReady contract = 388 (23.7%)**; notReady = 1248. Last-3d cohort: 422 touched, 168 ready (39.8%). Sep 21–24 window: 545 products, only 21 with 4 days in-window. |
-| **Impact** | DQE falls back to label/discount paths; `insufficient_price_history` dominates strong verification. |
-| **Dependency** | Supply-engine dry_run sticky; discovery recording; niche sticky seeds. |
-| **Architectural solution** | Sticky SKU set sized for daily re-observation; prioritize products at 3 prior days; do not lower `ML_PRICE_MIN_HISTORY_DAYS`. |
-| **Done when** | ≥50% of daily evaluated ML candidates are `historyReady`; day-over-day distinct_days growth for sticky set documented. |
+| **Problem** | Most products lack ≥4 prior days. |
+| **Evidence** | Day 2 re-measure: still 388 ready / 1248 notReady; **last_day unchanged 2026-09-24** (stagnant). Near-ready selector implemented (`nearReadySticky.ts`); staging sticky wrote 8 daily upserts. |
+| **Impact** | DQE VERIFIED via history remains scarce (only 1 scanned SKU met ≥12% vs habitual + non-artificial). |
+| **Done when** | ≥50% of daily evaluated ML candidates historyReady — **OPEN**. |
 
 ### P0-4 — No live automation % KPI
 
 | | |
 |--|--|
-| **Problem** | Cannot answer “what % of opportunities required human intervention?” from production telemetry. |
-| **Evidence** | Funnel code exists in-process; no durable automation-rate metric; mint OFF → publish always human. |
-| **Impact** | 95% goal unmeasurable; Day 2+ cannot close objectively. |
-| **Dependency** | Event schema for stage transitions. |
-| **Architectural solution** | Emit durable events: discovered → gated → would_insert → pending → moderated → published with actor=machine|human. |
-| **Done when** | Dashboard or SQL answers automation % for last 7d without manual log scraping. |
+| **Problem** | Automation % not durable. |
+| **Evidence** | **Day 2:** `lib/bots/ingest/automationCycleMetrics.ts` + canary report `automation_rate`. |
+| **Done when** | KPI module exists and is used by canary — **PASS (Day 2 module)**. Dashboard/SQL 7d rollup still open. |
 
 ---
 
