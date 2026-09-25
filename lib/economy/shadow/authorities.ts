@@ -27,8 +27,9 @@ export const MONEY_SYSTEM_AUTHORITIES = {
   },
   platformLedger: {
     table: 'affiliate_ledger_entries',
-    writer: 'admin/staff affiliate-ledger routes (manual/CSV)',
-    note: 'NOT written by shadow pipeline',
+    writer:
+      'lib/economy/settlement/settleCommission.ts + executeSettlementReversal (canonical). Network CSV/manual is evidence ingest only — no rewards.',
+    note: 'Single SoT table. CSV/admin POST ingest network reports; settlement bridge owns commission→ledger.',
   },
   reward: {
     table: 'creator_rewards',

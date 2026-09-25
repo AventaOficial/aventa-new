@@ -122,7 +122,7 @@ export async function recordCommission(
     .maybeSingle();
 
   if (!error && data?.id) {
-    await appendEconomicEvent(supabase, {
+    const audit = await appendEconomicEvent(supabase, {
       entityType: 'commission',
       entityId: String(data.id),
       eventType: 'created',
@@ -136,6 +136,14 @@ export async function recordCommission(
         ledgerBoundary: ECONOMIC_LEDGER_BOUNDARY.note,
       },
     });
+    if (!audit.ok) {
+      await supabase.from('affiliate_commissions').delete().eq('id', data.id);
+      console.error(
+        '[economy/recordCommission] audit_append_failed — rolled back create',
+        audit.error,
+      );
+      return null;
+    }
     return mapRow(data as Record<string, unknown>, false);
   }
 
@@ -202,7 +210,7 @@ export async function transitionCommissionStatus(
     return { ok: false, from, to: input.toStatus, error: upErr.message };
   }
 
-  await appendEconomicEvent(supabase, {
+  const audit = await appendEconomicEvent(supabase, {
     entityType: 'commission',
     entityId: input.commissionId,
     eventType: 'status_transition',
@@ -211,18 +219,29 @@ export async function transitionCommissionStatus(
     actor: input.actor ?? 'system',
     payload: { reason: input.reason ?? null },
   });
+  if (!audit.ok) {
+    return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
+  }
 
-  // M1: reversal with existing ledger → contract event only (no silent void / money move).
+  // Compensating reversal when ledger link exists (gated by MONEY_PATH_FROZEN inside).
   if (
     input.toStatus === 'reversed' &&
     typeof existing.ledger_entry_id === 'string' &&
     existing.ledger_entry_id.trim()
   ) {
-    await emitSettlementReversalRequired(supabase, {
+    const reversal = await emitSettlementReversalRequired(supabase, {
       commissionId: input.commissionId,
       ledgerEntryId: existing.ledger_entry_id.trim(),
       actor: input.actor ?? 'system',
     });
+    if (!reversal.ok) {
+      return {
+        ok: false,
+        from,
+        to: input.toStatus,
+        error: reversal.reason ?? 'settlement_reversal_failed',
+      };
+    }
   }
 
   return { ok: true, from, to: input.toStatus };

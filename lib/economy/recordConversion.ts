@@ -4,10 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  resolveConversionAttribution,
-  resolveConversionAttributionStrict,
-} from '@/lib/attribution/resolveConversionAttribution';
+import { resolveConversionAttributionStrict } from '@/lib/attribution/resolveConversionAttribution';
 import { evaluateConversionAttributionFraudSignals } from '@/lib/attribution/fraudSignals';
 import { appendEconomicEvent } from './appendEconomicEvent';
 import {
@@ -130,7 +127,7 @@ export async function recordConversion(
     .maybeSingle();
 
   if (!error && data?.id) {
-    await appendEconomicEvent(supabase, {
+    const audit = await appendEconomicEvent(supabase, {
       entityType: 'conversion',
       entityId: String(data.id),
       eventType: 'created',
@@ -143,6 +140,15 @@ export async function recordConversion(
         attributionStatus: attribution.attributionStatus,
       },
     });
+    if (!audit.ok) {
+      // Fail-closed: do not leave money row without audit trail.
+      await supabase.from('affiliate_conversions').delete().eq('id', data.id);
+      console.error(
+        '[economy/recordConversion] audit_append_failed — rolled back create',
+        audit.error,
+      );
+      return null;
+    }
     return mapRow(data as Record<string, unknown>, false);
   }
 
@@ -217,7 +223,7 @@ export async function transitionConversionStatus(
     return { ok: false, from, to: input.toStatus, error: upErr.message };
   }
 
-  await appendEconomicEvent(supabase, {
+  const audit = await appendEconomicEvent(supabase, {
     entityType: 'conversion',
     entityId: input.conversionId,
     eventType: 'status_transition',
@@ -226,6 +232,9 @@ export async function transitionConversionStatus(
     actor: input.actor ?? 'system',
     payload: { reason: input.reason ?? null },
   });
+  if (!audit.ok) {
+    return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
+  }
 
   return { ok: true, from, to: input.toStatus };
 }
