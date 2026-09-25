@@ -76,6 +76,7 @@ import {
   formatSourceFunnelLog,
   type SourceFunnelStageCounts,
 } from '@/lib/bots/ingest/sourceFunnelMetrics';
+import { persistContinuousDiscoveryTruth } from './persistContinuousDiscoveryTruth';
 
 export type DiscoverySourceStatus =
   | 'success'
@@ -162,6 +163,11 @@ export type DiscoveryCycleReport = {
   /** Day 7 — VERIFIED-yield funnel + terminal diagnosis. */
   verifiedYield: VerifiedYieldFunnel;
   terminalTraces: VerifiedYieldCandidateTrace[];
+  /** Day 8 — durable persist outcome (fail-open). */
+  truthPersist?: {
+    supplyTruth: { attempted: number; persisted: number; duplicates: number; failed: number };
+    snapshot: { persisted: boolean; reason?: string };
+  };
 };
 
 export type RunContinuousDiscoveryCycleOptions = {
@@ -178,6 +184,8 @@ export type RunContinuousDiscoveryCycleOptions = {
   allowStagingMint?: boolean;
   /** Cap mint inserts. */
   mintCap?: number;
+  /** When true (default), persist Supply Truth + cycle snapshot (fail-open). */
+  persistTruth?: boolean;
   now?: Date;
 };
 
@@ -967,7 +975,7 @@ export async function runContinuousDiscoveryCycle(
     bySource,
   });
 
-  return {
+  const reportBase: DiscoveryCycleReport = {
     cycle_id: cycleId,
     startedAt: started.toISOString(),
     finishedAt: finished.toISOString(),
@@ -986,6 +994,24 @@ export async function runContinuousDiscoveryCycle(
     verifiedYield,
     terminalTraces,
   };
+
+  let truthPersist: DiscoveryCycleReport['truthPersist'];
+  if (options.persistTruth !== false) {
+    try {
+      truthPersist = await persistContinuousDiscoveryTruth(reportBase);
+      console.log(
+        `[day8] truth_persist cycle=${cycleId.slice(0, 8)} supply=${JSON.stringify(truthPersist.supplyTruth)} snapshot=${JSON.stringify(truthPersist.snapshot)}`,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      truthPersist = {
+        supplyTruth: { attempted: 0, persisted: 0, duplicates: 0, failed: 1 },
+        snapshot: { persisted: false, reason: message.slice(0, 160) },
+      };
+    }
+  }
+
+  return { ...reportBase, truthPersist };
 }
 
 export function explainDiscoveryCycleVerdict(input: {

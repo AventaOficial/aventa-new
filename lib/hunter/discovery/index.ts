@@ -56,3 +56,10 @@ export {
   SOURCE_DISCOVERY_STATUSES,
 } from './sourceDiscoveryStatus';
 export type { SourceDiscoveryStatus } from './sourceDiscoveryStatus';
+
+export {
+  persistContinuousDiscoveryTruth,
+  supplyInputsFromDiscoveryReport,
+  DISCOVERY_CYCLE_SNAPSHOT_TABLE,
+} from './persistContinuousDiscoveryTruth';
+export type { PersistDiscoveryTruthResult } from './persistContinuousDiscoveryTruth';
