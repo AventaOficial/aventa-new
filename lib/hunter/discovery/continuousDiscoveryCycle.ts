@@ -76,8 +76,15 @@ import {
   formatSourceFunnelLog,
   type SourceFunnelStageCounts,
 } from '@/lib/bots/ingest/sourceFunnelMetrics';
-import { persistContinuousDiscoveryTruth } from './persistContinuousDiscoveryTruth';
-import { resolveContinuousExecutionMode } from './continuousCronContract';
+import {
+  persistContinuousDiscoveryTruth,
+  seedDiscoveryCycleSnapshot,
+} from './persistContinuousDiscoveryTruth';
+import {
+  resolveContinuousExecutionMode,
+  SCHEDULED_CONTINUOUS_DEADLINE_MS,
+  SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
+} from './continuousCronContract';
 
 export type DiscoverySourceStatus =
   | 'success'
@@ -192,6 +199,8 @@ export type RunContinuousDiscoveryCycleOptions = {
    * even if allowStagingMint is also passed.
    */
   cronSafe?: boolean;
+  /** Soft stop before Vercel maxDuration so snapshot/truth can persist. */
+  deadlineMs?: number;
   /** Stable id for cron-hour retries (upsert). Defaults to random UUID. */
   cycleId?: string;
   now?: Date;
@@ -399,8 +408,32 @@ export async function runContinuousDiscoveryCycle(
   const config = options.config ?? loadBotIngestConfig();
   const excludeEnvUrls = options.excludeEnvUrls !== false;
   const includeSticky = options.includeStickyNearReady !== false;
-  const maxPrioritized = Math.max(1, options.maxPrioritized ?? 20);
+  const defaultMax =
+    options.cronSafe === true ? SCHEDULED_CONTINUOUS_MAX_PRIORITIZED : 20;
+  const maxPrioritized = Math.max(1, options.maxPrioritized ?? defaultMax);
   const mintCap = Math.max(0, Math.min(5, options.mintCap ?? 2));
+  const deadlineMs =
+    options.deadlineMs ??
+    (options.cronSafe === true ? SCHEDULED_CONTINUOUS_DEADLINE_MS : undefined);
+  const deadlineAt =
+    typeof deadlineMs === 'number' && deadlineMs > 0
+      ? started.getTime() + deadlineMs
+      : null;
+  const pastDeadline = () =>
+    deadlineAt !== null && Date.now() >= deadlineAt;
+
+  // Seed snapshot immediately so a hard timeout still leaves cycle_id evidence.
+  if (options.persistTruth !== false) {
+    try {
+      await seedDiscoveryCycleSnapshot({
+        cycleId,
+        startedAt: started.toISOString(),
+        dryRun,
+      });
+    } catch {
+      // fail-open
+    }
+  }
 
   const funnel = emptyFunnel(cycleId, dryRun);
   const sources: DiscoverySourceOutcome[] = [];
@@ -426,13 +459,26 @@ export async function runContinuousDiscoveryCycle(
   funnel.sources_requested += hunterSources.length;
 
   try {
-    const collected: HunterEngineCollectResult = await runHunterCollect({
+    const collectPromise = runHunterCollect({
       config,
       rotationWave: options.rotationWave ?? 0,
       now,
       sources: hunterSources,
       persistHealth: false,
     });
+    const collected: HunterEngineCollectResult =
+      deadlineAt !== null
+        ? await Promise.race([
+            collectPromise,
+            new Promise<never>((_, reject) => {
+              const ms = Math.max(1_000, deadlineAt - Date.now());
+              setTimeout(
+                () => reject(new Error('soft_deadline_hunter_collect')),
+                ms,
+              );
+            }),
+          ])
+        : await collectPromise;
     hunterSourceRuns = collected.sourceRuns;
     for (const run of collected.sourceRuns) {
       sources.push(classifyHunterRun(run));
@@ -445,7 +491,10 @@ export async function runContinuousDiscoveryCycle(
       status: 'failed',
       canonicalStatus: 'FAILED',
       candidates: 0,
-      errorCode: 'hunter_collect_threw',
+      errorCode:
+        message === 'soft_deadline_hunter_collect'
+          ? 'soft_deadline'
+          : 'hunter_collect_threw',
       errorMessageSafe: message.slice(0, 160),
     });
   }
@@ -615,6 +664,12 @@ export async function runContinuousDiscoveryCycle(
   let automationCounts = emptyAutomationCycleCounts();
 
   for (const cand of rankedCandidates) {
+    if (pastDeadline()) {
+      console.warn(
+        `[day8] soft_deadline cycle=${cycleId.slice(0, 12)} stopping enrich before maxDuration`,
+      );
+      break;
+    }
     const productId =
       typeof cand.rawMetadata?.productId === 'string'
         ? cand.rawMetadata.productId

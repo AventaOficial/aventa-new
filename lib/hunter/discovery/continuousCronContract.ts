@@ -8,6 +8,12 @@
 import { formatYmdInTz } from '@/lib/bots/ingest/ingestZonedTime';
 import { ML_PRICE_TZ } from '@/lib/bots/ingest/mlPriceEngine';
 
+/** Cap candidates so cronSafe finishes inside Vercel maxDuration (300s). */
+export const SCHEDULED_CONTINUOUS_MAX_PRIORITIZED = 8;
+
+/** Soft stop before hard kill so truth/snapshot can still persist. */
+export const SCHEDULED_CONTINUOUS_DEADLINE_MS = 240_000;
+
 export type ContinuousExecutionMode = {
   dryRun: boolean;
   allowMint: boolean;

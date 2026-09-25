@@ -59,6 +59,7 @@ export type { SourceDiscoveryStatus } from './sourceDiscoveryStatus';
 
 export {
   persistContinuousDiscoveryTruth,
+  seedDiscoveryCycleSnapshot,
   supplyInputsFromDiscoveryReport,
   DISCOVERY_CYCLE_SNAPSHOT_TABLE,
 } from './persistContinuousDiscoveryTruth';
@@ -67,5 +68,7 @@ export type { PersistDiscoveryTruthResult } from './persistContinuousDiscoveryTr
 export {
   resolveContinuousExecutionMode,
   scheduledContinuousCycleId,
+  SCHEDULED_CONTINUOUS_DEADLINE_MS,
+  SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
 } from './continuousCronContract';
 export type { ContinuousExecutionMode } from './continuousCronContract';

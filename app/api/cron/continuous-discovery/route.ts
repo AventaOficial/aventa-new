@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { runContinuousDiscoveryCycle } from '@/lib/hunter/discovery';
-import { scheduledContinuousCycleId } from '@/lib/hunter/discovery/continuousCronContract';
+import {
+  scheduledContinuousCycleId,
+  SCHEDULED_CONTINUOUS_DEADLINE_MS,
+  SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
+} from '@/lib/hunter/discovery/continuousCronContract';
 
 export const maxDuration = 300;
 
@@ -10,6 +14,7 @@ export const maxDuration = 300;
  * Daily Continuous Discovery (Hobby: once per day; 17:00 UTC).
  * Auth: existing requireCronSecret (Vercel Cron sends Bearer CRON_SECRET).
  * cronSafe fail-closes mint. Does not enable machine writes.
+ * Budget capped so soft deadline + snapshot persist beat the 300s hard kill.
  */
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
@@ -25,6 +30,8 @@ export async function GET(request: NextRequest) {
         includeStickyNearReady: true,
         cycleId: scheduledContinuousCycleId(new Date()),
         persistTruth: true,
+        maxPrioritized: SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
+        deadlineMs: SCHEDULED_CONTINUOUS_DEADLINE_MS,
       });
       console.log(
         '[continuous-discovery:after]',
