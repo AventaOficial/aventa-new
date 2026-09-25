@@ -45,6 +45,7 @@ function rotateItems(
     ...(bySource.walmart_mx ?? []),
     ...(bySource.bodega_aurrera_mx ?? []),
     ...(bySource.chedraui_mx ?? []),
+    ...(bySource.liverpool_mx ?? []),
   ];
   const w = ((rotationWave % 3) + 3) % 3;
   const segments: IngestItem[][] =

@@ -6,5 +6,5 @@ export { parseUnitEconomics } from './unitEconomics';
 export type { UnitEconomicsHint } from './unitEconomics';
 export { classifyOfferFamily, classifyAcquisitionCandidate } from './classifyAcquisition';
 export type { AcquisitionSignals } from './classifyAcquisition';
-export { prioritizeAcquisitionPool } from './prioritizeAcquisitionPool';
-export type { RankedAcquisitionItem } from './prioritizeAcquisitionPool';
+export { prioritizeAcquisitionPool, computeAcquisitionPriorityBoost } from './prioritizeAcquisitionPool';
+export type { RankedAcquisitionItem, AcquisitionPriorityContext } from './prioritizeAcquisitionPool';

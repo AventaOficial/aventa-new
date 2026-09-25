@@ -23,3 +23,11 @@ export type {
   DiscoverySourceStatus,
   RunContinuousDiscoveryCycleOptions,
 } from './continuousDiscoveryCycle';
+
+export {
+  classifySourceDiscoveryStatus,
+  legacyStatusFromCanonical,
+  explainZeroYield,
+  SOURCE_DISCOVERY_STATUSES,
+} from './sourceDiscoveryStatus';
+export type { SourceDiscoveryStatus } from './sourceDiscoveryStatus';

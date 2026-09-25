@@ -41,6 +41,7 @@ import type {
 import { observeStickySkuViaServer } from '@/lib/hunter/supply/observeStickySkus';
 import { strongProductFingerprintForUrl } from '@/lib/offers/findDuplicateOffer';
 import { extractMercadoLibreItemId, extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
+import { extractLiverpoolProductId } from '@/lib/offers/urlResolution/liverpoolResolver';
 import { writePendingViaS7Bridge } from '@/lib/supply/s7Bridge/writePendingViaS7Bridge';
 import {
   collectStickyNearReadyCandidates,
@@ -49,6 +50,17 @@ import {
   PM_EVIDENCE_SOURCE_ID,
 } from './stickyNearReadySource';
 import { metaFromDiscoveryEvidenceForProduct } from './censusSeedEnrichment';
+import {
+  classifySourceDiscoveryStatus,
+  legacyStatusFromCanonical,
+  type SourceDiscoveryStatus,
+} from './sourceDiscoveryStatus';
+import {
+  emptySourceFunnel,
+  upsertSourceFunnel,
+  formatSourceFunnelLog,
+  type SourceFunnelStageCounts,
+} from '@/lib/bots/ingest/sourceFunnelMetrics';
 
 export type DiscoverySourceStatus =
   | 'success'
@@ -61,6 +73,8 @@ export type DiscoverySourceStatus =
 export type DiscoverySourceOutcome = {
   sourceId: string;
   status: DiscoverySourceStatus;
+  /** Day 6 canonical status (SUCCESS / BLOCKED_EXTERNAL / …). */
+  canonicalStatus: SourceDiscoveryStatus;
   candidates: number;
   errorCode: string | null;
   errorMessageSafe: string | null;
@@ -128,6 +142,8 @@ export type DiscoveryCycleReport = {
   }>;
   hunterSourceRuns: HunterRunMetrics[];
   operator_verdict: string;
+  /** Day 6 — per-source funnel stages. */
+  bySource: Record<string, SourceFunnelStageCounts>;
 };
 
 export type RunContinuousDiscoveryCycleOptions = {
@@ -162,56 +178,21 @@ function isHomepageOrNonProduct(url: string): boolean {
 }
 
 function classifyHunterRun(run: HunterRunMetrics): DiscoverySourceOutcome {
-  if (run.skippedDisabled) {
-    return {
-      sourceId: run.sourceId,
-      status: 'skipped',
-      candidates: 0,
-      errorCode: null,
-      errorMessageSafe: null,
-    };
-  }
-  if (run.skippedByBreaker) {
-    return {
-      sourceId: run.sourceId,
-      status: 'retryable',
-      candidates: 0,
-      errorCode: run.errorCode ?? 'breaker_open',
-      errorMessageSafe: run.errorMessageSafe ?? 'breaker_open_cooldown',
-    };
-  }
-  if (!run.ok) {
-    const code = (run.errorCode ?? '').toLowerCase();
-    const blocked =
-      code.includes('403') ||
-      code.includes('401') ||
-      code.includes('blocked') ||
-      code.includes('robots') ||
-      code.includes('unauthorized');
-    const retryable = code.includes('429') || code.includes('timeout') || code.includes('5');
-    return {
-      sourceId: run.sourceId,
-      status: blocked ? 'blocked' : retryable ? 'retryable' : 'failed',
-      candidates: 0,
-      errorCode: run.errorCode ?? 'failed',
-      errorMessageSafe: run.errorMessageSafe ?? run.errorCode ?? 'source_failed',
-    };
-  }
-  if (run.itemsFound === 0) {
-    return {
-      sourceId: run.sourceId,
-      status: 'empty',
-      candidates: 0,
-      errorCode: null,
-      errorMessageSafe: null,
-    };
-  }
+  const canonicalStatus = classifySourceDiscoveryStatus({
+    skippedDisabled: run.skippedDisabled,
+    skippedByBreaker: run.skippedByBreaker,
+    ok: run.ok,
+    itemsFound: run.itemsFound,
+    errorCode: run.errorCode,
+    errorMessageSafe: run.errorMessageSafe,
+  });
   return {
     sourceId: run.sourceId,
-    status: 'success',
-    candidates: run.itemsFound,
-    errorCode: null,
-    errorMessageSafe: null,
+    status: legacyStatusFromCanonical(canonicalStatus),
+    canonicalStatus,
+    candidates: run.ok && !run.skippedDisabled && !run.skippedByBreaker ? run.itemsFound : 0,
+    errorCode: run.errorCode ?? null,
+    errorMessageSafe: run.errorMessageSafe ?? null,
   };
 }
 
@@ -221,32 +202,19 @@ function classifyStickyResult(result: {
   errorCode?: string | null;
   errorMessageSafe?: string | null;
 }): DiscoverySourceOutcome {
-  if (!result.ok) {
-    const code = (result.errorCode ?? '').toLowerCase();
-    const blocked = code.includes('403') || code.includes('blocked');
-    return {
-      sourceId: STICKY_NEAR_READY_SOURCE_ID,
-      status: blocked ? 'blocked' : 'failed',
-      candidates: 0,
-      errorCode: result.errorCode ?? 'failed',
-      errorMessageSafe: result.errorMessageSafe ?? null,
-    };
-  }
-  if (result.candidates === 0) {
-    return {
-      sourceId: STICKY_NEAR_READY_SOURCE_ID,
-      status: 'empty',
-      candidates: 0,
-      errorCode: null,
-      errorMessageSafe: null,
-    };
-  }
+  const canonicalStatus = classifySourceDiscoveryStatus({
+    ok: result.ok,
+    itemsFound: result.candidates,
+    errorCode: result.errorCode,
+    errorMessageSafe: result.errorMessageSafe,
+  });
   return {
     sourceId: STICKY_NEAR_READY_SOURCE_ID,
-    status: 'success',
-    candidates: result.candidates,
-    errorCode: null,
-    errorMessageSafe: null,
+    status: legacyStatusFromCanonical(canonicalStatus),
+    canonicalStatus,
+    candidates: result.ok ? result.candidates : 0,
+    errorCode: result.errorCode ?? null,
+    errorMessageSafe: result.errorMessageSafe ?? null,
   };
 }
 
@@ -392,6 +360,7 @@ export async function runContinuousDiscoveryCycle(
     sources.push({
       sourceId: 'hunter_collect',
       status: 'failed',
+      canonicalStatus: 'FAILED',
       candidates: 0,
       errorCode: 'hunter_collect_threw',
       errorMessageSafe: message.slice(0, 160),
@@ -422,6 +391,7 @@ export async function runContinuousDiscoveryCycle(
       sources.push({
         sourceId: STICKY_NEAR_READY_SOURCE_ID,
         status: 'failed',
+        canonicalStatus: 'FAILED',
         candidates: 0,
         errorCode: 'sticky_threw',
         errorMessageSafe: message.slice(0, 160),
@@ -451,6 +421,7 @@ export async function runContinuousDiscoveryCycle(
       sources.push({
         sourceId: PM_EVIDENCE_SOURCE_ID,
         status: 'failed',
+        canonicalStatus: 'FAILED',
         candidates: 0,
         errorCode: 'pm_evidence_threw',
         errorMessageSafe: message.slice(0, 160),
@@ -479,6 +450,7 @@ export async function runContinuousDiscoveryCycle(
     const hasId =
       Boolean(extractMercadoLibreItemId(url)) ||
       Boolean(extractAmazonAsin(url)) ||
+      Boolean(extractLiverpoolProductId(url)) ||
       Boolean(c.fingerprint && c.fingerprint.includes(':')) ||
       Boolean(c.externalId);
     if (!hasId) {
@@ -498,10 +470,11 @@ export async function runContinuousDiscoveryCycle(
       Boolean(c.fingerprint) ||
       Boolean(c.externalId) ||
       Boolean(extractMercadoLibreItemId(c.url)) ||
-      Boolean(extractAmazonAsin(c.url)),
+      Boolean(extractAmazonAsin(c.url)) ||
+      Boolean(extractLiverpoolProductId(c.url)),
   ).length;
 
-  // --- 4) Prioritize: sticky near-ready first, then Offer Standard ---
+  // --- 4) Prioritize: sticky near-ready first, then Offer Standard (+ Day 6 health/PM boost) ---
   const stickyFirst = [...deduped].sort((a, b) => {
     const aSticky = a.rawMetadata?.priceMemoryDriven === true ? 1 : 0;
     const bSticky = b.rawMetadata?.priceMemoryDriven === true ? 1 : 0;
@@ -511,8 +484,31 @@ export async function runContinuousDiscoveryCycle(
     return aDays - bDays;
   });
 
+  const daysUntilReadyByUrl: Record<string, number> = {};
+  const sourceHealth: Record<string, string> = {};
+  for (const s of sources) {
+    if (s.canonicalStatus === 'SUCCESS' || s.canonicalStatus === 'PARTIAL') {
+      sourceHealth[s.sourceId] = 'healthy';
+    } else if (s.canonicalStatus === 'DEGRADED' || s.canonicalStatus === 'BLOCKED_EXTERNAL') {
+      sourceHealth[s.sourceId] = 'degraded';
+    } else if (s.canonicalStatus === 'SKIPPED' || s.canonicalStatus === 'BLOCKED_AUTH') {
+      sourceHealth[s.sourceId] = 'disabled';
+    } else if (s.canonicalStatus === 'FAILED') {
+      sourceHealth[s.sourceId] = 'down';
+    }
+  }
+  for (const c of stickyFirst) {
+    const days = Number(c.rawMetadata?.daysUntilReady);
+    if (Number.isFinite(days)) {
+      daysUntilReadyByUrl[c.url] = days;
+    }
+  }
+
   const ingestPool: IngestItem[] = stickyFirst.map((c) => c.ingestItem);
-  const ranked = prioritizeAcquisitionPool(ingestPool).slice(0, maxPrioritized);
+  const ranked = prioritizeAcquisitionPool(ingestPool, {
+    sourceHealth,
+    daysUntilReadyByUrl,
+  }).slice(0, maxPrioritized);
   funnel.offer_standard_pass = ranked.length;
 
   const rankedCandidates = ranked
@@ -676,6 +672,68 @@ export async function runContinuousDiscoveryCycle(
     funnel.s7_pass = 0;
   }
 
+  // Day 6 — per-source funnel (answers "why zero offers?" per source)
+  let bySource: Record<string, SourceFunnelStageCounts> = {};
+  for (const s of sources) {
+    bySource = upsertSourceFunnel(bySource, s.sourceId, {
+      status: s.canonicalStatus,
+      discovered: s.candidates,
+      error_code: s.errorCode,
+    });
+  }
+  for (const c of stickyFirst) {
+    const sid = String(c.source);
+    const idValid =
+      Boolean(extractMercadoLibreItemId(c.url)) ||
+      Boolean(extractAmazonAsin(c.url)) ||
+      Boolean(extractLiverpoolProductId(c.url)) ||
+      Boolean(c.fingerprint?.includes(':')) ||
+      Boolean(c.externalId);
+    const prev = bySource[sid] ?? emptySourceFunnel(sid, 'SUCCESS');
+    bySource = upsertSourceFunnel(bySource, sid, {
+      status: prev.status,
+      canonicalized: prev.canonicalized + 1,
+      identity_valid: prev.identity_valid + (idValid ? 1 : 0),
+      pm_ready:
+        prev.pm_ready + (c.rawMetadata?.priceMemoryDriven === true ? 1 : 0),
+    });
+  }
+  for (const sample of gateSamples) {
+    const cand = rankedCandidates.find((c) => c.url === sample.url);
+    const sid = cand ? String(cand.source) : 'unknown';
+    const prev = bySource[sid] ?? emptySourceFunnel(sid, 'SUCCESS');
+    bySource = upsertSourceFunnel(bySource, sid, {
+      offer_standard_pass: prev.offer_standard_pass + 1,
+      dqe_verified: prev.dqe_verified + (sample.qualityDecision === 'VERIFIED_OPPORTUNITY' ? 1 : 0),
+      dqe_potential:
+        prev.dqe_potential +
+        (sample.qualityDecision !== 'VERIFIED_OPPORTUNITY' && sample.wouldInsert === false
+          ? 0
+          : sample.historyReady
+            ? 0
+            : 0),
+      s61_pass: prev.s61_pass + (sample.wouldInsert ? 1 : 0),
+      blocked: prev.blocked + (sample.wouldInsert ? 0 : 1),
+    });
+  }
+  for (const m of mintResults) {
+    const cand = rankedCandidates.find((c) => c.url === m.url);
+    const sid = cand ? String(cand.source) : 'unknown';
+    const prev = bySource[sid] ?? emptySourceFunnel(sid, 'SUCCESS');
+    if (m.ok) {
+      bySource = upsertSourceFunnel(bySource, sid, { pending: prev.pending + 1 });
+    } else if (m.duplicate) {
+      bySource = upsertSourceFunnel(bySource, sid, { duplicate: prev.duplicate + 1 });
+    } else {
+      bySource = upsertSourceFunnel(bySource, sid, { failed: prev.failed + 1 });
+    }
+  }
+
+  const sourceFunnelLog = formatSourceFunnelLog(bySource);
+  if (sourceFunnelLog) {
+    console.log(sourceFunnelLog);
+  }
+
   const automation = buildAutomationCycleMetrics(automationCounts);
   const finished = new Date();
   const operator_verdict = explainDiscoveryCycleVerdict({
@@ -691,6 +749,7 @@ export async function runContinuousDiscoveryCycle(
     operator_verdict,
     dryRun,
     automation_rate: automation.automation_rate,
+    bySource,
   });
 
   return {
@@ -708,6 +767,7 @@ export async function runContinuousDiscoveryCycle(
     mintResults,
     hunterSourceRuns,
     operator_verdict,
+    bySource,
   };
 }
 
