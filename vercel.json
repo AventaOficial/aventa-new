@@ -54,7 +54,7 @@
     },
     {
       "path": "/api/cron/continuous-discovery",
-      "schedule": "0 * * * *"
+      "schedule": "0 17 * * *"
     },
     {
       "path": "/api/cron/account-deletion-purge",

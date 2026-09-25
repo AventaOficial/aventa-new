@@ -7,7 +7,7 @@ import { scheduledContinuousCycleId } from '@/lib/hunter/discovery/continuousCro
 export const maxDuration = 300;
 
 /**
- * Hourly Continuous Discovery.
+ * Daily Continuous Discovery (Hobby: once per day; 17:00 UTC).
  * Auth: existing requireCronSecret (Vercel Cron sends Bearer CRON_SECRET).
  * cronSafe fail-closes mint. Does not enable machine writes.
  */

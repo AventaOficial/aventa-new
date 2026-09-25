@@ -97,10 +97,11 @@ describe('Day8 scheduled cycle idempotency key', () => {
 });
 
 describe('Day8 scheduler wiring', () => {
-  it('registers hourly continuous discovery without removing existing crons', () => {
+  it('registers daily continuous discovery without removing existing crons', () => {
     const vercel = readFileSync(join(ROOT, 'vercel.json'), 'utf8');
     expect(vercel).toMatch(/\/api\/cron\/continuous-discovery/);
-    expect(vercel).toMatch(/"schedule": "0 \* \* \* \*"/);
+    expect(vercel).toMatch(/"schedule": "0 17 \* \* \*"/);
+    expect(vercel).not.toMatch(/"schedule": "0 \* \* \* \*"/);
     expect(vercel).not.toMatch(/bot-ingest\?mode=continuous/);
     expect(vercel).toMatch(/\/api\/cron\/pm-freshness/);
     expect(vercel).toMatch(/\/api\/cron\/supply-engine/);
