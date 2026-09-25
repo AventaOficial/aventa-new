@@ -38,6 +38,24 @@ describe('extractLiverpoolProduct', () => {
     expect(r.images.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('lee el precio SSR de data-testid discounted sin usar meses sin intereses', () => {
+    const html = `
+      <title>Audífonos Over-Ear Jbl LIVE 780NC inalámbricos | Liverpool</title>
+      <div data-testid="1199845185-configurator-price">
+        <span data-testid="discounted"><span>$<!-- -->2,969</span><span class="invisible">.</span>10</span>
+        <span data-testid="original"><span class="line-through">$<!-- -->3,299</span><span class="invisible">.</span>00</span>
+      </div>
+      <p>Y/o hasta 13 meses sin intereses de $253.77</p>
+    `;
+    const r = extractLiverpoolProduct(
+      html,
+      'https://www.liverpool.com.mx/tienda/pdp/audifonos-over-ear-jbl-live-780nc-inalambrica-con-cancelacion-de-ruido/1199845185',
+    );
+    expect(r.suggestedDiscount).toBe(2969.1);
+    expect(r.suggestedOriginal).toBe(3299);
+    expect(r.title).toMatch(/780NC/i);
+  });
+
   it('CDN sscdn embebido aporta fotos', () => {
     const html = `
       https://sscdn.liverpool.com.mx/xl/foto1.jpg

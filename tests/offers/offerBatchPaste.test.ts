@@ -174,6 +174,41 @@ https://m.media-amazon.com/images/I/71example.jpg
     expect(classifyPastedUrl('http://[')).toBe('invalid');
     expect(classifyPastedUrl('https://www.amazon.com.mx/dp/B09XZZQK6Q')).toBe('product');
     expect(classifyPastedUrl('https://meli.la/2dPwmy1')).toBe('product');
+    expect(classifyPastedUrl('https://www.amazon.com.mx/')).toBe('reference');
+    expect(classifyPastedUrl('https://www.dyson.com.mx/')).toBe('reference');
+    expect(classifyPastedUrl('https://www.dyson.com.mx/aspiradoras/v15-detect')).toBe('unsupported');
+  });
+
+  it('no degrada un PDP a homepage y conserva la URL cruda', () => {
+    const liverpool =
+      'https://www.liverpool.com.mx/tienda/pdp/audifonos-over-ear-jbl-live-780nc-inalambrica-con-cancelacion-de-ruido/1199845185';
+    const dump = `### Oferta 1
+Producto: Audífonos JBL
+URL: [https://www.amazon.com.mx/](https://www.amazon.com.mx/dp/B0TESTAS01)
+
+### Oferta 2
+https://www.mercadolibre.com.mx/
+p/MLM1234567890
+
+### Oferta 3
+URL: ${liverpool}
+
+### Oferta 4
+URL: https://www.dyson.com.mx/
+
+### Oferta 5
+URL: https://www.dyson.com.mx/aspiradoras/v15-detect
+`;
+    const urls = extractOfferUrlsFromText(dump);
+    expect(urls).toEqual([
+      'https://www.amazon.com.mx/dp/B0TESTAS01',
+      'https://www.mercadolibre.com.mx/p/MLM1234567890',
+      liverpool,
+      'https://www.dyson.com.mx/aspiradoras/v15-detect',
+    ]);
+    expect(urls.some((url) => url === 'https://www.amazon.com.mx/' || url === 'https://www.dyson.com.mx/')).toBe(
+      false,
+    );
   });
 
   it('500 interno no se disfraza de ficha; 503 upstream sí se reintenta', () => {

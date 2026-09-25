@@ -41,6 +41,10 @@ function expiryFrom(text: string, now: Date): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
+function isOfferDumpBlock(block: string): boolean {
+  return /^(?:[-*]\s*)?(?:producto|t[íi]tulo|precio(?:\s+actual)?|url|enlace|link)\s*:/im.test(block);
+}
+
 function splitBlocks(text: string): string[] {
   return text
     .split(/\n\s*\n/)
@@ -171,6 +175,7 @@ export function parseCouponPaste(
   const drafts: CouponDraft[] = [];
   const failures: CouponDraft[] = [];
   for (const block of splitBlocks(text)) {
+    if (isOfferDumpBlock(block) && !/c[oó]digo\s*:/i.test(block)) continue;
     const parsed = parseBlock(block, now, sourceClass);
     if (!parsed.ok || !parsed.canonicalKey) {
       failures.push(parsed);

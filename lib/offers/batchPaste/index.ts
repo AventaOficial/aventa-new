@@ -2,6 +2,7 @@ export {
   OFFER_BATCH_MAX,
   extractOfferUrlsFromText,
   offerBatchIdentityKey,
+  recoverPastedOfferText,
 } from './extractOfferUrls';
 export { parsePastedOfferDump, buildOfferBatchDrafts, classifyEnrichmentFailure } from './parseOfferDump';
 export type { EnrichmentFailureKind } from './parseOfferDump';

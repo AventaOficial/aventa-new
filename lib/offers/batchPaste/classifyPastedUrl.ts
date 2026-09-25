@@ -44,11 +44,32 @@ export function isEmbeddedAssetUrl(url: string): boolean {
 
 export type PastedUrlKind =
   | 'product'
+  | 'unsupported'
   | 'reference'
   | 'image'
   | 'social'
   | 'text'
   | 'invalid';
+
+const EDITORIAL_HOSTS = [
+  'xataka.com',
+  'debate.com.mx',
+  'jointly.mx',
+  'wikipedia.org',
+  'medium.com',
+  'reddit.com',
+  'blogspot.com',
+];
+
+function isEditorialHost(hostname: string): boolean {
+  const host = hostKey(hostname);
+  return EDITORIAL_HOSTS.some((domain) => host === domain || host.endsWith(`.${domain}`) || host.includes(domain));
+}
+
+function isStoreHomepage(url: URL): boolean {
+  const path = url.pathname.replace(/\/+$/, '');
+  return path === '' && [...url.searchParams.keys()].length === 0;
+}
 
 const SOCIAL_HOSTS = [
   'x.com',
@@ -135,5 +156,8 @@ export function classifyPastedUrl(rawUrl: string): PastedUrlKind {
   if (isEmbeddedAssetUrl(trimmed)) return 'image';
   if (isSocialHost(url.hostname)) return 'social';
   if (isRecognizedProductUrl(trimmed)) return 'product';
+  if (isEditorialHost(url.hostname) || isStoreHomepage(url)) return 'reference';
+  const segments = url.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+  if (segments.length >= 2) return 'unsupported';
   return 'reference';
 }

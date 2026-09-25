@@ -4,6 +4,32 @@ import { normalizePastedOfferUrl } from '@/lib/offerUrl';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
 import type { UrlPipelineResult } from '@/lib/offers/ingestion/types';
 
+function pathOf(url: string): string | null {
+  try {
+    return new URL(url).pathname.replace(/\/+$/, '') || '/';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A candidate that collapsed to the store origin must not replace a real product path.
+ */
+export function preserveProductPath(rawUrl: string, candidate: string): string {
+  if (!candidate) return rawUrl;
+  const rawPath = pathOf(rawUrl);
+  const nextPath = pathOf(candidate);
+  if (!rawPath || !nextPath || rawPath === '/') return candidate;
+  try {
+    const rawHost = new URL(rawUrl).hostname.toLowerCase();
+    const nextHost = new URL(candidate).hostname.toLowerCase();
+    if (rawHost === nextHost && nextPath === '/') return rawUrl;
+  } catch {
+    return candidate;
+  }
+  return candidate;
+}
+
 /**
  * Single URL path for lot / discovery paste.
  * Reuses resolveOutbound (normalize → strip tracking → affiliate tags).
@@ -32,9 +58,11 @@ export function processOfferUrl(
       /* keep affiliateUrl */
     }
   }
-  const clean = outbound.urlUncertain
-    ? outbound.normalizedUrl
-    : stripTrackingNoise(outbound.normalizedUrl).url;
+  const clean = preserveProductPath(
+    trimmed,
+    outbound.urlUncertain ? outbound.normalizedUrl : stripTrackingNoise(outbound.normalizedUrl).url,
+  );
+  affiliateUrl = preserveProductPath(trimmed, affiliateUrl);
   return {
     rawUrl: trimmed,
     normalizedUrl: clean,
