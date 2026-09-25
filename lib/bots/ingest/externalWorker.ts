@@ -1034,10 +1034,10 @@ export async function processExternalWorkerBatch(
       results.push({
         url: row.item.url,
         source: row.item.source,
-        status: 'inserted',
+        status: 'dry_run_would_insert',
         offerId: `dry-run-${insertedThisRun}`,
       });
-      sourceStats[row.item.source].inserted += 1;
+      // Do not increment sourceStats.inserted — that means real mint only.
       pendingBySource[row.item.source] = (pendingBySource[row.item.source] ?? 0) + 1;
       continue;
     }
@@ -1153,6 +1153,7 @@ export async function processExternalWorkerBatch(
 
   const summary: IngestCycleReport['summary'] = {
     inserted: results.filter((r) => r.status === 'inserted').length,
+    dryRunWouldInsert: results.filter((r) => r.status === 'dry_run_would_insert').length,
     duplicate: results.filter((r) => r.status === 'duplicate').length,
     skipped: results.filter((r) => r.status === 'skipped').length,
     errors: results.filter((r) => r.status === 'error').length,

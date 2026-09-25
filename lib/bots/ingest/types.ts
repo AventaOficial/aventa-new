@@ -90,6 +90,13 @@ export type IngestSingleResult =
   | {
       url: string;
       source?: IngestSourceId;
+      /** Observation-only: gate would mint, but dryRun — no DB write. */
+      status: 'dry_run_would_insert';
+      offerId: string;
+    }
+  | {
+      url: string;
+      source?: IngestSourceId;
       status: 'duplicate';
       duplicateKind?: DuplicateOfferKind;
       supplyOpportunity?: boolean;
@@ -126,6 +133,8 @@ export type IngestCycleReport = {
   results: IngestSingleResult[];
   summary: {
     inserted: number;
+    /** Gate would mint but dryRun — never a DB write. Separate from `inserted`. */
+    dryRunWouldInsert?: number;
     duplicate: number;
     skipped: number;
     errors: number;
