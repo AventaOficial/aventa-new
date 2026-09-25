@@ -102,6 +102,11 @@ export type BotIngestConfig = {
   techCategoryIdSet: Set<string>;
 
   amazonAsins: string[];
+  /**
+   * Day 6 — Liverpool PDP seed URLs for discovery (BOT_INGEST_LIVERPOOL_URLS).
+   * Empty = source disabled. No search scrape.
+   */
+  liverpoolUrls: string[];
   amazonDpBase: string;
   amazonSource: BotIngestAmazonSource;
   amazonPaapiEnabled: boolean;
@@ -359,6 +364,7 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     techFromEnv.length > 0 ? techFromEnv : [...DEFAULT_ML_TECH_CATEGORY_IDS];
 
   const amazonAsins = parseAmazonAsinList(process.env.BOT_INGEST_AMAZON_ASINS);
+  const liverpoolUrls = parseBotIngestUrlList(process.env.BOT_INGEST_LIVERPOOL_URLS);
   let amazonDpBase =
     process.env.BOT_INGEST_AMAZON_DP_BASE?.trim() || 'https://www.amazon.com.mx/dp/';
   if (!amazonDpBase.endsWith('/')) amazonDpBase += '/';
@@ -501,6 +507,7 @@ export function loadBotIngestConfig(profile: BotIngestProfile = 'standard'): Bot
     techCategoryIds,
     techCategoryIdSet: new Set(techCategoryIds),
     amazonAsins,
+    liverpoolUrls,
     amazonDpBase,
     amazonSource,
     amazonPaapiEnabled,

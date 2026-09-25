@@ -95,9 +95,9 @@ export const RETAILER_CAPABILITY_MATRIX: RetailerCapabilityRow[] = [
   },
   {
     retailer: 'Liverpool',
-    ingestSourceId: null,
+    ingestSourceId: 'liverpool_mx',
     stages: stage(
-      'NOT_IMPLEMENTED',
+      'PARTIAL',
       'PARTIAL',
       'PARTIAL',
       'IMPLEMENTED',
@@ -107,7 +107,8 @@ export const RETAILER_CAPABILITY_MATRIX: RetailerCapabilityRow[] = [
       'NOT_IMPLEMENTED',
       'NOT_IMPLEMENTED',
     ),
-    notes: 'PDP parse + liv:SKU identity in offer parsers; no continuous discovery source registered.',
+    notes:
+      'Day 6: seed-PDP Hunter source (BOT_INGEST_LIVERPOOL_URLS). Uses liv:SKU identity + existing PDP extract. No search scrape. Empty seeds = disabled.',
   },
   {
     retailer: 'Walmart México',

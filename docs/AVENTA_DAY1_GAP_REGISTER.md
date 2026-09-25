@@ -185,6 +185,19 @@ Severity:
 
 ---
 
+## Day 7 — Verified yield (2026-09-25)
+
+| Gap | Day 7 status |
+|-----|----------------|
+| Cannot diagnose why identity-valid candidates fail VERIFIED | **PASS** — primary terminal reason + `verifiedYield` funnel in continuous discovery |
+| Near-ready PM SKUs not prioritized by day bucket | **PASS** — 50/30/20 budget across 1d/2d/3+ pools; default max 24 |
+| Automation KPI lumps quality vs external blocks | **PASS** — `blocked_quality` / `blocked_external` split (terminal_rate unchanged) |
+| Acquisition pool ignores days-until-ready granularity | **PASS** — documented boosts 0:+20, 1:+18, 2:+12, 3:+8 (demand only) |
+
+Evidence: `docs/AVENTA_DAY7_VERIFIED_YIELD.md`, `scripts/day7-verified-yield-canary.ts`, `tests/hunter/discovery/day7VerifiedYield.test.ts`.
+
+---
+
 ## Explicit non-gaps (do not open)
 
 - Lowering `ML_PRICE_MIN_HISTORY_DAYS` below 4.

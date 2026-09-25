@@ -19,6 +19,7 @@ const INGEST_TO_SUPPLY: Record<
   chedraui_mx: { sourceId: 'chedraui_mx', family: 'retailer_public' },
   bodega_aurrera_mx: { sourceId: 'bodega_aurrera_mx', family: 'retailer_public' },
   walmart_mx: { sourceId: 'walmart_mx', family: 'retailer_public' },
+  liverpool_mx: { sourceId: 'liverpool_mx', family: 'retailer_public' },
 };
 
 export type QualificationCounts = {

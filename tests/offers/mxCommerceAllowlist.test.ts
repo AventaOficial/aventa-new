@@ -59,9 +59,11 @@ describe('Hunter recognition + coverage', () => {
       expect.arrayContaining(['walmart_mx', 'bodega_aurrera_mx', 'chedraui_mx']),
     );
     expect(byStatus('NOT_IMPLEMENTED').length).toBeGreaterThan(20);
-    expect(HUNTER_SOURCE_COVERAGE.some((r) => r.retailer === 'Liverpool' && r.status === 'NOT_IMPLEMENTED')).toBe(
-      true,
-    );
+    expect(
+      HUNTER_SOURCE_COVERAGE.some(
+        (r) => r.retailer === 'Liverpool' && r.status === 'DEGRADED' && r.ingestSourceId === 'liverpool_mx',
+      ),
+    ).toBe(true);
     expect(HUNTER_SOURCE_COVERAGE.some((r) => r.retailer === 'Home Depot México')).toBe(true);
   });
 });

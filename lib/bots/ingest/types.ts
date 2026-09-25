@@ -13,7 +13,8 @@ export type IngestSourceId =
   | 'ml_worker'
   | 'walmart_mx'
   | 'bodega_aurrera_mx'
-  | 'chedraui_mx';
+  | 'chedraui_mx'
+  | 'liverpool_mx';
 
 export type IngestProfileId = 'standard' | 'mega';
 
@@ -47,6 +48,7 @@ export function emptyIngestSourceStats(): Record<IngestSourceId, IngestSourceSta
     walmart_mx: ZERO_STATS(),
     bodega_aurrera_mx: ZERO_STATS(),
     chedraui_mx: ZERO_STATS(),
+    liverpool_mx: ZERO_STATS(),
   };
 }
 

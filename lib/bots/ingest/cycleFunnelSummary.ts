@@ -48,6 +48,8 @@ export type CycleFunnelSummary = {
   observations_created?: number;
   pending_created?: number;
   automation_rate?: number | null;
+  /** Day 6 — per-source funnel stages. */
+  by_source?: Record<string, import('./sourceFunnelMetrics').SourceFunnelStageCounts>;
 };
 
 export function buildCycleFunnelSummary(ops: SupplyOpsRunSummary): CycleFunnelSummary {
@@ -170,6 +172,7 @@ export function buildCycleFunnelSummaryFromDiscovery(input: {
   operator_verdict: string;
   dryRun: boolean;
   automation_rate?: number | null;
+  bySource?: Record<string, import('./sourceFunnelMetrics').SourceFunnelStageCounts>;
 }): CycleFunnelSummary {
   const productionWriteBlocked = isProductionRuntime();
   const f = input.funnel;
@@ -226,5 +229,6 @@ export function buildCycleFunnelSummaryFromDiscovery(input: {
     observations_created: input.dryRun ? 0 : f.observations_created,
     pending_created: input.dryRun ? 0 : f.pending_created,
     automation_rate: input.automation_rate ?? null,
+    by_source: input.bySource,
   };
 }
