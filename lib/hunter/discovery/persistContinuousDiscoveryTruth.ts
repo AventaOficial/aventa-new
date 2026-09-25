@@ -14,6 +14,14 @@ import { createServerClient } from '@/lib/supabase/server';
 
 export const DISCOVERY_CYCLE_SNAPSHOT_TABLE = 'discovery_cycle_snapshots';
 
+function uuidOrNull(value: string): string | null {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+    ? value
+    : null;
+}
+
 function familyForSource(sourceId: string): string {
   if (sourceId.startsWith('amazon')) return 'affiliate_feed';
   if (sourceId === 'ml_api_legacy' || sourceId === 'ml_worker') return 'official_api';
@@ -58,7 +66,7 @@ export function supplyInputsFromDiscoveryReport(
       errors: row.failed,
       promotions: 0,
       catalogOnly: 0,
-      shadowCycleId: report.cycle_id,
+      shadowCycleId: uuidOrNull(report.cycle_id),
     });
   }
   if (inputs.length === 0) {
@@ -81,7 +89,7 @@ export function supplyInputsFromDiscoveryReport(
       rejected: report.funnel.s61_blocked,
       pending: report.dryRun ? 0 : report.funnel.pending_created,
       errors: report.funnel.dqe_failed,
-      shadowCycleId: report.cycle_id,
+      shadowCycleId: uuidOrNull(report.cycle_id),
     });
   }
   return inputs;

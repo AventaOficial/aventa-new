@@ -63,3 +63,9 @@ export {
   DISCOVERY_CYCLE_SNAPSHOT_TABLE,
 } from './persistContinuousDiscoveryTruth';
 export type { PersistDiscoveryTruthResult } from './persistContinuousDiscoveryTruth';
+
+export {
+  resolveContinuousExecutionMode,
+  scheduledContinuousCycleId,
+} from './continuousCronContract';
+export type { ContinuousExecutionMode } from './continuousCronContract';

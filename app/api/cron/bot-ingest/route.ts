@@ -3,6 +3,7 @@ import { after } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { runIngestCycleForProfile } from '@/lib/bots/ingest/runIngestCycle';
 import { runContinuousDiscoveryCycle } from '@/lib/hunter/discovery';
+import { scheduledContinuousCycleId } from '@/lib/hunter/discovery/continuousCronContract';
 import { runPriceMemoryFreshnessCycle } from '@/lib/hunter/priceMemory';
 
 /**
@@ -13,7 +14,8 @@ export const maxDuration = 300;
 
 /**
  * GET: ciclo de ingesta — S9.1 discovery/eval only (no offer mint).
- * Live machine writes: S9 → withMachinePendingWritesEnabled → S7.
+ * Live machine writes stay behind BOT_INGEST_MACHINE_PENDING_WRITES (default OFF).
+ * Continuous mode is cronSafe: dry-run, no mint.
  * Protegido con CRON_SECRET (Authorization: Bearer o x-cron-secret).
  *
  * Modes:
@@ -52,11 +54,15 @@ export async function GET(request: NextRequest) {
       }
 
       if (continuous) {
+        // cronSafe fail-closes mint even if env flags would otherwise allow it.
         const report = await runContinuousDiscoveryCycle({
+          cronSafe: true,
           dryRun: true,
           allowStagingMint: false,
           excludeEnvUrls: true,
           includeStickyNearReady: true,
+          cycleId: scheduledContinuousCycleId(new Date()),
+          persistTruth: true,
         });
         console.log(
           '[bot-ingest:continuous:after]',
