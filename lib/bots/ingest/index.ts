@@ -72,6 +72,7 @@ export {
 export type { SupplyOpsRunSummary, SupplyOpsBottleneck } from './supplyOpsRunSummary';
 export {
   buildCycleFunnelSummary,
+  buildCycleFunnelSummaryFromDiscovery,
   explainCycleVerdict,
   formatCycleFunnelLog,
 } from './cycleFunnelSummary';

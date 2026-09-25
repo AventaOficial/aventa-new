@@ -1,0 +1,712 @@
+/**
+ * Day 3 — Single continuous discovery cycle authority.
+ *
+ * TRIGGER → DISCOVERY (multi-source, isolated) → canonicalize/dedupe →
+ * Offer Standard + Price Memory priority → enrich → DQE → S6.1 → optional S7 mint.
+ *
+ * Does NOT paste URLs. Does NOT bypass DQE/S6.1. Does NOT create a second writer.
+ * Reuses runHunterCollect + sticky near-ready + prioritizeAcquisitionPool + S7.
+ */
+
+import { randomUUID } from 'node:crypto';
+import type { BotIngestConfig } from '@/lib/bots/ingest/config';
+import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+import type { IngestItem } from '@/lib/bots/ingest/types';
+import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
+import {
+  buildAutomationCycleMetrics,
+  emptyAutomationCycleCounts,
+  accumulateAutomationOutcome,
+  type AutomationCycleMetrics,
+} from '@/lib/bots/ingest/automationCycleMetrics';
+import { evaluateMachineCandidateGate } from '@/lib/bots/ingest/candidateInsertGate';
+import { enrichWithPriceIntel } from '@/lib/bots/ingest/priceIntel';
+import { withMachinePendingWritesEnabled } from '@/lib/bots/ingest/machineInsertCanary';
+import { isMachinePendingWriteEnabled } from '@/lib/bots/ingest/machineLiveInsertEligibility';
+import {
+  buildCycleFunnelSummaryFromDiscovery,
+  type CycleFunnelSummary,
+} from '@/lib/bots/ingest/cycleFunnelSummary';
+import { evaluateDealQualityFromParsedMeta } from '@/lib/hunter/dealQuality';
+import { prioritizeAcquisitionPool } from '@/lib/hunter/offerStandard';
+import { runHunterCollect } from '@/lib/hunter/engine';
+import { dedupeHunterCandidates } from '@/lib/hunter/normalize';
+import { HUNTER_SOURCES } from '@/lib/hunter/sources';
+import type {
+  HunterCandidate,
+  HunterEngineCollectResult,
+  HunterRunMetrics,
+  HunterSource,
+} from '@/lib/hunter/types';
+import { observeStickySkuViaServer } from '@/lib/hunter/supply/observeStickySkus';
+import { strongProductFingerprintForUrl } from '@/lib/offers/findDuplicateOffer';
+import { extractMercadoLibreItemId, extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
+import { writePendingViaS7Bridge } from '@/lib/supply/s7Bridge/writePendingViaS7Bridge';
+import {
+  collectStickyNearReadyCandidates,
+  collectPmEvidenceBackedCandidates,
+  STICKY_NEAR_READY_SOURCE_ID,
+  PM_EVIDENCE_SOURCE_ID,
+} from './stickyNearReadySource';
+import { metaFromDiscoveryEvidenceForProduct } from './censusSeedEnrichment';
+
+export type DiscoverySourceStatus =
+  | 'success'
+  | 'blocked'
+  | 'retryable'
+  | 'failed'
+  | 'skipped'
+  | 'empty';
+
+export type DiscoverySourceOutcome = {
+  sourceId: string;
+  status: DiscoverySourceStatus;
+  candidates: number;
+  errorCode: string | null;
+  errorMessageSafe: string | null;
+};
+
+export type DiscoveryCycleFunnel = {
+  cycle_id: string;
+  sources_requested: number;
+  sources_succeeded: number;
+  sources_blocked: number;
+  sources_failed: number;
+  sources_empty: number;
+  candidates_discovered: number;
+  candidates_canonicalized: number;
+  duplicates: number;
+  unsupported: number;
+  invalid: number;
+  fetch_attempted: number;
+  fetch_success: number;
+  fetch_blocked: number;
+  fetch_failed: number;
+  extracted: number;
+  identified: number;
+  price_memory_ready: number;
+  price_memory_not_ready: number;
+  offer_standard_pass: number;
+  dqe_verified: number;
+  dqe_potential: number;
+  dqe_blocked: number;
+  dqe_failed: number;
+  s61_pass: number;
+  s61_blocked: number;
+  s7_pass: number;
+  s7_blocked: number;
+  observations_created: number;
+  pending_created: number;
+  dry_run: boolean;
+};
+
+export type DiscoveryCycleReport = {
+  cycle_id: string;
+  startedAt: string;
+  finishedAt: string;
+  dryRun: boolean;
+  mintAttempted: boolean;
+  sources: DiscoverySourceOutcome[];
+  funnel: DiscoveryCycleFunnel;
+  /** Extended CycleFunnelSummary (same authority family as bot-ingest). */
+  cycleFunnel: CycleFunnelSummary;
+  automation: AutomationCycleMetrics;
+  prioritizedUrls: string[];
+  gateSamples: Array<{
+    url: string;
+    qualityDecision: string;
+    wouldInsert: boolean;
+    historyReady: boolean;
+    reasonCodes: string[];
+  }>;
+  mintResults: Array<{
+    url: string;
+    ok: boolean;
+    offerId?: string;
+    duplicate?: boolean;
+    error?: string;
+  }>;
+  hunterSourceRuns: HunterRunMetrics[];
+  operator_verdict: string;
+};
+
+export type RunContinuousDiscoveryCycleOptions = {
+  config?: BotIngestConfig;
+  /** Exclude manual paste source from continuous mode (default true). */
+  excludeEnvUrls?: boolean;
+  /** Include Price Memory near-ready discovery (default true). */
+  includeStickyNearReady?: boolean;
+  rotationWave?: number;
+  maxPrioritized?: number;
+  /** When true (default), evaluate gates but never mint. */
+  dryRun?: boolean;
+  /** Staging mint via S7 when gates pass (requires writes flag in-process). */
+  allowStagingMint?: boolean;
+  /** Cap mint inserts. */
+  mintCap?: number;
+  now?: Date;
+};
+
+function isHomepageOrNonProduct(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/' || path === '') return true;
+    if (/^\/(ofertas|categorias?|ayuda|login|registration|gz)(\/|$)/i.test(path)) {
+      return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function classifyHunterRun(run: HunterRunMetrics): DiscoverySourceOutcome {
+  if (run.skippedDisabled) {
+    return {
+      sourceId: run.sourceId,
+      status: 'skipped',
+      candidates: 0,
+      errorCode: null,
+      errorMessageSafe: null,
+    };
+  }
+  if (run.skippedByBreaker) {
+    return {
+      sourceId: run.sourceId,
+      status: 'retryable',
+      candidates: 0,
+      errorCode: run.errorCode ?? 'breaker_open',
+      errorMessageSafe: run.errorMessageSafe ?? 'breaker_open_cooldown',
+    };
+  }
+  if (!run.ok) {
+    const code = (run.errorCode ?? '').toLowerCase();
+    const blocked =
+      code.includes('403') ||
+      code.includes('401') ||
+      code.includes('blocked') ||
+      code.includes('robots') ||
+      code.includes('unauthorized');
+    const retryable = code.includes('429') || code.includes('timeout') || code.includes('5');
+    return {
+      sourceId: run.sourceId,
+      status: blocked ? 'blocked' : retryable ? 'retryable' : 'failed',
+      candidates: 0,
+      errorCode: run.errorCode ?? 'failed',
+      errorMessageSafe: run.errorMessageSafe ?? run.errorCode ?? 'source_failed',
+    };
+  }
+  if (run.itemsFound === 0) {
+    return {
+      sourceId: run.sourceId,
+      status: 'empty',
+      candidates: 0,
+      errorCode: null,
+      errorMessageSafe: null,
+    };
+  }
+  return {
+    sourceId: run.sourceId,
+    status: 'success',
+    candidates: run.itemsFound,
+    errorCode: null,
+    errorMessageSafe: null,
+  };
+}
+
+function classifyStickyResult(result: {
+  ok: boolean;
+  candidates: number;
+  errorCode?: string | null;
+  errorMessageSafe?: string | null;
+}): DiscoverySourceOutcome {
+  if (!result.ok) {
+    const code = (result.errorCode ?? '').toLowerCase();
+    const blocked = code.includes('403') || code.includes('blocked');
+    return {
+      sourceId: STICKY_NEAR_READY_SOURCE_ID,
+      status: blocked ? 'blocked' : 'failed',
+      candidates: 0,
+      errorCode: result.errorCode ?? 'failed',
+      errorMessageSafe: result.errorMessageSafe ?? null,
+    };
+  }
+  if (result.candidates === 0) {
+    return {
+      sourceId: STICKY_NEAR_READY_SOURCE_ID,
+      status: 'empty',
+      candidates: 0,
+      errorCode: null,
+      errorMessageSafe: null,
+    };
+  }
+  return {
+    sourceId: STICKY_NEAR_READY_SOURCE_ID,
+    status: 'success',
+    candidates: result.candidates,
+    errorCode: null,
+    errorMessageSafe: null,
+  };
+}
+
+function emptyFunnel(cycleId: string, dryRun: boolean): DiscoveryCycleFunnel {
+  return {
+    cycle_id: cycleId,
+    sources_requested: 0,
+    sources_succeeded: 0,
+    sources_blocked: 0,
+    sources_failed: 0,
+    sources_empty: 0,
+    candidates_discovered: 0,
+    candidates_canonicalized: 0,
+    duplicates: 0,
+    unsupported: 0,
+    invalid: 0,
+    fetch_attempted: 0,
+    fetch_success: 0,
+    fetch_blocked: 0,
+    fetch_failed: 0,
+    extracted: 0,
+    identified: 0,
+    price_memory_ready: 0,
+    price_memory_not_ready: 0,
+    offer_standard_pass: 0,
+    dqe_verified: 0,
+    dqe_potential: 0,
+    dqe_blocked: 0,
+    dqe_failed: 0,
+    s61_pass: 0,
+    s61_blocked: 0,
+    s7_pass: 0,
+    s7_blocked: 0,
+    observations_created: 0,
+    pending_created: 0,
+    dry_run: dryRun,
+  };
+}
+
+function selectContinuousSources(excludeEnvUrls: boolean): HunterSource[] {
+  return HUNTER_SOURCES.filter((s) => {
+    if (s.id === 'ml_worker') return false; // external POST path — not inline collect
+    if (excludeEnvUrls && s.id === 'env_urls') return false;
+    return true;
+  });
+}
+
+async function enrichCandidateMeta(
+  cand: HunterCandidate,
+  config: BotIngestConfig,
+  funnel: DiscoveryCycleFunnel,
+): Promise<ParsedOfferMetadata | null> {
+  let meta = cand.ingestItem.precomputedMeta ?? null;
+  const productId =
+    typeof cand.rawMetadata?.productId === 'string'
+      ? cand.rawMetadata.productId
+      : extractMercadoLibreItemId(cand.url);
+
+  const isPmDriven = cand.rawMetadata?.priceMemoryDriven === true;
+  if (isPmDriven && productId) {
+    funnel.fetch_attempted += 1;
+    let liveOk = false;
+    try {
+      const obs = await observeStickySkuViaServer({
+        productId,
+        nicheId: 'continuous_discovery',
+        persistSnapshots: true,
+      });
+      if (obs.observationStatus === 'source_blocked') {
+        funnel.fetch_blocked += 1;
+      } else if (obs.meta) {
+        funnel.fetch_success += 1;
+        meta = obs.meta;
+        liveOk = true;
+      } else {
+        funnel.fetch_failed += 1;
+      }
+    } catch {
+      funnel.fetch_failed += 1;
+    }
+
+    // Staging recovery when ML API is blocked: use census/discovery evidence by product_id.
+    // Discovery still came from Price Memory — evidence only fills extraction gaps.
+    if (!liveOk) {
+      const fromEvidence = metaFromDiscoveryEvidenceForProduct(productId, cand.url);
+      if (fromEvidence) {
+        meta = fromEvidence;
+      }
+    }
+  }
+
+  if (!meta) return null;
+
+  try {
+    meta = await enrichWithPriceIntel(meta, config, { preserveLabelDiscount: true });
+  } catch {
+    /* keep meta */
+  }
+  return meta;
+}
+
+/**
+ * Single cycle authority for continuous discovery.
+ */
+export async function runContinuousDiscoveryCycle(
+  options: RunContinuousDiscoveryCycleOptions = {},
+): Promise<DiscoveryCycleReport> {
+  const started = new Date();
+  const cycleId = randomUUID();
+  const dryRun = options.dryRun !== false;
+  const config = options.config ?? loadBotIngestConfig();
+  const excludeEnvUrls = options.excludeEnvUrls !== false;
+  const includeSticky = options.includeStickyNearReady !== false;
+  const maxPrioritized = Math.max(1, options.maxPrioritized ?? 20);
+  const mintCap = Math.max(0, Math.min(5, options.mintCap ?? 2));
+  const allowMint = options.allowStagingMint === true && !dryRun;
+  const now = options.now ?? new Date();
+
+  const funnel = emptyFunnel(cycleId, dryRun);
+  const sources: DiscoverySourceOutcome[] = [];
+  const allCandidates: HunterCandidate[] = [];
+  let hunterSourceRuns: HunterRunMetrics[] = [];
+
+  // --- 1) Hunter multi-source collect (isolated) ---
+  const hunterSources = selectContinuousSources(excludeEnvUrls);
+  funnel.sources_requested += hunterSources.length;
+
+  try {
+    const collected: HunterEngineCollectResult = await runHunterCollect({
+      config,
+      rotationWave: options.rotationWave ?? 0,
+      now,
+      sources: hunterSources,
+      persistHealth: false,
+    });
+    hunterSourceRuns = collected.sourceRuns;
+    for (const run of collected.sourceRuns) {
+      sources.push(classifyHunterRun(run));
+    }
+    allCandidates.push(...collected.candidates);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    sources.push({
+      sourceId: 'hunter_collect',
+      status: 'failed',
+      candidates: 0,
+      errorCode: 'hunter_collect_threw',
+      errorMessageSafe: message.slice(0, 160),
+    });
+  }
+
+  // --- 2) Sticky near-ready (Price Memory driven) ---
+  if (includeSticky) {
+    funnel.sources_requested += 1;
+    try {
+      const sticky = await collectStickyNearReadyCandidates(
+        { config, rotationWave: options.rotationWave ?? 0, now },
+        { maxTargets: maxPrioritized, cooldownHours: 1 },
+      );
+      sources.push(
+        classifyStickyResult({
+          ok: sticky.ok,
+          candidates: sticky.candidates.length,
+          errorCode: sticky.errorCode,
+          errorMessageSafe: sticky.errorMessageSafe,
+        }),
+      );
+      if (sticky.ok && sticky.candidates.length > 0) {
+        allCandidates.push(...sticky.candidates);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      sources.push({
+        sourceId: STICKY_NEAR_READY_SOURCE_ID,
+        status: 'failed',
+        candidates: 0,
+        errorCode: 'sticky_threw',
+        errorMessageSafe: message.slice(0, 160),
+      });
+    }
+
+    // PM ∩ discovery-evidence (product_id) — still no URL paste
+    funnel.sources_requested += 1;
+    try {
+      const pmEv = await collectPmEvidenceBackedCandidates(
+        { config, rotationWave: options.rotationWave ?? 0, now },
+        { maxTargets: maxPrioritized },
+      );
+      const outcome = classifyStickyResult({
+        ok: pmEv.ok,
+        candidates: pmEv.candidates.length,
+        errorCode: pmEv.errorCode,
+        errorMessageSafe: pmEv.errorMessageSafe,
+      });
+      outcome.sourceId = PM_EVIDENCE_SOURCE_ID;
+      sources.push(outcome);
+      if (pmEv.ok && pmEv.candidates.length > 0) {
+        allCandidates.push(...pmEv.candidates);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      sources.push({
+        sourceId: PM_EVIDENCE_SOURCE_ID,
+        status: 'failed',
+        candidates: 0,
+        errorCode: 'pm_evidence_threw',
+        errorMessageSafe: message.slice(0, 160),
+      });
+    }
+  }
+
+  for (const s of sources) {
+    if (s.status === 'success') funnel.sources_succeeded += 1;
+    else if (s.status === 'blocked' || s.status === 'retryable') funnel.sources_blocked += 1;
+    else if (s.status === 'failed') funnel.sources_failed += 1;
+    else if (s.status === 'empty' || s.status === 'skipped') funnel.sources_empty += 1;
+  }
+
+  funnel.candidates_discovered = allCandidates.length;
+
+  // --- 3) Canonicalize / quality filter / dedupe ---
+  let invalid = 0;
+  let unsupported = 0;
+  const valid = allCandidates.filter((c) => {
+    const url = (c.url || '').trim();
+    if (!url || isHomepageOrNonProduct(url)) {
+      invalid += 1;
+      return false;
+    }
+    const hasId =
+      Boolean(extractMercadoLibreItemId(url)) ||
+      Boolean(extractAmazonAsin(url)) ||
+      Boolean(c.fingerprint && c.fingerprint.includes(':')) ||
+      Boolean(c.externalId);
+    if (!hasId) {
+      unsupported += 1;
+    }
+    return true;
+  });
+  funnel.invalid = invalid;
+  funnel.unsupported = unsupported;
+
+  const beforeDedupe = valid.length;
+  const deduped = dedupeHunterCandidates(valid);
+  funnel.duplicates = Math.max(0, beforeDedupe - deduped.length);
+  funnel.candidates_canonicalized = deduped.length;
+  funnel.identified = deduped.filter(
+    (c) =>
+      Boolean(c.fingerprint) ||
+      Boolean(c.externalId) ||
+      Boolean(extractMercadoLibreItemId(c.url)) ||
+      Boolean(extractAmazonAsin(c.url)),
+  ).length;
+
+  // --- 4) Prioritize: sticky near-ready first, then Offer Standard ---
+  const stickyFirst = [...deduped].sort((a, b) => {
+    const aSticky = a.rawMetadata?.priceMemoryDriven === true ? 1 : 0;
+    const bSticky = b.rawMetadata?.priceMemoryDriven === true ? 1 : 0;
+    if (aSticky !== bSticky) return bSticky - aSticky;
+    const aDays = Number(a.rawMetadata?.daysUntilReady ?? 99);
+    const bDays = Number(b.rawMetadata?.daysUntilReady ?? 99);
+    return aDays - bDays;
+  });
+
+  const ingestPool: IngestItem[] = stickyFirst.map((c) => c.ingestItem);
+  const ranked = prioritizeAcquisitionPool(ingestPool).slice(0, maxPrioritized);
+  funnel.offer_standard_pass = ranked.length;
+
+  const rankedCandidates = ranked
+    .map((item) => {
+      const url = item.precomputedMeta?.canonicalUrl || item.url;
+      return stickyFirst.find((c) => c.url === url || c.ingestItem.url === item.url);
+    })
+    .filter((c): c is HunterCandidate => Boolean(c));
+
+  // --- 5) Enrich + DQE + S6.1 (no mint yet) ---
+  const gateSamples: DiscoveryCycleReport['gateSamples'] = [];
+  const mintable: Array<{ candidate: HunterCandidate; meta: ParsedOfferMetadata }> = [];
+  let automationCounts = emptyAutomationCycleCounts();
+
+  for (const cand of rankedCandidates) {
+    const meta = await enrichCandidateMeta(cand, config, funnel);
+    if (!meta || !meta.title?.trim() || !(meta.discountPrice > 0)) {
+      funnel.dqe_failed += 1;
+      automationCounts = accumulateAutomationOutcome(automationCounts, 'failed');
+      continue;
+    }
+    funnel.extracted += 1;
+
+    const historyReady = meta.signals?.historyReady === true;
+    if (historyReady) funnel.price_memory_ready += 1;
+    else funnel.price_memory_not_ready += 1;
+
+    const dealQuality = evaluateDealQualityFromParsedMeta(meta, {
+      source: 'continuous_discovery',
+      productFingerprint: strongProductFingerprintForUrl(meta.canonicalUrl),
+    });
+    if (dealQuality.decision === 'VERIFIED_DEAL') funnel.dqe_verified += 1;
+    else if (dealQuality.decision === 'POTENTIAL_DEAL') funnel.dqe_potential += 1;
+    else if (
+      dealQuality.decision === 'NO_VERIFIED_DEAL' ||
+      dealQuality.decision === 'REJECT'
+    ) {
+      funnel.dqe_blocked += 1;
+    } else {
+      funnel.dqe_failed += 1;
+    }
+
+    const gate = evaluateMachineCandidateGate({
+      url: meta.canonicalUrl,
+      meta,
+      config,
+      verifierDecision: 'pending',
+      verifierReasons: [],
+      duplicate: null,
+      dealScore: null,
+      dealQuality,
+    });
+
+    gateSamples.push({
+      url: meta.canonicalUrl,
+      qualityDecision: gate.qualityDecision,
+      wouldInsert: gate.wouldInsert,
+      historyReady,
+      reasonCodes: gate.reasonCodes,
+    });
+
+    if (gate.wouldInsert && gate.qualityDecision === 'VERIFIED_OPPORTUNITY') {
+      funnel.s61_pass += 1;
+      mintable.push({ candidate: cand, meta });
+      if (dryRun || !allowMint) {
+        automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked');
+      }
+    } else {
+      funnel.s61_blocked += 1;
+      automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked');
+    }
+  }
+
+  // --- 6) Optional staging mint via S7 sole writer ---
+  const mintResults: DiscoveryCycleReport['mintResults'] = [];
+
+  if (allowMint && mintable.length > 0) {
+    const toMint = mintable.slice(0, mintCap);
+    const runMint = async () => {
+      for (const row of toMint) {
+        const result = await writePendingViaS7Bridge({
+          config,
+          meta: row.meta,
+          ingestSource: 'ml_api',
+          ingestSourceDetail: `continuous_discovery|cycle:${cycleId}`,
+          moderatorNote: `[day3] continuous discovery cycle ${cycleId.slice(0, 8)}`,
+          requireDedicatedAuthor: true,
+        });
+
+        if (result.ok === true) {
+          funnel.s7_pass += 1;
+          funnel.pending_created += 1;
+          funnel.observations_created += 1;
+          mintResults.push({
+            url: row.meta.canonicalUrl,
+            ok: true,
+            offerId: result.offerId,
+          });
+          automationCounts = accumulateAutomationOutcome(automationCounts, 'auto_processed', {
+            pendingCreated: true,
+          });
+        } else if ('duplicate' in result && result.duplicate) {
+          funnel.s7_blocked += 1;
+          mintResults.push({
+            url: row.meta.canonicalUrl,
+            ok: false,
+            duplicate: true,
+            error: 'duplicate',
+          });
+          automationCounts = accumulateAutomationOutcome(automationCounts, 'duplicate');
+        } else {
+          funnel.s7_blocked += 1;
+          const err = 'error' in result ? String(result.error) : 's7_blocked';
+          mintResults.push({
+            url: row.meta.canonicalUrl,
+            ok: false,
+            error: err,
+          });
+          automationCounts = accumulateAutomationOutcome(automationCounts, 'blocked');
+        }
+      }
+    };
+
+    if (!isMachinePendingWriteEnabled()) {
+      await withMachinePendingWritesEnabled(runMint);
+    } else {
+      await runMint();
+    }
+  }
+
+  // Dry-run must not count pending/observations as real writes
+  if (dryRun) {
+    funnel.pending_created = 0;
+    funnel.observations_created = 0;
+    funnel.s7_pass = 0;
+  }
+
+  const automation = buildAutomationCycleMetrics(automationCounts);
+  const finished = new Date();
+  const operator_verdict = explainDiscoveryCycleVerdict({
+    funnel,
+    sources,
+    dryRun,
+    allowMint,
+  });
+
+  const cycleFunnel = buildCycleFunnelSummaryFromDiscovery({
+    cycleId,
+    funnel,
+    operator_verdict,
+    dryRun,
+    automation_rate: automation.automation_rate,
+  });
+
+  return {
+    cycle_id: cycleId,
+    startedAt: started.toISOString(),
+    finishedAt: finished.toISOString(),
+    dryRun,
+    mintAttempted: allowMint,
+    sources,
+    funnel,
+    cycleFunnel,
+    automation,
+    prioritizedUrls: rankedCandidates.map((c) => c.url),
+    gateSamples,
+    mintResults,
+    hunterSourceRuns,
+    operator_verdict,
+  };
+}
+
+export function explainDiscoveryCycleVerdict(input: {
+  funnel: DiscoveryCycleFunnel;
+  sources: DiscoverySourceOutcome[];
+  dryRun: boolean;
+  allowMint: boolean;
+}): string {
+  const { funnel, sources } = input;
+  if (funnel.pending_created > 0) {
+    return `Continuous discovery minted ${funnel.pending_created} pending offer(s); cycle_id=${funnel.cycle_id.slice(0, 8)}.`;
+  }
+  if (funnel.candidates_discovered === 0) {
+    const blocked = sources.filter((s) => s.status === 'blocked' || s.status === 'retryable');
+    if (blocked.length > 0 && sources.some((s) => s.status === 'success' || s.status === 'empty' || s.status === 'skipped')) {
+      return `No candidates this cycle; ${blocked.length} source(s) blocked/retryable but cycle continued (isolation OK).`;
+    }
+    if (blocked.length === sources.length && sources.length > 0) {
+      return `All discovery sources blocked/retryable — no usable candidates.`;
+    }
+    return `Discovery returned 0 candidates (sources empty or skipped).`;
+  }
+  if (input.dryRun || !input.allowMint) {
+    return `Discovered ${funnel.candidates_discovered} → prioritized ${funnel.offer_standard_pass} → s61_pass=${funnel.s61_pass} (dry-run / no mint).`;
+  }
+  return `Discovered ${funnel.candidates_discovered}; s61_pass=${funnel.s61_pass}; no pending minted (gates or duplicates).`;
+}

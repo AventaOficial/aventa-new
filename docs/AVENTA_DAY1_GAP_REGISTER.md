@@ -40,17 +40,25 @@ Severity:
 | | |
 |--|--|
 | **Problem** | Most products lack ≥4 prior days. |
-| **Evidence** | Day 2 re-measure: still 388 ready / 1248 notReady; **last_day unchanged 2026-09-24** (stagnant). Near-ready selector implemented (`nearReadySticky.ts`); staging sticky wrote 8 daily upserts. |
-| **Impact** | DQE VERIFIED via history remains scarce (only 1 scanned SKU met ≥12% vs habitual + non-artificial). |
-| **Done when** | ≥50% of daily evaluated ML candidates historyReady — **OPEN**. |
+| **Evidence** | **Day 3 re-measure (prod):** still 4911 obs / 388 ready / 157 nearReady / last_day **2026-09-24 unchanged**. Staging continuous discovery uses near-ready + PM evidence sources. |
+| **Impact** | DQE VERIFIED via history remains scarce; prod PM not accumulating. |
+| **Done when** | ≥50% of daily evaluated ML candidates historyReady — **OPEN** (prod stagnant). |
 
 ### P0-4 — No live automation % KPI
 
 | | |
 |--|--|
 | **Problem** | Automation % not durable. |
-| **Evidence** | **Day 2:** `lib/bots/ingest/automationCycleMetrics.ts` + canary report `automation_rate`. |
-| **Done when** | KPI module exists and is used by canary — **PASS (Day 2 module)**. Dashboard/SQL 7d rollup still open. |
+| **Evidence** | **Day 2:** module. **Day 3:** wired into `runContinuousDiscoveryCycle` + funnel extension. |
+| **Done when** | KPI used by continuous cycle — **PASS (Day 3)**. Dashboard/SQL 7d rollup still open. |
+
+### P0-5 — Continuous discovery required operator URL paste
+
+| | |
+|--|--|
+| **Problem** | Hunter depended on env_urls / pasted candidates for staging demos. |
+| **Evidence** | **Day 3:** `runContinuousDiscoveryCycle` + sticky/PM evidence sources; cron `?mode=continuous`; staging funnel without paste. |
+| **Done when** | Cycle starts without URL paste — **PASS (Day 3)**. |
 
 ---
 
