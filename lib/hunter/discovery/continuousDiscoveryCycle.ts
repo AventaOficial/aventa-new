@@ -77,6 +77,7 @@ import {
   type SourceFunnelStageCounts,
 } from '@/lib/bots/ingest/sourceFunnelMetrics';
 import { persistContinuousDiscoveryTruth } from './persistContinuousDiscoveryTruth';
+import { resolveContinuousExecutionMode } from './continuousCronContract';
 
 export type DiscoverySourceStatus =
   | 'success'
@@ -186,6 +187,13 @@ export type RunContinuousDiscoveryCycleOptions = {
   mintCap?: number;
   /** When true (default), persist Supply Truth + cycle snapshot (fail-open). */
   persistTruth?: boolean;
+  /**
+   * Scheduled production cron. Fail-closed: forces dry-run and forbids mint
+   * even if allowStagingMint is also passed.
+   */
+  cronSafe?: boolean;
+  /** Stable id for cron-hour retries (upsert). Defaults to random UUID. */
+  cycleId?: string;
   now?: Date;
 };
 
@@ -382,15 +390,17 @@ export async function runContinuousDiscoveryCycle(
   options: RunContinuousDiscoveryCycleOptions = {},
 ): Promise<DiscoveryCycleReport> {
   const started = new Date();
-  const cycleId = randomUUID();
-  const dryRun = options.dryRun !== false;
+  const now = options.now ?? new Date();
+  const mode = resolveContinuousExecutionMode(options);
+  const dryRun = mode.dryRun;
+  const allowMint = mode.allowMint;
+  const cycleId =
+    (options.cycleId && options.cycleId.trim()) || randomUUID();
   const config = options.config ?? loadBotIngestConfig();
   const excludeEnvUrls = options.excludeEnvUrls !== false;
   const includeSticky = options.includeStickyNearReady !== false;
   const maxPrioritized = Math.max(1, options.maxPrioritized ?? 20);
   const mintCap = Math.max(0, Math.min(5, options.mintCap ?? 2));
-  const allowMint = options.allowStagingMint === true && !dryRun;
-  const now = options.now ?? new Date();
 
   const funnel = emptyFunnel(cycleId, dryRun);
   const sources: DiscoverySourceOutcome[] = [];
