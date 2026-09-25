@@ -1,5 +1,9 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
+import {
+  extractMercadoLibreItemId,
+  isMercadoLibreApiItemId,
+  isMercadoLibreUserProductId,
+} from '@/lib/offers/resolveMercadoLibreItem';
 import { formatYmdInTz } from './ingestZonedTime';
 import { fetchMlItemPriceQuote, type MlPriceQuote } from './mlPricesApi';
 
@@ -78,7 +82,12 @@ export function normalizeMlProductId(raw: string | null | undefined): string | n
     return extractMercadoLibreItemId(trimmed);
   }
   const compact = trimmed.replace(/-/g, '').toUpperCase();
-  return /^ML[A-Z]{0,3}\d{6,}$/.test(compact) ? compact : extractMercadoLibreItemId(trimmed);
+  // Fail-closed: user-product (MLMU…) is not an /items/{id} key for Price Memory.
+  if (isMercadoLibreUserProductId(compact)) return null;
+  if (/^ML[A-Z]{0,3}\d{6,}$/.test(compact) && isMercadoLibreApiItemId(compact)) {
+    return compact;
+  }
+  return extractMercadoLibreItemId(trimmed);
 }
 
 /**
@@ -175,7 +184,7 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
   const unique = new Map<string, MlPriceObservation>();
   for (const obs of observations) {
     const id = normalizeMlProductId(obs.productId);
-    if (!id || !Number.isFinite(obs.current) || obs.current < 0) continue;
+    if (!id || !Number.isFinite(obs.current) || obs.current <= 0) continue;
     const nicheRaw = typeof obs.nicheId === 'string' ? obs.nicheId.trim() : '';
     const nicheId =
       nicheRaw === 'beauty' || nicheRaw === 'electronics' || nicheRaw === 'day_to_day'

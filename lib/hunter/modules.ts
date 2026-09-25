@@ -108,6 +108,14 @@ export const HUNTER_MODULES: HunterModule[] = [
     code: 'lib/hunter/dealQuality/evaluateDealQuality.ts',
   },
   {
+    id: 'offer_standard',
+    emoji: '🎯',
+    name: 'Offer Standard Acquisition',
+    job: 'Ranking de discovery por demanda y familia de evento. No sustituye DQE ni publica.',
+    status: 'live',
+    code: 'lib/hunter/offerStandard/prioritizeAcquisitionPool.ts',
+  },
+  {
     id: 'scorer',
     emoji: '🤖',
     name: 'Deal Scorer + Verifier',

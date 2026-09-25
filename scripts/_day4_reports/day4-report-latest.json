@@ -1,0 +1,832 @@
+{
+  "at": "2026-09-25T04:30:10.092Z",
+  "safety": {
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "expected": "oojshofrpbfwsiypcecr",
+    "stagingOnly": true,
+    "refOk": true,
+    "writesFlagBefore": false,
+    "moneyPathFlags": {
+      "REWARDS_PROGRAM_ACTIVE": "(unset)",
+      "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+      "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+      "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+      "MONEY_PATH_FROZEN": "(unset)",
+      "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+      "HUNTER_AUTO_PUBLISH": "(unset)"
+    }
+  },
+  "kpiFormulas": {
+    "automation_rate": "auto_processed / candidate_count — real pending mint without human; dry-run and duplicates excluded from numerator",
+    "terminal_rate": "(auto_processed + human_required + blocked + retryable + failed + duplicates) / candidate_count",
+    "pending_rate": "pending_created / candidate_count — real rows only"
+  },
+  "stagingPm": {
+    "observations": 97,
+    "uniqueProducts": 29,
+    "calendarDays": 20,
+    "historyReady": 10,
+    "nearReady": 9,
+    "notReady": 10,
+    "lastDay": "2026-09-24",
+    "firstDay": "2026-08-28",
+    "todayYmd": "2026-09-24",
+    "rowsToday": 29,
+    "staleDays": 0
+  },
+  "freshness": {
+    "cycle_id": "cd22258e-1fc0-4597-bf52-dca81289ed17",
+    "startedAt": "2026-09-25T04:29:58.558Z",
+    "finishedAt": "2026-09-25T04:29:59.854Z",
+    "mode": "observe_only",
+    "censusBefore": {
+      "observations": 97,
+      "uniqueProducts": 29,
+      "calendarDays": 20,
+      "historyReady": 10,
+      "nearReady": 9,
+      "notReady": 10,
+      "lastDay": "2026-09-24",
+      "firstDay": "2026-08-28",
+      "todayYmd": "2026-09-24",
+      "rowsToday": 29,
+      "staleDays": 0
+    },
+    "censusAfter": {
+      "observations": 97,
+      "uniqueProducts": 29,
+      "calendarDays": 20,
+      "historyReady": 10,
+      "nearReady": 9,
+      "notReady": 10,
+      "lastDay": "2026-09-24",
+      "firstDay": "2026-08-28",
+      "todayYmd": "2026-09-24",
+      "rowsToday": 29,
+      "staleDays": 0
+    },
+    "targetsSelected": 0,
+    "observeAttempted": 0,
+    "observeOk": 0,
+    "snapshotsPersisted": 0,
+    "losses": {
+      "NO_CANDIDATES": 1,
+      "FETCH_BLOCKED": 0,
+      "EXTRACTION_FAILED": 0,
+      "IDENTITY_FAILED": 0,
+      "PRICE_MISSING": 0,
+      "DUPLICATE": 0,
+      "DQE_BLOCK": 0,
+      "S6_1_BLOCK": 0,
+      "WRITER_BLOCK": 0,
+      "WRITE_FAILURE": 0,
+      "OTHER": 0
+    },
+    "largestLoss": "NO_CANDIDATES",
+    "diagnosis": "No near-ready targets. Price Memory is current for 2026-09-24 (29 rows today). historyReady=10/29. Bottleneck for DQE majority remains sticky multi-day coverage, not total row count.",
+    "productionGate": "Keep supply-engine dry_run accumulating PM; production machine mint stays OFF."
+  },
+  "discovery": {
+    "cycle_id": "e1f07cac-75d9-4acb-b0df-b4eb1c23d00a",
+    "startedAt": "2026-09-25T04:29:59.855Z",
+    "finishedAt": "2026-09-25T04:30:05.493Z",
+    "dryRun": false,
+    "mintAttempted": true,
+    "sources": [
+      {
+        "sourceId": "ml_api_legacy",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_asin",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "walmart_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "sticky_near_ready",
+        "status": "empty",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "pm_evidence_backed",
+        "status": "success",
+        "candidates": 3,
+        "errorCode": null,
+        "errorMessageSafe": null
+      }
+    ],
+    "funnel": {
+      "cycle_id": "e1f07cac-75d9-4acb-b0df-b4eb1c23d00a",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "sources_empty": 7,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "duplicates": 0,
+      "unsupported": 0,
+      "invalid": 0,
+      "fetch_attempted": 3,
+      "fetch_success": 0,
+      "fetch_blocked": 3,
+      "fetch_failed": 0,
+      "extracted": 3,
+      "identified": 3,
+      "price_memory_ready": 3,
+      "price_memory_not_ready": 0,
+      "offer_standard_pass": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "dqe_blocked": 0,
+      "dqe_failed": 0,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "s7_pass": 0,
+      "s7_blocked": 1,
+      "observations_created": 0,
+      "pending_created": 0,
+      "dry_run": false
+    },
+    "cycleFunnel": {
+      "runId": "e1f07cac-75d9-4acb-b0df-b4eb1c23d00a",
+      "cycle_id": "e1f07cac-75d9-4acb-b0df-b4eb1c23d00a",
+      "environment": "staging_or_dev",
+      "bottleneck": "write_path",
+      "bottleneckDetail": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "requests_or_candidates": 3,
+      "products_seen": 3,
+      "products_normalized": 3,
+      "products_rejected_identity": 0,
+      "products_surviving_gates": 1,
+      "products_deduped": 0,
+      "products_budget_cut": 0,
+      "would_insert_observation": 0,
+      "offers_sent_to_moderation": 0,
+      "write_attempts": 1,
+      "write_failed": 0,
+      "writes_disabled": 0,
+      "dry_run": false,
+      "machine_pending_writes_enabled": true,
+      "production_write_blocked": false,
+      "reason_codes": {
+        "dqe_verified": 1,
+        "dqe_potential": 2,
+        "s61_blocked": 2,
+        "sources_blocked": 0,
+        "sources_failed": 0
+      },
+      "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "observations_created": 0,
+      "pending_created": 0,
+      "automation_rate": 0
+    },
+    "automation": {
+      "candidate_count": 3,
+      "auto_processed": 0,
+      "human_required": 0,
+      "blocked": 2,
+      "retryable": 0,
+      "failed": 0,
+      "pending_created": 0,
+      "duplicates": 1,
+      "successfully_enriched": 3,
+      "dqe_verified": 0,
+      "s61_passed": 1,
+      "s7_passed": 0,
+      "written": 0,
+      "automation_rate": 0,
+      "pending_rate": 0,
+      "terminal_rate": 1
+    },
+    "prioritizedUrls": [
+      "https://www.mercadolibre.com.mx/p/MLM45749298",
+      "https://www.mercadolibre.com.mx/p/MLM63084226",
+      "https://articulo.mercadolibre.com.mx/MLM-2177969823-_JM"
+    ],
+    "gateSamples": [
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "historyReady": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "VERIFIED_HISTORY"
+        ]
+      }
+    ],
+    "mintResults": [
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "ok": false,
+        "duplicate": true,
+        "error": "duplicate"
+      }
+    ],
+    "hunterSourceRuns": [
+      {
+        "sourceId": "ml_api_legacy",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_asin",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "walmart_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      }
+    ],
+    "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates)."
+  },
+  "discovery2": {
+    "cycle_id": "9ccb451d-f546-424f-8e02-6dd3f067d49f",
+    "startedAt": "2026-09-25T04:30:05.494Z",
+    "finishedAt": "2026-09-25T04:30:09.831Z",
+    "dryRun": false,
+    "mintAttempted": true,
+    "sources": [
+      {
+        "sourceId": "ml_api_legacy",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_asin",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "walmart_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "sticky_near_ready",
+        "status": "empty",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "pm_evidence_backed",
+        "status": "success",
+        "candidates": 3,
+        "errorCode": null,
+        "errorMessageSafe": null
+      }
+    ],
+    "funnel": {
+      "cycle_id": "9ccb451d-f546-424f-8e02-6dd3f067d49f",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "sources_empty": 7,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "duplicates": 0,
+      "unsupported": 0,
+      "invalid": 0,
+      "fetch_attempted": 3,
+      "fetch_success": 0,
+      "fetch_blocked": 3,
+      "fetch_failed": 0,
+      "extracted": 3,
+      "identified": 3,
+      "price_memory_ready": 3,
+      "price_memory_not_ready": 0,
+      "offer_standard_pass": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "dqe_blocked": 0,
+      "dqe_failed": 0,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "s7_pass": 0,
+      "s7_blocked": 1,
+      "observations_created": 0,
+      "pending_created": 0,
+      "dry_run": false
+    },
+    "cycleFunnel": {
+      "runId": "9ccb451d-f546-424f-8e02-6dd3f067d49f",
+      "cycle_id": "9ccb451d-f546-424f-8e02-6dd3f067d49f",
+      "environment": "staging_or_dev",
+      "bottleneck": "write_path",
+      "bottleneckDetail": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "requests_or_candidates": 3,
+      "products_seen": 3,
+      "products_normalized": 3,
+      "products_rejected_identity": 0,
+      "products_surviving_gates": 1,
+      "products_deduped": 0,
+      "products_budget_cut": 0,
+      "would_insert_observation": 0,
+      "offers_sent_to_moderation": 0,
+      "write_attempts": 1,
+      "write_failed": 0,
+      "writes_disabled": 0,
+      "dry_run": false,
+      "machine_pending_writes_enabled": true,
+      "production_write_blocked": false,
+      "reason_codes": {
+        "dqe_verified": 1,
+        "dqe_potential": 2,
+        "s61_blocked": 2,
+        "sources_blocked": 0,
+        "sources_failed": 0
+      },
+      "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "observations_created": 0,
+      "pending_created": 0,
+      "automation_rate": 0
+    },
+    "automation": {
+      "candidate_count": 3,
+      "auto_processed": 0,
+      "human_required": 0,
+      "blocked": 2,
+      "retryable": 0,
+      "failed": 0,
+      "pending_created": 0,
+      "duplicates": 1,
+      "successfully_enriched": 3,
+      "dqe_verified": 0,
+      "s61_passed": 1,
+      "s7_passed": 0,
+      "written": 0,
+      "automation_rate": 0,
+      "pending_rate": 0,
+      "terminal_rate": 1
+    },
+    "prioritizedUrls": [
+      "https://www.mercadolibre.com.mx/p/MLM45749298",
+      "https://www.mercadolibre.com.mx/p/MLM63084226",
+      "https://articulo.mercadolibre.com.mx/MLM-2177969823-_JM"
+    ],
+    "gateSamples": [
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "historyReady": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "VERIFIED_HISTORY"
+        ]
+      }
+    ],
+    "mintResults": [
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "ok": false,
+        "duplicate": true,
+        "error": "duplicate"
+      }
+    ],
+    "hunterSourceRuns": [
+      {
+        "sourceId": "ml_api_legacy",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_asin",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "walmart_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      }
+    ],
+    "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates)."
+  },
+  "retailers": {
+    "implementedDiscovery": 5,
+    "blockedExternal": 1,
+    "notImplemented": 3,
+    "rows": [
+      {
+        "retailer": "Mercado Libre",
+        "ingestSourceId": "ml_api",
+        "stages": {
+          "discovery": "IMPLEMENTED",
+          "fetch": "BLOCKED_EXTERNAL",
+          "extraction": "IMPLEMENTED",
+          "identity": "IMPLEMENTED",
+          "price": "IMPLEMENTED",
+          "availability": "PARTIAL",
+          "image": "IMPLEMENTED",
+          "seller": "PARTIAL",
+          "coupon": "PARTIAL"
+        },
+        "notes": "Official API + worker Playwright. OAuth can degrade (ML_OAUTH_TOKEN_READ_FAILED). Agent/Cursor IPs often 403. Price Memory marketplace lock = mercadolibre."
+      },
+      {
+        "retailer": "Amazon México",
+        "ingestSourceId": "amazon_asin",
+        "stages": {
+          "discovery": "PARTIAL",
+          "fetch": "PARTIAL",
+          "extraction": "PARTIAL",
+          "identity": "IMPLEMENTED",
+          "price": "PARTIAL",
+          "availability": "PARTIAL",
+          "image": "PARTIAL",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "PARTIAL"
+        },
+        "notes": "ASIN host-scoped identity. PA-API optional; HTML captcha common. Keepa for history when enabled."
+      },
+      {
+        "retailer": "Liverpool",
+        "ingestSourceId": null,
+        "stages": {
+          "discovery": "NOT_IMPLEMENTED",
+          "fetch": "PARTIAL",
+          "extraction": "PARTIAL",
+          "identity": "IMPLEMENTED",
+          "price": "PARTIAL",
+          "availability": "NOT_IMPLEMENTED",
+          "image": "PARTIAL",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "NOT_IMPLEMENTED"
+        },
+        "notes": "PDP parse + liv:SKU identity in offer parsers; no continuous discovery source registered."
+      },
+      {
+        "retailer": "Walmart México",
+        "ingestSourceId": "walmart_mx",
+        "stages": {
+          "discovery": "PARTIAL",
+          "fetch": "PARTIAL",
+          "extraction": "PARTIAL",
+          "identity": "PARTIAL",
+          "price": "PARTIAL",
+          "availability": "PARTIAL",
+          "image": "PARTIAL",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "NOT_IMPLEMENTED"
+        },
+        "notes": "Day-to-Day adapter exists; disabled/not_configured until flags + policy review."
+      },
+      {
+        "retailer": "Coppel",
+        "ingestSourceId": null,
+        "stages": {
+          "discovery": "NOT_IMPLEMENTED",
+          "fetch": "NOT_IMPLEMENTED",
+          "extraction": "NOT_IMPLEMENTED",
+          "identity": "NOT_IMPLEMENTED",
+          "price": "NOT_IMPLEMENTED",
+          "availability": "NOT_IMPLEMENTED",
+          "image": "NOT_IMPLEMENTED",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "NOT_IMPLEMENTED"
+        },
+        "notes": "No Hunter source. Do not add shallow scraper without identity + robots policy."
+      },
+      {
+        "retailer": "Elektra",
+        "ingestSourceId": null,
+        "stages": {
+          "discovery": "NOT_IMPLEMENTED",
+          "fetch": "NOT_IMPLEMENTED",
+          "extraction": "NOT_IMPLEMENTED",
+          "identity": "NOT_IMPLEMENTED",
+          "price": "NOT_IMPLEMENTED",
+          "availability": "NOT_IMPLEMENTED",
+          "image": "NOT_IMPLEMENTED",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "NOT_IMPLEMENTED"
+        },
+        "notes": "No Hunter source."
+      },
+      {
+        "retailer": "Chedraui",
+        "ingestSourceId": "chedraui_mx",
+        "stages": {
+          "discovery": "PARTIAL",
+          "fetch": "PARTIAL",
+          "extraction": "PARTIAL",
+          "identity": "PARTIAL",
+          "price": "PARTIAL",
+          "availability": "PARTIAL",
+          "image": "PARTIAL",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "NOT_IMPLEMENTED"
+        },
+        "notes": "Day-to-Day JSON-LD pilot; disabled by default."
+      },
+      {
+        "retailer": "Bodega Aurrera",
+        "ingestSourceId": "bodega_aurrera_mx",
+        "stages": {
+          "discovery": "PARTIAL",
+          "fetch": "PARTIAL",
+          "extraction": "PARTIAL",
+          "identity": "PARTIAL",
+          "price": "PARTIAL",
+          "availability": "PARTIAL",
+          "image": "PARTIAL",
+          "seller": "NOT_IMPLEMENTED",
+          "coupon": "NOT_IMPLEMENTED"
+        },
+        "notes": "Day-to-Day adapter; disabled by default."
+      }
+    ],
+    "hunterCoverageCount": 45,
+    "dayToDayCount": 6
+  },
+  "humanRemaining": [
+    {
+      "id": "moderation_approve",
+      "status": "required",
+      "safetyCritical": true
+    },
+    {
+      "id": "moderation_reject",
+      "status": "exception_only",
+      "safetyCritical": true
+    },
+    {
+      "id": "dqe_edge_review",
+      "status": "exception_only",
+      "safetyCritical": true
+    },
+    {
+      "id": "affiliate_link_repair",
+      "status": "exception_only",
+      "safetyCritical": false
+    },
+    {
+      "id": "image_manual_fix",
+      "status": "exception_only",
+      "safetyCritical": false
+    },
+    {
+      "id": "category_override",
+      "status": "exception_only",
+      "safetyCritical": false
+    },
+    {
+      "id": "money_payout_ops",
+      "status": "ops_only",
+      "safetyCritical": true
+    },
+    {
+      "id": "oauth_credential_renewal",
+      "status": "ops_only",
+      "safetyCritical": true
+    },
+    {
+      "id": "policy_retailer_enable",
+      "status": "ops_only",
+      "safetyCritical": true
+    }
+  ],
+  "db": {
+    "pending": 1,
+    "observations": 3
+  }
+}

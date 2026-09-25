@@ -25,11 +25,16 @@ export function priceMemoryFromParsedMeta(
   if (!hasAny) return null;
   return {
     historyReady:
-      s.habitual30d != null || s.priceLowest90d != null
+      s.historyReady === true
         ? true
-        : s.savingsVsHabitualPct != null || s.priceVsLowest90dPct != null
-          ? true
-          : null,
+        : s.historyReady === false
+          ? false
+          : s.habitual30d != null || s.priceLowest90d != null
+            ? true
+            : s.savingsVsHabitualPct != null || s.priceVsLowest90dPct != null
+              ? true
+              : null,
+    samples90d: typeof s.samples90d === 'number' ? s.samples90d : null,
     savingsVsHabitualPct: s.savingsVsHabitualPct ?? null,
     priceVsLowest90dPct: s.priceVsLowest90dPct ?? null,
     effectiveDiscountPercent: s.effectiveDiscountPercent ?? null,

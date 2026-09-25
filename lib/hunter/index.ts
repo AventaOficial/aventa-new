@@ -39,6 +39,14 @@ export {
   getDealQualityMetrics,
 } from './dealQuality';
 export type { DealQualityDecision } from './dealQuality';
+export {
+  prioritizeAcquisitionPool,
+  classifyAcquisitionCandidate,
+  classifyOfferFamily,
+  matchDemandCatalog,
+  DEMAND_CATALOG,
+} from './offerStandard';
+export type { AcquisitionSignals, OfferEventFamily } from './offerStandard';
 export { HUNTER_MODULES } from './modules';
 export type { HunterModule, HunterModuleStatus } from './modules';
 export {

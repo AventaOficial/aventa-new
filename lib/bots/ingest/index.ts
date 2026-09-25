@@ -19,7 +19,9 @@ export type {
   MachineQualityReasonCode,
   MachineEvidenceLevel,
 } from './candidateInsertGate';
-export { isTrustedOriginalPriceProvenance } from './candidateInsertGate';
+export { isTrustedOriginalPriceProvenance, mintTrustedOriginalPrice } from './candidateInsertGate';
+export { buildHunterDecisionTrace, labelFromGateAndDqe } from './hunterDecisionTrace';
+export type { HunterDecisionTrace, HunterFinalLabel } from './hunterDecisionTrace';
 export {
   preserveMachinePriceProvenance,
   isLegalProvenanceTransition,
@@ -39,6 +41,37 @@ export type {
   WorkerCardContribution,
 } from './workerCardScoreDiagnostics';
 export {
+  buildAutomationCycleMetrics,
+  classifyAutomationOutcome,
+  metricsFromWorkerResults,
+  emptyAutomationCycleCounts,
+  AUTOMATION_KPI_FORMULAS,
+} from './automationCycleMetrics';
+export type {
+  AutomationCycleMetrics,
+  AutomationCycleCounts,
+  AutomationCycleOutcome,
+} from './automationCycleMetrics';
+export {
+  AUTOMATION_LIFECYCLE_STAGES,
+  PIPELINE_LOSS_CODES,
+  classifyTerminalFromGate,
+  emptyStageCounts,
+  recordStage,
+} from './automationLifecycle';
+export type {
+  AutomationLifecycleStage,
+  LifecycleActor,
+  PipelineLossCode,
+} from './automationLifecycle';
+export {
+  classifyDay2Candidate,
+  assertDay2StagingWritable,
+  readDay2SafetySnapshot,
+  emptyDay2FunnelCounts,
+} from './day2StagingCanary';
+export type { Day2CandidateClass, Day2FunnelCounts, Day2SafetySnapshot } from './day2StagingCanary';
+export {
   evaluateMachineLiveInsertEligibility,
   isMachinePendingWriteEnabled,
   machineGateSkipReason,
@@ -50,6 +83,13 @@ export {
   formatSupplyOpsRunSummaryLog,
 } from './supplyOpsRunSummary';
 export type { SupplyOpsRunSummary, SupplyOpsBottleneck } from './supplyOpsRunSummary';
+export {
+  buildCycleFunnelSummary,
+  buildCycleFunnelSummaryFromDiscovery,
+  explainCycleVerdict,
+  formatCycleFunnelLog,
+} from './cycleFunnelSummary';
+export type { CycleFunnelSummary } from './cycleFunnelSummary';
 export { processExternalWorkerBatch } from './externalWorker';
 export type { ExternalWorkerBatchPayload, ExternalWorkerCandidate } from './externalWorker';
 export {
