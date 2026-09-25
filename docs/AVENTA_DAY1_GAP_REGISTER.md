@@ -39,10 +39,10 @@ Severity:
 
 | | |
 |--|--|
-| **Problem** | Most products lack ≥4 prior days; daily cadence risk. |
-| **Evidence** | **Day 4:** prod last_day=2026-09-24 (= MX today); supply runs collapsed 100+→12→1; `ml_api_legacy` DEGRADED `ML_OAUTH_TOKEN_READ_FAILED`; `ml_worker` healthy. PM persist ≠ DQE. Added `runPriceMemoryFreshnessCycle` + `?mode=pm_freshness`. |
-| **Impact** | historyReady still ~24%; cadence/OAuth is the freshness risk. |
-| **Done when** | Daily MX calendar tip reliably written + ≥50% historyReady on evaluated cohort — **OPEN** (mechanism ready; prod OAuth/cadence gate). |
+| **Problem** | Most products lack ≥4 prior days; tip volume tracked ml_api cadence. |
+| **Evidence** | **Day 5 root cause:** ml_api_legacy runs ~100→1/day; **ml_worker never persisted PM**. Fix: `persistPriceMemoryFromWorkerMetas` in externalWorker + `/api/cron/pm-freshness` + OAuth fail-open. |
+| **Impact** | After deploy, worker cadence (~6–10/day × ~36) can sustain tips without ml_api volume. historyReady ≥50% still open. |
+| **Done when** | Daily MX tip reliable via worker and/or restored ml_api schedule — **PARTIAL** (code DONE; prod deploy pending). |
 
 ### P0-4 — No live automation % KPI
 

@@ -213,9 +213,65 @@ export async function runPriceMemoryFreshnessCycle(opts?: {
     config: { maxTargets, cooldownHours: 1 },
   });
 
-  const targets = near.targets;
+  let targets = near.targets;
+  // Fallback: products in PM missing today's tip (keeps cadence when near-ready pool empty).
   if (targets.length === 0) {
-    losses.NO_CANDIDATES += 1;
+    try {
+      const client = createServerClient();
+      const todayYmd = formatYmdInTz(now, ML_PRICE_TZ);
+      const { data: rows } = await client
+        .from('product_price_snapshots')
+        .select('product_id, last_price, recorded_on')
+        .eq('marketplace', ML_PRICE_MARKETPLACE)
+        .lt('recorded_on', todayYmd)
+        .order('recorded_on', { ascending: false })
+        .limit(2000);
+      const latest = new Map<
+        string,
+        { lastPrice: number; days: Set<string>; lastOn: string }
+      >();
+      for (const row of rows ?? []) {
+        const id = String((row as { product_id: string }).product_id);
+        const on = String((row as { recorded_on: string }).recorded_on).slice(0, 10);
+        const price = Number((row as { last_price?: number }).last_price);
+        if (!id || !Number.isFinite(price) || price <= 0) continue;
+        const agg = latest.get(id) ?? { lastPrice: price, days: new Set<string>(), lastOn: on };
+        agg.days.add(on);
+        if (on >= agg.lastOn) {
+          agg.lastOn = on;
+          agg.lastPrice = price;
+        }
+        latest.set(id, agg);
+      }
+      // Prefer near-ready (3 prior days), then any stale with ≥1 day
+      const ranked = [...latest.entries()]
+        .map(([productId, agg]) => ({
+          productId,
+          priorDays: agg.days.size,
+          daysUntilReady: Math.max(0, ML_PRICE_MIN_HISTORY_DAYS - agg.days.size),
+          lastObservedOn: agg.lastOn,
+          lastPrice: agg.lastPrice,
+          hoursSinceObserved: 24,
+          marketplace: ML_PRICE_MARKETPLACE as typeof ML_PRICE_MARKETPLACE,
+        }))
+        .filter((t) => t.lastObservedOn < todayYmd)
+        .sort(
+          (a, b) =>
+            a.daysUntilReady - b.daysUntilReady ||
+            b.priorDays - a.priorDays ||
+            a.productId.localeCompare(b.productId),
+        )
+        .slice(0, maxTargets);
+      targets = ranked;
+      if (targets.length === 0) {
+        losses.NO_CANDIDATES += 1;
+      } else {
+        // Clear false NO_CANDIDATES if we recovered via stale pool
+        losses.NO_CANDIDATES = 0;
+      }
+    } catch {
+      losses.NO_CANDIDATES += 1;
+    }
   }
 
   let observeAttempted = 0;

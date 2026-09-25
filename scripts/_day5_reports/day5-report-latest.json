@@ -1,0 +1,140 @@
+{
+  "at": "2026-09-25T04:39:07.394Z",
+  "safety": {
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "expected": "oojshofrpbfwsiypcecr",
+    "stagingOnly": true,
+    "refOk": true,
+    "writesFlagBefore": false,
+    "moneyPathFlags": {
+      "REWARDS_PROGRAM_ACTIVE": "(unset)",
+      "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+      "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+      "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+      "MONEY_PATH_FROZEN": "(unset)",
+      "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+      "HUNTER_AUTO_PUBLISH": "(unset)"
+    }
+  },
+  "rootCause": "ml_api_legacy invocation cadence collapsed (~100→1/day); ml_worker kept discovering but never called recordMlDailySnapshots — PM tip volume tracked ml_api, not worker.",
+  "before": {
+    "observations": 97,
+    "uniqueProducts": 29,
+    "calendarDays": 20,
+    "historyReady": 10,
+    "nearReady": 9,
+    "notReady": 10,
+    "lastDay": "2026-09-24",
+    "firstDay": "2026-08-28",
+    "todayYmd": "2026-09-24",
+    "rowsToday": 29,
+    "staleDays": 0
+  },
+  "mid": {
+    "observations": 97,
+    "uniqueProducts": 29,
+    "calendarDays": 20,
+    "historyReady": 10,
+    "nearReady": 9,
+    "notReady": 10,
+    "lastDay": "2026-09-24",
+    "firstDay": "2026-08-28",
+    "todayYmd": "2026-09-24",
+    "rowsToday": 29,
+    "staleDays": 0
+  },
+  "after": {
+    "observations": 97,
+    "uniqueProducts": 29,
+    "calendarDays": 20,
+    "historyReady": 10,
+    "nearReady": 9,
+    "notReady": 10,
+    "lastDay": "2026-09-24",
+    "firstDay": "2026-08-28",
+    "todayYmd": "2026-09-24",
+    "rowsToday": 29,
+    "staleDays": 0
+  },
+  "persist1": {
+    "attempted": 3,
+    "written": 3,
+    "skippedNoIdentity": 0,
+    "skippedNoPrice": 0
+  },
+  "persist2": {
+    "attempted": 3,
+    "written": 3,
+    "skippedNoIdentity": 0,
+    "skippedNoPrice": 0
+  },
+  "freshness": {
+    "cycle_id": "4de79771-0b56-4d3e-adfc-4aba8b411795",
+    "startedAt": "2026-09-25T04:39:00.954Z",
+    "finishedAt": "2026-09-25T04:39:05.629Z",
+    "mode": "observe_only",
+    "censusBefore": {
+      "observations": 97,
+      "uniqueProducts": 29,
+      "calendarDays": 20,
+      "historyReady": 10,
+      "nearReady": 9,
+      "notReady": 10,
+      "lastDay": "2026-09-24",
+      "firstDay": "2026-08-28",
+      "todayYmd": "2026-09-24",
+      "rowsToday": 29,
+      "staleDays": 0
+    },
+    "censusAfter": {
+      "observations": 97,
+      "uniqueProducts": 29,
+      "calendarDays": 20,
+      "historyReady": 10,
+      "nearReady": 9,
+      "notReady": 10,
+      "lastDay": "2026-09-24",
+      "firstDay": "2026-08-28",
+      "todayYmd": "2026-09-24",
+      "rowsToday": 29,
+      "staleDays": 0
+    },
+    "targetsSelected": 8,
+    "observeAttempted": 8,
+    "observeOk": 0,
+    "snapshotsPersisted": 0,
+    "losses": {
+      "NO_CANDIDATES": 0,
+      "FETCH_BLOCKED": 8,
+      "EXTRACTION_FAILED": 0,
+      "IDENTITY_FAILED": 0,
+      "PRICE_MISSING": 0,
+      "DUPLICATE": 0,
+      "DQE_BLOCK": 0,
+      "S6_1_BLOCK": 0,
+      "WRITER_BLOCK": 0,
+      "WRITE_FAILURE": 0,
+      "OTHER": 0
+    },
+    "largestLoss": "FETCH_BLOCKED",
+    "diagnosis": "All observe attempts failed (largest=FETCH_BLOCKED). Price Memory is current for 2026-09-24 (29 rows today). historyReady=10/29. Bottleneck for DQE majority remains sticky multi-day coverage, not total row count.",
+    "productionGate": "Keep supply-engine dry_run accumulating PM; production machine mint stays OFF."
+  },
+  "status": {
+    "todayYmd": "2026-09-24",
+    "last_successful_supply_run": null,
+    "last_successful_pm_write": {
+      "recordedOn": "2026-09-24",
+      "rows": 29
+    },
+    "last_successful_source": null,
+    "last_failure_reason": null,
+    "pm_rows_today": 29,
+    "productive_runs_today": 0,
+    "ml_api_legacy_runs_today": 0,
+    "ml_worker_runs_today": 0,
+    "verdict": "no_productive_supply_today"
+  },
+  "deltaRowsToday": 0
+}

@@ -620,6 +620,34 @@ export async function processExternalWorkerBatch(
     });
   }
 
+  // Day 5: Price Memory from worker listings BEFORE DQE/S6.1 — sustains PM when ml_api_legacy cadence drops.
+  let workerPmPersist: {
+    attempted: number;
+    written: number;
+    skippedNoIdentity: number;
+    skippedNoPrice: number;
+  } | null = null;
+  try {
+    const { persistPriceMemoryFromWorkerMetas } = await import('./persistWorkerPriceMemory');
+    workerPmPersist = await persistPriceMemoryFromWorkerMetas(
+      items.map((i) => i.precomputedMeta!).filter(Boolean),
+      { sourceDetail: 'worker:ml' },
+    );
+    console.info(
+      '[worker-pm]',
+      JSON.stringify({
+        runId: supplyRunId,
+        dryRun,
+        ...workerPmPersist,
+      }),
+    );
+  } catch (error) {
+    console.error(
+      '[worker-pm] persist failed',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
   // itemsFound (health DB) = rawCandidates.length. Shadow/enrichment NO usan ese universo.
   // Ranking de adquisición: presupuesto a SKUs de demanda; no cambia mint/DQE.
   const slice = prioritizeAcquisitionPool(items).slice(0, config.candidatePoolMax);
