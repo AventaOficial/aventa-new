@@ -74,6 +74,10 @@ export type ClassifyDiscountInput = {
   cardDiscountSource?: string | null;
   historicalPrice?: number | null;
   historicalPriceConfidence?: DiscountConfidence | null;
+  /** Price Intel: when true, reported % cannot be REAL_GOOD. */
+  suspectedArtificialListPrice?: boolean | null;
+  /** Verified/effective discount; 0 with reported>0 → UNKNOWN (not REAL_GOOD). */
+  effectiveDiscountPercent?: number | null;
 };
 
 function num(v: unknown): number | null {
@@ -273,6 +277,44 @@ export function classifyDiscountEvidence(input: ClassifyDiscountInput): Discount
         discountEvidence: 'insufficient',
         computedPct: pct,
         path: 'untrusted_badge_reconstruction',
+      },
+    };
+  }
+
+  // Artificial list or effectiveDiscount≤0 with a reported claim → never REAL_GOOD.
+  if (input.suspectedArtificialListPrice === true) {
+    const pct = computedPct ?? declaredPct;
+    return {
+      discountClass: 'DISCOUNT_UNKNOWN',
+      discountClassV1: v1,
+      discountConfidence: 'none',
+      discountSource: src,
+      historicalPriceConfidence: histConf,
+      priceEvidence: {
+        ...baseEvidence,
+        discountEvidence: 'contradictory',
+        computedPct: pct,
+        path: 'artificial_list_price_untrusted',
+      },
+    };
+  }
+  const effDisc = num(input.effectiveDiscountPercent);
+  if (
+    effDisc != null &&
+    effDisc <= 0 &&
+    (declaredPct != null && declaredPct > 0 || (computedPct != null && computedPct > 0))
+  ) {
+    return {
+      discountClass: 'DISCOUNT_UNKNOWN',
+      discountClassV1: v1,
+      discountConfidence: 'none',
+      discountSource: src,
+      historicalPriceConfidence: histConf,
+      priceEvidence: {
+        ...baseEvidence,
+        discountEvidence: 'contradictory',
+        computedPct: computedPct ?? declaredPct,
+        path: 'effective_discount_zero_vs_reported',
       },
     };
   }

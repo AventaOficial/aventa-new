@@ -1,0 +1,10 @@
+export { OFFER_EVENT_FAMILIES, FAMILY_ACQUISITION_BONUS } from './families';
+export type { OfferEventFamily } from './families';
+export { DEMAND_CATALOG, matchDemandCatalog } from './demandCatalog';
+export type { DemandEntry, DemandLevel, DemandMatch, DemandNiche } from './demandCatalog';
+export { parseUnitEconomics } from './unitEconomics';
+export type { UnitEconomicsHint } from './unitEconomics';
+export { classifyOfferFamily, classifyAcquisitionCandidate } from './classifyAcquisition';
+export type { AcquisitionSignals } from './classifyAcquisition';
+export { prioritizeAcquisitionPool } from './prioritizeAcquisitionPool';
+export type { RankedAcquisitionItem } from './prioritizeAcquisitionPool';

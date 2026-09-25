@@ -53,6 +53,7 @@ import { hasMercadoLibreListingIdentity } from '@/lib/offers/resolveMercadoLibre
 import { normalizeOfferImageUrl } from '@/lib/offerPath';
 import { recordExternalSourceBatchHealth } from '@/lib/hunter/engine';
 import { qualifyParsedOfferMetadata } from '@/lib/hunter/dealQualification';
+import { prioritizeAcquisitionPool } from '@/lib/hunter/offerStandard';
 import {
   evaluateDealQualityFromParsedMeta,
   recordDealQualityDecision,
@@ -64,11 +65,16 @@ import {
   machineGateSkipReason,
   type MachineLiveInsertEligibility,
 } from '@/lib/bots/ingest/machineLiveInsertEligibility';
+import { isProductionRuntime } from '@/lib/server/moneyPathFreeze';
 import { resolveCanaryInsertCap } from '@/lib/bots/ingest/machineInsertCanary';
 import {
   buildSupplyOpsRunSummary,
   formatSupplyOpsRunSummaryLog,
 } from '@/lib/bots/ingest/supplyOpsRunSummary';
+import {
+  buildCycleFunnelSummary,
+  formatCycleFunnelLog,
+} from '@/lib/bots/ingest/cycleFunnelSummary';
 import {
   persistIngestSupplyRuns,
   trackIngestQualification,
@@ -87,8 +93,18 @@ import {
   applyWouldCutAnnotations,
   isHunterDiscoveryExperimentEnabled,
 } from '@/lib/hunter/candidateIntelligence/discoveryExperimentPublic';
+import {
+  buildHunterDecisionTrace,
+  type HunterDecisionTrace,
+} from '@/lib/bots/ingest/hunterDecisionTrace';
 
 const MAX_WORKER_DISCOUNT_PERCENT = 85;
+
+export type HunterCandidateDecisionTrace = HunterDecisionTrace & {
+  url: string;
+  title: string | null;
+  wouldInsert: boolean;
+};
 
 /** Un solo ciclo de lote externo a la vez, sea cual sea el isolate que lo atienda. */
 const EXTERNAL_WORKER_LOCK_KEY = 'ingest:ml_worker';
@@ -163,6 +179,11 @@ export type ExternalWorkerBatchPayload = {
    * Omit for normal (non-canary) batches. Does not enable writes by itself.
    */
   canaryCap?: number | null;
+  /**
+   * Optional stable run id (e.g. hunter-quality-validation-<ts>).
+   * Reuses the existing supply/intelligence runId slot — not a parallel id system.
+   */
+  runId?: string | null;
 };
 
 /**
@@ -424,7 +445,9 @@ export async function processExternalWorkerBatch(
   payload: ExternalWorkerBatchPayload
 ): Promise<IngestCycleReport> {
   const startedAt = new Date().toISOString();
-  const supplyRunId = crypto.randomUUID();
+  const suppliedRunId =
+    typeof payload.runId === 'string' && payload.runId.trim() ? payload.runId.trim().slice(0, 120) : '';
+  const supplyRunId = suppliedRunId || crypto.randomUUID();
   const profile: IngestProfileId = payload.profile === 'mega' ? 'mega' : 'standard';
   const config = loadBotIngestConfig(profile);
   const pausedByOwner = await getBotIngestPausedFromDb();
@@ -457,6 +480,7 @@ export async function processExternalWorkerBatch(
       runBlock: block,
     });
     console.info(formatSupplyOpsRunSummaryLog(ops));
+    console.info(formatCycleFunnelLog(buildCycleFunnelSummary(ops)));
     return {
       ok: block !== 'missing_bot_user',
       enabled: block !== 'disabled' && block !== 'paused',
@@ -479,6 +503,7 @@ export async function processExternalWorkerBatch(
         rejected: 0,
         autoApproved: 0,
         ops,
+        cycleFunnel: buildCycleFunnelSummary(ops),
       },
     };
   }
@@ -514,6 +539,7 @@ export async function processExternalWorkerBatch(
       reasonCodes: { concurrent_cycle_in_progress: 1 },
     });
     console.info(formatSupplyOpsRunSummaryLog(ops));
+    console.info(formatCycleFunnelLog(buildCycleFunnelSummary(ops)));
     return {
       ok: true,
       enabled: true,
@@ -537,6 +563,7 @@ export async function processExternalWorkerBatch(
         autoApproved: 0,
         skipReasonCounts: { concurrent_cycle_in_progress: 1 },
         ops,
+        cycleFunnel: buildCycleFunnelSummary(ops),
       },
     };
   }
@@ -594,7 +621,8 @@ export async function processExternalWorkerBatch(
   }
 
   // itemsFound (health DB) = rawCandidates.length. Shadow/enrichment NO usan ese universo.
-  const slice = items.slice(0, config.candidatePoolMax);
+  // Ranking de adquisición: presupuesto a SKUs de demanda; no cambia mint/DQE.
+  const slice = prioritizeAcquisitionPool(items).slice(0, config.candidatePoolMax);
   stageCounts.collected = slice.length;
 
   type Resolved = {
@@ -608,6 +636,7 @@ export async function processExternalWorkerBatch(
     machineGate: MachineLiveInsertEligibility;
   };
   const resolved: Resolved[] = [];
+  const decisionTraces: HunterCandidateDecisionTrace[] = [];
   let scoreRejected = 0;
   let opsSuppressed = 0;
   let opsWritesDisabled = 0;
@@ -799,8 +828,7 @@ export async function processExternalWorkerBatch(
         continue;
       }
 
-      // S6.6: S6.1 evaluateMachineCandidateGate is the sole quality authority.
-      // DQE (mlQuality) remains observational only — never insert bypass / never fallback.
+      // S6.6: S6.1 gate is sole mint authority; DQE DISCARD / price-truth binds inside the gate.
       // Early duplicate check optional here; final arbiter = insertIngestedOffer UNIQUE.
       const dealScoreAdvisory = computeDealScore({
         meta: {
@@ -810,6 +838,13 @@ export async function processExternalWorkerBatch(
         },
         signals: meta.signals ?? null,
       });
+      // Always evaluate DQE for mint bind (ml_worker already computed; others on demand).
+      const dealQualityForGate =
+        mlQuality ??
+        evaluateDealQualityFromParsedMeta(meta, {
+          source: item.source,
+          qualification,
+        });
       const machineGate = evaluateMachineLiveInsertEligibility({
         url: item.url,
         meta,
@@ -818,7 +853,20 @@ export async function processExternalWorkerBatch(
         verifierReasons: verified.reasons,
         duplicate: null,
         dealScore: dealScoreAdvisory,
+        dealQuality: dealQualityForGate,
         pdpBlocked: item.pdpBlocked,
+      });
+      const gateTrace = buildHunterDecisionTrace({
+        meta,
+        gate: machineGate.gate,
+        dealQuality: dealQualityForGate,
+        dealScore: dealScoreAdvisory,
+      });
+      decisionTraces.push({
+        url: item.url,
+        title: meta.title?.trim() || null,
+        wouldInsert: machineGate.wouldInsert,
+        ...gateTrace,
       });
       if (!machineGate.eligible) {
         opsSuppressed += 1;
@@ -994,6 +1042,15 @@ export async function processExternalWorkerBatch(
       continue;
     }
 
+    // Production fail-closed: never attempt machine mint (same as assertMachineOfferWriteAuthorized).
+    if (isProductionRuntime()) {
+      const reason = 'machine_writes_production_blocked';
+      opsWritesDisabled += 1;
+      results.push({ url: row.item.url, source: row.item.source, status: 'skipped', reason });
+      markSourceSkip(sourceStats, row.item.source, reason);
+      continue;
+    }
+
     // S6.6 / S6.7: machine pending DB writes stay OFF until explicit canary activation.
     // Quality may pass while writes remain disabled — no production insert by default.
     if (!isMachinePendingWriteEnabled()) {
@@ -1018,6 +1075,7 @@ export async function processExternalWorkerBatch(
         rawObservation: rawSlice,
         gateAction: 'insert_pending',
         gateReason: row.machineGate.gateReason || 's61_verified_opportunity',
+        gate: row.machineGate.gate,
       });
       if (ins.ok) {
         insertedThisRun += 1;
@@ -1090,6 +1148,8 @@ export async function processExternalWorkerBatch(
     discoverySeedsFailed: discovery?.seedsFailed,
   });
   console.info(formatSupplyOpsRunSummaryLog(ops));
+  const cycleFunnel = buildCycleFunnelSummary(ops);
+  console.info(formatCycleFunnelLog(cycleFunnel));
 
   const summary: IngestCycleReport['summary'] = {
     inserted: results.filter((r) => r.status === 'inserted').length,
@@ -1105,6 +1165,8 @@ export async function processExternalWorkerBatch(
     sourceStats,
     stageCounts,
     ops,
+    cycleFunnel,
+    ...(decisionTraces.length > 0 ? { decisionTraces } : {}),
   };
 
   // Shadow vive en memoria del isolate: sin este snapshot el panel admin no lo ve nunca.
