@@ -320,7 +320,7 @@ describe('FINAL AUDIT — identity A–F', () => {
     expect(db.counts().offers).toBe(1);
   });
 
-  it('E. misma URL fingerprint 100 veces → 1 offer', async () => {
+  it('E. misma Liverpool SKU 100 veces → 1 offer', async () => {
     const body = {
       title: 'Liverpool',
       store: 'Liverpool',
@@ -328,7 +328,7 @@ describe('FINAL AUDIT — identity A–F', () => {
       price: 300,
       image_url: 'https://img/lvp.jpg',
       offer_url: 'https://www.liverpool.com.mx/tienda/pdp/camisa/12345',
-      description: 'url fp',
+      description: 'liv sku',
     };
     const ids = new Set<string>();
     for (let i = 0; i < 100; i++) {
@@ -343,8 +343,8 @@ describe('FINAL AUDIT — identity A–F', () => {
     }
     expect(ids.size).toBe(1);
     const identity = resolveIngestionIdentity(body.offer_url);
-    expect(identity.strategy).toBe('url_fingerprint');
-    expect(identity.key).toContain('url:');
+    expect(identity.strategy).toBe('liverpool_sku');
+    expect(identity.key).toBe('liv:12345');
   });
 
   it('F. payload sin identity (sin URL) → cada ingest crea offer distinta', async () => {

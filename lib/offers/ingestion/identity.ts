@@ -1,11 +1,12 @@
 /**
  * Stable server-side ingestion identity.
- * Precedence: Amazon ASIN → Mercado Libre item → URL fingerprint.
+ * Precedence: Amazon ASIN → Mercado Libre item → Liverpool SKU → URL fingerprint.
  * Title / price / discount / seller are never identity.
  */
 
 import {
   extractAmazonAsin,
+  extractLiverpoolSkuForFingerprint,
   extractMercadoLibreItemId,
   offerUrlFingerprint,
 } from '@/lib/offers/offerUrlFingerprint';
@@ -13,6 +14,7 @@ import {
 export type IngestionIdentityStrategy =
   | 'amazon_asin'
   | 'ml_item'
+  | 'liverpool_sku'
   | 'url_fingerprint'
   | 'none';
 
@@ -20,7 +22,7 @@ export type IngestionIdentity = {
   /** Key persisted on offers.ingestion_identity_key when non-null. */
   key: string | null;
   strategy: IngestionIdentityStrategy;
-  /** Strong amz|ml fingerprint for existing product_fingerprint UNIQUE. */
+  /** Strong amz|ml|liv fingerprint for existing product_fingerprint UNIQUE. */
   productFingerprint: string | null;
   reason: string | null;
 };
@@ -28,6 +30,7 @@ export type IngestionIdentity = {
 /**
  * Resolve deterministic identity for idempotent ingest.
  * Weak shortlinks (meli.la:*) return strategy none — no UNIQUE claim.
+ * Liverpool homepage/search (no PDP SKU) → none (never invent identity).
  */
 export function resolveIngestionIdentity(rawUrl: string): IngestionIdentity {
   const trimmed = rawUrl.trim();
@@ -47,6 +50,12 @@ export function resolveIngestionIdentity(rawUrl: string): IngestionIdentity {
     return { key, strategy: 'ml_item', productFingerprint: key, reason: null };
   }
 
+  const livSku = extractLiverpoolSkuForFingerprint(trimmed);
+  if (livSku) {
+    const key = `liv:${livSku}`;
+    return { key, strategy: 'liverpool_sku', productFingerprint: key, reason: null };
+  }
+
   const fp = offerUrlFingerprint(trimmed);
   if (!fp) {
     return { key: null, strategy: 'none', productFingerprint: null, reason: 'unparseable_or_weak' };
@@ -57,6 +66,9 @@ export function resolveIngestionIdentity(rawUrl: string): IngestionIdentity {
   }
   if (fp.startsWith('ml:')) {
     return { key: fp, strategy: 'ml_item', productFingerprint: fp, reason: null };
+  }
+  if (fp.startsWith('liv:')) {
+    return { key: fp, strategy: 'liverpool_sku', productFingerprint: fp, reason: null };
   }
   if (fp.startsWith('meli.la:')) {
     return {

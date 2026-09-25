@@ -6,6 +6,8 @@
  * Pure: build from counters + flags already known to the cycle.
  */
 
+import { isProductionRuntime } from '@/lib/server/moneyPathFreeze';
+
 export type SupplyOpsBottleneck =
   | 'none'
   | 'discovery_empty'
@@ -17,6 +19,7 @@ export type SupplyOpsBottleneck =
   | 'quality_suppressed'
   | 'budget_exhausted'
   | 'writes_disabled'
+  | 'production_blocked'
   | 'dry_run'
   | 'concurrent_lock'
   | 'unknown';
@@ -29,6 +32,8 @@ export type SupplyOpsRunSummary = {
   profile: string;
   dryRun: boolean;
   machinePendingWritesEnabled: boolean;
+  /** Fail-closed: machine mint never writes offers in production runtime. */
+  productionWriteBlocked: boolean;
   bottleneck: SupplyOpsBottleneck;
   bottleneckDetail: string;
   discovered: number;
@@ -46,6 +51,10 @@ export type SupplyOpsRunSummary = {
   writeFailed: number;
   writesDisabled: number;
   dryRunSimulated: number;
+  /** Alias of writeSuccess — real pending rows for moderation. */
+  offersSentToModeration: number;
+  /** Alias of dryRunSimulated — observation only, not moderation. */
+  wouldInsertObservation: number;
   reasonCodes: Record<string, number>;
   durationMs: number;
 };
@@ -58,6 +67,8 @@ export type BuildSupplyOpsRunSummaryInput = {
   dryRun: boolean;
   machinePendingWritesEnabled: boolean;
   environment?: string;
+  /** Explicit override; defaults to isProductionRuntime(). */
+  productionWriteBlocked?: boolean;
   discovered: number;
   /** Candidates that survived payload→meta (identity-capable). */
   identityValid: number;
@@ -151,14 +162,29 @@ export function diagnoseSupplyOpsBottleneck(
       detail: 'WORKER_DISCOVERY_ONLY / dryRun=true — no DB offers write',
     };
   }
+  if (input.writeSuccess > 0) {
+    return { bottleneck: 'none', detail: 'pending inserts occurred this run' };
+  }
+  if (input.duplicates > 0 && input.writeAttempts === 0 && input.liveEligible > 0) {
+    return {
+      bottleneck: 'unknown',
+      detail: 'live-eligible candidates were duplicates — no new pending mint',
+    };
+  }
+  const productionBlocked =
+    input.productionWriteBlocked ?? isProductionRuntime();
+  if (productionBlocked && input.liveEligible > 0) {
+    return {
+      bottleneck: 'production_blocked',
+      detail:
+        'assertMachineOfferWriteAuthorized → PRODUCTION_BLOCKED (VERCEL_ENV=production)',
+    };
+  }
   if (!input.machinePendingWritesEnabled && input.liveEligible > 0) {
     return {
       bottleneck: 'writes_disabled',
       detail: 'BOT_INGEST_MACHINE_PENDING_WRITES default OFF',
     };
-  }
-  if (input.writeSuccess > 0) {
-    return { bottleneck: 'none', detail: 'pending inserts occurred this run' };
   }
   return { bottleneck: 'unknown', detail: 'funnel completed without clear single bottleneck' };
 }
@@ -174,6 +200,9 @@ export function buildSupplyOpsRunSummary(
       ? Math.max(0, finished - started)
       : 0;
 
+  const productionWriteBlocked =
+    input.productionWriteBlocked ?? isProductionRuntime();
+
   return {
     runId: input.runId,
     startedAt: input.startedAt,
@@ -182,6 +211,7 @@ export function buildSupplyOpsRunSummary(
     profile: input.profile,
     dryRun: input.dryRun,
     machinePendingWritesEnabled: input.machinePendingWritesEnabled,
+    productionWriteBlocked,
     bottleneck,
     bottleneckDetail: detail,
     discovered: input.discovered,
@@ -199,6 +229,8 @@ export function buildSupplyOpsRunSummary(
     writeFailed: input.writeFailed,
     writesDisabled: input.writesDisabled,
     dryRunSimulated: input.dryRunSimulated,
+    offersSentToModeration: input.writeSuccess,
+    wouldInsertObservation: input.dryRunSimulated,
     reasonCodes: { ...(input.reasonCodes ?? {}) },
     durationMs,
   };
@@ -216,8 +248,11 @@ export function formatSupplyOpsRunSummaryLog(summary: SupplyOpsRunSummary): stri
     `qualityVerified=${summary.qualityVerified}`,
     `liveEligible=${summary.liveEligible}`,
     `writeSuccess=${summary.writeSuccess}`,
+    `moderation=${summary.offersSentToModeration}`,
+    `wouldInsert=${summary.wouldInsertObservation}`,
     `writesDisabled=${summary.writesDisabled}`,
     `dryRun=${summary.dryRun ? 1 : 0}`,
+    `prodBlocked=${summary.productionWriteBlocked ? 1 : 0}`,
     `writesFlag=${summary.machinePendingWritesEnabled ? 1 : 0}`,
   ].join(' ');
 }

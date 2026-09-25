@@ -6,7 +6,7 @@ import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import type { OfferQualitySignals } from './offerQualitySignals';
-import { BOT_INGEST_USER_AGENT } from './ingestHttp';
+import { PRODUCT_PAGE_BROWSER_UA } from './ingestHttp';
 import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 import {
   extractOfferImages,
@@ -19,6 +19,8 @@ import {
   extractMercadoLibreItemId,
   resolveMercadoLibreItem,
 } from '@/lib/offers/resolveMercadoLibreItem';
+import { extractLiverpoolProduct } from '@/lib/offers/productExtraction/liverpoolExtract';
+import { isOfferLiverpoolHost } from '@/lib/offers/commerceHostAllowlist';
 import { applyCanonicalDiscountToMetaFields } from './canonicalDiscount';
 
 function getDomain(hostname: string): string {
@@ -379,8 +381,9 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
     res = await fetchWithTimeout(url.href, {
       timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
       headers: {
-        'User-Agent': BOT_INGEST_USER_AGENT,
+        'User-Agent': PRODUCT_PAGE_BROWSER_UA,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
       },
       redirect: 'follow',
     });
@@ -412,8 +415,19 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
     domain.endsWith('.mercadolibre.com') ||
     domain.endsWith('.mercadolibre.com.mx');
 
+  const isLiverpool = isOfferLiverpoolHost(finalUrl.hostname);
+
   let data: { title: string | null; image: string | null; store: string | null };
-  if (isAmazon) {
+  let liverpoolPrices: { discount: number | null; original: number | null } | null = null;
+  let liverpoolImages: string[] = [];
+
+  if (isLiverpool) {
+    // Same authority as /api/parse-offer-url — DOM testIds + JSON-LD (not generic heuristics alone).
+    const lv = extractLiverpoolProduct(html, finalUrl.href);
+    data = { title: lv.title, image: lv.image, store: lv.store };
+    liverpoolPrices = { discount: lv.suggestedDiscount, original: lv.suggestedOriginal };
+    liverpoolImages = lv.images;
+  } else if (isAmazon) {
     const d = parseAmazon(html, base);
     data = { ...d, store: d.store };
   } else if (isMercadoLibre) {
@@ -432,7 +446,9 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
     'Tienda';
 
   const trusted = extractOfferMetaImages(html, base);
-  const amazonOrGeneric = isAmazon || !isMercadoLibre ? extractOfferImages(html, base) : [];
+  const amazonOrGeneric = isAmazon || (!isMercadoLibre && !isLiverpool)
+    ? extractOfferImages(html, base)
+    : [];
   const mergedImages = isMercadoLibre
     ? mergeMercadoLibreImageCandidates({
         apiPictures: [],
@@ -440,11 +456,15 @@ export async function fetchParsedOfferMetadataDetailed(rawUrl: string): Promise<
         trustedHtmlImages: trusted,
         sourceItemId: extractMercadoLibreItemId(rawUrl) ?? extractMercadoLibreItemId(finalUrl.href),
       })
-    : selectOfferImages([data.image, ...trusted, ...amazonOrGeneric].filter((u): u is string => Boolean(u)));
+    : isLiverpool
+      ? selectOfferImages(
+          [data.image, ...liverpoolImages, ...trusted].filter((u): u is string => Boolean(u)),
+        )
+      : selectOfferImages([data.image, ...trusted, ...amazonOrGeneric].filter((u): u is string => Boolean(u)));
   const imageUrl = firstValidOfferImage(mergedImages) ?? '';
 
-  const discount = prices.discount;
-  const original = prices.original;
+  const discount = liverpoolPrices?.discount ?? prices.discount;
+  const original = liverpoolPrices?.original ?? prices.original;
 
   let discountPrice: number;
   let originalPrice: number | null;

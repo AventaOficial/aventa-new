@@ -361,6 +361,7 @@ describe('S7 supplyOpsRunSummary (pure)', () => {
       baseInput({
         dryRun: false,
         machinePendingWritesEnabled: false,
+        productionWriteBlocked: false,
         liveEligible: 3,
         writesDisabled: 3,
       }),
@@ -398,15 +399,22 @@ describe('S7 supplyOpsRunSummary (pure)', () => {
 
   it('M — structured run summary + safe log', () => {
     const summary = buildSupplyOpsRunSummary(
-      baseInput({ writeSuccess: 2, machinePendingWritesEnabled: true, writesDisabled: 0 }),
+      baseInput({
+        writeSuccess: 2,
+        machinePendingWritesEnabled: true,
+        productionWriteBlocked: false,
+        writesDisabled: 0,
+      }),
     );
     expect(summary.runId).toBe('run-s7-test');
     expect(summary.durationMs).toBe(5000);
     expect(summary.normalized).toBe(summary.identityValid);
     expect(summary.bottleneck).toBe('none');
+    expect(summary.offersSentToModeration).toBe(2);
     const log = formatSupplyOpsRunSummaryLog(summary);
     expect(log).toContain('[supply-ops]');
     expect(log).toContain('bottleneck=none');
+    expect(log).toContain('moderation=2');
     expect(log).not.toMatch(/cookie|secret|token/i);
   });
 

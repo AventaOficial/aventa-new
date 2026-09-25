@@ -120,16 +120,38 @@ function trustedMeta(over: Partial<ParsedOfferMetadata> = {}): ParsedOfferMetada
 describe('S6.1 Machine Candidate Quality Gate', () => {
   const cfg = baseConfig();
 
-  it('1. trusted listing_card original → VERIFIED_OPPORTUNITY', () => {
+  it('1. listing_card without history → SUPPRESSED (INSUFFICIENT_HISTORY)', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
       meta: trustedMeta(),
       config: cfg,
       verifierDecision: 'pending',
     });
+    expect(r.qualityDecision).toBe('SUPPRESSED');
+    expect(r.wouldInsert).toBe(false);
+    expect(r.reasonCodes).toContain('INSUFFICIENT_HISTORY');
+  });
+
+  it('1b. listing_card + historyReady → VERIFIED_OPPORTUNITY', () => {
+    const r = evaluateMachineCandidateGate({
+      url: trustedMeta().canonicalUrl,
+      meta: trustedMeta({
+        signals: {
+          historyReady: true,
+          originalPriceProvenance: 'listing_card',
+          cardDiscountSource: 'card_strikethrough',
+        },
+      }),
+      config: cfg,
+      verifierDecision: 'pending',
+      dealQuality: {
+        decision: 'VERIFIED_DEAL',
+        recommendedAction: 'PUBLISH_CANDIDATE',
+        reasons: ['ok'],
+      },
+    });
     expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(r.wouldInsert).toBe(true);
-    expect(r.action).toBe('insert_pending');
     expect(r.reasonCodes).toContain('VERIFIED_CARD_PRICE');
   });
 
@@ -144,6 +166,11 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
       }),
       config: cfg,
       verifierDecision: 'pending',
+      dealQuality: {
+        decision: 'VERIFIED_DEAL',
+        recommendedAction: 'PUBLISH_CANDIDATE',
+        reasons: ['ok'],
+      },
     });
     expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(r.wouldInsert).toBe(true);
@@ -210,7 +237,15 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
   it('7. discount below threshold → rejected', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta({ discountPercent: 5, originalPrice: 1100, discountPrice: 1045 }),
+      meta: trustedMeta({
+        discountPercent: 5,
+        originalPrice: 1100,
+        discountPrice: 1045,
+        signals: {
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'pending',
     });
@@ -221,7 +256,13 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
   it('8. low quality title → rejected', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta({ title: 'oferta' }),
+      meta: trustedMeta({
+        title: 'oferta',
+        signals: {
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'pending',
     });
@@ -232,7 +273,12 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
   it('9. verifier below threshold → rejected', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta(),
+      meta: trustedMeta({
+        signals: {
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'reject',
       verifierReasons: ['score too low'],
@@ -245,7 +291,12 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
   it('10. duplicate → DUPLICATE (wins over quality)', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta(),
+      meta: trustedMeta({
+        signals: {
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'pending',
       duplicate: { kind: 'live', price: 1200 },
@@ -255,37 +306,58 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
     expect(r.wouldInsert).toBe(false);
   });
 
-  it('11. valid card + no image → VERIFIED + PARTIAL_NO_IMAGE', () => {
+  it('11. valid PDP + no image → VERIFIED + PARTIAL_NO_IMAGE', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta({ imageUrl: '' }),
+      meta: trustedMeta({
+        imageUrl: '',
+        signals: {
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'pending',
+      dealQuality: {
+        decision: 'VERIFIED_DEAL',
+        recommendedAction: 'PUBLISH_CANDIDATE',
+        reasons: ['ok'],
+      },
     });
     expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(r.wouldInsert).toBe(true);
     expect(r.reasonCodes).toContain('PARTIAL_NO_IMAGE');
   });
 
-  it('12. valid card + no history → VERIFIED + PARTIAL_NO_HISTORY', () => {
+  it('12. listing_card + no history → NOT VERIFIED (INSUFFICIENT_HISTORY)', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
       meta: trustedMeta({ signals: { historyReady: false } }),
       config: cfg,
       verifierDecision: 'pending',
     });
-    expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
-    expect(r.wouldInsert).toBe(true);
-    expect(r.reasonCodes).toContain('PARTIAL_NO_HISTORY');
+    expect(r.qualityDecision).toBe('SUPPRESSED');
+    expect(r.wouldInsert).toBe(false);
+    expect(r.reasonCodes).toContain('INSUFFICIENT_HISTORY');
   });
 
-  it('13. valid card + PDP blocked → VERIFIED + PARTIAL_PDP_BLOCKED', () => {
+  it('13. valid PDP + PDP blocked → VERIFIED + PARTIAL_PDP_BLOCKED', () => {
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta(),
+      meta: trustedMeta({
+        signals: {
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'pending',
       pdpBlocked: true,
+      dealQuality: {
+        decision: 'VERIFIED_DEAL',
+        recommendedAction: 'PUBLISH_CANDIDATE',
+        reasons: ['ok'],
+      },
     });
     expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(r.wouldInsert).toBe(true);
@@ -313,7 +385,7 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
     expect(r.reasonCodes).toContain('BADGE_RECONSTRUCTED');
   });
 
-  it('15. DealScore 10 must NOT independently reject', () => {
+  it('15. DealScore 10 must NOT independently reject (PDP + VERIFIED DQE)', () => {
     const dealScore = computeDealScore({
       meta: { discountPrice: 999, originalPrice: 1999, discountPercent: 50 },
       signals: { historyReady: false },
@@ -321,10 +393,21 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
     expect(dealScore.score).toBeLessThanOrEqual(15);
     const r = evaluateMachineCandidateGate({
       url: trustedMeta().canonicalUrl,
-      meta: trustedMeta({ signals: { historyReady: false } }),
+      meta: trustedMeta({
+        signals: {
+          historyReady: false,
+          originalPriceProvenance: 'source_explicit',
+          cardDiscountSource: 'pdp',
+        },
+      }),
       config: cfg,
       verifierDecision: 'pending',
       dealScore,
+      dealQuality: {
+        decision: 'VERIFIED_DEAL',
+        recommendedAction: 'PUBLISH_CANDIDATE',
+        reasons: ['ok'],
+      },
     });
     expect(r.wouldInsert).toBe(true);
     expect(r.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
@@ -442,20 +525,20 @@ describe('S6.1 Machine Candidate Quality Gate', () => {
     const verified = report.items.filter((i) => i.wouldInsert && i.status === 'WOULD_INSERT');
     const suppressed = report.items.filter((i) => i.status === 'SUPPRESSED');
 
-    expect(verified.length).toBeGreaterThanOrEqual(1);
-    expect(verified.length).toBeLessThan(candidates.length);
-    expect(suppressed.length).toBeGreaterThanOrEqual(1);
+    // High-signal closure: listing_card / badge fixtures without history must not mint.
+    expect(verified.length).toBe(0);
+    expect(suppressed.length).toBe(candidates.length);
+    expect(report.items.every((i) => i.offerInserted === false)).toBe(true);
 
     const badge = report.items.find((i) => i.reasonCodes.includes('BADGE_RECONSTRUCTED'));
     expect(badge?.wouldInsert).toBe(false);
 
-    const trusted = verified[0];
-    expect(trusted?.reasonCodes).toContain('PARTIAL_NO_IMAGE');
-    expect(trusted?.reasonCodes).toContain('PARTIAL_NO_HISTORY');
+    const hist = report.items.find((i) => i.reasonCodes.includes('INSUFFICIENT_HISTORY'));
+    expect(hist?.wouldInsert).toBe(false);
   });
 
   it('isTrustedOriginalPriceProvenance rejects badge and unknown', () => {
-    expect(isTrustedOriginalPriceProvenance('listing_card')).toBe(true);
+    expect(isTrustedOriginalPriceProvenance('listing_card')).toBe(false);
     expect(isTrustedOriginalPriceProvenance('source_explicit')).toBe(true);
     expect(isTrustedOriginalPriceProvenance('unknown')).toBe(false);
     expect(isTrustedOriginalPriceProvenance(null)).toBe(false);

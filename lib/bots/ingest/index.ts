@@ -19,7 +19,9 @@ export type {
   MachineQualityReasonCode,
   MachineEvidenceLevel,
 } from './candidateInsertGate';
-export { isTrustedOriginalPriceProvenance } from './candidateInsertGate';
+export { isTrustedOriginalPriceProvenance, mintTrustedOriginalPrice } from './candidateInsertGate';
+export { buildHunterDecisionTrace, labelFromGateAndDqe } from './hunterDecisionTrace';
+export type { HunterDecisionTrace, HunterFinalLabel } from './hunterDecisionTrace';
 export {
   preserveMachinePriceProvenance,
   isLegalProvenanceTransition,
@@ -50,6 +52,12 @@ export {
   formatSupplyOpsRunSummaryLog,
 } from './supplyOpsRunSummary';
 export type { SupplyOpsRunSummary, SupplyOpsBottleneck } from './supplyOpsRunSummary';
+export {
+  buildCycleFunnelSummary,
+  explainCycleVerdict,
+  formatCycleFunnelLog,
+} from './cycleFunnelSummary';
+export type { CycleFunnelSummary } from './cycleFunnelSummary';
 export { processExternalWorkerBatch } from './externalWorker';
 export type { ExternalWorkerBatchPayload, ExternalWorkerCandidate } from './externalWorker';
 export {

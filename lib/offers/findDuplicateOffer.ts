@@ -91,7 +91,7 @@ function toMatch(
 /** Solo ASIN / item id. `url:` y `meli.la:` colapsan homes y shortlinks distintos. */
 export function isStrongProductFingerprint(fp: string | null | undefined): fp is string {
   if (!fp) return false;
-  return fp.startsWith('amz:') || fp.startsWith('ml:');
+  return fp.startsWith('amz:') || fp.startsWith('ml:') || fp.startsWith('liv:');
 }
 
 /** Fingerprint usable para UNIQUE / dedupe fuerte (null = no aplica constraint). */

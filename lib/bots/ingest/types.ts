@@ -2,6 +2,7 @@ import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 import type { DealQualificationResult } from '@/lib/hunter/dealQualification/types';
 import type { SupplyOpsRunSummary } from './supplyOpsRunSummary';
+import type { CycleFunnelSummary } from './cycleFunnelSummary';
 import type { HunterIntelligenceRunSummary } from '@/lib/hunter/candidateIntelligence/types';
 
 export type IngestSourceId =
@@ -89,6 +90,13 @@ export type IngestSingleResult =
   | {
       url: string;
       source?: IngestSourceId;
+      /** Observation-only: gate would mint, but dryRun — no DB write. */
+      status: 'dry_run_would_insert';
+      offerId: string;
+    }
+  | {
+      url: string;
+      source?: IngestSourceId;
       status: 'duplicate';
       duplicateKind?: DuplicateOfferKind;
       supplyOpportunity?: boolean;
@@ -125,6 +133,8 @@ export type IngestCycleReport = {
   results: IngestSingleResult[];
   summary: {
     inserted: number;
+    /** Gate would mint but dryRun — never a DB write. Separate from `inserted`. */
+    dryRunWouldInsert?: number;
     duplicate: number;
     skipped: number;
     errors: number;
@@ -153,8 +163,23 @@ export type IngestCycleReport = {
      */
     ops?: SupplyOpsRunSummary;
     /**
+     * Operator-facing cycle funnel: would_insert vs offers_sent_to_moderation.
+     */
+    cycleFunnel?: CycleFunnelSummary;
+    /**
      * Candidate Intelligence run report (observation/shadow). Never authorizes mint.
      */
     candidateIntelligence?: HunterIntelligenceRunSummary;
+    /**
+     * Per-candidate Hunter Lab labels + decision traces (GOOD/BAD/UNCERTAIN/INVALID).
+     * Built from S6.1 gate + DQE + Price Intel — explainability only.
+     */
+    decisionTraces?: Array<
+      import('./hunterDecisionTrace').HunterDecisionTrace & {
+        url: string;
+        title: string | null;
+        wouldInsert: boolean;
+      }
+    >;
   };
 };
