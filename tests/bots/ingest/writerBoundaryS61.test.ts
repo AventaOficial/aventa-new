@@ -1,6 +1,7 @@
 /**
  * P0 — Writer-boundary S6.1 fail-closed.
  * Proves insertIngestedOffer does not trust callers (direct / S7 / forged gate opts).
+ * Persistence is via ingestOfferObservation (mocked); S6.1 runs before that call.
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
@@ -10,40 +11,76 @@ import { withMachinePendingWritesEnabled } from '@/lib/bots/ingest/machineInsert
 
 const BOT_USER = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 
-const insertState = {
+const persistState = {
   calls: 0,
-  forceUniqueOnSecond: false,
+  forceDupOnSecond: false,
+  forceConflictOnSecond: false,
 };
 
-function chainableQuery(result: { data: unknown; error: unknown } = { data: null, error: null }) {
-  const q: Record<string, unknown> = {};
-  const self = () => q;
-  for (const m of ['select', 'eq', 'in', 'is', 'limit', 'order', 'gte', 'lte', 'neq', 'not']) {
-    q[m] = self;
-  }
-  q.maybeSingle = async () => result;
-  q.single = async () => result;
-  q.then = undefined;
-  return q;
-}
+vi.mock('@/lib/offers/ingestion/ingestOfferObservation', () => ({
+  ingestOfferObservation: async () => {
+    persistState.calls += 1;
+    if (persistState.forceConflictOnSecond && persistState.calls > 1) {
+      return {
+        ok: false,
+        httpStatus: 409 as const,
+        error: 'duplicate',
+        duplicate_offer_id: 'existing-race',
+        duplicate_status: 'pending',
+      };
+    }
+    if (persistState.forceDupOnSecond && persistState.calls > 1) {
+      return {
+        ok: true,
+        created: false,
+        offerId: 'existing-1',
+        status: 'pending' as const,
+      };
+    }
+    return {
+      ok: true,
+      created: true,
+      offerId: `offer-writer-ok-${persistState.calls}`,
+      status: 'pending' as const,
+    };
+  },
+}));
 
 vi.mock('@/lib/supabase/server', () => ({
-  createServerClient: () => ({
-    from: () => ({
-      insert: () => ({
-        select: () => ({
-          single: async () => {
-            insertState.calls += 1;
-            if (insertState.forceUniqueOnSecond && insertState.calls > 1) {
-              return { data: null, error: { code: '23505', message: 'duplicate key' } };
-            }
-            return { data: { id: `offer-writer-ok-${insertState.calls}` }, error: null };
-          },
+  createServerClient: () => {
+    const chain = (): Record<string, unknown> => {
+      const q: Record<string, unknown> = {};
+      const self = () => q;
+      for (const m of [
+        'select',
+        'eq',
+        'in',
+        'is',
+        'limit',
+        'order',
+        'gte',
+        'lte',
+        'neq',
+        'not',
+        'or',
+      ]) {
+        q[m] = self;
+      }
+      q.maybeSingle = async () => ({ data: null, error: null });
+      q.single = async () => ({ data: null, error: null });
+      return q;
+    };
+    return {
+      from: () => ({
+        select: () => chain(),
+        insert: () => ({
+          select: () => ({
+            single: async () => ({ data: null, error: null }),
+          }),
         }),
       }),
-      select: () => chainableQuery({ data: null, error: null }),
-    }),
-  }),
+    };
+  },
 }));
 
 vi.mock('@/lib/affiliate', () => ({
@@ -73,8 +110,7 @@ vi.mock('@/lib/offers/findDuplicateOffer', async (importOriginal) => {
       return next;
     },
     strongProductFingerprintForUrl: () => 'fp-writer-test',
-    isUniqueViolation: (err: { code?: string } | null) => err?.code === '23505',
-    releaseExpiredFingerprintSlot: async () => false,
+    classifyDuplicateOfferRow: () => 'exact_url',
   };
 });
 
@@ -180,8 +216,8 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
   const prevEnv = { ...process.env };
 
   beforeEach(() => {
-    insertState.calls = 0;
-    insertState.forceUniqueOnSecond = false;
+    persistState.calls = 0;
+    persistState.forceDupOnSecond = false; persistState.forceConflictOnSecond = false;
     duplicateState.sequence = [];
     duplicateState.index = 0;
     eligibilityCrash.enabled = false;
@@ -205,7 +241,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     );
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.offerId).toMatch(/^offer-writer-ok-/);
-    expect(insertState.calls).toBe(1);
+    expect(persistState.calls).toBe(1);
   });
 
   it('B — S6.1 false (artificial) → NO INSERT / S61_BLOCKED', async () => {
@@ -220,7 +256,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok && 'code' in r) expect(r.code).toBe('S61_BLOCKED');
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('C — DQE / effective-discount unverified → NO INSERT', async () => {
@@ -255,7 +291,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
         ),
       ).toBe(true);
     }
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('D — artificial list price → NO INSERT', async () => {
@@ -268,7 +304,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     if (!r.ok && 'gate' in r && r.gate) {
       expect(r.gate.reasonCodes).toContain('ARTIFICIAL_LIST_PRICE');
     }
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('E — insufficient history (listing_card) → NO INSERT', async () => {
@@ -285,7 +321,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
         ),
       ).toBe(true);
     }
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('F — missing eligibility evidence → NO INSERT', async () => {
@@ -305,7 +341,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok && 'code' in r) expect(r.code).toBe('S61_BLOCKED');
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('G — evaluator throws → FAIL CLOSED / NO INSERT', async () => {
@@ -319,7 +355,7 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     if (!r.ok && 'error' in r) {
       expect(r.error).toMatch(/fail_closed_evaluator_error|simulated_gate_crash/);
     }
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('H — S7 direct path with artificial → S61_BLOCKED', async () => {
@@ -333,14 +369,12 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok && 'code' in r) expect(r.code).toBe('S61_BLOCKED');
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 
   it('I — replay: second insert hits duplicate → NO DOUBLE INSERT', async () => {
-    duplicateState.sequence = [
-      null,
-      { kind: 'exact_url', price: 700, id: 'existing-1', status: 'pending' },
-    ];
+    persistState.forceDupOnSecond = true;
+    duplicateState.sequence = [];
     duplicateState.index = 0;
     const { insertIngestedOffer } = await import('@/lib/bots/ingest/insertIngestedOffer');
     const first = await withMachinePendingWritesEnabled(() =>
@@ -352,12 +386,13 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(false);
     if (!second.ok && 'duplicate' in second) expect(second.duplicate).toBe(true);
-    expect(insertState.calls).toBe(1);
+    // Both reached sole writer; second reused existing identity (no second mint).
+    expect(persistState.calls).toBe(2);
   });
 
   it('J — concurrency: parallel same identity → UNIQUE second fails closed', async () => {
-    // Keep pre-insert dedupe empty so both reach INSERT; second hits UNIQUE (23505).
-    insertState.forceUniqueOnSecond = true;
+    // Both reach sole writer; second hits conflict (409).
+    persistState.forceConflictOnSecond = true;
     duplicateState.sequence = [];
     const { insertIngestedOffer } = await import('@/lib/bots/ingest/insertIngestedOffer');
     const [a, b] = await withMachinePendingWritesEnabled(() =>
@@ -381,6 +416,6 @@ describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
     const r = await insertIngestedOffer(validMeta(), baseConfig(), { status: 'pending' });
     expect(r.ok).toBe(false);
     if (!r.ok && 'error' in r) expect(r.error).toMatch(/PRODUCTION|machine_writes|MACHINE/i);
-    expect(insertState.calls).toBe(0);
+    expect(persistState.calls).toBe(0);
   });
 });
