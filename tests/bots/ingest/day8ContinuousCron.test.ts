@@ -122,7 +122,7 @@ describe('Day8 scheduler wiring', () => {
 
   it('cronSafe defaults maxPrioritized and deadline for budget', () => {
     expect(SCHEDULED_CONTINUOUS_MAX_PRIORITIZED).toBe(8);
-    expect(SCHEDULED_CONTINUOUS_DEADLINE_MS).toBe(240_000);
+    expect(SCHEDULED_CONTINUOUS_DEADLINE_MS).toBe(180_000);
     expect(SCHEDULED_CONTINUOUS_DEADLINE_MS).toBeLessThan(300_000);
   });
 
