@@ -106,6 +106,7 @@ export type PersistDiscoveryTruthResult = {
  */
 export async function persistContinuousDiscoveryTruth(
   report: DiscoveryCycleReport,
+  opts?: { claimToken?: string; supabase?: import('@supabase/supabase-js').SupabaseClient | null },
 ): Promise<PersistDiscoveryTruthResult> {
   const inputs = supplyInputsFromDiscoveryReport(report);
   const outcomes = await recordSupplyRuns(inputs);
@@ -123,7 +124,7 @@ export async function persistContinuousDiscoveryTruth(
     }
   }
 
-  const snapshot = await persistDiscoveryCycleSnapshot(report);
+  const snapshot = await persistDiscoveryCycleSnapshot(report, opts);
   if (failed > 0) {
     console.warn(
       `[day8] supply_truth_partial_fail attempted=${inputs.length} failed=${failed} reason=${firstFailReason ?? 'unknown'}`,
@@ -148,17 +149,25 @@ export async function seedDiscoveryCycleSnapshot(input: {
   cycleId: string;
   startedAt: string;
   dryRun: boolean;
+  claimToken?: string;
+  supabase?: import('@supabase/supabase-js').SupabaseClient | null;
 }): Promise<{ persisted: boolean; reason?: string }> {
   return upsertDiscoveryCycleSnapshotRow({
     cycleId: input.cycleId,
     startedAt: input.startedAt,
     finishedAt: input.startedAt,
     dryRun: input.dryRun,
+    claimToken: input.claimToken,
+    supabase: input.supabase,
     payload: {
       cycle_id: input.cycleId,
       phase: 'started',
+      status: input.claimToken ? 'claimed' : 'started',
       dry_run: input.dryRun,
       mint_attempted: false,
+      ...(input.claimToken
+        ? { claim_token: input.claimToken, claimed_at: input.startedAt }
+        : {}),
     },
   });
 }
@@ -172,6 +181,8 @@ export async function persistDeadlineDiscoverySnapshot(input: {
   startedAt: string;
   dryRun: boolean;
   reason?: string;
+  claimToken?: string;
+  supabase?: import('@supabase/supabase-js').SupabaseClient | null;
 }): Promise<{ persisted: boolean; reason?: string }> {
   const finishedAt = new Date().toISOString();
   return upsertDiscoveryCycleSnapshotRow({
@@ -179,11 +190,17 @@ export async function persistDeadlineDiscoverySnapshot(input: {
     startedAt: input.startedAt,
     finishedAt,
     dryRun: input.dryRun,
+    claimToken: input.claimToken,
+    supabase: input.supabase,
     payload: {
       cycle_id: input.cycleId,
       phase: 'deadline',
+      status: 'claimed',
       dry_run: input.dryRun,
       mint_attempted: false,
+      ...(input.claimToken
+        ? { claim_token: input.claimToken, claimed_at: input.startedAt }
+        : {}),
       deadline_reason: input.reason ?? 'soft_deadline',
       verified_yield: {
         cycle_id: input.cycleId,
@@ -216,41 +233,72 @@ async function upsertDiscoveryCycleSnapshotRow(input: {
   finishedAt: string;
   dryRun: boolean;
   payload: Record<string, unknown>;
+  claimToken?: string;
+  supabase?: import('@supabase/supabase-js').SupabaseClient | null;
 }): Promise<{ persisted: boolean; reason?: string }> {
-  let client;
-  try {
-    client = createServerClient();
-  } catch {
-    return { persisted: false, reason: 'no_client' };
+  const client =
+    input && 'supabase' in input && input.supabase !== undefined
+      ? input.supabase
+      : (() => {
+          try {
+            return createServerClient();
+          } catch {
+            return null;
+          }
+        })();
+  if (!client) return { persisted: false, reason: 'no_client' };
+
+  const row = {
+    cycle_id: input.cycleId,
+    started_at: input.startedAt,
+    finished_at: input.finishedAt,
+    dry_run: input.dryRun,
+    payload: input.payload,
+  };
+
+  if (input.claimToken) {
+    const updated = await client
+      .from(DISCOVERY_CYCLE_SNAPSHOT_TABLE)
+      .update(row)
+      .eq('cycle_id', input.cycleId)
+      .filter('payload->>claim_token', 'eq', input.claimToken)
+      .select('cycle_id');
+    if (updated.error) {
+      const msg = (updated.error.message ?? '').toLowerCase();
+      if (updated.error.code === '42P01' || msg.includes('does not exist')) {
+        return { persisted: false, reason: 'table_missing' };
+      }
+      return { persisted: false, reason: updated.error.message?.slice(0, 160) ?? 'error' };
+    }
+    if (!updated.data?.length) return { persisted: false, reason: 'lease_lost' };
+    return { persisted: true };
   }
 
-  const { error } = await client.from(DISCOVERY_CYCLE_SNAPSHOT_TABLE).upsert(
-    {
-      cycle_id: input.cycleId,
-      started_at: input.startedAt,
-      finished_at: input.finishedAt,
-      dry_run: input.dryRun,
-      payload: input.payload,
-    },
-    { onConflict: 'cycle_id' },
-  );
+  const { error } = await client.from(DISCOVERY_CYCLE_SNAPSHOT_TABLE).upsert(row, {
+    onConflict: 'cycle_id',
+  });
 
   if (error) {
     const msg = (error.message ?? '').toLowerCase();
     if (error.code === '42P01' || msg.includes('does not exist')) {
       return { persisted: false, reason: 'table_missing' };
     }
+    if (error.code === '23505' || msg.includes('duplicate')) {
+      return { persisted: true, reason: 'duplicate_cycle' };
+    }
     return { persisted: false, reason: error.message?.slice(0, 160) ?? 'error' };
   }
   return { persisted: true };
 }
 
-async function persistDiscoveryCycleSnapshot(
+export async function persistDiscoveryCycleSnapshot(
   report: DiscoveryCycleReport,
+  opts?: { claimToken?: string; supabase?: import('@supabase/supabase-js').SupabaseClient | null },
 ): Promise<{ persisted: boolean; reason?: string }> {
   const payload = {
     cycle_id: report.cycle_id,
     phase: 'complete',
+    status: 'completed',
     started_at: report.startedAt,
     finished_at: report.finishedAt,
     dry_run: report.dryRun,
@@ -276,6 +324,9 @@ async function persistDiscoveryCycleSnapshot(
     terminal_reason_counts: report.verifiedYield.terminal_reason_counts,
     rates: report.verifiedYield.rates,
     near_ready: report.verifiedYield.near_ready,
+    ...(opts?.claimToken
+      ? { claim_token: opts.claimToken, claimed_at: report.startedAt }
+      : {}),
   };
 
   return upsertDiscoveryCycleSnapshotRow({
@@ -284,5 +335,7 @@ async function persistDiscoveryCycleSnapshot(
     finishedAt: report.finishedAt,
     dryRun: report.dryRun,
     payload,
+    claimToken: opts?.claimToken,
+    supabase: opts?.supabase,
   });
 }
