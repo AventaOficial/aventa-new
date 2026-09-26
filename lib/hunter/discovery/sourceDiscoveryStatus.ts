@@ -57,6 +57,9 @@ export function classifySourceDiscoveryStatus(input: {
     code.includes('anti-bot') ||
     code.includes('challenge');
 
+  // Day 10 — explicit budget/soft deadline is not a hard failure of the source family.
+  if (code.includes('soft_deadline')) return 'SKIPPED';
+
   if (input.ok === false) {
     if (auth) return 'BLOCKED_AUTH';
     if (external) return 'BLOCKED_EXTERNAL';

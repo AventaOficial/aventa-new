@@ -62,6 +62,14 @@ async function main() {
     terminal_reason_counts: first.verifiedYield.terminal_reason_counts,
     second_skipped: (second.truthPersist?.snapshot.reason ?? '').startsWith('lease_'),
     idempotent_snapshot: (snaps.data?.length ?? 0) === 1,
+    // Day 10
+    hunter_granted_ms: first.deadlineBudget?.stageGrantedMs?.hunter_collect ?? null,
+    sticky_granted_ms: first.deadlineBudget?.stageGrantedMs?.sticky_pm ?? null,
+    persist_cap_ms: first.deadlineBudget?.stageCaps?.persist ?? null,
+    hunter_lt_soft_deadline:
+      (first.deadlineBudget?.stageGrantedMs?.hunter_collect ?? 0) <
+      (first.deadlineBudget?.softDeadlineMs ?? Number.POSITIVE_INFINITY),
+    source_ids: first.sources.map((s) => s.sourceId),
   };
   console.log(JSON.stringify(out, null, 2));
   if (

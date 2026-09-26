@@ -185,4 +185,7 @@ export type HunterEngineCollectResult = {
   >;
   sourceRuns: HunterRunMetrics[];
   healthSnapshot: HunterSourceHealth[];
+  /** Day 10 — set when collect stops early under an explicit budget. */
+  stoppedReason?: 'soft_deadline' | null;
+  elapsedMs?: number;
 };

@@ -37,7 +37,6 @@ import { dedupeHunterCandidates } from '@/lib/hunter/normalize';
 import { HUNTER_SOURCES } from '@/lib/hunter/sources';
 import type {
   HunterCandidate,
-  HunterEngineCollectResult,
   HunterRunMetrics,
   HunterSource,
 } from '@/lib/hunter/types';
@@ -81,6 +80,13 @@ import {
   persistDeadlineDiscoverySnapshot,
   seedDiscoveryCycleSnapshot,
 } from './persistContinuousDiscoveryTruth';
+import {
+  createDeadlineContext,
+  raceWithBudget,
+  type DeadlineBudgetSnapshot,
+  type DeadlineContext,
+  type DeadlineStage,
+} from './deadlineBudget';
 import { claimDiscoveryCycle } from './discoveryCycleLease';
 import {
   resolveContinuousExecutionMode,
@@ -178,6 +184,8 @@ export type DiscoveryCycleReport = {
     supplyTruth: { attempted: number; persisted: number; duplicates: number; failed: number };
     snapshot: { persisted: boolean; reason?: string };
   };
+  /** Day 10 — wall-clock budget accounting (null when no soft deadline). */
+  deadlineBudget?: DeadlineBudgetSnapshot | null;
 };
 
 export type RunContinuousDiscoveryCycleOptions = {
@@ -203,6 +211,8 @@ export type RunContinuousDiscoveryCycleOptions = {
   cronSafe?: boolean;
   /** Soft stop before Vercel maxDuration so snapshot/truth can persist. */
   deadlineMs?: number;
+  /** Day 10 — override stage caps (tests/canaries only). */
+  deadlineStageCaps?: Partial<Record<DeadlineStage, number>>;
   /** Stable id for cron-hour retries (upsert). Defaults to random UUID. */
   cycleId?: string;
   /** Test double for the cycle lease. Production uses the service-role client. */
@@ -465,12 +475,16 @@ export async function runContinuousDiscoveryCycle(
   const deadlineMs =
     options.deadlineMs ??
     (options.cronSafe === true ? SCHEDULED_CONTINUOUS_DEADLINE_MS : undefined);
-  const deadlineAt =
+  const deadline: DeadlineContext | null =
     typeof deadlineMs === 'number' && deadlineMs > 0
-      ? started.getTime() + deadlineMs
+      ? createDeadlineContext({
+          now: started.getTime(),
+          softDeadlineMs: deadlineMs,
+          stageCaps: options.deadlineStageCaps,
+        })
       : null;
-  const pastDeadline = () =>
-    deadlineAt !== null && Date.now() >= deadlineAt;
+  const deadlineAt = deadline?.deadlineAt ?? null;
+  const pastDeadline = () => deadline?.isExpired() ?? false;
 
   // Day 9 — DB lease when a stable cycleId is provided (scheduled cron).
   // UNIQUE(cycle_id) prevents concurrent/duplicate runs from corrupting truth.
@@ -551,37 +565,36 @@ export async function runContinuousDiscoveryCycle(
   const terminalTraces: VerifiedYieldCandidateTrace[] = [];
   const verifiedYield = emptyVerifiedYieldFunnel(cycleId);
 
+  const nearReadyBudget = deadline?.allocate('near_ready_measure') ?? null;
+  const nearReadyStarted = Date.now();
   const nearReadyPromise = selectNearReadyStickyTargets({
     // Measure the same eligibility window as sticky acquisition (short cooldown).
     config: { maxTargets: 0, cooldownHours: 1 },
     now,
   });
   const nearReadyMeasure =
-    deadlineAt !== null
-      ? await Promise.race([
-          nearReadyPromise,
-          new Promise<Awaited<typeof nearReadyPromise>>((resolve) => {
-            const ms = Math.max(500, Math.min(15_000, deadlineAt - Date.now()));
-            setTimeout(
-              () =>
-                resolve({
-                  targets: [],
-                  poolNearReady: 0,
-                  poolOneDayAway: 0,
-                  poolTwoDaysAway: 0,
-                  poolThreeDaysAway: 0,
-                  budgetAllocation: { one: 0, two: 0, threePlus: 0 },
-                  cooldownSkipped: 0,
-                  alreadyReadySkipped: 0,
-                  observedTodaySkipped: 0,
-                  budgetLimited: 0,
-                  todayYmd: '',
-                }),
-              ms,
-            );
-          }),
-        ])
+    nearReadyBudget !== null
+      ? await (async () => {
+          const raced = await raceWithBudget(nearReadyPromise, nearReadyBudget);
+          if (!raced.ok) {
+            return {
+              targets: [],
+              poolNearReady: 0,
+              poolOneDayAway: 0,
+              poolTwoDaysAway: 0,
+              poolThreeDaysAway: 0,
+              budgetAllocation: { one: 0, two: 0, threePlus: 0 },
+              cooldownSkipped: 0,
+              alreadyReadySkipped: 0,
+              observedTodaySkipped: 0,
+              budgetLimited: 0,
+              todayYmd: '',
+            };
+          }
+          return raced.value;
+        })()
       : await nearReadyPromise;
+  deadline?.recordUsed('near_ready_measure', Date.now() - nearReadyStarted);
   verifiedYield.near_ready = {
     one_day_away: nearReadyMeasure.poolOneDayAway,
     two_days_away: nearReadyMeasure.poolTwoDaysAway,
@@ -589,10 +602,13 @@ export async function runContinuousDiscoveryCycle(
     pool_near_ready: nearReadyMeasure.poolNearReady,
   };
 
-  // --- 1) Hunter multi-source collect (isolated) ---
+  // --- 1) Hunter multi-source collect (isolated, budget-capped) ---
   const hunterSources = selectContinuousSources(excludeEnvUrls);
   funnel.sources_requested += hunterSources.length;
 
+  const hunterBudget = deadline?.allocate('hunter_collect') ?? null;
+  const hunterStarted = Date.now();
+  const hunterAbort = new AbortController();
   try {
     const collectPromise = runHunterCollect({
       config,
@@ -600,25 +616,44 @@ export async function runContinuousDiscoveryCycle(
       now,
       sources: hunterSources,
       persistHealth: false,
+      ...(hunterBudget !== null ? { budgetMs: hunterBudget, signal: hunterAbort.signal } : {}),
     });
-    const collected: HunterEngineCollectResult =
-      deadlineAt !== null
-        ? await Promise.race([
-            collectPromise,
-            new Promise<never>((_, reject) => {
-              const ms = Math.max(1_000, deadlineAt - Date.now());
-              setTimeout(
-                () => reject(new Error('soft_deadline_hunter_collect')),
-                ms,
-              );
-            }),
-          ])
-        : await collectPromise;
-    hunterSourceRuns = collected.sourceRuns;
-    for (const run of collected.sourceRuns) {
-      sources.push(classifyHunterRun(run));
+    const raced =
+      hunterBudget !== null
+        ? await raceWithBudget(collectPromise, hunterBudget, () => hunterAbort.abort())
+        : { ok: true as const, value: await collectPromise };
+
+    if (raced.ok) {
+      const collected = raced.value;
+      hunterSourceRuns = collected.sourceRuns;
+      for (const run of collected.sourceRuns) {
+        sources.push(classifyHunterRun(run));
+      }
+      allCandidates.push(...collected.candidates);
+      if (collected.stoppedReason === 'soft_deadline') {
+        // Aggregate note — individual source rows already carry soft_deadline.
+        if (!sources.some((s) => s.errorCode === 'soft_deadline')) {
+          sources.push({
+            sourceId: 'hunter_collect',
+            status: 'skipped',
+            canonicalStatus: 'SKIPPED',
+            candidates: collected.candidates.length,
+            errorCode: 'soft_deadline',
+            errorMessageSafe: 'hunter_collect_budget_exhausted',
+          });
+        }
+      }
+    } else {
+      // Outer race fired before engine returned — still not a cycle FAILED.
+      sources.push({
+        sourceId: 'hunter_collect',
+        status: 'skipped',
+        canonicalStatus: 'SKIPPED',
+        candidates: 0,
+        errorCode: 'soft_deadline',
+        errorMessageSafe: 'hunter_collect_budget_exhausted',
+      });
     }
-    allCandidates.push(...collected.candidates);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     sources.push({
@@ -626,32 +661,71 @@ export async function runContinuousDiscoveryCycle(
       status: 'failed',
       canonicalStatus: 'FAILED',
       candidates: 0,
-      errorCode:
-        message === 'soft_deadline_hunter_collect'
-          ? 'soft_deadline'
-          : 'hunter_collect_threw',
+      errorCode: 'hunter_collect_threw',
       errorMessageSafe: message.slice(0, 160),
     });
+  } finally {
+    deadline?.recordUsed('hunter_collect', Date.now() - hunterStarted);
   }
 
-  // --- 2) Sticky near-ready (Price Memory driven) ---
-  if (includeSticky && !pastDeadline()) {
+  // --- 2) Sticky near-ready + PM evidence (independent of hunter budget) ---
+  const stickyBudget = deadline?.allocate('sticky_pm') ?? null;
+  const canRunSticky =
+    includeSticky &&
+    (deadline === null || (stickyBudget !== null && stickyBudget > 0 && !deadline.isExpired()));
+
+  if (includeSticky && !canRunSticky) {
+    funnel.sources_requested += 2;
+    sources.push({
+      sourceId: STICKY_NEAR_READY_SOURCE_ID,
+      status: 'skipped',
+      canonicalStatus: 'SKIPPED',
+      candidates: 0,
+      errorCode: 'soft_deadline',
+      errorMessageSafe: 'sticky_skipped_no_cycle_budget',
+    });
+    sources.push({
+      sourceId: PM_EVIDENCE_SOURCE_ID,
+      status: 'skipped',
+      canonicalStatus: 'SKIPPED',
+      candidates: 0,
+      errorCode: 'soft_deadline',
+      errorMessageSafe: 'pm_evidence_skipped_no_cycle_budget',
+    });
+  } else if (canRunSticky) {
+    const stickyStarted = Date.now();
     funnel.sources_requested += 1;
     try {
-      const sticky = await collectStickyNearReadyCandidates(
+      const stickyPromise = collectStickyNearReadyCandidates(
         { config, rotationWave: options.rotationWave ?? 0, now },
         { maxTargets: maxPrioritized, cooldownHours: 1 },
       );
-      sources.push(
-        classifyStickyResult({
-          ok: sticky.ok,
-          candidates: sticky.candidates.length,
-          errorCode: sticky.errorCode,
-          errorMessageSafe: sticky.errorMessageSafe,
-        }),
-      );
-      if (sticky.ok && sticky.candidates.length > 0) {
-        allCandidates.push(...sticky.candidates);
+      const stickyRaced =
+        stickyBudget !== null
+          ? await raceWithBudget(stickyPromise, Math.max(1_000, Math.floor(stickyBudget * 0.55)))
+          : { ok: true as const, value: await stickyPromise };
+      if (stickyRaced.ok) {
+        const sticky = stickyRaced.value;
+        sources.push(
+          classifyStickyResult({
+            ok: sticky.ok,
+            candidates: sticky.candidates.length,
+            errorCode: sticky.errorCode,
+            errorMessageSafe: sticky.errorMessageSafe,
+          }),
+        );
+        if (sticky.ok && sticky.candidates.length > 0) {
+          allCandidates.push(...sticky.candidates);
+        }
+      } else {
+        sources.push({
+          sourceId: STICKY_NEAR_READY_SOURCE_ID,
+          status: 'skipped',
+          canonicalStatus: 'SKIPPED',
+          candidates: 0,
+          errorCode: 'soft_deadline',
+          errorMessageSafe: 'sticky_budget_exhausted',
+        });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -667,21 +741,41 @@ export async function runContinuousDiscoveryCycle(
 
     // PM ∩ discovery-evidence (product_id) — still no URL paste
     funnel.sources_requested += 1;
+    const pmRemaining =
+      stickyBudget !== null
+        ? Math.max(0, stickyBudget - (Date.now() - stickyStarted))
+        : null;
     try {
-      const pmEv = await collectPmEvidenceBackedCandidates(
+      const pmPromise = collectPmEvidenceBackedCandidates(
         { config, rotationWave: options.rotationWave ?? 0, now },
         { maxTargets: maxPrioritized },
       );
-      const outcome = classifyStickyResult({
-        ok: pmEv.ok,
-        candidates: pmEv.candidates.length,
-        errorCode: pmEv.errorCode,
-        errorMessageSafe: pmEv.errorMessageSafe,
-      });
-      outcome.sourceId = PM_EVIDENCE_SOURCE_ID;
-      sources.push(outcome);
-      if (pmEv.ok && pmEv.candidates.length > 0) {
-        allCandidates.push(...pmEv.candidates);
+      const pmRaced =
+        pmRemaining !== null
+          ? await raceWithBudget(pmPromise, Math.max(500, pmRemaining))
+          : { ok: true as const, value: await pmPromise };
+      if (pmRaced.ok) {
+        const pmEv = pmRaced.value;
+        const outcome = classifyStickyResult({
+          ok: pmEv.ok,
+          candidates: pmEv.candidates.length,
+          errorCode: pmEv.errorCode,
+          errorMessageSafe: pmEv.errorMessageSafe,
+        });
+        outcome.sourceId = PM_EVIDENCE_SOURCE_ID;
+        sources.push(outcome);
+        if (pmEv.ok && pmEv.candidates.length > 0) {
+          allCandidates.push(...pmEv.candidates);
+        }
+      } else {
+        sources.push({
+          sourceId: PM_EVIDENCE_SOURCE_ID,
+          status: 'skipped',
+          canonicalStatus: 'SKIPPED',
+          candidates: 0,
+          errorCode: 'soft_deadline',
+          errorMessageSafe: 'pm_evidence_budget_exhausted',
+        });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -693,6 +787,8 @@ export async function runContinuousDiscoveryCycle(
         errorCode: 'pm_evidence_threw',
         errorMessageSafe: message.slice(0, 160),
       });
+    } finally {
+      deadline?.recordUsed('sticky_pm', Date.now() - stickyStarted);
     }
   }
 
@@ -797,12 +893,20 @@ export async function runContinuousDiscoveryCycle(
   const gateSamples: DiscoveryCycleReport['gateSamples'] = [];
   const mintable: Array<{ candidate: HunterCandidate; meta: ParsedOfferMetadata }> = [];
   let automationCounts = emptyAutomationCycleCounts();
+  const enrichBudget = deadline?.allocate('enrich_eval') ?? null;
+  const enrichStarted = Date.now();
+  const enrichDeadlineAt =
+    enrichBudget !== null ? enrichStarted + enrichBudget : null;
 
   for (const cand of rankedCandidates) {
-    if (pastDeadline()) {
+    if (
+      pastDeadline() ||
+      (enrichDeadlineAt !== null && Date.now() >= enrichDeadlineAt)
+    ) {
       console.warn(
-        `[day8] soft_deadline cycle=${cycleId.slice(0, 12)} stopping enrich before maxDuration`,
+        `[day10] soft_deadline cycle=${cycleId.slice(0, 12)} stopping enrich`,
       );
+      deadline?.markEndedBy('deadline');
       break;
     }
     const productId =
@@ -1157,6 +1261,14 @@ export async function runContinuousDiscoveryCycle(
   );
 
   const automation = buildAutomationCycleMetrics(automationCounts);
+  deadline?.recordUsed('enrich_eval', Date.now() - enrichStarted);
+  // Reserve persist slice (accounting only — persist itself is fail-open).
+  deadline?.allocate('persist');
+  if (deadline && !deadline.isExpired() && deadline.snapshot().endedBy === null) {
+    deadline.markEndedBy('normal');
+  } else if (deadline?.isExpired()) {
+    deadline.markEndedBy('deadline');
+  }
   const finished = new Date();
   const operator_verdict = explainDiscoveryCycleVerdict({
     funnel,
@@ -1175,6 +1287,7 @@ export async function runContinuousDiscoveryCycle(
     bySource,
   });
 
+  const persistStarted = Date.now();
   const reportBase: DiscoveryCycleReport = {
     cycle_id: cycleId,
     startedAt: started.toISOString(),
@@ -1193,6 +1306,7 @@ export async function runContinuousDiscoveryCycle(
     bySource,
     verifiedYield,
     terminalTraces,
+    deadlineBudget: deadline?.snapshot() ?? null,
   };
 
   let truthPersist: DiscoveryCycleReport['truthPersist'];
@@ -1213,11 +1327,16 @@ export async function runContinuousDiscoveryCycle(
       };
     }
   }
+  deadline?.recordUsed('persist', Date.now() - persistStarted);
 
   cycleFinalized = true;
   if (deadlineWatchdog) clearTimeout(deadlineWatchdog);
 
-  return { ...reportBase, truthPersist };
+  return {
+    ...reportBase,
+    truthPersist,
+    deadlineBudget: deadline?.snapshot() ?? null,
+  };
 }
 
 export function explainDiscoveryCycleVerdict(input: {

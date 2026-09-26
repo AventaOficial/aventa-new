@@ -74,6 +74,17 @@ export {
 export type { DiscoveryCycleClaim } from './discoveryCycleLease';
 
 export {
+  createDeadlineContext,
+  raceWithBudget,
+  DEFAULT_CRON_STAGE_CAPS,
+} from './deadlineBudget';
+export type {
+  DeadlineContext,
+  DeadlineStage,
+  DeadlineBudgetSnapshot,
+} from './deadlineBudget';
+
+export {
   resolveContinuousExecutionMode,
   scheduledContinuousCycleId,
   SCHEDULED_CONTINUOUS_DEADLINE_MS,
