@@ -531,6 +531,15 @@ export async function observeStickySkuViaServer(opts: {
     (resolved?.canonicalUrl && resolved.canonicalUrl.includes('-') ? resolved.canonicalUrl : null) ||
     offerUrl;
 
+  const listingItemId = quote.listingItemId
+    ? quote.listingItemId.replace(/-/g, '').toUpperCase()
+    : null;
+  const tipIsListing =
+    listingItemId == null || listingItemId === productId.replace(/-/g, '').toUpperCase();
+  const identityMethod = tipIsListing
+    ? ('exact_item_id' as const)
+    : ('catalog_to_listing_via_products_items' as const);
+
   let meta: ParsedOfferMetadata = {
     canonicalUrl: canonical,
     title: titleSeed,
@@ -544,6 +553,10 @@ export async function observeStickySkuViaServer(opts: {
       originalPriceProvenance: apiOriginal != null ? 'source_explicit' : 'unknown',
       discountPercentProvenance: discountPercent != null ? 'derived' : 'unknown',
       categoryId: quote.categoryId,
+      // Day 12.2 — PRODUCT (PM tip) vs LISTING (acquired item). Never invent listing.
+      mlCatalogProductId: productId,
+      mlListingItemId: listingItemId ?? productId,
+      mlIdentityMatchMethod: identityMethod,
     },
   };
 
