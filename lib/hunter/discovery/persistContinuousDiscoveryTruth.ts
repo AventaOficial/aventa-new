@@ -326,6 +326,10 @@ export async function persistDiscoveryCycleSnapshot(
     near_ready: report.verifiedYield.near_ready,
     deadline_budget: report.deadlineBudget ?? null,
     history_ready_activation: report.historyReadyActivation ?? null,
+    /** Day 12.1 — compact gate samples + candidate diagnostics (capped in cycle). */
+    gate_samples: (report.gateSamples ?? []).slice(0, 50),
+    candidate_observations: (report.candidateObservations ?? []).slice(0, 50),
+    observability_schema_version: 1,
     ...(opts?.claimToken
       ? { claim_token: opts.claimToken, claimed_at: report.startedAt }
       : {}),

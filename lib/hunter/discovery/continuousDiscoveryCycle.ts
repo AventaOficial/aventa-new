@@ -87,6 +87,13 @@ import {
   appendProvenanceDiagnostics,
 } from './provenanceCompleteness';
 import {
+  buildCandidateObservation,
+  normalizeOriginalRecoveredVia,
+  type AcquisitionPath,
+  type DiscoveryCandidateObservation,
+  type OriginalRecoveredVia,
+} from './discoveryObservability';
+import {
   buildHistoryReadyActivationFromTraces,
   loadHistoryReadyCensus,
   type HistoryReadyActivationReport,
@@ -177,7 +184,15 @@ export type DiscoveryCycleReport = {
     reasonCodes: string[];
     /** Day 12 — structured provenance gap (observe-only). */
     provenanceGap?: string;
+    /** Day 12.1 — how original was recovered (observe-only). */
+    originalRecoveredVia?: OriginalRecoveredVia | null;
+    acquisitionPath?: AcquisitionPath;
   }>;
+  /**
+   * Day 12.1 — durable per-candidate observability (capped).
+   * Diagnostics only; does not replace DQE/S6.1 authority.
+   */
+  candidateObservations?: DiscoveryCandidateObservation[];
   mintResults: Array<{
     url: string;
     ok: boolean;
@@ -337,6 +352,9 @@ function selectContinuousSources(excludeEnvUrls: boolean): HunterSource[] {
 type EnrichCandidateResult = {
   meta: ParsedOfferMetadata | null;
   fetchBlocked: boolean;
+  /** Day 12.1 — how original was obtained during sticky observe (null if N/A). */
+  originalRecoveredVia: OriginalRecoveredVia | null;
+  acquisitionPath: AcquisitionPath;
 };
 
 function discoverySourceIdForCandidate(cand: {
@@ -380,6 +398,8 @@ async function enrichCandidateMeta(
 ): Promise<EnrichCandidateResult> {
   let meta = cand.ingestItem.precomputedMeta ?? null;
   let fetchBlocked = false;
+  let originalRecoveredVia: OriginalRecoveredVia | null = null;
+  let acquisitionPath: AcquisitionPath = meta ? 'precomputed_only' : 'unknown';
   const productId =
     typeof cand.rawMetadata?.productId === 'string'
       ? cand.rawMetadata.productId
@@ -402,6 +422,10 @@ async function enrichCandidateMeta(
         funnel.fetch_success += 1;
         meta = obs.meta;
         liveOk = true;
+        acquisitionPath = 'sticky_observe';
+        originalRecoveredVia = normalizeOriginalRecoveredVia(
+          obs.provenance?.originalRecoveredVia,
+        );
       } else {
         funnel.fetch_failed += 1;
       }
@@ -415,18 +439,26 @@ async function enrichCandidateMeta(
       const fromEvidence = metaFromDiscoveryEvidenceForProduct(productId, cand.url);
       if (fromEvidence) {
         meta = fromEvidence;
+        acquisitionPath = 'discovery_evidence_fallback';
+        const prov = fromEvidence.signals?.originalPriceProvenance;
+        originalRecoveredVia =
+          fromEvidence.originalPrice != null
+            ? prov === 'listing_card'
+              ? 'listing_card'
+              : 'explicit_source'
+            : 'unavailable';
       }
     }
   }
 
-  if (!meta) return { meta: null, fetchBlocked };
+  if (!meta) return { meta: null, fetchBlocked, originalRecoveredVia, acquisitionPath };
 
   try {
     meta = await enrichWithPriceIntel(meta, config, { preserveLabelDiscount: true });
   } catch {
     /* keep meta */
   }
-  return { meta, fetchBlocked };
+  return { meta, fetchBlocked, originalRecoveredVia, acquisitionPath };
 }
 
 /**
@@ -465,6 +497,7 @@ function skippedScheduledCycleReport(input: {
     automation,
     prioritizedUrls: [],
     gateSamples: [],
+    candidateObservations: [],
     mintResults: [],
     hunterSourceRuns: [],
     operator_verdict,
@@ -975,6 +1008,8 @@ export async function runContinuousDiscoveryCycle(
 
   // --- 5) Enrich + DQE + S6.1 (no mint yet) ---
   const gateSamples: DiscoveryCycleReport['gateSamples'] = [];
+  const candidateObservations: DiscoveryCandidateObservation[] = [];
+  const MAX_CANDIDATE_OBSERVATIONS = 50;
   const mintable: Array<{ candidate: HunterCandidate; meta: ParsedOfferMetadata }> = [];
   let automationCounts = emptyAutomationCycleCounts();
   const enrichBudget = deadline?.allocate('enrich_eval') ?? null;
@@ -1027,6 +1062,25 @@ export async function runContinuousDiscoveryCycle(
         reasonCodes: enriched.fetchBlocked ? ['FETCH_BLOCKED'] : ['EXTRACTION_FAILED'],
         primaryTerminalReason: terminal,
       });
+      if (candidateObservations.length < MAX_CANDIDATE_OBSERVATIONS) {
+        candidateObservations.push(
+          buildCandidateObservation({
+            url: cand.url,
+            sourceId: discoverySourceIdForCandidate(cand),
+            productId,
+            historyReady: false,
+            meta: null,
+            acquisitionPath: enriched.acquisitionPath,
+            originalRecoveredVia: enriched.originalRecoveredVia,
+            qualityDecision: 'EXTRACTION_FAILED',
+            wouldInsert: false,
+            dqeDecision: null,
+            primaryTerminal: terminal,
+            reasonCodes: enriched.fetchBlocked ? ['FETCH_BLOCKED'] : ['EXTRACTION_FAILED'],
+            provenanceDiag: null,
+          }),
+        );
+      }
       automationCounts = accumulateAutomationOutcome(
         automationCounts,
         automationOutcomeFromTerminal(terminal, [], {
@@ -1092,6 +1146,8 @@ export async function runContinuousDiscoveryCycle(
       historyReady,
       reasonCodes: reasonCodesWithDiag,
       provenanceGap: provenanceDiag.gap,
+      originalRecoveredVia: enriched.originalRecoveredVia,
+      acquisitionPath: enriched.acquisitionPath,
     });
 
     const s61Pass =
@@ -1121,6 +1177,26 @@ export async function runContinuousDiscoveryCycle(
       reasonCodes: reasonCodesWithDiag,
       primaryTerminalReason: terminal,
     });
+
+    if (candidateObservations.length < MAX_CANDIDATE_OBSERVATIONS) {
+      candidateObservations.push(
+        buildCandidateObservation({
+          url: meta.canonicalUrl,
+          sourceId: discoverySourceIdForCandidate(cand),
+          productId,
+          historyReady,
+          meta,
+          acquisitionPath: enriched.acquisitionPath,
+          originalRecoveredVia: enriched.originalRecoveredVia,
+          qualityDecision: gate.qualityDecision,
+          wouldInsert: gate.wouldInsert,
+          dqeDecision: dealQuality.decision,
+          primaryTerminal: terminal,
+          reasonCodes: reasonCodesWithDiag,
+          provenanceDiag,
+        }),
+      );
+    }
 
     const enrichOpts = {
       dryRun,
@@ -1428,6 +1504,7 @@ export async function runContinuousDiscoveryCycle(
     automation,
     prioritizedUrls: rankedCandidates.map((c) => c.url),
     gateSamples,
+    candidateObservations,
     mintResults,
     hunterSourceRuns,
     operator_verdict,

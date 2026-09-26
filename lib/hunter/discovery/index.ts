@@ -44,6 +44,18 @@ export type {
 } from './provenanceCompleteness';
 
 export {
+  ORIGINAL_RECOVERED_VIA,
+  ACQUISITION_PATHS,
+  normalizeOriginalRecoveredVia,
+  buildCandidateObservation,
+} from './discoveryObservability';
+export type {
+  OriginalRecoveredVia,
+  AcquisitionPath,
+  DiscoveryCandidateObservation,
+} from './discoveryObservability';
+
+export {
   VERIFIED_YIELD_TERMINAL_REASONS,
   assignPrimaryTerminalReason,
   isQualityBlockedTerminal,
