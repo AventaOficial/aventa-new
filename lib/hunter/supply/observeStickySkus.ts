@@ -432,6 +432,27 @@ export async function observeStickySkuViaServer(opts: {
       categoryId: null,
       offerUrlHint: null,
     };
+
+    // Day 12 — prices API often returns sale-only for catalog sticky IDs.
+    // When current is resolved but original is absent, try products/items for a
+    // real listing original (never invent; never use PM history as original).
+    if (quote.originalPrice == null) {
+      const viaProducts = await resolveStickyViaProductsApi(productId, fetchApi);
+      if (
+        viaProducts.ok &&
+        viaProducts.quote.originalPrice != null &&
+        viaProducts.quote.originalPrice > viaProducts.quote.current
+      ) {
+        quote = viaProducts.quote;
+        base.provenance.priceApiSource = quote.source;
+        base.provenance.originalRecoveredVia = 'products_items';
+      } else {
+        base.provenance.originalRecoveredVia = 'none';
+        if (!viaProducts.ok) {
+          base.provenance.originalRecoveryReason = viaProducts.reason;
+        }
+      }
+    }
   } else if (priceRes.status === 'unauthorized' || priceRes.status === 'not_found') {
     return {
       ...base,

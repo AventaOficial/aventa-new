@@ -85,12 +85,68 @@ describe('observeStickySkuViaServer', () => {
         }),
         loadHistory: async () => [],
         recordSnapshots: async () => {},
+        // Day 12: products recovery also empty → still no invent.
+        fetchApi: async () => ({
+          ok: true,
+          status: 200,
+          authenticated: true,
+          data: { results: [{ item_id: 'MLM222', price: 261 }] },
+        }),
       },
     });
     expect(obs.price?.value).toBe(261);
     expect(obs.originalPrice).toBeNull();
     expect(obs.observationStatus).toBe('insufficient_evidence');
     expect(obs.meta && isStickyEvidenceRich(obs.meta)).toBe(false);
+    expect(obs.provenance.originalRecoveredVia).toBe('none');
+  });
+
+  it('2b. Day12: prices sale-only + products original → recover real original', async () => {
+    const obs = await observeStickySkuViaServer({
+      productId: 'MLM2222222222',
+      nicheId: 'beauty',
+      persistSnapshots: false,
+      observedAt: NOW,
+      deps: {
+        resolvePrice: async () => resolvedPrice({ originalPrice: null, regularPrice: null }),
+        enrichMeta: enrichTo({
+          title: 'CeraVe Crema Facial 340ml',
+          imageUrl: RICH_IMAGE,
+        }),
+        loadHistory: async () => [
+          { recordedOn: '2026-09-11', lastPrice: 350, minPrice: 300, listPrice: 400, regularPrice: null },
+          { recordedOn: '2026-09-12', lastPrice: 350, minPrice: 300, listPrice: 400, regularPrice: null },
+          { recordedOn: '2026-09-13', lastPrice: 350, minPrice: 300, listPrice: 400, regularPrice: null },
+          { recordedOn: '2026-09-14', lastPrice: 350, minPrice: 300, listPrice: 400, regularPrice: null },
+        ],
+        recordSnapshots: async () => {},
+        fetchApi: async (path: string) => {
+          if (path.endsWith('/items')) {
+            return {
+              ok: true,
+              status: 200,
+              authenticated: true,
+              data: {
+                results: [
+                  { item_id: 'MLM9999999999', price: 261, original_price: 399, currency_id: 'MXN' },
+                ],
+              },
+            };
+          }
+          return {
+            ok: true,
+            status: 200,
+            authenticated: true,
+            data: { name: 'CeraVe Crema Facial 340ml', pictures: [{ secure_url: RICH_IMAGE }] },
+          };
+        },
+      },
+    });
+    expect(obs.originalPrice?.value).toBe(399);
+    expect(obs.price?.value).toBe(261);
+    expect(obs.provenance.originalRecoveredVia).toBe('products_items');
+    expect(obs.meta?.signals?.originalPriceProvenance).toBe('source_explicit');
+    expect(obs.meta && isStickyEvidenceRich(obs.meta)).toBe(true);
   });
 
   it('3. sin image → no inventar', async () => {

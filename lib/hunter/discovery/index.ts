@@ -32,6 +32,18 @@ export type {
 } from './historyReadyReactivation';
 
 export {
+  diagnoseProvenanceCompleteness,
+  appendProvenanceDiagnostics,
+  PROVENANCE_GAP_KINDS,
+  PROVENANCE_DIAGNOSTIC_CODES,
+} from './provenanceCompleteness';
+export type {
+  ProvenanceCompletenessReport,
+  ProvenanceGapKind,
+  ProvenanceDiagnosticCode,
+} from './provenanceCompleteness';
+
+export {
   VERIFIED_YIELD_TERMINAL_REASONS,
   assignPrimaryTerminalReason,
   isQualityBlockedTerminal,
