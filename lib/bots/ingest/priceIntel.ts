@@ -75,6 +75,7 @@ export function applyMlPriceIntelToMeta(
     effectiveDiscountPercent: ml.intel.effectiveDiscountPercent,
     priceIntelSource: 'aventa_ml',
     suspectedArtificialListPrice: ml.intel.suspectedArtificialListPrice,
+    artificialListPriceClauses: ml.intel.artificialListPriceClauses,
     historyReady: ml.intel.historyReady,
     samples90d: ml.intel.samples90d,
   };

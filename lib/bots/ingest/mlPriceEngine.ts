@@ -30,9 +30,54 @@ export type MlPriceIntel = {
   savingsVsHabitualPct: number | null;
   effectiveDiscountPercent: number | null;
   suspectedArtificialListPrice: boolean;
+  /** Day 12.1 — which artificial clauses fired (observability only; same rules as boolean). */
+  artificialListPriceClauses: ArtificialListPriceClause[];
   samples90d: number;
   historyReady: boolean;
 };
+
+/** Clauses that compose suspectedArtificialListPrice — observability only. */
+export type ArtificialListPriceClause =
+  | 'list_vs_regular'
+  | 'list_vs_habitual'
+  | 'extreme_list'
+  | 'extreme_list_no_history';
+
+/**
+ * Same predicates as computeMlPriceIntel artificial detection.
+ * Does not change thresholds. Used for durable diagnostics.
+ * `detected` MUST equal extremeList || listVsRegular || listVsHabitual.
+ */
+export function diagnoseArtificialListPriceClauses(input: {
+  current: number;
+  listPrice: number | null;
+  regularPrice: number | null;
+  habitual30d: number | null;
+  historyReady: boolean;
+}): { detected: boolean; clauses: ArtificialListPriceClause[] } {
+  const { current, listPrice, regularPrice, habitual30d, historyReady } = input;
+  const clauses: ArtificialListPriceClause[] = [];
+  const extremeList = listPrice != null && listPrice >= current * 1.8;
+  const listVsRegular =
+    listPrice != null &&
+    regularPrice != null &&
+    listPrice >= regularPrice * 1.2 &&
+    listPrice >= current * 1.45;
+  const listVsHabitual =
+    listPrice != null &&
+    habitual30d != null &&
+    listPrice >= habitual30d * 1.35 &&
+    listPrice >= current * 1.4;
+  if (listVsRegular) clauses.push('list_vs_regular');
+  if (listVsHabitual) clauses.push('list_vs_habitual');
+  if (extremeList) {
+    clauses.push(historyReady ? 'extreme_list' : 'extreme_list_no_history');
+  }
+  return {
+    detected: Boolean(extremeList || listVsRegular || listVsHabitual),
+    clauses,
+  };
+}
 
 export type MlPriceObservation = {
   productId: string;
@@ -144,15 +189,14 @@ export function computeMlPriceIntel(
       ? round2(((habitual30d - current) / habitual30d) * 100)
       : null;
 
-  const extremeList = listPrice != null && listPrice >= current * 1.8;
-  const listVsRegular =
-    listPrice != null && regularPrice != null && listPrice >= regularPrice * 1.2 && listPrice >= current * 1.45;
-  const listVsHabitual =
-    listPrice != null &&
-    habitual30d != null &&
-    listPrice >= habitual30d * 1.35 &&
-    listPrice >= current * 1.4;
-  const suspectedArtificialListPrice = Boolean(listVsRegular || listVsHabitual || (!historyReady && extremeList));
+  const artificialDiag = diagnoseArtificialListPriceClauses({
+    current,
+    listPrice,
+    regularPrice,
+    habitual30d,
+    historyReady,
+  });
+  const suspectedArtificialListPrice = artificialDiag.detected;
 
   let effectiveDiscountPercent: number | null = null;
   if (savingsVsHabitualPct != null && savingsVsHabitualPct > 0) {
@@ -174,6 +218,7 @@ export function computeMlPriceIntel(
     savingsVsHabitualPct,
     effectiveDiscountPercent,
     suspectedArtificialListPrice,
+    artificialListPriceClauses: artificialDiag.clauses,
     samples90d: window90.length,
     historyReady,
   };

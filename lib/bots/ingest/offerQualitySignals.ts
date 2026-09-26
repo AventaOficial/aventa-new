@@ -16,6 +16,10 @@ export type OfferQualitySignals = {
   savingsVsHabitualPct?: number | null;
   effectiveDiscountPercent?: number | null;
   suspectedArtificialListPrice?: boolean | null;
+  /** Day 12.1 observability — clauses that composed suspectedArtificialListPrice. */
+  artificialListPriceClauses?: Array<
+    'list_vs_regular' | 'list_vs_habitual' | 'extreme_list' | 'extreme_list_no_history'
+  > | null;
   /** True cuando Price Memory tiene días suficientes (mlPriceEngine). */
   historyReady?: boolean | null;
   /** Días distintos en ventana 90d (incl. observación de hoy fusionada). */

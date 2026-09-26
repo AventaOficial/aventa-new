@@ -98,7 +98,7 @@ describe('observeStickySkuViaServer', () => {
     expect(obs.originalPrice).toBeNull();
     expect(obs.observationStatus).toBe('insufficient_evidence');
     expect(obs.meta && isStickyEvidenceRich(obs.meta)).toBe(false);
-    expect(obs.provenance.originalRecoveredVia).toBe('none');
+    expect(obs.provenance.originalRecoveredVia).toBe('unavailable');
   });
 
   it('2b. Day12: prices sale-only + products original → recover real original', async () => {

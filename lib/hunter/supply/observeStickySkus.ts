@@ -447,11 +447,13 @@ export async function observeStickySkuViaServer(opts: {
         base.provenance.priceApiSource = quote.source;
         base.provenance.originalRecoveredVia = 'products_items';
       } else {
-        base.provenance.originalRecoveredVia = 'none';
+        base.provenance.originalRecoveredVia = 'unavailable';
         if (!viaProducts.ok) {
           base.provenance.originalRecoveryReason = viaProducts.reason;
         }
       }
+    } else {
+      base.provenance.originalRecoveredVia = 'prices_endpoint';
     }
   } else if (priceRes.status === 'unauthorized' || priceRes.status === 'not_found') {
     return {
@@ -481,6 +483,8 @@ export async function observeStickySkuViaServer(opts: {
     quote = viaProducts.quote;
     base.provenance.priceApiSource = quote.source;
     base.provenance.priceApiStatus = 'resolved';
+    base.provenance.originalRecoveredVia =
+      quote.originalPrice != null ? 'products_items' : 'unavailable';
     base.currency = quote.currency;
   }
 
