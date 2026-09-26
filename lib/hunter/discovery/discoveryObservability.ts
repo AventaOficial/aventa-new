@@ -43,6 +43,11 @@ export type DiscoveryCandidateObservation = {
   acquisition_path: AcquisitionPath;
   /** Where original/list came from during live acquisition. */
   original_recovered_via: OriginalRecoveredVia | null;
+  /**
+   * Day 12.3 — durable synonym of `original_recovered_via` (same vocabulary).
+   * Null when acquisition did not attempt / could not classify a source.
+   */
+  original_source: OriginalRecoveredVia | null;
   current_price: number | null;
   original_price: number | null;
   current_price_provenance: string | null;
@@ -59,6 +64,7 @@ export type DiscoveryCandidateObservation = {
     gap: string;
     detail: string;
     diagnostic_codes: string[];
+    identity_match_method: string | null;
   } | null;
   /** Artificial-list diagnostics (observe-only; detection unchanged). */
   artificial: {
@@ -114,6 +120,7 @@ export function buildCandidateObservation(input: {
     history_ready: input.historyReady,
     acquisition_path: input.acquisitionPath,
     original_recovered_via: input.originalRecoveredVia,
+    original_source: input.originalRecoveredVia,
     current_price:
       input.meta && Number.isFinite(input.meta.discountPrice) ? input.meta.discountPrice : null,
     original_price:
@@ -139,6 +146,7 @@ export function buildCandidateObservation(input: {
           gap: input.provenanceDiag.gap,
           detail: input.provenanceDiag.detail,
           diagnostic_codes: [...input.provenanceDiag.diagnosticCodes],
+          identity_match_method: input.provenanceDiag.identityMatchMethod ?? null,
         }
       : null,
     artificial: {

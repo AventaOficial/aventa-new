@@ -426,6 +426,43 @@ async function enrichCandidateMeta(
         originalRecoveredVia = normalizeOriginalRecoveredVia(
           obs.provenance?.originalRecoveredVia,
         );
+      } else if (obs.price?.value != null && obs.price.value > 0) {
+        // Day 12.3 — transport live quote when meta was nulled (title gate).
+        // Never invent original: only copy obs.originalPrice when present.
+        funnel.fetch_success += 1;
+        liveOk = true;
+        acquisitionPath = 'sticky_observe';
+        originalRecoveredVia = normalizeOriginalRecoveredVia(
+          obs.provenance?.originalRecoveredVia,
+        );
+        const seedTitle = (meta?.title ?? '').trim() || `Producto ${productId}`;
+        const liveOriginal =
+          obs.originalPrice?.value != null &&
+          Number.isFinite(obs.originalPrice.value) &&
+          obs.originalPrice.value > obs.price.value
+            ? obs.originalPrice.value
+            : null;
+        const listingRaw = obs.provenance?.listingItemId?.trim() || '';
+        meta = {
+          canonicalUrl: obs.offerUrl || meta?.canonicalUrl || cand.url,
+          title: seedTitle,
+          store: meta?.store || 'Mercado Libre',
+          imageUrl: obs.imageUrl || meta?.imageUrl || '',
+          discountPrice: obs.price.value,
+          originalPrice: liveOriginal,
+          discountPercent: meta?.discountPercent ?? 0,
+          signals: {
+            ...(meta?.signals ?? {}),
+            currentPriceProvenance: 'source_explicit',
+            originalPriceProvenance: liveOriginal != null ? 'source_explicit' : 'unknown',
+            mlCatalogProductId: productId,
+            mlListingItemId: listingRaw || productId,
+            mlIdentityMatchMethod:
+              listingRaw && listingRaw.replace(/-/g, '').toUpperCase() !== productId.replace(/-/g, '').toUpperCase()
+                ? 'catalog_to_listing_via_products_items'
+                : 'exact_item_id',
+          },
+        };
       } else {
         funnel.fetch_failed += 1;
       }
