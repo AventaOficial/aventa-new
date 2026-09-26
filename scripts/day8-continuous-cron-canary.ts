@@ -1,7 +1,7 @@
 /**
  * Day 8 closure — staging canary for scheduled continuous discovery.
- * Runs the same hour-bucket cycle twice. Expects one snapshot (upsert).
- * cronSafe: never mints.
+ * Runs the same hour-bucket cycle twice. The second call must hit the DB lease
+ * and leave the first snapshot untouched. cronSafe: never mints.
  *
  *   npx tsx --env-file=.env.local scripts/day8-continuous-cron-canary.ts
  */
@@ -58,12 +58,19 @@ async function main() {
     snapshot_error: snaps.error?.message ?? null,
     supply_rows: supply.data?.length ?? 0,
     supply_error: supply.error?.message ?? null,
-    verified_yield: second.verifiedYield.rates.verified_yield,
-    terminal_reason_counts: second.verifiedYield.terminal_reason_counts,
+    verified_yield: first.verifiedYield.rates.verified_yield,
+    terminal_reason_counts: first.verifiedYield.terminal_reason_counts,
+    second_skipped: (second.truthPersist?.snapshot.reason ?? '').startsWith('lease_'),
     idempotent_snapshot: (snaps.data?.length ?? 0) === 1,
   };
   console.log(JSON.stringify(out, null, 2));
-  if (!out.idempotent_snapshot || out.pending_created !== 0 || out.first_mint_attempted) {
+  if (
+    !out.idempotent_snapshot ||
+    !out.second_skipped ||
+    out.pending_created !== 0 ||
+    out.first_mint_attempted ||
+    out.second_mint_attempted
+  ) {
     process.exitCode = 1;
   }
 }

@@ -81,6 +81,7 @@ import {
   persistDeadlineDiscoverySnapshot,
   seedDiscoveryCycleSnapshot,
 } from './persistContinuousDiscoveryTruth';
+import { claimDiscoveryCycle } from './discoveryCycleLease';
 import {
   resolveContinuousExecutionMode,
   SCHEDULED_CONTINUOUS_DEADLINE_MS,
@@ -204,6 +205,8 @@ export type RunContinuousDiscoveryCycleOptions = {
   deadlineMs?: number;
   /** Stable id for cron-hour retries (upsert). Defaults to random UUID. */
   cycleId?: string;
+  /** Test double for the cycle lease. Production uses the service-role client. */
+  leaseSupabase?: import('@supabase/supabase-js').SupabaseClient | null;
   now?: Date;
 };
 
@@ -396,6 +399,52 @@ async function enrichCandidateMeta(
 /**
  * Single cycle authority for continuous discovery.
  */
+function skippedScheduledCycleReport(input: {
+  cycleId: string;
+  started: Date;
+  dryRun: boolean;
+  reason: 'completed' | 'in_progress';
+}): DiscoveryCycleReport {
+  const finished = input.started;
+  const funnel = emptyFunnel(input.cycleId, input.dryRun);
+  const verifiedYield = emptyVerifiedYieldFunnel(input.cycleId);
+  const automation = buildAutomationCycleMetrics(emptyAutomationCycleCounts());
+  const operator_verdict =
+    input.reason === 'completed'
+      ? `Scheduled cycle ${input.cycleId} already persisted; duplicate invocation did not rerun.`
+      : `Scheduled cycle ${input.cycleId} is in progress; overlapping invocation did not rerun.`;
+  const cycleFunnel = buildCycleFunnelSummaryFromDiscovery({
+    cycleId: input.cycleId,
+    funnel,
+    operator_verdict,
+    dryRun: input.dryRun,
+    automation_rate: automation.automation_rate,
+  });
+  return {
+    cycle_id: input.cycleId,
+    startedAt: input.started.toISOString(),
+    finishedAt: finished.toISOString(),
+    dryRun: input.dryRun,
+    mintAttempted: false,
+    sources: [],
+    funnel,
+    cycleFunnel,
+    automation,
+    prioritizedUrls: [],
+    gateSamples: [],
+    mintResults: [],
+    hunterSourceRuns: [],
+    operator_verdict,
+    bySource: {},
+    verifiedYield,
+    terminalTraces: [],
+    truthPersist: {
+      supplyTruth: { attempted: 0, persisted: 0, duplicates: 0, failed: 0 },
+      snapshot: { persisted: false, reason: `lease_${input.reason}` },
+    },
+  };
+}
+
 export async function runContinuousDiscoveryCycle(
   options: RunContinuousDiscoveryCycleOptions = {},
 ): Promise<DiscoveryCycleReport> {
@@ -423,8 +472,39 @@ export async function runContinuousDiscoveryCycle(
   const pastDeadline = () =>
     deadlineAt !== null && Date.now() >= deadlineAt;
 
-  // Seed snapshot immediately so a hard timeout still leaves cycle_id evidence.
-  if (options.persistTruth !== false) {
+  // Day 9 — DB lease when a stable cycleId is provided (scheduled cron).
+  // UNIQUE(cycle_id) prevents concurrent/duplicate runs from corrupting truth.
+  let claimToken: string | undefined;
+  if (options.persistTruth !== false && options.cycleId?.trim()) {
+    const claim = await claimDiscoveryCycle({
+      cycleId,
+      now: started,
+      supabase: options.leaseSupabase,
+    });
+    if (claim.action === 'skip') {
+      return skippedScheduledCycleReport({
+        cycleId,
+        started,
+        dryRun,
+        reason: claim.reason,
+      });
+    }
+    if (claim.action === 'run') {
+      claimToken = claim.token;
+    } else {
+      // unguarded (no client / missing table): fail-open seed, no lease token
+      try {
+        await seedDiscoveryCycleSnapshot({
+          cycleId,
+          startedAt: started.toISOString(),
+          dryRun,
+        });
+      } catch {
+        // fail-open
+      }
+    }
+  } else if (options.persistTruth !== false) {
+    // Ad-hoc UUID cycles: seed without lease (fail-open).
     try {
       await seedDiscoveryCycleSnapshot({
         cycleId,
@@ -450,6 +530,8 @@ export async function runContinuousDiscoveryCycle(
             startedAt: started.toISOString(),
             dryRun,
             reason: 'soft_deadline_watchdog',
+            claimToken,
+            ...(options.leaseSupabase !== undefined ? { supabase: options.leaseSupabase } : {}),
           });
           console.warn(
             `[day8] deadline_watchdog cycle=${cycleId.slice(0, 12)} snapshot upserted`,
@@ -1116,7 +1198,10 @@ export async function runContinuousDiscoveryCycle(
   let truthPersist: DiscoveryCycleReport['truthPersist'];
   if (options.persistTruth !== false) {
     try {
-      truthPersist = await persistContinuousDiscoveryTruth(reportBase);
+      truthPersist = await persistContinuousDiscoveryTruth(reportBase, {
+        claimToken,
+        ...(options.leaseSupabase !== undefined ? { supabase: options.leaseSupabase } : {}),
+      });
       console.log(
         `[day8] truth_persist cycle=${cycleId.slice(0, 8)} supply=${JSON.stringify(truthPersist.supplyTruth)} snapshot=${JSON.stringify(truthPersist.snapshot)}`,
       );

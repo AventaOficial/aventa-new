@@ -8,6 +8,16 @@
 import { formatYmdInTz } from '@/lib/bots/ingest/ingestZonedTime';
 import { ML_PRICE_TZ } from '@/lib/bots/ingest/mlPriceEngine';
 
+/**
+ * Vercel Hobby accepts at most one cron trigger per day, and vercel.json
+ * rejects query strings. The scheduler entry is therefore
+ * GET /api/cron/continuous-discovery at 17:00 UTC, which calls the same
+ * runContinuousDiscoveryCycle as GET /api/cron/bot-ingest?mode=continuous.
+ * Sub-daily cadence needs Vercel Pro (or an external scheduler).
+ */
+export const CONTINUOUS_DISCOVERY_CRON_PATH = '/api/cron/continuous-discovery';
+export const CONTINUOUS_DISCOVERY_CRON_SCHEDULE = '0 17 * * *';
+
 /** Cap candidates so cronSafe finishes inside Vercel maxDuration (300s). */
 export const SCHEDULED_CONTINUOUS_MAX_PRIORITIZED = 8;
 
