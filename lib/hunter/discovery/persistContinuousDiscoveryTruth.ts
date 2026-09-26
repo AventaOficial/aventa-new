@@ -324,6 +324,8 @@ export async function persistDiscoveryCycleSnapshot(
     terminal_reason_counts: report.verifiedYield.terminal_reason_counts,
     rates: report.verifiedYield.rates,
     near_ready: report.verifiedYield.near_ready,
+    deadline_budget: report.deadlineBudget ?? null,
+    history_ready_activation: report.historyReadyActivation ?? null,
     ...(opts?.claimToken
       ? { claim_token: opts.claimToken, claimed_at: report.startedAt }
       : {}),

@@ -60,7 +60,9 @@ import { writePendingViaS7Bridge } from '@/lib/supply/s7Bridge/writePendingViaS7
 import {
   collectStickyNearReadyCandidates,
   collectPmEvidenceBackedCandidates,
+  collectHistoryReadyReactivationCandidates,
   STICKY_NEAR_READY_SOURCE_ID,
+  STICKY_HISTORY_READY_SOURCE_ID,
   PM_EVIDENCE_SOURCE_ID,
 } from './stickyNearReadySource';
 import { metaFromDiscoveryEvidenceForProduct } from './censusSeedEnrichment';
@@ -80,6 +82,11 @@ import {
   persistDeadlineDiscoverySnapshot,
   seedDiscoveryCycleSnapshot,
 } from './persistContinuousDiscoveryTruth';
+import {
+  buildHistoryReadyActivationFromTraces,
+  loadHistoryReadyCensus,
+  type HistoryReadyActivationReport,
+} from './historyReadyActivation';
 import {
   createDeadlineContext,
   raceWithBudget,
@@ -186,6 +193,8 @@ export type DiscoveryCycleReport = {
   };
   /** Day 10 — wall-clock budget accounting (null when no soft deadline). */
   deadlineBudget?: DeadlineBudgetSnapshot | null;
+  /** Day 11 — historyReady activation & conversion measurement. */
+  historyReadyActivation?: HistoryReadyActivationReport | null;
 };
 
 export type RunContinuousDiscoveryCycleOptions = {
@@ -323,6 +332,14 @@ type EnrichCandidateResult = {
   meta: ParsedOfferMetadata | null;
   fetchBlocked: boolean;
 };
+
+function discoverySourceIdForCandidate(cand: {
+  source: string;
+  rawMetadata?: Record<string, unknown>;
+}): string {
+  const ds = cand.rawMetadata?.discoverySource;
+  return typeof ds === 'string' && ds.trim() ? ds : String(cand.source);
+}
 
 function pushTerminalTrace(
   traces: VerifiedYieldCandidateTrace[],
@@ -675,7 +692,7 @@ export async function runContinuousDiscoveryCycle(
     (deadline === null || (stickyBudget !== null && stickyBudget > 0 && !deadline.isExpired()));
 
   if (includeSticky && !canRunSticky) {
-    funnel.sources_requested += 2;
+    funnel.sources_requested += 3;
     sources.push({
       sourceId: STICKY_NEAR_READY_SOURCE_ID,
       status: 'skipped',
@@ -691,6 +708,14 @@ export async function runContinuousDiscoveryCycle(
       candidates: 0,
       errorCode: 'soft_deadline',
       errorMessageSafe: 'pm_evidence_skipped_no_cycle_budget',
+    });
+    sources.push({
+      sourceId: STICKY_HISTORY_READY_SOURCE_ID,
+      status: 'skipped',
+      canonicalStatus: 'SKIPPED',
+      candidates: 0,
+      errorCode: 'soft_deadline',
+      errorMessageSafe: 'sticky_history_ready_skipped_no_cycle_budget',
     });
   } else if (canRunSticky) {
     const stickyStarted = Date.now();
@@ -787,6 +812,56 @@ export async function runContinuousDiscoveryCycle(
         errorCode: 'pm_evidence_threw',
         errorMessageSafe: message.slice(0, 160),
       });
+    }
+
+    // Day 11 — historyReady reactivation (still within sticky_pm budget remainder)
+    funnel.sources_requested += 1;
+    const hrRemaining =
+      stickyBudget !== null
+        ? Math.max(0, stickyBudget - (Date.now() - stickyStarted))
+        : null;
+    try {
+      const hrPromise = collectHistoryReadyReactivationCandidates(
+        { config, rotationWave: options.rotationWave ?? 0, now },
+        { maxTargets: Math.min(8, maxPrioritized), cooldownHours: 1 },
+      );
+      const hrRaced =
+        hrRemaining !== null
+          ? await raceWithBudget(hrPromise, Math.max(500, hrRemaining))
+          : { ok: true as const, value: await hrPromise };
+      if (hrRaced.ok) {
+        const hr = hrRaced.value;
+        const outcome = classifyStickyResult({
+          ok: hr.ok,
+          candidates: hr.candidates.length,
+          errorCode: hr.errorCode,
+          errorMessageSafe: hr.errorMessageSafe,
+        });
+        outcome.sourceId = STICKY_HISTORY_READY_SOURCE_ID;
+        sources.push(outcome);
+        if (hr.ok && hr.candidates.length > 0) {
+          allCandidates.push(...hr.candidates);
+        }
+      } else {
+        sources.push({
+          sourceId: STICKY_HISTORY_READY_SOURCE_ID,
+          status: 'skipped',
+          canonicalStatus: 'SKIPPED',
+          candidates: 0,
+          errorCode: 'soft_deadline',
+          errorMessageSafe: 'sticky_history_ready_budget_exhausted',
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      sources.push({
+        sourceId: STICKY_HISTORY_READY_SOURCE_ID,
+        status: 'failed',
+        canonicalStatus: 'FAILED',
+        candidates: 0,
+        errorCode: 'sticky_history_ready_threw',
+        errorMessageSafe: message.slice(0, 160),
+      });
     } finally {
       deadline?.recordUsed('sticky_pm', Date.now() - stickyStarted);
     }
@@ -842,6 +917,9 @@ export async function runContinuousDiscoveryCycle(
 
   // --- 4) Prioritize: sticky near-ready first, then Offer Standard (+ Day 6 health/PM boost) ---
   const stickyFirst = [...deduped].sort((a, b) => {
+    const aAct = a.rawMetadata?.historyReadyActivated === true ? 1 : 0;
+    const bAct = b.rawMetadata?.historyReadyActivated === true ? 1 : 0;
+    if (aAct !== bAct) return bAct - aAct;
     const aSticky = a.rawMetadata?.priceMemoryDriven === true ? 1 : 0;
     const bSticky = b.rawMetadata?.priceMemoryDriven === true ? 1 : 0;
     if (aSticky !== bSticky) return bSticky - aSticky;
@@ -933,7 +1011,7 @@ export async function runContinuousDiscoveryCycle(
       bumpTerminalReason(verifiedYield, terminal);
       pushTerminalTrace(terminalTraces, {
         url: cand.url,
-        sourceId: String(cand.source),
+        sourceId: discoverySourceIdForCandidate(cand),
         productId,
         daysUntilReady,
         priorDays,
@@ -1015,7 +1093,7 @@ export async function runContinuousDiscoveryCycle(
     bumpTerminalReason(verifiedYield, terminal);
     pushTerminalTrace(terminalTraces, {
       url: meta.canonicalUrl,
-      sourceId: String(cand.source),
+      sourceId: discoverySourceIdForCandidate(cand),
       productId,
       daysUntilReady,
       priorDays,
@@ -1077,7 +1155,7 @@ export async function runContinuousDiscoveryCycle(
           bumpTerminalReason(verifiedYield, terminal);
           pushTerminalTrace(terminalTraces, {
             url: row.meta.canonicalUrl,
-            sourceId: String(row.candidate.source),
+            sourceId: discoverySourceIdForCandidate(row.candidate),
             productId:
               typeof row.candidate.rawMetadata?.productId === 'string'
                 ? row.candidate.rawMetadata.productId
@@ -1116,7 +1194,7 @@ export async function runContinuousDiscoveryCycle(
           bumpTerminalReason(verifiedYield, terminal);
           pushTerminalTrace(terminalTraces, {
             url: row.meta.canonicalUrl,
-            sourceId: String(row.candidate.source),
+            sourceId: discoverySourceIdForCandidate(row.candidate),
             productId:
               typeof row.candidate.rawMetadata?.productId === 'string'
                 ? row.candidate.rawMetadata.productId
@@ -1151,7 +1229,7 @@ export async function runContinuousDiscoveryCycle(
           bumpTerminalReason(verifiedYield, terminal);
           pushTerminalTrace(terminalTraces, {
             url: row.meta.canonicalUrl,
-            sourceId: String(row.candidate.source),
+            sourceId: discoverySourceIdForCandidate(row.candidate),
             productId: null,
             daysUntilReady: null,
             priorDays: null,
@@ -1256,6 +1334,38 @@ export async function runContinuousDiscoveryCycle(
   }
 
   finalizeVerifiedYieldRates(verifiedYield);
+
+  // Day 11 — historyReady activation measurement (observe-only).
+  let historyReadyActivation: HistoryReadyActivationReport | null = null;
+  try {
+    const census = await loadHistoryReadyCensus({ now });
+    const activatedIds = new Set<string>();
+    for (const c of allCandidates) {
+      if (
+        c.rawMetadata?.historyReadyActivated === true &&
+        typeof c.rawMetadata?.productId === 'string'
+      ) {
+        activatedIds.add(c.rawMetadata.productId);
+      }
+    }
+    historyReadyActivation = buildHistoryReadyActivationFromTraces(
+      terminalTraces,
+      census,
+      { activatedProductIds: activatedIds },
+    );
+    verifiedYield.rates = {
+      ...verifiedYield.rates,
+      history_ready_to_s61_yield:
+        historyReadyActivation.rates.historyReady_to_s61_yield,
+    };
+    console.log(
+      `[day11] historyReady census=${census.history_ready} activated_today≈${census.approx_activated_today} evaluated=${historyReadyActivation.evaluated.history_ready_candidates} s61=${historyReadyActivation.evaluated.s61_pass} yield=${historyReadyActivation.rates.historyReady_to_s61_yield}`,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[day11] historyReady_activation_failed ${message.slice(0, 120)}`);
+  }
+
   console.log(
     `[day7] cycle=${cycleId.slice(0, 8)} minHistory=${ML_PRICE_MIN_HISTORY_DAYS} verified_yield=${verifiedYield.rates.verified_yield} s61_yield=${verifiedYield.rates.s61_yield} hist_block=${verifiedYield.rates.history_block_rate} near_ready=${verifiedYield.near_ready.pool_near_ready}`,
   );
@@ -1307,6 +1417,7 @@ export async function runContinuousDiscoveryCycle(
     verifiedYield,
     terminalTraces,
     deadlineBudget: deadline?.snapshot() ?? null,
+    historyReadyActivation,
   };
 
   let truthPersist: DiscoveryCycleReport['truthPersist'];
@@ -1336,6 +1447,7 @@ export async function runContinuousDiscoveryCycle(
     ...reportBase,
     truthPersist,
     deadlineBudget: deadline?.snapshot() ?? null,
+    historyReadyActivation,
   };
 }
 
