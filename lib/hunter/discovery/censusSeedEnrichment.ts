@@ -106,7 +106,7 @@ export function metaFromDiscoveryEvidenceForProduct(
       cardDiscountSource: hasTrustedList
         ? (row.cardDiscountSource as 'card_strikethrough') ?? 'card_strikethrough'
         : undefined,
-      historyReady: false,
+      // Leave historyReady unset — enrichWithPriceIntel / observeSticky sets it from PM.
       ...(row.signals ?? {}),
     },
   };

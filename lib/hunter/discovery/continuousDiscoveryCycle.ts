@@ -83,6 +83,10 @@ import {
   seedDiscoveryCycleSnapshot,
 } from './persistContinuousDiscoveryTruth';
 import {
+  diagnoseProvenanceCompleteness,
+  appendProvenanceDiagnostics,
+} from './provenanceCompleteness';
+import {
   buildHistoryReadyActivationFromTraces,
   loadHistoryReadyCensus,
   type HistoryReadyActivationReport,
@@ -171,6 +175,8 @@ export type DiscoveryCycleReport = {
     wouldInsert: boolean;
     historyReady: boolean;
     reasonCodes: string[];
+    /** Day 12 — structured provenance gap (observe-only). */
+    provenanceGap?: string;
   }>;
   mintResults: Array<{
     url: string;
@@ -1068,12 +1074,24 @@ export async function runContinuousDiscoveryCycle(
       dealQuality,
     });
 
+    // Day 12 — observe-only provenance gap diagnosis (never upgrades trust).
+    const provenanceDiag = diagnoseProvenanceCompleteness({
+      meta,
+      expectedProductId: productId,
+      currentEvidenceAbsent: enriched.fetchBlocked && !meta.signals?.currentPriceProvenance,
+    });
+    const reasonCodesWithDiag = appendProvenanceDiagnostics(
+      gate.reasonCodes,
+      provenanceDiag,
+    );
+
     gateSamples.push({
       url: meta.canonicalUrl,
       qualityDecision: gate.qualityDecision,
       wouldInsert: gate.wouldInsert,
       historyReady,
-      reasonCodes: gate.reasonCodes,
+      reasonCodes: reasonCodesWithDiag,
+      provenanceGap: provenanceDiag.gap,
     });
 
     const s61Pass =
@@ -1088,7 +1106,7 @@ export async function runContinuousDiscoveryCycle(
       dqeDecision: dealQuality.decision,
       s61WouldInsert: gate.wouldInsert,
       s61QualityDecision: gate.qualityDecision,
-      reasonCodes: gate.reasonCodes,
+      reasonCodes: reasonCodesWithDiag,
     });
     bumpTerminalReason(verifiedYield, terminal);
     pushTerminalTrace(terminalTraces, {
@@ -1100,7 +1118,7 @@ export async function runContinuousDiscoveryCycle(
       historyReady,
       dqeDecision: dealQuality.decision,
       s61Decision: gate.qualityDecision,
-      reasonCodes: gate.reasonCodes,
+      reasonCodes: reasonCodesWithDiag,
       primaryTerminalReason: terminal,
     });
 
@@ -1111,7 +1129,7 @@ export async function runContinuousDiscoveryCycle(
       s61Passed: s61Pass,
     };
 
-    const autoOutcome = automationOutcomeFromTerminal(terminal, gate.reasonCodes, {
+    const autoOutcome = automationOutcomeFromTerminal(terminal, reasonCodesWithDiag, {
       dryRun,
       fetchBlocked: false,
     });
