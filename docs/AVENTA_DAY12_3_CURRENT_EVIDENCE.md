@@ -6,6 +6,10 @@
 
 ## ROOT CAUSE
 
+> **Corrected in Day 12.4** (`AVENTA_DAY12_4_STICKY_PATH_SELECTION.md`): the four
+> `…-12` failures were item-id PM tips blocked with HTTP 403 on `/items/*`
+> (`fetch_blocked=5`), not priced observations dropped by the title gate.
+
 After Day 12.2 (`identity_mismatch = 0`), the dominant provenance gap became
 `missing_current_original` / `PROVENANCE_MISSING_CURRENT_EVIDENCE`.
 

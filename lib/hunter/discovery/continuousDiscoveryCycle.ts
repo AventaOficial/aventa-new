@@ -89,6 +89,9 @@ import {
 import {
   buildCandidateObservation,
   normalizeOriginalRecoveredVia,
+  stickyObserveDiagnostics,
+  stickyObserveIneligibility,
+  type StickyObserveDiagnostics,
   type AcquisitionPath,
   type DiscoveryCandidateObservation,
   type OriginalRecoveredVia,
@@ -355,6 +358,8 @@ type EnrichCandidateResult = {
   /** Day 12.1 — how original was obtained during sticky observe (null if N/A). */
   originalRecoveredVia: OriginalRecoveredVia | null;
   acquisitionPath: AcquisitionPath;
+  /** Day 12.4 — live observe outcome (null when not PM-driven). */
+  observe: StickyObserveDiagnostics | null;
 };
 
 function discoverySourceIdForCandidate(cand: {
@@ -400,12 +405,14 @@ async function enrichCandidateMeta(
   let fetchBlocked = false;
   let originalRecoveredVia: OriginalRecoveredVia | null = null;
   let acquisitionPath: AcquisitionPath = meta ? 'precomputed_only' : 'unknown';
+  let observe: StickyObserveDiagnostics | null = null;
   const productId =
     typeof cand.rawMetadata?.productId === 'string'
       ? cand.rawMetadata.productId
       : extractMercadoLibreItemId(cand.url);
 
   const isPmDriven = cand.rawMetadata?.priceMemoryDriven === true;
+  observe = stickyObserveIneligibility({ priceMemoryDriven: isPmDriven, productId });
   if (isPmDriven && productId) {
     funnel.fetch_attempted += 1;
     let liveOk = false;
@@ -415,6 +422,7 @@ async function enrichCandidateMeta(
         nicheId: 'continuous_discovery',
         persistSnapshots: true,
       });
+      observe = stickyObserveDiagnostics(obs);
       if (obs.observationStatus === 'source_blocked') {
         funnel.fetch_blocked += 1;
         fetchBlocked = true;
@@ -468,6 +476,7 @@ async function enrichCandidateMeta(
       }
     } catch {
       funnel.fetch_failed += 1;
+      observe = { outcome: 'threw', reason: 'observe_threw', httpStatus: null };
     }
 
     // Staging recovery when ML API is blocked: use census/discovery evidence by product_id.
@@ -488,14 +497,14 @@ async function enrichCandidateMeta(
     }
   }
 
-  if (!meta) return { meta: null, fetchBlocked, originalRecoveredVia, acquisitionPath };
+  if (!meta) return { meta: null, fetchBlocked, originalRecoveredVia, acquisitionPath, observe };
 
   try {
     meta = await enrichWithPriceIntel(meta, config, { preserveLabelDiscount: true });
   } catch {
     /* keep meta */
   }
-  return { meta, fetchBlocked, originalRecoveredVia, acquisitionPath };
+  return { meta, fetchBlocked, originalRecoveredVia, acquisitionPath, observe };
 }
 
 /**
@@ -1109,6 +1118,9 @@ export async function runContinuousDiscoveryCycle(
             meta: null,
             acquisitionPath: enriched.acquisitionPath,
             originalRecoveredVia: enriched.originalRecoveredVia,
+            observeOutcome: enriched.observe?.outcome ?? null,
+            observeReason: enriched.observe?.reason ?? null,
+            observeHttpStatus: enriched.observe?.httpStatus ?? null,
             qualityDecision: 'EXTRACTION_FAILED',
             wouldInsert: false,
             dqeDecision: null,
@@ -1225,6 +1237,9 @@ export async function runContinuousDiscoveryCycle(
           meta,
           acquisitionPath: enriched.acquisitionPath,
           originalRecoveredVia: enriched.originalRecoveredVia,
+          observeOutcome: enriched.observe?.outcome ?? null,
+          observeReason: enriched.observe?.reason ?? null,
+          observeHttpStatus: enriched.observe?.httpStatus ?? null,
           qualityDecision: gate.qualityDecision,
           wouldInsert: gate.wouldInsert,
           dqeDecision: dealQuality.decision,
