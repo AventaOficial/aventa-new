@@ -11,6 +11,7 @@ import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMeta
 import type { ArtificialListPriceClause } from '@/lib/bots/ingest/mlPriceEngine';
 import type { ProvenanceCompletenessReport } from './provenanceCompleteness';
 import type { VerifiedYieldTerminalReason } from './verifiedYieldTerminal';
+import type { PriceIntelObservation } from './priceIntelObservability';
 
 /** How current original/list evidence was obtained (not PM tip alone). */
 export const ORIGINAL_RECOVERED_VIA = [
@@ -148,6 +149,11 @@ export type DiscoveryCandidateObservation = {
     habitual30d: number | null;
     history_ready: boolean;
   } | null;
+  /**
+   * Day 13.2 — Price Intelligence identity trace (observe-only; additive).
+   * Absent in snapshots written before Day 13.2.
+   */
+  price_intel?: PriceIntelObservation | null;
 };
 
 export function normalizeOriginalRecoveredVia(
@@ -178,6 +184,7 @@ export function buildCandidateObservation(input: {
   primaryTerminal: VerifiedYieldTerminalReason;
   reasonCodes: string[];
   provenanceDiag: ProvenanceCompletenessReport | null;
+  priceIntel?: PriceIntelObservation | null;
 }): DiscoveryCandidateObservation {
   const signals = input.meta?.signals ?? null;
   const clauses = Array.isArray(signals?.artificialListPriceClauses)
@@ -248,5 +255,6 @@ export function buildCandidateObservation(input: {
           : null,
       history_ready: input.historyReady,
     },
+    ...(input.priceIntel !== undefined ? { price_intel: input.priceIntel } : {}),
   };
 }
