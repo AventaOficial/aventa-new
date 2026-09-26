@@ -27,9 +27,12 @@ import type {
   HunterSourceId,
 } from '@/lib/hunter/types';
 import { listDiscoveryEvidenceProductIds } from './censusSeedEnrichment';
+import { selectHistoryReadyReactivationTargets } from './historyReadyReactivation';
 
 export const STICKY_NEAR_READY_SOURCE_ID = 'sticky_near_ready' as const;
 export const PM_EVIDENCE_SOURCE_ID = 'pm_evidence_backed' as const;
+/** Day 11 — re-acquire SKUs that already meet historyReady. */
+export const STICKY_HISTORY_READY_SOURCE_ID = 'sticky_history_ready' as const;
 
 export type StickyNearReadySourceId = typeof STICKY_NEAR_READY_SOURCE_ID;
 
@@ -284,6 +287,77 @@ export async function collectPmEvidenceBackedCandidates(
       candidates: [],
       itemsFound: 0,
       errorCode: 'pm_evidence_error',
+      errorMessageSafe: message.slice(0, 160),
+    };
+  }
+}
+
+/**
+ * Day 11 — reacquire historyReady SKUs (priorDays ≥ ML_PRICE_MIN_HISTORY_DAYS).
+ * Prefer approx-activated-today. Still must pass DQE/S6.1 unchanged.
+ */
+export async function collectHistoryReadyReactivationCandidates(
+  ctx: HunterCollectContext,
+  opts?: { maxTargets?: number; cooldownHours?: number },
+): Promise<HunterCollectResult> {
+  const detectedAt = (ctx.now ?? new Date()).toISOString();
+  try {
+    const report = await selectHistoryReadyReactivationTargets({
+      maxTargets: opts?.maxTargets ?? 8,
+      cooldownHours: opts?.cooldownHours ?? 1,
+      now: ctx.now,
+    });
+
+    const candidates: HunterCandidate[] = [];
+    for (const t of report.targets) {
+      if (t.lastPrice == null || !(t.lastPrice > 0)) continue;
+      const cand = candidateFromProductId(
+        t.productId,
+        t.lastPrice,
+        detectedAt,
+        `sticky_history_ready|priorDays:${t.priorDays}|activated:${t.activatedToday}|detectedAt:${detectedAt}`,
+        {
+          discoverySource: STICKY_HISTORY_READY_SOURCE_ID,
+          priorDays: t.priorDays,
+          daysUntilReady: 0,
+          historyReadyActivated: t.activatedToday,
+          priceMemoryDriven: true,
+        },
+      );
+      if (cand) {
+        cand.rawMetadata = {
+          ...cand.rawMetadata,
+          discoverySource: STICKY_HISTORY_READY_SOURCE_ID,
+          productId: t.productId,
+          priorDays: t.priorDays,
+          daysUntilReady: 0,
+          historyReadyActivated: t.activatedToday,
+          priceMemoryDriven: true,
+        };
+        candidates.push(cand);
+      }
+    }
+
+    return {
+      ok: true,
+      candidates,
+      itemsFound: candidates.length,
+      collectedCount: candidates.length,
+      skipReasonCounts: {
+        pool_history_ready: report.poolHistoryReady,
+        pool_activated_today: report.poolActivatedToday,
+        cooldown_skipped: report.cooldownSkipped,
+        observed_today_skipped: report.observedTodaySkipped,
+        budget_limited: report.budgetLimited,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      candidates: [],
+      itemsFound: 0,
+      errorCode: 'sticky_history_ready_error',
       errorMessageSafe: message.slice(0, 160),
     };
   }

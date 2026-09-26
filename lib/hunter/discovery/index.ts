@@ -1,12 +1,35 @@
 export {
   STICKY_NEAR_READY_SOURCE_ID,
+  STICKY_HISTORY_READY_SOURCE_ID,
   PM_EVIDENCE_SOURCE_ID,
   collectStickyNearReadyCandidates,
   collectPmEvidenceBackedCandidates,
+  collectHistoryReadyReactivationCandidates,
   nearReadyTargetToIngestItem,
   nearReadyBucketForDays,
 } from './stickyNearReadySource';
 export type { StickyNearReadySourceId, NearReadyBucket } from './stickyNearReadySource';
+
+export {
+  buildHistoryReadyActivationFromTraces,
+  loadHistoryReadyCensus,
+  isHistoryReadyFromDistinctDays,
+  isApproxActivatedToday,
+  DAY10_PRODUCTION_BASELINE,
+  emptyHistoryReadyCensus,
+} from './historyReadyActivation';
+export type {
+  HistoryReadyActivationReport,
+  HistoryReadyCensus,
+} from './historyReadyActivation';
+
+export {
+  selectHistoryReadyReactivationTargets,
+} from './historyReadyReactivation';
+export type {
+  HistoryReadyReactivationTarget,
+  HistoryReadyReactivationReport,
+} from './historyReadyReactivation';
 
 export {
   VERIFIED_YIELD_TERMINAL_REASONS,

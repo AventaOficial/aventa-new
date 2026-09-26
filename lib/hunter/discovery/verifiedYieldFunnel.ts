@@ -26,6 +26,8 @@ export type VerifiedYieldRates = {
   history_block_rate: number | null;
   /** artificial_list_price / identity_valid */
   artificial_price_rate: number | null;
+  /** Day 11 — s61_pass among historyReady-evaluated candidates */
+  history_ready_to_s61_yield?: number | null;
 };
 
 export type VerifiedYieldFunnel = {
