@@ -524,7 +524,7 @@ export async function observeStickySkuViaServer(opts: {
   });
   const discountPercent = applied.discountPercent;
 
-  const titleSeed = (quote.titleHint ?? offerMeta?.title ?? '').trim();
+  const titleSeed = (quote.titleHint ?? offerMeta?.title ?? `Producto ${productId}`).trim();
   const imageSeed = quote.imageHint || offerMeta?.imageUrl || '';
   const canonical =
     quote.offerUrlHint ||
@@ -613,6 +613,11 @@ export async function observeStickySkuViaServer(opts: {
 
   const rich = isStickyEvidenceRich(meta);
   const hasTitle = Boolean(title && title.length >= 8);
+  // Day 12.3 — never drop priced API evidence solely for thin title.
+  // Title may be a tip placeholder (`Producto {id}`); observationStatus still
+  // reflects insufficient_evidence when not rich. Prices remain source_explicit.
+  const keepMetaForProvenance =
+    hasTitle || (Number.isFinite(meta.discountPrice) && meta.discountPrice > 0);
 
   return {
     itemId: productId,
@@ -634,7 +639,7 @@ export async function observeStickySkuViaServer(opts: {
     },
     observedAt,
     observationStatus: rich || hasTitle ? (rich ? 'ok' : 'insufficient_evidence') : 'insufficient_evidence',
-    meta: hasTitle ? meta : null,
+    meta: keepMetaForProvenance ? meta : null,
   };
 }
 
@@ -809,6 +814,15 @@ export async function observeStickySkus(opts: {
       report.stickyObserved += 1;
 
       if (!obs.meta) {
+        report.snapshotOnly += 1;
+        await sleep(120);
+        continue;
+      }
+
+      // Day 12.3 — priced meta may be retained for provenance even with empty title.
+      // Supply candidates still require a real title (≥8); otherwise snapshot-only.
+      const titleOk = (obs.meta.title?.trim().length ?? 0) >= 8;
+      if (!titleOk) {
         report.snapshotOnly += 1;
         await sleep(120);
         continue;

@@ -97,6 +97,10 @@ describe('observeStickySkuViaServer', () => {
     expect(obs.price?.value).toBe(261);
     expect(obs.originalPrice).toBeNull();
     expect(obs.observationStatus).toBe('insufficient_evidence');
+    // Day 12.3 — priced meta is retained for provenance even without rich title/original.
+    expect(obs.meta).not.toBeNull();
+    expect(obs.meta?.discountPrice).toBe(261);
+    expect(obs.meta?.originalPrice).toBeNull();
     expect(obs.meta && isStickyEvidenceRich(obs.meta)).toBe(false);
     expect(obs.provenance.originalRecoveredVia).toBe('unavailable');
   });
