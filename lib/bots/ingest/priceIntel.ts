@@ -7,6 +7,7 @@ import {
   type MlPriceIntel,
 } from './mlPriceEngine';
 import type { MlPriceQuote } from './mlPricesApi';
+import type { PriceIntelObserver } from './priceIntelObserver';
 import { applyCanonicalDiscountToMetaFields, isFalseZeroDiscount } from './canonicalDiscount';
 
 export type EnrichPriceIntelOptions = {
@@ -17,6 +18,8 @@ export type EnrichPriceIntelOptions = {
   preserveLabelDiscount?: boolean;
   /** Provenance explícita Supply Engine → Price Memory niche_id. */
   nicheId?: string | null;
+  /** Day 13.2 — observability only; does not change key derivation, writes or output. */
+  observer?: PriceIntelObserver | null;
 };
 
 /** Extrae nicheId solo si aparece explícito en sourceDetail (nunca por título). */
@@ -185,6 +188,7 @@ export async function enrichWithPriceIntel(
       current: meta.discountPrice,
       listPrice: meta.originalPrice,
       nicheId,
+      observer: options?.observer ?? null,
     });
     if (!ml) return meta;
     return applyMlPriceIntelToMeta(meta, ml, options);

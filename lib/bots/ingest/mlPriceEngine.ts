@@ -6,6 +6,11 @@ import {
 } from '@/lib/offers/resolveMercadoLibreItem';
 import { formatYmdInTz } from './ingestZonedTime';
 import { fetchMlItemPriceQuote, type MlPriceQuote } from './mlPricesApi';
+import {
+  notifyPriceIntelObserver,
+  type PriceIntelEvidenceKind,
+  type PriceIntelObserver,
+} from './priceIntelObserver';
 
 export const ML_PRICE_MARKETPLACE = 'mercadolibre';
 export const ML_PRICE_TZ = 'America/Mexico_City';
@@ -363,19 +368,37 @@ export async function enrichMercadoLibrePriceIntel(args: {
   listPrice: number | null;
   /** Provenance explícita del Supply Engine; null = no inventar. */
   nicheId?: string | null;
+  /** Day 13.2 — observability only; never changes key, quote, write or intel. */
+  observer?: PriceIntelObserver | null;
 }): Promise<{ quote: MlPriceQuote; intel: MlPriceIntel } | null> {
   const productId = normalizeMlProductId(args.itemId) ?? normalizeMlProductId(args.url);
   if (!productId || !Number.isFinite(args.current) || args.current <= 0) return null;
 
+  let evidenceKind: PriceIntelEvidenceKind = 'unknown';
   const quote = await fetchMlItemPriceQuote(
     productId,
     {
       current: args.current,
       listPrice: args.listPrice,
     },
-    { url: args.url, catalogProductId: null },
+    {
+      url: args.url,
+      catalogProductId: null,
+      onEvidence: (kind) => {
+        evidenceKind = kind;
+      },
+    },
   );
+  notifyPriceIntelObserver(args.observer, 'onQuoteEvidence', { id: productId, evidenceKind });
 
+  // This caller does not know whether `productId` is a PRODUCT or a LISTING.
+  notifyPriceIntelObserver(args.observer, 'onPriceMemoryWriteAttempt', {
+    key: productId,
+    keyKind: 'unknown',
+    writer: 'enrich_with_price_intel',
+    evidenceKind,
+    observedListingId: null,
+  });
   await recordMlDailySnapshots([
     {
       productId,
@@ -397,5 +420,12 @@ export async function enrichMercadoLibrePriceIntel(args: {
     history,
     today
   );
+  notifyPriceIntelObserver(args.observer, 'onPriceIntelComputed', {
+    id: productId,
+    kind: 'unknown',
+    writer: 'enrich_with_price_intel',
+    evidenceKind,
+    observedListingId: null,
+  });
   return { quote, intel };
 }

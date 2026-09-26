@@ -2,6 +2,7 @@ import { BOT_INGEST_USER_AGENT } from './ingestHttp';
 import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 import { resolveMercadoLibreItem } from '@/lib/offers/resolveMercadoLibreItem';
 import { resolveMercadoLibrePrice } from '@/lib/offers/resolveMercadoLibrePrice';
+import type { PriceIntelEvidenceKind } from './priceIntelObserver';
 
 export type MlPriceQuote = {
   current: number;
@@ -36,12 +37,24 @@ function pickAmount(rows: MlPriceRow[] | undefined, type: string): number | null
 export async function fetchMlItemPriceQuote(
   itemId: string,
   fallback: { current: number; listPrice: number | null; regularPrice?: number | null },
-  opts?: { url?: string | null; catalogProductId?: string | null },
+  opts?: {
+    url?: string | null;
+    catalogProductId?: string | null;
+    /** Day 13.2 — observability only: whether `current` came from an API or the fallback. */
+    onEvidence?: (kind: PriceIntelEvidenceKind) => void;
+  },
 ): Promise<MlPriceQuote> {
   const safeFallback: MlPriceQuote = {
     current: fallback.current,
     listPrice: fallback.listPrice,
     regularPrice: fallback.regularPrice ?? null,
+  };
+  const report = (kind: PriceIntelEvidenceKind) => {
+    try {
+      opts?.onEvidence?.(kind);
+    } catch {
+      /* observability must never alter the observed flow */
+    }
   };
 
   const fromUrl = opts?.url ? resolveMercadoLibreItem(opts.url) : null;
@@ -55,6 +68,7 @@ export async function fetchMlItemPriceQuote(
       siteId: fromUrl?.siteId ?? null,
     });
     if (resolved.status === 'resolved' && resolved.price != null) {
+      report('live');
       return {
         current: resolved.price,
         listPrice: resolved.originalPrice ?? fallback.listPrice,
@@ -74,14 +88,19 @@ export async function fetchMlItemPriceQuote(
       timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
     });
   } catch {
+    report('fallback');
     return safeFallback;
   }
-  if (!res.ok) return safeFallback;
+  if (!res.ok) {
+    report('fallback');
+    return safeFallback;
+  }
 
   let json: MlPricesResponse;
   try {
     json = (await res.json()) as MlPricesResponse;
   } catch {
+    report('fallback');
     return safeFallback;
   }
 
@@ -97,6 +116,7 @@ export async function fetchMlItemPriceQuote(
       ? Math.max(fallback.listPrice, regularPrice)
       : (fallback.listPrice ?? regularPrice);
 
+  report(promo != null ? 'live' : 'fallback');
   return {
     current,
     listPrice,

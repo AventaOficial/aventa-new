@@ -16,6 +16,11 @@ import {
   ML_PRICE_TZ,
 } from '@/lib/bots/ingest/mlPriceEngine';
 import { applyMlPriceIntelToMeta } from '@/lib/bots/ingest/priceIntel';
+import {
+  notifyPriceIntelObserver,
+  type PriceIntelExplicitKind,
+  type PriceIntelObserver,
+} from '@/lib/bots/ingest/priceIntelObserver';
 import { formatYmdInTz } from '@/lib/bots/ingest/ingestZonedTime';
 import { fetchMlApi, type FetchMlApiResult } from '@/lib/integrations/mercadolibre/apiClient';
 import { createServerClient } from '@/lib/supabase/server';
@@ -365,6 +370,8 @@ export async function observeStickySkuViaServer(opts: {
   target?: StickySkuTarget | null;
   supabase?: ReturnType<typeof createServerClient> | null;
   deps?: ObserveStickySkuViaServerDeps;
+  /** Day 13.2 — observability only; never changes keys, writes or intel. */
+  priceIntelObserver?: PriceIntelObserver | null;
 }): Promise<StickyServerObservation> {
   const observedAt = (opts.observedAt ?? new Date()).toISOString();
   const productId = normalizeMlProductId(opts.productId) ?? opts.productId.replace(/-/g, '').toUpperCase();
@@ -491,7 +498,23 @@ export async function observeStickySkuViaServer(opts: {
   const current = quote.current;
   const apiOriginal = quote.originalPrice;
 
+  // Day 13.2 — PRODUCT only when /products/{tip}/items returned a different listing.
+  const observedListingForTrace = quote.listingItemId
+    ? quote.listingItemId.replace(/-/g, '').toUpperCase()
+    : null;
+  const tipKindForTrace: PriceIntelExplicitKind =
+    observedListingForTrace && observedListingForTrace !== productId.replace(/-/g, '').toUpperCase()
+      ? 'product'
+      : 'unknown';
+
   if (opts.persistSnapshots) {
+    notifyPriceIntelObserver(opts.priceIntelObserver, 'onPriceMemoryWriteAttempt', {
+      key: productId,
+      keyKind: tipKindForTrace,
+      writer: 'sticky_observe',
+      evidenceKind: 'live',
+      observedListingId: observedListingForTrace,
+    });
     await recordSnapshots([
       {
         productId,
@@ -514,6 +537,13 @@ export async function observeStickySkuViaServer(opts: {
     history,
     today,
   );
+  notifyPriceIntelObserver(opts.priceIntelObserver, 'onPriceIntelComputed', {
+    id: productId,
+    kind: tipKindForTrace,
+    writer: 'sticky_observe',
+    evidenceKind: 'live',
+    observedListingId: observedListingForTrace,
+  });
 
   const offerMeta = await lookupMeta(productId, opts.supabase ?? null);
   const applied = applyCanonicalDiscountToMetaFields({

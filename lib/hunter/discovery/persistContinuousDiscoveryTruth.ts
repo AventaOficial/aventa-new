@@ -9,6 +9,7 @@ import { recordSupplyRuns } from '@/lib/hunter/supply/recordSupplyRun';
 import { inferSupplyRunStatus } from '@/lib/hunter/supply/recordSupplyRun';
 import type { SupplyRunInput } from '@/lib/hunter/supply/truthTypes';
 import type { DiscoveryCycleReport } from './continuousDiscoveryCycle';
+import type { HunterCollectProgressSnapshot } from '@/lib/hunter/sourceProgress';
 import type { SourceFunnelStageCounts } from '@/lib/bots/ingest/sourceFunnelMetrics';
 import { createServerClient } from '@/lib/supabase/server';
 
@@ -183,6 +184,8 @@ export async function persistDeadlineDiscoverySnapshot(input: {
   reason?: string;
   claimToken?: string;
   supabase?: import('@supabase/supabase-js').SupabaseClient | null;
+  /** Day 13.2 — partial hunter progress at deadline (observability only). */
+  hunterSourceProgress?: HunterCollectProgressSnapshot | null;
 }): Promise<{ persisted: boolean; reason?: string }> {
   const finishedAt = new Date().toISOString();
   return upsertDiscoveryCycleSnapshotRow({
@@ -223,6 +226,9 @@ export async function persistDeadlineDiscoverySnapshot(input: {
       },
       by_source: {},
       terminal_reason_counts: { SOFT_DEADLINE: 1 },
+      ...(input.hunterSourceProgress
+        ? { hunter_source_progress: input.hunterSourceProgress }
+        : {}),
     },
   });
 }
@@ -330,6 +336,9 @@ export async function persistDiscoveryCycleSnapshot(
     gate_samples: (report.gateSamples ?? []).slice(0, 50),
     candidate_observations: (report.candidateObservations ?? []).slice(0, 50),
     observability_schema_version: 1,
+    /** Day 13.2 — additive observability; absent in older snapshots. */
+    price_intel_observability: report.priceIntelObservability ?? null,
+    hunter_source_progress: report.hunterSourceProgress ?? null,
     ...(opts?.claimToken
       ? { claim_token: opts.claimToken, claimed_at: report.startedAt }
       : {}),

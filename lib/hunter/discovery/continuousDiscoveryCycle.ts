@@ -110,6 +110,20 @@ import {
 } from './deadlineBudget';
 import { claimDiscoveryCycle } from './discoveryCycleLease';
 import {
+  aggregatePriceIntelObservations,
+  createPriceIntelRecorder,
+  explicitListingIdFromSignals,
+  runObservedSecondPricePass,
+  type PriceIntelObservabilityAggregate,
+  type PriceIntelObservation,
+} from './priceIntelObservability';
+import {
+  createHunterCollectProgress,
+  snapshotHunterCollectProgress,
+  type HunterCollectProgress,
+  type HunterCollectProgressSnapshot,
+} from '@/lib/hunter/sourceProgress';
+import {
   resolveContinuousExecutionMode,
   SCHEDULED_CONTINUOUS_DEADLINE_MS,
   SCHEDULED_CONTINUOUS_MAX_PRIORITIZED,
@@ -219,6 +233,10 @@ export type DiscoveryCycleReport = {
   deadlineBudget?: DeadlineBudgetSnapshot | null;
   /** Day 11 — historyReady activation & conversion measurement. */
   historyReadyActivation?: HistoryReadyActivationReport | null;
+  /** Day 13.2 — PI identity aggregate over all enriched candidates (observability only). */
+  priceIntelObservability?: PriceIntelObservabilityAggregate | null;
+  /** Day 13.2 — per-source hunter progress; survives soft_deadline (observability only). */
+  hunterSourceProgress?: HunterCollectProgressSnapshot | null;
 };
 
 export type RunContinuousDiscoveryCycleOptions = {
@@ -360,6 +378,8 @@ type EnrichCandidateResult = {
   acquisitionPath: AcquisitionPath;
   /** Day 12.4 — live observe outcome (null when not PM-driven). */
   observe: StickyObserveDiagnostics | null;
+  /** Day 13.2 — PI identity trace (observability only). */
+  priceIntel: PriceIntelObservation;
 };
 
 function discoverySourceIdForCandidate(cand: {
@@ -406,6 +426,7 @@ async function enrichCandidateMeta(
   let originalRecoveredVia: OriginalRecoveredVia | null = null;
   let acquisitionPath: AcquisitionPath = meta ? 'precomputed_only' : 'unknown';
   let observe: StickyObserveDiagnostics | null = null;
+  const piRecorder = createPriceIntelRecorder();
   const productId =
     typeof cand.rawMetadata?.productId === 'string'
       ? cand.rawMetadata.productId
@@ -421,7 +442,13 @@ async function enrichCandidateMeta(
         productId,
         nicheId: 'continuous_discovery',
         persistSnapshots: true,
+        priceIntelObserver: piRecorder.observerFor('sticky_observe', ({ kind }) => ({
+          kind,
+          source: 'sticky_observe',
+        })),
       });
+      // obs.meta carries the observe PI; the transport branch below rebuilds meta without it.
+      piRecorder.markApplied('sticky_observe', obs.meta != null);
       observe = stickyObserveDiagnostics(obs);
       if (obs.observationStatus === 'source_blocked') {
         funnel.fetch_blocked += 1;
@@ -497,14 +524,37 @@ async function enrichCandidateMeta(
     }
   }
 
-  if (!meta) return { meta: null, fetchBlocked, originalRecoveredVia, acquisitionPath, observe };
+  if (!meta) {
+    return {
+      meta: null,
+      fetchBlocked,
+      originalRecoveredVia,
+      acquisitionPath,
+      observe,
+      priceIntel: piRecorder.finalize(),
+    };
+  }
 
+  const explicitListingId = explicitListingIdFromSignals(meta.signals);
   try {
-    meta = await enrichWithPriceIntel(meta, config, { preserveLabelDiscount: true });
+    meta = await runObservedSecondPricePass({
+      meta,
+      recorder: piRecorder,
+      acquisitionPath,
+      run: (m, observer) =>
+        enrichWithPriceIntel(m, config, { preserveLabelDiscount: true, observer }),
+    });
   } catch {
     /* keep meta */
   }
-  return { meta, fetchBlocked, originalRecoveredVia, acquisitionPath, observe };
+  return {
+    meta,
+    fetchBlocked,
+    originalRecoveredVia,
+    acquisitionPath,
+    observe,
+    priceIntel: piRecorder.finalize({ explicitListingId }),
+  };
 }
 
 /**
@@ -632,6 +682,9 @@ export async function runContinuousDiscoveryCycle(
     }
   }
 
+  let hunterProgress: HunterCollectProgress | null = null;
+  let hunterSourceProgress: HunterCollectProgressSnapshot | null = null;
+
   // Watchdog: if the cycle hangs before final persist, still upsert a deadline row.
   let cycleFinalized = false;
   let deadlineWatchdog: ReturnType<typeof setTimeout> | null = null;
@@ -647,6 +700,11 @@ export async function runContinuousDiscoveryCycle(
             dryRun,
             reason: 'soft_deadline_watchdog',
             claimToken,
+            hunterSourceProgress:
+              hunterSourceProgress ??
+              (hunterProgress
+                ? snapshotHunterCollectProgress(hunterProgress, { outerDeadlineFired: true })
+                : null),
             ...(options.leaseSupabase !== undefined ? { supabase: options.leaseSupabase } : {}),
           });
           console.warn(
@@ -711,6 +769,8 @@ export async function runContinuousDiscoveryCycle(
   const hunterBudget = deadline?.allocate('hunter_collect') ?? null;
   const hunterStarted = Date.now();
   const hunterAbort = new AbortController();
+  const collectProgress = createHunterCollectProgress(hunterStarted);
+  hunterProgress = collectProgress;
   try {
     const collectPromise = runHunterCollect({
       config,
@@ -718,12 +778,17 @@ export async function runContinuousDiscoveryCycle(
       now,
       sources: hunterSources,
       persistHealth: false,
+      progress: collectProgress,
       ...(hunterBudget !== null ? { budgetMs: hunterBudget, signal: hunterAbort.signal } : {}),
     });
     const raced =
       hunterBudget !== null
         ? await raceWithBudget(collectPromise, hunterBudget, () => hunterAbort.abort())
         : { ok: true as const, value: await collectPromise };
+    hunterSourceProgress = snapshotHunterCollectProgress(collectProgress, {
+      outerDeadlineFired: !raced.ok,
+      plannedSources: hunterSources.map((s) => s.id),
+    });
 
     if (raced.ok) {
       const collected = raced.value;
@@ -765,6 +830,9 @@ export async function runContinuousDiscoveryCycle(
       candidates: 0,
       errorCode: 'hunter_collect_threw',
       errorMessageSafe: message.slice(0, 160),
+    });
+    hunterSourceProgress = snapshotHunterCollectProgress(collectProgress, {
+      plannedSources: hunterSources.map((s) => s.id),
     });
   } finally {
     deadline?.recordUsed('hunter_collect', Date.now() - hunterStarted);
@@ -1055,6 +1123,7 @@ export async function runContinuousDiscoveryCycle(
   // --- 5) Enrich + DQE + S6.1 (no mint yet) ---
   const gateSamples: DiscoveryCycleReport['gateSamples'] = [];
   const candidateObservations: DiscoveryCandidateObservation[] = [];
+  const priceIntelObservations: PriceIntelObservation[] = [];
   const MAX_CANDIDATE_OBSERVATIONS = 50;
   const mintable: Array<{ candidate: HunterCandidate; meta: ParsedOfferMetadata }> = [];
   let automationCounts = emptyAutomationCycleCounts();
@@ -1086,6 +1155,7 @@ export async function runContinuousDiscoveryCycle(
         : null;
 
     const enriched = await enrichCandidateMeta(cand, config, funnel);
+    priceIntelObservations.push(enriched.priceIntel);
     const meta = enriched.meta;
     if (!meta || !meta.title?.trim() || !(meta.discountPrice > 0)) {
       funnel.dqe_failed += 1;
@@ -1127,6 +1197,7 @@ export async function runContinuousDiscoveryCycle(
             primaryTerminal: terminal,
             reasonCodes: enriched.fetchBlocked ? ['FETCH_BLOCKED'] : ['EXTRACTION_FAILED'],
             provenanceDiag: null,
+            priceIntel: enriched.priceIntel,
           }),
         );
       }
@@ -1246,6 +1317,7 @@ export async function runContinuousDiscoveryCycle(
           primaryTerminal: terminal,
           reasonCodes: reasonCodesWithDiag,
           provenanceDiag,
+          priceIntel: enriched.priceIntel,
         }),
       );
     }
@@ -1565,6 +1637,8 @@ export async function runContinuousDiscoveryCycle(
     terminalTraces,
     deadlineBudget: deadline?.snapshot() ?? null,
     historyReadyActivation,
+    priceIntelObservability: aggregatePriceIntelObservations(priceIntelObservations),
+    hunterSourceProgress,
   };
 
   let truthPersist: DiscoveryCycleReport['truthPersist'];
