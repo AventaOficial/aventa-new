@@ -33,6 +33,70 @@ export const ACQUISITION_PATHS = [
 
 export type AcquisitionPath = (typeof ACQUISITION_PATHS)[number];
 
+/**
+ * Day 12.4 — outcome of the live sticky observe attempt.
+ * `acquisition_path=precomputed_only` alone cannot distinguish "never attempted"
+ * from "attempted but source blocked"; this field does.
+ * Values mirror StickyObservationStatus plus cycle-level outcomes.
+ */
+export const STICKY_OBSERVE_OUTCOMES = [
+  'not_attempted',
+  'ok',
+  'insufficient_evidence',
+  'source_blocked',
+  'not_found',
+  'price_unverified',
+  'error',
+  'threw',
+] as const;
+
+export type StickyObserveOutcome = (typeof STICKY_OBSERVE_OUTCOMES)[number];
+
+export function normalizeStickyObserveOutcome(
+  raw: string | null | undefined,
+): StickyObserveOutcome {
+  const s = (raw ?? '').trim().toLowerCase();
+  if ((STICKY_OBSERVE_OUTCOMES as readonly string[]).includes(s)) {
+    return s as StickyObserveOutcome;
+  }
+  return 'error';
+}
+
+export type StickyObserveDiagnostics = {
+  outcome: StickyObserveOutcome;
+  reason: string | null;
+  httpStatus: number | null;
+};
+
+/**
+ * Sticky observe eligibility — the exact routing condition used by the cycle:
+ * observe runs iff `rawMetadata.priceMemoryDriven === true && productId`.
+ * Returns null when observe will run or when the candidate is not PM-driven.
+ */
+export function stickyObserveIneligibility(input: {
+  priceMemoryDriven: boolean;
+  productId: string | null | undefined;
+}): StickyObserveDiagnostics | null {
+  if (!input.priceMemoryDriven) return null;
+  if (input.productId && input.productId.trim()) return null;
+  return { outcome: 'not_attempted', reason: 'missing_product_id', httpStatus: null };
+}
+
+/** Read-only projection of a sticky observation into durable diagnostics. */
+export function stickyObserveDiagnostics(obs: {
+  observationStatus: string;
+  provenance?: Record<string, string> | null;
+}): StickyObserveDiagnostics {
+  const prov = obs.provenance ?? {};
+  const reasonRaw = (prov.reason ?? prov.originalRecoveryReason ?? '').trim();
+  const httpRaw = Number.parseInt((prov.httpStatus ?? '').trim(), 10);
+  return {
+    outcome: normalizeStickyObserveOutcome(obs.observationStatus),
+    reason: reasonRaw || null,
+    httpStatus: Number.isFinite(httpRaw) && httpRaw > 0 ? httpRaw : null,
+  };
+}
+
 /** Compact durable per-candidate observation (≤50 per cycle). */
 export type DiscoveryCandidateObservation = {
   schema_version: 1;
@@ -48,6 +112,12 @@ export type DiscoveryCandidateObservation = {
    * Null when acquisition did not attempt / could not classify a source.
    */
   original_source: OriginalRecoveredVia | null;
+  /** Day 12.4 — live observe outcome; null when the candidate is not PM-driven. */
+  observe_outcome: StickyObserveOutcome | null;
+  /** Adapter reason (e.g. `price_status:unauthorized`, `products_not_found`). */
+  observe_reason: string | null;
+  /** HTTP status reported by the failing adapter hop, when known. */
+  observe_http_status: number | null;
   current_price: number | null;
   original_price: number | null;
   current_price_provenance: string | null;
@@ -99,6 +169,9 @@ export function buildCandidateObservation(input: {
   meta: ParsedOfferMetadata | null;
   acquisitionPath: AcquisitionPath;
   originalRecoveredVia: OriginalRecoveredVia | null;
+  observeOutcome?: StickyObserveOutcome | null;
+  observeReason?: string | null;
+  observeHttpStatus?: number | null;
   qualityDecision: string;
   wouldInsert: boolean;
   dqeDecision: string | null;
@@ -121,6 +194,12 @@ export function buildCandidateObservation(input: {
     acquisition_path: input.acquisitionPath,
     original_recovered_via: input.originalRecoveredVia,
     original_source: input.originalRecoveredVia,
+    observe_outcome: input.observeOutcome ?? null,
+    observe_reason: input.observeReason ?? null,
+    observe_http_status:
+      typeof input.observeHttpStatus === 'number' && Number.isFinite(input.observeHttpStatus)
+        ? input.observeHttpStatus
+        : null,
     current_price:
       input.meta && Number.isFinite(input.meta.discountPrice) ? input.meta.discountPrice : null,
     original_price:
