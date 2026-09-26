@@ -34,13 +34,16 @@ export type {
 export {
   diagnoseProvenanceCompleteness,
   appendProvenanceDiagnostics,
+  resolveStickyIdentityMatch,
   PROVENANCE_GAP_KINDS,
   PROVENANCE_DIAGNOSTIC_CODES,
+  ML_IDENTITY_MATCH_METHODS,
 } from './provenanceCompleteness';
 export type {
   ProvenanceCompletenessReport,
   ProvenanceGapKind,
   ProvenanceDiagnosticCode,
+  MlIdentityMatchMethod,
 } from './provenanceCompleteness';
 
 export {

@@ -4,6 +4,11 @@
  * PRICE MEMORY IS NOT PROVENANCE.
  * This module only *diagnoses* gaps; it never marks provenance complete from
  * historyReady / PM tips alone, and never fabricates evidence.
+ *
+ * Day 12.2 — ML PRODUCT (catalog tip) ≠ LISTING (item on URL).
+ * A tip that reacquired via /products/{catalog}/items may legitimately yield a
+ * different listing item_id; that is not an identity mismatch when the listing
+ * id returned by that API equals the URL item id.
  */
 
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
@@ -37,6 +42,15 @@ export const PROVENANCE_DIAGNOSTIC_CODES = [
 
 export type ProvenanceDiagnosticCode = (typeof PROVENANCE_DIAGNOSTIC_CODES)[number];
 
+/** Deterministic ML sticky identity bind methods (reuse OfferQualitySignals vocabulary). */
+export const ML_IDENTITY_MATCH_METHODS = [
+  'exact_item_id',
+  'exact_catalog_id',
+  'catalog_to_listing_via_products_items',
+] as const;
+
+export type MlIdentityMatchMethod = (typeof ML_IDENTITY_MATCH_METHODS)[number];
+
 export type ProvenanceCompletenessReport = {
   complete: boolean;
   gap: ProvenanceGapKind;
@@ -47,6 +61,8 @@ export type ProvenanceCompletenessReport = {
   historyReady: boolean;
   /** PM tip alone never counts as current original evidence. */
   pmHistoryIsNotProvenance: true;
+  /** Day 12.2 — how tip vs URL were reconciled (null when N/A or mismatch). */
+  identityMatchMethod?: MlIdentityMatchMethod | null;
 };
 
 function normalizeId(raw: string | null | undefined): string | null {
@@ -55,6 +71,61 @@ function normalizeId(raw: string | null | undefined): string | null {
     normalizeMlProductId(raw)?.toUpperCase() ??
     raw.replace(/-/g, '').toUpperCase()
   );
+}
+
+/**
+ * Resolve whether PM tip identity matches the listing on the canonical URL.
+ * Never invents catalog↔listing maps — only accepts an API-returned listing id.
+ */
+export function resolveStickyIdentityMatch(input: {
+  expectedTipId?: string | null;
+  urlItemId?: string | null;
+  /** Listing item id returned by /products/{catalog}/items (or tip when tip is an item). */
+  acquiredListingItemId?: string | null;
+  /** Catalog tip used for products/items (defaults to expectedTipId when listing differs). */
+  catalogProductId?: string | null;
+}): {
+  matched: boolean;
+  method: MlIdentityMatchMethod | null;
+  detail: string;
+} {
+  const expected = normalizeId(input.expectedTipId);
+  const fromUrl = normalizeId(input.urlItemId);
+  const listing = normalizeId(input.acquiredListingItemId);
+  const catalog = normalizeId(input.catalogProductId) ?? expected;
+
+  if (!expected || !fromUrl) {
+    return { matched: true, method: null, detail: 'identity_check_skipped' };
+  }
+
+  if (fromUrl === expected) {
+    const method: MlIdentityMatchMethod =
+      listing && listing === fromUrl && catalog && catalog !== listing
+        ? 'exact_catalog_id'
+        : 'exact_item_id';
+    return { matched: true, method, detail: `exact:${expected}` };
+  }
+
+  // Deterministic catalog → listing: tip catalog fetched products/items → listing on URL.
+  if (
+    listing &&
+    listing === fromUrl &&
+    catalog &&
+    catalog === expected &&
+    listing !== expected
+  ) {
+    return {
+      matched: true,
+      method: 'catalog_to_listing_via_products_items',
+      detail: `catalog:${catalog}->listing:${listing}`,
+    };
+  }
+
+  return {
+    matched: false,
+    method: null,
+    detail: `product_id_url_mismatch:${expected}!=${fromUrl}`,
+  };
 }
 
 /**
@@ -80,6 +151,7 @@ export function diagnoseProvenanceCompleteness(input: {
       diagnosticCodes: ['PROVENANCE_MISSING_CURRENT_EVIDENCE', 'PROVENANCE_STALE_EVIDENCE'],
       hasTrustedCurrentOriginal: false,
       historyReady: false,
+      identityMatchMethod: null,
     };
   }
 
@@ -96,23 +168,31 @@ export function diagnoseProvenanceCompleteness(input: {
       diagnosticCodes: ['PROVENANCE_SOURCE_MISMATCH'],
       hasTrustedCurrentOriginal: false,
       historyReady,
+      identityMatchMethod: null,
     };
   }
 
   const expected = normalizeId(input.expectedProductId ?? null);
-  if (expected) {
-    const fromUrl = normalizeId(extractMercadoLibreItemId(meta.canonicalUrl));
-    if (fromUrl && fromUrl !== expected) {
-      return {
-        ...base,
-        complete: false,
-        gap: 'identity_mismatch',
-        detail: `product_id_url_mismatch:${expected}!=${fromUrl}`,
-        diagnosticCodes: ['PROVENANCE_IDENTITY_MISMATCH'],
-        hasTrustedCurrentOriginal: false,
-        historyReady,
-      };
-    }
+  const fromUrl = normalizeId(extractMercadoLibreItemId(meta.canonicalUrl));
+
+  const identity = resolveStickyIdentityMatch({
+    expectedTipId: expected,
+    urlItemId: fromUrl,
+    acquiredListingItemId: normalizeId(signals?.mlListingItemId),
+    catalogProductId: normalizeId(signals?.mlCatalogProductId) ?? expected,
+  });
+
+  if (expected && fromUrl && !identity.matched) {
+    return {
+      ...base,
+      complete: false,
+      gap: 'identity_mismatch',
+      detail: identity.detail,
+      diagnosticCodes: ['PROVENANCE_IDENTITY_MISMATCH'],
+      hasTrustedCurrentOriginal: false,
+      historyReady,
+      identityMatchMethod: null,
+    };
   }
 
   const sale = meta.discountPrice;
@@ -125,6 +205,7 @@ export function diagnoseProvenanceCompleteness(input: {
       diagnosticCodes: ['PROVENANCE_MISSING_CURRENT_EVIDENCE'],
       hasTrustedCurrentOriginal: false,
       historyReady,
+      identityMatchMethod: identity.method,
     };
   }
 
@@ -138,6 +219,7 @@ export function diagnoseProvenanceCompleteness(input: {
       diagnosticCodes: ['PROVENANCE_MISSING_CURRENT_EVIDENCE'],
       hasTrustedCurrentOriginal: false,
       historyReady,
+      identityMatchMethod: identity.method,
     };
   }
 
@@ -151,6 +233,7 @@ export function diagnoseProvenanceCompleteness(input: {
       diagnosticCodes: ['PROVENANCE_SOURCE_MISMATCH'],
       hasTrustedCurrentOriginal: false,
       historyReady,
+      identityMatchMethod: identity.method,
     };
   }
 
@@ -164,6 +247,7 @@ export function diagnoseProvenanceCompleteness(input: {
       diagnosticCodes: ['PROVENANCE_SOURCE_MISMATCH'],
       hasTrustedCurrentOriginal: false,
       historyReady,
+      identityMatchMethod: identity.method,
     };
   }
 
@@ -175,6 +259,7 @@ export function diagnoseProvenanceCompleteness(input: {
     diagnosticCodes: [],
     hasTrustedCurrentOriginal: true,
     historyReady,
+    identityMatchMethod: identity.method,
   };
 }
 

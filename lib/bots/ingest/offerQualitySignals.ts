@@ -70,4 +70,20 @@ export type OfferQualitySignals = {
    * listing_card = captured from search/listing card DOM.
    */
   imageProvenance?: 'listing_card' | 'pdp' | 'unknown' | null;
+  /**
+   * Day 12.2 — ML identity layers (PRODUCT ≠ LISTING).
+   * catalog = Price Memory /products tip; listing = /items id on canonical URL.
+   * Never invent; only set when acquisition returned an explicit listing id.
+   */
+  mlCatalogProductId?: string | null;
+  mlListingItemId?: string | null;
+  /**
+   * How catalog tip was bound to the listing on the canonical URL.
+   * Observability + provenance diagnosis only — not a second gate.
+   */
+  mlIdentityMatchMethod?:
+    | 'exact_item_id'
+    | 'exact_catalog_id'
+    | 'catalog_to_listing_via_products_items'
+    | null;
 };
