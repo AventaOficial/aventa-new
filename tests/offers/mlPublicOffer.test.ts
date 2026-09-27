@@ -152,6 +152,10 @@ describe('fetchMercadoLibrePublicOffer', () => {
         canonicalUrl: null,
         itemId: 'MLM1',
         catalogProductId: null,
+        seller: 'TiendaUno',
+        brand: 'Samsung',
+        availabilityStatus: 'active',
+        shippingMode: 'me2',
         source: 'ml_api',
       },
       {
@@ -186,6 +190,10 @@ describe('fetchMercadoLibrePublicOffer', () => {
         canonicalUrl: null,
         itemId: 'MLM1',
         catalogProductId: null,
+        seller: null,
+        brand: null,
+        availabilityStatus: null,
+        shippingMode: null,
         source: 'anonymous',
       },
     );

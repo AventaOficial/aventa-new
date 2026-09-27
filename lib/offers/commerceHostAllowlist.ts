@@ -33,6 +33,11 @@ export const AMAZON_REGISTERED_DOMAINS = [
    * Must expand → amazon.* + ASIN before product fetch; never persist as canonical alone.
    */
   'link.amazon',
+  /**
+   * Button/Amazon short-link hop (link.amazon → amzlinks.in → amazon.*).
+   * Seen in production since ~2026-08; must be allowlisted or expand fail-closes.
+   */
+  'amzlinks.in',
 ] as const;
 
 /**
@@ -49,6 +54,8 @@ export function isAmazonExpandableHost(hostname: string): boolean {
     h.endsWith('.amzn.to') ||
     h === 'link.amazon' ||
     h.endsWith('.link.amazon') ||
+    h === 'amzlinks.in' ||
+    h.endsWith('.amzlinks.in') ||
     h === 'amazon.app.link' ||
     h.endsWith('.amazon.app.link')
   );

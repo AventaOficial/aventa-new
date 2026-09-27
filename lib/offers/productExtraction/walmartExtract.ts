@@ -171,6 +171,25 @@ function collectNextDataPrices(html: string): {
   return { discount, original };
 }
 
+function collectNextDataTitle(html: string): string | null {
+  const m = html.match(
+    /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i,
+  );
+  if (!m?.[1]) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(m[1]);
+  } catch {
+    return null;
+  }
+  const product = (data as { props?: { pageProps?: { initialData?: { data?: { product?: { name?: unknown } } } } } })
+    ?.props?.pageProps?.initialData?.data?.product;
+  if (product && typeof product.name === 'string' && product.name.trim()) {
+    return product.name.trim();
+  }
+  return null;
+}
+
 /**
  * Extracción Walmart estilo Amazon: JSON-LD → __NEXT_DATA__ → meta → ranking.
  */
@@ -198,12 +217,13 @@ export function extractWalmartProduct(html: string, pageUrl: string): WalmartExt
   const title =
     retail.title ||
     primary?.title ||
+    collectNextDataTitle(html) ||
     getMetaContent(html, 'og:title') ||
     getMetaContent(html, 'twitter:title') ||
     null;
 
   return {
-    title: title && title.trim() ? title.trim() : null,
+    title: title && title.trim() ? title.trim().replace(/\s*\|\s*Walmart.*$/i, '').trim() : null,
     image: selected[0] ?? null,
     images: selected,
     store: 'Walmart',

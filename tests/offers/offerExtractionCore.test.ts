@@ -282,3 +282,67 @@ describe('ParseOfferPayload compatibility', () => {
     });
   });
 });
+
+describe('una sola autoridad de extracción', () => {
+  const route = readFileSync(join(process.cwd(), 'app/api/parse-offer-url/route.ts'), 'utf8');
+  const batch = readFileSync(join(process.cwd(), 'lib/offers/batch/service.ts'), 'utf8');
+
+  it('el formulario público y el lote llaman al mismo extractor', () => {
+    expect(route).toContain('extractOfferFromUrl');
+    expect(route).toContain('outcome.body');
+    expect(route).toContain('enforceRateLimitCustom');
+    expect(route).toContain("headers.get('authorization')");
+    expect(batch).toContain('extractOfferFromUrl');
+    expect(route).not.toContain('extractWalmartProduct');
+    expect(route).not.toContain('extractLiverpoolProduct');
+    expect(route).not.toContain('fetchFollowingRedirectsSafely');
+    expect(route).not.toContain('resolveOfferUrl');
+    expect(route).not.toContain('createCommunityOffer');
+    expect(route).not.toContain('insertIngestedOffer');
+    expect(route).not.toMatch(/from\('offers'\)/);
+  });
+
+  it('una URL inválida no se presenta como éxito', async () => {
+    const outcome = await extractOfferFromUrl('esto-no-es-url');
+    expect(outcome.body.reason).toBe('invalid_url');
+    expect(outcome.body.extraction_status).toBe('failed');
+    expect(outcome.body.title).toBeNull();
+    expect(outcome.body.suggested_discount_price).toBeNull();
+    expect(outcome.core.product.title).toBeNull();
+  });
+
+  it('un host fuera de la allowlist no se descarga', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const blocked = await extractOfferFromUrl('https://evil.example/producto');
+    const local = await extractOfferFromUrl('https://127.0.0.1/latest/meta-data');
+    expect(blocked.httpStatus).toBe(400);
+    expect(blocked.adapter.blockedByHostPolicy).toBe(true);
+    expect(blocked.body.reason).toBe('invalid_url');
+    expect(blocked.body.title).toBeNull();
+    expect(local.httpStatus).toBe(400);
+    expect(local.adapter.blockedByHostPolicy).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('Walmart entra por el mismo extractor y no inventa seller', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          '<html><meta property="og:title" content="Taladro W"/><meta property="og:image" content="https://i5.walmartimages.com.mx/asr/one.jpg"/></html>',
+          { status: 200, headers: { 'content-type': 'text/html' } },
+        ),
+      ),
+    );
+    const outcome = await extractOfferFromUrl('https://www.walmart.com.mx/ip/taladro/12345678');
+    expect(outcome.core.provider).toBe('walmart');
+    expect(outcome.body.title).toMatch(/Taladro/);
+    expect(outcome.body.images.length).toBeGreaterThan(0);
+    expect(outcome.core.canonicalUrl).toContain('/ip/12345678');
+    expect(outcome.core.merchant.seller).toBeNull();
+    expect(outcome.body.title).toBe(outcome.core.product.title);
+    vi.unstubAllGlobals();
+  });
+});

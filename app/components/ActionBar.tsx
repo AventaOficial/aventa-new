@@ -271,12 +271,19 @@ export default function ActionBar() {
   };
 
   // Parse URL → rellena campos AUTO. No pisa lo marcado como editado por el usuario.
+  // No re-parsear si la misma URL ya se resolvió (evitar churn al volver de pestaña / refresh de sesión).
   useEffect(() => {
     if (!showUploadModal) return;
     const url = normalizePastedOfferUrl(formData.offer_url);
     if (!url || !url.startsWith('http')) return;
     if (url !== lastParsedOfferUrlRef.current) {
       imagesUserEditedRef.current = false;
+    } else if (
+      lastParsedOfferUrlRef.current === url &&
+      (urlParseKind === 'ok' || urlParseKind === 'partial')
+    ) {
+      // Misma URL ya leída: no volver a scrapear (p. ej. al recuperar foco / refresh de sesión).
+      return;
     }
     let cancelled = false;
     const t = setTimeout(async () => {
@@ -432,7 +439,6 @@ export default function ActionBar() {
           galleryCount = gallery.length;
           setImageUrl(gallery[0] ?? null);
           setImageUrls(gallery.slice(1));
-          lastParsedOfferUrlRef.current = url;
         }
         const bits: string[] = [];
         if (data.title) bits.push('título');
@@ -445,6 +451,14 @@ export default function ActionBar() {
           data.extraction_status === 'failed'
             ? data.extraction_status
             : null;
+        if (
+          !cancelled &&
+          extractionStatus !== 'failed' &&
+          data.reason !== 'extract_failed' &&
+          bits.length > 0
+        ) {
+          lastParsedOfferUrlRef.current = url;
+        }
         const missing = Array.isArray(data.missing)
           ? (data.missing as unknown[]).filter((m): m is string => typeof m === 'string')
           : [];
@@ -512,7 +526,7 @@ export default function ActionBar() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [showUploadModal, formData.offer_url, session]);
+  }, [showUploadModal, formData.offer_url, session, urlParseKind]);
 
   useEffect(() => {
     if (!showUploadModal || uploadLinkGatePassed) return;

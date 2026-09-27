@@ -15,6 +15,12 @@ describe('Amazon expandable hosts (link.amazon / a.co)', () => {
     expect(isAmazonExpandableHost('www.amazon.com.mx')).toBe(false);
   });
 
+  it('allows amzlinks.in hop (link.amazon → Button → amazon.*)', () => {
+    expect(isOfferAmazonHost('amzlinks.in')).toBe(true);
+    expect(isAmazonExpandableHost('amzlinks.in')).toBe(true);
+    expect(isAmazonExpandableHost('www.amzlinks.in')).toBe(true);
+  });
+
   it('extracts ASIN from link.amazon/{ASIN} path', () => {
     expect(extractAmazonAsin('https://link.amazon/B0BHTTDBC2')).toBe('B0BHTTDBC2');
     expect(extractAmazonAsin('https://link.amazon/B0anQq29BX')).toBe('B0ANQQ29BX');
@@ -73,6 +79,62 @@ describe('Amazon expandable hosts (link.amazon / a.co)', () => {
     } else {
       expect(r.confidence).toBe('low');
     }
+    vi.unstubAllGlobals();
+  });
+
+  it('link.amazon redirect via amzlinks.in hop yields ASIN (mocked)', async () => {
+    const asin = 'B0AMZLINK1'; // exactly 10 chars
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes('link.amazon')) {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: `https://amzlinks.in/${asin}` },
+          });
+        }
+        if (href.includes('amzlinks.in')) {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: `https://www.amazon.com.mx/dp/${asin}?tag=x` },
+          });
+        }
+        return new Response('<html></html>', { status: 200 });
+      }),
+    );
+    // Path already carries a valid 10-char ASIN; amzlinks hop must not block expand.
+    const r = await resolveAmazonOfferUrl(`https://link.amazon/${asin}`);
+    expect(r.productFingerprint).toBe(`amz:${asin}`);
+    expect(r.canonicalUrl).toContain(`/dp/${asin}`);
+    expect(r.canonicalUrl).not.toContain('amzlinks');
+    vi.unstubAllGlobals();
+  });
+
+  it('recovers ASIN from amzlinks HTML when hop has no Location to amazon.*', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes('link.amazon')) {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: 'https://amzlinks.in/opaqueToken1' },
+          });
+        }
+        if (href.includes('amzlinks.in')) {
+          return new Response(
+            `<html><script>location="https://www.amazon.com.mx/dp/B0OPAQUE01?tag=x"</script></html>`,
+            { status: 200, headers: { 'Content-Type': 'text/html' } },
+          );
+        }
+        return new Response('<html></html>', { status: 200 });
+      }),
+    );
+    const r = await resolveAmazonOfferUrl('https://link.amazon/opaqueToken1');
+    expect(r.productFingerprint).toBe('amz:B0OPAQUE01');
+    expect(r.canonicalUrl).toContain('/dp/B0OPAQUE01');
+    expect(r.provenance).toContain('asin_from_shortlink_html');
     vi.unstubAllGlobals();
   });
 

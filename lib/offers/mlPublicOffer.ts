@@ -30,6 +30,14 @@ export type MercadoLibrePublicOffer = {
   canonicalUrl: string | null;
   itemId: string | null;
   catalogProductId: string | null;
+  /** Nickname del mismo /items/{id}. Null si la API no lo mandó. */
+  seller: string | null;
+  /** Atributo BRAND del mismo ítem. No se toma del catálogo. */
+  brand: string | null;
+  /** status del mismo ítem (active, paused, …). Null si no vino. */
+  availabilityStatus: string | null;
+  /** shipping.mode del mismo ítem. Null si no vino. */
+  shippingMode: string | null;
   source: MercadoLibreOfferSource;
 };
 
@@ -40,6 +48,10 @@ type MlItemBody = {
   original_price?: number;
   permalink?: string;
   category_id?: string;
+  status?: string;
+  seller?: { nickname?: string };
+  attributes?: Array<{ id?: string; value_name?: string }>;
+  shipping?: { mode?: string };
   pictures?: Array<{ id?: string; secure_url?: string; url?: string }>;
   variations?: Array<{ picture_ids?: string[] }>;
 };
@@ -105,6 +117,10 @@ export function mergeMercadoLibrePublicOffers(
     canonicalUrl: a.canonicalUrl || b.canonicalUrl,
     itemId,
     catalogProductId: a.catalogProductId || b.catalogProductId,
+    seller: a.seller || b.seller,
+    brand: a.brand || b.brand,
+    availabilityStatus: a.availabilityStatus || b.availabilityStatus,
+    shippingMode: a.shippingMode || b.shippingMode,
     source: a.source === 'ml_api' || b.source === 'ml_api' ? 'ml_api' : 'anonymous',
   };
 }
@@ -160,6 +176,10 @@ export async function fetchMercadoLibrePublicOffer(
   let title: string | null = null;
   let categoryId: string | null = null;
   let permalink: string | null = null;
+  let seller: string | null = null;
+  let brand: string | null = null;
+  let availabilityStatus: string | null = null;
+  let shippingMode: string | null = null;
 
   if (isUsableItem(item)) {
     title = typeof item.title === 'string' ? item.title : null;
@@ -167,6 +187,18 @@ export async function fetchMercadoLibrePublicOffer(
     pictureCandidates.push(...picturesFromMlVariations(item, id));
     categoryId = typeof item.category_id === 'string' ? item.category_id : null;
     permalink = typeof item.permalink === 'string' ? item.permalink : null;
+    const nick = item.seller?.nickname;
+    seller = typeof nick === 'string' && nick.trim() ? nick.trim() : null;
+    const brandAttr = item.attributes?.find((a) => a.id === 'BRAND');
+    brand = typeof brandAttr?.value_name === 'string' && brandAttr.value_name.trim()
+      ? brandAttr.value_name.trim()
+      : null;
+    availabilityStatus =
+      typeof item.status === 'string' && item.status.trim() ? item.status.trim() : null;
+    shippingMode =
+      typeof item.shipping?.mode === 'string' && item.shipping.mode.trim()
+        ? item.shipping.mode.trim()
+        : null;
   }
 
   if (product && !product.error) {
@@ -250,6 +282,10 @@ export async function fetchMercadoLibrePublicOffer(
     canonicalUrl,
     itemId: id,
     catalogProductId,
+    seller,
+    brand,
+    availabilityStatus,
+    shippingMode,
     source: usedAuthenticatedApi ? 'ml_api' : 'anonymous',
   };
 }

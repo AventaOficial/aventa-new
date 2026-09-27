@@ -42,6 +42,15 @@ describe('Liverpool URL resolution', () => {
     expect(r.canonicalUrl).not.toContain('utm_source');
   });
 
+  it('keeps productId query when the path has no sku', async () => {
+    const r = await resolveLiverpoolOfferUrl(
+      'https://www.liverpool.com.mx/tienda/pdp/x?productId=110123456&utm_source=ads',
+    );
+    expect(r.productFingerprint).toBe('lvp:110123456');
+    expect(r.canonicalUrl).toContain('productId=110123456');
+    expect(r.canonicalUrl).not.toContain('utm_source');
+  });
+
   it('fail-closed without id', async () => {
     const r = await resolveLiverpoolOfferUrl('https://www.liverpool.com.mx/tienda/home');
     expect(r.productFingerprint).toBeNull();

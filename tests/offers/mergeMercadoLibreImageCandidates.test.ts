@@ -57,16 +57,30 @@ describe('mergeMercadoLibreImageCandidates', () => {
     expect(merged).not.toContain(RELATED_C);
   });
 
-  it('CASO C-social: API 0 + allowHtmlCdnFallback → CDN HTML permitido (meli.la)', () => {
+  it('CASO C-social: API 0 + allowHtmlCdnFallback → solo same-resource del cover, no similares', () => {
     const merged = mergeMercadoLibreImageCandidates({
       apiPictures: [],
-      htmlImages: [ITEM_A, ITEM_B],
+      htmlImages: [ITEM_A, ITEM_B, RELATED_C],
+      trustedHtmlImages: [OG],
+      productScopedHtmlImages: [ITEM_A, ITEM_B],
+      allowHtmlCdnFallback: true,
+      mlSource: null,
+    });
+    expect(merged).toContain(ITEM_A);
+    expect(merged).toContain(ITEM_B);
+    expect(merged).not.toContain(RELATED_C);
+  });
+
+  it('CASO C-social: HTML CDN distinto al cover trusted → no contaminar', () => {
+    const merged = mergeMercadoLibreImageCandidates({
+      apiPictures: [],
+      htmlImages: [RELATED_C, RELATED_D],
       trustedHtmlImages: [OG],
       allowHtmlCdnFallback: true,
       mlSource: null,
     });
-    expect(merged.length).toBeGreaterThanOrEqual(2);
-    expect(merged).toContain(ITEM_A);
+    expect(merged).toEqual([OG]);
+    expect(merged).not.toContain(RELATED_C);
   });
 
   it('CASO C sin trusted → vacío (mejor vacío que contaminado)', () => {

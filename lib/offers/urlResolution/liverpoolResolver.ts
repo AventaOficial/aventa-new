@@ -111,7 +111,17 @@ export async function resolveLiverpoolOfferUrl(rawUrl: string): Promise<OfferUrl
     try {
       const u = new URL(working);
       if (isOfferLiverpoolHost(u.hostname) && !isLiverpoolExpandableHost(u.hostname)) {
-        u.search = '';
+        const pathHasId = u.pathname.split('/').some((seg) => seg === productId);
+        if (pathHasId) {
+          u.search = '';
+        } else {
+          const keep = new URLSearchParams();
+          for (const key of ['productId', 'sku', 'skuId']) {
+            const value = u.searchParams.get(key);
+            if (value) keep.set(key, value);
+          }
+          u.search = keep.toString();
+        }
         u.hash = '';
         canonicalUrl = u.toString();
         provenance.push('canonical_stripped');
