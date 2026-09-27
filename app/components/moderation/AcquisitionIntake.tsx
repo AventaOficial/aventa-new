@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { ACQUISITION_MAX_URLS } from '@/lib/acquisition/contract';
+import { acquisitionOperatorReceipt } from '@/lib/acquisition/receipt';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { cn } from '@/app/components/panel/utils';
 
@@ -60,7 +61,6 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
   const [sourceKey, setSourceKey] = useState('human_scout');
   const [scoutId, setScoutId] = useState('');
   const [scoutName, setScoutName] = useState('');
-  const [externalRunId, setExternalRunId] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -69,6 +69,18 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
 
   const source = sources.find((row) => row.source_key === sourceKey);
   const needsScout = source?.source_type === 'human';
+  const receipt = result
+    ? acquisitionOperatorReceipt({
+        received: result.received,
+        accepted: result.accepted,
+        duplicates: result.duplicates,
+        invalid: result.invalid,
+        overCap: result.overCap,
+        idempotent: result.idempotent,
+        items: result.items,
+        forwarded: result.advance?.forwarded ?? 0,
+      })
+    : null;
 
   const headers = useCallback((): Record<string, string> | null => {
     const token = session?.access_token;
@@ -141,12 +153,9 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
     setResult(null);
     const signature = `${sourceKey}\0${needsScout ? scoutId : ''}\0${text}`;
     if (sessionRef.current.signature !== signature) {
-      sessionRef.current = {
-        signature,
-        id: externalRunId.trim() || crypto.randomUUID(),
-      };
+      sessionRef.current = { signature, id: crypto.randomUUID() };
     }
-    const runId = externalRunId.trim() || sessionRef.current.id;
+    const runId = sessionRef.current.id;
     try {
       const res = await fetch('/api/admin/acquisition/submit', {
         method: 'POST',
@@ -172,9 +181,9 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
       <div>
-        <h1 className={cn('text-xl font-semibold', ui.title)}>Enviar oferta</h1>
+        <h1 className={cn('text-xl font-semibold', ui.title)}>Adquisición diaria</h1>
         <p className={cn('mt-1 text-sm', ui.subtitle)}>
-          Copia la URL, pégala y envía. Hasta {ACQUISITION_MAX_URLS}. No se publica sola.
+          Elige la fuente, indica quién las encontró, pega las URLs y envía. Hasta {ACQUISITION_MAX_URLS}. No se publica sola.
         </p>
       </div>
 
@@ -217,16 +226,6 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
           </div>
         ) : null}
 
-        <label className={cn('text-xs font-medium', ui.label)}>
-          Ejecución externa
-          <input
-            className={cn('mt-1 w-full px-3 py-2 text-sm', ui.input)}
-            placeholder="Opcional. El mismo id reintenta sin duplicar."
-            value={externalRunId}
-            onChange={(event) => setExternalRunId(event.target.value)}
-          />
-        </label>
-
         <textarea
           className={cn('min-h-40 px-3 py-2 text-sm', ui.input)}
           placeholder="https://..."
@@ -237,7 +236,7 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
         <button
           type="button"
           className={cn('self-start rounded-full px-4 py-2 text-sm font-medium', ui.chipActive)}
-          disabled={Boolean(busy)}
+          disabled={Boolean(busy) || !text.trim() || (needsScout && !scoutId)}
           onClick={() => void submit()}
         >
           {busy === 'submit' ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : null}
@@ -248,12 +247,12 @@ export default function AcquisitionIntake({ mode }: { mode: ModerationHubMode })
 
       {result ? (
         <div className={cn('p-4 text-sm', ui.card, ui.body)}>
-          <p>Recibidas {result.received}</p>
-          <p>Válidas {result.accepted}</p>
-          <p>Duplicadas {result.duplicates + result.idempotent}</p>
-          <p>Ya existentes {result.items.filter((item) => item.outcome === 'existing_offer').length}</p>
-          <p>Rechazadas {result.invalid + result.overCap + result.items.filter((item) => item.outcome === 'lookup_failed').length}</p>
-          <p>Enviadas al pipeline {result.advance?.forwarded ?? 0}</p>
+          <p>Recibidas {receipt?.received ?? 0}</p>
+          <p>Válidas {receipt?.valid ?? 0}</p>
+          <p>Duplicadas {receipt?.duplicates ?? 0}</p>
+          <p>Ya existentes {receipt?.existing ?? 0}</p>
+          <p>Enviadas a revisión {receipt?.sentToReview ?? 0}</p>
+          <p>Rechazadas {receipt?.rejected ?? 0}</p>
           <p className={cn('mt-1', ui.muted)}>Enviada no es aprobada ni publicada. Sigue en moderación.</p>
           {result.persistError ? <p className="mt-2 text-rose-300">{result.persistError}</p> : null}
           {result.advance?.error ? <p className="mt-2 text-rose-300">{result.advance.error}</p> : null}

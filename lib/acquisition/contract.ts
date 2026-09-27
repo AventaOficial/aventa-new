@@ -10,9 +10,18 @@ export const ACQUISITION_SCOUT_DAILY_CAP = 500;
 
 /**
  * Pasadas de extracción por envío. Cada una usa el chunk y el lease que ya tiene el lote.
- * 3 × 4 ítems. El resto queda INGESTED para la siguiente pasada.
+ * 3 × 4 ítems. El resto queda INGESTED para la siguiente pasada del cron.
  */
 export const ACQUISITION_PROCESS_MAX_CHUNKS = 3;
+
+/** Chunks por ejecución del cron. El mismo presupuesto que el envío, para no alargar el request. */
+export const ACQUISITION_CONTINUE_MAX_CHUNKS = 3;
+
+/** No empieza otro chunk si ya pasó este plazo. El route sigue en maxDuration 60. */
+export const ACQUISITION_CONTINUE_DEADLINE_MS = 45_000;
+
+/** Filas más antiguas que se miran para armar la ronda. Un lote cabe en 100 ítems. */
+export const ACQUISITION_CONTINUE_LOOKAHEAD = 400;
 
 export const ACQUISITION_SOURCE_TYPES = ['automated', 'human', 'internal', 'external'] as const;
 export type AcquisitionSourceType = (typeof ACQUISITION_SOURCE_TYPES)[number];

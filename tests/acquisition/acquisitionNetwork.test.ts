@@ -7,6 +7,7 @@ import {
   scoutDailyRoom,
 } from '@/lib/acquisition/plan';
 import { summarizeAcquisition } from '@/lib/acquisition/metrics';
+import { acquisitionOperatorReceipt } from '@/lib/acquisition/receipt';
 import {
   registerAcquisitionScout,
   registerAcquisitionSource,
@@ -579,6 +580,33 @@ describe('métricas y contratos', () => {
       forwardedToBatch: 1,
       candidateToBatchMs: 5000,
       batchToExtractionMs: 10000,
+    });
+  });
+
+  it('el recibo separa duplicadas del texto y ofertas ya existentes', () => {
+    const receipt = acquisitionOperatorReceipt({
+      received: 5,
+      accepted: 1,
+      duplicates: 2,
+      invalid: 1,
+      overCap: 0,
+      idempotent: 1,
+      forwarded: 1,
+      items: [
+        { outcome: 'accepted' },
+        { outcome: 'duplicate' },
+        { outcome: 'existing_offer' },
+        { outcome: 'idempotent' },
+        { outcome: 'invalid' },
+      ],
+    });
+    expect(receipt).toEqual({
+      received: 5,
+      valid: 1,
+      duplicates: 2,
+      existing: 1,
+      sentToReview: 1,
+      rejected: 1,
     });
   });
 

@@ -9,6 +9,8 @@ export {
 } from './contract';
 export type { AcquisitionSourceSeed, AcquisitionSourceType } from './contract';
 export { readAcquisitionAttribution } from './attribution';
+export { acquisitionOperatorReceipt } from './receipt';
+export type { AcquisitionOperatorReceipt } from './receipt';
 export type { AcquisitionAttribution } from './attribution';
 export {
   acquisitionSubmissionId,
@@ -19,6 +21,12 @@ export {
 export type { AcquisitionPlan, AcquisitionPlanItem } from './plan';
 export { loadAcquisitionMetrics, summarizeAcquisition } from './metrics';
 export { advanceAcquisitionSubmission } from './advance';
+export {
+  continuePendingBatches,
+  listPendingAcquisitionBatchIds,
+  runAcquisitionContinuation,
+} from './continueBatches';
+export type { AcquisitionContinueReport, AcquisitionContinueStop } from './continueBatches';
 export type { AcquisitionAdvance } from './advance';
 export type { AcquisitionMetricRow } from './metrics';
 export {
