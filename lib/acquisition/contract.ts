@@ -71,5 +71,5 @@ export function isAcquisitionSourceKey(value: string): boolean {
 }
 
 export function acquisitionSourceSeed(sourceKey: string): AcquisitionSourceSeed | null {
-  return ACQUISITION_SOURCES.find((source) => source.sourceKey === value) ?? null;
+  return ACQUISITION_SOURCES.find((source) => source.sourceKey === sourceKey) ?? null;
 }

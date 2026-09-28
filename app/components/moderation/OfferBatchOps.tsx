@@ -28,10 +28,8 @@ import {
   presentBatchItem,
   type BatchItemStatus,
   type BatchStatus,
-  type OfferBatchEventRow,
-  type OfferBatchItemRow,
-  type OfferBatchRow,
-} from '@/lib/offers/batch';
+} from '@/lib/offers/batch/contract';
+import type { OfferBatchEventRow, OfferBatchItemRow, OfferBatchRow } from '@/lib/offers/batch/service';
 
 type ItemFilter = 'all' | 'ready' | 'review' | 'errors' | 'duplicates' | 'published';
 

@@ -33,6 +33,7 @@ type AdvanceResult = {
   ok: boolean;
   error: string | null;
   forwarded: number;
+  processed: number;
   remaining: number;
   ready: number;
   needsReview: number;
