@@ -85,3 +85,7 @@ export function queueViewForTab(tabId: string): ModerationQueueView {
 export function pendingBasePath(mode: ModerationHubMode): string {
   return mode === 'workspace' ? '/equipo/moderacion' : '/admin/moderation';
 }
+
+export function loteBasePath(mode: ModerationHubMode): string {
+  return mode === 'workspace' ? '/equipo/moderacion/lote' : '/admin/moderation/lote';
+}

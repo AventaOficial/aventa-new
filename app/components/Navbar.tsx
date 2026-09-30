@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bell, LogOut, Moon, Sun, Settings, Trash2, Droplet, Compass, Puzzle, ShieldCheck, Heart, X, ArrowRight } from 'lucide-react';
+import { User, Bell, LogOut, Moon, Sun, Settings, Trash2, Droplet, Compass, Puzzle, ShieldCheck, Heart, X, ArrowRight, Layers } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { playNotificationDropSound } from '@/lib/playNotificationSound';
@@ -38,7 +38,7 @@ type NotificationDetail =
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const { user, session, signOut, isLoading: authLoading } = useAuth();
-  const { openRegisterModal } = useUI();
+  const { openRegisterModal, openLotesModal } = useUI();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [signOutStatus, setSignOutStatus] = useState<'idle' | 'closing' | 'closed'>('idle');
@@ -350,8 +350,19 @@ export default function Navbar() {
                     onClick={() => setShowUserMenu(false)}
                   >
                     <Puzzle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Extensión (próx.)
+                    Extensión (aún no disponible)
                   </Link>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      openLotesModal();
+                    }}
+                  >
+                    <Layers className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    Lotes
+                  </button>
                   <Link
                     href="/settings"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
