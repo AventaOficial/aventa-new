@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 import { requireFinanceRead, requireFinanceWrite, canFinanceWrite } from '@/lib/staff/requireFinanceStaff';
 
 const MAX_LIMIT = 100;
@@ -45,12 +46,18 @@ export async function PATCH(request: Request) {
   const auth = await requireFinanceWrite(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
+
   const body = await request.json().catch(() => ({}));
   const id = typeof body?.id === 'string' ? body.id.trim() : '';
   const notes = typeof body?.notes === 'string' ? body.notes.trim().slice(0, 2000) : null;
   const reviewed = body?.reviewed === true;
-  const status =
-    body?.status === 'void' || body?.status === 'reversed' ? body.status : null;
+  if (body?.status != null && body.status !== 'void') {
+    return NextResponse.json({ error: 'status_not_allowed' }, { status: 400 });
+  }
+  const status = body?.status === 'void' ? 'void' : null;
   const statusReason =
     typeof body?.reason === 'string' ? body.reason.trim() : 'finance_ledger_status_update';
 
@@ -59,9 +66,14 @@ export async function PATCH(request: Request) {
   const supabase = createServerClient();
   const { data: existing } = await supabase
     .from('affiliate_ledger_entries')
-    .select('notes, meta, status')
+    .select('notes, meta, status, external_ref')
     .eq('id', id)
     .maybeSingle();
+
+  const externalRef = String((existing as { external_ref?: string | null } | null)?.external_ref ?? '');
+  if (externalRef.startsWith('settlement:')) {
+    return NextResponse.json({ error: 'canonical_settlement_immutable' }, { status: 409 });
+  }
 
   const prevMeta =
     existing?.meta && typeof existing.meta === 'object' && !Array.isArray(existing.meta)
