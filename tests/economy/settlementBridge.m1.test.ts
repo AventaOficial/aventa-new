@@ -36,6 +36,11 @@ type Store = {
   /** Force unique violation on first ledger insert (concurrency). */
   uniqueOnLedgerInsert?: boolean;
   uniqueConsumed?: boolean;
+  /** Fail the next N inserts of each economic event type. */
+  failAuditEventTypes?: Record<string, number>;
+  /** First N external_ref reads return no row, then the store is visible. */
+  missExternalRefReads?: number;
+  ledgerUpdates: number;
 };
 
 function emptyStore(
@@ -57,6 +62,7 @@ function emptyStore(
     attributionMutations: 0,
     supplyTouches: 0,
     distributionTouches: 0,
+    ledgerUpdates: 0,
     ...rest,
     commission,
   };
@@ -68,6 +74,12 @@ function makeSettlementMock(store: Store) {
       if (table === 'affiliate_economic_events') {
         return {
           insert: vi.fn(async (row: Record<string, unknown>) => {
+            const eventType = String(row.event_type ?? '');
+            const remaining = store.failAuditEventTypes?.[eventType] ?? 0;
+            if (remaining > 0 && store.failAuditEventTypes) {
+              store.failAuditEventTypes[eventType] = remaining - 1;
+              return { error: { message: 'audit_down' } };
+            }
             store.events.push(row);
             return { error: null };
           }),
@@ -251,6 +263,10 @@ function makeSettlementMock(store: Store) {
                 return { data: row, error: null };
               }
               if (filters.external_ref && filters.network) {
+                if ((store.missExternalRefReads ?? 0) > 0) {
+                  store.missExternalRefReads = (store.missExternalRefReads ?? 0) - 1;
+                  return { data: null, error: null };
+                }
                 const id = store.ledgerByRef.get(
                   `${filters.network}|${filters.external_ref}`,
                 );
@@ -277,6 +293,15 @@ function makeSettlementMock(store: Store) {
                   error: { code: '23505', message: 'duplicate' },
                 };
               }
+              const ref = String(row.external_ref);
+              const network = String(row.network);
+              const key = `${network}|${ref}`;
+              if (store.ledgerByRef.has(key)) {
+                return {
+                  data: null,
+                  error: { code: '23505', message: 'duplicate' },
+                };
+              }
               const id = `ledger-${store.ledgerInserts}`;
               const full = {
                 id,
@@ -284,9 +309,7 @@ function makeSettlementMock(store: Store) {
                 created_at: new Date().toISOString(),
               };
               store.ledgers.set(id, full);
-              const ref = String(row.external_ref);
-              const network = String(row.network);
-              store.ledgerByRef.set(`${network}|${ref}`, id);
+              store.ledgerByRef.set(key, id);
               return { data: full, error: null };
             };
             return {
@@ -295,9 +318,12 @@ function makeSettlementMock(store: Store) {
               })),
             };
           }),
-          update: vi.fn(() => ({
-            eq: vi.fn(async () => ({ error: null })),
-          })),
+          update: vi.fn(() => {
+            store.ledgerUpdates += 1;
+            return {
+              eq: vi.fn(async () => ({ error: null })),
+            };
+          }),
         };
       }
 
@@ -804,6 +830,145 @@ describe('M1 Settlement Bridge', () => {
     expect(r.ok).toBe(false);
     expect(r.reason).toBe('conversion_not_found');
     expect(store.ledgerInserts).toBe(0);
+  });
+
+  it('audit failure after insert is not success and retry reuses the same row', async () => {
+    const store: Store = emptyStore({
+      failAuditEventTypes: { settlement_created: 1 },
+    });
+    const sb = makeSettlementMock(store);
+    const commissionId = String(store.commission!.id);
+    const first = await settleCommission(sb as never, { commissionId });
+    expect(first.ok).toBe(false);
+    expect(first.reason).toBe('audit_append_failed');
+    expect(first.ledgerEntryId).toBeTruthy();
+    expect(store.ledgers.size).toBe(1);
+    expect(store.ledgerInserts).toBe(1);
+    const ledgerId = String(first.ledgerEntryId);
+    const snapshot = JSON.stringify(store.ledgers.get(ledgerId));
+
+    const retry = await settleCommission(sb as never, { commissionId });
+    expect(retry.ok).toBe(true);
+    expect(retry.event).toBe('settlement_reused');
+    expect(retry.reused).toBe(true);
+    expect(retry.ledgerEntryId).toBe(ledgerId);
+    expect(store.ledgers.size).toBe(1);
+    expect(store.ledgerInserts).toBe(1);
+    expect(JSON.stringify(store.ledgers.get(ledgerId))).toBe(snapshot);
+    expect(store.ledgerUpdates).toBe(0);
+    expect(store.events.some((e) => e.event_type === 'settlement_reused')).toBe(true);
+
+    for (let i = 0; i < 8; i += 1) {
+      const again = await settleCommission(sb as never, { commissionId });
+      expect(again.ok).toBe(true);
+      expect(again.reused).toBe(true);
+      expect(again.ledgerEntryId).toBe(ledgerId);
+    }
+    expect(store.ledgers.size).toBe(1);
+    expect(store.ledgerInserts).toBe(1);
+    expect(JSON.stringify(store.ledgers.get(ledgerId))).toBe(snapshot);
+    expect(store.rewardInserts).toBe(0);
+    expect(store.payoutInserts).toBe(0);
+  });
+
+  it('concurrent settlement calls keep a single canonical row', async () => {
+    const store: Store = emptyStore();
+    const sb = makeSettlementMock(store);
+    const commissionId = String(store.commission!.id);
+    const results = await Promise.all([
+      settleCommission(sb as never, { commissionId }),
+      settleCommission(sb as never, { commissionId }),
+    ]);
+    expect(results.filter((r) => r.ok).length).toBeGreaterThanOrEqual(1);
+    expect(store.ledgerByRef.size).toBe(1);
+    expect(store.ledgers.size).toBe(1);
+    const ids = new Set(
+      results.map((r) => r.ledgerEntryId).filter((id): id is string => Boolean(id)),
+    );
+    expect(ids.size).toBe(1);
+  });
+
+  it('23505 race re-reads the canonical row and reuses it', async () => {
+    const commissionId = '11111111-1111-1111-1111-111111111111';
+    const ref = buildSettlementExternalRef(commissionId);
+    const winnerId = 'ledger-raced';
+    const store: Store = emptyStore({
+      missExternalRefReads: 1,
+      ledgers: new Map([
+        [
+          winnerId,
+          {
+            id: winnerId,
+            network: 'amazon',
+            external_ref: ref,
+            amount_cents: 1000,
+            currency: 'MXN',
+            created_at: '2026-09-18T12:00:00.000Z',
+          },
+        ],
+      ]),
+      ledgerByRef: new Map([[`amazon|${ref}`, winnerId]]),
+    });
+    const before = JSON.stringify(store.ledgers.get(winnerId));
+    const r = await settleCommission(makeSettlementMock(store) as never, { commissionId });
+    expect(r.ok).toBe(true);
+    expect(r.reused).toBe(true);
+    expect(r.event).toBe('settlement_reused');
+    expect(r.ledgerEntryId).toBe(winnerId);
+    expect(store.ledgers.size).toBe(1);
+    expect(JSON.stringify(store.ledgers.get(winnerId))).toBe(before);
+    expect(store.ledgerUpdates).toBe(0);
+  });
+
+  it('inconsistent canonical row fails closed without mutating it', async () => {
+    const commissionId = '11111111-1111-1111-1111-111111111111';
+    const ref = buildSettlementExternalRef(commissionId);
+    const winnerId = 'ledger-wrong-amount';
+    const row = {
+      id: winnerId,
+      network: 'amazon',
+      external_ref: ref,
+      amount_cents: 1,
+      currency: 'MXN',
+      created_at: '2026-09-18T12:00:00.000Z',
+    };
+    const store: Store = emptyStore({
+      ledgers: new Map([[winnerId, row]]),
+      ledgerByRef: new Map([[`amazon|${ref}`, winnerId]]),
+    });
+    const r = await settleCommission(makeSettlementMock(store) as never, { commissionId });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('inconsistent_settlement');
+    expect(r.ledgerEntryId).toBe(winnerId);
+    expect(store.ledgers.get(winnerId)?.amount_cents).toBe(1);
+    expect(store.ledgerUpdates).toBe(0);
+    expect(store.ledgerInserts).toBe(0);
+    expect(store.commission?.ledger_entry_id ?? null).toBeNull();
+  });
+
+  it('MONEY_PATH_FROZEN blocks settlement before a ledger write', async () => {
+    process.env.MONEY_PATH_FROZEN = 'true';
+    const store: Store = emptyStore();
+    const r = await settleCommission(makeSettlementMock(store) as never, {
+      commissionId: String(store.commission!.id),
+    });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('money_path_frozen');
+    expect(store.ledgerInserts).toBe(0);
+    expect(store.ledgers.size).toBe(0);
+    expect(store.rewardInserts).toBe(0);
+    expect(store.payoutInserts).toBe(0);
+  });
+
+  it('settlement writer does not touch rewards or payout intents', () => {
+    const src = readFileSync(
+      join(process.cwd(), 'lib/economy/settlement/settleCommission.ts'),
+      'utf8',
+    );
+    expect(src).not.toMatch(/\.from\(['"]creator_rewards['"]\)/);
+    expect(src).not.toMatch(/\.from\(['"]payout_intents['"]\)/);
+    expect(src).not.toMatch(/\.from\(['"]reward_payouts['"]\)/);
+    expect(src).not.toMatch(/status:\s*['"]paid['"]/i);
   });
 
   it('product boundary remains settlementEnabled=false', () => {
