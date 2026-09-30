@@ -42,9 +42,13 @@ function makeLedgerStore(opts?: {
   original?: LedgerRow;
   reversals?: Map<string, LedgerRow>;
   auditFail?: boolean;
+  /** Fails the first N inserts of these economic event types, then succeeds. */
+  failAuditTypes?: Record<string, number>;
   /** SELECT misses, INSERT returns 23505, the re-read finds the raced row. */
   uniqueRace?: boolean;
   racedAmountCents?: number;
+  /** Next N ledger inserts fail without storing a row. */
+  failNextInserts?: number;
   commission?: { id: string; status: string; ledger_entry_id: string | null } | null;
 }) {
   const original =
@@ -68,6 +72,14 @@ function makeLedgerStore(opts?: {
   let insertCount = 0;
   let updateCount = 0;
   let raceArmed = Boolean(opts?.uniqueRace);
+  let failNextInserts = opts?.failNextInserts ?? 0;
+  const auditFailRemaining = new Map<string, number>(Object.entries(opts?.failAuditTypes ?? {}));
+  let commissionState: { id: string; status: string; ledger_entry_id: string | null } | null =
+    opts && 'commission' in opts
+      ? opts.commission
+        ? { ...opts.commission }
+        : null
+      : { id: 'comm-1', status: 'reversed', ledger_entry_id: 'ledger-orig' };
 
   const supabase = {
     from(table: string) {
@@ -75,29 +87,49 @@ function makeLedgerStore(opts?: {
         return {
           insert: async (row: unknown) => {
             if (opts?.auditFail) return { error: { message: 'audit_down' } };
+            const eventType = String((row as { event_type?: string }).event_type ?? '');
+            const left = auditFailRemaining.get(eventType) ?? 0;
+            if (left > 0) {
+              auditFailRemaining.set(eventType, left - 1);
+              return { error: { message: 'audit_down' } };
+            }
             events.push(row);
             return { error: null };
           },
         };
       }
       if (table === 'affiliate_commissions') {
-        const commission =
-          opts && 'commission' in opts
-            ? opts.commission
-            : {
-                id: 'comm-1',
-                status: 'reversed',
-                ledger_entry_id: 'ledger-orig',
-              };
         return {
           select() {
             return {
               eq(_col: string, id: string) {
                 return {
                   maybeSingle: async () => ({
-                    data: commission && commission.id === id ? commission : null,
+                    data:
+                      commissionState && commissionState.id === id ? { ...commissionState } : null,
                     error: null,
                   }),
+                };
+              },
+            };
+          },
+          update(patch: { status?: string }) {
+            return {
+              eq(_col: string, id: string) {
+                return {
+                  eq(_col2: string, fromStatus: string) {
+                    return Promise.resolve().then(() => {
+                      if (
+                        commissionState &&
+                        commissionState.id === id &&
+                        commissionState.status === fromStatus &&
+                        patch.status
+                      ) {
+                        commissionState = { ...commissionState, status: patch.status };
+                      }
+                      return { error: null };
+                    });
+                  },
                 };
               },
             };
@@ -136,6 +168,17 @@ function makeLedgerStore(opts?: {
           };
         },
         insert(row: LedgerRow & { notes?: string; source?: string }) {
+          if (failNextInserts > 0) {
+            failNextInserts -= 1;
+            return {
+              select: () => ({
+                maybeSingle: async () => ({
+                  data: null,
+                  error: { message: 'db_down' },
+                }),
+              }),
+            };
+          }
           const key = `${row.network}|${row.external_ref}`;
           if (raceArmed) {
             raceArmed = false;
@@ -155,7 +198,6 @@ function makeLedgerStore(opts?: {
               }),
             };
           }
-          insertCount += 1;
           if (byExternal.has(key)) {
             return {
               select: () => ({
@@ -166,6 +208,7 @@ function makeLedgerStore(opts?: {
               }),
             };
           }
+          insertCount += 1;
           const id = `rev-${insertCount}`;
           const stored = { ...row, id };
           byExternal.set(key, stored);
@@ -193,6 +236,7 @@ function makeLedgerStore(opts?: {
     events,
     getInsertCount: () => insertCount,
     getUpdateCount: () => updateCount,
+    getCommission: () => (commissionState ? { ...commissionState } : null),
   };
 }
 
@@ -470,6 +514,7 @@ describe('executeSettlementReversal compensating movement', () => {
   });
 
   it('does not report transition success when the compensating ledger write fails', async () => {
+    let commissionStatus = 'approved';
     const sb = {
       from(table: string) {
         if (table === 'affiliate_commissions') {
@@ -477,14 +522,17 @@ describe('executeSettlementReversal compensating movement', () => {
             select: () => ({
               eq: () => ({
                 maybeSingle: async () => ({
-                  data: { id: 'c1', status: 'approved', ledger_entry_id: 'L1' },
+                  data: { id: 'c1', status: commissionStatus, ledger_entry_id: 'L1' },
                   error: null,
                 }),
               }),
             }),
             update: () => ({
               eq: () => ({
-                eq: async () => ({ error: null }),
+                eq: async () => {
+                  commissionStatus = 'reversed';
+                  return { error: null };
+                },
               }),
             }),
           };
@@ -744,5 +792,143 @@ describe('executeSettlementReversal compensating movement', () => {
     expect(c.externalRef).toBe(buildSettlementExternalRef('AaBb'));
     expect(c.reversalExternalRef).toBe(buildSettlementReversalExternalRef('AaBb'));
     expect(c.kind).toBe('settlement_reversal_executed');
+  });
+
+  it('transition to reversed writes exactly one compensation through recovery', async () => {
+    const store = makeLedgerStore({
+      commission: { id: 'comm-1', status: 'approved', ledger_entry_id: 'ledger-orig' },
+    });
+    const before = structuredClone(store.byId.get('ledger-orig'));
+    const result = await transitionCommissionStatus(store.supabase as never, {
+      commissionId: 'comm-1',
+      toStatus: 'reversed',
+    });
+    expect(result.ok).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(store.getCommission()?.status).toBe('reversed');
+    expect(store.getInsertCount()).toBe(1);
+    expect(store.getUpdateCount()).toBe(0);
+    expect(store.byId.get('ledger-orig')).toEqual(before);
+    const revRef = buildSettlementReversalExternalRef('comm-1');
+    const rev = store.byExternal.get(`mercadolibre|${revRef}`);
+    expect(rev).toMatchObject({
+      amount_cents: -100,
+      status: 'accrued',
+      source: 'api',
+    });
+    expect(rev?.period_start).toBe(`${periodKeyFromInstant(String(rev?.created_at))}-01`);
+    const writer = readFileSync(join(process.cwd(), 'lib/economy/recordCommission.ts'), 'utf8');
+    expect(writer).toContain('recoverSettlementReversal');
+    expect(writer).not.toContain('executeSettlementReversal');
+    expect(writer).not.toContain('creator_rewards');
+    expect(writer).not.toContain('payout_intents');
+  });
+
+  it('a failed ledger step stays reversed and recover completes it without another transition', async () => {
+    const store = makeLedgerStore({
+      commission: { id: 'comm-1', status: 'approved', ledger_entry_id: 'ledger-orig' },
+      failNextInserts: 1,
+    });
+    const failed = await transitionCommissionStatus(store.supabase as never, {
+      commissionId: 'comm-1',
+      toStatus: 'reversed',
+    });
+    expect(failed.ok).toBe(false);
+    expect(failed.error).toBe('ledger_write_failed');
+    expect(store.getCommission()?.status).toBe('reversed');
+    expect(store.getInsertCount()).toBe(0);
+
+    const blocked = await transitionCommissionStatus(store.supabase as never, {
+      commissionId: 'comm-1',
+      toStatus: 'reversed',
+    });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.error).toBe('invalid_transition');
+    expect(store.getInsertCount()).toBe(0);
+
+    const recovered = await recoverSettlementReversal(store.supabase as never, {
+      commissionId: 'comm-1',
+    });
+    expect(recovered.ok).toBe(true);
+    expect(recovered.reused).toBe(false);
+    expect(store.getInsertCount()).toBe(1);
+    expect(store.getUpdateCount()).toBe(0);
+  });
+
+  it('retries the reversal audit inside the transition and keeps a single row', async () => {
+    const store = makeLedgerStore({
+      commission: { id: 'comm-1', status: 'approved', ledger_entry_id: 'ledger-orig' },
+      failAuditTypes: { settlement_reversed: 1 },
+    });
+    const result = await transitionCommissionStatus(store.supabase as never, {
+      commissionId: 'comm-1',
+      toStatus: 'reversed',
+    });
+    expect(result.ok).toBe(true);
+    expect(store.getInsertCount()).toBe(1);
+    expect(
+      store.events.filter((event) => (event as { event_type?: string }).event_type === 'settlement_reversed'),
+    ).toHaveLength(0);
+    expect(
+      store.events.some(
+        (event) => (event as { event_type?: string }).event_type === 'settlement_reversal_reused',
+      ),
+    ).toBe(true);
+  });
+
+  it('does not report success when the status audit fails after the compensation exists', async () => {
+    const store = makeLedgerStore({
+      commission: { id: 'comm-1', status: 'approved', ledger_entry_id: 'ledger-orig' },
+      failAuditTypes: { status_transition: 1 },
+    });
+    const result = await transitionCommissionStatus(store.supabase as never, {
+      commissionId: 'comm-1',
+      toStatus: 'reversed',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('audit_append_failed');
+    expect(store.getInsertCount()).toBe(1);
+    expect(store.getCommission()?.status).toBe('reversed');
+    const again = await recoverSettlementReversal(store.supabase as never, {
+      commissionId: 'comm-1',
+    });
+    expect(again.ok).toBe(true);
+    expect(again.reused).toBe(true);
+    expect(store.getInsertCount()).toBe(1);
+  });
+
+  it('two concurrent recoveries create one compensating row', async () => {
+    const store = makeLedgerStore();
+    const [a, b] = await Promise.all([
+      recoverSettlementReversal(store.supabase as never, { commissionId: 'comm-1' }),
+      recoverSettlementReversal(store.supabase as never, { commissionId: 'comm-1' }),
+    ]);
+    expect(a.ok && b.ok).toBe(true);
+    expect(store.getInsertCount()).toBe(1);
+    const reusedFlags = [a.reused, b.reused].sort();
+    expect(reusedFlags).toEqual([false, true]);
+    expect(a.compensatingLedgerEntryId).toBe(b.compensatingLedgerEntryId);
+    expect(store.getUpdateCount()).toBe(0);
+  });
+
+  it('a later recovery after a successful transition reuses the same row', async () => {
+    const store = makeLedgerStore({
+      commission: { id: 'comm-1', status: 'approved', ledger_entry_id: 'ledger-orig' },
+    });
+    const first = await transitionCommissionStatus(store.supabase as never, {
+      commissionId: 'comm-1',
+      toStatus: 'reversed',
+    });
+    expect(first.ok).toBe(true);
+    for (let i = 0; i < 9; i += 1) {
+      const again = await recoverSettlementReversal(store.supabase as never, {
+        commissionId: 'comm-1',
+      });
+      expect(again.ok).toBe(true);
+      expect(again.reused).toBe(true);
+    }
+    expect(store.getInsertCount()).toBe(1);
+    expect(store.byId.get('ledger-orig')?.amount_cents).toBe(100);
+    expect(store.byId.get('ledger-orig')?.status).toBe('accrued');
   });
 });
