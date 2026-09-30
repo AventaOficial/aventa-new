@@ -140,6 +140,35 @@ function makeStore(opts?: { auditFailures?: number }) {
   }
 
   const supabase = {
+    async rpc(fn: string, args: { p_limit: number }) {
+      if (fn !== 'list_pending_settlement_reversal_commissions') {
+        return { data: null, error: { message: `unexpected rpc ${fn}` } };
+      }
+      const terminal = new Set([
+        'settlement_reversed',
+        'settlement_reversal_reused',
+        'settlement_reversal_inconsistent',
+      ]);
+      const pending = commissions
+        .filter((row) => {
+          if (row.status !== 'reversed' || !row.ledger_entry_id) return false;
+          return !events.some(
+            (event) =>
+              event.entity_type === 'settlement' &&
+              event.entity_id === row.id &&
+              terminal.has(String(event.event_type)),
+          );
+        })
+        .sort((a, b) => a.updated_at.localeCompare(b.updated_at) || a.id.localeCompare(b.id));
+      const limit = Math.max(1, Math.min(args.p_limit, 25));
+      return {
+        data: pending.slice(0, limit).map((row) => ({
+          ...row,
+          pending_count: pending.length,
+        })),
+        error: null,
+      };
+    },
     from(table: string) {
       fromCalls += 1;
       if (table === 'affiliate_ledger_entries') {
@@ -301,7 +330,7 @@ describe('dispatchSettlementReversalRecovery', () => {
 
     const result = await dispatchSettlementReversalRecovery(store.supabase as never);
 
-    expect(result.skipped).toBe(1);
+    expect(result.skipped).toBe(0);
     expect(result.eligible).toBe(0);
     expect(result.recovered).toBe(0);
     expect(store.getInsertCount()).toBe(0);
@@ -434,7 +463,7 @@ describe('dispatchSettlementReversalRecovery', () => {
 
     const second = await dispatchSettlementReversalRecovery(store.supabase as never);
     expect(second.eligible).toBe(0);
-    expect(second.skipped).toBe(1);
+    expect(second.skipped).toBe(0);
     expect(second.failed).toBe(0);
     expect(store.ledgerByExternal.get(`mercadolibre|${ref}`)).toEqual(before);
     expect(
@@ -531,6 +560,31 @@ describe('dispatchSettlementReversalRecovery', () => {
     expect(store.getInsertCount()).toBe(1);
   });
 
+  it('an older pending reversal is selected ahead of newer completed ones', async () => {
+    const store = makeStore();
+    for (let i = 0; i < 30; i += 1) {
+      const id = `done-${i}`;
+      const original = store.addOriginal(id, 10);
+      store.addCommission(reversedCommission(id, original.id, `2026-11-${String((i % 28) + 1).padStart(2, '0')}T00:00:00.000Z`));
+      store.events.push({
+        entity_type: 'settlement',
+        entity_id: id,
+        event_type: 'settlement_reversed',
+      });
+    }
+    const old = store.addOriginal('old-gap', 77);
+    store.addCommission(reversedCommission('old-gap', old.id, '2026-01-01T00:00:00.000Z'));
+
+    const result = await dispatchSettlementReversalRecovery(store.supabase as never, { limit: 1 });
+
+    expect(result.recovered).toBe(1);
+    expect(result.deferred).toBe(0);
+    expect(store.ledgerByExternal.has(`mercadolibre|${buildSettlementReversalExternalRef('old-gap')}`)).toBe(
+      true,
+    );
+    expect(store.getInsertCount()).toBe(1);
+  });
+
   it('only calls recoverSettlementReversal and does not write commissions, rewards, or payouts', () => {
     const dispatcher = readFileSync(
       join(process.cwd(), 'lib/economy/settlement/reversalRecoveryDispatch.ts'),
@@ -541,6 +595,16 @@ describe('dispatchSettlementReversalRecovery', () => {
       'utf8',
     );
     expect(dispatcher).toContain('recoverSettlementReversal(');
+    expect(dispatcher).toContain('list_pending_settlement_reversal_commissions');
+    const pendingRead = readFileSync(
+      join(process.cwd(), 'docs/supabase-migrations/20260930_pending_settlement_reversal_recovery.sql'),
+      'utf8',
+    );
+    expect(pendingRead).toContain('status = \'reversed\'');
+    expect(pendingRead).toContain('ledger_entry_id IS NOT NULL');
+    expect(pendingRead).toContain('settlement_reversal_inconsistent');
+    expect(pendingRead).toContain('ORDER BY updated_at ASC');
+    expect(pendingRead).not.toMatch(/\b(INSERT|UPDATE|DELETE)\b/);
     expect(dispatcher).not.toContain('executeSettlementReversal');
     expect(dispatcher).not.toContain('.insert(');
     expect(dispatcher).not.toContain('.update(');

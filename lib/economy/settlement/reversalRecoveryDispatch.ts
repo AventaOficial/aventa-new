@@ -12,20 +12,13 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
-import {
-  buildSettlementReversalExternalRef,
-  recoverSettlementReversal,
-} from './reversalContract';
+import { recoverSettlementReversal } from './reversalContract';
 
-/** Repairs attempted per run. The fetch window is larger so completed rows do not fill the batch. */
+/** Repairs attempted per run. The read itself returns only pending rows, oldest first. */
 export const SETTLEMENT_REVERSAL_RECOVERY_BATCH_LIMIT = 25;
-export const SETTLEMENT_REVERSAL_RECOVERY_FETCH_CAP = 100;
+export const SETTLEMENT_REVERSAL_RECOVERY_RPC = 'list_pending_settlement_reversal_commissions';
 
 const DISPATCH_ACTOR = 'settlement_reversal_recovery_dispatch';
-
-const AUDIT_COMPLETE_EVENTS = ['settlement_reversed', 'settlement_reversal_reused'] as const;
-const DO_NOT_RETRY_EVENTS = ['settlement_reversal_inconsistent'] as const;
-const TERMINAL_EVENTS = [...AUDIT_COMPLETE_EVENTS, ...DO_NOT_RETRY_EVENTS];
 
 export type SettlementReversalRecoveryFailure = {
   commissionId: string;
@@ -46,14 +39,6 @@ export type SettlementReversalRecoveryDispatchResult = {
   deferred: number;
   failures: SettlementReversalRecoveryFailure[];
   error?: string;
-};
-
-type CommissionRow = {
-  id: string;
-  status: string;
-  ledger_entry_id: string | null;
-  network: string;
-  updated_at: string;
 };
 
 function emptyResult(
@@ -81,10 +66,16 @@ function clampLimit(raw: number | undefined): number {
   return Math.max(1, Math.min(Math.floor(requested), SETTLEMENT_REVERSAL_RECOVERY_BATCH_LIMIT));
 }
 
+type PendingRecoveryRow = {
+  id: string;
+  pending_count?: number | string;
+};
+
 /**
- * Scan the newest reversed commissions and finish any recovery the transition
- * did not. Safe under overlapping runs because recoverSettlementReversal is
- * idempotent on the ledger unique key.
+ * Deliver recoverSettlementReversal for commissions the database already
+ * classified as pending. Completed reversals are not in this read, so a
+ * long completed history cannot hide an older gap. Overlapping runs stay
+ * idempotent on UNIQUE(network, external_ref).
  */
 export async function dispatchSettlementReversalRecovery(
   supabase: SupabaseClient,
@@ -95,103 +86,27 @@ export async function dispatchSettlementReversalRecovery(
   }
 
   const limit = clampLimit(options?.limit);
-  const fetchLimit = Math.min(limit * 4, SETTLEMENT_REVERSAL_RECOVERY_FETCH_CAP);
-
-  const { data: commissions, error: scanError } = await supabase
-    .from('affiliate_commissions')
-    .select('id, status, ledger_entry_id, network, updated_at')
-    .eq('status', 'reversed')
-    .not('ledger_entry_id', 'is', null)
-    .order('updated_at', { ascending: false })
-    .limit(fetchLimit);
+  const { data, error: scanError } = await supabase.rpc(SETTLEMENT_REVERSAL_RECOVERY_RPC, {
+    p_limit: limit,
+  });
 
   if (scanError) {
     return emptyResult({ ok: false, error: scanError.message });
   }
 
-  const rows = (commissions ?? []) as CommissionRow[];
-  const scanned = rows.length;
-  if (scanned === 0) return emptyResult();
+  const rows = (data ?? []) as PendingRecoveryRow[];
+  if (rows.length === 0) return emptyResult();
 
-  const refs = rows.map((row) => buildSettlementReversalExternalRef(String(row.id)));
-  const { data: reversalRows, error: ledgerError } = await supabase
-    .from('affiliate_ledger_entries')
-    .select('id, network, external_ref')
-    .in('external_ref', refs);
+  const pendingCount = Number(rows[0]?.pending_count ?? rows.length);
+  const deferred = Number.isFinite(pendingCount) ? Math.max(0, pendingCount - rows.length) : 0;
+  const result = emptyResult({
+    scanned: rows.length,
+    eligible: rows.length,
+    deferred,
+  });
 
-  if (ledgerError) {
-    return emptyResult({ ok: false, scanned, error: ledgerError.message });
-  }
-
-  const reversalKeys = new Set(
-    (reversalRows ?? []).map(
-      (row) =>
-        `${String((row as { network?: string }).network ?? '')}|${String(
-          (row as { external_ref?: string }).external_ref ?? '',
-        ).trim().toLowerCase()}`,
-    ),
-  );
-
-  const presentIds = rows
-    .filter((row) =>
-      reversalKeys.has(
-        `${row.network}|${buildSettlementReversalExternalRef(String(row.id))}`,
-      ),
-    )
-    .map((row) => String(row.id));
-
-  const eventsByCommission = new Map<string, Set<string>>();
-  if (presentIds.length > 0) {
-    const { data: events, error: eventError } = await supabase
-      .from('affiliate_economic_events')
-      .select('entity_id, event_type')
-      .eq('entity_type', 'settlement')
-      .in('entity_id', presentIds)
-      .in('event_type', [...TERMINAL_EVENTS]);
-
-    if (eventError) {
-      return emptyResult({ ok: false, scanned, error: eventError.message });
-    }
-
-    for (const event of events ?? []) {
-      const id = String((event as { entity_id?: string }).entity_id ?? '');
-      const type = String((event as { event_type?: string }).event_type ?? '');
-      const set = eventsByCommission.get(id) ?? new Set<string>();
-      set.add(type);
-      eventsByCommission.set(id, set);
-    }
-  }
-
-  const needsRecovery: string[] = [];
-  let skipped = 0;
   for (const row of rows) {
-    const id = String(row.id);
-    const key = `${row.network}|${buildSettlementReversalExternalRef(id)}`;
-    const hasRow = reversalKeys.has(key);
-    const events = eventsByCommission.get(id) ?? new Set<string>();
-    const auditDone = AUDIT_COMPLETE_EVENTS.some((type) => events.has(type));
-    const inconsistentRecorded = DO_NOT_RETRY_EVENTS.some((type) => events.has(type));
-
-    if (!hasRow) {
-      needsRecovery.push(id);
-      continue;
-    }
-    if (auditDone) {
-      skipped += 1;
-      continue;
-    }
-    if (inconsistentRecorded) {
-      skipped += 1;
-      continue;
-    }
-    needsRecovery.push(id);
-  }
-
-  const batch = needsRecovery.slice(0, limit);
-  const deferred = needsRecovery.length - batch.length;
-  const result = emptyResult({ scanned, eligible: batch.length, skipped, deferred });
-
-  for (const commissionId of batch) {
+    const commissionId = String(row.id);
     try {
       const recovery = await recoverSettlementReversal(supabase, {
         commissionId,

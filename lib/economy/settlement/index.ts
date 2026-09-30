@@ -53,7 +53,7 @@ export {
 export {
   dispatchSettlementReversalRecovery,
   SETTLEMENT_REVERSAL_RECOVERY_BATCH_LIMIT,
-  SETTLEMENT_REVERSAL_RECOVERY_FETCH_CAP,
+  SETTLEMENT_REVERSAL_RECOVERY_RPC,
   type SettlementReversalRecoveryDispatchResult,
   type SettlementReversalRecoveryFailure,
 } from './reversalRecoveryDispatch';
