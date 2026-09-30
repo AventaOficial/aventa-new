@@ -6,7 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { appendEconomicEvent } from './appendEconomicEvent';
-import { executeSettlementReversal } from './settlement/reversalContract';
+import { recoverSettlementReversal } from './settlement/reversalContract';
 import {
   ECONOMIC_LEDGER_BOUNDARY,
   canTransitionCommission,
@@ -210,6 +210,27 @@ export async function transitionCommissionStatus(
     return { ok: false, from, to: input.toStatus, error: upErr.message };
   }
 
+  // reversed es terminal: una segunda transición no puede completar el ledger.
+  // La compensación corre aquí, con la fila ya reversed, vía recoverSettlementReversal.
+  const ledgerEntryId =
+    typeof existing.ledger_entry_id === 'string' ? existing.ledger_entry_id.trim() : '';
+  let reversalError: string | null = null;
+  if (input.toStatus === 'reversed' && ledgerEntryId) {
+    let reversal = await recoverSettlementReversal(supabase, {
+      commissionId: input.commissionId,
+      actor: input.actor ?? 'system',
+    });
+    if (!reversal.ok && reversal.reason === 'audit_append_failed') {
+      reversal = await recoverSettlementReversal(supabase, {
+        commissionId: input.commissionId,
+        actor: input.actor ?? 'system',
+      });
+    }
+    if (!reversal.ok) {
+      reversalError = reversal.reason ?? 'ledger_write_failed';
+    }
+  }
+
   const audit = await appendEconomicEvent(supabase, {
     entityType: 'commission',
     entityId: input.commissionId,
@@ -219,28 +240,12 @@ export async function transitionCommissionStatus(
     actor: input.actor ?? 'system',
     payload: { reason: input.reason ?? null },
   });
+
+  if (reversalError) {
+    return { ok: false, from, to: input.toStatus, error: reversalError };
+  }
   if (!audit.ok) {
     return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
-  }
-
-  if (
-    input.toStatus === 'reversed' &&
-    typeof existing.ledger_entry_id === 'string' &&
-    existing.ledger_entry_id.trim()
-  ) {
-    const reversal = await executeSettlementReversal(supabase, {
-      commissionId: input.commissionId,
-      ledgerEntryId: existing.ledger_entry_id.trim(),
-      actor: input.actor ?? 'system',
-    });
-    if (!reversal.ok) {
-      return {
-        ok: false,
-        from,
-        to: input.toStatus,
-        error: reversal.reason ?? 'ledger_write_failed',
-      };
-    }
   }
 
   return { ok: true, from, to: input.toStatus };
