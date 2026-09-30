@@ -1,5 +1,5 @@
-import OfferBatchPastePanel from '@/app/components/moderation/OfferBatchPastePanel';
+import OfferBatchOps from '@/app/components/moderation/OfferBatchOps';
 
 export default function EquipoModeracionLotePage() {
-  return <OfferBatchPastePanel mode="workspace" />;
+  return <OfferBatchOps mode="workspace" />;
 }

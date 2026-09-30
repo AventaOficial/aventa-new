@@ -83,10 +83,11 @@ URL: https://www.amazon.com.mx/dp/B0G4B54DR1?utm_source=hunter
     expect(OFFER_BATCH_MAX).toBeGreaterThanOrEqual(10_000);
   });
 
-  it('el formulario público no importa el lote', () => {
+  it('el formulario público manda el lote del usuario y no arma el pegado de moderación', () => {
     const actionBar = readFileSync(join(process.cwd(), 'app/components/ActionBar.tsx'), 'utf8');
-    expect(actionBar).not.toContain('offer-batch');
+    expect(actionBar).toContain('/api/me/offer-batches');
     expect(actionBar).not.toContain('buildOfferBatchDrafts');
+    expect(actionBar).not.toContain('hunterBridge');
   });
 
   it('la API de lote exige moderación y pending vía ingest', () => {

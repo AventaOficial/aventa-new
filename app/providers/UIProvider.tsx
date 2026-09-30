@@ -36,6 +36,9 @@ type UIContextType = {
   openUploadModal: () => void
   uploadModalRequested: boolean
   clearUploadModalRequest: () => void
+  openLotesModal: () => void
+  lotesModalRequested: boolean
+  clearLotesModalRequest: () => void
 }
 
 const UIContext = createContext<UIContextType | null>(null)
@@ -56,11 +59,14 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [isOfferOpen, setOfferOpen] = useState(false)
   const [lunaOpenRequested, setLunaOpenRequested] = useState(false)
   const [uploadModalRequested, setUploadModalRequested] = useState(false)
+  const [lotesModalRequested, setLotesModalRequested] = useState(false)
   const [profileOnboardingCompleted, setProfileOnboardingCompleted] = useState<boolean | null>(null)
   const hasAutoOpenedGuide = useRef(false)
 
   const openUploadModal = useCallback(() => setUploadModalRequested(true), [])
   const clearUploadModalRequest = useCallback(() => setUploadModalRequested(false), [])
+  const openLotesModal = useCallback(() => setLotesModalRequested(true), [])
+  const clearLotesModalRequest = useCallback(() => setLotesModalRequested(false), [])
 
   const clearOverlayState = useCallback(() => {
     setShowGuide(false)
@@ -256,6 +262,9 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         openUploadModal,
         uploadModalRequested,
         clearUploadModalRequest,
+        openLotesModal,
+        lotesModalRequested,
+        clearLotesModalRequest,
       }}
     >
       {children}
