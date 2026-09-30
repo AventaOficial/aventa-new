@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import KpiCard from '@/app/components/panel/KpiCard';
 import LoadingState from '@/app/components/panel/LoadingState';
 import StatusBadge from '@/app/components/panel/StatusBadge';
 import type { FinancePayload } from '@/lib/staff/buildFinancePayload';
 import { centsToMx, NETWORK_LABELS } from '@/lib/finance/hubConfig';
 import FinanceTasksStrip from './FinanceTasksStrip';
+import FinanceYearPicture from './FinanceYearPicture';
 
 export default function FinanceOverviewPanel() {
   const { session } = useAuth();
@@ -64,22 +64,14 @@ export default function FinanceOverviewPanel() {
             </p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Actualizar
-        </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Ingresos del mes" value={centsToMx(data.summary.ledgerMonthCents)} variant="light" />
-        <KpiCard label="Por cobrar (ledger)" value={centsToMx(data.summary.ledgerAccruedCents)} variant="light" />
-        <KpiCard label="Pagos pendientes" value={String(data.summary.pendingCount)} variant="light" />
-        <KpiCard label="Monto pendiente" value={centsToMx(data.summary.pendingCents)} variant="light" />
-      </div>
+      <FinanceYearPicture
+        yearCents={data.summary.ledgerMonthCents}
+        pendingCount={data.summary.pendingCount}
+        pendingCents={data.summary.pendingCents}
+        onRefresh={() => void load()}
+      />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <FinanceTasksStrip board={data.board} taskPct={data.taskPct} onTasksChange={() => void load()} />
