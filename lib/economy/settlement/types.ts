@@ -34,6 +34,8 @@ export const SETTLEMENT_REJECT_REASONS = [
   'invalid_allocation',
   'ledger_write_failed',
   'link_failed',
+  'audit_append_failed',
+  'inconsistent_settlement',
 ] as const;
 
 export type SettlementRejectReason = (typeof SETTLEMENT_REJECT_REASONS)[number];
