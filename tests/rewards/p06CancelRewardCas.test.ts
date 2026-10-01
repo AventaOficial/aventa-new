@@ -21,12 +21,27 @@ function makeCasStore(initial: RewardRow) {
 
   const from = (table: string) => {
     if (table === 'reward_audit_log') {
-      return {
-        insert: vi.fn((payload: unknown) => {
-          audits.push(payload);
-          return Promise.resolve({ error: null });
-        }),
-      };
+      const filters: Record<string, string> = {};
+      const api: Record<string, unknown> = {};
+      api.select = vi.fn(() => api);
+      api.eq = vi.fn((col: string, val: string) => {
+        filters[col] = val;
+        return api;
+      });
+      api.limit = vi.fn(() => api);
+      api.maybeSingle = vi.fn(async () => {
+        const found = audits.find(
+          (row) =>
+            (row as { entity_id?: string; event_type?: string }).entity_id === filters.entity_id &&
+            (row as { event_type?: string }).event_type === filters.event_type,
+        );
+        return { data: found ? { id: 'audit-row' } : null, error: null };
+      });
+      api.insert = vi.fn((payload: unknown) => {
+        audits.push(payload);
+        return Promise.resolve({ error: null });
+      });
+      return api;
     }
 
     if (table === 'ledger_settlements') {
@@ -123,7 +138,7 @@ describe('P0-6 — cancelReward CAS', () => {
   it('Test 1 — VALIDATING → CANCELLED', async () => {
     const store = makeCasStore({ id: REWARD, status: 'VALIDATING' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(true);
+    expect(ok.ok).toBe(true);
     expect(store.reward.status).toBe('CANCELLED');
     expect(store.audits).toHaveLength(1);
     expect((store.audits[0] as { event_type: string }).event_type).toBe('reward_cancelled');
@@ -133,7 +148,7 @@ describe('P0-6 — cancelReward CAS', () => {
   it('Test 2 — AVAILABLE → CANCELLED', async () => {
     const store = makeCasStore({ id: REWARD, status: 'AVAILABLE' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(true);
+    expect(ok.ok).toBe(true);
     expect(store.reward.status).toBe('CANCELLED');
     expect(store.audits).toHaveLength(1);
   });
@@ -141,7 +156,7 @@ describe('P0-6 — cancelReward CAS', () => {
   it('Test 3 — PENDING → CANCELLED', async () => {
     const store = makeCasStore({ id: REWARD, status: 'PENDING' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(true);
+    expect(ok.ok).toBe(true);
     expect(store.reward.status).toBe('CANCELLED');
     expect(store.audits).toHaveLength(1);
   });
@@ -149,7 +164,7 @@ describe('P0-6 — cancelReward CAS', () => {
   it('Test 4 — PAID → CANCELLED no-op', async () => {
     const store = makeCasStore({ id: REWARD, status: 'PAID', payout_id: 'p1' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(false);
     expect(store.reward.status).toBe('PAID');
     expect(store.audits).toHaveLength(0);
   });
@@ -157,17 +172,21 @@ describe('P0-6 — cancelReward CAS', () => {
   it('Test 5 — REVERSED → CANCELLED no-op', async () => {
     const store = makeCasStore({ id: REWARD, status: 'REVERSED' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(false);
     expect(store.reward.status).toBe('REVERSED');
     expect(store.audits).toHaveLength(0);
   });
 
-  it('Test 6 — CANCELLED → CANCELLED mantiene false', async () => {
+  it('Test 6 — CANCELLED sin auditoría se certifica y no se duplica', async () => {
     const store = makeCasStore({ id: REWARD, status: 'CANCELLED' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(true);
     expect(store.reward.status).toBe('CANCELLED');
-    expect(store.audits).toHaveLength(0);
+    expect(store.audits).toHaveLength(1);
+    const again = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
+    expect(again.ok).toBe(false);
+    if (!again.ok) expect(again.reason).toBe('already_terminal');
+    expect(store.audits).toHaveLength(1);
   });
 
   it('Test 7 — CAS perdido tras AVAILABLE→PAID entre SELECT y UPDATE', async () => {
@@ -227,7 +246,7 @@ describe('P0-6 — cancelReward CAS', () => {
       ACTOR,
       'race_cancel',
     );
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(false);
     expect(race.reward.status).toBe('PAID');
     expect(race.reward.payout_id).toBe('payout-concurrent');
     expect(race.audits).toHaveLength(0);
@@ -239,7 +258,7 @@ describe('P0-6 — cancelReward CAS', () => {
       cancelReward(store.supabase, REWARD, ACTOR, 'c1'),
       cancelReward(store.supabase, REWARD, ACTOR, 'c2'),
     ]);
-    expect([a, b].filter(Boolean)).toHaveLength(1);
+    expect([a, b].filter((result) => result.ok)).toHaveLength(1);
     expect(store.reward.status).toBe('CANCELLED');
     expect(store.audits).toHaveLength(1);
   });
@@ -248,7 +267,7 @@ describe('P0-6 — cancelReward CAS', () => {
     const store = makeCasStore({ id: REWARD, status: 'AVAILABLE' });
     store.markPaid();
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'late_cancel');
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(false);
     expect(store.reward.status).toBe('PAID');
     expect(store.reward.payout_id).toBe('payout-concurrent');
     expect(store.audits).toHaveLength(0);
@@ -257,7 +276,7 @@ describe('P0-6 — cancelReward CAS', () => {
   it('Test 10 — cancel no toca ledger_settlements', async () => {
     const store = makeCasStore({ id: REWARD, status: 'VALIDATING' });
     const ok = await cancelReward(store.supabase, REWARD, ACTOR, 'staff_cancel');
-    expect(ok).toBe(true);
+    expect(ok.ok).toBe(true);
     expect(store.settlementTouches).toHaveLength(0);
     // cancelReward never calls from('ledger_settlements')
     const tables = (store.supabase.from as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);

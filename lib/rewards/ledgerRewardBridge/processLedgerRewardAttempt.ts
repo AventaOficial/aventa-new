@@ -93,77 +93,39 @@ export async function processLedgerRewardAttempt(
   const commissionId = extractCommissionIdFromMeta(meta) ?? prev?.commissionId ?? null;
   const nextAttempt = (prev?.attempt ?? 0) + 1;
 
-  if (prev?.terminal) {
-    const reused: ProcessLedgerRewardAttemptResult = {
-      ledgerEntryId: id,
-      outcome: prev.class,
-      reason: prev.reason,
-      attempt: prev.attempt,
-      rewardId: prev.rewardId,
-      commissionId: prev.commissionId ?? commissionId,
-      terminal: true,
-    };
-    return reused;
-  }
-
   const existingRewardId = await loadExistingRewardId(supabase, id);
-  if (existingRewardId) {
-    const outcome = buildLedgerRewardOutcome({
-      class: 'duplicate',
-      reason: 'duplicate_ledger',
-      attempt: nextAttempt,
-      commissionId,
-      rewardId: existingRewardId,
-      terminal: true,
-    });
-    await persistLedgerRewardOutcome(supabase, {
-      ledgerEntryId: id,
-      prevMeta: meta,
-      outcome,
-    });
-    const result: ProcessLedgerRewardAttemptResult = {
-      ledgerEntryId: id,
-      outcome: 'duplicate',
-      reason: 'duplicate_ledger',
-      attempt: nextAttempt,
-      rewardId: existingRewardId,
-      commissionId,
-      terminal: true,
-    };
-    await auditAttempt(supabase, result);
-    return result;
-  }
-
-  const gates = canAutoAttemptRewards();
-  if (!gates.ok) {
-    const outcome = buildLedgerRewardOutcome({
-      class: 'deferred',
-      reason: gates.reason,
-      attempt: nextAttempt,
-      commissionId,
-      rewardId: null,
-      terminal: false,
-    });
-    const persisted = await persistLedgerRewardOutcome(supabase, {
-      ledgerEntryId: id,
-      prevMeta: meta,
-      outcome,
-    });
-    const result: ProcessLedgerRewardAttemptResult = {
-      ledgerEntryId: id,
-      outcome: 'deferred',
-      reason: gates.reason,
-      attempt: nextAttempt,
-      rewardId: null,
-      commissionId,
-      terminal: false,
-    };
-    if (!persisted.ok) {
-      result.outcome = 'retryable';
-      result.reason = 'outcome_persist_failed';
+  if (!existingRewardId) {
+    const gates = canAutoAttemptRewards();
+    if (!gates.ok) {
+      const outcome = buildLedgerRewardOutcome({
+        class: 'deferred',
+        reason: gates.reason,
+        attempt: nextAttempt,
+        commissionId,
+        rewardId: null,
+        terminal: false,
+      });
+      const persisted = await persistLedgerRewardOutcome(supabase, {
+        ledgerEntryId: id,
+        prevMeta: meta,
+        outcome,
+      });
+      const result: ProcessLedgerRewardAttemptResult = {
+        ledgerEntryId: id,
+        outcome: 'deferred',
+        reason: gates.reason,
+        attempt: nextAttempt,
+        rewardId: null,
+        commissionId,
+        terminal: false,
+      };
+      if (!persisted.ok) {
+        result.outcome = 'retryable';
+        result.reason = 'outcome_persist_failed';
+      }
+      await auditAttempt(supabase, result);
+      return result;
     }
-    await auditAttempt(supabase, result);
-    return result;
   }
 
   const ledgerRow: LedgerRow = {
@@ -203,14 +165,10 @@ export async function processLedgerRewardAttempt(
       outcome: c.class === 'duplicate' ? 'duplicate' : c.class,
       reason,
       attempt: nextAttempt,
-      rewardId: null,
+      rewardId: created.rewardId ?? null,
       commissionId,
       terminal: c.terminal,
     };
-    if (c.class === 'duplicate') {
-      const again = await loadExistingRewardId(supabase, id);
-      classified.rewardId = again;
-    }
   }
 
   const outcome = buildLedgerRewardOutcome({

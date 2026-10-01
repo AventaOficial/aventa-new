@@ -6,12 +6,16 @@ import { isSyntheticFinancialRecord } from '@/lib/finance/financialRecordClass';
 describe('rewards money truth', () => {
   it('API me/rewards clasifica synthetic y no etiqueta QA como Entregada', () => {
     const src = readFileSync(join(process.cwd(), 'app/api/me/rewards/route.ts'), 'utf8');
+    const labels = readFileSync(join(process.cwd(), 'lib/rewards/payoutReadModel.ts'), 'utf8');
     expect(src).toMatch(/classifyFinancialRecord/);
     expect(src).toMatch(/ledger_entry_id/);
-    expect(src).toMatch(/Prueba QA \(no es pago real\)/);
+    expect(src).toMatch(/presentCreatorReward/);
+    expect(labels).toMatch(/Prueba QA \(no es pago real\)/);
+    expect(labels).toMatch(/isCertifiedPaidReward/);
     expect(src).toMatch(/Sin pagos reales/);
     expect(src).toMatch(/moneyTruth/);
     expect(src).toMatch(/affiliate_ledger_entries/);
+    expect(src).not.toMatch(/label: 'Entregada'/);
   });
 
   it('UI historial soporta uiStatus synthetic', () => {

@@ -56,12 +56,28 @@ export async function reconcileRewardsForLedgerStatus(
     payout_id?: string | null;
   };
 
-  if (rewardRow.status === 'CANCELLED' || rewardRow.status === 'REVERSED') {
-    return { ledgerEntryId, action: 'none', rewardId: rewardRow.id, reason: 'already_terminal' };
-  }
-
   const actor = actorId ?? 'system';
   const reconcileReason = `${reason} (ledger ${ledgerStatus})`;
+
+  if (rewardRow.status === 'CANCELLED' || rewardRow.status === 'REVERSED') {
+    const certified =
+      rewardRow.status === 'REVERSED'
+        ? await reverseReward(supabase, rewardRow.id, actor, reconcileReason)
+        : await cancelReward(supabase, rewardRow.id, actor, reconcileReason);
+    if (certified.ok) {
+      return {
+        ledgerEntryId,
+        action: rewardRow.status === 'REVERSED' ? 'reversed' : 'cancelled',
+        rewardId: rewardRow.id,
+      };
+    }
+    return {
+      ledgerEntryId,
+      action: 'none',
+      rewardId: rewardRow.id,
+      reason: certified.reason,
+    };
+  }
 
   if (rewardRow.status === 'PAID') {
     const clawback = await createPaidRewardClawbackAdjustment(supabase, {
@@ -80,9 +96,9 @@ export async function reconcileRewardsForLedgerStatus(
     const ok = await reverseReward(supabase, rewardRow.id, actor, reconcileReason);
     return {
       ledgerEntryId,
-      action: ok ? 'reversed' : 'none',
+      action: ok.ok ? 'reversed' : 'none',
       rewardId: rewardRow.id,
-      reason: ok ? undefined : 'reverse_failed',
+      reason: ok.ok ? undefined : ok.reason,
     };
   }
 
@@ -90,9 +106,9 @@ export async function reconcileRewardsForLedgerStatus(
     const ok = await cancelReward(supabase, rewardRow.id, actor, reconcileReason);
     return {
       ledgerEntryId,
-      action: ok ? 'cancelled' : 'none',
+      action: ok.ok ? 'cancelled' : 'none',
       rewardId: rewardRow.id,
-      reason: ok ? undefined : 'cancel_failed',
+      reason: ok.ok ? undefined : ok.reason,
     };
   }
 

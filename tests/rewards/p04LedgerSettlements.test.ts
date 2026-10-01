@@ -123,6 +123,11 @@ function makeConcurrentStore() {
           error: null,
         };
       }
+      if (table === 'ledger_settlements') {
+        const ledgerId = String(filters.ledger_entry_id ?? '');
+        const row = settlements.get(ledgerId);
+        return { data: row ? { settlement_ref: row.settlement_ref } : null, error: null };
+      }
       return { data: null, error: null };
     });
 
@@ -157,7 +162,23 @@ function makeConcurrentStore() {
   };
 
   return {
-    supabase: { from: vi.fn(from) } as unknown as SupabaseClient,
+    supabase: {
+      from: vi.fn(from),
+      rpc: async (_fn: string, args: { p_payload: { id: string; ledger_entry_id: string } }) => {
+        const payload = args.p_payload;
+        rewardInserts += 1;
+        for (const existing of rewards.values()) {
+          if (existing.ledger_entry_id === payload.ledger_entry_id || existing.id === payload.id) {
+            return {
+              data: null,
+              error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+            };
+          }
+        }
+        rewards.set(payload.id, payload);
+        return { data: payload.id, error: null };
+      },
+    } as unknown as SupabaseClient,
     settlements,
     rewards,
     stats: () => ({ settlementInserts, rewardInserts, settlements: settlements.size, rewards: rewards.size }),

@@ -99,12 +99,31 @@ function matchesFilters(
 function makeClient(store: Store): SupabaseClient {
   const from = (table: string) => {
     if (table === 'reward_audit_log') {
-      return {
+      const filters: Record<string, unknown> = {};
+      const api = {
         insert: (payload: unknown) => {
           store.audit.push(payload);
           return Promise.resolve({ error: null });
         },
+        select: () => api,
+        eq: (column: string, value: unknown) => {
+          filters[column] = value;
+          return api;
+        },
+        limit: () => api,
+        maybeSingle: async () => {
+          const found = store.audit.find((row) => {
+            const record = row as Record<string, unknown>;
+            return (
+              record.entity_type === filters.entity_type &&
+              record.entity_id === filters.entity_id &&
+              record.event_type === filters.event_type
+            );
+          });
+          return { data: found ? { id: 'audit-row' } : null, error: null };
+        },
       };
+      return api;
     }
 
     if (table === 'reward_payouts') {
@@ -366,8 +385,8 @@ describe('M4.1 payout intent contract', () => {
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.intent.status).toBe('SUCCEEDED');
-    expect(store.rewards.get(REWARD)?.status).toBe('PAID');
+    expect(r.intent.status).toBe('UNKNOWN');
+    expect(store.rewards.get(REWARD)?.status).toBe('AVAILABLE');
     expect(store.rewardPayouts.length).toBe(0);
     expect(store.rpcCalls).not.toContain('execute_reward_payout');
   });
@@ -416,11 +435,13 @@ describe('M4.1 payout intent contract', () => {
       intentId: reserved.intent.id,
       provider: createStubPayoutProvider({ submit: 'timeout', reconcile: 'success' }),
     });
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.intent.status).toBe('SUCCEEDED');
-    expect(r.intent.idempotency_key).toBe(key);
-    expect(store.rewards.get(REWARD)?.status).toBe('PAID');
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe('evidence_missing');
+    const loaded = await loadPayoutIntentByReward(sb, REWARD);
+    expect(loaded?.status).toBe('UNKNOWN');
+    expect(loaded?.idempotency_key).toBe(key);
+    expect(store.rewards.get(REWARD)?.status).toBe('AVAILABLE');
     expect(store.intents.size).toBe(1);
   });
 
@@ -485,14 +506,14 @@ describe('M4.1 payout intent contract', () => {
       provider: createStubPayoutProvider({ submit: 'success' }),
     });
     expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.intent.status).toBe('UNKNOWN');
     const dup = await confirmPayoutIntentSuccess(sb, { intentId: reserved.intent.id });
-    expect(dup.ok).toBe(true);
-    if (!dup.ok) return;
-    expect(dup.reused).toBe(true);
-    expect(dup.intent.status).toBe('SUCCEEDED');
-    expect(store.rewards.get(REWARD)?.status).toBe('PAID');
-    // Only one PAID transition in store
-    expect([...store.rewards.values()].filter((r) => r.status === 'PAID').length).toBe(1);
+    expect(dup.ok).toBe(false);
+    if (dup.ok) return;
+    expect(dup.reason).toBe('evidence_missing');
+    expect(store.rewards.get(REWARD)?.status).toBe('AVAILABLE');
+    expect(store.intents.size).toBe(1);
   });
 
   it('14. amount mismatch → reject', async () => {

@@ -24,7 +24,7 @@ import type { PayoutIntentRow } from '@/lib/rewards/payoutIntent';
 const CREATOR = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const REWARD = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 const LEDGER = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
-const REF = 'sandbox:M45-STABLE-REF';
+const REF = 'fixture-not-bank-evidence';
 
 type RewardRow = {
   id: string;
@@ -99,12 +99,31 @@ function matchesFilters(
 function makeClient(store: Store): SupabaseClient {
   const from = (table: string) => {
     if (table === 'reward_audit_log') {
-      return {
+      const filters: Record<string, unknown> = {};
+      const api = {
         insert: (payload: unknown) => {
           store.audit.push(payload);
           return Promise.resolve({ error: null });
         },
+        select: () => api,
+        eq: (column: string, value: unknown) => {
+          filters[column] = value;
+          return api;
+        },
+        limit: () => api,
+        maybeSingle: async () => {
+          const found = store.audit.find((row) => {
+            const record = row as Record<string, unknown>;
+            return (
+              record.entity_type === filters.entity_type &&
+              record.entity_id === filters.entity_id &&
+              record.event_type === filters.event_type
+            );
+          });
+          return { data: found ? { id: 'audit-row' } : null, error: null };
+        },
       };
+      return api;
     }
     if (table === 'reward_payouts') {
       return {

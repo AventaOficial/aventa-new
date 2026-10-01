@@ -22,12 +22,26 @@ function createHoldTestSupabase(initial: RewardState[]) {
   const supabase = {
     from: vi.fn((table: string) => {
       if (table === 'reward_audit_log') {
-        return {
-          insert: vi.fn(async (payload: Record<string, unknown>) => {
-            audits.push(payload);
-            return { error: null };
-          }),
-        };
+        const filters: Record<string, string> = {};
+        const api: Record<string, unknown> = {};
+        const self = () => api;
+        api.select = vi.fn(self);
+        api.eq = vi.fn((col: string, val: string) => {
+          filters[col] = val;
+          return api;
+        });
+        api.limit = vi.fn(self);
+        api.maybeSingle = vi.fn(async () => {
+          const found = audits.find(
+            (row) => row.entity_id === filters.entity_id && row.event_type === filters.event_type,
+          );
+          return { data: found ? { id: 'audit-row' } : null, error: null };
+        });
+        api.insert = vi.fn(async (payload: Record<string, unknown>) => {
+          audits.push(payload);
+          return { error: null };
+        });
+        return api;
       }
       if (table === 'payout_intents' || table === 'reward_payouts') {
         throw new Error(`${table} must not be touched by hold engine`);
@@ -159,14 +173,19 @@ describe('M5.3 processExpiredRewardHolds', () => {
     expect(audits[0].new_state).toBe('AVAILABLE');
   });
 
-  it('3 — already AVAILABLE → no-op', async () => {
+  it('3 — already AVAILABLE without audit is certified, not released again', async () => {
     const { supabase, store, audits } = createHoldTestSupabase([
       { id: 'r-av', status: 'AVAILABLE', hold_until: '2026-01-01T00:00:00.000Z' },
     ]);
     const result = await processExpiredRewardHolds(supabase);
     expect(result.processed).toBe(0);
+    expect(result.certifiedIds).toEqual(['r-av']);
     expect(store[0].status).toBe('AVAILABLE');
-    expect(audits).toHaveLength(0);
+    expect(audits).toHaveLength(1);
+    const again = await processExpiredRewardHolds(supabase);
+    expect(again.processed).toBe(0);
+    expect(again.certifiedIds).toEqual([]);
+    expect(audits).toHaveLength(1);
   });
 
   it('4 — CANCELLED → no AVAILABLE', async () => {
@@ -190,7 +209,13 @@ describe('M5.3 processExpiredRewardHolds', () => {
   it('6 — missing / empty set → processed 0', async () => {
     const { supabase } = createHoldTestSupabase([]);
     const result = await processExpiredRewardHolds(supabase);
-    expect(result).toEqual({ processed: 0, scanned: 0, releasedIds: [] });
+    expect(result).toEqual({
+      processed: 0,
+      scanned: 0,
+      releasedIds: [],
+      certifiedIds: [],
+      auditFailedIds: [],
+    });
   });
 
   it('7 — concurrent ×10 → exactly one transition', async () => {
@@ -203,7 +228,8 @@ describe('M5.3 processExpiredRewardHolds', () => {
     const totalProcessed = results.reduce((s, r) => s + r.processed, 0);
     expect(totalProcessed).toBe(1);
     expect(store[0].status).toBe('AVAILABLE');
-    expect(audits).toHaveLength(1);
+    expect(audits.length).toBeGreaterThanOrEqual(1);
+    expect(audits.every((row) => row.entity_id === 'r-race')).toBe(true);
   });
 
   it('8 — replay after success → idempotent', async () => {
@@ -295,7 +321,14 @@ describe('M5.3 processExpiredRewardHolds', () => {
       { id: 'r-fr', status: 'VALIDATING', hold_until: '2026-08-01T00:00:00.000Z' },
     ]);
     const result = await processExpiredRewardHolds(supabase);
-    expect(result).toEqual({ processed: 0, scanned: 0, frozen: true, releasedIds: [] });
+    expect(result).toEqual({
+      processed: 0,
+      scanned: 0,
+      frozen: true,
+      releasedIds: [],
+      certifiedIds: [],
+      auditFailedIds: [],
+    });
     expect(store[0].status).toBe('VALIDATING');
   });
 

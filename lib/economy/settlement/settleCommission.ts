@@ -75,8 +75,8 @@ async function audit(
     payload?: Record<string, unknown>;
     actor?: string;
   },
-): Promise<void> {
-  await appendEconomicEvent(supabase, {
+): Promise<{ ok: boolean; error?: string }> {
+  const result = await appendEconomicEvent(supabase, {
     entityType: 'settlement',
     entityId: input.commissionId,
     eventType: input.eventType,
@@ -87,6 +87,75 @@ async function audit(
       ...(input.payload ?? {}),
     },
   });
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+  return { ok: true };
+}
+
+type CanonicalLedgerRow = {
+  id: string;
+  external_ref: string | null;
+  amount_cents: number;
+  currency: string;
+  network: string;
+};
+
+/**
+ * The unique row must be the settlement this commission is allowed to reuse.
+ * A mismatch is terminal for this call: the row is left untouched.
+ */
+function canonicalSettlementMismatch(
+  row: CanonicalLedgerRow,
+  expected: {
+    externalRef: string;
+    amountCents: number;
+    currency: string;
+    network: string;
+  },
+): 'currency_mismatch' | 'inconsistent_settlement' | null {
+  if (row.network !== expected.network) return 'inconsistent_settlement';
+  const storedRef = (row.external_ref ?? '').trim().toLowerCase();
+  if (storedRef !== expected.externalRef.trim().toLowerCase()) {
+    return 'inconsistent_settlement';
+  }
+  if ((row.currency ?? '').trim().toUpperCase() !== expected.currency) {
+    return 'currency_mismatch';
+  }
+  const amount = Number(row.amount_cents);
+  if (!Number.isFinite(amount) || !Number.isInteger(amount) || amount !== expected.amountCents) {
+    return 'inconsistent_settlement';
+  }
+  return null;
+}
+
+async function attestSuccess(
+  supabase: SupabaseClient,
+  auditInput: {
+    commissionId: string;
+    eventType: 'settlement_created' | 'settlement_reused';
+    actor: string;
+    payload?: Record<string, unknown>;
+  },
+  success: Partial<SettlementBridgeResult> &
+    Pick<SettlementBridgeResult, 'ok' | 'event' | 'commissionId'>,
+): Promise<SettlementBridgeResult> {
+  const recorded = await audit(supabase, auditInput);
+  if (!recorded.ok) {
+    return baseResult({
+      ok: false,
+      event: 'settlement_failed',
+      reason: 'audit_append_failed',
+      commissionId: success.commissionId,
+      conversionId: success.conversionId ?? null,
+      network: success.network ?? null,
+      ledgerEntryId: success.ledgerEntryId ?? null,
+      externalRef: success.externalRef ?? null,
+      allocation: success.allocation ?? null,
+      reused: success.reused ?? false,
+    });
+  }
+  return baseResult(success);
 }
 
 function validateGross(raw: unknown): number | null {
@@ -254,11 +323,19 @@ export async function settleCommission(
     });
   }
 
-  await audit(supabase, {
+  const requested = await audit(supabase, {
     commissionId,
     eventType: 'settlement_requested',
     actor,
   });
+  if (!requested.ok) {
+    return baseResult({
+      ok: false,
+      event: 'settlement_failed',
+      reason: 'audit_append_failed',
+      commissionId,
+    });
+  }
 
   const { data: row, error: loadErr } = await supabase
     .from('affiliate_commissions')
@@ -412,22 +489,29 @@ export async function settleCommission(
   if (commission.ledger_entry_id) {
     const existing = await loadLedgerById(supabase, commission.ledger_entry_id);
     if (existing) {
-      // Currency invariant on reuse
-      if ((existing.currency ?? '').toUpperCase() !== currency) {
+      const mismatch = canonicalSettlementMismatch(existing, {
+        externalRef,
+        amountCents: gross,
+        currency,
+        network,
+      });
+      if (mismatch) {
         await audit(supabase, {
           commissionId,
-          eventType: 'settlement_rejected',
-          reason: 'currency_mismatch',
+          eventType: mismatch === 'currency_mismatch' ? 'settlement_rejected' : 'settlement_failed',
+          reason: mismatch,
           actor,
           payload: {
             ledgerCurrency: existing.currency,
             commissionCurrency: currency,
+            ledgerAmountCents: existing.amount_cents,
+            expectedAmountCents: gross,
           },
         });
         return baseResult({
           ok: false,
-          event: 'settlement_rejected',
-          reason: 'currency_mismatch',
+          event: mismatch === 'currency_mismatch' ? 'settlement_rejected' : 'settlement_failed',
+          reason: mismatch,
           commissionId,
           conversionId: commission.conversion_id,
           network,
@@ -435,40 +519,53 @@ export async function settleCommission(
           externalRef,
         });
       }
-      await audit(supabase, {
-        commissionId,
-        eventType: 'settlement_reused',
-        actor,
-        payload: { ledgerEntryId: existing.id, externalRef },
-      });
-      return baseResult({
-        ok: true,
-        event: 'settlement_reused',
-        commissionId,
-        conversionId: commission.conversion_id,
-        network,
-        ledgerEntryId: existing.id,
-        externalRef: existing.external_ref ?? externalRef,
-        allocation,
-        reused: true,
-      });
+      return attestSuccess(
+        supabase,
+        {
+          commissionId,
+          eventType: 'settlement_reused',
+          actor,
+          payload: { ledgerEntryId: existing.id, externalRef },
+        },
+        {
+          ok: true,
+          event: 'settlement_reused',
+          commissionId,
+          conversionId: commission.conversion_id,
+          network,
+          ledgerEntryId: existing.id,
+          externalRef: existing.external_ref ?? externalRef,
+          allocation,
+          reused: true,
+        },
+      );
     }
   }
 
   // Crash recovery: ledger exists by external_ref but link missing
   const byRef = await loadLedgerByExternalRef(supabase, network, externalRef);
   if (byRef) {
-    if ((byRef.currency ?? '').toUpperCase() !== currency) {
+    const mismatch = canonicalSettlementMismatch(byRef, {
+      externalRef,
+      amountCents: gross,
+      currency,
+      network,
+    });
+    if (mismatch) {
       await audit(supabase, {
         commissionId,
-        eventType: 'settlement_rejected',
-        reason: 'currency_mismatch',
+        eventType: mismatch === 'currency_mismatch' ? 'settlement_rejected' : 'settlement_failed',
+        reason: mismatch,
         actor,
+        payload: {
+          ledgerAmountCents: byRef.amount_cents,
+          expectedAmountCents: gross,
+        },
       });
       return baseResult({
         ok: false,
-        event: 'settlement_rejected',
-        reason: 'currency_mismatch',
+        event: mismatch === 'currency_mismatch' ? 'settlement_rejected' : 'settlement_failed',
+        reason: mismatch,
         commissionId,
         conversionId: commission.conversion_id,
         network,
@@ -495,31 +592,45 @@ export async function settleCommission(
         externalRef,
       });
     }
-    await audit(supabase, {
-      commissionId,
-      eventType: 'settlement_reused',
-      actor,
-      payload: { ledgerEntryId: byRef.id, externalRef, crashRecovery: true },
-    });
-    return baseResult({
-      ok: true,
-      event: 'settlement_reused',
-      commissionId,
-      conversionId: commission.conversion_id,
-      network,
-      ledgerEntryId: byRef.id,
-      externalRef,
-      allocation,
-      reused: true,
-    });
+    return attestSuccess(
+      supabase,
+      {
+        commissionId,
+        eventType: 'settlement_reused',
+        actor,
+        payload: { ledgerEntryId: byRef.id, externalRef, crashRecovery: true },
+      },
+      {
+        ok: true,
+        event: 'settlement_reused',
+        commissionId,
+        conversionId: commission.conversion_id,
+        network,
+        ledgerEntryId: byRef.id,
+        externalRef,
+        allocation,
+        reused: true,
+      },
+    );
   }
 
-  await audit(supabase, {
+  const eligible = await audit(supabase, {
     commissionId,
     eventType: 'settlement_eligible',
     actor,
     payload: { externalRef, gross, currency },
   });
+  if (!eligible.ok) {
+    return baseResult({
+      ok: false,
+      event: 'settlement_failed',
+      reason: 'audit_append_failed',
+      commissionId,
+      conversionId: commission.conversion_id,
+      network,
+      externalRef,
+    });
+  }
 
   const attributionResolved = await resolveSettlementLedgerAttribution(
     supabase,
@@ -607,6 +718,35 @@ export async function settleCommission(
       });
     }
     ledgerId = raced.id;
+    const racedMismatch = canonicalSettlementMismatch(raced, {
+      externalRef,
+      amountCents: gross,
+      currency,
+      network,
+    });
+    if (racedMismatch) {
+      await audit(supabase, {
+        commissionId,
+        eventType: racedMismatch === 'currency_mismatch' ? 'settlement_rejected' : 'settlement_failed',
+        reason: racedMismatch,
+        actor,
+        payload: {
+          ledgerAmountCents: raced.amount_cents,
+          expectedAmountCents: gross,
+          concurrent: true,
+        },
+      });
+      return baseResult({
+        ok: false,
+        event: racedMismatch === 'currency_mismatch' ? 'settlement_rejected' : 'settlement_failed',
+        reason: racedMismatch,
+        commissionId,
+        conversionId: commission.conversion_id,
+        network,
+        ledgerEntryId: raced.id,
+        externalRef,
+      });
+    }
     const link = await linkCommissionLedger(supabase, commissionId, raced.id);
     if (link === 'failed') {
       await audit(supabase, {
@@ -626,23 +766,26 @@ export async function settleCommission(
         externalRef,
       });
     }
-    await audit(supabase, {
-      commissionId,
-      eventType: 'settlement_reused',
-      actor,
-      payload: { ledgerEntryId: raced.id, externalRef, concurrent: true },
-    });
-    return baseResult({
-      ok: true,
-      event: 'settlement_reused',
-      commissionId,
-      conversionId: commission.conversion_id,
-      network,
-      ledgerEntryId: raced.id,
-      externalRef,
-      allocation,
-      reused: true,
-    });
+    return attestSuccess(
+      supabase,
+      {
+        commissionId,
+        eventType: 'settlement_reused',
+        actor,
+        payload: { ledgerEntryId: raced.id, externalRef, concurrent: true },
+      },
+      {
+        ok: true,
+        event: 'settlement_reused',
+        commissionId,
+        conversionId: commission.conversion_id,
+        network,
+        ledgerEntryId: raced.id,
+        externalRef,
+        allocation,
+        reused: true,
+      },
+    );
   }
 
   if (insertErr || !ledgerId) {
@@ -685,33 +828,34 @@ export async function settleCommission(
     });
   }
 
-  await audit(supabase, {
-    commissionId,
-    eventType: 'settlement_created',
-    actor,
-    payload: {
+  return attestSuccess(
+    supabase,
+    {
+      commissionId,
+      eventType: 'settlement_created',
+      actor,
+      payload: {
+        ledgerEntryId: ledgerId,
+        externalRef,
+        gross,
+        currency,
+        creatorAllocationCents: allocation.creatorAllocationCents,
+        platformAllocationCents: allocation.platformAllocationCents,
+        rewardBoundary: REWARD_BOUNDARY,
+        createdCreatorReward: false,
+        createdPayout: false,
+      },
+    },
+    {
+      ok: true,
+      event: 'settlement_created',
+      commissionId,
+      conversionId: commission.conversion_id,
+      network,
       ledgerEntryId: ledgerId,
       externalRef,
-      gross,
-      currency,
-      creatorAllocationCents: allocation.creatorAllocationCents,
-      platformAllocationCents: allocation.platformAllocationCents,
-      // Explicit: reward path not invoked in M1
-      rewardBoundary: REWARD_BOUNDARY,
-      createdCreatorReward: false,
-      createdPayout: false,
+      allocation,
+      reused: false,
     },
-  });
-
-  return baseResult({
-    ok: true,
-    event: 'settlement_created',
-    commissionId,
-    conversionId: commission.conversion_id,
-    network,
-    ledgerEntryId: ledgerId,
-    externalRef,
-    allocation,
-    reused: false,
-  });
+  );
 }

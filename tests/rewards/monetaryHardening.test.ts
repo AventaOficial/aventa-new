@@ -102,7 +102,16 @@ function makeSupabase(handler: TableHandler): SupabaseClient {
     return builder;
   });
 
-  const rpc = vi.fn();
+  const rpc = vi.fn(async (fn: string, args?: { p_payload?: { id?: string } }) => {
+    if (fn !== 'create_creator_reward_with_creation_audit') {
+      return { data: null, error: { code: 'PGRST202', message: 'could not find the function' } };
+    }
+    const id = args?.p_payload?.id;
+    if (!id) return { data: null, error: { message: 'reward_creation_audit_failed' } };
+    auditInserts.push({ event_type: 'reward_created', entity_id: id });
+    auditInserts.push({ event_type: 'reward_validating', entity_id: id });
+    return { data: id, error: null };
+  });
   return { from, rpc, _auditInserts: auditInserts } as unknown as SupabaseClient & {
     _auditInserts: unknown[];
     rpc: ReturnType<typeof vi.fn>;
@@ -284,7 +293,7 @@ describe('Monetary hardening — VOID/REVERSED ledger', () => {
       }
       if (table === 'creator_rewards' && op === 'update') {
         updatedStatus = (filters.updatePayload as { status?: string })?.status ?? null;
-        return { data: null, error: null };
+        return { data: { id: REWARD }, error: null };
       }
       return { data: null, error: null };
     });
@@ -324,7 +333,7 @@ describe('Monetary hardening — PAID / clawback', () => {
     });
 
     const ok = await reverseReward(supabase, REWARD, ACTOR, 'admin_reverse');
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(false);
   });
 
   it('cancelReward tampoco cancela PAID', async () => {
@@ -336,7 +345,7 @@ describe('Monetary hardening — PAID / clawback', () => {
     });
 
     const ok = await cancelReward(supabase, REWARD, ACTOR, 'admin_cancel');
-    expect(ok).toBe(false);
+    expect(ok.ok).toBe(false);
   });
 
   it('clawback sobre PAID queda auditado y reward permanece PAID', async () => {

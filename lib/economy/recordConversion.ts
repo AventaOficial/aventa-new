@@ -48,6 +48,34 @@ function isUniqueViolation(error: { code?: string; message?: string } | null): b
   return (error.message ?? '').toLowerCase().includes('duplicate');
 }
 
+async function attestConversionCreated(
+  supabase: SupabaseClient,
+  input: {
+    conversionId: string;
+    status: ConversionStatus;
+    actor?: string;
+    source: string;
+    network: string;
+    externalConversionId: string;
+    attributionStatus: string;
+  },
+): Promise<boolean> {
+  const audit = await appendEconomicEvent(supabase, {
+    entityType: 'conversion',
+    entityId: input.conversionId,
+    eventType: 'created',
+    toStatus: input.status,
+    actor: input.actor ?? 'system',
+    payload: {
+      source: input.source,
+      network: input.network,
+      externalConversionId: input.externalConversionId,
+      attributionStatus: input.attributionStatus,
+    },
+  });
+  return audit.ok;
+}
+
 function mapRow(row: Record<string, unknown>, reused: boolean): ConversionRecord {
   return {
     conversionId: String(row.id),
@@ -130,19 +158,16 @@ export async function recordConversion(
     .maybeSingle();
 
   if (!error && data?.id) {
-    await appendEconomicEvent(supabase, {
-      entityType: 'conversion',
-      entityId: String(data.id),
-      eventType: 'created',
-      toStatus: status,
-      actor: input.actor ?? 'system',
-      payload: {
-        source: input.source,
-        network: input.network,
-        externalConversionId,
-        attributionStatus: attribution.attributionStatus,
-      },
+    const audited = await attestConversionCreated(supabase, {
+      conversionId: String(data.id),
+      status,
+      actor: input.actor,
+      source: input.source,
+      network: input.network,
+      externalConversionId,
+      attributionStatus: attribution.attributionStatus,
     });
+    if (!audited) return null;
     return mapRow(data as Record<string, unknown>, false);
   }
 
@@ -175,6 +200,16 @@ export async function recordConversion(
           ],
         };
       }
+      const audited = await attestConversionCreated(supabase, {
+        conversionId: String(reusedRow.id),
+        status: reusedRow.status as ConversionStatus,
+        actor: input.actor,
+        source: input.source,
+        network: input.network,
+        externalConversionId,
+        attributionStatus: String(reusedRow.attribution_status ?? attribution.attributionStatus),
+      });
+      if (!audited) return null;
       return mapRow(reusedRow, true);
     }
   }
@@ -217,7 +252,7 @@ export async function transitionConversionStatus(
     return { ok: false, from, to: input.toStatus, error: upErr.message };
   }
 
-  await appendEconomicEvent(supabase, {
+  const audit = await appendEconomicEvent(supabase, {
     entityType: 'conversion',
     entityId: input.conversionId,
     eventType: 'status_transition',
@@ -226,6 +261,9 @@ export async function transitionConversionStatus(
     actor: input.actor ?? 'system',
     payload: { reason: input.reason ?? null },
   });
+  if (!audit.ok) {
+    return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
+  }
 
   return { ok: true, from, to: input.toStatus };
 }
