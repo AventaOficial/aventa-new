@@ -316,7 +316,13 @@ describe('P0-2/P0-3 — createRewardFromLedgerEntry chain', () => {
       return builder;
     });
     return {
-      supabase: { from } as unknown as SupabaseClient,
+      supabase: {
+        from,
+        rpc: async (_fn: string, args: { p_payload: { id: string } }) => {
+          rewards.push(args.p_payload);
+          return { data: args.p_payload.id, error: null };
+        },
+      } as unknown as SupabaseClient,
       settlements,
       rewards,
     };

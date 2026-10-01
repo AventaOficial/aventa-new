@@ -92,7 +92,15 @@ describe('createRewardFromLedgerEntry — programa inactivo', () => {
 
   it('no crea recompensa cuando REWARDS_PROGRAM_ACTIVE está ausente (aunque COMMISSION=true)', async () => {
     expect(isRewardsProgramActive()).toBe(false);
-    const supabase = { from: vi.fn() } as unknown as SupabaseClient;
+    const supabase = {
+      from: vi.fn(() => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: null, error: null }),
+          }),
+        }),
+      })),
+    } as unknown as SupabaseClient;
     const result = await createRewardFromLedgerEntry(supabase, {
       id: 'l1',
       network: 'amazon',

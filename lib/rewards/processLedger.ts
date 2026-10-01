@@ -56,5 +56,5 @@ export async function tryCreateRewardFromLedgerRow(
   if (result.created) {
     return { created: true, rewardId: result.rewardId };
   }
-  return { created: false, reason: result.reason };
+  return { created: false, reason: result.reason, rewardId: result.rewardId };
 }

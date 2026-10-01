@@ -1,6 +1,7 @@
 /**
  * M5.1 — Durable outcome on affiliate_ledger_entries.meta (no new DDL).
- * Key: ledger_reward_bridge. Authority for "do not infinite-retry".
+ * Observabilidad del bridge. No es autoridad económica: la fila de reward,
+ * el claim y reward_audit_log sí lo son.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
