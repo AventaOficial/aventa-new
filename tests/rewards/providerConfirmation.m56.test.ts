@@ -29,7 +29,7 @@ import {
 const CREATOR = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const REWARD = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 const LEDGER = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
-const REF = 'sandbox:M56-STABLE-REF';
+const REF = 'fixture-not-bank-evidence';
 const WEBHOOK_SECRET = 'm56-test-webhook-secret';
 
 type RewardRow = {
@@ -360,7 +360,7 @@ describe('M5.6 processConfirmablePayoutIntent', () => {
     const r = await processConfirmablePayoutIntent(sb, intentId, {
       provider: createSandboxPayoutProvider({
         reconcile: 'success',
-        providerReference: `sandbox:unk:${intentId}`,
+        providerReference: 'fixture-not-bank-evidence-unknown',
       }),
     });
     expect(r.outcome).toBe('paid');

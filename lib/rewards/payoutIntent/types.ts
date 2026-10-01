@@ -2,6 +2,15 @@
  * M4.1 — Payout intent types.
  * creator_rewards = economic authority; payout_intents = claim/intent authority.
  * Legacy reward_payouts / execute_reward_payout are NOT this flow.
+ *
+ * AVAILABLE: the reward finished its hold. It is not a payment.
+ * RESERVED: one payout intent claims that reward. No provider call yet.
+ * SUBMITTED: the provider was contacted or a local adapter returned a non-final result.
+ * UNKNOWN: the outcome is not known. It is not success and must not become PAID.
+ * SUCCEEDED: the intent accepted a non-synthetic provider reference. That reference
+ * is not bank evidence and does not by itself mean money left Aventa.
+ * PAID: the reward row moved AVAILABLE → PAID inside confirmPayoutIntentSuccess.
+ * Certified delivery still requires SUCCEEDED plus reward_paid and payout_intent_succeeded.
  */
 
 export const PAYOUT_INTENT_STATUSES = [

@@ -104,7 +104,15 @@ export function buildConfirmedMeta(
   };
 }
 
-const SYNTHETIC_PROVIDER_REFERENCE_PREFIXES = ['confirmed:', 'reconcile:', 'reconcile_fail:'];
+const SYNTHETIC_PROVIDER_REFERENCE_PREFIXES = [
+  'confirmed:',
+  'reconcile:',
+  'reconcile_fail:',
+  'failed:',
+  'stub:',
+  'manual_spei:',
+  'sandbox:',
+];
 
 export function isSyntheticProviderReference(value: string | null | undefined): boolean {
   const trimmed = (value ?? '').trim();
@@ -112,10 +120,10 @@ export function isSyntheticProviderReference(value: string | null | undefined): 
 }
 
 /**
- * UNKNOWN becomes success only with a provider reference that this process did not invent.
- * A local `confirmed:<idempotency_key>` is not external evidence.
- * SUBMITTED without a stored reference may still carry the local placeholder; that path is
- * not bank evidence and stays blocked while MONEY_PATH_FROZEN is on.
+ * A payout becomes SUCCEEDED only with a reference this process did not mint.
+ * `confirmed:`, `reconcile:`, `stub:`, `manual_spei:` and `sandbox:` are not evidence.
+ * A non-synthetic reference is still not a bank settlement. MONEY_PATH_FROZEN stays the
+ * application gate; this function never invents a reference when that gate is off.
  */
 export function resolveExternalProviderReference(input: {
   status: string;
@@ -123,17 +131,15 @@ export function resolveExternalProviderReference(input: {
   stored?: string | null;
   idempotencyKey: string;
 }): { ok: true; reference: string } | { ok: false; reason: 'evidence_missing' } {
+  void input.status;
+  void input.idempotencyKey;
   const supplied = input.supplied?.trim() ?? '';
   const stored = input.stored?.trim() ?? '';
   const suppliedUsable = supplied && !isSyntheticProviderReference(supplied) ? supplied : '';
   const storedUsable = stored && !isSyntheticProviderReference(stored) ? stored : '';
   const reference = suppliedUsable || storedUsable;
-  if (input.status === 'UNKNOWN') {
-    if (!reference) return { ok: false, reason: 'evidence_missing' };
-    return { ok: true, reference };
-  }
-  if (reference) return { ok: true, reference };
-  return { ok: true, reference: `confirmed:${input.idempotencyKey}` };
+  if (!reference) return { ok: false, reason: 'evidence_missing' };
+  return { ok: true, reference };
 }
 
 /**
@@ -160,6 +166,12 @@ export function validateProviderConfirmation(
 
   if (!evidence.providerReference?.trim()) {
     return { ok: false, reason: 'evidence_missing', message: 'provider_reference_required' };
+  }
+  if (
+    evidence.outcome === 'confirmed_success' &&
+    isSyntheticProviderReference(evidence.providerReference)
+  ) {
+    return { ok: false, reason: 'evidence_missing', message: 'synthetic_provider_reference' };
   }
   if (evidence.intentId !== intent.id) {
     return { ok: false, reason: 'intent_not_found', message: 'intent_id_mismatch' };

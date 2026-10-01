@@ -385,8 +385,8 @@ describe('M4.1 payout intent contract', () => {
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.intent.status).toBe('SUCCEEDED');
-    expect(store.rewards.get(REWARD)?.status).toBe('PAID');
+    expect(r.intent.status).toBe('UNKNOWN');
+    expect(store.rewards.get(REWARD)?.status).toBe('AVAILABLE');
     expect(store.rewardPayouts.length).toBe(0);
     expect(store.rpcCalls).not.toContain('execute_reward_payout');
   });
@@ -435,11 +435,13 @@ describe('M4.1 payout intent contract', () => {
       intentId: reserved.intent.id,
       provider: createStubPayoutProvider({ submit: 'timeout', reconcile: 'success' }),
     });
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.intent.status).toBe('SUCCEEDED');
-    expect(r.intent.idempotency_key).toBe(key);
-    expect(store.rewards.get(REWARD)?.status).toBe('PAID');
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe('evidence_missing');
+    const loaded = await loadPayoutIntentByReward(sb, REWARD);
+    expect(loaded?.status).toBe('UNKNOWN');
+    expect(loaded?.idempotency_key).toBe(key);
+    expect(store.rewards.get(REWARD)?.status).toBe('AVAILABLE');
     expect(store.intents.size).toBe(1);
   });
 
@@ -504,14 +506,14 @@ describe('M4.1 payout intent contract', () => {
       provider: createStubPayoutProvider({ submit: 'success' }),
     });
     expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.intent.status).toBe('UNKNOWN');
     const dup = await confirmPayoutIntentSuccess(sb, { intentId: reserved.intent.id });
-    expect(dup.ok).toBe(true);
-    if (!dup.ok) return;
-    expect(dup.reused).toBe(true);
-    expect(dup.intent.status).toBe('SUCCEEDED');
-    expect(store.rewards.get(REWARD)?.status).toBe('PAID');
-    // Only one PAID transition in store
-    expect([...store.rewards.values()].filter((r) => r.status === 'PAID').length).toBe(1);
+    expect(dup.ok).toBe(false);
+    if (dup.ok) return;
+    expect(dup.reason).toBe('evidence_missing');
+    expect(store.rewards.get(REWARD)?.status).toBe('AVAILABLE');
+    expect(store.intents.size).toBe(1);
   });
 
   it('14. amount mismatch → reject', async () => {

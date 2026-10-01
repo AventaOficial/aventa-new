@@ -12,6 +12,7 @@ import { buildPayoutIntentIdempotencyKey } from './idempotency';
 import {
   buildConfirmedMeta,
   buildInitiatedMeta,
+  isSyntheticProviderReference,
   resolveExternalProviderReference,
   validateProviderConfirmation,
   type ProviderConfirmationEvidence,
@@ -289,7 +290,7 @@ export async function submitPayoutIntent(
 
   if (result.outcome === 'success') {
     const providerReference = result.externalRef?.trim() ?? '';
-    if (!providerReference || providerReference.startsWith('confirmed:')) {
+    if (!providerReference || isSyntheticProviderReference(providerReference)) {
       return markPayoutIntentUnknown(supabase, {
         intentId: intent.id,
         actorId: input.actorId,
@@ -493,18 +494,6 @@ export async function confirmPayoutIntentSuccess(
   }
 
   const now = new Date().toISOString();
-  const storedReference =
-    typeof loaded.meta.provider_reference === 'string' ? loaded.meta.provider_reference : '';
-  const resolvedReference = resolveExternalProviderReference({
-    status: loaded.status,
-    supplied: input.providerReference ?? input.externalRef,
-    stored: storedReference,
-    idempotencyKey: loaded.idempotency_key,
-  });
-  if (!resolvedReference.ok) {
-    return { ok: false, reason: 'evidence_missing' };
-  }
-  const providerReference = resolvedReference.reference;
 
   if (loaded.status === 'SUCCEEDED' && rewardStatus !== 'PAID') {
     return { ok: false, reason: 'update_failed' };
@@ -517,6 +506,22 @@ export async function confirmPayoutIntentSuccess(
   if (rewardStatus !== 'PAID' && loaded.status !== 'SUBMITTED' && loaded.status !== 'UNKNOWN') {
     return { ok: false, reason: 'invalid_transition' };
   }
+  if (rewardStatus !== 'AVAILABLE' && rewardStatus !== 'PAID') {
+    return { ok: false, reason: 'reward_not_available' };
+  }
+
+  const storedReference =
+    typeof loaded.meta.provider_reference === 'string' ? loaded.meta.provider_reference : '';
+  const resolvedReference = resolveExternalProviderReference({
+    status: loaded.status,
+    supplied: input.providerReference ?? input.externalRef,
+    stored: storedReference,
+    idempotencyKey: loaded.idempotency_key,
+  });
+  if (!resolvedReference.ok) {
+    return { ok: false, reason: 'evidence_missing' };
+  }
+  const providerReference = resolvedReference.reference;
 
   if (rewardStatus === 'AVAILABLE') {
     const prevMeta =
@@ -753,9 +758,9 @@ export async function reconcilePayoutIntent(
     const stored =
       typeof loaded.meta.provider_reference === 'string' ? loaded.meta.provider_reference.trim() : '';
     const providerReference =
-      supplied && !supplied.startsWith('confirmed:') && !supplied.startsWith('reconcile:')
+      supplied && !isSyntheticProviderReference(supplied)
         ? supplied
-        : stored && !stored.startsWith('confirmed:') && !stored.startsWith('reconcile:')
+        : stored && !isSyntheticProviderReference(stored)
           ? stored
           : '';
     if (!providerReference) {

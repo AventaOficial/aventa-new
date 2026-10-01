@@ -24,7 +24,7 @@ import type { PayoutIntentRow } from '@/lib/rewards/payoutIntent';
 const CREATOR = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const REWARD = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 const LEDGER = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
-const REF = 'sandbox:M45-STABLE-REF';
+const REF = 'fixture-not-bank-evidence';
 
 type RewardRow = {
   id: string;

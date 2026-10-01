@@ -40,6 +40,31 @@ describe('economy closure — payout evidence', () => {
     expect(isSyntheticProviderReference('confirmed:same-key')).toBe(true);
   });
 
+  it('SUBMITTED sin referencia, o con una referencia local, no puede volverse éxito', () => {
+    for (const supplied of [null, 'confirmed:key', 'reconcile:key', 'stub:success', 'manual_spei:key', 'sandbox:key']) {
+      expect(
+        resolveExternalProviderReference({
+          status: 'SUBMITTED',
+          supplied,
+          stored: null,
+          idempotencyKey: 'same-key',
+        }),
+      ).toEqual({ ok: false, reason: 'evidence_missing' });
+    }
+  });
+
+  it('una referencia no local no es evidencia bancaria y tampoco se inventa', () => {
+    expect(
+      resolveExternalProviderReference({
+        status: 'SUBMITTED',
+        supplied: 'fixture-not-bank-evidence',
+        stored: null,
+        idempotencyKey: 'same-key',
+      }),
+    ).toEqual({ ok: true, reference: 'fixture-not-bank-evidence' });
+    expect(isSyntheticProviderReference('fixture-not-bank-evidence')).toBe(false);
+  });
+
   it('UNKNOWN conserva la misma idempotency key cuando la referencia externa es válida', () => {
     expect(
       resolveExternalProviderReference({

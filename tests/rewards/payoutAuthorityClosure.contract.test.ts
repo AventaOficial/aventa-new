@@ -6,6 +6,7 @@ import { confirmPayoutIntentSuccess } from '@/lib/rewards/payoutIntent/engine';
 
 const REWARD = '11111111-1111-4111-8111-111111111111';
 const INTENT = '22222222-2222-4222-8222-222222222222';
+const EVIDENCE = 'fixture-not-bank-evidence';
 
 type IntentRow = {
   id: string;
@@ -181,7 +182,10 @@ describe('payout authority closure', () => {
       reward: { id: REWARD, status: 'AVAILABLE', meta: {} },
       intent: submittedIntent(),
     });
-    const result = await confirmPayoutIntentSuccess(harness.client, { intentId: INTENT });
+    const result = await confirmPayoutIntentSuccess(harness.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
     expect(result.ok).toBe(true);
     expect(harness.state.reward?.status).toBe('PAID');
     expect(harness.state.intent?.status).toBe('SUCCEEDED');
@@ -198,8 +202,14 @@ describe('payout authority closure', () => {
       reward: { id: REWARD, status: 'AVAILABLE', meta: {} },
       intent: submittedIntent(),
     });
-    const first = await confirmPayoutIntentSuccess(harness.client, { intentId: INTENT });
-    const second = await confirmPayoutIntentSuccess(harness.client, { intentId: INTENT });
+    const first = await confirmPayoutIntentSuccess(harness.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
+    const second = await confirmPayoutIntentSuccess(harness.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(true);
     if (second.ok) expect(second.reused).toBe(true);
@@ -239,14 +249,20 @@ describe('payout authority closure', () => {
       intent: submittedIntent(),
       failAuditWrites: 1,
     });
-    const failed = await confirmPayoutIntentSuccess(harness.client, { intentId: INTENT });
+    const failed = await confirmPayoutIntentSuccess(harness.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
     expect(failed).toMatchObject({ ok: false, reason: 'audit_append_failed' });
     expect(harness.state.reward?.status).toBe('PAID');
     expect(harness.state.intent?.status).toBe('SUCCEEDED');
     expect(harness.paidTransitions()).toBe(1);
     expect(harness.audits).toHaveLength(0);
 
-    const recovered = await confirmPayoutIntentSuccess(harness.client, { intentId: INTENT });
+    const recovered = await confirmPayoutIntentSuccess(harness.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
     expect(recovered.ok).toBe(true);
     expect(harness.paidTransitions()).toBe(1);
     expect(harness.audits.map((row) => row.event_type)).toEqual([
@@ -270,7 +286,10 @@ describe('payout authority closure', () => {
       reward: { id: REWARD, status: 'PAID', meta: {} },
       intent: submittedIntent('SUCCEEDED'),
     });
-    const certified = await confirmPayoutIntentSuccess(recovering.client, { intentId: INTENT });
+    const certified = await confirmPayoutIntentSuccess(recovering.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
     expect(certified.ok).toBe(true);
     expect(recovering.paidTransitions()).toBe(0);
     expect(recovering.audits.map((row) => row.event_type)).toEqual([
@@ -308,7 +327,10 @@ describe('payout authority closure', () => {
       reward: { id: REWARD, status: 'PAID', meta: {} },
       intent: submittedIntent('SUBMITTED'),
     });
-    const result = await confirmPayoutIntentSuccess(harness.client, { intentId: INTENT });
+    const result = await confirmPayoutIntentSuccess(harness.client, {
+      intentId: INTENT,
+      externalRef: EVIDENCE,
+    });
     expect(result.ok).toBe(true);
     expect(harness.paidTransitions()).toBe(0);
     expect(harness.state.intent?.status).toBe('SUCCEEDED');
