@@ -89,19 +89,23 @@ export default function HunterOffersPreview({ offers, limit = 3 }: HunterOffersP
                   ) : (
                     <span className="h-12 w-12 shrink-0 rounded-xl bg-black/5 dark:bg-white/10" aria-hidden />
                   )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-2">
-                      {offer.store ? <span className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{offer.store}</span> : null}
-                      {meta.price ? <span className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{meta.price}</span> : null}
+                    <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-medium leading-tight text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
+                    {offer.store || meta.price ? (
+                      <span className="mt-1 block truncate text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                        {offer.store || 'Tienda'}
+                        {meta.price ? ` · ${meta.price}` : ''}
+                      </span>
+                    ) : null}
+                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       {meta.discount != null ? (
-                        <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[12px] font-medium text-white">-{meta.discount}%</span>
+                        <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">-{meta.discount}%</span>
                       ) : null}
-                      <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${statusClass}`}>{STATUS_LABEL[offer.dealStatus]}</span>
-                      {offer.upvotes != null ? <span className="text-[12px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{offer.upvotes} votos</span> : null}
+                      <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium leading-none ${statusClass}`}>{STATUS_LABEL[offer.dealStatus]}</span>
+                      {offer.upvotes != null ? <span className="text-[11px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{offer.upvotes} votos</span> : null}
                     </span>
                   </span>
-                  {when ? <span className="hidden shrink-0 text-[13px] text-[#6e6e73] sm:block dark:text-[#a3a3a3]">{when}</span> : null}
+                  {when ? <span className="hidden shrink-0 text-[12px] text-[#6e6e73] sm:block dark:text-[#a3a3a3]">{when}</span> : null}
                   <span className="shrink-0 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]" aria-hidden>→</span>
                 </Link>
               </li>

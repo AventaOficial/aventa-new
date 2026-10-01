@@ -34,14 +34,16 @@ export default function HunterRewardSummary({ state }: { state: MyRewardsState }
         <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">No pudimos mostrar tus recompensas en este momento.</p>
       ) : null}
       {state.kind === 'ready' && rows.length === 0 ? (
-        <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay recompensas.</p>
+        <p className="text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
+          Tu próxima recompensa aparecerá aquí cuando cumplas los requisitos. Todavía no hay recompensas.
+        </p>
       ) : null}
       {state.kind === 'ready' && rows.length > 0 ? (
-        <ul className="flex flex-wrap gap-6">
+        <ul className="flex flex-wrap gap-5">
           {summary.map(([label, count]) => (
             <li key={label}>
-              <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{label}</p>
-              <p className="mt-1 text-[28px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{count}</p>
+              <p className="text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">{label}</p>
+              <p className="mt-1 text-[20px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{count}</p>
             </li>
           ))}
         </ul>
