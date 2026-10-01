@@ -20,12 +20,29 @@ export type HomeFeedFetchResult = {
   nextCursor: string | null;
 };
 
+/**
+ * Periodo efectivo enviado a `/api/feed/home`.
+ *
+ * UI: el selector día/semana/mes solo existe en **Top**.
+ * - Recientes (`latest`): orden cronológico “recién salidas” → ventana **semana**
+ *   (no “solo últimas 24h”; ese filtro rígido vacía el feed cuando no hay posts del día).
+ * - Día a día (`vitales`): mismo criterio — sin control de periodo en UI → **semana**.
+ * - Top: respeta el timeFilter elegido por el usuario.
+ */
+export function resolveHomeFeedPeriod(
+  viewMode: HomeFeedViewMode,
+  timeFilter: HomeFeedPeriod,
+): HomeFeedPeriod {
+  if (viewMode === 'latest' || viewMode === 'vitales') return 'week';
+  return timeFilter;
+}
+
 /** Mezcla Día a día: filtra score alto y entrelaza mitad alta/baja por votos. */
 export function applyVitalesFeedTransform<T extends Pick<CardOffer, 'votes'>>(
   list: T[],
   effectiveLimit: number,
 ): T[] {
-  let filtered = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
+  const filtered = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
   filtered.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
   const half = Math.ceil(filtered.length / 2);
   const high = filtered.slice(0, half);
@@ -40,10 +57,11 @@ export function applyVitalesFeedTransform<T extends Pick<CardOffer, 'votes'>>(
 
 export async function fetchHomeFeedFromAPI(params: HomeFeedFetchParams): Promise<HomeFeedFetchResult> {
   const type = params.viewMode === 'latest' ? 'recent' : 'trending';
+  const period = resolveHomeFeedPeriod(params.viewMode, params.timeFilter);
   const qs = new URLSearchParams({
     limit: String(params.limit),
     type,
-    period: params.timeFilter,
+    period,
   });
   if (params.viewMode === 'vitales' || params.viewMode === 'top' || params.viewMode === 'latest') {
     qs.set('view', params.viewMode);

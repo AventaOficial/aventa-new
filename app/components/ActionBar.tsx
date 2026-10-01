@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2, Link2, Monitor, Store, ArrowRight, MessagesSquare } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
+import { requestGuestSignIn } from '@/lib/auth/guestAccessPrompt';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
@@ -22,7 +23,7 @@ import { offerExtractionUserMessage } from '@/lib/offers/productExtraction/class
 import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded';
 import OfferCard from './OfferCard';
 import StoreBrandMark from './StoreBrandMark';
-import CatalogGapsBoard from './CatalogGapsBoard';
+import { extractOfferUrlsFromText } from '@/lib/offers/batchPaste';
 import AventaIcon from './AventaIcon';
 import SidebarProgressCard from './SidebarProgressCard';
 import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
@@ -59,7 +60,7 @@ export default function ActionBar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isOfferOpen, showToast, openRegisterModal, uploadModalRequested, clearUploadModalRequest } = useUI();
+  const { isOfferOpen, showToast, openRegisterModal, uploadModalRequested, clearUploadModalRequest, lotesModalRequested, clearLotesModalRequest } = useUI();
 
   const isActive = (path: string, exact?: boolean) =>
     exact ? pathname === path : pathname.startsWith(path);
@@ -106,8 +107,12 @@ export default function ActionBar() {
   const [urlParseLoading, setUrlParseLoading] = useState(false);
   const [urlParseStatus, setUrlParseStatus] = useState<string | null>(null);
   const [urlParseKind, setUrlParseKind] = useState<'ok' | 'partial' | 'invalid_url' | 'extract_failed' | null>(null);
-  /** En móvil: 1 = lo que Aventa encontró, 2 = completar y publicar. Desktop ignora y muestra todo. */
-  const [uploadStep, setUploadStep] = useState<1 | 2>(1);
+  /** 1 = datos encontrados, 2 = completar, 3 = vista previa de la ficha. */
+  const [uploadStep, setUploadStep] = useState<1 | 2 | 3>(1);
+  const [showLotesModal, setShowLotesModal] = useState(false);
+  const [lotesText, setLotesText] = useState('');
+  const [lotesBusy, setLotesBusy] = useState(false);
+  const [lotesMessage, setLotesMessage] = useState<string | null>(null);
   const prevUrlParseLoadingRef = useRef(false);
   /** Tras pegar el enlace (y parse si hay sesión), se desbloquea el formulario completo. */
   const [uploadLinkGatePassed, setUploadLinkGatePassed] = useState(false);
@@ -118,6 +123,8 @@ export default function ActionBar() {
   const offerScopeManuallySelectedRef = useRef(false);
   const [showCouponSection, setShowCouponSection] = useState(false);
   const imageGalleryRef = useRef<{ cover: string | null; extras: string[] }>({ cover: null, extras: [] });
+  const formPaneRef = useRef<HTMLDivElement>(null);
+  const previewPaneRef = useRef<HTMLDivElement>(null);
   /** Campos editados a mano; el parse no los sobrescribe. */
   const userEditedFieldsRef = useRef<Set<string>>(new Set());
   /** true si el usuario tocó la galería (subir / quitar / portada). */
@@ -170,6 +177,11 @@ export default function ActionBar() {
     imageGalleryRef.current = { cover: imageUrl, extras: imageUrls };
   }, [imageUrl, imageUrls]);
 
+  useLayoutEffect(() => {
+    formPaneRef.current?.scrollTo({ top: 0 });
+    previewPaneRef.current?.scrollTo({ top: 0 });
+  }, [uploadStep]);
+
   useEffect(() => {
     if (offerScopeManuallySelectedRef.current) return;
     setOfferScope(isOnlineOfferUrl(formData.offer_url) ? 'online' : null);
@@ -192,6 +204,19 @@ export default function ActionBar() {
       clearUploadModalRequest();
     }
   }, [uploadModalRequested, clearUploadModalRequest]);
+
+  useEffect(() => {
+    if (!lotesModalRequested) return;
+    if (!session) {
+      showToast('Para subir un lote necesitas una cuenta.');
+      openRegisterModal('signup');
+      clearLotesModalRequest();
+      return;
+    }
+    setLotesMessage(null);
+    setShowLotesModal(true);
+    clearLotesModalRequest();
+  }, [lotesModalRequested, session, showToast, openRegisterModal, clearLotesModalRequest]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -778,7 +803,7 @@ export default function ActionBar() {
       >
         {cooldownRemaining > 0 && (
           <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3] text-center mx-4 mb-2">
-            Espera {cooldownRemaining}s para enviar otra oferta.
+            Espera {cooldownRemaining} segundos para subir otra oferta.
           </p>
         )}
         <div className="flex items-center justify-center gap-1 max-[400px]:gap-0.5 rounded-[28px] max-[400px]:rounded-2xl mx-4 max-[400px]:mx-2 bg-white/95 dark:bg-[#141414]/95 backdrop-blur-xl border border-[#e5e5e7] dark:border-[#262626] px-2 max-[400px]:px-1.5 py-2.5 max-[400px]:py-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
@@ -801,6 +826,7 @@ export default function ActionBar() {
             disabled={cooldownRemaining > 0}
             onClick={() => {
               if (!session) {
+                showToast('Para publicar una oferta necesitas una cuenta.');
                 openRegisterModal('signup');
                 return;
               }
@@ -832,7 +858,7 @@ export default function ActionBar() {
             <>
               <button
                 type="button"
-                onClick={() => showToast('Inicia sesión para acceder')}
+                onClick={() => requestGuestSignIn(showToast, openRegisterModal, 'favorites')}
                 className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
               >
                 <Heart className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
@@ -840,7 +866,7 @@ export default function ActionBar() {
               </button>
               <button
                 type="button"
-                onClick={() => showToast('Inicia sesión para acceder')}
+                onClick={() => requestGuestSignIn(showToast, openRegisterModal, 'profile')}
                 className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
               >
                 <User className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
@@ -887,6 +913,7 @@ export default function ActionBar() {
           disabled={cooldownRemaining > 0}
           onClick={() => {
             if (!session) {
+              showToast('Para publicar una oferta necesitas una cuenta.');
               openRegisterModal('signup');
               return;
             }
@@ -918,7 +945,7 @@ export default function ActionBar() {
           <>
             <button
               type="button"
-              onClick={() => showToast('Para acceder hay que iniciar sesión')}
+              onClick={() => requestGuestSignIn(showToast, openRegisterModal, 'favorites')}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${sidebarLinkInactive}`}
             >
               <Heart className="h-5 w-5 shrink-0" />
@@ -926,7 +953,7 @@ export default function ActionBar() {
             </button>
             <button
               type="button"
-              onClick={() => showToast('Para acceder hay que iniciar sesión')}
+              onClick={() => requestGuestSignIn(showToast, openRegisterModal, 'profile')}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${sidebarLinkInactive}`}
             >
               <User className="h-5 w-5 shrink-0" />
@@ -937,6 +964,75 @@ export default function ActionBar() {
         </nav>
         <SidebarProgressCard loggedIn={!!session} level={reputationLevel} score={reputationScore} />
       </aside>
+
+      {showLotesModal ? (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl dark:bg-[#141414]">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Lotes</h2>
+              <button type="button" onClick={() => setShowLotesModal(false)} className="rounded-full p-2 text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+              Pega aquí el texto que te dio Grok o ChatGPT. Nosotros sacamos los enlaces y los mandamos a moderación.
+            </p>
+            <textarea
+              value={lotesText}
+              onChange={(e) => setLotesText(e.target.value)}
+              rows={10}
+              placeholder="Pega el mensaje completo, con las URLs."
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-[#1a1a1a] dark:text-gray-100"
+            />
+            <p className="mt-2 text-sm font-medium text-violet-700 dark:text-violet-300">
+              {lotesText.trim()
+                ? `Encontramos ${extractOfferUrlsFromText(lotesText).length} enlaces`
+                : 'Pega el texto para contar los enlaces'}
+            </p>
+            {lotesMessage ? <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{lotesMessage}</p> : null}
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowLotesModal(false)}
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold dark:border-gray-600"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={lotesBusy || extractOfferUrlsFromText(lotesText).length === 0}
+                onClick={() => {
+                  if (!session?.access_token) return;
+                  setLotesBusy(true);
+                  setLotesMessage(null);
+                  void fetch('/api/me/offer-batches', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ text: lotesText }),
+                  })
+                    .then(async (res) => {
+                      const body = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        setLotesMessage(typeof body?.error === 'string' ? body.error : 'No se pudo enviar.');
+                        return;
+                      }
+                      setLotesText('');
+                      setLotesMessage(`Listo. Mandamos ${body.links ?? 0} ofertas a moderación.`);
+                    })
+                    .catch(() => setLotesMessage('No se pudo enviar. Inténtalo otra vez.'))
+                    .finally(() => setLotesBusy(false));
+                }}
+                className="flex-1 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {lotesBusy ? 'Enviando…' : 'Mandar a moderación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <AnimatePresence>
         {showUploadModal && (
@@ -1034,30 +1130,19 @@ export default function ActionBar() {
                           Inicia sesión para que podamos leer la página y rellenar título e imagen automáticamente.
                         </p>
                       ) : null}
-                      <CatalogGapsBoard
-                        variant="compact"
-                        title="Ideas de qué buscar"
-                        showCta={false}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setUploadLinkGatePassed(true)}
-                        disabled={urlParseLoading}
-                        className="w-full text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline py-1 disabled:opacity-50 disabled:no-underline"
-                      >
-                        {formData.offer_url.trim()
-                          ? 'Continuar y completar datos a mano'
-                          : 'Continuar sin enlace'}
-                      </button>
                     </div>
                   </div>
                 </div>
               ) : (
                 <>
-              <div className="hidden md:flex flex-shrink-0 items-center gap-3 px-8 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#141414]">
-                <span className="text-sm font-semibold text-violet-600">1. Completar</span>
-                <span className="h-px flex-1 bg-violet-200 dark:bg-violet-900" />
-                <span className="text-sm font-medium text-gray-400">2. Vista previa</span>
+              <div className="hidden md:flex flex-shrink-0 items-center gap-2 px-8 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#141414] text-sm">
+                <span className="font-medium text-gray-400">1. Enlace</span>
+                <span className="h-px w-6 bg-violet-200 dark:bg-violet-900" />
+                <span className={uploadStep === 1 ? 'font-semibold text-violet-600' : 'font-medium text-gray-400'}>2. Datos</span>
+                <span className="h-px w-6 bg-violet-200 dark:bg-violet-900" />
+                <span className={uploadStep === 2 ? 'font-semibold text-violet-600' : 'font-medium text-gray-400'}>3. Completar</span>
+                <span className="h-px w-6 bg-violet-200 dark:bg-violet-900" />
+                <span className={uploadStep === 3 ? 'font-semibold text-violet-600' : 'font-medium text-gray-400'}>4. Vista previa</span>
               </div>
               <div className="md:hidden flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700">
                 <button
@@ -1095,7 +1180,7 @@ export default function ActionBar() {
                         : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
                     }`}
                   >
-                    1 · Encontrado
+                    2 · Datos
                   </button>
                   <span className="text-gray-300 dark:text-gray-600">→</span>
                   <button
@@ -1107,19 +1192,43 @@ export default function ActionBar() {
                         : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
                     }`}
                   >
-                    2 · Completar
+                    3 · Completar
+                  </button>
+                  <span className="text-gray-300 dark:text-gray-600">→</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadStep(3);
+                      setMobileTab('preview');
+                    }}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      uploadStep === 3
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    4 · Ver
                   </button>
                 </div>
               ) : null}
 
               <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden bg-white dark:bg-[#141414]">
                 <div
+                  ref={formPaneRef}
                   className={`flex-1 md:flex-[0_0_45%] lg:flex-[0_0_42%] overflow-y-auto p-4 sm:p-5 md:p-6 space-y-3 min-w-0 bg-white dark:bg-[#141414] ${
-                    mobileTab !== 'form' ? 'hidden md:block' : ''
+                    uploadStep === 3 ? 'hidden' : mobileTab !== 'form' ? 'hidden md:block' : ''
                   }`}
                 >
-                  <div className="space-y-6">
-                  <section className="space-y-4">
+                  <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={uploadStep}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
+                    className="space-y-6"
+                  >
+                  <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden'}`}>
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                       Lo que encontramos
                     </p>
@@ -1342,7 +1451,7 @@ export default function ActionBar() {
                   </div>
                   </section>
 
-                  <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden md:block'}`}>
+                  <section className={`space-y-4 ${uploadStep === 1 ? '' : 'hidden'}`}>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Categoría *
@@ -1371,19 +1480,44 @@ export default function ActionBar() {
                       className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3.5 text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-violet-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-colors duration-200"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      ¿Dónde aplica la oferta?
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {(
+                        [
+                          { id: 'online' as const, label: 'Compra en línea', Icon: Monitor },
+                          { id: 'in_store' as const, label: 'En tienda física', Icon: Store },
+                          { id: 'both' as const, label: 'Ambas opciones', Icon: Sparkles },
+                        ] as const
+                      ).map(({ id, label, Icon }) => {
+                        const selected = offerScope === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                              offerScopeManuallySelectedRef.current = true;
+                              setOfferScope(id);
+                            }}
+                            className={`rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
+                              selected
+                                ? 'border-violet-500 bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200'
+                                : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            <Icon className="mb-1 h-4 w-4" />
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   </section>
 
-                  {uploadStep === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => setUploadStep(2)}
-                      className="md:hidden min-h-12 w-full rounded-xl bg-violet-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-violet-500"
-                    >
-                      Continuar
-                    </button>
-                  ) : null}
-
-                  <section className={`space-y-4 ${uploadStep === 2 ? '' : 'hidden md:block'}`}>
+                  <section className={`space-y-4 ${uploadStep === 2 ? '' : 'hidden'}`}>
                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                       Completar y publicar
                     </p>
@@ -1437,41 +1571,6 @@ export default function ActionBar() {
                       a entender rápidamente por qué la encontraste interesante.
                     </p>
                   </div>
-
-                  <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        ¿Dónde aplica la oferta?
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {(
-                          [
-                            { id: 'online' as const, label: 'Compra en línea', Icon: Monitor },
-                            { id: 'in_store' as const, label: 'En tienda física', Icon: Store },
-                            { id: 'both' as const, label: 'Ambas opciones', Icon: Sparkles },
-                          ] as const
-                        ).map(({ id, label, Icon }) => {
-                          const selected = offerScope === id;
-                          return (
-                            <button
-                              key={id}
-                              type="button"
-                              onClick={() => {
-                                offerScopeManuallySelectedRef.current = true;
-                                setOfferScope(id);
-                              }}
-                              className={`rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
-                                selected
-                                  ? 'border-violet-500 bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200'
-                                  : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                              <Icon className="mb-1 h-4 w-4" />
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
 
                   <button
                     type="button"
@@ -1691,12 +1790,18 @@ export default function ActionBar() {
                     Solo lo esencial es obligatorio. Revisa precios y fotos antes de publicar.
                   </p>
                 </div>
-                </div>
+                </motion.div>
+                </AnimatePresence>
                 </div>
 
                 <div
-                  className={`flex-1 md:flex-[0_0_55%] lg:flex-[0_0_58%] flex flex-col min-w-0 overflow-y-auto bg-[#F5F5F7] dark:bg-[#141414] md:border-l border-gray-200/80 dark:border-gray-700/80 ${
-                    mobileTab !== 'preview' ? 'hidden md:flex' : 'flex'
+                  ref={previewPaneRef}
+                  className={`flex flex-col min-w-0 overflow-y-auto bg-[#F5F5F7] dark:bg-[#141414] md:border-l border-gray-200/80 dark:border-gray-700/80 ${
+                    uploadStep === 3
+                      ? 'flex w-full'
+                      : mobileTab !== 'preview'
+                        ? 'hidden md:flex flex-1 md:flex-[0_0_55%] lg:flex-[0_0_58%]'
+                        : 'flex flex-1'
                   }`}
                 >
                   <div className="p-5 sm:p-6 md:p-8 flex-1">
@@ -1712,10 +1817,10 @@ export default function ActionBar() {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                          className="space-y-6"
+                          className={uploadStep === 3 ? 'grid items-start gap-6 md:grid-cols-2' : 'space-y-6'}
                         >
                           <div>
-                            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-3">En el feed</p>
+                            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-3">En el inicio</p>
                             <motion.div
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
@@ -1768,54 +1873,103 @@ export default function ActionBar() {
                             </motion.div>
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-3">Vista extendida</p>
+                            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-3">Así la verán al abrirla</p>
                             <motion.div
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.08 }}
-                              className="rounded-2xl bg-white dark:bg-[#141414] border border-gray-200/80 dark:border-gray-700/80 overflow-hidden shadow-sm"
+                              className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-700/80 dark:bg-[#141414]"
                             >
-                              <div className="h-32 md:h-40 bg-gray-100 dark:bg-[#1a1a1a] flex items-center justify-center">
+                              <div className="flex h-52 items-center justify-center bg-gray-100 dark:bg-[#1a1a1a] md:h-64">
                                 {imageUrl ? (
-                                  <img src={imageUrl} alt="" className="max-h-full w-auto object-contain" />
+                                  <img src={imageUrl} alt="" className="h-full w-full object-contain" />
                                 ) : (
                                   <Sparkles className="h-12 w-12 text-gray-400" />
                                 )}
                               </div>
                               {imageUrls.length > 0 ? (
-                                <div className="flex gap-1.5 overflow-x-auto px-3 pt-2">
+                                <div className="flex gap-1.5 overflow-x-auto px-4 pt-3">
                                   {imageUrls.slice(0, 6).map((u) => (
-                                    <img key={u} src={u} alt="" className="h-12 w-12 rounded-md object-cover shrink-0" />
+                                    <img key={u} src={u} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
                                   ))}
                                 </div>
                               ) : null}
-                              <div className="p-4 md:p-5 space-y-3">
-                                <StoreBrandMark store={formData.store.trim() || 'Tienda'} className="text-xs" />
-                                <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 leading-snug">
+                              <div className="space-y-3 p-4 md:p-5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <StoreBrandMark store={formData.store.trim() || 'Tienda'} className="text-xs" />
+                                  {formData.category ? (
+                                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 dark:bg-[#1a1a1a] dark:text-gray-300">
+                                      {ALL_CATEGORIES.find((c) => c.value === formData.category)?.label ?? formData.category}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <h3 className="text-xl font-semibold leading-snug text-gray-900 dark:text-gray-100">
                                   {formData.title.trim() || 'Título de la oferta'}
                                 </h3>
-                                <div className="flex items-baseline gap-2 flex-wrap">
-                                  <span className="text-2xl md:text-3xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
-                                    {formatPreviewPrice(formData.discountPrice || formData.originalPrice || '0')}
+                                <div className="flex flex-wrap items-baseline gap-2">
+                                  <span className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
+                                    {formatPreviewPrice(
+                                      hasDiscount
+                                        ? formData.discountPrice || formData.originalPrice || '0'
+                                        : formData.originalPrice || '0',
+                                    )}
                                   </span>
-                                  {hasDiscount && formData.originalPrice && (
-                                    <span className="text-base text-gray-500 dark:text-gray-400 line-through">
+                                  {hasDiscount && formData.originalPrice ? (
+                                    <span className="text-base text-gray-500 line-through dark:text-gray-400">
                                       {formatPreviewPrice(formData.originalPrice)}
                                     </span>
-                                  )}
+                                  ) : null}
+                                  {hasDiscount &&
+                                  parseDecimalPrice(formData.originalPrice) > parseDecimalPrice(formData.discountPrice) &&
+                                  parseDecimalPrice(formData.discountPrice) > 0 ? (
+                                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                      -{Math.round((1 - parseDecimalPrice(formData.discountPrice) / parseDecimalPrice(formData.originalPrice)) * 100)}%
+                                    </span>
+                                  ) : null}
                                 </div>
                                 {hasDiscount &&
                                 parseDecimalPrice(formData.originalPrice) > parseDecimalPrice(formData.discountPrice) &&
                                 parseDecimalPrice(formData.discountPrice) > 0 ? (
-                                  <p className="text-sm text-gray-400">
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
                                     Ahorras {formatPreviewPrice(String(parseDecimalPrice(formData.originalPrice) - parseDecimalPrice(formData.discountPrice)))}
                                   </p>
                                 ) : null}
-                                {formData.description.trim() && (
-                                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                {msiMonths != null && msiMonths >= 1 && parseDecimalPrice(formData.discountPrice) > 0 ? (
+                                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                    {msiMonths} MSI: {formatPreviewPrice(String(parseDecimalPrice(formData.discountPrice) / msiMonths))}/mes
+                                  </p>
+                                ) : null}
+                                {getBankCouponLabel(formData.bank_coupon) ? (
+                                  <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                    {formatCupónBancarioDisplay(getBankCouponLabel(formData.bank_coupon) ?? '')}
+                                  </p>
+                                ) : null}
+                                {formData.hunter_comment.trim() ? (
+                                  <div className="rounded-xl bg-violet-50 px-3 py-2 dark:bg-violet-950/30">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500">Comentario del cazador</p>
+                                    <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{formData.hunter_comment.trim()}</p>
+                                  </div>
+                                ) : null}
+                                {formData.description.trim() ? (
+                                  <p className="border-t border-gray-100 pt-3 text-sm leading-relaxed text-gray-600 dark:border-gray-700 dark:text-gray-300">
                                     {formData.description.trim()}
                                   </p>
-                                )}
+                                ) : null}
+                                {stepsList.some((step) => step.trim()) ? (
+                                  <ol className="list-decimal space-y-1 pl-4 text-sm text-gray-600 dark:text-gray-300">
+                                    {stepsList.filter((step) => step.trim()).map((step, index) => (
+                                      <li key={`${index}-${step}`}>{step.trim()}</li>
+                                    ))}
+                                  </ol>
+                                ) : null}
+                                {formData.conditions.trim() ? (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">{formData.conditions.trim()}</p>
+                                ) : null}
+                                <div className="pt-1">
+                                  <span className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white">
+                                    Ver en la tienda
+                                  </span>
+                                </div>
                               </div>
                             </motion.div>
                           </div>
@@ -1856,40 +2010,56 @@ export default function ActionBar() {
 
               <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-[#141414] px-5 sm:px-6 md:px-8 py-4 sm:py-5">
                 <div className="flex gap-3 sm:gap-4">
-                  <button
-                    onClick={handleCancel}
-                    className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-5 py-3.5 text-[15px] font-semibold text-gray-700 dark:text-gray-300 transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 active:scale-[0.99]"
-                  >
-                    Cancelar
-                  </button>
                   {uploadLinkGatePassed ? (
                     uploadStep === 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setUploadStep(2)}
+                        className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg"
+                      >
+                        Siguiente
+                      </button>
+                    ) : uploadStep === 2 ? (
                       <>
                         <button
                           type="button"
-                          onClick={() => setUploadStep(2)}
-                          className="md:hidden flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg"
+                          onClick={() => setUploadStep(1)}
+                          className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-5 py-3.5 text-[15px] font-semibold text-gray-700 dark:text-gray-300"
                         >
-                          Continuar
+                          Atrás
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadStep(3);
+                            setMobileTab('preview');
+                          }}
+                          className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg"
+                        >
+                          Siguiente
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadStep(2);
+                            setMobileTab('form');
+                          }}
+                          className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-5 py-3.5 text-[15px] font-semibold text-gray-700 dark:text-gray-300"
+                        >
+                          Atrás
                         </button>
                         <button
                           type="button"
                           onClick={handleSubmit}
                           disabled={!isFormValid() || isSubmitting || imageUploading}
-                          className="hidden md:block flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
                         </button>
                       </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={!isFormValid() || isSubmitting || imageUploading}
-                        className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50 disabled:hover:shadow-lg"
-                      >
-                        {imageUploading ? 'Subiendo foto…' : isSubmitting ? 'Publicando…' : 'Publicar oferta'}
-                      </button>
                     )
                   ) : (
                     <button

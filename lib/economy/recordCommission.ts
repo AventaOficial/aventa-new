@@ -6,7 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { appendEconomicEvent } from './appendEconomicEvent';
-import { emitSettlementReversalRequired } from './settlement/reversalContract';
+import { recoverSettlementReversal } from './settlement/reversalContract';
 import {
   ECONOMIC_LEDGER_BOUNDARY,
   canTransitionCommission,
@@ -122,7 +122,7 @@ export async function recordCommission(
     .maybeSingle();
 
   if (!error && data?.id) {
-    await appendEconomicEvent(supabase, {
+    const audit = await appendEconomicEvent(supabase, {
       entityType: 'commission',
       entityId: String(data.id),
       eventType: 'created',
@@ -136,6 +136,14 @@ export async function recordCommission(
         ledgerBoundary: ECONOMIC_LEDGER_BOUNDARY.note,
       },
     });
+    if (!audit.ok) {
+      await supabase.from('affiliate_commissions').delete().eq('id', data.id);
+      console.error(
+        '[economy/recordCommission] audit_append_failed — rolled back create',
+        audit.error,
+      );
+      return null;
+    }
     return mapRow(data as Record<string, unknown>, false);
   }
 
@@ -202,7 +210,28 @@ export async function transitionCommissionStatus(
     return { ok: false, from, to: input.toStatus, error: upErr.message };
   }
 
-  await appendEconomicEvent(supabase, {
+  // reversed es terminal: una segunda transición no puede completar el ledger.
+  // La compensación corre aquí, con la fila ya reversed, vía recoverSettlementReversal.
+  const ledgerEntryId =
+    typeof existing.ledger_entry_id === 'string' ? existing.ledger_entry_id.trim() : '';
+  let reversalError: string | null = null;
+  if (input.toStatus === 'reversed' && ledgerEntryId) {
+    let reversal = await recoverSettlementReversal(supabase, {
+      commissionId: input.commissionId,
+      actor: input.actor ?? 'system',
+    });
+    if (!reversal.ok && reversal.reason === 'audit_append_failed') {
+      reversal = await recoverSettlementReversal(supabase, {
+        commissionId: input.commissionId,
+        actor: input.actor ?? 'system',
+      });
+    }
+    if (!reversal.ok) {
+      reversalError = reversal.reason ?? 'ledger_write_failed';
+    }
+  }
+
+  const audit = await appendEconomicEvent(supabase, {
     entityType: 'commission',
     entityId: input.commissionId,
     eventType: 'status_transition',
@@ -212,17 +241,11 @@ export async function transitionCommissionStatus(
     payload: { reason: input.reason ?? null },
   });
 
-  // M1: reversal with existing ledger → contract event only (no silent void / money move).
-  if (
-    input.toStatus === 'reversed' &&
-    typeof existing.ledger_entry_id === 'string' &&
-    existing.ledger_entry_id.trim()
-  ) {
-    await emitSettlementReversalRequired(supabase, {
-      commissionId: input.commissionId,
-      ledgerEntryId: existing.ledger_entry_id.trim(),
-      actor: input.actor ?? 'system',
-    });
+  if (reversalError) {
+    return { ok: false, from, to: input.toStatus, error: reversalError };
+  }
+  if (!audit.ok) {
+    return { ok: false, from, to: input.toStatus, error: 'audit_append_failed' };
   }
 
   return { ok: true, from, to: input.toStatus };

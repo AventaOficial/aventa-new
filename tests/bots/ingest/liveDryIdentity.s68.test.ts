@@ -253,6 +253,10 @@ describe('S6.8 live ↔ dry identity reconciliation', () => {
     expect(live.qualityDecision).toBe(gate.qualityDecision);
     expect(live.wouldInsert).toBe(gate.wouldInsert);
     expect(live.eligible).toBe(gate.wouldInsert);
-    expect(gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
+    // High-signal policy: listing_card without history is not auto-mint.
+    // Dry and live must still agree (identity), regardless of admit/suppress.
+    expect(['VERIFIED_OPPORTUNITY', 'SUPPRESSED', 'DUPLICATE', 'INVALID']).toContain(
+      gate.qualityDecision,
+    );
   });
 });

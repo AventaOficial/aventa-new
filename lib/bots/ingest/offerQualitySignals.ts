@@ -16,8 +16,14 @@ export type OfferQualitySignals = {
   savingsVsHabitualPct?: number | null;
   effectiveDiscountPercent?: number | null;
   suspectedArtificialListPrice?: boolean | null;
+  /** Day 12.1 observability — clauses that composed suspectedArtificialListPrice. */
+  artificialListPriceClauses?: Array<
+    'list_vs_regular' | 'list_vs_habitual' | 'extreme_list' | 'extreme_list_no_history'
+  > | null;
   /** True cuando Price Memory tiene días suficientes (mlPriceEngine). */
   historyReady?: boolean | null;
+  /** Días distintos en ventana 90d (incl. observación de hoy fusionada). */
+  samples90d?: number | null;
   priceIntelSource?: 'keepa' | 'aventa_ml' | 'other' | null;
   currentPriceProvenance?:
     | 'source_explicit'
@@ -64,4 +70,20 @@ export type OfferQualitySignals = {
    * listing_card = captured from search/listing card DOM.
    */
   imageProvenance?: 'listing_card' | 'pdp' | 'unknown' | null;
+  /**
+   * Day 12.2 — ML identity layers (PRODUCT ≠ LISTING).
+   * catalog = Price Memory /products tip; listing = /items id on canonical URL.
+   * Never invent; only set when acquisition returned an explicit listing id.
+   */
+  mlCatalogProductId?: string | null;
+  mlListingItemId?: string | null;
+  /**
+   * How catalog tip was bound to the listing on the canonical URL.
+   * Observability + provenance diagnosis only — not a second gate.
+   */
+  mlIdentityMatchMethod?:
+    | 'exact_item_id'
+    | 'exact_catalog_id'
+    | 'catalog_to_listing_via_products_items'
+    | null;
 };

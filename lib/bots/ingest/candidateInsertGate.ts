@@ -4,14 +4,19 @@
  * Codifies EXISTING ingest rules (runIngestCycle / verifier / duplicate)
  * and trusted price-provenance admission (S6.1).
  *
+ * Price-truth bind (Hunter closure):
+ *   DQE DISCARD / NO_VERIFIED_DEAL / artificial list / unverified effectiveDiscount
+ *   cannot mint. listing_card alone is STORE_REPORTED — needs historyReady.
+ *
  * Does not invent DealScore thresholds. Does not publish. Does not touch UGC POST.
- * DealScore remains advisory.
+ * DealScore remains advisory for ranking; DQE discard is binding for mint.
  *
  * High-volume control reuses: candidatePoolMax, maxPerRun, score sort top-K,
  * rejectBelowScore (via verifier), sticky budgets (separate path).
  */
 
 import type { DealScore } from '@/lib/dealIntelligence';
+import type { DealQualityDecision } from '@/lib/hunter/dealQuality';
 import type { DuplicateOfferKind } from '@/lib/offers/findDuplicateOffer';
 import {
   AUTO_REJECTED_TIMEOUT_REASON,
@@ -74,12 +79,17 @@ export type MachineQualityReasonCode =
   | 'PARTIAL_PDP_BLOCKED'
   | 'VERIFIED_CARD_PRICE'
   | 'VERIFIED_PDP_PRICE'
-  | 'VERIFIED_HISTORY';
+  | 'VERIFIED_HISTORY'
+  /** Price-truth / DQE binds — suppress mint (Hunter closure). */
+  | 'DQE_DISCARD'
+  | 'NO_VERIFIED_DEAL'
+  | 'DQE_POTENTIAL_ONLY'
+  | 'ARTIFICIAL_LIST_PRICE'
+  | 'EFFECTIVE_DISCOUNT_UNVERIFIED'
+  | 'INSUFFICIENT_HISTORY';
 
-const TRUSTED_ORIGINAL_PROVENANCE = new Set([
-  'listing_card',
-  'source_explicit',
-]);
+/** PDP / source-explicit only — listing_card needs historyReady (see mintTrustedOriginal). */
+const TRUSTED_ORIGINAL_PROVENANCE = new Set(['source_explicit']);
 
 export type CandidateGateResult = {
   action: CandidateGateAction;
@@ -116,8 +126,16 @@ export type MachineCandidateGateInput = {
     kind: DuplicateOfferKind;
     price: number | null;
   } | null;
-  /** Optional DealScore — informational; never publishes / never blocks. */
+  /** Optional DealScore — informational; never publishes by itself. */
   dealScore?: DealScore | null;
+  /**
+   * DQE decision — DISCARD / NO_VERIFIED_DEAL bind mint (suppress).
+   * POTENTIAL_DEAL → not auto-mint (UNCERTAIN).
+   */
+  dealQuality?: Pick<
+    DealQualityDecision,
+    'decision' | 'recommendedAction' | 'confidence'
+  > | null;
   /** When true, original price gate applies (same as runIngestCycle). */
   requireOriginalPrice?: boolean;
   /** Optional PDP blocked signal from worker discovery (advisory). */
@@ -157,6 +175,7 @@ function readSignals(meta: ParsedOfferMetadata | null): OfferQualitySignals | nu
 /**
  * Trusted original-price provenance for machine admission.
  * badge_reconstructed / unknown / missing → untrusted.
+ * listing_card alone is NOT trusted (STORE_REPORTED); use mintTrustedOriginalPrice.
  */
 export function isTrustedOriginalPriceProvenance(
   provenance: string | null | undefined,
@@ -165,6 +184,38 @@ export function isTrustedOriginalPriceProvenance(
   if (isBadgeOnlyCardEvidence(cardDiscountSource)) return false;
   const p = (provenance ?? '').trim().toLowerCase();
   return TRUSTED_ORIGINAL_PROVENANCE.has(p);
+}
+
+/**
+ * Mint-time original trust: source_explicit always (if not badge);
+ * listing_card only when Price Memory historyReady (verified baseline exists).
+ * Artificial list never trusted here.
+ */
+export function mintTrustedOriginalPrice(signals: OfferQualitySignals | null): boolean {
+  if (!signals) return false;
+  if (signals.suspectedArtificialListPrice === true) return false;
+  if (isBadgeOnlyCardEvidence(signals.cardDiscountSource)) return false;
+  const p = (signals.originalPriceProvenance ?? '').trim().toLowerCase();
+  if (p === 'source_explicit') return true;
+  if (p === 'listing_card' && signals.historyReady === true) return true;
+  return false;
+}
+
+function suppressPriceTruth(
+  reason: string,
+  codes: MachineQualityReasonCode[],
+  evidenceLevel: MachineEvidenceLevel,
+  confidence: number,
+): CandidateGateResult {
+  return result({
+    action: 'suppress',
+    reason,
+    processingStatus: 'suppressed',
+    qualityDecision: 'SUPPRESSED',
+    reasonCodes: codes,
+    evidenceLevel,
+    confidence,
+  });
 }
 
 function deriveEvidenceLevel(input: {
@@ -318,8 +369,46 @@ export function evaluateMachineCandidateGate(
     });
   }
 
+  // Artificial / unverified effective — before provenance rescue (listing_card cannot save these).
+  if (signals?.suspectedArtificialListPrice === true) {
+    return suppressPriceTruth(
+      'artificial_list_price_untrusted',
+      ['ARTIFICIAL_LIST_PRICE'],
+      deriveEvidenceLevel({ signals, verified: false }),
+      0.15,
+    );
+  }
+
+  const effEarly = signals?.effectiveDiscountPercent;
+  if (
+    typeof effEarly === 'number' &&
+    Number.isFinite(effEarly) &&
+    effEarly <= 0 &&
+    meta.discountPercent != null &&
+    meta.discountPercent > 0
+  ) {
+    return suppressPriceTruth(
+      'effective_discount_unverified_zero',
+      ['EFFECTIVE_DISCOUNT_UNVERIFIED'],
+      deriveEvidenceLevel({ signals, verified: false }),
+      0.15,
+    );
+  }
+
   // Machine admission: unknown / missing provenance is never VERIFIED.
-  if (requireOriginal && !isTrustedOriginalPriceProvenance(originalProv, cardSource)) {
+  // listing_card without historyReady is STORE_REPORTED only → not mint-trusted.
+  if (requireOriginal && !mintTrustedOriginalPrice(signals)) {
+    const historyReady = signals?.historyReady === true;
+    const listingCard =
+      (originalProv ?? '').trim().toLowerCase() === 'listing_card';
+    if (listingCard && !historyReady) {
+      return suppressPriceTruth(
+        'insufficient_history_for_listing_card_original',
+        ['INSUFFICIENT_HISTORY', 'ORIGINAL_PRICE_UNTRUSTED'],
+        'weak_card',
+        0.2,
+      );
+    }
     return result({
       action: 'suppress',
       reason: 'original_price_provenance_untrusted',
@@ -395,8 +484,42 @@ export function evaluateMachineCandidateGate(
     });
   }
 
-  // DealScore is advisory only — never blocks or publishes by itself.
+  // DealScore remains advisory for ranking only.
   void input.dealScore;
+
+  // DQE binds (DISCARD / NO_VERIFIED / POTENTIAL) — after hard validity + duplicates.
+  const dqe = input.dealQuality;
+  if (dqe) {
+    if (dqe.recommendedAction === 'DISCARD') {
+      return suppressPriceTruth(
+        `dqe_discard:${dqe.decision}`,
+        dqe.decision === 'NO_VERIFIED_DEAL'
+          ? ['DQE_DISCARD', 'NO_VERIFIED_DEAL']
+          : ['DQE_DISCARD'],
+        deriveEvidenceLevel({ signals, verified: false }),
+        0.2,
+      );
+    }
+    if (dqe.decision === 'NO_VERIFIED_DEAL' || dqe.decision === 'REJECT') {
+      return suppressPriceTruth(
+        `dqe_${dqe.decision.toLowerCase()}`,
+        dqe.decision === 'REJECT' ? ['DQE_DISCARD'] : ['NO_VERIFIED_DEAL'],
+        deriveEvidenceLevel({ signals, verified: false }),
+        0.2,
+      );
+    }
+    if (
+      dqe.decision === 'POTENTIAL_DEAL' ||
+      dqe.recommendedAction === 'HUMAN_REVIEW'
+    ) {
+      return suppressPriceTruth(
+        'dqe_potential_only_uncertain',
+        ['DQE_POTENTIAL_ONLY'],
+        deriveEvidenceLevel({ signals, verified: false }),
+        0.35,
+      );
+    }
+  }
 
   const reasonCodes: MachineQualityReasonCode[] = [];
   const orig = (originalProv ?? '').trim().toLowerCase();

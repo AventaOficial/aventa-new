@@ -327,15 +327,16 @@ describe('M5.1 processLedgerRewardAttempt', () => {
     expect(r.terminal).toBe(false);
   });
 
-  it('9 — retry after success → duplicate / success-equivalent', async () => {
+  it('9 — retry after success → duplicate through the reward authority', async () => {
     const store = makeBridgeStore({
       rewards: new Map([['reward-1', { id: 'reward-1', ledger_entry_id: LEDGER }]]),
     });
+    tryCreate.mockResolvedValue({ created: false, reason: 'duplicate_ledger', rewardId: 'reward-1' });
     const r = await processLedgerRewardAttempt(store.supabase, LEDGER);
     expect(r.outcome).toBe('duplicate');
     expect(r.rewardId).toBe('reward-1');
     expect(r.terminal).toBe(true);
-    expect(tryCreate).not.toHaveBeenCalled();
+    expect(tryCreate).toHaveBeenCalledTimes(1);
   });
 
   it('9b — engine duplicate_ledger → duplicate success-equivalent', async () => {
@@ -386,19 +387,18 @@ describe('M5.1 processLedgerRewardAttempt', () => {
     expect(first.outcome).toBe('created');
     store.rewards.set('only-one', { id: 'only-one', ledger_entry_id: LEDGER });
     tryCreate.mockClear();
+    tryCreate.mockResolvedValue({ created: false, reason: 'duplicate_ledger', rewardId: 'only-one' });
     const results = await Promise.all(
       Array.from({ length: 10 }, () => processLedgerRewardAttempt(store.supabase, LEDGER)),
     );
-    // Terminal success replay: created (cached terminal) or duplicate — both success-equivalent.
+    expect(tryCreate).toHaveBeenCalled();
     expect(
       results.every(
         (r) =>
-          r.terminal &&
           (r.outcome === 'duplicate' || r.outcome === 'created') &&
-          (r.rewardId === 'only-one' || r.reason === 'created' || r.reason === 'duplicate_ledger'),
+          (r.rewardId === 'only-one' || r.reason === 'duplicate_ledger'),
       ),
     ).toBe(true);
-    expect(tryCreate).not.toHaveBeenCalled();
   });
 
   it('12 — settlement reused schedule does not invent second reward', async () => {
@@ -409,9 +409,11 @@ describe('M5.1 processLedgerRewardAttempt', () => {
       ledgerEntryId: LEDGER,
       commissionId: COMMISSION,
     });
+    tryCreate.mockResolvedValue({ created: false, reason: 'duplicate_ledger', rewardId: 'r1' });
     const r = await processLedgerRewardAttempt(store.supabase, LEDGER);
     expect(r.outcome).toBe('duplicate');
     expect(r.rewardId).toBe('r1');
+    expect(tryCreate).toHaveBeenCalledTimes(1);
   });
 
   it('13 — crash after settlement before reward → reconcile recovers', async () => {
@@ -428,18 +430,19 @@ describe('M5.1 processLedgerRewardAttempt', () => {
     expect(recon.results.some((r) => r.rewardId === 'recovered')).toBe(true);
   });
 
-  it('14 — terminal outcome → reconcile does not infinite retry', async () => {
+  it('14 — terminal meta is not authority when no reward exists', async () => {
     const store = makeBridgeStore();
     tryCreate.mockResolvedValue({ created: false, reason: 'no_evidence' });
     await processLedgerRewardAttempt(store.supabase, LEDGER);
     tryCreate.mockClear();
+    tryCreate.mockResolvedValue({ created: false, reason: 'no_evidence' });
     const recon = await reconcileLedgerRewardBridge(store.supabase, {
       limit: 10,
       lookbackHours: 24,
     });
-    expect(tryCreate).not.toHaveBeenCalled();
-    expect(recon.attempted).toBe(0);
-    expect(recon.skipped).toBeGreaterThanOrEqual(1);
+    expect(tryCreate).toHaveBeenCalled();
+    expect(recon.attempted).toBeGreaterThanOrEqual(1);
+    expect(store.rewards.size).toBe(0);
   });
 
   it('canAutoAttemptRewards respects flags', () => {

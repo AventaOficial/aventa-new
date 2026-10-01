@@ -147,7 +147,7 @@ describe('S9.1 insertIngestedOffer caller allowlist regression', () => {
     );
   });
 
-  it('canonical S9 path uses bridge + gate', () => {
+  it('canonical S9 path uses bridge + S6.1 gate', () => {
     const bridge = readFileSync(
       join(ROOT, 'lib/supply/s7Bridge/writePendingViaS7Bridge.ts'),
       'utf8',
@@ -158,6 +158,7 @@ describe('S9.1 insertIngestedOffer caller allowlist regression', () => {
     );
     expect(bridge).toMatch(/isMachinePendingWriteEnabled/);
     expect(bridge).toMatch(/insertIngestedOffer/);
+    expect(bridge).toMatch(/evaluateMachineLiveInsertEligibility|evaluateS7BridgeS61Gate/);
     expect(auto).toMatch(/withMachinePendingWritesEnabled/);
     expect(auto).toMatch(/writePendingViaS7Bridge/);
   });

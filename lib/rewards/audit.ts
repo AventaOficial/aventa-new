@@ -18,7 +18,7 @@ function isMissingAuditTable(error: { message?: string } | null): boolean {
 export async function writeRewardAuditLog(
   supabase: SupabaseClient,
   input: RewardAuditInput,
-): Promise<void> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const { error } = await supabase.from('reward_audit_log').insert({
     event_type: input.eventType,
     actor_id: input.actorId ?? null,
@@ -29,7 +29,11 @@ export async function writeRewardAuditLog(
     metadata: input.metadata ?? {},
   });
 
-  if (error && !isMissingAuditTable(error)) {
-    console.error('[rewards/audit]', error.message);
+  if (error) {
+    if (!isMissingAuditTable(error)) {
+      console.error('[rewards/audit]', error.message);
+    }
+    return { ok: false, error: error.message ?? 'audit_append_failed' };
   }
+  return { ok: true };
 }

@@ -1,0 +1,641 @@
+{
+  "meta": {
+    "mode": "DAY2_STAGING_INGESTION_CANARY",
+    "generatedAt": "2026-09-25T03:53:14.414Z",
+    "stagingRef": "oojshofrpbfwsiypcecr",
+    "safety": {
+      "target": "staging",
+      "ref": "oojshofrpbfwsiypcecr",
+      "expected": "oojshofrpbfwsiypcecr",
+      "stagingOnly": true,
+      "refOk": true,
+      "writesFlagBefore": false,
+      "moneyPathFlags": {
+        "REWARDS_PROGRAM_ACTIVE": "false",
+        "COMMISSION_PROGRAM_ACTIVE": "false",
+        "SETTLEMENT_BRIDGE_ENABLED": "false",
+        "DISTRIBUTION_ENGINE_ENABLED": "false",
+        "MONEY_PATH_FROZEN": "(unset)",
+        "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+        "HUNTER_AUTO_PUBLISH": "(unset)"
+      }
+    },
+    "canaryCap": 3,
+    "execute": true,
+    "workerAuthorPrefix": "6aa733d4",
+    "s7AuthorPrefix": "d0903a8f"
+  },
+  "priceMemoryStagingBefore": {
+    "offersTotal": 68,
+    "offersPending": 0,
+    "offerObservations": 0,
+    "priceMemoryRows": 86,
+    "errors": []
+  },
+  "stickyNearReady": {
+    "targets": [
+      {
+        "productId": "MLM19045710",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 849,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM20922199",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 179,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM24167496",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 4999.27,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM27217432",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 1699.78,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM40732643",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 338,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM41485344",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 1399.17,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM43004314",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 3370.67,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      },
+      {
+        "productId": "MLM44295159",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "lastObservedOn": "2026-09-22",
+        "lastPrice": 779.07,
+        "hoursSinceObserved": 69.8,
+        "marketplace": "mercadolibre"
+      }
+    ],
+    "poolNearReady": 11,
+    "poolOneDayAway": 0,
+    "cooldownSkipped": 0,
+    "alreadyReadySkipped": 10,
+    "observedTodaySkipped": 0,
+    "budgetLimited": 3,
+    "todayYmd": "2026-09-24"
+  },
+  "dryRun": {
+    "wouldInsertCount": 0,
+    "offerInsertedAlwaysFalse": true,
+    "suppressed": 3,
+    "duplicates": 0,
+    "failed": 0
+  },
+  "offerStandard": {
+    "poolSize": 3,
+    "rankedCount": 3
+  },
+  "selection": {
+    "poolSize": 3,
+    "eligibleCount": 1,
+    "selected": [
+      {
+        "index": 0,
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "canonicalUrl": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "sourceEventId": "ml_worker:ml:MLM2177969823",
+        "idempotencyKey": "ro:7944e4071c125696483cc025def4e32d",
+        "productFingerprint": "ml:MLM2177969823",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "VERIFIED_HISTORY"
+        ],
+        "evidenceLevel": "history_backed",
+        "confidence": null,
+        "dealScore": 10,
+        "verifierScore": null,
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough",
+        "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_699771-MLA114851533690_082026-AB.webp",
+        "pdpBlocked": null,
+        "duplicate": false
+      }
+    ]
+  },
+  "funnel": {
+    "candidates": 3,
+    "extracted": 3,
+    "identified": 3,
+    "price_memory_ready": 3,
+    "offer_standard_pass": 3,
+    "dqe_pass": 1,
+    "s61_pass": 1,
+    "s7_pass": 1,
+    "observations_created": 2,
+    "pending_created": 1,
+    "duplicates": 2,
+    "blocked": 2,
+    "failed": 0,
+    "retryable": 0,
+    "ready": 0,
+    "partial": 0
+  },
+  "live": {
+    "latencyMs": 11535,
+    "summary": {
+      "inserted": 0,
+      "dryRunWouldInsert": 0,
+      "duplicate": 1,
+      "skipped": 0,
+      "errors": 0,
+      "rejected": 0,
+      "autoApproved": 0,
+      "duplicateKindCounts": {
+        "pending_fresh": 1
+      },
+      "discovery": {
+        "cycleIndex": 0,
+        "seedsAvailable": 1,
+        "seedsAttempted": 1,
+        "seedsSuccessful": 1,
+        "seedsZeroResults": 0,
+        "seedsFailed": 0,
+        "bySeed": [
+          {
+            "id": "day2_canary",
+            "status": "ok",
+            "rawLinks": 1,
+            "accepted": 1
+          }
+        ]
+      },
+      "sourceStats": {
+        "env_urls": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "rss": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_api": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "amazon_asin": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "ml_worker": {
+          "collected": 1,
+          "evaluated": 1,
+          "inserted": 0,
+          "duplicate": 1,
+          "skipped": 0,
+          "errors": 0
+        },
+        "walmart_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "bodega_aurrera_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "chedraui_mx": {
+          "collected": 0,
+          "evaluated": 0,
+          "inserted": 0,
+          "duplicate": 0,
+          "skipped": 0,
+          "errors": 0
+        }
+      },
+      "stageCounts": {
+        "collected": 1,
+        "evaluated": 1,
+        "resolved": 1,
+        "insertedAttempted": 1
+      },
+      "ops": {
+        "runId": "836f4bd6-01e1-4b4c-a821-9824b9d9e695",
+        "startedAt": "2026-09-25T03:53:16.077Z",
+        "finishedAt": "2026-09-25T03:53:18.981Z",
+        "environment": "unknown",
+        "profile": "standard",
+        "dryRun": false,
+        "machinePendingWritesEnabled": true,
+        "productionWriteBlocked": false,
+        "bottleneck": "unknown",
+        "bottleneckDetail": "funnel completed without clear single bottleneck",
+        "discovered": 1,
+        "normalized": 1,
+        "identityValid": 1,
+        "identityInvalid": 0,
+        "qualityVerified": 1,
+        "suppressed": 0,
+        "duplicates": 1,
+        "liveEligible": 1,
+        "budgetRejected": 0,
+        "writeAttempts": 1,
+        "writeSuccess": 0,
+        "writeDuplicate": 1,
+        "writeFailed": 0,
+        "writesDisabled": 0,
+        "dryRunSimulated": 0,
+        "offersSentToModeration": 0,
+        "wouldInsertObservation": 0,
+        "reasonCodes": {},
+        "durationMs": 2904
+      },
+      "cycleFunnel": {
+        "runId": "836f4bd6-01e1-4b4c-a821-9824b9d9e695",
+        "environment": "unknown",
+        "bottleneck": "unknown",
+        "bottleneckDetail": "funnel completed without clear single bottleneck",
+        "requests_or_candidates": 1,
+        "products_seen": 1,
+        "products_normalized": 1,
+        "products_rejected_identity": 0,
+        "products_surviving_gates": 1,
+        "products_deduped": 1,
+        "products_budget_cut": 0,
+        "would_insert_observation": 0,
+        "offers_sent_to_moderation": 0,
+        "write_attempts": 1,
+        "write_failed": 0,
+        "writes_disabled": 0,
+        "dry_run": false,
+        "machine_pending_writes_enabled": true,
+        "production_write_blocked": false,
+        "reason_codes": {},
+        "operator_verdict": "Zero moderation inserts — bottleneck=unknown: funnel completed without clear single bottleneck"
+      },
+      "decisionTraces": [
+        {
+          "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+          "title": "Organizador de cocina plástico con divisiones para utensilios",
+          "wouldInsert": true,
+          "reportedDiscountPercent": 26,
+          "verifiedDiscountPercent": 13,
+          "historicalBaseline": "available",
+          "historicalBaselinePrice": 148.72,
+          "currentPrice": 130.13,
+          "historicalObservationCount": 5,
+          "effectiveDiscountPercent": 13,
+          "artificialListPrice": false,
+          "originalPriceClass": "STORE_REPORTED",
+          "dqeDecision": "VERIFIED_DEAL",
+          "dqeRecommendedAction": "PUBLISH_CANDIDATE",
+          "dealScore": 52,
+          "s61Decision": "VERIFIED_OPPORTUNITY",
+          "s61ReasonCodes": [
+            "VERIFIED_CARD_PRICE",
+            "VERIFIED_HISTORY"
+          ],
+          "finalLabel": "GOOD",
+          "primaryReason": "VERIFIED_CARD_PRICE",
+          "whyPassedOrFailed": "passed_machine_quality_gates"
+        }
+      ],
+      "candidateIntelligence": {
+        "runId": "836f4bd6-01e1-4b4c-a821-9824b9d9e695",
+        "startedAt": "2026-09-25T03:53:16.077Z",
+        "finishedAt": "2026-09-25T03:53:18.981Z",
+        "mode": "observation",
+        "sources": [
+          "ml_worker"
+        ],
+        "retailers": [
+          "mercadolibre_mx"
+        ],
+        "candidateCount": 1,
+        "normalizedCount": 1,
+        "duplicateCount": 1,
+        "rejectedCount": 0,
+        "needsReviewCount": 0,
+        "wouldInsertCount": 0,
+        "insertedPendingCount": 0,
+        "publishedCount": 0,
+        "rejectionBreakdown": {},
+        "decisionBreakdown": {
+          "DUPLICATE": 1
+        },
+        "scoreDistribution": {
+          "42-54": 1
+        },
+        "hunterVersion": "hunter_intelligence_v1",
+        "scoringVersion": "score_ingest_v1",
+        "decisionPolicyVersion": "candidate_disposition_v1"
+      }
+    },
+    "results": [
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "source": "ml_worker",
+        "status": "duplicate",
+        "duplicateKind": "pending_fresh",
+        "supplyOpportunity": false
+      }
+    ],
+    "insertedCount": 0,
+    "duplicateCount": 1,
+    "skippedCount": 0,
+    "errorCount": 0,
+    "offerIds": [
+      "b67f1537-d26b-4545-90b2-7da163a8899c"
+    ],
+    "observationRows": [
+      {
+        "id": "0b26ff32-1c33-4072-b36d-632913cd7261",
+        "offer_id": "b67f1537-d26b-4545-90b2-7da163a8899c",
+        "identity_key": "ml:MLM2177969823",
+        "idempotency_key": "3c7506c8de76db56b3c312ec693a149f6b416e88c1a8ca8c",
+        "source": "ml_worker",
+        "price": 130.13,
+        "observed_at": "2026-09-25T03:53:17.88+00:00",
+        "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "created_at": "2026-09-25T03:53:18.568106+00:00"
+      },
+      {
+        "id": "ab657d90-da7f-426c-9bbc-7c4e8284a0e1",
+        "offer_id": "b67f1537-d26b-4545-90b2-7da163a8899c",
+        "identity_key": "ml:MLM2177969823",
+        "idempotency_key": "f0d46d2413bc955a22096c015a8d701b7f14fcc53a5030a6",
+        "source": "day2_s7_canary",
+        "price": 130.13,
+        "observed_at": "2026-09-25T03:53:15.763+00:00",
+        "canonical_url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "created_at": "2026-09-25T03:53:15.672983+00:00"
+      }
+    ],
+    "observationsCreated": 2
+  },
+  "s7": {
+    "ok": true,
+    "result": {
+      "ok": true,
+      "offerId": "b67f1537-d26b-4545-90b2-7da163a8899c"
+    },
+    "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM"
+  },
+  "stickyLive": {
+    "report": {
+      "targets": [
+        {
+          "productId": "MLM19045710",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 849,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM20922199",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 179,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM24167496",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 4999.27,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM27217432",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 1699.78,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM40732643",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 338,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM41485344",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 1399.17,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM43004314",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 3370.67,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        },
+        {
+          "productId": "MLM44295159",
+          "priorDays": 2,
+          "daysUntilReady": 2,
+          "lastObservedOn": "2026-09-22",
+          "lastPrice": 779.07,
+          "hoursSinceObserved": 69.8,
+          "marketplace": "mercadolibre"
+        }
+      ],
+      "poolNearReady": 11,
+      "poolOneDayAway": 0,
+      "cooldownSkipped": 0,
+      "alreadyReadySkipped": 10,
+      "observedTodaySkipped": 0,
+      "budgetLimited": 3,
+      "todayYmd": "2026-09-24"
+    },
+    "snapshotsWritten": 8,
+    "details": [
+      {
+        "productId": "MLM19045710",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM20922199",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM24167496",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM27217432",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM40732643",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM41485344",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM43004314",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      },
+      {
+        "productId": "MLM44295159",
+        "priorDays": 2,
+        "daysUntilReady": 2,
+        "status": "READY",
+        "recordedOn": "2026-09-24"
+      }
+    ],
+    "todayYmd": "2026-09-24"
+  },
+  "idempotency": null,
+  "after": {
+    "offersTotal": 69,
+    "offersPending": 1,
+    "offerObservations": 2,
+    "priceMemoryRows": 86,
+    "errors": []
+  },
+  "deltas": {
+    "offersTotal": 1,
+    "offersPending": 1,
+    "offerObservations": 2,
+    "priceMemoryRows": 0
+  },
+  "automation": {
+    "candidate_count": 1,
+    "auto_processed": 0,
+    "human_required": 0,
+    "blocked": 0,
+    "retryable": 0,
+    "failed": 0,
+    "pending_created": 0,
+    "duplicates": 1,
+    "automation_rate": 0,
+    "pending_rate": 0
+  },
+  "classifications": [
+    {
+      "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+      "fingerprint": "ml:MLM2177969823",
+      "class": "DUPLICATE",
+      "qualityDecision": "VERIFIED_OPPORTUNITY",
+      "wouldInsert": true,
+      "liveStatus": "duplicate"
+    },
+    {
+      "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+      "fingerprint": "ml:MLM63084226",
+      "class": "BLOCKED",
+      "qualityDecision": "SUPPRESSED",
+      "wouldInsert": false,
+      "liveStatus": null
+    },
+    {
+      "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+      "fingerprint": "ml:MLM45749298",
+      "class": "BLOCKED",
+      "qualityDecision": "SUPPRESSED",
+      "wouldInsert": false,
+      "liveStatus": null
+    }
+  ],
+  "stop": {
+    "reason": null,
+    "completed": true,
+    "flagAfter": false
+  }
+}

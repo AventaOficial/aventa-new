@@ -13,6 +13,14 @@ import {
   safeErrorMessage,
 } from './healthStore';
 import { dedupeHunterCandidates } from './normalize';
+import { runWithRequestProgress } from '@/lib/server/requestProgressScope';
+import {
+  beginSourceProgress,
+  finishSourceProgress,
+  recordAcceptedAfterDedupe,
+  recordSkippedSourceProgress,
+  type HunterCollectProgress,
+} from './sourceProgress';
 import { HUNTER_SOURCES } from './sources';
 import type {
   HunterCandidate,
@@ -31,6 +39,15 @@ export type RunHunterCollectOptions = {
   sources?: HunterSource[];
   /** Si false, no persiste health (tests unitarios del orquestador). */
   persistHealth?: boolean;
+  /**
+   * Day 10 — hard wall for this collect only (not the full cycle soft deadline).
+   * When elapsed, stops before the next source and returns partial candidates.
+   */
+  budgetMs?: number;
+  /** Cooperative abort (cycle deadline / AbortController). */
+  signal?: AbortSignal;
+  /** Day 13.2 — caller-owned progress accumulator (observability only). */
+  progress?: HunterCollectProgress | null;
 };
 
 function rotateItems(
@@ -45,6 +62,7 @@ function rotateItems(
     ...(bySource.walmart_mx ?? []),
     ...(bySource.bodega_aurrera_mx ?? []),
     ...(bySource.chedraui_mx ?? []),
+    ...(bySource.liverpool_mx ?? []),
   ];
   const w = ((rotationWave % 3) + 3) % 3;
   const segments: IngestItem[][] =
@@ -88,9 +106,16 @@ async function loadHealthMap(
 export async function runHunterCollect(
   options: RunHunterCollectOptions
 ): Promise<HunterEngineCollectResult> {
+  const collectStarted = Date.now();
   const now = options.now ?? new Date();
   const persist = options.persistHealth !== false;
   const sources = options.sources ?? HUNTER_SOURCES;
+  const budgetMs =
+    typeof options.budgetMs === 'number' && options.budgetMs > 0
+      ? options.budgetMs
+      : null;
+  const signal = options.signal;
+  const progress = options.progress ?? null;
   const ctx: HunterCollectContext = {
     config: options.config,
     rotationWave: options.rotationWave,
@@ -102,8 +127,51 @@ export async function runHunterCollect(
   const allCandidates: HunterCandidate[] = [];
   const diagnostics: HunterEngineCollectResult['discoveryDiagnostics'] = {};
   const bySourceItems: Partial<Record<HunterSourceId, IngestItem[]>> = {};
+  let stoppedReason: HunterEngineCollectResult['stoppedReason'] = null;
+
+  const budgetExpired = () =>
+    (budgetMs !== null && Date.now() - collectStarted >= budgetMs) ||
+    Boolean(signal?.aborted);
 
   for (const source of sources) {
+    if (budgetExpired()) {
+      stoppedReason = 'soft_deadline';
+      sourceRuns.push({
+        sourceId: source.id,
+        ok: false,
+        skippedByBreaker: false,
+        skippedDisabled: false,
+        latencyMs: 0,
+        itemsFound: 0,
+        itemsInserted: 0,
+        duplicates: 0,
+        skipped: 1,
+        errors: 0,
+        errorCode: 'soft_deadline',
+        errorMessageSafe: 'hunter_collect_budget_exhausted',
+      });
+      recordSkippedSourceProgress(progress, source.id, 'skipped_deadline', 'soft_deadline');
+      // Mark remaining sources as skipped under the same budget without running them.
+      const idx = sources.indexOf(source);
+      for (const rest of sources.slice(idx + 1)) {
+        recordSkippedSourceProgress(progress, rest.id, 'skipped_deadline', 'soft_deadline');
+        sourceRuns.push({
+          sourceId: rest.id,
+          ok: false,
+          skippedByBreaker: false,
+          skippedDisabled: false,
+          latencyMs: 0,
+          itemsFound: 0,
+          itemsInserted: 0,
+          duplicates: 0,
+          skipped: 1,
+          errors: 0,
+          errorCode: 'soft_deadline',
+          errorMessageSafe: 'hunter_collect_budget_exhausted',
+        });
+      }
+      break;
+    }
     const enabled = source.isEnabled(ctx);
     const available = source.isAvailable(ctx);
     let health = healthMap.get(source.id) ?? defaultHealthRow(source.id);
@@ -132,6 +200,7 @@ export async function runHunterCollect(
       };
       healthMap.set(source.id, disabledRow);
       if (persist) await recordHunterRun(disabledRow);
+      recordSkippedSourceProgress(progress, source.id, 'skipped_disabled');
       sourceRuns.push({
         sourceId: source.id,
         ok: true,
@@ -158,6 +227,7 @@ export async function runHunterCollect(
       };
       healthMap.set(source.id, externalRow);
       if (persist) await recordHunterRun(externalRow);
+      recordSkippedSourceProgress(progress, source.id, 'skipped_external');
       sourceRuns.push({
         sourceId: source.id,
         ok: true,
@@ -176,6 +246,7 @@ export async function runHunterCollect(
     health = { ...health, enabled: true, expectedIntervalMs: source.expectedIntervalMs };
     const gate = shouldAttemptCollect(health, now);
     if (!gate.attempt) {
+      recordSkippedSourceProgress(progress, source.id, 'skipped_breaker', health.lastErrorCode ?? null);
       sourceRuns.push({
         sourceId: source.id,
         ok: false,
@@ -204,9 +275,19 @@ export async function runHunterCollect(
     }
 
     const t0 = Date.now();
+    const progressEntry = beginSourceProgress(progress, source.id, t0);
     try {
-      const result = await source.collect(ctx);
+      const result = progressEntry
+        ? await runWithRequestProgress(progressEntry.requests, () => source.collect(ctx))
+        : await source.collect(ctx);
       const latencyMs = Date.now() - t0;
+      finishSourceProgress(progressEntry, {
+        status: result.ok ? 'completed' : 'failed',
+        received: result.ok ? result.candidates.length : 0,
+        collectedCount: result.collectedCount ?? null,
+        errors: result.ok ? 0 : 1,
+        errorCode: result.ok ? null : (result.errorCode ?? null),
+      });
 
       const ingestSource = source.ingestSourceId;
       diagnostics[ingestSource] = {
@@ -313,6 +394,7 @@ export async function runHunterCollect(
       const msg = safeErrorMessage(e);
       const errorCode =
         /timeout/i.test(msg) ? 'timeout' : /network|fetch failed/i.test(msg) ? 'network' : 'exception';
+      finishSourceProgress(progressEntry, { status: 'threw', errors: 1, errorCode });
       const transition = applyBreakerTransition({
         previous: health,
         now,
@@ -366,6 +448,11 @@ export async function runHunterCollect(
     list.push(c.ingestItem);
     dedupedBySource[c.source] = list;
   }
+  if (progress) {
+    const acceptedBySource: Record<string, number> = {};
+    for (const [id, list] of Object.entries(dedupedBySource)) acceptedBySource[id] = list?.length ?? 0;
+    recordAcceptedAfterDedupe(progress, acceptedBySource);
+  }
 
   const items = rotateItems(dedupedBySource, options.config, options.rotationWave);
 
@@ -375,6 +462,8 @@ export async function runHunterCollect(
     discoveryDiagnostics: diagnostics,
     sourceRuns,
     healthSnapshot: [...healthMap.values()],
+    stoppedReason,
+    elapsedMs: Date.now() - collectStarted,
   };
 }
 

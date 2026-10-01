@@ -1,6 +1,6 @@
-/**
- * S6.2 — Provenance wiring / machine ingest integration.
- * Cases A–F + S5.5 fixture distribution + upgrade invariant.
+﻿/**
+ * S6.2 ÔÇö Provenance wiring / machine ingest integration.
+ * Cases AÔÇôF + S5.5 fixture distribution + upgrade invariant.
  * No DB / network / Distribution / production writes.
  */
 
@@ -111,7 +111,7 @@ function workerCandidate(
   return {
     url: BASE_URL,
     canonicalUrl: BASE_URL,
-    title: over.title ?? 'Audífonos Bluetooth noise cancelling oferta S62',
+    title: over.title ?? 'Aud├¡fonos Bluetooth noise cancelling oferta S62',
     store: 'Mercado Libre',
     imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_s62.jpg',
     originalPrice: null,
@@ -136,7 +136,7 @@ function gateFromNormalized(candidate: ExternalWorkerCandidate, pdpBlocked?: boo
 }
 
 describe('S6.2 provenance wiring', () => {
-  it('CASE A — card strikethrough → listing_card → may verify', () => {
+  it('CASE A ÔÇö card strikethrough ÔåÆ listing_card preserved; mint needs historyReady', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -149,20 +149,45 @@ describe('S6.2 provenance wiring', () => {
         originalPriceProvenance: 'listing_card',
         currentPriceProvenance: 'source_explicit',
         listingTypeId: 'worker_card',
+        // S6.1 price-truth: listing_card alone is STORE_REPORTED, not mint-trusted.
+        historyReady: false,
       },
     });
     const { normalized, gate } = gateFromNormalized(candidate);
     expect(normalized.meta.signals?.originalPriceProvenance).toBe('listing_card');
     expect(normalized.meta.signals?.cardDiscountSource).toBe('card_strikethrough');
+    expect(gate.qualityDecision).toBe('SUPPRESSED');
+    expect(gate.wouldInsert).toBe(false);
+    expect(gate.reasonCodes).toContain('INSUFFICIENT_HISTORY');
+  });
+
+  it('CASE A2 ÔÇö listing_card + historyReady ÔåÆ VERIFIED_OPPORTUNITY', () => {
+    const candidate = workerCandidate({
+      discountPrice: 698,
+      originalPrice: 2492,
+      discountPercent: 72,
+      cardDiscountSource: 'card_strikethrough',
+      cardBadgePercent: 72,
+      signals: {
+        cardDiscountSource: 'card_strikethrough',
+        cardBadgePercent: 72,
+        originalPriceProvenance: 'listing_card',
+        currentPriceProvenance: 'source_explicit',
+        listingTypeId: 'worker_card',
+        historyReady: true,
+      },
+    });
+    const { normalized, gate } = gateFromNormalized(candidate);
+    expect(normalized.meta.signals?.originalPriceProvenance).toBe('listing_card');
     expect(gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(gate.wouldInsert).toBe(true);
     expect(gate.reasonCodes).toContain('VERIFIED_CARD_PRICE');
   });
 
-  it('CASE B — badge only → unknown/badge → NOT VERIFIED', () => {
+  it('CASE B ÔÇö badge only ÔåÆ unknown/badge ÔåÆ NOT VERIFIED', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
-      originalPrice: 2492, // reconstructed by worker — untrusted
+      originalPrice: 2492, // reconstructed by worker ÔÇö untrusted
       discountPercent: 72,
       cardDiscountSource: 'badge_reconstructed',
       cardBadgePercent: 72,
@@ -181,7 +206,7 @@ describe('S6.2 provenance wiring', () => {
     expect(gate.reasonCodes).toContain('BADGE_RECONSTRUCTED');
   });
 
-  it('CASE C — source_explicit → may verify', () => {
+  it('CASE C ÔÇö source_explicit ÔåÆ may verify', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -201,7 +226,7 @@ describe('S6.2 provenance wiring', () => {
     expect(gate.reasonCodes).toContain('VERIFIED_PDP_PRICE');
   });
 
-  it('CASE D — original present, provenance absent → unknown → NOT VERIFIED', () => {
+  it('CASE D ÔÇö original present, provenance absent ÔåÆ unknown ÔåÆ NOT VERIFIED', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -216,7 +241,7 @@ describe('S6.2 provenance wiring', () => {
     expect(gate.reasonCodes).toContain('ORIGINAL_PRICE_UNTRUSTED');
   });
 
-  it('CASE E — trusted card + null image → verified with PARTIAL_NO_IMAGE', () => {
+  it('CASE E ÔÇö history-backed card + null image ÔåÆ verified with PARTIAL_NO_IMAGE', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -227,6 +252,7 @@ describe('S6.2 provenance wiring', () => {
         cardDiscountSource: 'card_strikethrough',
         originalPriceProvenance: 'listing_card',
         listingTypeId: 'worker_card',
+        historyReady: true,
       },
     });
     const { gate } = gateFromNormalized(candidate);
@@ -235,7 +261,7 @@ describe('S6.2 provenance wiring', () => {
     expect(gate.reasonCodes).toContain('PARTIAL_NO_IMAGE');
   });
 
-  it('CASE F — trusted card + pdpBlocked → PDP warning only', () => {
+  it('CASE F ÔÇö history-backed card + pdpBlocked ÔåÆ PDP warning only', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -246,6 +272,7 @@ describe('S6.2 provenance wiring', () => {
         cardDiscountSource: 'card_strikethrough',
         originalPriceProvenance: 'listing_card',
         listingTypeId: 'worker_card',
+        historyReady: true,
       },
     });
     const { normalized, gate } = gateFromNormalized(candidate, true);
@@ -323,7 +350,7 @@ describe('S6.2 provenance wiring', () => {
     expect(preserved.signals.originalPriceProvenance).toBe('unknown');
   });
 
-  it('information-loss check: provenance survives adapter → RawObservation → gate → bot_meta', () => {
+  it('information-loss check: provenance survives adapter ÔåÆ RawObservation ÔåÆ gate ÔåÆ bot_meta', () => {
     const candidate = workerCandidate({
       discountPrice: 698,
       originalPrice: 2492,
@@ -333,6 +360,7 @@ describe('S6.2 provenance wiring', () => {
         cardDiscountSource: 'card_strikethrough',
         originalPriceProvenance: 'listing_card',
         listingTypeId: 'worker_card',
+        historyReady: true,
       },
     });
 
@@ -415,7 +443,7 @@ describe('S6.2 provenance wiring', () => {
 
 describe('S6.2 S5.5 real fixture provenance distribution', () => {
   it('reports distribution and does not invent provenance', async () => {
-    // Deterministic S5.5 scrape snapshot — versioned under tests/fixtures.
+    // Deterministic S5.5 scrape snapshot ÔÇö versioned under tests/fixtures.
     // Live regenerations still write scripts/_smoke-gate-v2-discovery.json (gitignored).
     const fixturePath = resolve(
       process.cwd(),
@@ -464,13 +492,17 @@ describe('S6.2 S5.5 real fixture provenance distribution', () => {
       config: baseConfig({ maxPerRun: 50, candidatePoolMax: 50 }),
     });
 
-    expect(report.wouldInsertCount).toBe(15);
+    expect(report.wouldInsertCount).toBe(0);
     expect(report.items.every((i) => i.offerInserted === false)).toBe(true);
-    expect(report.items.every((i) => i.status === 'WOULD_INSERT')).toBe(true);
-    // S6.3: card images now present on real fixtures — no PARTIAL_NO_IMAGE required.
-    // Gate policy unchanged: verified card price still admits.
+    expect(report.items.every((i) => i.status !== 'WOULD_INSERT')).toBe(true);
+    // S6.1 price-truth: listing_card without historyReady is not mintable.
+    // Provenance distribution above still proves wiring; mint is separate.
     expect(
-      report.items.every((i) => i.reasonCodes.includes('VERIFIED_CARD_PRICE')),
+      report.items.every(
+        (i) =>
+          i.reasonCodes.includes('INSUFFICIENT_HISTORY') ||
+          i.reasonCodes.includes('ORIGINAL_PRICE_UNTRUSTED'),
+      ),
     ).toBe(true);
   });
 });

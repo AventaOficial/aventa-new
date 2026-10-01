@@ -1,0 +1,593 @@
+{
+  "at": "2026-09-25T04:17:44.544Z",
+  "safety": {
+    "target": "staging",
+    "ref": "oojshofrpbfwsiypcecr",
+    "expected": "oojshofrpbfwsiypcecr",
+    "stagingOnly": true,
+    "refOk": true,
+    "writesFlagBefore": false,
+    "moneyPathFlags": {
+      "REWARDS_PROGRAM_ACTIVE": "(unset)",
+      "COMMISSION_PROGRAM_ACTIVE": "(unset)",
+      "SETTLEMENT_BRIDGE_ENABLED": "(unset)",
+      "DISTRIBUTION_ENGINE_ENABLED": "(unset)",
+      "MONEY_PATH_FROZEN": "(unset)",
+      "BOT_INGEST_MACHINE_PENDING_WRITES": "(unset)",
+      "HUNTER_AUTO_PUBLISH": "(unset)"
+    }
+  },
+  "pmSeed": {
+    "upserted": 9,
+    "error": null
+  },
+  "pmBefore": {
+    "observations": 97,
+    "uniqueProducts": 29,
+    "calendarDays": 20,
+    "historyReady": 10,
+    "nearReady": 9,
+    "notReady": 10,
+    "sampleRows": 97,
+    "errors": {
+      "count": null,
+      "rows": null
+    }
+  },
+  "pmAfter": {
+    "observations": 97,
+    "uniqueProducts": 29,
+    "calendarDays": 20,
+    "historyReady": 10,
+    "nearReady": 9,
+    "notReady": 10,
+    "sampleRows": 97,
+    "errors": {
+      "count": null,
+      "rows": null
+    }
+  },
+  "cycle1": {
+    "cycle_id": "6f74aa1a-ad25-4270-bb7d-6ac64d151388",
+    "startedAt": "2026-09-25T04:17:33.119Z",
+    "finishedAt": "2026-09-25T04:17:40.413Z",
+    "dryRun": false,
+    "mintAttempted": true,
+    "sources": [
+      {
+        "sourceId": "ml_api_legacy",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_asin",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "walmart_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "sticky_near_ready",
+        "status": "empty",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "pm_evidence_backed",
+        "status": "success",
+        "candidates": 3,
+        "errorCode": null,
+        "errorMessageSafe": null
+      }
+    ],
+    "funnel": {
+      "cycle_id": "6f74aa1a-ad25-4270-bb7d-6ac64d151388",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "sources_empty": 7,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "duplicates": 0,
+      "unsupported": 0,
+      "invalid": 0,
+      "fetch_attempted": 3,
+      "fetch_success": 0,
+      "fetch_blocked": 3,
+      "fetch_failed": 0,
+      "extracted": 3,
+      "identified": 3,
+      "price_memory_ready": 3,
+      "price_memory_not_ready": 0,
+      "offer_standard_pass": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "dqe_blocked": 0,
+      "dqe_failed": 0,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "s7_pass": 0,
+      "s7_blocked": 1,
+      "observations_created": 0,
+      "pending_created": 0,
+      "dry_run": false
+    },
+    "cycleFunnel": {
+      "runId": "6f74aa1a-ad25-4270-bb7d-6ac64d151388",
+      "cycle_id": "6f74aa1a-ad25-4270-bb7d-6ac64d151388",
+      "environment": "staging_or_dev",
+      "bottleneck": "write_path",
+      "bottleneckDetail": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "requests_or_candidates": 3,
+      "products_seen": 3,
+      "products_normalized": 3,
+      "products_rejected_identity": 0,
+      "products_surviving_gates": 1,
+      "products_deduped": 0,
+      "products_budget_cut": 0,
+      "would_insert_observation": 0,
+      "offers_sent_to_moderation": 0,
+      "write_attempts": 1,
+      "write_failed": 0,
+      "writes_disabled": 0,
+      "dry_run": false,
+      "machine_pending_writes_enabled": true,
+      "production_write_blocked": false,
+      "reason_codes": {
+        "dqe_verified": 1,
+        "dqe_potential": 2,
+        "s61_blocked": 2,
+        "sources_blocked": 0,
+        "sources_failed": 0
+      },
+      "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "observations_created": 0,
+      "pending_created": 0,
+      "automation_rate": 0
+    },
+    "automation": {
+      "candidate_count": 3,
+      "auto_processed": 0,
+      "human_required": 0,
+      "blocked": 2,
+      "retryable": 0,
+      "failed": 0,
+      "pending_created": 0,
+      "duplicates": 1,
+      "automation_rate": 0,
+      "pending_rate": 0
+    },
+    "prioritizedUrls": [
+      "https://www.mercadolibre.com.mx/p/MLM45749298",
+      "https://www.mercadolibre.com.mx/p/MLM63084226",
+      "https://articulo.mercadolibre.com.mx/MLM-2177969823-_JM"
+    ],
+    "gateSamples": [
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "historyReady": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "VERIFIED_HISTORY"
+        ]
+      }
+    ],
+    "mintResults": [
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "ok": false,
+        "duplicate": true,
+        "error": "duplicate"
+      }
+    ],
+    "hunterSourceRuns": [
+      {
+        "sourceId": "ml_api_legacy",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_asin",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "walmart_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      }
+    ],
+    "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates)."
+  },
+  "cycle2": {
+    "cycle_id": "c749b59f-8946-41d9-aeea-e274a0bd616d",
+    "startedAt": "2026-09-25T04:17:40.414Z",
+    "finishedAt": "2026-09-25T04:17:44.282Z",
+    "dryRun": false,
+    "mintAttempted": true,
+    "sources": [
+      {
+        "sourceId": "ml_api_legacy",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "amazon_asin",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "walmart_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "status": "skipped",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "sticky_near_ready",
+        "status": "empty",
+        "candidates": 0,
+        "errorCode": null,
+        "errorMessageSafe": null
+      },
+      {
+        "sourceId": "pm_evidence_backed",
+        "status": "success",
+        "candidates": 3,
+        "errorCode": null,
+        "errorMessageSafe": null
+      }
+    ],
+    "funnel": {
+      "cycle_id": "c749b59f-8946-41d9-aeea-e274a0bd616d",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "sources_empty": 7,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "duplicates": 0,
+      "unsupported": 0,
+      "invalid": 0,
+      "fetch_attempted": 3,
+      "fetch_success": 0,
+      "fetch_blocked": 3,
+      "fetch_failed": 0,
+      "extracted": 3,
+      "identified": 3,
+      "price_memory_ready": 3,
+      "price_memory_not_ready": 0,
+      "offer_standard_pass": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "dqe_blocked": 0,
+      "dqe_failed": 0,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "s7_pass": 0,
+      "s7_blocked": 1,
+      "observations_created": 0,
+      "pending_created": 0,
+      "dry_run": false
+    },
+    "cycleFunnel": {
+      "runId": "c749b59f-8946-41d9-aeea-e274a0bd616d",
+      "cycle_id": "c749b59f-8946-41d9-aeea-e274a0bd616d",
+      "environment": "staging_or_dev",
+      "bottleneck": "write_path",
+      "bottleneckDetail": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "requests_or_candidates": 3,
+      "products_seen": 3,
+      "products_normalized": 3,
+      "products_rejected_identity": 0,
+      "products_surviving_gates": 1,
+      "products_deduped": 0,
+      "products_budget_cut": 0,
+      "would_insert_observation": 0,
+      "offers_sent_to_moderation": 0,
+      "write_attempts": 1,
+      "write_failed": 0,
+      "writes_disabled": 0,
+      "dry_run": false,
+      "machine_pending_writes_enabled": true,
+      "production_write_blocked": false,
+      "reason_codes": {
+        "dqe_verified": 1,
+        "dqe_potential": 2,
+        "s61_blocked": 2,
+        "sources_blocked": 0,
+        "sources_failed": 0
+      },
+      "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates).",
+      "sources_requested": 8,
+      "sources_succeeded": 1,
+      "sources_blocked": 0,
+      "sources_failed": 0,
+      "candidates_discovered": 3,
+      "candidates_canonicalized": 3,
+      "dqe_verified": 1,
+      "dqe_potential": 2,
+      "s61_pass": 1,
+      "s61_blocked": 2,
+      "observations_created": 0,
+      "pending_created": 0,
+      "automation_rate": 0
+    },
+    "automation": {
+      "candidate_count": 3,
+      "auto_processed": 0,
+      "human_required": 0,
+      "blocked": 2,
+      "retryable": 0,
+      "failed": 0,
+      "pending_created": 0,
+      "duplicates": 1,
+      "automation_rate": 0,
+      "pending_rate": 0
+    },
+    "prioritizedUrls": [
+      "https://www.mercadolibre.com.mx/p/MLM45749298",
+      "https://www.mercadolibre.com.mx/p/MLM63084226",
+      "https://articulo.mercadolibre.com.mx/MLM-2177969823-_JM"
+    ],
+    "gateSamples": [
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+        "qualityDecision": "SUPPRESSED",
+        "wouldInsert": false,
+        "historyReady": true,
+        "reasonCodes": [
+          "DQE_POTENTIAL_ONLY"
+        ]
+      },
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "qualityDecision": "VERIFIED_OPPORTUNITY",
+        "wouldInsert": true,
+        "historyReady": true,
+        "reasonCodes": [
+          "VERIFIED_CARD_PRICE",
+          "VERIFIED_HISTORY"
+        ]
+      }
+    ],
+    "mintResults": [
+      {
+        "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+        "ok": false,
+        "duplicate": true,
+        "error": "duplicate"
+      }
+    ],
+    "hunterSourceRuns": [
+      {
+        "sourceId": "ml_api_legacy",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_paapi",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "amazon_asin",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "walmart_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "bodega_aurrera_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      {
+        "sourceId": "chedraui_mx",
+        "ok": true,
+        "skippedByBreaker": false,
+        "skippedDisabled": true,
+        "latencyMs": 0,
+        "itemsFound": 0,
+        "itemsInserted": 0,
+        "duplicates": 0,
+        "skipped": 0,
+        "errors": 0
+      }
+    ],
+    "operator_verdict": "Discovered 3; s61_pass=1; no pending minted (gates or duplicates)."
+  },
+  "dbOffers": []
+}

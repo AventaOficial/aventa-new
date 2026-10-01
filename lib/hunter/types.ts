@@ -10,7 +10,8 @@ export type HunterSourceId =
   | 'env_urls'
   | 'walmart_mx'
   | 'bodega_aurrera_mx'
-  | 'chedraui_mx';
+  | 'chedraui_mx'
+  | 'liverpool_mx';
 
 /** Familia de supply. No mezcla salud de fuente con métricas shadow. */
 export type HunterSourceFamily = 'core' | 'day_to_day';
@@ -184,4 +185,7 @@ export type HunterEngineCollectResult = {
   >;
   sourceRuns: HunterRunMetrics[];
   healthSnapshot: HunterSourceHealth[];
+  /** Day 10 — set when collect stops early under an explicit budget. */
+  stoppedReason?: 'soft_deadline' | null;
+  elapsedMs?: number;
 };

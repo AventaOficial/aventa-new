@@ -1,7 +1,16 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
+import {
+  extractMercadoLibreItemId,
+  isMercadoLibreApiItemId,
+  isMercadoLibreUserProductId,
+} from '@/lib/offers/resolveMercadoLibreItem';
 import { formatYmdInTz } from './ingestZonedTime';
 import { fetchMlItemPriceQuote, type MlPriceQuote } from './mlPricesApi';
+import {
+  notifyPriceIntelObserver,
+  type PriceIntelEvidenceKind,
+  type PriceIntelObserver,
+} from './priceIntelObserver';
 
 export const ML_PRICE_MARKETPLACE = 'mercadolibre';
 export const ML_PRICE_TZ = 'America/Mexico_City';
@@ -26,9 +35,54 @@ export type MlPriceIntel = {
   savingsVsHabitualPct: number | null;
   effectiveDiscountPercent: number | null;
   suspectedArtificialListPrice: boolean;
+  /** Day 12.1 — which artificial clauses fired (observability only; same rules as boolean). */
+  artificialListPriceClauses: ArtificialListPriceClause[];
   samples90d: number;
   historyReady: boolean;
 };
+
+/** Clauses that compose suspectedArtificialListPrice — observability only. */
+export type ArtificialListPriceClause =
+  | 'list_vs_regular'
+  | 'list_vs_habitual'
+  | 'extreme_list'
+  | 'extreme_list_no_history';
+
+/**
+ * Same predicates as computeMlPriceIntel artificial detection.
+ * Does not change thresholds. Used for durable diagnostics.
+ * `detected` MUST equal extremeList || listVsRegular || listVsHabitual.
+ */
+export function diagnoseArtificialListPriceClauses(input: {
+  current: number;
+  listPrice: number | null;
+  regularPrice: number | null;
+  habitual30d: number | null;
+  historyReady: boolean;
+}): { detected: boolean; clauses: ArtificialListPriceClause[] } {
+  const { current, listPrice, regularPrice, habitual30d, historyReady } = input;
+  const clauses: ArtificialListPriceClause[] = [];
+  const extremeList = listPrice != null && listPrice >= current * 1.8;
+  const listVsRegular =
+    listPrice != null &&
+    regularPrice != null &&
+    listPrice >= regularPrice * 1.2 &&
+    listPrice >= current * 1.45;
+  const listVsHabitual =
+    listPrice != null &&
+    habitual30d != null &&
+    listPrice >= habitual30d * 1.35 &&
+    listPrice >= current * 1.4;
+  if (listVsRegular) clauses.push('list_vs_regular');
+  if (listVsHabitual) clauses.push('list_vs_habitual');
+  if (extremeList) {
+    clauses.push(historyReady ? 'extreme_list' : 'extreme_list_no_history');
+  }
+  return {
+    detected: Boolean(extremeList || listVsRegular || listVsHabitual),
+    clauses,
+  };
+}
 
 export type MlPriceObservation = {
   productId: string;
@@ -78,7 +132,12 @@ export function normalizeMlProductId(raw: string | null | undefined): string | n
     return extractMercadoLibreItemId(trimmed);
   }
   const compact = trimmed.replace(/-/g, '').toUpperCase();
-  return /^ML[A-Z]{0,3}\d{6,}$/.test(compact) ? compact : extractMercadoLibreItemId(trimmed);
+  // Fail-closed: user-product (MLMU…) is not an /items/{id} key for Price Memory.
+  if (isMercadoLibreUserProductId(compact)) return null;
+  if (/^ML[A-Z]{0,3}\d{6,}$/.test(compact) && isMercadoLibreApiItemId(compact)) {
+    return compact;
+  }
+  return extractMercadoLibreItemId(trimmed);
 }
 
 /**
@@ -135,15 +194,14 @@ export function computeMlPriceIntel(
       ? round2(((habitual30d - current) / habitual30d) * 100)
       : null;
 
-  const extremeList = listPrice != null && listPrice >= current * 1.8;
-  const listVsRegular =
-    listPrice != null && regularPrice != null && listPrice >= regularPrice * 1.2 && listPrice >= current * 1.45;
-  const listVsHabitual =
-    listPrice != null &&
-    habitual30d != null &&
-    listPrice >= habitual30d * 1.35 &&
-    listPrice >= current * 1.4;
-  const suspectedArtificialListPrice = Boolean(listVsRegular || listVsHabitual || (!historyReady && extremeList));
+  const artificialDiag = diagnoseArtificialListPriceClauses({
+    current,
+    listPrice,
+    regularPrice,
+    habitual30d,
+    historyReady,
+  });
+  const suspectedArtificialListPrice = artificialDiag.detected;
 
   let effectiveDiscountPercent: number | null = null;
   if (savingsVsHabitualPct != null && savingsVsHabitualPct > 0) {
@@ -165,6 +223,7 @@ export function computeMlPriceIntel(
     savingsVsHabitualPct,
     effectiveDiscountPercent,
     suspectedArtificialListPrice,
+    artificialListPriceClauses: artificialDiag.clauses,
     samples90d: window90.length,
     historyReady,
   };
@@ -175,7 +234,7 @@ export async function recordMlDailySnapshots(observations: MlPriceObservation[])
   const unique = new Map<string, MlPriceObservation>();
   for (const obs of observations) {
     const id = normalizeMlProductId(obs.productId);
-    if (!id || !Number.isFinite(obs.current) || obs.current < 0) continue;
+    if (!id || !Number.isFinite(obs.current) || obs.current <= 0) continue;
     const nicheRaw = typeof obs.nicheId === 'string' ? obs.nicheId.trim() : '';
     const nicheId =
       nicheRaw === 'beauty' || nicheRaw === 'electronics' || nicheRaw === 'day_to_day'
@@ -309,19 +368,37 @@ export async function enrichMercadoLibrePriceIntel(args: {
   listPrice: number | null;
   /** Provenance explícita del Supply Engine; null = no inventar. */
   nicheId?: string | null;
+  /** Day 13.2 — observability only; never changes key, quote, write or intel. */
+  observer?: PriceIntelObserver | null;
 }): Promise<{ quote: MlPriceQuote; intel: MlPriceIntel } | null> {
   const productId = normalizeMlProductId(args.itemId) ?? normalizeMlProductId(args.url);
   if (!productId || !Number.isFinite(args.current) || args.current <= 0) return null;
 
+  let evidenceKind: PriceIntelEvidenceKind = 'unknown';
   const quote = await fetchMlItemPriceQuote(
     productId,
     {
       current: args.current,
       listPrice: args.listPrice,
     },
-    { url: args.url, catalogProductId: null },
+    {
+      url: args.url,
+      catalogProductId: null,
+      onEvidence: (kind) => {
+        evidenceKind = kind;
+      },
+    },
   );
+  notifyPriceIntelObserver(args.observer, 'onQuoteEvidence', { id: productId, evidenceKind });
 
+  // This caller does not know whether `productId` is a PRODUCT or a LISTING.
+  notifyPriceIntelObserver(args.observer, 'onPriceMemoryWriteAttempt', {
+    key: productId,
+    keyKind: 'unknown',
+    writer: 'enrich_with_price_intel',
+    evidenceKind,
+    observedListingId: null,
+  });
   await recordMlDailySnapshots([
     {
       productId,
@@ -343,5 +420,12 @@ export async function enrichMercadoLibrePriceIntel(args: {
     history,
     today
   );
+  notifyPriceIntelObserver(args.observer, 'onPriceIntelComputed', {
+    id: productId,
+    kind: 'unknown',
+    writer: 'enrich_with_price_intel',
+    evidenceKind,
+    observedListingId: null,
+  });
   return { quote, intel };
 }

@@ -37,6 +37,8 @@ import {
   extractMercadoLibreItemId,
   extractMercadoLibreUserProductId,
 } from '@/lib/offers/resolveMercadoLibreItem';
+import { extractLiverpoolProductId } from '@/lib/offers/urlResolution/liverpoolResolver';
+import { isOfferLiverpoolHost } from '@/lib/offers/commerceHostAllowlist';
 
 const ASIN_RE = /^[A-Z0-9]{10}$/i;
 
@@ -46,10 +48,12 @@ const ASIN_RE = /^[A-Z0-9]{10}$/i;
  */
 export function extractAmazonAsin(rawUrl: string): string | null {
   try {
+    const u = new URL(rawUrl);
+    // Never invent Amazon identity from non-Amazon hosts (e.g. Liverpool 10-digit SKUs).
+    if (!isAmazonHost(u.hostname)) return null;
     const upper = rawUrl.toUpperCase();
     const dp = upper.match(/\/(?:DP|GP\/PRODUCT|GP\/AW\/D|EXEC\/OBIDOS\/ASIN)\/([A-Z0-9]{10})\b/);
     if (dp?.[1]) return dp[1];
-    const u = new URL(rawUrl);
     const asinParam = u.searchParams.get('asin') || u.searchParams.get('ASIN');
     if (asinParam && ASIN_RE.test(asinParam.trim())) {
       return asinParam.trim().toUpperCase();
@@ -105,6 +109,25 @@ function isAmazonHost(hostname: string): boolean {
   );
 }
 
+function isLiverpoolHost(hostname: string): boolean {
+  return isOfferLiverpoolHost(hostname);
+}
+
+/** Liverpool PDP SKU for strong identity — never homepage / category. */
+export function extractLiverpoolSkuForFingerprint(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl.trim());
+    if (!isLiverpoolHost(u.hostname)) return null;
+    // Require explicit PDP path so category/home numeric noise cannot mint identity.
+    if (!/\/tienda\/pdp\//i.test(u.pathname) && !u.searchParams.get('productId')) {
+      return null;
+    }
+    return extractLiverpoolProductId(rawUrl);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Clave comparable entre URLs del mismo producto con distintos tags/tracking.
  * Devuelve null si la URL no es parseable.
@@ -135,6 +158,13 @@ export function offerUrlFingerprint(rawUrl: string): string | null {
       if (asin) return `amz:${asin}`;
       const path = u.pathname.replace(/\/+$/, '') || '/';
       if (isWeakProductPath(path)) return null;
+    }
+
+    if (isLiverpoolHost(u.hostname)) {
+      const sku = extractLiverpoolSkuForFingerprint(trimmed);
+      if (sku) return `liv:${sku}`;
+      // Homepage / search / category — not a product identity.
+      return null;
     }
 
     const path = u.pathname.replace(/\/+$/, '') || '/';

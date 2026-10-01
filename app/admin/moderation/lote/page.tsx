@@ -1,5 +1,5 @@
-import OfferBatchPastePanel from '@/app/components/moderation/OfferBatchPastePanel';
+import OfferBatchOps from '@/app/components/moderation/OfferBatchOps';
 
 export default function AdminModerationLotePage() {
-  return <OfferBatchPastePanel mode="admin" />;
+  return <OfferBatchOps mode="admin" />;
 }

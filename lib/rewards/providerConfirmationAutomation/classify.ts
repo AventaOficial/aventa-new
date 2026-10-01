@@ -13,6 +13,7 @@ export function classifyConfirmReject(reason: string): {
     case 'provider_forbidden_in_production':
     case 'credentials_missing':
     case 'api_url_missing':
+    case 'audit_append_failed':
       return { class: 'deferred', terminal: false };
     case 'amount_mismatch':
     case 'currency_mismatch':

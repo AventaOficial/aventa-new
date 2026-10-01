@@ -3,6 +3,7 @@ import {
   extractMercadoLibreItemId,
   offerUrlFingerprint,
 } from '@/lib/offers/offerUrlFingerprint';
+import { extractLiverpoolProductId } from '@/lib/offers/urlResolution/liverpoolResolver';
 import { isStrongProductFingerprint } from '@/lib/offers/findDuplicateOffer';
 import type { IngestItem } from '@/lib/bots/ingest/types';
 import { classifyOfferMonetization } from './dayToDay/monetization';
@@ -15,6 +16,8 @@ function canonicalUrlKey(url: string): string {
     if (mlId) return `ml:${mlId}`;
     const asin = extractAmazonAsin(url);
     if (asin) return `amz:${asin}`;
+    const liv = extractLiverpoolProductId(url);
+    if (liv) return `liv:${liv}`;
     return `${u.hostname.replace(/^www\./, '')}${u.pathname}`.toLowerCase();
   } catch {
     return url.split('?')[0].toLowerCase();
@@ -22,7 +25,11 @@ function canonicalUrlKey(url: string): string {
 }
 
 export function externalIdFromUrl(url: string): string | null {
-  return extractMercadoLibreItemId(url) ?? extractAmazonAsin(url);
+  return (
+    extractMercadoLibreItemId(url) ??
+    extractAmazonAsin(url) ??
+    extractLiverpoolProductId(url)
+  );
 }
 
 export function fingerprintForUrl(url: string): string | null {

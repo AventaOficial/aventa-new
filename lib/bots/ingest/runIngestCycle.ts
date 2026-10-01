@@ -38,6 +38,7 @@ import {
   type QualificationCounts,
 } from '@/lib/hunter/supply/persistSnapshots';
 import { selectTopKByScore } from './candidateInsertGate';
+import { prioritizeAcquisitionPool } from '@/lib/hunter/offerStandard';
 import {
   assertZeroSilentDrops,
   isHunterCandidateIntelligenceEnabled,
@@ -244,7 +245,7 @@ export async function runIngestCycleForProfile(
 
   const rotationWave = computeSourceRotationWave(now, tz);
   const collection = await collectIngestItems(config, rotationWave);
-  const pool = collection.items;
+  const pool = prioritizeAcquisitionPool(collection.items);
   for (const [source, diagnostics] of Object.entries(collection.discoveryDiagnostics ?? {})) {
     const typedSource = source as IngestSourceId;
     if (typeof diagnostics?.collectedCount === 'number') {

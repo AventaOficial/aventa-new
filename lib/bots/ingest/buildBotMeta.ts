@@ -21,6 +21,9 @@ type BuildInput = {
   /** Verifier / gate decision labels for audit. */
   gateAction?: string | null;
   gateReason?: string | null;
+  /** S6.1 reason codes for decision trace. */
+  gateReasonCodes?: string[] | null;
+  hunterDecisionTrace?: Record<string, unknown> | null;
 };
 
 function compact<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
@@ -49,6 +52,7 @@ export function buildBotMeta({
   rawObservation: rawObsInput,
   gateAction,
   gateReason,
+  hunterDecisionTrace,
 }: BuildInput): Record<string, unknown> | null {
   const s = meta.signals;
 
@@ -107,7 +111,8 @@ export function buildBotMeta({
     !hasQuality &&
     !hasDealScore &&
     !hasRaw &&
-    !gateAction
+    !gateAction &&
+    !hunterDecisionTrace
   ) {
     return null;
   }
@@ -126,6 +131,7 @@ export function buildBotMeta({
     ...(hasQuality ? { dealQuality } : {}),
     ...(hasDealScore ? { dealScore } : {}),
     ...(hasRaw ? { rawObservation } : {}),
+    ...(hunterDecisionTrace ? { hunterDecisionTrace } : {}),
   });
 }
 

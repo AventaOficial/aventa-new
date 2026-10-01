@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/requireMeUser';
 import { getRewardsMembership } from '@/lib/rewards/eligibility';
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock';
-import type { RewardStatus } from '@/lib/rewards/config';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import {
   classifyFinancialRecord,
 } from '@/lib/finance/financialRecordClass';
+import { createServerClient } from '@/lib/supabase/server';
+import {
+  EMPTY_PAYOUT_CERTIFICATION,
+  presentCreatorReward,
+  type PayoutCertification,
+} from '@/lib/rewards/payoutReadModel';
 
 type OfferSnippet = {
   id: string;
@@ -16,32 +21,69 @@ type OfferSnippet = {
   price: number | null;
 };
 
-function mapCreatorStatus(
-  status: string,
-  synthetic: boolean,
-): {
-  uiStatus: 'validating' | 'available' | 'delivered' | 'cancelled' | 'synthetic';
-  label: string;
-} {
-  if (synthetic) {
-    if (status === 'PAID') {
-      return { uiStatus: 'synthetic', label: 'Prueba QA (no es pago real)' };
+async function loadPayoutCertifications(rewardIds: string[]): Promise<Map<string, PayoutCertification>> {
+  const certifications = new Map<string, PayoutCertification>();
+  for (const rewardId of rewardIds) {
+    certifications.set(rewardId, { ...EMPTY_PAYOUT_CERTIFICATION });
+  }
+  if (rewardIds.length === 0) return certifications;
+
+  let admin;
+  try {
+    admin = createServerClient();
+  } catch {
+    return certifications;
+  }
+
+  const { data: intents, error: intentError } = await admin
+    .from('payout_intents')
+    .select('id, reward_id, status')
+    .in('reward_id', rewardIds);
+  if (intentError || !intents) return certifications;
+
+  const succeededIntentByReward = new Map<string, string>();
+  for (const row of intents as { id?: string; reward_id?: string; status?: string }[]) {
+    if (row.status === 'SUCCEEDED' && row.id && row.reward_id) {
+      succeededIntentByReward.set(row.reward_id, row.id);
     }
-    return { uiStatus: 'synthetic', label: 'Registro de prueba' };
   }
-  switch (status as RewardStatus) {
-    case 'PAID':
-      return { uiStatus: 'delivered', label: 'Entregada' };
-    case 'CANCELLED':
-    case 'REVERSED':
-      return { uiStatus: 'cancelled', label: 'Cancelada' };
-    case 'AVAILABLE':
-      return { uiStatus: 'available', label: 'Lista' };
-    case 'PENDING':
-    case 'VALIDATING':
-    default:
-      return { uiStatus: 'validating', label: 'En validación' };
+
+  const { data: rewardAudits, error: rewardAuditError } = await admin
+    .from('reward_audit_log')
+    .select('entity_id')
+    .eq('entity_type', 'creator_reward')
+    .eq('event_type', 'reward_paid')
+    .in('entity_id', rewardIds);
+  if (rewardAuditError) return certifications;
+  const rewardPaid = new Set(
+    (rewardAudits ?? []).map((row: { entity_id?: string }) => row.entity_id).filter(Boolean),
+  );
+
+  const succeededIntentIds = [...succeededIntentByReward.values()];
+  const intentCertified = new Set<string>();
+  if (succeededIntentIds.length > 0) {
+    const { data: intentAudits, error: intentAuditError } = await admin
+      .from('reward_audit_log')
+      .select('entity_id')
+      .eq('entity_type', 'payout_intent')
+      .eq('event_type', 'payout_intent_succeeded')
+      .in('entity_id', succeededIntentIds);
+    if (intentAuditError) return certifications;
+    for (const row of intentAudits ?? []) {
+      const entityId = (row as { entity_id?: string }).entity_id;
+      if (entityId) intentCertified.add(entityId);
+    }
   }
+
+  for (const rewardId of rewardIds) {
+    const intentId = succeededIntentByReward.get(rewardId);
+    certifications.set(rewardId, {
+      intentSucceeded: Boolean(intentId),
+      rewardPaidAudit: rewardPaid.has(rewardId),
+      payoutIntentSucceededAudit: Boolean(intentId && intentCertified.has(intentId)),
+    });
+  }
+  return certifications;
 }
 
 /**
@@ -49,6 +91,12 @@ function mapCreatorStatus(
  * Incluye claim de bienvenida (profiles) + creator_rewards (ledger).
  * Solo el usuario de la sesión — nunca userId del cliente.
  */
+function readStoredCents(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) return Number(value.trim());
+  return null;
+}
+
 export async function GET(request: Request) {
   const auth = await requireBearerMeUser(request);
   if ('error' in auth) return meAuthFailureResponse(auth);
@@ -91,7 +139,7 @@ export async function GET(request: Request) {
   const { data: rewardRows, error } = await supabase
     .from('creator_rewards')
     .select(
-      'id, offer_id, network, status, hold_until, available_at, paid_at, created_at, meta, ledger_entry_id',
+      'id, offer_id, network, status, currency, creator_share_cents, hold_until, available_at, paid_at, created_at, meta, ledger_entry_id',
     )
     .eq('creator_id', user.id)
     .order('created_at', { ascending: false })
@@ -161,6 +209,11 @@ export async function GET(request: Request) {
     }
   }
 
+  const paidIds = rows
+    .filter((r: { status?: string; id: string }) => r.status === 'PAID')
+    .map((r: { id: string }) => r.id);
+  const certifications = await loadPayoutCertifications(paidIds);
+
   const rewards = rows.map(
     (r: {
       id: string;
@@ -171,6 +224,8 @@ export async function GET(request: Request) {
       available_at?: string | null;
       paid_at?: string | null;
       created_at: string;
+      currency?: string | null;
+      creator_share_cents?: number | null;
       meta?: unknown;
       ledger_entry_id?: string | null;
     }) => {
@@ -183,7 +238,12 @@ export async function GET(request: Request) {
         trackingTag: ledger?.tracking_tag,
       });
       const synthetic = recordClass === 'SYNTHETIC_QA';
-      const mapped = mapCreatorStatus(r.status, synthetic);
+      const certification = synthetic ? EMPTY_PAYOUT_CERTIFICATION : (certifications.get(r.id) ?? EMPTY_PAYOUT_CERTIFICATION);
+      const mapped = presentCreatorReward({
+        status: r.status,
+        synthetic,
+        certification,
+      });
       return {
         id: r.id,
         kind: 'commission' as const,
@@ -195,13 +255,15 @@ export async function GET(request: Request) {
         network: r.network ?? null,
         createdAt: r.created_at,
         paidAt: r.paid_at ?? null,
+        shareCents: readStoredCents(r.creator_share_cents),
+        currency: typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim().toUpperCase() : null,
         offer: r.offer_id ? offersById[r.offer_id] ?? null : null,
       };
     },
   );
 
   const productionRewards = rewards.filter((r) => !r.isSynthetic);
-  const hasProductionPaid = productionRewards.some((r) => r.status === 'PAID');
+  const hasProductionPaid = productionRewards.some((r) => r.uiStatus === 'delivered');
 
   return NextResponse.json({
     welcome: {

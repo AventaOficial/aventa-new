@@ -1,11 +1,12 @@
 /**
  * M5.1 — Reconciliation safety net for Ledger → Reward bridge.
- * Finds settlement-origin accrued ledgers without creator_reward and without terminal outcome.
+ * Finds settlement-origin accrued ledgers whose reward is missing or not yet certified.
+ * affiliate_ledger_entries.meta is not an economic authority.
  * Bounded by created_at lookback + limit (no blind full-table scan).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isSettlementOriginLedger, readLedgerRewardOutcome } from './outcomes';
+import { isSettlementOriginLedger } from './outcomes';
 import { processLedgerRewardAttempt } from './processLedgerRewardAttempt';
 import type {
   ProcessLedgerRewardAttemptResult,
@@ -35,16 +36,29 @@ function emptyResult(): ReconcileLedgerRewardBridgeResult {
   };
 }
 
-function shouldAttempt(meta: Record<string, unknown> | null | undefined): boolean {
-  const outcome = readLedgerRewardOutcome(meta);
-  if (!outcome) return true; // never attempted / crash before schedule
-  if (outcome.terminal) return false;
-  // pending | deferred | retryable
-  return (
-    outcome.class === 'pending' ||
-    outcome.class === 'deferred' ||
-    outcome.class === 'retryable'
-  );
+function shouldSkipCertifiedReward(input: {
+  reward:
+    | { id: string; gross_commission_cents?: number | null; currency?: string | null }
+    | undefined;
+  ledgerAmountCents: number;
+  auditedRewardIds: Set<string>;
+}): boolean {
+  const reward = input.reward;
+  if (!reward) return false;
+  if (!input.auditedRewardIds.has(reward.id)) return false;
+  if (
+    typeof reward.gross_commission_cents === 'number' &&
+    reward.gross_commission_cents !== input.ledgerAmountCents
+  ) {
+    return false;
+  }
+  if (
+    typeof reward.currency === 'string' &&
+    reward.currency.trim().toUpperCase() !== 'MXN'
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export async function reconcileLedgerRewardBridge(
@@ -60,7 +74,7 @@ export async function reconcileLedgerRewardBridge(
 
   const { data: rows, error } = await supabase
     .from('affiliate_ledger_entries')
-    .select('id, status, notes, meta, created_at')
+    .select('id, status, notes, meta, created_at, amount_cents')
     .eq('status', 'accrued')
     .gte('created_at', since)
     .order('created_at', { ascending: true })
@@ -87,24 +101,53 @@ export async function reconcileLedgerRewardBridge(
   const ids = settlementCandidates.map((r) => String(r.id));
   const { data: rewards } = await supabase
     .from('creator_rewards')
-    .select('ledger_entry_id')
+    .select('id, ledger_entry_id, gross_commission_cents, currency')
     .in('ledger_entry_id', ids);
 
-  const rewarded = new Set(
-    (rewards ?? [])
-      .map((r) => (r.ledger_entry_id ? String(r.ledger_entry_id) : ''))
-      .filter(Boolean),
-  );
+  const rewardByLedger = new Map<
+    string,
+    { id: string; gross_commission_cents?: number | null; currency?: string | null }
+  >();
+  for (const reward of rewards ?? []) {
+    const ledgerId = reward.ledger_entry_id ? String(reward.ledger_entry_id) : '';
+    const rewardId = reward.id ? String(reward.id) : '';
+    if (ledgerId && rewardId) {
+      rewardByLedger.set(ledgerId, {
+        id: rewardId,
+        gross_commission_cents: reward.gross_commission_cents,
+        currency: reward.currency,
+      });
+    }
+  }
+
+  const rewardIds = [...rewardByLedger.values()].map((reward) => reward.id);
+  const auditedRewardIds = new Set<string>();
+  if (rewardIds.length > 0) {
+    const { data: auditRows, error: auditError } = await supabase
+      .from('reward_audit_log')
+      .select('entity_id')
+      .eq('entity_type', 'creator_reward')
+      .eq('event_type', 'reward_created')
+      .in('entity_id', rewardIds);
+    if (!auditError) {
+      for (const audit of auditRows ?? []) {
+        const entityId = (audit as { entity_id?: string }).entity_id;
+        if (entityId) auditedRewardIds.add(String(entityId));
+      }
+    }
+  }
 
   const toProcess: string[] = [];
   for (const row of settlementCandidates) {
     const id = String(row.id);
-    if (rewarded.has(id)) {
-      out.skipped += 1;
-      continue;
-    }
-    const meta = (row.meta ?? {}) as Record<string, unknown>;
-    if (!shouldAttempt(meta)) {
+    const amountCents = Number((row as { amount_cents?: number }).amount_cents);
+    if (
+      shouldSkipCertifiedReward({
+        reward: rewardByLedger.get(id),
+        ledgerAmountCents: Number.isFinite(amountCents) ? amountCents : Number.NaN,
+        auditedRewardIds,
+      })
+    ) {
       out.skipped += 1;
       continue;
     }

@@ -88,7 +88,17 @@ export async function refreshMercadoLibreAccessToken(): Promise<string | null> {
 export async function getValidAccessToken(): Promise<string | null> {
   if (!isMlOAuthEnabled()) return null;
 
-  const row = await getMercadoLibreTokenRow();
+  let row: MercadoLibreOAuthTokenRow | null = null;
+  try {
+    row = await getMercadoLibreTokenRow();
+  } catch (error) {
+    // Table/RLS/read failures must not kill discovery — fall back to unauthenticated API.
+    console.error(
+      '[ml-oauth] getValidAccessToken read failed',
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
   if (!row?.access_token?.trim()) return null;
 
   if (!isAccessTokenExpired(row.expires_at, getRefreshSkewSeconds())) {
@@ -108,7 +118,12 @@ export async function proactiveRefreshMercadoLibreToken(): Promise<{
     return { ok: false, refreshed: false, reason: 'disabled' };
   }
 
-  const row = await getMercadoLibreTokenRow();
+  let row: MercadoLibreOAuthTokenRow | null = null;
+  try {
+    row = await getMercadoLibreTokenRow();
+  } catch {
+    return { ok: false, refreshed: false, reason: 'token_read_failed' };
+  }
   if (!row) {
     return { ok: false, refreshed: false, reason: 'not_connected' };
   }

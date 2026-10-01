@@ -44,5 +44,17 @@ export {
 } from './projectLedgerAttribution';
 export {
   buildSettlementReversalContract,
+  buildSettlementReversalExternalRef,
   emitSettlementReversalRequired,
+  executeSettlementReversal,
+  recoverSettlementReversal,
+  SETTLEMENT_REVERSAL_EXTERNAL_REF_PREFIX,
 } from './reversalContract';
+export {
+  dispatchSettlementReversalRecovery,
+  SETTLEMENT_REVERSAL_RECOVERY_BATCH_LIMIT,
+  SETTLEMENT_REVERSAL_RECOVERY_RPC,
+  type SettlementReversalRecoveryDispatchResult,
+  type SettlementReversalRecoveryFailure,
+} from './reversalRecoveryDispatch';
+export type { SettlementReversalResult } from './types';

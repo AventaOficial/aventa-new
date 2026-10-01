@@ -57,6 +57,7 @@ export type EvaluateMachineLiveInsertEligibilityInput = {
     price: number | null;
   } | null;
   dealScore?: DealScore | null;
+  dealQuality?: MachineCandidateGateInput['dealQuality'];
   pdpBlocked?: boolean | null;
   requireOriginalPrice?: boolean;
 };
@@ -125,6 +126,7 @@ export function evaluateMachineLiveInsertEligibility(
     verifierReasons: input.verifierReasons,
     duplicate: input.duplicate,
     dealScore: input.dealScore,
+    dealQuality: input.dealQuality,
     pdpBlocked: input.pdpBlocked,
     requireOriginalPrice: input.requireOriginalPrice,
   };

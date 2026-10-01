@@ -7,6 +7,7 @@ import {
   getBotOfferCountStartUtc,
 } from '@/lib/bots/ingest/botIngestDailyState';
 import { isMachinePendingWriteEnabled } from '@/lib/bots/ingest/machineLiveInsertEligibility';
+import { isProductionRuntime } from '@/lib/server/moneyPathFreeze';
 import { createServerClient } from '@/lib/supabase/server';
 
 /**
@@ -20,7 +21,7 @@ const AUTHORITATIVE_SCHEDULER = {
   ingest_path: '/api/cron/bot-ingest-candidates',
   discovery_only_default: true,
   note:
-    'GHA sets WORKER_DISCOVERY_ONLY (default 1 → dryRun). Pending DB writes also require BOT_INGEST_MACHINE_PENDING_WRITES=1 and BOT_INGEST_ENABLED=1 plus bot author IDs. Vercel cron does not schedule bot-ingest.',
+    'GHA sets WORKER_DISCOVERY_ONLY (default 1 → dryRun). Production always hard-blocks machine mint (PRODUCTION_BLOCKED). Pending DB writes also require BOT_INGEST_MACHINE_PENDING_WRITES=1 on non-prod. Vercel cron does not schedule bot-ingest.',
 };
 
 const TRACKED_ENV_KEYS = [
@@ -85,6 +86,7 @@ function diagnoseOpsBottleneck(input: {
   paused: boolean;
   hasAuthor: boolean;
   machineWrites: boolean;
+  productionBlocked: boolean;
   pendingCount: number | null;
 }): { bottleneck: string; detail: string } {
   if (!input.enabled) {
@@ -99,6 +101,13 @@ function diagnoseOpsBottleneck(input: {
       detail: 'Configure BOT_INGEST_USER_ID or TECH+STAPLES pair',
     };
   }
+  if (input.productionBlocked) {
+    return {
+      bottleneck: 'production_blocked',
+      detail:
+        'Machine mint hard-blocked in production (assertMachineOfferWriteAuthorized). Mission Control may show would_insert; moderation pending stays 0 until staging canary / explicit non-prod path.',
+    };
+  }
   if (!input.machineWrites) {
     return {
       bottleneck: 'writes_disabled',
@@ -110,7 +119,7 @@ function diagnoseOpsBottleneck(input: {
     return {
       bottleneck: 'pending_empty',
       detail:
-        'Writes may be ON but queue empty — check last worker ops.bottleneck / S6.1 suppressions',
+        'Writes may be ON but queue empty — check last worker ops.bottleneck / cycleFunnel.operator_verdict / S6.1 suppressions',
     };
   }
   return { bottleneck: 'none', detail: 'machine pending offers present' };
@@ -198,6 +207,7 @@ export async function GET(request: Request) {
     paused: pausedByOwner,
     hasAuthor: cfg.botUserIdsForQuota.length > 0,
     machineWrites: machinePendingWrites,
+    productionBlocked: isProductionRuntime(),
     pendingCount,
   });
 
@@ -206,6 +216,12 @@ export async function GET(request: Request) {
     env_ingest_enabled: cfg.enabled,
     paused_by_owner: pausedByOwner,
     machine_pending_writes_enabled: machinePendingWrites,
+    production_write_blocked: isProductionRuntime(),
+    moderation_vs_observation: {
+      note:
+        'would_insert / dryRunSimulated is observation only. offers_sent_to_moderation requires non-prod + writes ON + !dryRun.',
+      pending_bot_offers: pendingCount,
+    },
     ops_bottleneck: ops.bottleneck,
     ops_bottleneck_detail: ops.detail,
     scheduler: AUTHORITATIVE_SCHEDULER,

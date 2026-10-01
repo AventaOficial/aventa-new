@@ -1,0 +1,51 @@
+{
+  "source": "day2_staging_canary",
+  "note": "Primary candidate has real habitual savings (>=12%) from production census. Secondary candidates expected BLOCKED/PARTIAL by DQE (not forced).",
+  "candidates": [
+    {
+      "url": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+      "canonicalUrl": "https://articulo.mercadolibre.com.mx/MLM-2177969823-producto-aventa-day2-_JM",
+      "title": "Organizador de cocina plástico con divisiones para utensilios",
+      "store": "Mercado Libre",
+      "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_699771-MLA114851533690_082026-AB.webp",
+      "discountPrice": 130.13,
+      "originalPrice": 175.0,
+      "discountPercent": 26,
+      "cardDiscountSource": "card_strikethrough",
+      "signals": {
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough"
+      }
+    },
+    {
+      "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+      "canonicalUrl": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM63084226",
+      "title": "Audífonos inalámbricos con cancelación de ruido y estuche de carga",
+      "store": "Mercado Libre",
+      "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_836589-MLA116882090683_082026-AB.webp",
+      "discountPrice": 1981.19,
+      "originalPrice": 2621.0,
+      "discountPercent": 24,
+      "cardDiscountSource": "card_strikethrough",
+      "signals": {
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough"
+      }
+    },
+    {
+      "url": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+      "canonicalUrl": "https://www.mercadolibre.com.mx/producto-oferta-aventa/p/MLM45749298",
+      "title": "Licuadora de vaso de vidrio 1.5 litros potencia alta para cocina",
+      "store": "Mercado Libre",
+      "imageUrl": "https://http2.mlstatic.com/D_Q_NP_2X_699771-MLA114851533690_082026-AB.webp",
+      "discountPrice": 2490.0,
+      "originalPrice": 3258.0,
+      "discountPercent": 24,
+      "cardDiscountSource": "card_strikethrough",
+      "signals": {
+        "originalPriceProvenance": "listing_card",
+        "cardDiscountSource": "card_strikethrough"
+      }
+    }
+  ]
+}

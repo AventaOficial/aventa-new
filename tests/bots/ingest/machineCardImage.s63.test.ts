@@ -1,5 +1,5 @@
-/**
- * S6.3 — Card image extraction / image wiring.
+﻿/**
+ * S6.3 ÔÇö Card image extraction / image wiring.
  * Does not change S6.1 gate policy or S6.2 price provenance.
  */
 
@@ -102,12 +102,12 @@ const CDN = 'https://http2.mlstatic.com/D_NQ_NP_2X_PRODUCT123-MLM-O.webp';
 const CDN_ALT = 'https://http2.mlstatic.com/D_NQ_NP_2X_ALT456-MLM-O.webp';
 
 describe('S6.3 card image extraction helpers', () => {
-  it('1. img[src] válido', () => {
+  it('1. img[src] v├ílido', () => {
     const urls = collectRawUrlsFromImgAttrs({ src: CDN });
     expect(pickBestCardImageUrl(urls)).toBe(CDN);
   });
 
-  it('2. img[data-src] válido', () => {
+  it('2. img[data-src] v├ílido', () => {
     const urls = collectRawUrlsFromImgAttrs({
       src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
       'data-src': CDN,
@@ -115,14 +115,14 @@ describe('S6.3 card image extraction helpers', () => {
     expect(pickBestCardImageUrl(urls)).toBe(CDN);
   });
 
-  it('3. data-srcset válido', () => {
+  it('3. data-srcset v├ílido', () => {
     const urls = collectRawUrlsFromImgAttrs({
       'data-srcset': `${CDN} 1x, ${CDN_ALT} 2x`,
     });
     expect(pickBestCardImageUrl(urls)).toContain('ALT456');
   });
 
-  it('4. srcset válido', () => {
+  it('4. srcset v├ílido', () => {
     expect(
       firstUrlFromSrcset(
         'https://http2.mlstatic.com/D_NQ_NP_ABC-O.webp 1x, https://http2.mlstatic.com/D_NQ_NP_2X_ABC-O.webp 2x',
@@ -130,7 +130,7 @@ describe('S6.3 card image extraction helpers', () => {
     ).toContain('2X_ABC');
   });
 
-  it('5. picture/source srcset (vía attrs map)', () => {
+  it('5. picture/source srcset (v├¡a attrs map)', () => {
     const fromSource = firstUrlFromSrcset(`${CDN} 340w, ${CDN_ALT} 680w`);
     expect(pickBestCardImageUrl([fromSource])).toContain('mlstatic.com');
   });
@@ -169,7 +169,7 @@ describe('S6.3 card image extraction helpers', () => {
     ).toBeNull();
   });
 
-  it('11. multiple images → best product CDN', () => {
+  it('11. multiple images ÔåÆ best product CDN', () => {
     const best = pickBestCardImageUrl([
       'https://cdn.example.com/other.jpg',
       CDN,
@@ -211,7 +211,7 @@ describe('S6.3 image propagation + regressions', () => {
   const trustedCandidate = (): ExternalWorkerCandidate => ({
     url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-s63',
     canonicalUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-s63',
-    title: 'Audífonos Bluetooth noise cancelling oferta S63',
+    title: 'Aud├¡fonos Bluetooth noise cancelling oferta S63',
     store: 'Mercado Libre',
     imageUrl: CDN,
     discountPrice: 698,
@@ -223,6 +223,8 @@ describe('S6.3 image propagation + regressions', () => {
       cardDiscountSource: 'card_strikethrough',
       originalPriceProvenance: 'listing_card',
       imageProvenance: 'listing_card',
+      // S6.1 price-truth: mint-eligible card requires historyReady.
+      historyReady: true,
     },
   });
 
@@ -255,6 +257,7 @@ describe('S6.3 image propagation + regressions', () => {
     const n = normalizeMlWorkerListing(trustedCandidate());
     expect(n.ok).toBe(true);
     if (!n.ok) return;
+    expect(n.value.meta.signals?.historyReady).toBe(true);
     const gate = evaluateMachineCandidateGate({
       url: n.value.meta.canonicalUrl,
       meta: n.value.meta,
@@ -275,6 +278,7 @@ describe('S6.3 image propagation + regressions', () => {
     expect(n.ok).toBe(true);
     if (!n.ok) return;
     expect(n.value.meta.imageUrl).toBe('');
+    expect(n.value.meta.signals?.historyReady).toBe(true);
     const gate = evaluateMachineCandidateGate({
       url: n.value.meta.canonicalUrl,
       meta: n.value.meta,
@@ -282,6 +286,7 @@ describe('S6.3 image propagation + regressions', () => {
       verifierDecision: 'pending',
     });
     expect(gate.wouldInsert).toBe(true);
+    expect(gate.qualityDecision).toBe('VERIFIED_OPPORTUNITY');
     expect(gate.reasonCodes).toContain('PARTIAL_NO_IMAGE');
   });
 

@@ -67,6 +67,29 @@ const EXTRA_EXPLORATION_QUERIES: readonly string[] = [
   'llanta auto oferta',
   'herramienta taladro oferta',
   'camara web oferta',
+  // High-demand acquisition (brand + model)
+  'iphone 16 oferta',
+  'samsung galaxy s25 oferta',
+  'samsung galaxy a56 oferta',
+  'motorola edge 60 oferta',
+  'poco x7 oferta',
+  'hisense u8 oferta',
+  'lg oled c4 oferta',
+  'asus vivobook oferta',
+  'lenovo loq oferta',
+  'playstation 5 slim oferta',
+  'nintendo switch 2 oferta',
+  'nike dunk oferta',
+  'adidas samba oferta',
+  'italika 250z oferta',
+  'honda navi oferta',
+  'spotify premium oferta',
+  'netflix gift card',
+  'minisplit midea oferta',
+  'taladro dewalt oferta',
+  'persil 9 litros oferta',
+  'papel higienico 32 rollos',
+  'colgate triple pack',
 ];
 
 const EXTRA_EXPLORATION_CATEGORIES: readonly string[] = [
@@ -82,6 +105,7 @@ const EXTRA_EXPLORATION_CATEGORIES: readonly string[] = [
   'MLM1182', // Instrumentos
   'MLM1499', // Industrias
   'MLM1071', // Animales
+  'MLM1403', // Alimentos y bebidas
 ];
 
 function uniqPreserve(items: readonly string[]): string[] {

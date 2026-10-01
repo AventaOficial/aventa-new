@@ -7,8 +7,13 @@ import {
 } from '@/lib/commissions/affiliateLedger';
 import { parseAffiliateLedgerCsv, type AmountUnit } from '@/lib/commissions/parseAffiliateLedgerCsv';
 import { fingerprintLedgerRow } from '@/lib/commissions/ledgerFingerprint';
-import { decodeAventaSubId, type AffiliateNetworkId } from '@/lib/rewards/adapters/types';
-import { tryCreateRewardFromLedgerRow, type LedgerRowForReward } from '@/lib/rewards/processLedger';
+import { decodeAventaSubId } from '@/lib/rewards/adapters/types';
+import { appendEconomicEvent } from '@/lib/economy/appendEconomicEvent';
+import {
+  NETWORK_EVIDENCE_REWARDS_DISABLED,
+  assertNetworkEvidenceExternalRefAllowed,
+} from '@/lib/economy/ledger/canonicalLedgerAuthority';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 
 function isNetwork(v: unknown): v is AffiliateLedgerNetwork {
   return typeof v === 'string' && (AFFILIATE_LEDGER_NETWORKS as readonly string[]).includes(v);
@@ -16,12 +21,19 @@ function isNetwork(v: unknown): v is AffiliateLedgerNetwork {
 
 /**
  * Importa CSV de reportes afiliados al ledger.
- * Body JSON: { csv: string, network?: string, currency?: string, status?: 'accrued'|'paid' }
+ * Body JSON: { csv: string, network?: string, currency?: string, status?: 'pending'|'accrued' }
  * Resuelve creator_id por ml_tracking_tag o amazon_tracking_tag.
  */
 export async function POST(request: Request) {
   const auth = await requireUsersLogs(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  // Network CSV is evidence ingest into the canonical ledger table — not a second SoT.
+  // Never mints rewards from this path (rewards only via settlement→ledger bridge).
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
+  void NETWORK_EVIDENCE_REWARDS_DISABLED;
 
   const body = await request.json().catch(() => ({}));
   const csv = typeof body?.csv === 'string' ? body.csv : '';
@@ -30,10 +42,10 @@ export async function POST(request: Request) {
     typeof body?.currency === 'string' && body.currency.trim().length === 3
       ? body.currency.trim().toUpperCase()
       : 'MXN';
-  const status =
-    body?.status === 'paid' || body?.status === 'accrued' || body?.status === 'pending'
-      ? body.status
-      : 'accrued';
+  if (body?.status != null && body.status !== 'pending' && body.status !== 'accrued') {
+    return NextResponse.json({ error: 'status_not_allowed' }, { status: 400 });
+  }
+  const status = body?.status === 'pending' ? 'pending' : 'accrued';
   const amountUnit: AmountUnit | undefined =
     body?.amount_unit === 'cents' || body?.amount_unit === 'major' ? body.amount_unit : undefined;
   const dedupeStrategy =
@@ -127,15 +139,33 @@ export async function POST(request: Request) {
       meta: {
         imported_by: auth.user.id,
         dedupe_strategy: dedupeStrategy,
+        evidence_ingest: true,
+        rewards_created: false,
         ...(isAventaSubId && tag ? { sub_id: tag, ascsubtag: tag } : {}),
       },
     };
   });
 
+  for (const row of payloads) {
+    const externalRef = String(row.external_ref ?? '').trim().toLowerCase();
+    if (externalRef.startsWith('settlement:')) {
+      return NextResponse.json(
+        {
+          error:
+            'external_ref reserved for settlement bridge — CSV cannot mint settlement:* rows',
+        },
+        { status: 400 },
+      );
+    }
+    const guard = assertNetworkEvidenceExternalRefAllowed(row.external_ref);
+    if (!guard.ok) {
+      return NextResponse.json({ error: guard.error }, { status: 400 });
+    }
+  }
+
   let inserted = 0;
   let duplicates = 0;
   let failed = 0;
-  let rewardsCreated = 0;
   const errors: string[] = [];
   const insertedLedgerIds: string[] = [];
 
@@ -166,8 +196,49 @@ export async function POST(request: Request) {
       for (const row of chunk) {
         const one = await supabase.from('affiliate_ledger_entries').insert(row).select('id').single();
         if (one.error) {
-          if (one.error.code === '23505') duplicates++;
-          else {
+          if (one.error.code === '23505') {
+            const { data: existing } = await supabase
+              .from('affiliate_ledger_entries')
+              .select('id, external_ref')
+              .eq('network', row.network)
+              .eq('external_ref', row.external_ref)
+              .maybeSingle();
+            const existingRef = String(
+              (existing as { external_ref?: string | null } | null)?.external_ref ?? '',
+            )
+              .trim()
+              .toLowerCase();
+            if (existingRef.startsWith('settlement:')) {
+              return NextResponse.json({ error: 'canonical_settlement_immutable' }, { status: 409 });
+            }
+            if (existing && (existing as { id?: string }).id) {
+              const retried = await appendEconomicEvent(supabase, {
+                entityType: 'settlement',
+                entityId: String((existing as { id: string }).id),
+                eventType: 'network_report_evidence_ingested',
+                toStatus: status,
+                actor: `admin:${auth.user.id}`,
+                payload: {
+                  source: 'csv_import',
+                  rewardsCreated: false,
+                  note: 'evidence_ingest_not_settlement_bridge',
+                  reused: true,
+                },
+              });
+              if (!retried.ok) {
+                return NextResponse.json(
+                  {
+                    error: 'audit_append_failed',
+                    detail: retried.error,
+                    inserted,
+                    id: (existing as { id: string }).id,
+                  },
+                  { status: 500 },
+                );
+              }
+            }
+            duplicates++;
+          } else {
             failed++;
             if (errors.length < 5) errors.push(one.error.message);
           }
@@ -184,31 +255,29 @@ export async function POST(request: Request) {
     }
   }
 
-  if (insertedLedgerIds.length > 0) {
-    const { data: ledgerRows } = await supabase
-      .from('affiliate_ledger_entries')
-      .select(
-        'id, network, amount_cents, status, external_ref, notes, meta, created_at, tracking_tag, offer_id, creator_id, click_id',
-      )
-      .in('id', insertedLedgerIds);
-
-    for (const row of ledgerRows ?? []) {
-      const r = row as LedgerRowForReward;
-      const reward = await tryCreateRewardFromLedgerRow(supabase, {
-        id: r.id,
-        network: r.network as AffiliateNetworkId,
-        amount_cents: Number(r.amount_cents),
-        status: r.status,
-        external_ref: r.external_ref,
-        notes: r.notes,
-        meta: r.meta as Record<string, unknown>,
-        created_at: r.created_at,
-        tracking_tag: r.tracking_tag,
-        offer_id: (r as { offer_id?: string | null }).offer_id ?? null,
-        creator_id: (r as { creator_id?: string | null }).creator_id ?? null,
-        click_id: (r as { click_id?: string | null }).click_id ?? null,
-      });
-      if (reward.created) rewardsCreated++;
+  for (const ledgerId of insertedLedgerIds) {
+    const audit = await appendEconomicEvent(supabase, {
+      entityType: 'settlement',
+      entityId: ledgerId,
+      eventType: 'network_report_evidence_ingested',
+      toStatus: status,
+      actor: `admin:${auth.user.id}`,
+      payload: {
+        source: 'csv_import',
+        rewardsCreated: false,
+        note: 'evidence_ingest_not_settlement_bridge',
+      },
+    });
+    if (!audit.ok) {
+      return NextResponse.json(
+        {
+          error: 'audit_append_failed',
+          detail: audit.error,
+          inserted,
+          note: 'Ledger rows may exist without complete audit — investigate before retry',
+        },
+        { status: 500 },
+      );
     }
   }
 
@@ -217,7 +286,8 @@ export async function POST(request: Request) {
     inserted,
     duplicates,
     failed,
-    rewards_created: rewardsCreated,
+    rewards_created: 0,
+    rewards_path: 'disabled_network_evidence_ingest',
     skipped_parse: parsed.skipped,
     resolved_tags: tagToUser.size,
     errors: errors.length ? errors : undefined,

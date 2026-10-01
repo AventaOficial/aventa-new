@@ -16,6 +16,11 @@ import {
   ML_PRICE_TZ,
 } from '@/lib/bots/ingest/mlPriceEngine';
 import { applyMlPriceIntelToMeta } from '@/lib/bots/ingest/priceIntel';
+import {
+  notifyPriceIntelObserver,
+  type PriceIntelExplicitKind,
+  type PriceIntelObserver,
+} from '@/lib/bots/ingest/priceIntelObserver';
 import { formatYmdInTz } from '@/lib/bots/ingest/ingestZonedTime';
 import { fetchMlApi, type FetchMlApiResult } from '@/lib/integrations/mercadolibre/apiClient';
 import { createServerClient } from '@/lib/supabase/server';
@@ -365,6 +370,8 @@ export async function observeStickySkuViaServer(opts: {
   target?: StickySkuTarget | null;
   supabase?: ReturnType<typeof createServerClient> | null;
   deps?: ObserveStickySkuViaServerDeps;
+  /** Day 13.2 — observability only; never changes keys, writes or intel. */
+  priceIntelObserver?: PriceIntelObserver | null;
 }): Promise<StickyServerObservation> {
   const observedAt = (opts.observedAt ?? new Date()).toISOString();
   const productId = normalizeMlProductId(opts.productId) ?? opts.productId.replace(/-/g, '').toUpperCase();
@@ -432,6 +439,29 @@ export async function observeStickySkuViaServer(opts: {
       categoryId: null,
       offerUrlHint: null,
     };
+
+    // Day 12 — prices API often returns sale-only for catalog sticky IDs.
+    // When current is resolved but original is absent, try products/items for a
+    // real listing original (never invent; never use PM history as original).
+    if (quote.originalPrice == null) {
+      const viaProducts = await resolveStickyViaProductsApi(productId, fetchApi);
+      if (
+        viaProducts.ok &&
+        viaProducts.quote.originalPrice != null &&
+        viaProducts.quote.originalPrice > viaProducts.quote.current
+      ) {
+        quote = viaProducts.quote;
+        base.provenance.priceApiSource = quote.source;
+        base.provenance.originalRecoveredVia = 'products_items';
+      } else {
+        base.provenance.originalRecoveredVia = 'unavailable';
+        if (!viaProducts.ok) {
+          base.provenance.originalRecoveryReason = viaProducts.reason;
+        }
+      }
+    } else {
+      base.provenance.originalRecoveredVia = 'prices_endpoint';
+    }
   } else if (priceRes.status === 'unauthorized' || priceRes.status === 'not_found') {
     return {
       ...base,
@@ -460,13 +490,31 @@ export async function observeStickySkuViaServer(opts: {
     quote = viaProducts.quote;
     base.provenance.priceApiSource = quote.source;
     base.provenance.priceApiStatus = 'resolved';
+    base.provenance.originalRecoveredVia =
+      quote.originalPrice != null ? 'products_items' : 'unavailable';
     base.currency = quote.currency;
   }
 
   const current = quote.current;
   const apiOriginal = quote.originalPrice;
 
+  // Day 13.2 — PRODUCT only when /products/{tip}/items returned a different listing.
+  const observedListingForTrace = quote.listingItemId
+    ? quote.listingItemId.replace(/-/g, '').toUpperCase()
+    : null;
+  const tipKindForTrace: PriceIntelExplicitKind =
+    observedListingForTrace && observedListingForTrace !== productId.replace(/-/g, '').toUpperCase()
+      ? 'product'
+      : 'unknown';
+
   if (opts.persistSnapshots) {
+    notifyPriceIntelObserver(opts.priceIntelObserver, 'onPriceMemoryWriteAttempt', {
+      key: productId,
+      keyKind: tipKindForTrace,
+      writer: 'sticky_observe',
+      evidenceKind: 'live',
+      observedListingId: observedListingForTrace,
+    });
     await recordSnapshots([
       {
         productId,
@@ -489,6 +537,13 @@ export async function observeStickySkuViaServer(opts: {
     history,
     today,
   );
+  notifyPriceIntelObserver(opts.priceIntelObserver, 'onPriceIntelComputed', {
+    id: productId,
+    kind: tipKindForTrace,
+    writer: 'sticky_observe',
+    evidenceKind: 'live',
+    observedListingId: observedListingForTrace,
+  });
 
   const offerMeta = await lookupMeta(productId, opts.supabase ?? null);
   const applied = applyCanonicalDiscountToMetaFields({
@@ -499,12 +554,21 @@ export async function observeStickySkuViaServer(opts: {
   });
   const discountPercent = applied.discountPercent;
 
-  const titleSeed = (quote.titleHint ?? offerMeta?.title ?? '').trim();
+  const titleSeed = (quote.titleHint ?? offerMeta?.title ?? `Producto ${productId}`).trim();
   const imageSeed = quote.imageHint || offerMeta?.imageUrl || '';
   const canonical =
     quote.offerUrlHint ||
     (resolved?.canonicalUrl && resolved.canonicalUrl.includes('-') ? resolved.canonicalUrl : null) ||
     offerUrl;
+
+  const listingItemId = quote.listingItemId
+    ? quote.listingItemId.replace(/-/g, '').toUpperCase()
+    : null;
+  const tipIsListing =
+    listingItemId == null || listingItemId === productId.replace(/-/g, '').toUpperCase();
+  const identityMethod = tipIsListing
+    ? ('exact_item_id' as const)
+    : ('catalog_to_listing_via_products_items' as const);
 
   let meta: ParsedOfferMetadata = {
     canonicalUrl: canonical,
@@ -519,6 +583,10 @@ export async function observeStickySkuViaServer(opts: {
       originalPriceProvenance: apiOriginal != null ? 'source_explicit' : 'unknown',
       discountPercentProvenance: discountPercent != null ? 'derived' : 'unknown',
       categoryId: quote.categoryId,
+      // Day 12.2 — PRODUCT (PM tip) vs LISTING (acquired item). Never invent listing.
+      mlCatalogProductId: productId,
+      mlListingItemId: listingItemId ?? productId,
+      mlIdentityMatchMethod: identityMethod,
     },
   };
 
@@ -575,6 +643,11 @@ export async function observeStickySkuViaServer(opts: {
 
   const rich = isStickyEvidenceRich(meta);
   const hasTitle = Boolean(title && title.length >= 8);
+  // Day 12.3 — never drop priced API evidence solely for thin title.
+  // Title may be a tip placeholder (`Producto {id}`); observationStatus still
+  // reflects insufficient_evidence when not rich. Prices remain source_explicit.
+  const keepMetaForProvenance =
+    hasTitle || (Number.isFinite(meta.discountPrice) && meta.discountPrice > 0);
 
   return {
     itemId: productId,
@@ -596,7 +669,7 @@ export async function observeStickySkuViaServer(opts: {
     },
     observedAt,
     observationStatus: rich || hasTitle ? (rich ? 'ok' : 'insufficient_evidence') : 'insufficient_evidence',
-    meta: hasTitle ? meta : null,
+    meta: keepMetaForProvenance ? meta : null,
   };
 }
 
@@ -771,6 +844,15 @@ export async function observeStickySkus(opts: {
       report.stickyObserved += 1;
 
       if (!obs.meta) {
+        report.snapshotOnly += 1;
+        await sleep(120);
+        continue;
+      }
+
+      // Day 12.3 — priced meta may be retained for provenance even with empty title.
+      // Supply candidates still require a real title (≥8); otherwise snapshot-only.
+      const titleOk = (obs.meta.title?.trim().length ?? 0) >= 8;
+      if (!titleOk) {
         report.snapshotOnly += 1;
         await sleep(120);
         continue;
