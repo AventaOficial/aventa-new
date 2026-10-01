@@ -77,10 +77,8 @@ describe('experiencia del cazador', () => {
 
   it('ordena el dashboard para móvil y conserva una cuadrícula en pantallas mayores', () => {
     const dashboard = source('app/me/dashboard/HunterDashboard.tsx');
-    expect(dashboard).toMatch(/order-1/);
-    expect(dashboard).toMatch(/xl:grid-cols-\[minmax\(0,680px\)_280px\]/);
+    expect(dashboard).toMatch(/lg:grid-cols-\[minmax\(0,1\.6fr\)_minmax\(240px,0\.9fr\)\]/);
     expect(dashboard).not.toMatch(/md:grid-cols-2/);
-    expect(dashboard).toMatch(/order-6/);
     const next = dashboard.indexOf('<HunterNextAction');
     const progress = dashboard.indexOf('<HunterProgress');
     const offers = dashboard.indexOf('<HunterOffersPreview');
@@ -88,8 +86,9 @@ describe('experiencia del cazador', () => {
     const program = dashboard.indexOf('<HunterProgram');
     const activity = dashboard.indexOf('<HunterActivitySummary');
     expect(next).toBeGreaterThan(-1);
-    expect(progress).toBeGreaterThan(next);
-    expect(offers).toBeGreaterThan(progress);
+    expect(progress).toBeGreaterThan(-1);
+    expect(progress).toBeLessThan(next);
+    expect(offers).toBeGreaterThan(next);
     expect(rewards).toBeGreaterThan(offers);
     expect(program).toBeGreaterThan(rewards);
     expect(activity).toBeGreaterThan(program);

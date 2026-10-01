@@ -301,17 +301,7 @@ function MePageInner() {
             aria-label="Elegir foto de perfil"
             onChange={handleAvatarChange}
           />
-          <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <HunterHeader
-            displayName={displayName}
-            avatarUrl={profile?.avatar_url ?? null}
-            level={repLevel}
-            score={profile?.reputation_score ?? 0}
-            publicHref={publicHref}
-            avatarUploading={avatarUploading}
-            onPickAvatar={() => fileInputRef.current?.click()}
-          />
-
+          <div className="mb-4 flex justify-end">
           <div
             className="inline-flex max-w-full shrink-0 gap-1 self-start rounded-full border border-black/5 bg-white/70 p-1 backdrop-blur-md dark:border-white/10 dark:bg-white/5"
             role="tablist"
@@ -369,11 +359,24 @@ function MePageInner() {
                 discountPrice: offer.discountPrice,
                 originalPrice: offer.originalPrice,
                 image: offer.image ?? null,
+                store: offer.brand || null,
+                createdAt: offer.createdAt ?? null,
               }))}
             />
 
           ) : (
             <>
+            <div className="mb-6">
+              <HunterHeader
+                displayName={displayName}
+                avatarUrl={profile?.avatar_url ?? null}
+                level={repLevel}
+                score={profile?.reputation_score ?? 0}
+                publicHref={publicHref}
+                avatarUploading={avatarUploading}
+                onPickAvatar={() => fileInputRef.current?.click()}
+              />
+            </div>
             <p className="mb-6 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Así me ve la comunidad.</p>
             <div className="mb-8 max-w-md">
               <ReputationBar variant="hunter" level={repLevel} score={profile?.reputation_score ?? 0} />

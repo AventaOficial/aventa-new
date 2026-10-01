@@ -1,45 +1,50 @@
 'use client';
 
 import Link from 'next/link';
-import ReputationBar from '@/app/components/ReputationBar';
-import { REPUTATION_LEVELS } from '@/lib/reputation';
+import { REPUTATION_LEVELS, getReputationLabel, getReputationProgress } from '@/lib/reputation';
 
 type HunterProgressProps = {
   level: number;
   score: number;
 };
 
-function pointsUntilNextLevel(level: number, score: number): number | null {
-  const band = REPUTATION_LEVELS.find((item) => item.level === level);
-  if (!band || band.maxScore === Infinity) return null;
-  const remaining = band.maxScore + 1 - score;
-  return remaining > 0 ? remaining : null;
-}
-
 /** Progresión de identidad. No lee recompensas ni saldos. */
 export default function HunterProgress({ level, score }: HunterProgressProps) {
-  const remaining = pointsUntilNextLevel(level, score);
+  const label = getReputationLabel(level);
+  const next = REPUTATION_LEVELS.find((item) => item.level === level + 1);
+  const band = REPUTATION_LEVELS.find((item) => item.level === level);
+  const pct = Math.round(getReputationProgress(score, level) * 100);
+  const progressLine =
+    band && band.maxScore !== Infinity ? `${score} / ${band.maxScore + 1} puntos` : `${score} puntos`;
 
   return (
-    <section aria-label="Nivel base de Aventa" className="space-y-3 rounded-2xl bg-white p-5 dark:bg-[#141414]">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Tu nivel</h2>
-          <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">No es el programa de recompensas.</p>
-        </div>
-        <Link
-          href="/me/nivel"
-          className="rounded-md text-[13px] text-[#6e6e73] transition-colors duration-150 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:text-[#fafafa] dark:focus-visible:ring-[#fafafa]"
-        >
-          Ver mi nivel
+    <section aria-label="Nivel base de Aventa" className="h-full rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Nivel Aventa</h2>
+        <Link href="/me/nivel" className="text-[13px] text-violet-600 transition-colors duration-150 hover:text-violet-700 dark:text-violet-400">
+          Ver niveles
         </Link>
       </div>
-      <ReputationBar variant="hunter" level={level} score={score} />
-      {remaining != null ? (
-        <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">
-          Faltan {remaining} puntos para el siguiente nivel.
-        </p>
-      ) : null}
+      <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">No es el programa de recompensas.</p>
+      <div className="mt-4 flex items-center gap-3">
+        <div
+          className="flex h-14 w-12 shrink-0 items-center justify-center bg-violet-600 text-lg font-semibold text-white"
+          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+          aria-hidden
+        >
+          {level}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">{label}</p>
+          <p className="mt-1 text-[13px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{progressLine}</p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-violet-100 dark:bg-violet-950" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progreso de nivel ${pct}%`}>
+            <div className="h-full rounded-full bg-violet-600" style={{ width: `${pct}%` }} />
+          </div>
+          {next ? (
+            <p className="mt-2 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Siguiente nivel: {next.label}</p>
+          ) : null}
+        </div>
+      </div>
     </section>
   );
 }
