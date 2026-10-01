@@ -104,6 +104,44 @@ export function buildConfirmedMeta(
   };
 }
 
+const SYNTHETIC_PROVIDER_REFERENCE_PREFIXES = [
+  'confirmed:',
+  'reconcile:',
+  'reconcile_fail:',
+  'failed:',
+  'stub:',
+  'manual_spei:',
+  'sandbox:',
+];
+
+export function isSyntheticProviderReference(value: string | null | undefined): boolean {
+  const trimmed = (value ?? '').trim();
+  return SYNTHETIC_PROVIDER_REFERENCE_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+}
+
+/**
+ * A payout becomes SUCCEEDED only with a reference this process did not mint.
+ * `confirmed:`, `reconcile:`, `stub:`, `manual_spei:` and `sandbox:` are not evidence.
+ * A non-synthetic reference is still not a bank settlement. MONEY_PATH_FROZEN stays the
+ * application gate; this function never invents a reference when that gate is off.
+ */
+export function resolveExternalProviderReference(input: {
+  status: string;
+  supplied?: string | null;
+  stored?: string | null;
+  idempotencyKey: string;
+}): { ok: true; reference: string } | { ok: false; reason: 'evidence_missing' } {
+  void input.status;
+  void input.idempotencyKey;
+  const supplied = input.supplied?.trim() ?? '';
+  const stored = input.stored?.trim() ?? '';
+  const suppliedUsable = supplied && !isSyntheticProviderReference(supplied) ? supplied : '';
+  const storedUsable = stored && !isSyntheticProviderReference(stored) ? stored : '';
+  const reference = suppliedUsable || storedUsable;
+  if (!reference) return { ok: false, reason: 'evidence_missing' };
+  return { ok: true, reference };
+}
+
 /**
  * Fail-closed validation: confirmation must bind to the claimed intent identity.
  * Does not trust free-text; compares structured fields only.
@@ -128,6 +166,12 @@ export function validateProviderConfirmation(
 
   if (!evidence.providerReference?.trim()) {
     return { ok: false, reason: 'evidence_missing', message: 'provider_reference_required' };
+  }
+  if (
+    evidence.outcome === 'confirmed_success' &&
+    isSyntheticProviderReference(evidence.providerReference)
+  ) {
+    return { ok: false, reason: 'evidence_missing', message: 'synthetic_provider_reference' };
   }
   if (evidence.intentId !== intent.id) {
     return { ok: false, reason: 'intent_not_found', message: 'intent_id_mismatch' };

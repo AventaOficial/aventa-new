@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   try {
     const result = await processExpiredRewardHolds(supabase);
-    return NextResponse.json({ ok: true, ...result });
+    const auditFailed = (result.auditFailedIds?.length ?? 0) > 0;
+    return NextResponse.json(
+      { ok: !auditFailed, ...result },
+      { status: auditFailed ? 500 : 200 },
+    );
   } catch (error) {
     console.error('[cron/rewards-release-holds]', error);
     return NextResponse.json(

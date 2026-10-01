@@ -22,6 +22,7 @@ const TERMINAL_REASONS = new Set([
   'fraud_self_click',
   'invalid_manual_offer',
   'schema_missing',
+  'reward_ledger_mismatch',
 ]);
 
 /** Deferred until flags allow — reconcile may retry when flags OK. */
@@ -33,6 +34,7 @@ const RETRYABLE_REASONS = new Set([
   'insert_failed',
   'ledger_load_failed',
   'outcome_persist_failed',
+  'audit_append_failed',
 ]);
 
 export function isTerminalRejectReason(reason: string): boolean {
