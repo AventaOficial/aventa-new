@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireUsersLogs } from '@/lib/server/requireAdmin';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 import {
   cancelReward,
   processExpiredRewardHolds,
@@ -60,8 +61,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'id y action requeridos' }, { status: 400 });
   }
 
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
+
   const supabase = createServerClient();
-  const ok =
+  const outcome =
     action === 'cancel'
       ? await cancelReward(supabase, id, auth.user.id, reason || 'staff_cancel')
       : await (async () => {
@@ -76,7 +81,7 @@ export async function PATCH(request: Request) {
           return reverseReward(supabase, id, auth.user.id, reason || 'staff_reverse');
         })();
 
-  if (ok === null) {
+  if (outcome === null) {
     return NextResponse.json(
       {
         error:
@@ -86,11 +91,15 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (!ok) {
-    return NextResponse.json({ error: 'No se pudo actualizar la recompensa' }, { status: 400 });
+  if (!outcome.ok) {
+    const status = outcome.reason === 'audit_append_failed' ? 500 : 400;
+    return NextResponse.json(
+      { ok: false, error: 'No se pudo actualizar la recompensa', reason: outcome.reason, rewardId: outcome.rewardId },
+      { status },
+    );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, rewardId: outcome.rewardId });
 }
 
 /** POST: procesar holds vencidos. */
@@ -103,7 +112,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'action=process_holds requerido' }, { status: 400 });
   }
 
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
+  }
+
   const supabase = createServerClient();
   const result = await processExpiredRewardHolds(supabase);
-  return NextResponse.json({ ok: true, ...result });
+  const auditFailed = result.auditFailedIds.length > 0;
+  return NextResponse.json(
+    { ok: !auditFailed, ...result },
+    { status: auditFailed ? 500 : 200 },
+  );
 }
