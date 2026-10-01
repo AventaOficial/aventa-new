@@ -306,6 +306,7 @@ function MePageInner() {
             displayName={displayName}
             avatarUrl={profile?.avatar_url ?? null}
             level={repLevel}
+            score={profile?.reputation_score ?? 0}
             publicHref={publicHref}
             avatarUploading={avatarUploading}
             onPickAvatar={() => fileInputRef.current?.click()}
@@ -367,6 +368,7 @@ function MePageInner() {
                 dealStatus: offer.dealStatus,
                 discountPrice: offer.discountPrice,
                 originalPrice: offer.originalPrice,
+                image: offer.image ?? null,
               }))}
             />
 

@@ -11,6 +11,7 @@ type PreviewOffer = {
   dealStatus: 'pending' | 'approved' | 'rejected' | 'expired';
   discountPrice?: number | null;
   originalPrice?: number | null;
+  image?: string | null;
 };
 
 const STATUS_LABEL: Record<PreviewOffer['dealStatus'], string> = {
@@ -41,28 +42,29 @@ export default function HunterOffersPreview({ offers, published, approved }: Hun
   const preview = offers.slice(0, 3);
 
   return (
-    <section aria-label="Tus ofertas" className="space-y-4">
+    <section aria-label="Tus ofertas" className="space-y-4 rounded-2xl bg-white p-5 dark:bg-[#141414]">
       <div className="flex items-end justify-between gap-3">
         <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Mis ofertas</h2>
-        <div className="flex items-center gap-4">
-          <Link href="/me/favorites" className={quietLink}>
-            Guardadas
-          </Link>
-          <Link href="/me/ofertas" className={quietLink}>
-            Ver mis ofertas
-          </Link>
-        </div>
+        <Link href="/me/ofertas" className={quietLink}>
+          Ver mis ofertas
+        </Link>
       </div>
-      <div className="grid max-w-xs grid-cols-2 gap-8">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Publicadas</p>
-          <p className="mt-1 text-[28px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{published}</p>
+          <p className="mt-1 text-[22px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{published}</p>
         </div>
         <div>
           <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Activas</p>
-          <p className="mt-1 text-[28px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{approved}</p>
+          <p className="mt-1 text-[22px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{approved}</p>
+        </div>
+        <div>
+          <Link href="/me/favorites" className={`${quietLink} inline-flex`}>
+            Guardadas →
+          </Link>
         </div>
       </div>
+      <h3 className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Tus últimas ofertas</h3>
       {preview.length === 0 ? (
         <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Nada publicado. ¿Cazamos una oferta?</p>
       ) : (
@@ -73,19 +75,28 @@ export default function HunterOffersPreview({ offers, published, approved }: Hun
               <li key={offer.id} className="border-b border-black/5 last:border-0 dark:border-white/10">
                 <Link
                   href={buildOfferPublicPath(offer.id, offer.title)}
-                  className="flex items-center justify-between gap-4 py-3 transition-colors duration-150 hover:text-[#6e6e73] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:hover:text-[#a3a3a3] dark:focus-visible:ring-[#fafafa]"
+                  className="flex items-center gap-3 py-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:focus-visible:ring-[#fafafa]"
                 >
-                  <span className="min-w-0">
+                  {offer.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={offer.image} alt="" className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
+                  ) : (
+                    <span className="h-12 w-12 shrink-0 rounded-2xl bg-black/5 dark:bg-white/10" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
-                    {meta ? <span className="mt-0.5 block text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{meta}</span> : null}
+                    {meta ? <span className="mt-0.5 block truncate text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{meta}</span> : null}
                   </span>
-                  <span className="shrink-0 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{STATUS_LABEL[offer.dealStatus]}</span>
+                  <span className="shrink-0 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{STATUS_LABEL[offer.dealStatus]} →</span>
                 </Link>
               </li>
             );
           })}
         </ul>
       )}
+      <Link href="/me/ofertas" className={quietLink}>
+        Ver todas mis ofertas
+      </Link>
     </section>
   );
 }

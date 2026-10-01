@@ -21,7 +21,7 @@ export default function HunterProgress({ level, score }: HunterProgressProps) {
   const remaining = pointsUntilNextLevel(level, score);
 
   return (
-    <section aria-label="Nivel base de Aventa" className="space-y-3">
+    <section aria-label="Nivel base de Aventa" className="space-y-3 rounded-2xl bg-white p-5 dark:bg-[#141414]">
       <div className="flex items-end justify-between gap-3">
         <div>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Tu nivel</h2>

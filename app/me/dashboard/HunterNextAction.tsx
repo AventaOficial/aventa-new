@@ -22,17 +22,17 @@ export default function HunterNextAction(props: HunterNextActionProps) {
 
   return (
     <section aria-label="Tu siguiente acción" className="rounded-2xl bg-white px-5 py-6 dark:bg-[#141414] sm:px-6">
-      <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Tu siguiente acción</p>
+      <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Tu siguiente movimiento</p>
       <h2 className="mt-3 text-[22px] font-semibold leading-snug text-[#1d1d1f] dark:text-[#fafafa] md:text-[26px]">{action.title}</h2>
       <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">{action.detail}</p>
       {action.id === 'publish' ? (
         <button type="button" onClick={props.onPublish} className={primaryCta}>
-          {action.cta}
+          {action.cta} →
         </button>
       ) : null}
       {action.href && action.cta ? (
         <Link href={action.href} className={primaryCta}>
-          {action.cta}
+          {action.cta} →
         </Link>
       ) : null}
     </section>

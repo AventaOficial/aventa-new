@@ -131,9 +131,15 @@ export default function PublicHallazgosSection({
                     type="button"
                     disabled={!openable}
                     onClick={openable ? () => onOfferClick(offer) : undefined}
-                    className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors duration-150 enabled:hover:text-[#6e6e73] disabled:cursor-default dark:enabled:hover:text-[#a3a3a3]"
+                    className="flex w-full items-center gap-3 py-3 text-left transition-colors duration-150 enabled:hover:text-[#6e6e73] disabled:cursor-default dark:enabled:hover:text-[#a3a3a3]"
                   >
-                    <span className="min-w-0">
+                    {offer.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={offer.image} alt="" className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
+                    ) : (
+                      <span className="h-12 w-12 shrink-0 rounded-2xl bg-black/5 dark:bg-white/10" aria-hidden />
+                    )}
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
                       {meta ? <span className="mt-0.5 block text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{meta}</span> : null}
                     </span>

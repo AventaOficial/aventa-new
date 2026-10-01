@@ -16,7 +16,7 @@ export default function HunterRewardSummary({ state }: { state: MyRewardsState }
   const summary = Object.entries(counts);
 
   return (
-    <section aria-label="Recompensas" className="space-y-3">
+    <section aria-label="Recompensas" className="space-y-3 rounded-2xl bg-white p-5 dark:bg-[#141414]">
       <div className="flex items-end justify-between gap-3">
         <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Recompensas</h2>
         <Link href="/me/recompensas" className={quietLink}>
@@ -31,7 +31,10 @@ export default function HunterRewardSummary({ state }: { state: MyRewardsState }
         <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">No se pudo cargar el historial de recompensas.</p>
       ) : null}
       {state.kind === 'ready' && rows.length === 0 ? (
-        <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay recompensas.</p>
+        <div>
+          <p className="text-[22px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">0</p>
+          <p className="mt-2 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay recompensas.</p>
+        </div>
       ) : null}
       {state.kind === 'ready' && rows.length > 0 ? (
         <ul className="flex flex-wrap gap-6">

@@ -31,7 +31,7 @@ export default function HunterActivitySummary({
   ].join(' · ');
 
   return (
-    <section className="space-y-2" aria-label="Actividad del cazador">
+    <section className="space-y-2 rounded-2xl bg-white p-5 dark:bg-[#141414]" aria-label="Actividad del cazador">
       <div className="flex items-end justify-between gap-3">
         <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Actividad</h2>
         <Link

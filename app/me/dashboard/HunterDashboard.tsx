@@ -35,6 +35,7 @@ type HunterDashboardProps = {
     dealStatus: DealStatus;
     discountPrice?: number | null;
     originalPrice?: number | null;
+    image?: string | null;
   }>;
 };
 

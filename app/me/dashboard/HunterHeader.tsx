@@ -1,13 +1,14 @@
 'use client';
 
 import { User } from 'lucide-react';
-import { getReputationLabel } from '@/lib/reputation';
+import { REPUTATION_LEVELS, getReputationLabel } from '@/lib/reputation';
 
 type HunterHeaderProps = {
   displayName: string;
   avatarUrl: string | null;
   level: number;
   publicHref: string | null;
+  score: number;
   avatarUploading: boolean;
   onPickAvatar: () => void;
 };
@@ -16,12 +17,16 @@ export default function HunterHeader({
   displayName,
   avatarUrl,
   level,
+  score,
   publicHref,
   avatarUploading,
   onPickAvatar,
 }: HunterHeaderProps) {
   const levelLabel = getReputationLabel(level);
   const handle = publicHref?.startsWith('/u/') ? publicHref.slice(3) : null;
+  const band = REPUTATION_LEVELS.find((item) => item.level === level);
+  const progressLine =
+    band && band.maxScore !== Infinity ? `${score} / ${band.maxScore + 1} puntos` : `${score} puntos`;
 
   return (
     <header className="flex items-center gap-4">
@@ -53,6 +58,7 @@ export default function HunterHeader({
         <p className="mt-1 text-[15px] text-[#1d1d1f] dark:text-[#fafafa]">
           Cazador · Nivel {level} · {levelLabel}
         </p>
+        <p className="mt-1 text-[13px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{progressLine}</p>
       </div>
     </header>
   );
