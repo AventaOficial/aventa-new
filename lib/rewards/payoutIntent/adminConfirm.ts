@@ -100,10 +100,11 @@ function mapReject(
       };
     case 'mark_paid_failed':
     case 'update_failed':
+    case 'audit_append_failed':
       return {
         ok: false,
         code: 'CONFLICT',
-        status: 409,
+        status: reason === 'audit_append_failed' ? 500 : 409,
         error: 'Conflicto al aplicar confirmación',
         reason,
       };

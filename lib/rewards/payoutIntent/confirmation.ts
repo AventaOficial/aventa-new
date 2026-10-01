@@ -104,6 +104,38 @@ export function buildConfirmedMeta(
   };
 }
 
+const SYNTHETIC_PROVIDER_REFERENCE_PREFIXES = ['confirmed:', 'reconcile:', 'reconcile_fail:'];
+
+export function isSyntheticProviderReference(value: string | null | undefined): boolean {
+  const trimmed = (value ?? '').trim();
+  return SYNTHETIC_PROVIDER_REFERENCE_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+}
+
+/**
+ * UNKNOWN becomes success only with a provider reference that this process did not invent.
+ * A local `confirmed:<idempotency_key>` is not external evidence.
+ * SUBMITTED without a stored reference may still carry the local placeholder; that path is
+ * not bank evidence and stays blocked while MONEY_PATH_FROZEN is on.
+ */
+export function resolveExternalProviderReference(input: {
+  status: string;
+  supplied?: string | null;
+  stored?: string | null;
+  idempotencyKey: string;
+}): { ok: true; reference: string } | { ok: false; reason: 'evidence_missing' } {
+  const supplied = input.supplied?.trim() ?? '';
+  const stored = input.stored?.trim() ?? '';
+  const suppliedUsable = supplied && !isSyntheticProviderReference(supplied) ? supplied : '';
+  const storedUsable = stored && !isSyntheticProviderReference(stored) ? stored : '';
+  const reference = suppliedUsable || storedUsable;
+  if (input.status === 'UNKNOWN') {
+    if (!reference) return { ok: false, reason: 'evidence_missing' };
+    return { ok: true, reference };
+  }
+  if (reference) return { ok: true, reference };
+  return { ok: true, reference: `confirmed:${input.idempotencyKey}` };
+}
+
 /**
  * Fail-closed validation: confirmation must bind to the claimed intent identity.
  * Does not trust free-text; compares structured fields only.

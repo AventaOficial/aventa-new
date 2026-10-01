@@ -63,6 +63,7 @@ export type PayoutIntentRejectReason =
   | 'insert_failed'
   | 'update_failed'
   | 'mark_paid_failed'
+  | 'audit_append_failed'
   | 'money_path_frozen'
   | 'legacy_payout_forbidden'
   | 'evidence_missing'

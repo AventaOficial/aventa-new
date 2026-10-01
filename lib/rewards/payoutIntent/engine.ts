@@ -12,6 +12,7 @@ import { buildPayoutIntentIdempotencyKey } from './idempotency';
 import {
   buildConfirmedMeta,
   buildInitiatedMeta,
+  resolveExternalProviderReference,
   validateProviderConfirmation,
   type ProviderConfirmationEvidence,
 } from './confirmation';
@@ -287,6 +288,14 @@ export async function submitPayoutIntent(
   const result = await input.provider.submit(intent);
 
   if (result.outcome === 'success') {
+    const providerReference = result.externalRef?.trim() ?? '';
+    if (!providerReference || providerReference.startsWith('confirmed:')) {
+      return markPayoutIntentUnknown(supabase, {
+        intentId: intent.id,
+        actorId: input.actorId,
+        reason: 'success_without_provider_reference',
+      });
+    }
     return applyProviderConfirmation(supabase, {
       intentId: intent.id,
       rewardId: intent.reward_id,
@@ -294,7 +303,7 @@ export async function submitPayoutIntent(
       currency: intent.currency,
       idempotencyKey: intent.idempotency_key,
       provider: intent.provider,
-      providerReference: result.externalRef?.trim() || `confirmed:${intent.idempotency_key}`,
+      providerReference,
       outcome: 'confirmed_success',
       actorId: input.actorId,
     });
@@ -402,10 +411,6 @@ export async function applyProviderConfirmation(
   supabase: SupabaseClient,
   evidence: ProviderConfirmationEvidence,
 ): Promise<PayoutIntentOpResult> {
-  if (isMoneyPathFrozen()) {
-    return { ok: false, reason: 'money_path_frozen' };
-  }
-
   const loaded = await loadPayoutIntent(supabase, evidence.intentId);
   if (!loaded) return { ok: false, reason: 'intent_not_found' };
 
@@ -418,11 +423,19 @@ export async function applyProviderConfirmation(
     };
   }
 
+  if (loaded.status === 'SUCCEEDED' && evidence.outcome === 'confirmed_success') {
+    return confirmPayoutIntentSuccess(supabase, {
+      intentId: loaded.id,
+      actorId: evidence.actorId,
+    });
+  }
+
+  if (isMoneyPathFrozen()) {
+    return { ok: false, reason: 'money_path_frozen' };
+  }
+
   if (loaded.status === 'SUCCEEDED') {
-    if (evidence.outcome !== 'confirmed_success') {
-      return { ok: false, reason: 'already_resolved' };
-    }
-    return { ok: true, intent: loaded, reused: true };
+    return { ok: false, reason: 'already_resolved' };
   }
   if (loaded.status === 'FAILED') {
     if (evidence.outcome !== 'confirmed_failure') {
@@ -460,131 +473,189 @@ export async function confirmPayoutIntentSuccess(
     providerReference?: string | null;
   },
 ): Promise<PayoutIntentOpResult> {
-  if (isMoneyPathFrozen()) {
-    return { ok: false, reason: 'money_path_frozen' };
-  }
-
   const loaded = await loadPayoutIntent(supabase, input.intentId);
   if (!loaded) return { ok: false, reason: 'intent_not_found' };
-  if (loaded.status === 'SUCCEEDED') {
-    return { ok: true, intent: loaded, reused: true };
-  }
   if (loaded.status === 'FAILED' || loaded.status === 'CANCELLED') {
     return { ok: false, reason: 'already_resolved' };
   }
-  if (loaded.status !== 'SUBMITTED' && loaded.status !== 'UNKNOWN') {
-    return { ok: false, reason: 'invalid_transition' };
-  }
-
-  const now = new Date().toISOString();
-  const providerReference =
-    (input.providerReference ?? input.externalRef)?.trim() ||
-    `confirmed:${loaded.idempotency_key}`;
 
   const { data: rewardRow } = await supabase
     .from('creator_rewards')
     .select('id, status, meta')
     .eq('id', loaded.reward_id)
     .maybeSingle();
-  const prevMeta =
-    rewardRow && typeof (rewardRow as { meta?: unknown }).meta === 'object'
-      ? ((rewardRow as { meta: Record<string, unknown> }).meta ?? {})
-      : {};
-
-  // CAS reward first: AVAILABLE → PAID (no reward_payouts row — intent is authority here).
-  const { data: paid, error: payErr } = await supabase
-    .from('creator_rewards')
-    .update({
-      status: 'PAID',
-      paid_at: now,
-      updated_at: now,
-      meta: {
-        ...prevMeta,
-        payout_intent_id: loaded.id,
-        payout_idempotency_key: loaded.idempotency_key,
-        provider: loaded.provider,
-        provider_reference: providerReference,
-        external_ref: providerReference,
-      },
-    })
-    .eq('id', loaded.reward_id)
-    .eq('status', 'AVAILABLE')
-    .select('id, status')
-    .maybeSingle();
-
-  if (payErr) {
-    return { ok: false, reason: 'mark_paid_failed', message: payErr.message };
+  const rewardStatus = (rewardRow as { status?: string } | null)?.status ?? null;
+  if (!rewardRow?.id || !rewardStatus) {
+    return { ok: false, reason: 'reward_not_found' };
+  }
+  if (rewardStatus === 'CANCELLED' || rewardStatus === 'REVERSED') {
+    return { ok: false, reason: 'reward_terminal' };
   }
 
-  if (!paid?.id) {
-    // Already PAID by concurrent winner — still close intent if needed.
-    const { data: existingReward } = await supabase
+  const now = new Date().toISOString();
+  const storedReference =
+    typeof loaded.meta.provider_reference === 'string' ? loaded.meta.provider_reference : '';
+  const resolvedReference = resolveExternalProviderReference({
+    status: loaded.status,
+    supplied: input.providerReference ?? input.externalRef,
+    stored: storedReference,
+    idempotencyKey: loaded.idempotency_key,
+  });
+  if (!resolvedReference.ok) {
+    return { ok: false, reason: 'evidence_missing' };
+  }
+  const providerReference = resolvedReference.reference;
+
+  if (loaded.status === 'SUCCEEDED' && rewardStatus !== 'PAID') {
+    return { ok: false, reason: 'update_failed' };
+  }
+
+  const recoveringWritten = rewardStatus === 'PAID';
+  if (!recoveringWritten && isMoneyPathFrozen()) {
+    return { ok: false, reason: 'money_path_frozen' };
+  }
+  if (rewardStatus !== 'PAID' && loaded.status !== 'SUBMITTED' && loaded.status !== 'UNKNOWN') {
+    return { ok: false, reason: 'invalid_transition' };
+  }
+
+  if (rewardStatus === 'AVAILABLE') {
+    const prevMeta =
+      typeof (rewardRow as { meta?: unknown }).meta === 'object'
+        ? ((rewardRow as { meta: Record<string, unknown> }).meta ?? {})
+        : {};
+    const { data: paid, error: payErr } = await supabase
       .from('creator_rewards')
-      .select('id, status')
+      .update({
+        status: 'PAID',
+        paid_at: now,
+        updated_at: now,
+        meta: {
+          ...prevMeta,
+          payout_intent_id: loaded.id,
+          payout_idempotency_key: loaded.idempotency_key,
+          provider: loaded.provider,
+          provider_reference: providerReference,
+          external_ref: providerReference,
+        },
+      })
       .eq('id', loaded.reward_id)
+      .eq('status', 'AVAILABLE')
+      .select('id, status')
       .maybeSingle();
-    if ((existingReward as { status?: string } | null)?.status !== 'PAID') {
-      return { ok: false, reason: 'mark_paid_failed' };
+
+    if (payErr) {
+      return { ok: false, reason: 'mark_paid_failed', message: payErr.message };
     }
+    if (!paid?.id) {
+      const { data: existingReward } = await supabase
+        .from('creator_rewards')
+        .select('id, status')
+        .eq('id', loaded.reward_id)
+        .maybeSingle();
+      if ((existingReward as { status?: string } | null)?.status !== 'PAID') {
+        return { ok: false, reason: 'mark_paid_failed' };
+      }
+    }
+  } else if (rewardStatus !== 'PAID') {
+    return { ok: false, reason: 'reward_not_available' };
   }
 
-  const moved = await casIntentStatus(
-    supabase,
-    loaded.id,
-    ['SUBMITTED', 'UNKNOWN'],
-    'SUCCEEDED',
-    {
+  let intent = loaded;
+  if (intent.status !== 'SUCCEEDED') {
+    const moved = await casIntentStatus(supabase, loaded.id, ['SUBMITTED', 'UNKNOWN'], 'SUCCEEDED', {
       resolved_at: now,
       meta: buildConfirmedMeta(loaded.meta, {
         providerReference,
         confirmedAt: now,
         outcome: 'confirmed_success',
       }),
-    },
-  );
-
-  const intent =
-    moved ??
-    (await loadPayoutIntent(supabase, loaded.id));
-  if (!intent || intent.status !== 'SUCCEEDED') {
-    const again = await loadPayoutIntent(supabase, loaded.id);
-    if (again?.status === 'SUCCEEDED') {
-      return { ok: true, intent: again, reused: true };
+    });
+    intent =
+      moved ??
+      (await loadPayoutIntent(supabase, loaded.id)) ??
+      loaded;
+    if (intent.status !== 'SUCCEEDED') {
+      return { ok: false, reason: 'update_failed' };
     }
-    return { ok: false, reason: 'update_failed' };
   }
 
-  await writeRewardAuditLog(supabase, {
-    eventType: 'payout_intent_succeeded',
-    actorId: input.actorId ?? null,
-    entityType: 'payout_intent',
-    entityId: intent.id,
-    previousState: loaded.status,
-    newState: 'SUCCEEDED',
-    metadata: {
-      reward_id: intent.reward_id,
-      idempotency_key: intent.idempotency_key,
-      provider_reference: providerReference,
-      confirmation: 'confirmed_success',
-    },
-  });
-  await writeRewardAuditLog(supabase, {
-    eventType: 'reward_paid',
-    actorId: input.actorId ?? null,
-    entityType: 'creator_reward',
-    entityId: intent.reward_id,
-    previousState: 'AVAILABLE',
-    newState: 'PAID',
-    metadata: {
-      payout_intent_id: intent.id,
-      idempotency_key: intent.idempotency_key,
-      provider_reference: providerReference,
-      via: 'payout_intent',
-      legacy_rpc: false,
-    },
-  });
+  return certifyPayoutSuccess(supabase, intent, input.actorId ?? null, providerReference, loaded.status);
+}
 
-  return { ok: true, intent };
+async function payoutAuditPresent(
+  supabase: SupabaseClient,
+  entityType: string,
+  entityId: string,
+  eventType: string,
+): Promise<'present' | 'absent' | 'unknown'> {
+  const { data, error } = await supabase
+    .from('reward_audit_log')
+    .select('id')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .eq('event_type', eventType)
+    .limit(1)
+    .maybeSingle();
+  if (error) return 'unknown';
+  return (data as { id?: string } | null)?.id ? 'present' : 'absent';
+}
+
+async function certifyPayoutSuccess(
+  supabase: SupabaseClient,
+  intent: PayoutIntentRow,
+  actorId: string | null,
+  providerReference: string,
+  previousIntentStatus: string,
+): Promise<PayoutIntentOpResult> {
+  const paid = await payoutAuditPresent(supabase, 'creator_reward', intent.reward_id, 'reward_paid');
+  const succeeded = await payoutAuditPresent(
+    supabase,
+    'payout_intent',
+    intent.id,
+    'payout_intent_succeeded',
+  );
+  if (paid === 'unknown' || succeeded === 'unknown') {
+    return { ok: false, reason: 'audit_append_failed' };
+  }
+  const reused = paid === 'present' && succeeded === 'present';
+  if (succeeded === 'absent') {
+    const written = await writeRewardAuditLog(supabase, {
+      eventType: 'payout_intent_succeeded',
+      actorId,
+      entityType: 'payout_intent',
+      entityId: intent.id,
+      previousState: previousIntentStatus,
+      newState: 'SUCCEEDED',
+      metadata: {
+        reward_id: intent.reward_id,
+        idempotency_key: intent.idempotency_key,
+        provider_reference: providerReference,
+        confirmation: 'confirmed_success',
+        recovered: previousIntentStatus === 'SUCCEEDED',
+      },
+    });
+    if (!written.ok) return { ok: false, reason: 'audit_append_failed' };
+  }
+  if (paid === 'absent') {
+    const written = await writeRewardAuditLog(supabase, {
+      eventType: 'reward_paid',
+      actorId,
+      entityType: 'creator_reward',
+      entityId: intent.reward_id,
+      previousState: 'AVAILABLE',
+      newState: 'PAID',
+      metadata: {
+        payout_intent_id: intent.id,
+        idempotency_key: intent.idempotency_key,
+        provider_reference: providerReference,
+        via: 'payout_intent',
+        legacy_rpc: false,
+        recovered: previousIntentStatus === 'SUCCEEDED',
+      },
+    });
+    if (!written.ok) return { ok: false, reason: 'audit_append_failed' };
+  }
+  return { ok: true, intent, reused };
 }
 
 export async function confirmPayoutIntentFailure(
@@ -678,11 +749,25 @@ export async function reconcilePayoutIntent(
 
   const result = await input.provider.reconcile(loaded);
   if (result.outcome === 'success') {
+    const supplied = result.externalRef?.trim() ?? '';
+    const stored =
+      typeof loaded.meta.provider_reference === 'string' ? loaded.meta.provider_reference.trim() : '';
     const providerReference =
-      result.externalRef?.trim() ||
-      (typeof loaded.meta.provider_reference === 'string'
-        ? loaded.meta.provider_reference
-        : `reconcile:${loaded.idempotency_key}`);
+      supplied && !supplied.startsWith('confirmed:') && !supplied.startsWith('reconcile:')
+        ? supplied
+        : stored && !stored.startsWith('confirmed:') && !stored.startsWith('reconcile:')
+          ? stored
+          : '';
+    if (!providerReference) {
+      if (loaded.status === 'UNKNOWN') {
+        return { ok: false, reason: 'evidence_missing' };
+      }
+      return markPayoutIntentUnknown(supabase, {
+        intentId: loaded.id,
+        actorId: input.actorId,
+        reason: 'reconcile_success_without_provider_reference',
+      });
+    }
     return applyProviderConfirmation(supabase, {
       intentId: loaded.id,
       rewardId: loaded.reward_id,

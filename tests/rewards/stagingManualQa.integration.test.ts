@@ -349,7 +349,7 @@ describe.skipIf(skip)(`Staging manual QA — ${STAGING_REF}`, () => {
     expect(dupPayout.ok).toBe(false);
 
     const reversed = await reverseReward(supabase, rewardId, actorId, 'abuse test');
-    expect(reversed).toBe(false);
+    expect(reversed.ok).toBe(false);
 
     const clawback = await createPaidRewardClawbackAdjustment(supabase, {
       rewardId,
