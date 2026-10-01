@@ -4,11 +4,38 @@ Fecha de verificación: 2026-09-30
 
 ## 1. STATUS
 
-ECONOMY HARDENING CLOSED
+ECONOMY_HARDENING: CLOSED
+SCHEMA: VERIFIED
+STAGING: VERIFIED
+PRODUCTION_SCHEMA: VERIFIED
+MONEY_PATH: FROZEN
+REAL_PAYOUT_PROVIDER: NOT_CONNECTED
+ECONOMY_UNFREEZE: NOT_AUTHORIZED
 
-MONEY PATH REMAINS FROZEN
+ECONOMY PRODUCTION-READY
+MONEY_PATH_STILL_FROZEN
 
-Aventa no puede mover dinero real. No hay un proveedor externo verificable que confirme que un peso salió. El kill-switch sigue activo y su default no se tocó.
+Aventa sigue sin poder mover dinero real. El esquema de creación atómica ya está en staging y en producción. El freeze no se tocó y no se ejecutó ningún payout.
+
+### CLOSED IN CODE
+
+Certificación de "Entregada", freeze de ledger admin, creación atómica, rechazo de referencias locales (`confirmed:`, `reconcile:`, `stub:`, `manual_spei:`, `sandbox:`) y los cinco cierres anteriores.
+
+### VERIFIED IN STAGING
+
+Función `create_creator_reward_with_creation_audit` aplicada el 2026-09-30 en `oojshofrpbfwsiypcecr`. `prosecdef = false`. `search_path = pg_catalog, public`. Execute solo para `service_role`. Un probe dentro de una transacción revertida demostró: reward VALIDATING + 2 audits, duplicado `unique_violation`, ledger void rechazado, self_click y anonymous_click rechazados, `bypass_freeze` y `force` responden `money_path_frozen`. Después del rollback los conteos quedaron iguales: rewards 73, audits 486, intents 58, ledger 77, paid 24, filas de probe 0. Un PAID histórico sin intent SUCCEEDED no se modificó.
+
+### VERIFIED IN PRODUCTION
+
+La misma función se aplicó en `mkgsrpsuvedwwlzmzmzh`. Misma seguridad y los mismos resultados del probe, más `execute_reward_payout` respondiendo `legacy_rpc_disabled_use_payout_intent`. Conteos después del rollback: rewards 6, audits 33, intents 0, ledger 10, paid 6, filas de probe 0. Los 6 PAID históricos siguen sin intent SUCCEEDED. No se rellenaron y no se pagó nada.
+
+### BLOCKED BY EXTERNAL PROVIDER
+
+No hay un proveedor bancario conectado. `resolvePayoutProvider` sigue prohibido en runtime de producción. Una referencia de proveedor no es evidencia de que el dinero salió.
+
+### BLOCKED BY MONEY_PATH_FROZEN
+
+El default no cambió. La aplicación rechaza escrituras económicas mientras el freeze está activo. Postgres no puede leer la variable de entorno; la función rechaza un payload que intente declarar `bypass_freeze` o `force`, y los escritores de la aplicación deben negarse antes de llamarla.
 
 ## 2. EXACTLY WHAT WAS CLOSED
 
@@ -26,7 +53,7 @@ Aventa no puede mover dinero real. No hay un proveedor externo verificable que c
 Estos bloqueos son dependencias externas o de despliegue. No son huecos de arquitectura sin resolver en el código de esta fase.
 
 1. No existe un proveedor bancario o de red que devuelva evidencia externa real. `manual_spei` y `stub` son adaptadores locales. Un `SUBMITTED` confirmado en local todavía puede fabricar la referencia `confirmed:<idempotency_key>` si el camino se descongela. Eso no es un pago externo.
-2. `create_creator_reward_with_creation_audit` está en `docs/supabase-migrations/20260930_reward_creation_atomic.sql` y no está aplicada en producción (`mkgsrpsuvedwwlzmzmzh`) ni en staging (`oojshofrpbfwsiypcecr`). El catálogo de ambas devolvió cero filas para esa función. No se aplicó fuera del flujo de migración. Mientras falte, el engine responde `schema_missing` y no inserta el reward.
+2. La función ya está aplicada en staging y producción. El código de esta fase todavía no está desplegado en el runtime de Vercel: producción de aplicación sigue en `3ca2078`. Hasta ese deploy, el proceso en producción no llama a la función nueva.
 3. Este código está en `feature/hunter-lab-candidate-intelligence`. No está en `origin/master` y no está desplegado en producción. Producción sigue en `3ca2078`.
 4. Hay rewards históricos `PAID` sin intent `SUCCEEDED`. No se rellenaron. No se presentan como "Entregada".
 5. `self_click` y `anonymous_click` se rechazan en aplicación. No se añadió un `CHECK` de base de datos: haría falta una política nueva de identidad del click y no se inventó. La unicidad de ledger, conversión, comisión e intent sí está en la base.
@@ -94,7 +121,7 @@ Consultado el catálogo real el 2026-09-30. Producción y staging tienen las mis
 | `affiliate_ledger_unique_external_per_network` | `affiliate_ledger_entries` | `network, external_ref` si el ref no está vacío | UNIQUE parcial | presente en producción y staging |
 | `ledger_settlements_ledger_entry_id_key` | `ledger_settlements` | `ledger_entry_id` | UNIQUE | presente en producción y staging |
 
-GAP: `public.create_creator_reward_with_creation_audit(jsonb)` no existe en producción ni en staging. La migración está en el repositorio. Aplicarla es requisito previo a descongelar, por el flujo de migraciones, no a mano.
+`public.create_creator_reward_with_creation_audit(jsonb)` existe en staging y en producción desde la migración `reward_creation_atomic_guarded`. No es `SECURITY DEFINER`. No tiene grant para `anon` ni `authenticated`.
 
 ## 10. ANTIFRAUD
 
@@ -144,27 +171,27 @@ No hay integración con un proveedor externo verificable.
 
 Los adaptadores `stub` y `manual_spei` pueden devolver una referencia local (`stub:success`, `manual_spei:<idempotency_key>`). Eso ejercita la máquina de estados en tests. No demuestra que un banco recibió el pago.
 
-Si un submit o un reconcile dicen éxito sin una referencia no sintética, el intent permanece `UNKNOWN` o la operación falla con `evidence_missing`. No hay camino `UNKNOWN` → `PAID` con la referencia inventada `confirmed:<idempotency_key>`.
+Si un submit o un reconcile dicen éxito sin una referencia no sintética, el intent permanece `UNKNOWN` o la confirmación devuelve `evidence_missing`. No hay camino `UNKNOWN` → `PAID`.
 
-El camino local de confirmar un intent `SUBMITTED` todavía puede usar esa referencia sintética cuando el freeze está apagado. Por eso el freeze no se apaga en esta fase. Hasta que un proveedor real entregue una referencia y ese atajo sintético deje de poder marcar `PAID`, Aventa no mueve dinero.
+Tampoco hay camino `SUBMITTED` → `PAID` con `confirmed:`, `reconcile:`, `stub:`, `manual_spei:` o `sandbox:`, aunque `MONEY_PATH_FROZEN` estuviera apagado. Una referencia que no usa esos prefijos puede mover el intent a `SUCCEEDED` solo cuando el freeze está apagado. Esa referencia sigue sin ser un comprobante bancario. El runtime de producción sigue rechazando `PAYOUT_PROVIDER`.
 
 ## 16. TEST EVIDENCE
 
-`npx vitest run tests/rewards tests/economy`
+`npx vitest run tests/rewards tests/economy` el 2026-09-30, después de cerrar las referencias locales.
 
-Resultado: 47 archivos pasaron, 1 omitido por la suite existente. 576 tests pasaron, 6 omitidos. 0 fallos. No se desactivó ningún test ni se debilitó una aserción para esconder un fallo.
+Resultado: 47 archivos pasaron, 1 omitido por la suite existente. 578 tests pasaron, 6 omitidos. 0 fallos. No se desactivó ningún test.
 
 La matriz nueva cubre certificación de payout, rollback del audit, atribución manual, antifraude, freeze del ledger admin y el rechazo de `UNKNOWN` sin referencia externa. Los tests de concurrencia de settlement y de confirmación de payout que ya existían siguen pasando, con el doble de `rpc` atómico en lugar de un insert suelto.
 
 ## 17. TYPECHECK
 
-`npx tsc --noEmit` terminó con código 0. Se ejecutó solo, no en paralelo con el build.
+`npx tsc --noEmit` el 2026-09-30, después de esta fase, terminó con código 0. Se ejecutó solo, no en paralelo con el build.
 
 ## 18. BUILD
 
-`npm run build` terminó con código 0.
+`npm run build` el 2026-09-30 terminó con código 0.
 
-`npx eslint` sobre los archivos económicos de esta fase terminó con código 0.
+`npx eslint` sobre los archivos de payout de esta fase terminó con código 0.
 
 ## 19. GIT COMMITS
 
@@ -188,17 +215,17 @@ Commits de esta fase:
 - `5404922` fix(economy): harden reward invariants and concurrency
 - `a5f08bd` test(economy): add adversarial closure matrix
 - `159c265` docs(economy): record hardening closure
+- `1a6f8fc` docs(economy): cite the closure report commit
+- `251d460` fix(economy): guard atomic reward creation
+- `63d0a48` fix(economy): reject locally minted payout evidence
 
 El árbol de trabajo conserva cambios ajenos a esta fase, incluido el selector de periodo de `/api/staff/finance`. No se mezclaron `/me`, acquisition ni cron de adquisición. El cron que sí entró es `rewards-release-holds`, porque reporta fallo cuando el audit del hold no se escribe.
 
 ## 20. WHAT MUST HAPPEN BEFORE MONEY_PATH_FROZEN CAN EVER BE DISABLED
 
-1. Desplegar estos commits. El código de producción actual no los contiene.
-2. Aplicar `docs/supabase-migrations/20260930_reward_creation_atomic.sql` por el flujo de migraciones y comprobar que `create_creator_reward_with_creation_audit` existe en la base objetivo.
-3. Conectar un proveedor externo real cuya respuesta de éxito traiga una referencia que este proceso no invente. Conservar la idempotency key de extremo a extremo.
-4. Eliminar el atajo que permite marcar `SUCCEEDED` / `PAID` con `confirmed:<idempotency_key>` en un intent `SUBMITTED`.
-5. Volver a leer el catálogo y demostrar las unicidades de la sección 9 en esa base.
-6. No rellenar rewards históricos `PAID` para que parezcan entregados.
-7. Solo entonces, y con una decisión explícita, poner `MONEY_PATH_FROZEN` en `false`. Hasta ese momento el default de producción debe seguir congelado.
+1. Desplegar estos commits. La base de producción ya tiene la función; el runtime de Vercel todavía no tiene este código.
+2. Conectar un proveedor externo real cuya respuesta de éxito traiga una referencia que este proceso no invente y que no use los prefijos locales. Conservar la idempotency key de extremo a extremo.
+3. No rellenar los rewards históricos `PAID`.
+4. Solo entonces, y con una decisión explícita, poner `MONEY_PATH_FROZEN` en `false`. Hasta ese momento el default de producción debe seguir congelado.
 
 Hasta que eso ocurra, el cierre correcto es: la economía quedó endurecida y el camino de dinero sigue congelado.
