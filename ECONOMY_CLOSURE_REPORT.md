@@ -187,6 +187,7 @@ Commits de esta fase:
 - `a009a17` fix(economy): make reward creation audit atomic
 - `5404922` fix(economy): harden reward invariants and concurrency
 - `a5f08bd` test(economy): add adversarial closure matrix
+- `159c265` docs(economy): record hardening closure
 
 El árbol de trabajo conserva cambios ajenos a esta fase, incluido el selector de periodo de `/api/staff/finance`. No se mezclaron `/me`, acquisition ni cron de adquisición. El cron que sí entró es `rewards-release-holds`, porque reporta fallo cuando el audit del hold no se escribe.
 
