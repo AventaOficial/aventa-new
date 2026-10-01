@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import type { CardOffer } from '@/lib/offers/transform';
-import OfferCard from '@/app/components/OfferCard';
 import type { VoteMap, VoteValueMap, FavoriteMap } from '@/lib/offers/batchUserData';
+import { formatPriceMXN } from '@/lib/formatPrice';
+import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 type PublicHallazgoFilter = 'approved' | 'expired' | 'rejected';
@@ -26,7 +27,7 @@ type PublicHallazgosSectionProps = {
   approvedCount: number;
   expiredCount: number;
   rejectedCount: number;
-  positiveVotesTotal: number;
+  positiveVotesTotal: number | null;
 };
 
 /**
@@ -36,10 +37,6 @@ type PublicHallazgosSectionProps = {
  */
 export default function PublicHallazgosSection({
   offers,
-  voteMap,
-  voteValueMap,
-  favoriteMap,
-  onVoteChange,
   onOfferClick,
   approvedCount,
   expiredCount,
@@ -66,44 +63,20 @@ export default function PublicHallazgosSection({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Activas</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-            {approvedCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Expiradas</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {expiredCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Rechazadas</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {rejectedCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Votos recibidos</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
-            {positiveVotesTotal}
-          </p>
-        </div>
-      </div>
+      <p className="text-[15px] text-[#1d1d1f] dark:text-[#fafafa]">
+        {approvedCount} activas · {expiredCount} expiradas · {rejectedCount} rechazadas ·{' '}
+        {positiveVotesTotal == null ? '—' : positiveVotesTotal} votos
+      </p>
 
-      <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Sus hallazgos</h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Historial público de contribución. Las expiradas siguen contando como reputación.
-          </p>
-        </div>
+      <div>
+        <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Hallazgos públicos</h2>
+        <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">
+          Historial público de contribución. Las expiradas siguen contando como reputación.
+        </p>
       </div>
 
       <div
-        className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-1.5"
+        className="flex max-w-full gap-1 overflow-x-auto"
         role="tablist"
         aria-label="Filtrar hallazgos públicos"
       >
@@ -116,10 +89,10 @@ export default function PublicHallazgosSection({
               role="tab"
               aria-selected={selected}
               onClick={() => setFilter(f.value)}
-              className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] transition-colors duration-150 ${
                 selected
                   ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                  : 'text-[#6e6e73] hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:text-[#fafafa]'
               }`}
             >
               {f.label}
@@ -133,52 +106,45 @@ export default function PublicHallazgosSection({
         })}
       </div>
 
-      <div className="space-y-4 md:space-y-6">
+      <div>
         {filtered.length === 0 ? (
-          <div className="py-10 text-center space-y-2">
-            <p className="text-gray-600 dark:text-gray-300">
+          <div className="space-y-2 py-6">
+            <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">
               {publicHistory.length === 0
                 ? 'Todavía no hay hallazgos públicos.'
                 : 'No hay ofertas en este estado.'}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">
               Las ofertas en revisión no aparecen aquí hasta ser moderadas.
             </p>
           </div>
         ) : (
-          filtered.map((offer) => (
-            <OfferCard
-              key={offer.id}
-              offerId={offer.id}
-              title={offer.title}
-              brand={offer.brand}
-              originalPrice={offer.originalPrice}
-              discountPrice={offer.discountPrice}
-              discount={offer.discount}
-              description={offer.description}
-                    hunterComment={offer.hunterComment}
-              image={offer.image}
-              upvotes={offer.upvotes}
-              downvotes={offer.downvotes}
-              votes={offer.votes}
-              offerUrl={offer.offerUrl}
-              author={offer.author}
-              onCardClick={
-                offer.dealStatus === 'approved' ? () => onOfferClick(offer) : undefined
-              }
-              onVoteChange={onVoteChange}
-              userVote={voteMap[offer.id] ?? null}
-              userVoteStoredValue={voteValueMap[offer.id] ?? null}
-              isLiked={!!favoriteMap[offer.id]}
-              createdAt={offer.createdAt}
-              msiMonths={offer.msiMonths}
-              bankCoupon={offer.bankCoupon}
-              coupons={offer.coupons}
-              offerScope={offer.offerScope ?? null}
-              dealStatus={offer.dealStatus}
-              rejectionReason={offer.rejectionReason}
-            />
-          ))
+          <ul>
+            {filtered.map((offer) => {
+              const discount = offerDiscountPercent(offer.discountPrice, offer.originalPrice);
+              const price = offer.discountPrice > 0 ? formatPriceMXN(offer.discountPrice) : null;
+              const meta = price == null ? null : discount == null ? price : `${price} · -${discount}%`;
+              const openable = offer.dealStatus === 'approved' || offer.dealStatus === 'expired';
+              return (
+                <li key={offer.id} className="border-b border-black/5 last:border-0 dark:border-white/10">
+                  <button
+                    type="button"
+                    disabled={!openable}
+                    onClick={openable ? () => onOfferClick(offer) : undefined}
+                    className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors duration-150 enabled:hover:text-[#6e6e73] disabled:cursor-default dark:enabled:hover:text-[#a3a3a3]"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
+                      {meta ? <span className="mt-0.5 block text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{meta}</span> : null}
+                    </span>
+                    <span className="shrink-0 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                      {offer.dealStatus === 'approved' ? 'Activa' : offer.dealStatus === 'expired' ? 'Expirada' : 'Rechazada'}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </div>

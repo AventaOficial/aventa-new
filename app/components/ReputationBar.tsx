@@ -33,48 +33,36 @@ export default function ReputationBar({
   if (variant === 'hunter') {
     return (
       <>
-        <div
-          className={`rounded-2xl border border-gray-200 bg-white/90 px-4 py-4 sm:px-5 dark:border-zinc-800/80 dark:bg-[#0e0e10]/90 ${className}`}
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
-            <div className="shrink-0 sm:w-36">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                Nivel {level} – {label}
-              </p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 flex items-center justify-end gap-1.5">
-                <span className="text-xs font-semibold tabular-nums text-violet-400">{pct}%</span>
-                <button
-                  type="button"
-                  onClick={() => setShowHelp(true)}
-                  className="rounded p-0.5 text-zinc-500 transition-colors hover:text-violet-400"
-                  title="¿Qué significan los niveles?"
-                  aria-label="Explicación de niveles"
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div
-                className="h-2.5 overflow-hidden rounded-full bg-zinc-800"
-                role="progressbar"
-                aria-valuenow={pct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`Progreso de reputación nivel ${level}: ${pct}%`}
+        <div className={className}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-[15px] text-[#1d1d1f] dark:text-[#fafafa]">
+              Nivel {level} · {label}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{pct}%</span>
+              <button
+                type="button"
+                onClick={() => setShowHelp(true)}
+                className="rounded p-0.5 text-[#6e6e73] transition-colors duration-150 hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:text-[#fafafa]"
+                title="¿Qué significan los niveles?"
+                aria-label="Explicación de niveles"
               >
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <div className="shrink-0 sm:max-w-[200px] sm:text-right">
-              <p className="text-sm font-medium text-zinc-200">Sigue cazando para subir de nivel.</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-                Tu constancia crea impacto en la comunidad.
-              </p>
-            </div>
+          </div>
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Progreso de reputación nivel ${level}: ${pct}%`}
+          >
+            <div
+              className="h-full rounded-full bg-[#1d1d1f] transition-[width] duration-200 dark:bg-[#fafafa]"
+              style={{ width: `${pct}%` }}
+            />
           </div>
         </div>
 
