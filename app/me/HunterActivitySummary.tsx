@@ -67,9 +67,9 @@ export default function HunterActivitySummary({
         </div>
         <Link
           href="/me/estadisticas"
-          className="text-xs font-medium text-violet-600 hover:text-violet-500 hover:underline dark:text-violet-400 dark:hover:text-violet-300"
+          className="rounded-md text-xs font-medium text-violet-600 hover:text-violet-500 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
         >
-          Ver métricas completas
+          Ver actividad
         </Link>
       </div>
 

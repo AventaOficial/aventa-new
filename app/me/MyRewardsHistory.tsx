@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Gift, Trophy, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { explainRewardPresentation, formatRewardShare } from '@/lib/me/rewardStatusCopy';
 
 type ClaimPhase = 'locked' | 'unlocked' | 'pending_selection' | 'complete';
 
@@ -40,6 +42,8 @@ type HistoryPayload = {
     network: string | null;
     createdAt: string;
     paidAt: string | null;
+    shareCents?: number | null;
+    currency?: string | null;
     offer: OfferSnippet | null;
   }>;
 };
@@ -71,11 +75,18 @@ function OfferMini({ offer }: { offer: OfferSnippet }) {
         <p className="line-clamp-2 text-sm font-medium text-zinc-100">{offer.title}</p>
         {offer.store ? <p className="text-xs text-zinc-500">{offer.store}</p> : null}
         {offer.price != null ? (
-          <p className="text-xs font-semibold text-violet-300">{formatMx(offer.price)}</p>
+          <p className="text-xs text-zinc-400">Precio publicado {formatMx(offer.price)}</p>
         ) : null}
       </div>
     </div>
   );
+}
+
+function humanLoadError(message: unknown): string {
+  if (typeof message !== 'string' || /supabase|jwt|column|relation|stack|pgrst/i.test(message)) {
+    return 'No se pudieron cargar tus recompensas.';
+  }
+  return message;
 }
 
 /**
@@ -83,6 +94,7 @@ function OfferMini({ offer }: { offer: OfferSnippet }) {
  * No mostrar en perfil público.
  */
 export default function MyRewardsHistory() {
+  const router = useRouter();
   const [data, setData] = useState<HistoryPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,13 +117,13 @@ export default function MyRewardsHistory() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof body?.error === 'string' ? body.error : 'No se pudo cargar');
+        setError(humanLoadError(body?.error));
         setData(null);
         return;
       }
       setData(body as HistoryPayload);
     } catch {
-      setError('Error de red');
+      setError('No se pudieron cargar tus recompensas.');
     } finally {
       setLoading(false);
     }
@@ -129,9 +141,13 @@ export default function MyRewardsHistory() {
     return () => window.removeEventListener('aventa:rewards-updated', onUpdate);
   }, [load]);
 
-  const scrollToProgram = () => {
+  const openProgram = () => {
     const el = document.getElementById('hunter-rewards-panel');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    router.push('/me/programa');
   };
 
   if (loading) {
@@ -178,8 +194,7 @@ export default function MyRewardsHistory() {
           </div>
           <p className="font-medium text-zinc-100">Todavía no tienes recompensas.</p>
           <p className="mx-auto max-w-sm text-sm leading-relaxed text-zinc-400">
-            Continúa cazando ofertas de calidad. Tu próximo reconocimiento podría estar más cerca
-            de lo que crees.
+            Cuando el programa registre una recompensa, aparecerá aquí.
           </p>
         </div>
       ) : null}
@@ -202,7 +217,7 @@ export default function MyRewardsHistory() {
           </div>
           <button
             type="button"
-            onClick={scrollToProgram}
+            onClick={openProgram}
             className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500"
           >
             Elegir mi oferta
@@ -264,6 +279,8 @@ export default function MyRewardsHistory() {
               : r.uiStatus === 'synthetic'
                 ? 'bg-zinc-500/20 text-zinc-300'
                 : 'bg-amber-500/15 text-amber-300';
+        const explained = explainRewardPresentation({ uiStatus: r.uiStatus, statusLabel: r.statusLabel });
+        const share = formatRewardShare(r.shareCents ?? null, r.currency ?? null);
 
         return (
           <article
@@ -288,21 +305,22 @@ export default function MyRewardsHistory() {
                 {r.statusLabel}
               </span>
             </div>
+            {share ? <p className="text-sm font-semibold text-gray-900 dark:text-white">{share}</p> : null}
             <p className="text-xs text-zinc-500">
               Fecha:{' '}
               <span className="font-medium text-zinc-300">
                 {formatDate(r.paidAt ?? r.createdAt)}
               </span>
             </p>
+            <p className="text-sm text-gray-600 dark:text-zinc-300">{explained.meaning}</p>
+            {explained.next ? <p className="text-sm text-gray-600 dark:text-zinc-300">{explained.next}</p> : null}
             {r.offer ? (
               <div className="space-y-1.5">
-                <p className="text-[11px] uppercase tracking-wide text-zinc-500">Oferta asociada</p>
+                <p className="text-[11px] uppercase tracking-wide text-zinc-500">Qué la originó</p>
                 <OfferMini offer={r.offer} />
               </div>
             ) : (
-              <p className="text-xs text-zinc-500">
-                Reconocimiento vinculado a una comisión atribuida.
-              </p>
+              <p className="text-xs text-zinc-500">El historial no incluye la oferta que la originó.</p>
             )}
           </article>
         );
