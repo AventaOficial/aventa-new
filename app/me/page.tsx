@@ -3,10 +3,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientLayout from '@/app/ClientLayout';
-import ReputationBar from '@/app/components/ReputationBar';
 import PublicHallazgosSection from '@/app/me/PublicHallazgosSection';
 import HunterDashboard from '@/app/me/dashboard/HunterDashboard';
-import HunterHeader from '@/app/me/dashboard/HunterHeader';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -361,32 +359,29 @@ function MePageInner() {
                 image: offer.image ?? null,
                 store: offer.brand || null,
                 createdAt: offer.createdAt ?? null,
+                upvotes: offer.upvotes,
               }))}
             />
 
           ) : (
             <>
-            <div className="mb-6">
-              <HunterHeader
-                displayName={displayName}
-                avatarUrl={profile?.avatar_url ?? null}
-                level={repLevel}
-                score={profile?.reputation_score ?? 0}
-                publicHref={publicHref}
-                avatarUploading={avatarUploading}
-                onPickAvatar={() => fileInputRef.current?.click()}
-              />
-            </div>
-            <p className="mb-6 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Así me ve la comunidad.</p>
-            <div className="mb-8 max-w-md">
-              <ReputationBar variant="hunter" level={repLevel} score={profile?.reputation_score ?? 0} />
-            </div>
+            <p className="sr-only">Así me ve la comunidad.</p>
             <PublicHallazgosSection
+              displayName={displayName}
+              handle={publicHref?.startsWith('/u/') ? publicHref.slice(3) : null}
+              avatarUrl={profile?.avatar_url ?? null}
+              level={repLevel}
+              score={profile?.reputation_score ?? 0}
+              sharePath={publicHref}
+              comments={metrics.commentsCount}
               offers={offers}
               voteMap={voteMap}
               voteValueMap={voteValueMap}
               favoriteMap={favoriteMap}
               onVoteChange={handleVoteChange}
+              onFavoriteChange={(offerId, isFavorite) => {
+                setFavoriteMap((prev) => ({ ...prev, [offerId]: isFavorite }));
+              }}
               onOfferClick={(offer) => router.push(buildOfferPublicPath(offer.id, offer.title))}
               approvedCount={statusCounts.approved}
               expiredCount={statusCounts.expired}

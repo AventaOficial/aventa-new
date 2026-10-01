@@ -16,10 +16,13 @@ export default function HunterRewardSummary({ state }: { state: MyRewardsState }
   const summary = Object.entries(counts);
 
   return (
-    <section aria-label="Recompensas" className="space-y-3 rounded-2xl bg-white p-5 dark:bg-[#141414]">
-      <div className="flex items-end justify-between gap-3">
-        <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Recompensas</h2>
-        <Link href="/me/recompensas" className={quietLink}>
+    <section aria-label="Recompensas" className="space-y-3 rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Recompensas Aventa</h2>
+          <p className="mt-0.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Convierte tu actividad en recompensas reales.</p>
+        </div>
+        <Link href="/me/recompensas" className={`${quietLink} shrink-0 text-violet-600 dark:text-violet-400`}>
           Ver recompensas
         </Link>
       </div>
@@ -28,13 +31,10 @@ export default function HunterRewardSummary({ state }: { state: MyRewardsState }
         <div className="h-5 w-40 animate-pulse rounded-full bg-black/5 dark:bg-white/10" aria-hidden />
       ) : null}
       {state.kind === 'error' ? (
-        <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">No se pudo cargar el historial de recompensas.</p>
+        <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">No pudimos mostrar tus recompensas en este momento.</p>
       ) : null}
       {state.kind === 'ready' && rows.length === 0 ? (
-        <div>
-          <p className="text-[22px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">0</p>
-          <p className="mt-2 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay recompensas.</p>
-        </div>
+        <p className="text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay recompensas.</p>
       ) : null}
       {state.kind === 'ready' && rows.length > 0 ? (
         <ul className="flex flex-wrap gap-6">

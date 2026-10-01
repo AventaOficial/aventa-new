@@ -1,17 +1,14 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { Bookmark, MessageCircle, Send, ThumbsUp } from 'lucide-react';
+import { Bookmark, Flame, MessageCircle, Send, ThumbsUp } from 'lucide-react';
 import HunterProgress from '@/app/me/dashboard/HunterProgress';
 import HunterHeader from '@/app/me/dashboard/HunterHeader';
-import HunterNextAction from '@/app/me/dashboard/HunterNextAction';
-import HunterProgram from '@/app/me/dashboard/HunterProgram';
 import HunterRewardSummary from '@/app/me/dashboard/HunterRewardSummary';
-import HunterActivitySummary from '@/app/me/HunterActivitySummary';
-import { useMyRewards } from '@/app/me/dashboard/useMyRewards';
-import type { HunterRewardSignals } from '@/lib/me/hunterNextAction';
 import HunterOffersPreview from '@/app/me/dashboard/HunterOffersPreview';
+import HunterActivityBoard, { activityFromDates } from '@/app/me/dashboard/HunterActivityBoard';
+import { useMyRewards } from '@/app/me/dashboard/useMyRewards';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
@@ -43,6 +40,7 @@ type HunterDashboardProps = {
     image?: string | null;
     store?: string | null;
     createdAt?: string | null;
+    upvotes?: number | null;
   }>;
 };
 
@@ -83,20 +81,20 @@ function StatCard({
 
 export default function HunterDashboard(props: HunterDashboardProps) {
   const rewards = useMyRewards();
-  const signals: HunterRewardSignals | null =
-    rewards.kind === 'ready'
-      ? rewards.rows.filter((row) => !row.isSynthetic).reduce<HunterRewardSignals>(
-          (acc, row) => {
-            acc.any += 1;
-            if (row.uiStatus === 'validating') acc.validating += 1;
-            if (row.uiStatus === 'available') acc.ready += 1;
-            return acc;
-          },
-          { validating: 0, ready: 0, any: 0 },
-        )
-      : null;
-
   const [panel, setPanel] = useState<MePanel>('resumen');
+  const dates = props.offers.map((offer) => offer.createdAt);
+  const activity = useMemo(() => activityFromDates(dates), [dates]);
+  const logros = [
+    props.published >= 1
+      ? { title: 'Primera oferta', detail: 'Publicaste tu primera oferta', icon: Send }
+      : null,
+    props.positiveVotes != null && props.positiveVotes >= 10
+      ? { title: '10 votos', detail: 'Recibiste 10 votos en tus ofertas', icon: ThumbsUp }
+      : null,
+    activity.longest >= 7
+      ? { title: 'Racha de 7 días', detail: 'Publicaste ofertas 7 días seguidos', icon: Flame }
+      : null,
+  ].flatMap((item) => (item ? [item] : []));
 
   return (
     <div className="space-y-4">
@@ -151,44 +149,35 @@ export default function HunterDashboard(props: HunterDashboardProps) {
       {panel === 'resumen' ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,0.9fr)] lg:items-start">
           <div className="order-1 space-y-4">
-            <HunterNextAction
-              published={props.published}
-              approved={props.approved}
-              pending={props.pending}
-              rejected={props.rejected}
-              expired={props.expired}
-              publicHref={props.publicHref}
-              rewards={signals}
-              onPublish={props.onPublish}
-            />
             <HunterOffersPreview offers={props.offers} published={props.published} approved={props.approved} />
+            <HunterRewardSummary state={rewards} />
+          </div>
+          <div className="order-2 space-y-4">
+            <HunterActivityBoard dates={dates} />
             <section className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Guardados</h2>
-                  <p className="mt-0.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Ofertas que te interesan</p>
-                </div>
-                <Link href="/me/favorites" className="text-[13px] font-medium text-violet-600 dark:text-violet-400">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Logros recientes</h2>
+                <Link href="/me/nivel" className="text-[13px] font-medium text-violet-600 dark:text-violet-400">
                   Ver todos
                 </Link>
               </div>
-              <p className="mt-4 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">
-                Tus guardados viven en Favoritos. Esta pantalla no trae el total, así que no mostramos una cifra.
-              </p>
+              {logros.length === 0 ? (
+                <p className="mt-4 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay logros para mostrar.</p>
+              ) : (
+                <ul className="mt-4 grid grid-cols-2 gap-2">
+                  {logros.map((logro) => {
+                    const Icon = logro.icon;
+                    return (
+                      <li key={logro.title} className="rounded-xl bg-black/[0.03] px-3 py-3 dark:bg-white/[0.04]">
+                        <Icon className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+                        <p className="mt-2 text-[13px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{logro.title}</p>
+                        <p className="mt-1 text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">{logro.detail}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </section>
-          </div>
-          <div className="order-2 space-y-4">
-            <HunterRewardSummary state={rewards} />
-            <HunterProgram />
-            <HunterActivitySummary
-              published={props.published}
-              approved={props.approved}
-              pending={props.pending}
-              rejected={props.rejected}
-              positiveVotes={props.positiveVotes}
-              comments={props.comments}
-              views={props.views}
-            />
           </div>
         </div>
       ) : null}
@@ -200,24 +189,14 @@ export default function HunterDashboard(props: HunterDashboardProps) {
       {panel === 'guardados' ? (
         <section className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Guardados</h2>
-          <p className="mt-2 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Ofertas que te interesan.</p>
+          <p className="mt-2 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Tus guardados viven en Favoritos. Esta pantalla no trae el total.</p>
           <Link href="/me/favorites" className="mt-4 inline-flex text-[13px] font-medium text-violet-600 dark:text-violet-400">
             Ver todos
           </Link>
         </section>
       ) : null}
 
-      {panel === 'actividad' ? (
-        <HunterActivitySummary
-          published={props.published}
-          approved={props.approved}
-          pending={props.pending}
-          rejected={props.rejected}
-          positiveVotes={props.positiveVotes}
-          comments={props.comments}
-          views={props.views}
-        />
-      ) : null}
+      {panel === 'actividad' ? <HunterActivityBoard dates={dates} /> : null}
     </div>
   );
 }

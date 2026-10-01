@@ -14,6 +14,7 @@ type PreviewOffer = {
   image?: string | null;
   store?: string | null;
   createdAt?: string | null;
+  upvotes?: number | null;
 };
 
 const STATUS_LABEL: Record<PreviewOffer['dealStatus'], string> = {
@@ -97,6 +98,7 @@ export default function HunterOffersPreview({ offers, limit = 3 }: HunterOffersP
                         <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[12px] font-medium text-white">-{meta.discount}%</span>
                       ) : null}
                       <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${statusClass}`}>{STATUS_LABEL[offer.dealStatus]}</span>
+                      {offer.upvotes != null ? <span className="text-[12px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{offer.upvotes} votos</span> : null}
                     </span>
                   </span>
                   {when ? <span className="hidden shrink-0 text-[13px] text-[#6e6e73] sm:block dark:text-[#a3a3a3]">{when}</span> : null}
