@@ -3,15 +3,12 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Plus, Sparkles, User } from 'lucide-react';
+import { ExternalLink, User } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
-import OfferCard from '@/app/components/OfferCard';
 import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
 import ReputationBar from '@/app/components/ReputationBar';
-import RewardsProgramPanel from '@/app/me/RewardsProgramPanel';
-import HunterActivitySummary from '@/app/me/HunterActivitySummary';
 import PublicHallazgosSection from '@/app/me/PublicHallazgosSection';
-import MyRewardsHistory from '@/app/me/MyRewardsHistory';
+import HunterDashboard from '@/app/me/dashboard/HunterDashboard';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -31,14 +28,6 @@ type MeView = 'public' | 'hunter';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 type DealStatusFilter = 'all' | DealStatus;
-
-const OFFER_STATUS_FILTERS: Array<{ value: DealStatusFilter; label: string }> = [
-  { value: 'all', label: 'Todas' },
-  { value: 'approved', label: 'Activas' },
-  { value: 'pending', label: 'En revisión' },
-  { value: 'rejected', label: 'Rechazadas' },
-  { value: 'expired', label: 'Expiradas' },
-];
 
 type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
 
@@ -62,7 +51,6 @@ function MePageInner() {
   } | null>(null);
   const [offers, setOffers] = useState<MappedOffer[]>([]);
   const [meView, setMeView] = useState<MeView>('hunter');
-  const [statusFilter, setStatusFilter] = useState<DealStatusFilter>('all');
   const [metrics, setMetrics] = useState({
     totalOffers: 0,
     positiveVotesTotal: 0,
@@ -255,23 +243,10 @@ function MePageInner() {
     for (const offer of offers) counts[offer.dealStatus] += 1;
     return counts;
   }, [offers]);
-  const filteredOffers = useMemo(
-    () => (statusFilter === 'all' ? offers : offers.filter((offer) => offer.dealStatus === statusFilter)),
-    [offers, statusFilter],
-  );
   const totalViews = useMemo(() => {
     if (!ownerMetricsByOffer) return 0;
     return Object.values(ownerMetricsByOffer).reduce((sum, m) => sum + (m.views ?? 0), 0);
   }, [ownerMetricsByOffer]);
-
-  const handleRepublish = (offer: MappedOffer) => {
-    const params = new URLSearchParams({ upload: '1' });
-    if (offer.title) params.set('title', offer.title);
-    if (offer.offerUrl) params.set('offer_url', offer.offerUrl);
-    if (offer.brand) params.set('store', offer.brand);
-    if (offer.image) params.set('image', offer.image);
-    router.push(`/?${params.toString()}`);
-  };
 
   if (loading) {
     return (
@@ -323,122 +298,37 @@ function MePageInner() {
     <ClientLayout>
       <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
         <section className="mx-auto max-w-5xl px-4 md:px-8 pt-24 pb-12 md:pt-12">
-          {isHunter ? (
-            <div className="mb-6 overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/40 to-gray-50 p-5 shadow-sm dark:border-zinc-800/90 dark:from-[#16161a] dark:via-[#101014] dark:to-[#0c0c0e] dark:shadow-[0_0_40px_-16px_rgba(139,92,246,0.25)] sm:p-6">
-              <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
-                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                  <div className="flex shrink-0 flex-col items-center gap-2">
-                    <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-violet-500 to-purple-700 ring-2 ring-violet-500/40 ring-offset-2 ring-offset-white dark:ring-offset-[#101014]">
-                      {profile?.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <User className="h-10 w-10 text-white" />
-                      )}
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      className="sr-only"
-                      aria-label="Elegir foto de perfil"
-                      onChange={handleAvatarChange}
-                    />
-                    <button
-                      type="button"
-                      disabled={avatarUploading}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-xs font-medium text-violet-400 hover:underline disabled:opacity-50 disabled:no-underline"
-                    >
-                      {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
-                    </button>
-                  </div>
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
-                      {displayName}
-                    </h1>
-                    <p className="mt-1.5 inline-flex flex-wrap items-center justify-center gap-1.5 text-sm text-violet-700 dark:text-violet-300 sm:justify-start">
-                      <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span className="font-medium">Cazador de Ofertas</span>
-                      <span className="text-gray-300 dark:text-zinc-600">•</span>
-                      <span className="text-gray-500 dark:text-zinc-400">
-                        Nivel {repLevel}
-                      </span>
-                    </p>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-zinc-400">
-                      Encuentra. Comparte. Ayuda a otros a ahorrar.
-                    </p>
-                    {publicHref ? (
-                      <Link
-                        href={publicHref}
-                        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-500 hover:underline dark:text-violet-400 dark:hover:text-violet-300"
-                      >
-                        Ver perfil público
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-                <blockquote className="hidden max-w-xs rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm leading-relaxed text-gray-700 dark:border-violet-500/20 dark:bg-violet-950/30 dark:text-zinc-200 lg:block">
-                  <p>
-                    &ldquo;Las mejores oportunidades siempre están un paso adelante. Para eso
-                    estamos aquí.&rdquo;
-                  </p>
-                  <footer className="mt-3 border-t border-violet-200 pt-2 text-[11px] font-semibold tracking-widest text-violet-600 dark:border-violet-500/30 dark:text-violet-400">
-                    AVENTA
-                  </footer>
-                </blockquote>
-              </div>
-              <div className="mt-5">
-                <ReputationBar
-                  variant="hunter"
-                  level={repLevel}
-                  score={profile?.reputation_score ?? 0}
-                />
-              </div>
-            </div>
-          ) : (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            className="sr-only"
+            aria-label="Elegir foto de perfil"
+            onChange={handleAvatarChange}
+          />
+          {!isHunter ? (
             <div className="mb-6 rounded-3xl bg-white p-6 shadow-lg dark:bg-[#141414]">
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
-                <div className="flex shrink-0 flex-col items-center gap-2">
-                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-violet-500 to-purple-600">
-                    {profile?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <User className="h-10 w-10 text-white" />
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    className="sr-only"
-                    aria-label="Elegir foto de perfil"
-                    onChange={handleAvatarChange}
-                  />
-                  <button
-                    type="button"
-                    disabled={avatarUploading}
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-xs font-medium text-violet-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-violet-400"
-                  >
-                    {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
-                  </button>
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-violet-600">
+                  {profile?.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-10 w-10 text-white" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {displayName}
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Así te ven los demás en AVENTA
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">
+                    Perfil público
                   </p>
+                  <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-white">{displayName}</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Así me ve la comunidad.</p>
                   {publicHref ? (
                     <Link
                       href={publicHref}
-                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
+                      className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
                     >
-                      Ver perfil público
+                      Abrir perfil público
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   ) : null}
@@ -448,7 +338,7 @@ function MePageInner() {
                 <ReputationBar level={repLevel} score={profile?.reputation_score ?? 0} />
               </div>
             </div>
-          )}
+          ) : null}
 
           <div
             className="mb-8 flex max-w-md gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-[#141414]"
@@ -482,155 +372,30 @@ function MePageInner() {
           </div>
 
           {isHunter ? (
-            <>
-              <div className="mb-8">
-                <RewardsProgramPanel />
-              </div>
+            <HunterDashboard
+              displayName={displayName}
+              avatarUrl={profile?.avatar_url ?? null}
+              level={repLevel}
+              score={profile?.reputation_score ?? 0}
+              publicHref={publicHref}
+              avatarUploading={avatarUploading}
+              onPickAvatar={() => fileInputRef.current?.click()}
+              onPublish={() => openUploadModal()}
+              published={statusCounts.all}
+              approved={statusCounts.approved}
+              pending={statusCounts.pending}
+              rejected={statusCounts.rejected}
+              expired={statusCounts.expired}
+              positiveVotes={metrics.positiveVotesTotal}
+              comments={metrics.commentsCount}
+              views={totalViews}
+              offers={offers.map((offer) => ({
+                id: offer.id,
+                title: offer.title,
+                dealStatus: offer.dealStatus,
+              }))}
+            />
 
-              <HunterActivitySummary
-                published={statusCounts.all}
-                approved={statusCounts.approved}
-                pending={statusCounts.pending}
-                rejected={statusCounts.rejected}
-                positiveVotes={metrics.positiveVotesTotal}
-                comments={metrics.commentsCount}
-                views={totalViews}
-              />
-
-              <div className="mb-4 flex flex-col gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mis ofertas</h2>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-500">
-                    Consulta el estado, la actividad y la siguiente acción de cada publicación.
-                  </p>
-                </div>
-                <div
-                  className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 dark:border-zinc-800 dark:bg-[#121214]"
-                  role="tablist"
-                  aria-label="Filtrar ofertas por estado"
-                >
-                  {OFFER_STATUS_FILTERS.map((filter) => {
-                    const selected = statusFilter === filter.value;
-                    return (
-                      <button
-                        key={filter.value}
-                        type="button"
-                        role="tab"
-                        aria-selected={selected}
-                        onClick={() => setStatusFilter(filter.value)}
-                        className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#121214] ${
-                          selected
-                            ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
-                            : 'text-gray-600 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        {filter.label}
-                        <span
-                          className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-gray-400 dark:text-zinc-600'}`}
-                        >
-                          {statusCounts[filter.value]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="space-y-4 md:space-y-6">
-                {filteredOffers.length === 0 ? (
-                  <div className="space-y-3 rounded-2xl border border-gray-200 bg-white py-10 text-center dark:border-zinc-800 dark:bg-[#121214]">
-                    <p className="text-gray-700 dark:text-zinc-300">
-                      {offers.length === 0
-                        ? 'Nada publicado. ¿Cazamos una oferta?'
-                        : 'No tienes ofertas en este estado.'}
-                    </p>
-                    {offers.length === 0 ? (
-                      <p className="text-sm text-gray-500 dark:text-zinc-500">
-                        Usa el botón de subir cuando veas un precio que valga la pena.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  filteredOffers.map((offer) => (
-                    <div
-                      key={offer.id}
-                      className="overflow-hidden rounded-2xl ring-1 ring-gray-200 transition hover:ring-violet-400/40 dark:ring-zinc-800/80 dark:hover:ring-violet-500/30"
-                    >
-                      <OfferCard
-                        offerId={offer.id}
-                        title={offer.title}
-                        brand={offer.brand}
-                        originalPrice={offer.originalPrice}
-                        discountPrice={offer.discountPrice}
-                        discount={offer.discount}
-                        description={offer.description}
-                    hunterComment={offer.hunterComment}
-                        image={offer.image}
-                        upvotes={offer.upvotes}
-                        downvotes={offer.downvotes}
-                        votes={offer.votes}
-                        offerUrl={offer.offerUrl}
-                        author={offer.author}
-                        onCardClick={
-                          offer.dealStatus === 'approved'
-                            ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
-                            : undefined
-                        }
-                        onVoteChange={handleVoteChange}
-                        userVote={voteMap[offer.id] ?? null}
-                        userVoteStoredValue={voteValueMap[offer.id] ?? null}
-                        isLiked={!!favoriteMap[offer.id]}
-                        createdAt={offer.createdAt}
-                        msiMonths={offer.msiMonths}
-                        bankCoupon={offer.bankCoupon}
-                        coupons={offer.coupons}
-                        offerScope={offer.offerScope ?? null}
-                        dealStatus={offer.dealStatus}
-                        rejectionReason={offer.rejectionReason}
-                        onManagementAction={
-                          offer.dealStatus === 'expired'
-                            ? () => handleRepublish(offer)
-                            : undefined
-                        }
-                        ownerMetrics={
-                          ownerMetricsByOffer
-                            ? (ownerMetricsByOffer[offer.id] ?? {
-                                storeClicks: 0,
-                                cazarClicks: 0,
-                                views: 0,
-                                shares: 0,
-                              })
-                            : null
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-10">
-                <MyRewardsHistory />
-              </div>
-
-              <div className="mt-8 flex flex-col items-stretch gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-zinc-800 dark:bg-[#121214] sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-400">
-                    <Sparkles className="h-4 w-4" aria-hidden />
-                  </span>
-                  <p className="text-sm leading-relaxed text-gray-600 dark:text-zinc-400">
-                    Cada oferta que compartes puede ayudar a alguien a encontrar una gran
-                    oportunidad. Gracias por ser parte de AVENTA.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => openUploadModal()}
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_20px_-4px_rgba(139,92,246,0.5)] transition hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#121214]"
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                  Subir nueva oferta
-                </button>
-              </div>
-            </>
           ) : (
             <PublicHallazgosSection
               offers={offers}
