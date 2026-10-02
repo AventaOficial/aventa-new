@@ -4,6 +4,7 @@ import { requireModeration } from '@/lib/server/requireAdmin'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { sendCommentApprovedUserEmail } from '@/lib/email/sendModerationEmail'
+import { syncAchievementsLater } from '@/lib/achievements/sync'
 
 /** GET: listar comentarios para moderación (pending por defecto; moderadores ven todos por RLS) */
 export async function GET(request: Request) {
@@ -98,6 +99,14 @@ export async function PATCH(request: Request) {
     }
 
     if (authorId) recalculateUserReputation(authorId).catch(() => {})
+
+    if (status === 'approved' && prevStatus !== 'approved' && authorId) {
+      syncAchievementsLater(supabase, [authorId], {
+        eventType: 'USER_COMMENTED',
+        eventId: commentId,
+        metadata: { offerId },
+      })
+    }
 
     if (status === 'approved' && prevStatus === 'pending' && authorId && offerId) {
       const { data: userRow } = await supabase.auth.admin.getUserById(authorId)

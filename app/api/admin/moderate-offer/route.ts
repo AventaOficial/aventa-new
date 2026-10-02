@@ -22,6 +22,7 @@ import {
   type ModerationOutcomeOfferSnapshot,
 } from '@/lib/moderation/outcomes'
 import { enqueueDistributionForApprovedOfferFireAndForget } from '@/lib/distribution'
+import { syncAchievementsLater } from '@/lib/achievements/sync'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -277,6 +278,14 @@ export async function POST(request: Request) {
 
     if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
 
+    if (createdBy && (status === 'approved' || status === 'rejected')) {
+      syncAchievementsLater(supabase, [createdBy], {
+        eventType: status === 'approved' ? 'OFFER_APPROVED' : 'OFFER_REJECTED',
+        eventId: id,
+        metadata: { offerId: id, status },
+      })
+    }
+
     if (status === 'approved' && previousStatus !== 'approved' && createdBy) {
       maybeUnlockRewardsProgram(supabase, createdBy, auth.user.id).catch((err) =>
         console.error('[moderate-offer] rewards unlock:', err),
@@ -318,12 +327,14 @@ export async function POST(request: Request) {
       }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] reject notification insert failed:', notifErr.message); })
     }
 
-    revalidatePath('/')
-    if (status === 'approved' && previousStatus !== 'approved') {
-      void invalidateHomeFeedCache()
-      // Distribution Engine P0-D1: enqueue pending publications only (flag default OFF).
-      // No provider API calls. Does not modify offer status / money / Supply / attribution.
-      enqueueDistributionForApprovedOfferFireAndForget(id, { supabase })
+    try {
+      revalidatePath('/')
+      if (status === 'approved' && previousStatus !== 'approved') {
+        void invalidateHomeFeedCache()
+        enqueueDistributionForApprovedOfferFireAndForget(id, { supabase })
+      }
+    } catch (err) {
+      console.error('[moderate-offer] cache revalidate failed:', err)
     }
     return NextResponse.json({ ok: true })
   } catch (e) {

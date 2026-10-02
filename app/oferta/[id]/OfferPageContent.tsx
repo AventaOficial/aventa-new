@@ -146,6 +146,7 @@ type OfferPayload = {
     userId?: string | null;
     slug?: string | null;
     isBot?: boolean;
+    featuredAchievement?: { name: string; icon: string } | null;
   };
   createdAt: string | null;
   expiresAt?: string | null;
@@ -798,6 +799,11 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       <BadgeCheck className="h-3.5 w-3.5" /> Destacado
                     </span>
                   )}
+                  {offer.author.featuredAchievement ? (
+                    <span className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                      {offer.author.featuredAchievement.icon} {offer.author.featuredAchievement.name}
+                    </span>
+                  ) : null}
                 </div>
               )}
 

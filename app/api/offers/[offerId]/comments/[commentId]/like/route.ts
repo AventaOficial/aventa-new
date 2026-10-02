@@ -6,6 +6,7 @@ import {
   requireBearerCommunityUser,
   communityAuthFailureResponse,
 } from '@/lib/server/requireCommunityUser';
+import { syncAchievementsLater } from '@/lib/achievements/sync';
 
 /** POST: dar o quitar like a un comentario (toggle). Requiere auth. */
 export async function POST(
@@ -70,6 +71,7 @@ export async function POST(
       return NextResponse.json({ error: 'Error al quitar like' }, { status: 500 });
     }
     if (commentAuthorId) recalculateUserReputation(commentAuthorId).catch(() => {});
+    await syncCommentOfferOwner(supabase, oId, cId);
     return NextResponse.json({ liked: false });
   }
 
@@ -82,6 +84,21 @@ export async function POST(
   }
 
   if (commentAuthorId) recalculateUserReputation(commentAuthorId).catch(() => {});
+  await syncCommentOfferOwner(supabase, oId, cId);
 
   return NextResponse.json({ liked: true });
+}
+
+async function syncCommentOfferOwner(
+  supabase: Parameters<typeof syncAchievementsLater>[0],
+  offerId: string,
+  commentId: string,
+) {
+  const { data } = await supabase.from('offers').select('created_by').eq('id', offerId).maybeSingle();
+  const ownerId = (data as { created_by?: string | null } | null)?.created_by;
+  syncAchievementsLater(supabase, [ownerId], {
+    eventType: 'OFFER_RECEIVED_COMMENT',
+    eventId: commentId,
+    metadata: { offerId },
+  });
 }

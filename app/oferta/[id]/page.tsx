@@ -9,6 +9,7 @@ import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import { presentOfferFreshness } from '@/lib/offers/freshness/present';
+import { loadPrimaryAchievement } from '@/lib/achievements/showcase';
 import OfferPageContent from './OfferPageContent';
 import { stringifyJsonLd } from '@/lib/seo/jsonLd';
 
@@ -180,7 +181,12 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     userId: offer.created_by,
     slug: botAuthor ? null : ((prof as { slug?: string | null })?.slug?.trim() || null),
     isBot: botAuthor,
+    featuredAchievement: null as { name: string; icon: string } | null,
   };
+
+  if (!botAuthor && offer.created_by) {
+    author.featuredAchievement = await loadPrimaryAchievement(createServerClient(), offer.created_by);
+  }
 
   const originalPrice = Number(offer.original_price) || 0;
   const discountPrice = Number(offer.price) || 0;
