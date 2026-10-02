@@ -104,7 +104,7 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[calc(5.5rem+0.65rem+env(safe-area-inset-bottom,0px))] md:pb-0`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-clip pb-[calc(5.5rem+0.65rem+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >
         <Providers>
           {children}
