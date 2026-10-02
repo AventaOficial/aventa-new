@@ -96,7 +96,14 @@ describe('FASE 0.1 — processExpiredRewardHolds freeze', () => {
     const supabase = { from } as unknown as SupabaseClient;
 
     const result = await processExpiredRewardHolds(supabase);
-    expect(result).toEqual({ processed: 0, frozen: true, scanned: 0, releasedIds: [] });
+    expect(result).toEqual({
+      processed: 0,
+      frozen: true,
+      scanned: 0,
+      releasedIds: [],
+      certifiedIds: [],
+      auditFailedIds: [],
+    });
     expect(from).not.toHaveBeenCalled();
   });
 });
