@@ -3,6 +3,9 @@ import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
 import { normalizeVoteCounts } from '@/lib/offers/scoring';
 import { parseOfferScopeFromConditions } from '@/lib/offerScope';
+import { publicDisplayName } from '@/lib/profile/publicDisplayName';
+import { filterPublicCatalogRows } from '@/lib/offers/publicCatalogGate';
+import { loadAchievementShowcase } from '@/lib/achievements/showcase';
 
 type OfferRow = {
   id: string;
@@ -80,7 +83,10 @@ export async function GET(
     return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
   }
 
-  const displayName = (profile as { display_name?: string | null }).display_name?.trim() || 'Usuario';
+  const displayName = publicDisplayName(
+    (profile as { display_name?: string | null }).display_name,
+    'Usuario',
+  );
 
   const profileId = (profile as { id: string }).id;
 
@@ -125,7 +131,11 @@ export async function GET(
   let expiredCount = 0;
   const nowMs = Date.now();
 
-  const offers = (rows ?? []).map((row: OfferRow) => {
+  const publicRows = filterPublicCatalogRows(
+    (rows ?? []).map((row: OfferRow) => ({ ...row, status: 'approved' as const })),
+  );
+
+  const offers = publicRows.map((row: OfferRow) => {
     const { up, down, score: fallbackScore } = normalizeVoteCounts(row.upvotes_count, row.downvotes_count);
     const score =
       row.ranking_momentum != null && !Number.isNaN(Number(row.ranking_momentum))
@@ -178,6 +188,8 @@ export async function GET(
     };
   });
 
+  const showcase = await loadAchievementShowcase(supabase, profileId);
+
   return NextResponse.json({
     profile: {
       username: displayName,
@@ -190,5 +202,6 @@ export async function GET(
     expiredCount,
     totalScore,
     offers,
+    featuredAchievements: showcase,
   });
 }

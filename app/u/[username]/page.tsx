@@ -2,12 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { User } from 'lucide-react';
+import Link from 'next/link';
 import ClientLayout from '@/app/ClientLayout';
-import OfferCard from '@/app/components/OfferCard';
-import OfferCardSkeleton from '@/app/components/OfferCardSkeleton';
-import ReputationBar from '@/app/components/ReputationBar';
+import PublicProfileView from '@/app/components/profile/PublicProfileView';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -60,6 +57,7 @@ type ProfileData = {
   expiredCount?: number;
   totalScore: number;
   offers: ProfileOffer[];
+  featuredAchievements?: Array<{ name: string; icon: string }>;
 };
 
 const FILTERS: Array<{ value: 'all' | DealStatus; label: string }> = [
@@ -81,6 +79,7 @@ export default function ProfilePage() {
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [data, setData] = useState<ProfileData | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | DealStatus>('all');
 
@@ -156,7 +155,7 @@ export default function ProfilePage() {
         if (cancelled) return;
         setData(null);
         setNotFound(false);
-        setLoadError('No se pudo cargar el perfil. Intenta de nuevo en unos segundos.');
+        setLoadError('No se pudo cargar este perfil. Puedes volver a intentarlo o seguir viendo ofertas.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -166,7 +165,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [username]);
+  }, [username, retryCount]);
 
   const filteredOffers = useMemo(() => {
     if (!data?.offers) return [];
@@ -179,28 +178,7 @@ export default function ProfilePage() {
       <ClientLayout>
         <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
           <section className="container mx-auto px-4 md:px-8 py-12 max-w-5xl">
-            <div className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-10 opacity-70 animate-pulse">
-              <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
-                <div className="h-20 w-20 shrink-0 rounded-xl bg-gray-200 dark:bg-gray-700" />
-                <div className="h-8 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
-              </div>
-            </div>
-            <div className="mb-8">
-              <div className="h-6 w-40 rounded-xl bg-gray-100 dark:bg-[#1a1a1a] mb-4 opacity-70 animate-pulse" />
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2, delay: i * 0.03 }}
-                    className="offer-card"
-                  >
-                    <OfferCardSkeleton />
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+            <div className="h-44 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
           </section>
         </div>
       </ClientLayout>
@@ -211,9 +189,23 @@ export default function ProfilePage() {
     return (
       <ClientLayout>
         <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100 flex items-center justify-center px-4">
-          <p className="text-center text-gray-600 dark:text-gray-400">
-            {loadError}
-          </p>
+          <div className="max-w-sm text-center">
+            <p className="text-gray-600 dark:text-gray-400">
+              {loadError}
+            </p>
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setRetryCount((n) => n + 1)}
+                className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+              >
+                Reintentar
+              </button>
+              <Link href="/" className="text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline">
+                Ver ofertas
+              </Link>
+            </div>
+          </div>
         </div>
       </ClientLayout>
     );
@@ -248,155 +240,43 @@ export default function ProfilePage() {
     });
   };
 
+  const votesReceived = offers.reduce((sum, offer) => sum + (offer.upvotes ?? 0), 0);
+
   return (
     <ClientLayout>
-      <div className="min-h-screen bg-transparent text-gray-900 dark:text-gray-100">
-        <section className="container mx-auto px-4 md:px-8 py-12 max-w-5xl">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="rounded-3xl bg-white dark:bg-[#141414] p-6 shadow-lg mb-10"
-          >
-            <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 overflow-hidden">
-                {profile.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <User className="h-10 w-10 text-white" />
-                )}
-              </div>
-              <div className="text-center sm:text-left min-w-0">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                  @{profile.username}
-                </h1>
-                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{offersCount} hallazgos</span>
-                  <span>{activeCount} activas</span>
-                  <span>Puntos: {totalScore}</span>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <ReputationBar
-                level={profile.reputation_level ?? 1}
-                score={profile.reputation_score ?? 0}
-              />
-            </div>
-          </motion.div>
-
-          <div className="mb-8 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                Sus hallazgos
-              </h2>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                Historial público. Las expiradas siguen contando como contribución.
-              </p>
-            </div>
-
-            <div
-              className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-1.5"
-              role="tablist"
-              aria-label="Filtrar hallazgos"
-            >
-              {FILTERS.map((f) => {
-                const selected = statusFilter === f.value;
-                const count =
-                  f.value === 'all'
-                    ? offersCount
-                    : f.value === 'approved'
-                      ? activeCount
-                      : expiredCount;
-                return (
-                  <button
-                    key={f.value}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setStatusFilter(f.value)}
-                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
-                      selected
-                        ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
-                    }`}
-                  >
-                    {f.label}
-                    <span className={`ml-1.5 tabular-nums ${selected ? 'opacity-75' : 'text-gray-400'}`}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: 'easeInOut' }}
-              className="space-y-4 md:space-y-6"
-            >
-              {filteredOffers.length === 0 ? (
-                <p className="py-6 text-center text-gray-500 dark:text-gray-400">
-                  {offers.length === 0
-                    ? 'Sin hallazgos publicados aún.'
-                    : 'No hay ofertas en este filtro.'}
-                </p>
-              ) : (
-                filteredOffers.map((offer, index) => {
-                  const dealStatus = offer.dealStatus ?? 'approved';
-                  return (
-                    <motion.div
-                      key={offer.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05, ease: 'easeInOut' }}
-                      className="offer-card"
-                    >
-                      <OfferCard
-                        offerId={offer.id}
-                        title={offer.title}
-                        brand={offer.brand}
-                        originalPrice={offer.originalPrice}
-                        discountPrice={offer.discountPrice}
-                        discount={offer.discount}
-                        description={offer.description}
-                        hunterComment={offer.hunterComment}
-                        image={offer.image}
-                        upvotes={offer.upvotes}
-                        downvotes={offer.downvotes}
-                        votes={offer.votes}
-                        offerUrl={offer.offerUrl}
-                        author={offer.author}
-                        onCardClick={
-                          dealStatus === 'approved'
-                            ? () => router.push(buildOfferPublicPath(offer.id, offer.title))
-                            : undefined
-                        }
-                        onVoteChange={handleVoteChange}
-                        userVote={voteMap[offer.id] ?? null}
-                        userVoteStoredValue={voteValueMap[offer.id] ?? null}
-                        isLiked={!!favoriteMap[offer.id]}
-                        createdAt={offer.createdAt}
-                        expiresAt={offer.expiresAt}
-                        msiMonths={offer.msiMonths}
-                        bankCoupon={offer.bankCoupon}
-                        coupons={offer.coupons}
-                        offerScope={offer.offerScope ?? null}
-                        dealStatus={dealStatus}
-                      />
-                    </motion.div>
-                  );
-                })
-              )}
-            </motion.div>
-          </div>
-
-          <div className="h-24 md:h-0" />
+      <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
+        <section className="mx-auto max-w-6xl px-4 pb-28 pt-24 md:px-8 md:pb-12 md:pt-12">
+          <p className="sr-only">Así me ve Aventa.</p>
+          <PublicProfileView
+            displayName={profile.username}
+            handle={username}
+            avatarUrl={profile.avatar_url}
+            level={profile.reputation_level ?? 1}
+            score={profile.reputation_score ?? 0}
+            showcase={data.featuredAchievements ?? []}
+            votesReceived={votesReceived}
+            comments={null}
+            sharePath={`/u/${username}`}
+            offers={filteredOffers.map((offer) => ({
+              id: offer.id,
+              title: offer.title,
+              store: offer.brand || null,
+              image: offer.image ?? null,
+              discountPrice: offer.discountPrice,
+              originalPrice: offer.originalPrice,
+              createdAt: offer.createdAt ?? null,
+              dealStatus: offer.dealStatus ?? 'approved',
+              upvotes: offer.upvotes,
+              isFavorite: Boolean(favoriteMap[offer.id]),
+            }))}
+            onFavoriteChange={(offerId, isFavorite) => {
+              setFavoriteMap((prev) => ({ ...prev, [offerId]: isFavorite }));
+            }}
+            onOpenOffer={(offer) => {
+              const openable = offer.dealStatus === 'approved' || offer.dealStatus === 'expired';
+              if (openable) router.push(buildOfferPublicPath(offer.id, offer.title));
+            }}
+          />
         </section>
       </div>
     </ClientLayout>

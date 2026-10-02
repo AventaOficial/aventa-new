@@ -12,6 +12,7 @@ import {
 import { getCommentableOffer, validateCommentParent } from '@/lib/server/commentOfferGuard';
 import { evaluateAbusePolicy } from '@/lib/abuse/risk';
 import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
+import { syncAchievementsLater } from '@/lib/achievements/sync';
 
 type CommentRow = {
   id: string;
@@ -263,6 +264,14 @@ export async function POST(
         return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
       }
       void recordProductEvent({ event: 'comment', userId, offerId, source: 'api/comments' });
+      const retryStatus = (retry.data as { status?: string })?.status ?? commentStatus;
+      if (retryStatus === 'approved') {
+        syncAchievementsLater(supabase, [userId], {
+          eventType: 'USER_COMMENTED',
+          eventId: (retry.data as { id: string }).id,
+          metadata: { offerId },
+        });
+      }
       return NextResponse.json({
         comment: toComment({ ...(retry.data as CommentRow), image_url: null }, 0, false, userId),
         status: (retry.data as { status?: string })?.status ?? commentStatus,
@@ -298,6 +307,13 @@ export async function POST(
     liked_by_me: false,
   };
   void recordProductEvent({ event: 'comment', userId, offerId, source: 'api/comments' });
+  if (commentStatus === 'approved') {
+    syncAchievementsLater(supabase, [userId], {
+      eventType: 'USER_COMMENTED',
+      eventId: inserted.id,
+      metadata: { offerId },
+    });
+  }
   return NextResponse.json({
     ...comment,
     status: commentStatus,

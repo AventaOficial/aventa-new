@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 /**
  * Recalcula reputation_score, reputation_level e is_trusted de un usuario.
  * Reglas: +10 oferta aprobada, -15 rechazada, +2 comentario aprobado, -5 rechazado, +1 like recibido.
+ * profiles.achievement_xp no entra en esta fórmula.
  * Niveles: 1 (0-99), 2 (100-399), 3 (400-999), 4 (1000+).
  * No lanza; solo registra errores (p. ej. si la función RPC o comment_likes no existen).
  */

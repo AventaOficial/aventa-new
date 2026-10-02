@@ -12,6 +12,7 @@ import {
   requireBearerCommunityUser,
   communityAuthFailureResponse,
 } from '@/lib/server/requireCommunityUser'
+import { syncAchievementsLater } from '@/lib/achievements/sync'
 
 const LIKES_MILESTONE = 50
 
@@ -191,6 +192,11 @@ export async function POST(request: Request) {
           console.error('[votes] rewards unlock:', e)
         )
       }
+      syncAchievementsLater(supabase, [userId, ownerInsert], {
+        eventType: 'OFFER_RECEIVED_VOTE',
+        eventId: `${offerId}:${userId}`,
+        metadata: { offerId, direction },
+      })
       return NextResponse.json({ ok: true }, { status: 200 })
     }
 
@@ -206,6 +212,11 @@ export async function POST(request: Request) {
         console.error('[votes] delete failed:', deleteError.message)
         return NextResponse.json({ ok: false, error: 'No se pudo actualizar el voto' }, { status: 500 })
       }
+      syncAchievementsLater(supabase, [userId, offerOwnerId], {
+        eventType: 'OFFER_RECEIVED_VOTE',
+        eventId: `${offerId}:${userId}:remove`,
+        metadata: { offerId, removed: true },
+      })
       return NextResponse.json({ ok: true }, { status: 200 })
     }
 
@@ -237,6 +248,11 @@ export async function POST(request: Request) {
     }
 
     void recordProductEvent({ event: 'vote', userId, offerId, source: 'api/votes' })
+    syncAchievementsLater(supabase, [userId, ownerId ?? offerOwnerId], {
+      eventType: 'OFFER_RECEIVED_VOTE',
+      eventId: `${offerId}:${userId}`,
+      metadata: { offerId, direction },
+    })
     return NextResponse.json({ ok: true }, { status: 200 })
   } catch (e) {
     console.error('[votes] error:', e)
