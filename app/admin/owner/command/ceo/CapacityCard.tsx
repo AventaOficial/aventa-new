@@ -81,10 +81,10 @@ export default function CapacityCard({
           <CardLoading rows={5} />
         )
       ) : (
-        <div className="mt-3 flex flex-1 flex-col items-center gap-4 @md:flex-row @md:items-center">
-          <div className="flex flex-col items-center gap-2">
-            <Donut pct={null} size={112} stroke={11}>
-              <span className="text-[28px] font-semibold leading-none text-white">
+        <div className="mt-2 flex flex-1 flex-col items-center gap-3 @md:flex-row @md:items-center">
+          <div className="flex flex-col items-center gap-1.5">
+            <Donut pct={null} size={88} stroke={9}>
+              <span className="text-[22px] font-semibold leading-none text-white">
                 <NA why="No existe una métrica de capacidad total con base real; el porcentaje no se calcula." className="text-white/60" />
               </span>
               <span className="mt-1 text-[11px] text-white/55">Uso actual</span>
@@ -94,7 +94,7 @@ export default function CapacityCard({
               <b className={ops?.queueFailed ? 'font-semibold text-red-300' : 'font-semibold text-white/75'}>{formatCount(ops?.queueFailed)}</b> fallidos
             </p>
           </div>
-          <ul className="w-full min-w-0 flex-1 space-y-2.5">
+          <ul className="w-full min-w-0 flex-1 space-y-1.5">
             {rows.map((r) => (
               <li
                 key={r.label}

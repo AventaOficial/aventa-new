@@ -66,13 +66,13 @@ export default function OffersCard({
         )
       ) : (
         <>
-          <p className="mt-3 text-[34px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Ofertas creadas en el período (todas las fuentes)">
+          <p className="mt-2 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Ofertas creadas en el período (todas las fuentes)">
             {cmd.community.offersCreated.value == null ? <NA why="Las ofertas no se pudieron leer." /> : formatCount(cmd.community.offersCreated.value)}
           </p>
-          <p className="mt-2">
+          <p className="mb-2 mt-1">
             <AbsDelta current={cmd.community.offersCreated.value} previous={cmd.community.offersCreated.previous} vs={VS_LABEL[cmd.range.key]} />
           </p>
-          <ul className="mt-auto space-y-2.5 rounded-xl border border-white/[0.05] bg-white/[0.025] p-3">
+          <ul className="mt-auto space-y-1.5 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2.5 py-2">
             {rows.map((r) => {
               const pct = share(r.value, total);
               return (
@@ -83,7 +83,7 @@ export default function OffersCard({
                     <span className="min-w-0 flex-1 truncate text-white/70">{r.label}</span>
                     <span className="shrink-0 tabular-nums text-white/55">{pct == null ? <NA why="Sin total calculable." /> : `${pct}%`}</span>
                   </div>
-                  <ThinBar pct={pct} tone={r.tone} className="mt-1.5 h-1" />
+                  <ThinBar pct={pct} tone={r.tone} className="mt-1 h-1" />
                 </li>
               );
             })}

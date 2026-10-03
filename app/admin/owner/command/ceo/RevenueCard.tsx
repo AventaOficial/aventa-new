@@ -56,8 +56,8 @@ export default function RevenueCard({
         )
       ) : (
         <>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <p className="text-[34px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Ingresos confirmados de producción (sin registros de prueba).">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Ingresos confirmados de producción (sin registros de prueba).">
               {range === '30d' ? (
                 <NA why="Los ingresos solo se calculan para hoy, 7 días y mes en curso; no hay ventana de 30 días." />
               ) : real == null ? (
@@ -82,21 +82,21 @@ export default function RevenueCard({
               {estimated == null ? <NA why={b.economy.confidenceReason || 'Sin ingreso promedio por clic con base suficiente.'} /> : <b className="font-semibold text-white/75">{formatMoneyCents(estimated)}</b>}
             </span>
           </div>
-          <div className="mt-auto pt-3">
+          <div className="mt-auto pt-2">
             <p className="mb-1 text-[10px] text-white/40" title="Base de los ingresos estimados (clics × ingreso promedio por clic). No existe serie de ingresos por hora.">
               Clics salientes por {cmd?.series.bucket === 'day' ? 'día' : 'hora'}
             </p>
             {cmd == null ? (
-              <EmptyFrame className="h-[134px]">{command.status === 'error' ? 'Serie no disponible.' : 'Cargando serie…'}</EmptyFrame>
+              <EmptyFrame className="h-[98px]">{command.status === 'error' ? 'Serie no disponible.' : 'Cargando serie…'}</EmptyFrame>
             ) : cmd.series.available && cmd.series.points.some((p) => p.outbound > 0) ? (
               <LineSeries
                 values={cmd.series.points.map((p) => p.outbound)}
                 labels={cmd.series.points.map((p) => p.label)}
-                height={118}
+                height={84}
                 ariaLabel="Clics salientes por período"
               />
             ) : (
-              <EmptyFrame className="h-[134px]">
+              <EmptyFrame className="h-[98px]">
                 {cmd.series.available ? 'Sin clics salientes en el período.' : 'Serie de clics no disponible.'}
               </EmptyFrame>
             )}

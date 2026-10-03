@@ -54,10 +54,10 @@ export default function UsersCard({
         )
       ) : (
         <>
-          <p className="mt-3 text-[34px] font-semibold leading-none tracking-tight tabular-nums text-white" title={NO_PRESENCE}>
+          <p className="mt-2 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title={NO_PRESENCE}>
             {cmd.users.activeUsers == null ? <NA why="La actividad de usuarios no se pudo leer." /> : formatCount(cmd.users.activeUsers)}
           </p>
-          <ul className="mt-3 space-y-1 text-[11px] text-white/70">
+          <ul className="mt-2 space-y-0.5 text-[11px] text-white/70">
             <li className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-violet-500" aria-hidden />
               <b className="font-semibold tabular-nums text-white">{formatCount(cmd.users.activeUsers)}</b> con último acceso
@@ -71,16 +71,16 @@ export default function UsersCard({
               <b className="font-semibold tabular-nums text-white">{formatCount(cmd.users.newUsers.value)}</b> nuevos {PERIOD_SUFFIX[cmd.range.key]}
             </li>
           </ul>
-          <div className="mt-auto pt-3">
+          <div className="mt-auto pt-2">
             {cmd.series.activeUsersAvailable ? (
               <BarSeries
                 {...chartData(cmd)}
-                height={84}
+                height={56}
                 labelEvery={cmd.range.key === 'today' ? 4 : undefined}
                 ariaLabel={`Usuarios por ${cmd.series.bucket === 'hour' ? 'hora' : 'día'} de último acceso`}
               />
             ) : (
-              <EmptyFrame className="h-[98px]">Serie de accesos no disponible para este período.</EmptyFrame>
+              <EmptyFrame className="h-[70px]">Serie de accesos no disponible para este período.</EmptyFrame>
             )}
           </div>
         </>

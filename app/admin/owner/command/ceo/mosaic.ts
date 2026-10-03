@@ -5,7 +5,7 @@ function row(...cells: Cell[]): string {
 }
 
 /**
- * PC (≥1280): proporciones medidas sobre la referencia, en 24 columnas.
+ * PC y tablet horizontal (≥1024): proporciones medidas sobre la referencia, en 24 columnas.
  * Ingresos/Pagos arrancan a media altura de Usuarios/Ofertas y Capacidad queda
  * debajo de éstas; por eso la franja superior usa 3 filas.
  */
@@ -21,8 +21,8 @@ const AREAS = ['community', 'users', 'offers', 'moderation', 'revenue', 'payouts
 /**
  * Composición del lienzo del CEO.
  * Móvil: una columna, en el orden de lectura de la referencia.
- * Tablet (768–1279): dos columnas; la grilla de PC deja Usuarios por debajo de 200px.
- * PC (≥1280): la composición de la referencia con áreas nombradas (no depende del orden del DOM).
+ * Tablet vertical (768–1023): dos columnas.
+ * PC y tablet horizontal (≥1024): la composición de la referencia con áreas nombradas (no depende del orden del DOM).
  */
 export const CEO_MOSAIC_CSS = `
 .ceo-mosaic {
@@ -34,7 +34,7 @@ export const CEO_MOSAIC_CSS = `
 }
 .ceo-mosaic > * { min-width: 0; height: 100%; }
 ${AREAS.map((a) => `.ceo-area-${a} { grid-area: ${a}; }`).join('\n')}
-@media (min-width: 768px) and (max-width: 1279.98px) {
+@media (min-width: 768px) and (max-width: 1023.98px) {
   .ceo-mosaic {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
@@ -46,8 +46,9 @@ ${AREAS.map((a) => `.ceo-area-${a} { grid-area: ${a}; }`).join('\n')}
       "priorities priorities";
   }
 }
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .ceo-mosaic {
+    gap: 0.625rem;
     grid-template-columns: repeat(24, minmax(0, 1fr));
     grid-template-areas:
       ${DESKTOP_AREAS};

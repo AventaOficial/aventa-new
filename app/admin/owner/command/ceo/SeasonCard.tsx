@@ -124,14 +124,14 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
         <EmptyFrame className="mt-3 flex-1">Sin temporadas en los próximos 8 meses según el calendario.</EmptyFrame>
       ) : (
         <>
-          <div className="relative mt-3 min-h-[168px] overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-[#2a1356] via-[#1b0f36] to-[#2b1022]">
+          <div className="relative mt-2 min-h-[124px] overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-[#2a1356] via-[#1b0f36] to-[#2b1022]">
             <SeasonArt />
-            <div className="relative z-10 flex h-full flex-col items-start p-4">
+            <div className="relative z-10 flex h-full flex-col items-start p-3">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-white/90">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-400" aria-hidden />
                 {next.active ? 'Temporada en curso' : 'Próxima temporada'}
               </span>
-              <p className="mt-2.5 text-[26px] font-bold leading-none tracking-tight text-white">{next.name}</p>
+              <p className="mt-2 text-[22px] font-bold leading-none tracking-tight text-white">{next.name}</p>
               <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-white/85">
                 <Tag className="h-3.5 w-3.5 text-orange-300" aria-hidden />
                 {rangeLong(next.start, next.end)}
@@ -140,7 +140,7 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
               <Link
                 href="/admin/announcements"
                 className={cn(
-                  'mt-3.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-[12px] font-semibold text-white shadow-[0_8px_22px_-10px_rgba(139,92,246,0.9)] hover:bg-violet-500',
+                  'mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_8px_22px_-10px_rgba(139,92,246,0.9)] hover:bg-violet-500',
                   FOCUS_RING,
                 )}
               >
@@ -149,7 +149,7 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
               </Link>
             </div>
           </div>
-          <ol className="mt-auto grid grid-cols-[repeat(4,minmax(0,1fr))] gap-1 pt-3.5" aria-label="Fases sugeridas de preparación (no se guardan)">
+          <ol className="mt-auto grid grid-cols-[repeat(4,minmax(0,1fr))] gap-1 pt-2" aria-label="Fases sugeridas de preparación (no se guardan)">
             {phases(next).map((p, i, all) => {
               const pastEnd = daysSinceYmd(p.end, todayYmd);
               const sinceStart = daysSinceYmd(p.start, todayYmd);
