@@ -19,6 +19,7 @@ import { notifyUserError } from '@/lib/utils/handleError';
 import { useUI } from '@/app/providers/UIProvider';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { publicProfilePath } from '@/lib/profileSlug';
+import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
 type MeView = 'public' | 'hunter';
 
@@ -252,7 +253,7 @@ function MePageInner() {
     return (
       <ClientLayout>
         <div className="min-h-screen bg-[#F5F5F7] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]">
-          <section className="mx-auto max-w-5xl px-4 pb-12 pt-24 md:px-8 md:pt-12">
+          <section className={`mx-auto max-w-5xl px-4 pb-12 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
             <div className="mb-8 h-16 max-w-sm animate-pulse rounded-2xl bg-black/5 dark:bg-white/10" />
             <div className="h-40 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
           </section>
@@ -265,7 +266,7 @@ function MePageInner() {
     return (
       <ClientLayout>
         <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
-          <section className="mx-auto max-w-5xl px-4 pb-12 pt-24 md:px-8 md:pt-12">
+          <section className={`mx-auto max-w-5xl px-4 pb-12 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
             <div className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
               <p className="text-[15px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">No se pudo cargar tu perfil.</p>
               <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Revisa tu conexión e inténtalo de nuevo.</p>
@@ -309,7 +310,7 @@ function MePageInner() {
   return (
     <ClientLayout>
       <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
-        <section className="mx-auto max-w-5xl px-3.5 pt-24 pb-4 sm:px-4 sm:pb-12 md:px-8 md:pt-12">
+        <section className={`mx-auto max-w-5xl px-3.5 pb-4 sm:px-4 sm:pb-12 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
           <input
             ref={fileInputRef}
             type="file"
@@ -338,7 +339,7 @@ function MePageInner() {
                     role="tab"
                     aria-selected={selected}
                     onClick={() => setMeView(tab.id)}
-                    className={`rounded-full px-4 py-2 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:focus-visible:ring-[#fafafa] ${
+                    className={`inline-flex min-h-11 items-center rounded-full px-4 text-[13px] font-medium transition-colors sm:min-h-0 sm:py-2 duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:focus-visible:ring-[#fafafa] ${
                       selected
                         ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
                         : 'text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:bg-white/[0.06] dark:hover:text-[#fafafa]'

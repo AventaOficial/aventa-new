@@ -36,6 +36,7 @@ import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import OfferImageThumbs from '@/app/components/OfferImageThumbs';
 import OfferImageGallery from '@/app/components/OfferImageGallery';
+import AchievementSigil from '@/app/components/achievements/AchievementSigil';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
@@ -142,7 +143,7 @@ type OfferPayload = {
     userId?: string | null;
     slug?: string | null;
     isBot?: boolean;
-    featuredAchievement?: { name: string; icon: string } | null;
+    featuredAchievement?: { code?: string; name: string; icon: string } | null;
   };
   createdAt: string | null;
   expiresAt?: string | null;
@@ -820,8 +821,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     </span>
                   )}
                   {offer.author.featuredAchievement ? (
-                    <span className="text-xs font-medium text-violet-700 dark:text-violet-300">
-                      {offer.author.featuredAchievement.icon} {offer.author.featuredAchievement.name}
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+                      <AchievementSigil code={offer.author.featuredAchievement.code} size="xs" />
+                      {offer.author.featuredAchievement.name}
                     </span>
                   ) : null}
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Award, Bookmark, CalendarDays, MessageCircle, Send, ThumbsUp } from 'lucide-react';
 import HunterProgress from '@/app/me/dashboard/HunterProgress';
 import HunterHeader from '@/app/me/dashboard/HunterHeader';
@@ -54,6 +55,10 @@ const panels: Array<{ id: MePanel; label: string }> = [
   { id: 'logros', label: 'Logros' },
 ];
 
+function panelFromParam(value: string | null): MePanel | null {
+  return panels.find((item) => item.id === value)?.id ?? null;
+}
+
 function StatCard({
   icon,
   value,
@@ -85,7 +90,14 @@ function StatCard({
 export default function HunterDashboard(props: HunterDashboardProps) {
   const rewards = useMyRewards();
   const rewardGoal = useRewardGoal();
-  const [panel, setPanel] = useState<MePanel>('resumen');
+  const searchParams = useSearchParams();
+  const requestedPanel = panelFromParam(searchParams.get('panel'));
+  const [panel, setPanel] = useState<MePanel>(requestedPanel ?? 'resumen');
+  const [lastRequestedPanel, setLastRequestedPanel] = useState(requestedPanel);
+  if (requestedPanel !== lastRequestedPanel) {
+    setLastRequestedPanel(requestedPanel);
+    if (requestedPanel) setPanel(requestedPanel);
+  }
   const dates = props.offers.map((offer) => offer.createdAt);
 
   return (

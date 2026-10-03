@@ -48,7 +48,7 @@ export default function PublicHallazgosSection({
   onOfferClick,
   positiveVotesTotal,
 }: PublicHallazgosSectionProps) {
-  const [showcase, setShowcase] = useState<Array<{ name: string; icon: string }>>([]);
+  const [showcase, setShowcase] = useState<Array<{ code: string; name: string; icon: string }>>([]);
   useEffect(() => {
     let cancel = false;
     const run = async () => {
@@ -67,7 +67,7 @@ export default function PublicHallazgosSection({
       setShowcase(
         (payload.cards ?? [])
           .filter((card) => selected.has(card.code) && card.unlocked && !card.concealed)
-          .map((card) => ({ name: card.name, icon: card.icon })),
+          .map((card) => ({ code: card.code, name: card.name, icon: card.icon })),
       );
     };
     void run();
