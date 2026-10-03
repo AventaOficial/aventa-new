@@ -13,11 +13,18 @@ const STATUS_DOT: Record<string, string> = {
   unknown: 'bg-white/30',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  healthy: 'sano',
+  degraded: 'degradado',
+  blocked: 'caído',
+  unknown: 'sin dato',
+};
+
 export default function ProductTeam({ base, cmd }: { base: OwnerDashboardPayload | null; cmd: OwnerCommandPayload | null }) {
   const alerts: TeamAlert[] = (base?.alerts ?? [])
     .filter((a) => a.id !== 'ledger_empty' && a.id !== 'affiliate_tags')
     .map((a): TeamAlert => ({ tone: a.severity === 'red' ? 'bad' : 'warn', text: `${a.title}: ${a.detail}` }));
-  alerts.push({ tone: 'info', text: 'Errores de runtime, incidentes y releases: no hay fuente integrada (sin error tracking ni registro de deploys en la base).' });
+  alerts.push({ tone: 'info', text: 'Errores en producción, incidentes y releases aún no tienen fuente integrada en Aventa.' });
   const oh = base?.offerHealth;
   const comps = base?.systemHealth.components ?? [];
 
@@ -25,24 +32,24 @@ export default function ProductTeam({ base, cmd }: { base: OwnerDashboardPayload
     <TeamBody
       metrics={
         <>
-          <Metric label="Ofertas live" provenance={base?.liveDeals != null ? 'REAL' : 'UNKNOWN'} value={base?.liveDeals != null ? formatCount(base.liveDeals) : <Unavailable what="Sin snapshot" />} tone={(base?.liveDeals ?? 1) === 0 ? 'bad' : undefined} hint="approved/published no expiradas" />
-          <Metric label="Expiradas sin archivar" provenance={cmd?.catalog.expired != null ? 'REAL' : 'UNKNOWN'} value={formatCount(cmd?.catalog.expired)} hint="approved/published con expires_at pasado" />
-          <Metric label="Agotadas" provenance={oh?.tableAvailable ? 'REAL' : 'UNKNOWN'} value={oh?.tableAvailable ? formatCount(oh.outOfStock) : <Unavailable what="offer_health_state no disponible" />} tone={(oh?.outOfStock ?? 0) > 0 ? 'warn' : undefined} hint={oh?.lastScanNote} />
-          <Metric label="Precio cambiado" provenance={oh?.tableAvailable ? 'REAL' : 'UNKNOWN'} value={oh?.tableAvailable ? formatCount(oh.priceChanged) : <Unavailable what="offer_health_state no disponible" />} hint={oh?.lastScanNote} />
-          <Metric label="Vistas de oferta" provenance={cmd ? 'REAL' : 'UNKNOWN'} value={formatCount(cmd?.traffic.views.value)} hint="offer_events view en el período" />
-          <Metric label="Errores / incidentes" provenance="UNKNOWN" value={<Unavailable what="Requiere error tracking (p. ej. Sentry) o tabla de incidentes" />} hint="No existe fuente de errores de runtime en el backend actual." />
+          <Metric label="Ofertas live" provenance={base?.liveDeals != null ? 'REAL' : 'UNAVAILABLE'} value={base?.liveDeals != null ? formatCount(base.liveDeals) : <Unavailable what="Snapshot del panel no disponible" />} tone={(base?.liveDeals ?? 1) === 0 ? 'bad' : undefined} hint="Ofertas aprobadas y vigentes en el feed." />
+          <Metric label="Expiradas sin archivar" provenance={cmd?.catalog.expired != null ? 'REAL' : 'UNAVAILABLE'} value={formatCount(cmd?.catalog.expired)} hint="Ofertas aprobadas cuya vigencia ya pasó." />
+          <Metric label="Agotadas" provenance={oh?.tableAvailable ? 'REAL' : 'UNAVAILABLE'} value={oh?.tableAvailable ? formatCount(oh.outOfStock) : <Unavailable what="Escaneo de stock no disponible" />} tone={(oh?.outOfStock ?? 0) > 0 ? 'warn' : undefined} hint="Ofertas live sin stock en el último escaneo." />
+          <Metric label="Precio cambiado" provenance={oh?.tableAvailable ? 'REAL' : 'UNAVAILABLE'} value={oh?.tableAvailable ? formatCount(oh.priceChanged) : <Unavailable what="Escaneo de precio no disponible" />} hint="Ofertas live cuyo precio cambió en el último escaneo." />
+          <Metric label="Vistas de oferta" provenance={cmd ? 'REAL' : 'UNAVAILABLE'} value={formatCount(cmd?.traffic.views.value)} hint="Vistas de detalle de oferta en el período." />
+          <Metric label="Errores / incidentes" provenance="UNAVAILABLE" value={<Unavailable what="Requiere integrar seguimiento de errores o registro de incidentes" />} />
         </>
       }
       aside={
         comps.length ? (
           <div>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">Sistemas críticos</p>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Sistemas críticos</p>
             <ul className="grid grid-cols-2 gap-1">
               {comps.map((c) => (
-                <li key={c.id} title={c.detail} className="flex items-center gap-1.5 rounded-lg bg-white/[0.02] px-2 py-1 text-[11px] text-white/60">
+                <li key={c.id} className="flex items-center gap-1.5 rounded-lg bg-white/[0.03] px-2 py-1 text-[11px] text-white/65">
                   <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT[c.status] ?? 'bg-white/30')} aria-hidden />
-                  <span className="truncate">{c.id}</span>
-                  <span className="sr-only">{c.status}</span>
+                  <span className="truncate capitalize">{c.id.replace(/[_-]+/g, ' ')}</span>
+                  <span className="sr-only">{STATUS_LABEL[c.status] ?? c.status}</span>
                 </li>
               ))}
             </ul>

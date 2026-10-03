@@ -31,6 +31,33 @@ export const INTEGRITY_STALE_HOURS = 26;
 /** Umbral: Hunter sin runs terminados en 6 h = pipeline parado. */
 export const HUNTER_STALE_HOURS = 6;
 
+const COMPONENT_LABEL: Record<string, string> = {
+  supabase: 'Base de datos',
+  database: 'Base de datos',
+  auth: 'Acceso',
+  redis: 'Caché',
+  cron: 'Tareas programadas',
+  queue: 'Cola de escritura',
+  worker: 'Cola de escritura',
+  hunter: 'Hunter',
+  supply: 'Hunter',
+  email: 'Correo',
+  affiliate: 'Afiliados',
+  moderation: 'Moderación',
+  attribution: 'Atribución de clics',
+  price_memory: 'Historial de precios',
+  deal_intelligence: 'Inteligencia de ofertas',
+  money: 'Flujo de dinero',
+};
+
+function componentLabel(id: string): string {
+  return COMPONENT_LABEL[id] ?? id.replace(/[_-]+/g, ' ');
+}
+
+/**
+ * Aventa Health: 6 áreas con estado, razón, última actualización y CTA.
+ * Reglas deterministas sobre lecturas reales; sin dato = UNKNOWN (nunca HEALTHY por defecto).
+ */
 export function deriveHealth(
   base: OwnerDashboardPayload | null,
   cmd: OwnerCommandPayload | null,
@@ -39,72 +66,70 @@ export function deriveHealth(
 ): HealthCategory[] {
   const out: HealthCategory[] = [];
 
-  // PRODUCT — catálogo vivo y calidad de ofertas.
+  // PRODUCTO — plataforma: sistemas, integridad, colas y métricas diarias.
   if (!base) {
-    out.push({ id: 'PRODUCT', label: 'Producto', level: 'UNKNOWN', summary: 'Sin snapshot del catálogo', signals: [], team: 'producto' });
-  } else {
-    const live = base.liveDeals;
-    const signals: string[] = [];
-    let level: HealthLevel = 'HEALTHY';
-    if (live == null) level = 'UNKNOWN';
-    else if (live === 0) level = 'CRITICAL';
-    else if (live < 3) level = 'WARNING';
-    signals.push(`${live ?? '—'} ofertas live`);
-    if (base.offerHealth.tableAvailable) {
-      if (base.offerHealth.outOfStock > 0) {
-        level = worst([level, 'WARNING']);
-        signals.push(`${base.offerHealth.outOfStock} agotadas`);
-      }
-      if (base.offerHealth.priceChanged > 0) signals.push(`${base.offerHealth.priceChanged} con precio cambiado`);
-    } else {
-      signals.push('offer_health_state no disponible');
-    }
-    if (cmd?.catalog.expired != null && cmd.catalog.expired > 0) signals.push(`${cmd.catalog.expired} expiradas sin archivar`);
     out.push({
       id: 'PRODUCT',
       label: 'Producto',
-      level,
-      summary: level === 'CRITICAL' ? 'Feed sin ofertas live' : level === 'WARNING' ? 'Catálogo con avisos' : level === 'UNKNOWN' ? 'Catálogo sin dato' : 'Catálogo operando',
-      signals,
+      level: 'UNKNOWN',
+      summary: 'Estado de la plataforma no disponible',
+      signals: [],
       team: 'producto',
+      updatedAt: null,
+      href: '/admin/health',
+      cta: 'Investigar',
     });
-  }
-
-  // OPERATIONS — moderación, integridad y colas.
-  if (!base) {
-    out.push({ id: 'OPERATIONS', label: 'Operaciones', level: 'UNKNOWN', summary: 'Sin snapshot operativo', signals: [], team: 'operaciones' });
   } else {
-    const m = base.moderation;
-    const signals = [`${m.pending} pendientes`, `${m.pendingGt24h} >24 h`];
-    let level: HealthLevel = 'HEALTHY';
-    if (m.pending >= 20 || m.pendingGt24h >= 10) level = 'CRITICAL';
-    else if (m.pending >= 10 || m.pendingGt24h > 0) level = 'WARNING';
+    const map: Record<string, HealthLevel> = { healthy: 'HEALTHY', degraded: 'WARNING', blocked: 'CRITICAL', unknown: 'UNKNOWN' };
+    let level = map[base.systemHealth.overall] ?? 'UNKNOWN';
+    const bad = base.systemHealth.components.filter((c) => c.status !== 'healthy');
+    const signals: string[] = bad.length ? bad.slice(0, 3).map((c) => `${componentLabel(c.id)}: ${c.status === 'blocked' ? 'caído' : c.status === 'degraded' ? 'degradado' : 'sin dato'}`) : ['Sistemas sin avisos'];
+    let summary = level === 'HEALTHY' ? 'Plataforma estable' : level === 'UNKNOWN' ? 'Señales incompletas' : `${bad.length} sistema(s) con aviso`;
     if (base.operations.integrityOk === false) {
       level = 'CRITICAL';
-      signals.push(`integridad: ${base.operations.integrityFailedChecks} fallos`);
+      summary = 'Chequeo de integridad fallido';
+      signals.unshift(`Integridad: ${base.operations.integrityFailedChecks} chequeo(s) fallidos`);
     }
     const integAge = hoursSince(cmd?.operations.integrityFinishedAt, now);
     if (integAge != null && integAge > INTEGRITY_STALE_HOURS) {
       level = worst([level, 'WARNING']);
-      signals.push(`integridad hace ${Math.round(integAge)} h`);
+      signals.push(`Integridad sin correr hace ${Math.round(integAge)} h`);
     }
     if (base.operations.writeQueueFailed > 0) {
       level = worst([level, 'WARNING']);
-      signals.push(`${base.operations.writeQueueFailed} jobs fallidos`);
+      signals.push(`${base.operations.writeQueueFailed} escrituras diferidas fallidas`);
+    }
+    const metricsLag = daysSinceYmd(cmd?.operations.dailyMetricsLastDate, todayYmd);
+    if (metricsLag != null && metricsLag > 1) {
+      level = worst([level, 'WARNING']);
+      signals.push(`Métricas diarias atrasadas ${metricsLag} d`);
     }
     out.push({
-      id: 'OPERATIONS',
-      label: 'Operaciones',
+      id: 'PRODUCT',
+      label: 'Producto',
       level,
-      summary: level === 'CRITICAL' ? 'Requiere acción hoy' : level === 'WARNING' ? 'Atención en colas' : 'Colas bajo control',
-      signals,
-      team: 'operaciones',
+      summary,
+      signals: signals.slice(0, 4),
+      team: 'producto',
+      updatedAt: cmd?.operations.integrityFinishedAt ?? base.generatedAt,
+      href: '/admin/health',
+      cta: 'Investigar',
     });
   }
 
-  // COMMUNITY — reportes y participación del período.
+  // COMUNIDAD — reportes pendientes y participación del período.
   if (!cmd || cmd.sources.community === 'error') {
-    out.push({ id: 'COMMUNITY', label: 'Comunidad', level: 'UNKNOWN', summary: 'Sin datos de comunidad', signals: [], team: 'comunidad' });
+    out.push({
+      id: 'COMMUNITY',
+      label: 'Comunidad',
+      level: 'UNKNOWN',
+      summary: 'Actividad de comunidad no disponible',
+      signals: [],
+      team: 'comunidad',
+      updatedAt: cmd?.generatedAt ?? null,
+      href: '/admin/moderation/reports',
+      cta: 'Investigar',
+    });
   } else {
     const c = cmd.community;
     const engagement = [c.votes.value, c.comments.value, c.favorites.value].reduce<number>((a, v) => a + (v ?? 0), 0);
@@ -118,65 +143,129 @@ export function deriveHealth(
       label: 'Comunidad',
       level,
       summary: engagement === 0 ? 'Sin interacción en el período' : reports ? 'Reportes por revisar' : 'Comunidad activa',
-      signals: [`${engagement} interacciones`, `${reports ?? '—'} reportes pendientes`],
+      signals: [`${engagement.toLocaleString('es-MX')} interacciones`, `${reports ?? '—'} reportes pendientes`],
       team: 'comunidad',
+      updatedAt: cmd.generatedAt,
+      href: reports ? '/admin/moderation/reports' : '/plaza',
+      cta: 'Investigar',
     });
   }
 
-  // MONETIZATION — nunca se evalúa como dinero real si el money path está congelado.
+  // CATÁLOGO — ofertas live, cola de moderación, stock y expiradas.
   if (!base) {
-    out.push({ id: 'MONETIZATION', label: 'Monetización', level: 'UNKNOWN', summary: 'Sin snapshot', signals: [], team: 'finanzas' });
-  } else if (base.systemHealth.moneyPathFrozen) {
     out.push({
-      id: 'MONETIZATION',
-      label: 'Monetización',
-      level: 'FROZEN',
-      summary: 'Frozen — Money path protegido',
-      signals: [
-        `tags Amazon ${base.affiliation.amazonTagConfigured ? 'OK' : 'faltan'} · ML ${base.affiliation.mercadolibreTagConfigured ? 'OK' : 'faltan'}`,
-        `atribución ${base.attribution.status}`,
-      ],
-      team: 'finanzas',
+      id: 'CATALOG',
+      label: 'Catálogo',
+      level: 'UNKNOWN',
+      summary: 'Estado del catálogo no disponible',
+      signals: [],
+      team: 'moderacion',
+      updatedAt: null,
+      href: '/admin/moderation',
+      cta: 'Investigar',
     });
   } else {
-    const tagsOk = base.affiliation.amazonTagConfigured && base.affiliation.mercadolibreTagConfigured;
-    const level: HealthLevel = !tagsOk ? 'CRITICAL' : base.attribution.status === 'blocked' ? 'CRITICAL' : base.attribution.status === 'degraded' ? 'WARNING' : 'HEALTHY';
-    out.push({
-      id: 'MONETIZATION',
-      label: 'Monetización',
-      level,
-      summary: tagsOk ? `Atribución ${base.attribution.status}` : 'Tags de afiliado incompletos',
-      signals: [`programas ${base.affiliation.programsActive}/${base.affiliation.programsTotal}`],
-      team: 'finanzas',
-    });
-  }
-
-  // INFRASTRUCTURE — system health agregado + crons observables.
-  if (!base) {
-    out.push({ id: 'INFRASTRUCTURE', label: 'Infraestructura', level: 'UNKNOWN', summary: 'Sin system health', signals: [], team: 'operaciones' });
-  } else {
-    const map: Record<string, HealthLevel> = { healthy: 'HEALTHY', degraded: 'WARNING', blocked: 'CRITICAL', unknown: 'UNKNOWN' };
-    let level = map[base.systemHealth.overall] ?? 'UNKNOWN';
-    const bad = base.systemHealth.components.filter((c) => c.status !== 'healthy');
-    const signals = bad.length ? bad.map((c) => `${c.id}: ${c.status}`) : ['todos los componentes healthy'];
-    const metricsLag = daysSinceYmd(cmd?.operations.dailyMetricsLastDate, todayYmd);
-    if (metricsLag != null && metricsLag > 1) {
-      level = worst([level, 'WARNING']);
-      signals.push(`daily_system_metrics atrasado ${metricsLag} d`);
+    const live = base.liveDeals;
+    const m = base.moderation;
+    const signals: string[] = [`${live ?? '—'} ofertas live`, `${m.pending} en cola`];
+    let level: HealthLevel = 'HEALTHY';
+    let summary = 'Catálogo operando';
+    if (live == null) {
+      level = 'UNKNOWN';
+      summary = 'Ofertas live sin dato';
+    } else if (live === 0) {
+      level = 'CRITICAL';
+      summary = 'Feed sin ofertas live';
+    } else if (live < 3) {
+      level = 'WARNING';
+      summary = 'Muy pocas ofertas live';
     }
+    if (m.pending >= 20 || m.pendingGt24h >= 10) {
+      level = worst([level, 'CRITICAL']);
+      summary = level === 'CRITICAL' && live !== 0 ? 'Cola de moderación desbordada' : summary;
+    } else if (m.pending >= 10 || m.pendingGt24h > 0) {
+      level = worst([level, 'WARNING']);
+      if (summary === 'Catálogo operando') summary = 'Cola de moderación con atraso';
+    }
+    if (m.pendingGt24h > 0) signals.push(`${m.pendingGt24h} con más de 24 h`);
+    if (base.offerHealth.tableAvailable && base.offerHealth.outOfStock > 0) {
+      level = worst([level, 'WARNING']);
+      signals.push(`${base.offerHealth.outOfStock} agotadas`);
+    }
+    if (cmd?.catalog.expired != null && cmd.catalog.expired > 0) signals.push(`${cmd.catalog.expired} expiradas sin archivar`);
     out.push({
-      id: 'INFRASTRUCTURE',
-      label: 'Infraestructura',
+      id: 'CATALOG',
+      label: 'Catálogo',
       level,
-      summary: level === 'HEALTHY' ? 'Sistemas estables' : level === 'UNKNOWN' ? 'Señales incompletas' : `${bad.length} componente(s) con aviso`,
+      summary,
       signals: signals.slice(0, 4),
-      team: 'producto',
+      team: 'moderacion',
+      updatedAt: base.generatedAt,
+      href: '/admin/moderation',
+      cta: 'Investigar',
+    });
+  }
+
+  // HUNTER — supply automático: frescura de runs y errores.
+  if (!cmd || cmd.sources.hunter === 'error') {
+    out.push({
+      id: 'HUNTER',
+      label: 'Hunter',
+      level: 'UNKNOWN',
+      summary: 'Estado de Hunter no disponible',
+      signals: [],
+      team: 'hunter',
+      updatedAt: null,
+      href: '/admin/hunter',
+      cta: 'Investigar',
+    });
+  } else {
+    const h = cmd.hunter;
+    const age = hoursSince(h.lastRunAt, now);
+    let level: HealthLevel = 'HEALTHY';
+    let summary = 'Hunter corriendo';
+    if (age == null) {
+      level = 'WARNING';
+      summary = 'Sin runs registrados';
+    } else if (age > HUNTER_STALE_HOURS) {
+      level = 'WARNING';
+      summary = `Sin runs hace ${Math.round(age)} h`;
+    }
+    if ((h.errors ?? 0) > 0) {
+      level = worst([level, 'WARNING']);
+      if (summary === 'Hunter corriendo') summary = 'Runs con errores';
+    }
+    const signals = [
+      `${h.runs ?? '—'} runs en el período`,
+      `${h.verified ?? '—'} verificadas`,
+      ...(h.errors ? [`${h.errors} errores`] : []),
+    ];
+    out.push({
+      id: 'HUNTER',
+      label: 'Hunter',
+      level,
+      summary,
+      signals,
+      team: 'hunter',
+      updatedAt: h.lastRunAt,
+      href: '/admin/hunter',
+      cta: 'Investigar',
     });
   }
 
   // GROWTH — altas nuevas vs período anterior equivalente.
   if (!cmd || cmd.users.newUsers.value == null) {
-    out.push({ id: 'GROWTH', label: 'Growth', level: 'UNKNOWN', summary: 'Sin datos de altas', signals: [], team: 'growth' });
+    out.push({
+      id: 'GROWTH',
+      label: 'Growth',
+      level: 'UNKNOWN',
+      summary: 'Altas del período no disponibles',
+      signals: [],
+      team: 'growth',
+      updatedAt: cmd?.generatedAt ?? null,
+      href: '/admin/owner/crecimiento',
+      cta: 'Investigar',
+    });
   } else {
     const { value, previous } = cmd.users.newUsers;
     let level: HealthLevel = 'HEALTHY';
@@ -186,26 +275,73 @@ export function deriveHealth(
       summary = 'Sin altas en ambos períodos';
     } else if (previous != null && previous > 0 && value != null && value < previous * 0.7) {
       level = 'WARNING';
-      summary = 'Altas cayendo >30%';
+      summary = 'Altas cayendo más de 30%';
     }
     out.push({
       id: 'GROWTH',
       label: 'Growth',
       level,
       summary,
-      signals: [`${value} altas`, `antes ${previous ?? '—'}`, `${cmd.traffic.outbound.value ?? '—'} clics`],
+      signals: [`${value} altas`, `antes ${previous ?? '—'}`, `${cmd.traffic.outbound.value ?? '—'} clics a tienda`],
       team: 'growth',
+      updatedAt: cmd.generatedAt,
+      href: '/admin/owner/crecimiento',
+      cta: 'Investigar',
+    });
+  }
+
+  // MONETIZACIÓN — nunca se evalúa como dinero real si el money path está congelado.
+  if (!base) {
+    out.push({
+      id: 'MONETIZATION',
+      label: 'Monetización',
+      level: 'UNKNOWN',
+      summary: 'Estado de monetización no disponible',
+      signals: [],
+      team: 'finanzas',
+      updatedAt: null,
+      href: '/equipo/contabilidad',
+      cta: 'Ver finanzas',
+    });
+  } else if (base.systemHealth.moneyPathFrozen) {
+    out.push({
+      id: 'MONETIZATION',
+      label: 'Monetización',
+      level: 'FROZEN',
+      summary: 'Frozen — Money path protegido',
+      signals: [
+        `Tags Amazon ${base.affiliation.amazonTagConfigured ? 'OK' : 'faltan'} · ML ${base.affiliation.mercadolibreTagConfigured ? 'OK' : 'faltan'}`,
+        'Pagos congelados: solo lectura',
+      ],
+      team: 'finanzas',
+      updatedAt: base.generatedAt,
+      href: '/equipo/contabilidad',
+      cta: 'Ver (solo lectura)',
+    });
+  } else {
+    const tagsOk = base.affiliation.amazonTagConfigured && base.affiliation.mercadolibreTagConfigured;
+    const level: HealthLevel = !tagsOk ? 'CRITICAL' : base.attribution.status === 'blocked' ? 'CRITICAL' : base.attribution.status === 'degraded' ? 'WARNING' : 'HEALTHY';
+    out.push({
+      id: 'MONETIZATION',
+      label: 'Monetización',
+      level,
+      summary: tagsOk ? (level === 'HEALTHY' ? 'Atribución completa' : 'Atribución incompleta') : 'Tags de afiliado incompletos',
+      signals: [`Programas activos ${base.affiliation.programsActive}/${base.affiliation.programsTotal}`],
+      team: 'finanzas',
+      updatedAt: base.generatedAt,
+      href: '/equipo/contabilidad',
+      cta: 'Ver finanzas',
     });
   }
 
   return out;
 }
 
-const SEVERITY_RANK: Record<PrioritySeverity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+const SEVERITY_RANK: Record<PrioritySeverity, number> = { critical: 0, high: 1, medium: 2, info: 3 };
 
 /**
  * Prioridades del CEO: reglas deterministas sobre señales reales (sin IA).
- * Orden: severidad y luego cantidad.
+ * Solo aparecen si la condición existe. Orden: severidad y luego cantidad.
  */
 export function derivePriorities(
   base: OwnerDashboardPayload | null,
@@ -224,7 +360,8 @@ export function derivePriorities(
         severity: 'critical',
         team: 'operaciones',
         problem: 'Chequeo de integridad fallido',
-        impact: 'Datos inconsistentes pueden llegar al feed o a métricas.',
+        reason: `${base.operations.integrityFailedChecks} chequeo(s) del último análisis de integridad fallaron.`,
+        impact: 'Datos inconsistentes pueden llegar al feed o a las métricas.',
         quantity: base.operations.integrityFailedChecks,
         action: 'Revisar',
         href: '/admin/operaciones',
@@ -237,6 +374,7 @@ export function derivePriorities(
         severity: 'critical',
         team: 'moderacion',
         problem: base.circuitBottleneck.problem,
+        reason: `Solo ${base.liveDeals ?? 0} ofertas live en el feed.`,
         impact: base.circuitBottleneck.impact,
         quantity: base.liveDeals,
         action: 'Moderar',
@@ -250,7 +388,8 @@ export function derivePriorities(
         severity: m.pendingGt24h >= 10 ? 'critical' : 'high',
         team: 'moderacion',
         problem: 'Ofertas pendientes más de 24 h',
-        impact: `SLA de ${m.slaHoursTarget} h roto${m.oldestPendingHours != null ? ` · la más vieja lleva ${m.oldestPendingHours} h` : ''}.`,
+        reason: `${m.pendingGt24h} oferta(s) superan el SLA de ${m.slaHoursTarget} h${m.oldestPendingHours != null ? `; la más vieja lleva ${m.oldestPendingHours} h` : ''}.`,
+        impact: 'Ofertas que caducan antes de publicarse y cazadores sin respuesta.',
         quantity: m.pendingGt24h,
         action: 'Revisar',
         href: '/admin/moderation',
@@ -262,7 +401,8 @@ export function derivePriorities(
         severity: m.pending >= 20 ? 'high' : 'medium',
         team: 'moderacion',
         problem: 'Cola de moderación alta',
-        impact: 'Ofertas listas esperando decisión humana.',
+        reason: `${m.pending} ofertas esperan decisión.`,
+        impact: 'Ofertas listas que el usuario todavía no ve.',
         quantity: m.pending,
         action: 'Moderar',
         href: '/admin/moderation',
@@ -270,11 +410,13 @@ export function derivePriorities(
       });
     }
     if (!base.affiliation.amazonTagConfigured || !base.affiliation.mercadolibreTagConfigured) {
+      const missing = [!base.affiliation.amazonTagConfigured ? 'Amazon' : null, !base.affiliation.mercadolibreTagConfigured ? 'Mercado Libre' : null].filter(Boolean).join(' y ');
       push({
         id: 'affiliate_tags',
         severity: 'high',
         team: 'finanzas',
         problem: 'Tags de afiliado incompletos',
+        reason: `Falta configurar el tag de ${missing}.`,
         impact: 'Clics salientes sin tag no generan comisión atribuible.',
         quantity: null,
         action: 'Revisar',
@@ -287,8 +429,9 @@ export function derivePriorities(
         id: 'write_queue_failed',
         severity: base.operations.writeQueueFailed > 20 ? 'high' : 'medium',
         team: 'operaciones',
-        problem: 'Jobs de escritura fallidos',
-        impact: 'Escrituras diferidas (votos, eventos) que no se aplicaron.',
+        problem: 'Escrituras diferidas fallidas',
+        reason: `${base.operations.writeQueueFailed} escritura(s) diferidas no se aplicaron.`,
+        impact: 'Votos o eventos que no quedaron registrados.',
         quantity: base.operations.writeQueueFailed,
         action: 'Investigar',
         href: '/admin/operaciones',
@@ -302,7 +445,8 @@ export function derivePriorities(
         severity: 'medium',
         team: 'finanzas',
         problem: 'Clics sin atribución completa (24 h)',
-        impact: `Completitud ${base.attribution.completenessPct}% en reward_outbound_clicks.`,
+        reason: `Completitud de atribución ${base.attribution.completenessPct}% en las últimas 24 h.`,
+        impact: 'Comisiones que no se podrán asignar a su cazador.',
         quantity: gap,
         action: 'Revisar',
         href: '/admin/health',
@@ -315,6 +459,7 @@ export function derivePriorities(
         severity: 'medium',
         team: 'producto',
         problem: 'Ofertas live agotadas',
+        reason: `${base.offerHealth.outOfStock} oferta(s) live aparecen sin stock en el último escaneo.`,
         impact: 'Usuarios llegan a tiendas sin stock: erosiona confianza.',
         quantity: base.offerHealth.outOfStock,
         action: 'Revisar',
@@ -331,12 +476,13 @@ export function derivePriorities(
         id: 'integrity_stale',
         severity: 'medium',
         team: 'operaciones',
-        problem: 'Cron de integridad sin ejecutarse',
-        impact: `Último resultado hace ${Math.round(integAge)} h (esperado diario).`,
+        problem: 'Chequeo de integridad sin ejecutarse',
+        reason: `Último resultado hace ${Math.round(integAge)} h; se espera a diario.`,
+        impact: 'Problemas de datos pueden pasar sin detectarse.',
         quantity: null,
         action: 'Investigar',
         href: '/admin/operaciones',
-        provenance: 'DERIVED',
+        provenance: 'CALCULATED',
       });
     }
     const metricsLag = daysSinceYmd(cmd.operations.dailyMetricsLastDate, todayYmd);
@@ -346,11 +492,12 @@ export function derivePriorities(
         severity: 'medium',
         team: 'operaciones',
         problem: 'Métricas diarias atrasadas',
-        impact: `daily_system_metrics no se actualiza desde ${cmd.operations.dailyMetricsLastDate}.`,
+        reason: `Las métricas diarias no se actualizan desde ${cmd.operations.dailyMetricsLastDate}.`,
+        impact: 'Reportes históricos y tendencias incompletos.',
         quantity: metricsLag,
         action: 'Investigar',
         href: '/admin/operaciones',
-        provenance: 'DERIVED',
+        provenance: 'CALCULATED',
       });
     }
     const pr = cmd.moderation.pendingReports;
@@ -360,6 +507,7 @@ export function derivePriorities(
         severity: pr >= 10 ? 'high' : 'medium',
         team: 'moderacion',
         problem: 'Reportes de comunidad sin revisar',
+        reason: `${pr} reporte(s) de usuarios esperan revisión.`,
         impact: 'Contenido señalado sigue visible hasta que se revise.',
         quantity: pr,
         action: 'Revisar',
@@ -374,11 +522,12 @@ export function derivePriorities(
         severity: 'medium',
         team: 'hunter',
         problem: 'Hunter sin runs recientes',
-        impact: hunterAge == null ? 'No hay runs terminados registrados.' : `Último run hace ${Math.round(hunterAge)} h.`,
+        reason: hunterAge == null ? 'No hay runs terminados registrados.' : `Último run hace ${Math.round(hunterAge)} h (umbral ${HUNTER_STALE_HOURS} h).`,
+        impact: 'Menos ofertas nuevas entrando al catálogo.',
         quantity: null,
         action: 'Ver Hunter',
         href: '/admin/hunter',
-        provenance: 'DERIVED',
+        provenance: 'CALCULATED',
       });
     }
     if (cmd.hunter.errors != null && cmd.hunter.errors > 0) {
@@ -387,7 +536,8 @@ export function derivePriorities(
         severity: 'medium',
         team: 'hunter',
         problem: 'Errores en runs de Hunter',
-        impact: `En el período: ${cmd.range.label.toLowerCase()}.`,
+        reason: `${cmd.hunter.errors} error(es) en runs del período (${cmd.range.label.toLowerCase()}).`,
+        impact: 'Candidatas que se pierden antes de llegar a moderación.',
         quantity: cmd.hunter.errors,
         action: 'Ver Hunter',
         href: '/admin/hunter',
@@ -398,10 +548,11 @@ export function derivePriorities(
     if (plaza != null && plaza > 0) {
       push({
         id: 'plaza_pending',
-        severity: 'low',
+        severity: 'info',
         team: 'comunidad',
-        problem: 'Solicitudes de Plaza pendientes de moderación',
-        impact: 'No hay cola admin dedicada en esta rama; quedan invisibles para la comunidad.',
+        problem: 'Solicitudes de Plaza pendientes',
+        reason: `${plaza} solicitud(es) de la comunidad esperan moderación.`,
+        impact: 'Quedan invisibles para la comunidad mientras no se revisen (Plaza aún no tiene cola propia en moderación).',
         quantity: plaza,
         action: 'Ver Plaza',
         href: '/plaza',
@@ -415,7 +566,7 @@ export function derivePriorities(
   );
 }
 
-/** Checklist DERIVED (no se persiste): metas del día a partir de señales reales. */
+/** Checklist CALCULATED (no se persiste): metas del día a partir de señales reales. */
 export function deriveGoals(
   base: OwnerDashboardPayload | null,
   cmd: OwnerCommandPayload | null,
@@ -430,7 +581,7 @@ export function deriveGoals(
       target: 0,
       done: base.moderation.pending === 0,
       href: '/admin/moderation',
-      rule: 'Hecha cuando offers.status = pending es 0.',
+      rule: 'Hecha cuando no quedan ofertas pendientes de moderar.',
     });
     const liveTarget = gerencia?.sla.liveTarget ?? null;
     const approvedToday = base.moderation.approvedToday;
@@ -441,7 +592,7 @@ export function deriveGoals(
       target: liveTarget,
       done: approvedToday != null && liveTarget != null ? approvedToday >= liveTarget : null,
       href: '/admin/moderation',
-      rule: 'moderation_logs approved hoy (MX) vs meta TEAM_DAILY_LIVE_TARGET del tablero de equipo.',
+      rule: 'Aprobadas hoy (hora MX) contra la meta diaria del tablero de equipo.',
     });
     goals.push({
       id: 'integrity',
@@ -450,7 +601,7 @@ export function deriveGoals(
       target: 1,
       done: base.operations.integrityOk,
       href: '/admin/operaciones',
-      rule: 'app_config.system_integrity_last.ok.',
+      rule: 'Último chequeo de integridad sin fallos.',
     });
   }
   if (cmd) {
@@ -462,7 +613,7 @@ export function deriveGoals(
       target: 0,
       done: pr == null ? null : pr === 0,
       href: '/admin/moderation/reports',
-      rule: 'offer_reports.status = pending es 0.',
+      rule: 'Hecha cuando no quedan reportes pendientes.',
     });
     const plaza = cmd.plaza.pendingRequests;
     goals.push({
@@ -472,7 +623,7 @@ export function deriveGoals(
       target: 0,
       done: plaza == null ? null : plaza === 0,
       href: '/plaza',
-      rule: 'plaza_requests.status = pending es 0.',
+      rule: 'Hecha cuando no quedan solicitudes de Plaza pendientes.',
     });
   }
   return goals;
@@ -486,7 +637,7 @@ export function teamStatusFromHealth(
   priorities: CeoPriority[],
   dataMissing = false,
 ): TeamStatus {
-  if (dataMissing) return { level: 'UNKNOWN', reason: 'Fuente de datos no disponible' };
+  if (dataMissing) return { level: 'UNKNOWN', reason: 'Datos del equipo no disponibles' };
   const own = priorities.filter((p) => p.team === team);
   if (own.some((p) => p.severity === 'critical')) return { level: 'CRITICAL', reason: own[0].problem };
   if (own.some((p) => p.severity === 'high' || p.severity === 'medium')) return { level: 'WARNING', reason: own[0].problem };

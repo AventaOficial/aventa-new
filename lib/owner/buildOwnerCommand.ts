@@ -17,7 +17,23 @@ import {
 
 export type RangeMetric = { value: number | null; previous: number | null };
 
-export type SeriesPoint = { label: string; offers: number; outbound: number; newUsers: number };
+export type SeriesPoint = {
+  label: string;
+  offers: number;
+  outbound: number;
+  newUsers: number;
+  /** Usuarios cuyo último acceso (user_activity.last_seen_at) cae en el bucket. */
+  activeUsers: number;
+};
+
+export type ModeratorActivity = {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  decisions: number;
+  approved: number;
+  rejected: number;
+};
 
 export type ActivityEventKind = 'moderation' | 'offer' | 'report' | 'hunter' | 'ban' | 'integrity' | 'queue';
 
@@ -56,6 +72,10 @@ export type OwnerCommandPayload = {
     rejected: RangeMetric;
     /** Moderadores distintos con decisiones registradas en moderation_logs en el rango. */
     activeModerators: number | null;
+    /** Decisiones por moderador en el rango (moderation_logs + profiles); null si la lectura falla o se trunca. */
+    moderators: ModeratorActivity[] | null;
+    /** Usuarios con rol owner/admin/moderator (user_roles). */
+    teamSize: number | null;
     pendingReports: number | null;
     activeBans: number | null;
   };
@@ -106,12 +126,17 @@ export type OwnerCommandPayload = {
     /** true si alguna serie superó el tope de filas leídas (la gráfica sería parcial). */
     truncated: boolean;
     available: boolean;
+    /** false si user_activity no se pudo leer o se truncó (la serie activeUsers no es confiable). */
+    activeUsersAvailable: boolean;
   };
   activity: ActivityEvent[];
   sources: Record<string, 'ok' | 'error'>;
 };
 
 const SERIES_ROW_CAP = 5000;
+
+/** Roles que pueden moderar (MODERATION_ROLES en requireAdmin). */
+const MODERATION_TEAM_ROLES = ['owner', 'admin', 'moderator'];
 
 type CountResult = { count: number | null; error: { message: string } | null };
 type RowsResult<T> = { data: T[] | null; count?: number | null; error: { message: string } | null };
@@ -198,7 +223,7 @@ async function buildSeries(
   supabase: SupabaseClient,
   r: ResolvedOwnerRange,
 ): Promise<OwnerCommandPayload['series']> {
-  const [offers, outbound, profiles] = await Promise.all([
+  const [offers, outbound, profiles, seen] = await Promise.all([
     rows<{ created_at: string }>(
       supabase
         .from('offers')
@@ -224,6 +249,14 @@ async function buildSeries(
         .lt('created_at', r.end)
         .range(0, SERIES_ROW_CAP - 1),
     ),
+    rows<{ last_seen_at: string | null }>(
+      supabase
+        .from('user_activity')
+        .select('last_seen_at', { count: 'exact' })
+        .gte('last_seen_at', r.start)
+        .lt('last_seen_at', r.end)
+        .range(0, SERIES_ROW_CAP - 1),
+    ),
   ]);
 
   const points: SeriesPoint[] = Array.from({ length: r.bucketCount }, (_, i) => ({
@@ -231,6 +264,7 @@ async function buildSeries(
     offers: 0,
     outbound: 0,
     newUsers: 0,
+    activeUsers: 0,
   }));
   const fill = (res: { data: { created_at: string }[] } | null, key: 'offers' | 'outbound' | 'newUsers') => {
     if (!res) return;
@@ -242,6 +276,11 @@ async function buildSeries(
   fill(offers, 'offers');
   fill(outbound, 'outbound');
   fill(profiles, 'newUsers');
+  for (const row of seen?.data ?? []) {
+    if (!row.last_seen_at) continue;
+    const idx = bucketIndex(r, row.last_seen_at);
+    if (idx >= 0) points[idx].activeUsers += 1;
+  }
 
   const isTruncated = (res: { data: unknown[]; total: number | null } | null) =>
     res != null && res.total != null && res.total > res.data.length;
@@ -251,6 +290,7 @@ async function buildSeries(
     points,
     truncated: isTruncated(offers) || isTruncated(outbound) || isTruncated(profiles),
     available: offers != null && outbound != null && profiles != null,
+    activeUsersAvailable: seen != null && !isTruncated(seen),
   };
 }
 
@@ -418,6 +458,7 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
     auditEvents,
     series,
     activity,
+    teamRoles,
   ] = await Promise.all([
     rangeMetric((s, e) => between(supabase, 'offers', 'created_at', s, e), r),
     rangeMetric((s, e) => between(supabase, 'offer_votes', 'created_at', s, e), r),
@@ -441,10 +482,10 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
         .lt('last_seen_at', r.end),
     ),
     count(supabase.from('profiles').select('id', { count: 'exact', head: true })),
-    rows<{ user_id: string | null }>(
+    rows<{ user_id: string | null; action: string | null }>(
       supabase
         .from('moderation_logs')
-        .select('user_id', { count: 'exact' })
+        .select('user_id, action', { count: 'exact' })
         .in('action', ['approved', 'rejected'])
         .gte('created_at', r.start)
         .lt('created_at', r.end)
@@ -533,11 +574,50 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
     count(between(supabase, 'reward_audit_log', 'created_at', r.start, r.end)),
     buildSeries(supabase, r),
     buildActivity(supabase),
+    rows<{ user_id: string | null }>(
+      supabase.from('user_roles').select('user_id').in('role', MODERATION_TEAM_ROLES).range(0, SERIES_ROW_CAP - 1),
+    ),
   ]);
 
   let activeModerators: number | null = null;
+  let moderators: ModeratorActivity[] | null = null;
   if (modLogs && !(modLogs.total != null && modLogs.total > modLogs.data.length)) {
-    activeModerators = new Set(modLogs.data.map((m) => m.user_id).filter((id): id is string => Boolean(id))).size;
+    const byUser = new Map<string, ModeratorActivity>();
+    for (const m of modLogs.data) {
+      if (!m.user_id) continue;
+      const entry = byUser.get(m.user_id) ?? {
+        userId: m.user_id,
+        displayName: null,
+        avatarUrl: null,
+        decisions: 0,
+        approved: 0,
+        rejected: 0,
+      };
+      entry.decisions += 1;
+      if (m.action === 'approved') entry.approved += 1;
+      else if (m.action === 'rejected') entry.rejected += 1;
+      byUser.set(m.user_id, entry);
+    }
+    activeModerators = byUser.size;
+    const ids = [...byUser.keys()];
+    if (ids.length) {
+      const names = await rows<{ id: string; display_name: string | null; avatar_url: string | null }>(
+        supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids),
+      );
+      for (const p of names?.data ?? []) {
+        const entry = byUser.get(p.id);
+        if (entry) {
+          entry.displayName = p.display_name;
+          entry.avatarUrl = p.avatar_url;
+        }
+      }
+    }
+    moderators = [...byUser.values()].sort((a, b) => b.decisions - a.decisions);
+  }
+
+  let teamSize: number | null = null;
+  if (teamRoles && !(teamRoles.total != null && teamRoles.total > teamRoles.data.length)) {
+    teamSize = new Set(teamRoles.data.map((t) => t.user_id).filter((id): id is string => Boolean(id))).size;
   }
 
   let hunter: OwnerCommandPayload['hunter'] = {
@@ -627,7 +707,7 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
     },
     users: { newUsers, activeUsers, totalProfiles },
     traffic: { views, outbound },
-    moderation: { approved, rejected, activeModerators, pendingReports, activeBans },
+    moderation: { approved, rejected, activeModerators, moderators, teamSize, pendingReports, activeBans },
     catalog: { pending: catalogPending, live: catalogLive, expired: catalogExpired, rejected: catalogRejected },
     plaza: { pendingRequests: plazaPending, approvedRequests: plazaApproved },
     hunter,

@@ -43,7 +43,7 @@ export default function CommandPalette({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'flex flex-1 max-w-md items-center gap-2 rounded-xl border px-3 py-2 text-xs transition-all duration-200',
+          'flex min-w-0 flex-1 max-w-md items-center gap-2 rounded-xl border px-3 py-2 text-xs transition-all duration-200',
           isDark
             ? 'border-white/[0.08] bg-white/[0.03] text-white/40 hover:bg-white/[0.05] hover:text-white/60'
             : 'border-black/[0.06] bg-white/60 text-gray-400'
