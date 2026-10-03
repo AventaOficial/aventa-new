@@ -35,6 +35,7 @@ import CapacityCard from './command/ceo/CapacityCard';
 import GoalsCard from './command/ceo/GoalsCard';
 import SeasonCard from './command/ceo/SeasonCard';
 import PrioritiesCard from './command/ceo/PrioritiesCard';
+import { CEO_MOSAIC_CSS } from './command/ceo/mosaic';
 
 /** Reloj de pantalla para tiempos relativos y detección de datos stale. */
 function useNow(intervalMs = 30_000) {
@@ -118,11 +119,8 @@ export default function OwnerDashboardClient() {
 
   return (
     <div className="space-y-5 pb-10" data-ceo-dashboard>
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[20px] font-semibold tracking-tight text-white">CEO Command Center</h1>
-          <p className="text-[12px] text-white/45">Qué atender hoy, cómo está Aventa y qué hace cada equipo.</p>
-        </div>
+      <header className="-mb-2 flex flex-wrap items-center justify-end gap-3">
+        <h1 className="sr-only">CEO Dashboard</h1>
         <CeoTopBar
           range={range}
           onRangeChange={changeRange}
@@ -142,54 +140,40 @@ export default function OwnerDashboardClient() {
         <ErrorNote message="No se pudo actualizar el período. Se muestran los datos anteriores; detalle en Diagnóstico técnico." onRetry={retryCommand} />
       ) : null}
 
-      <PrioritiesCard priorities={priorities} loading={loadingCore} dataMissing={!base && !cmd} level={2} />
+      <style>{CEO_MOSAIC_CSS}</style>
+      <div className={cn('ceo-mosaic', rangePending && 'opacity-80 transition-opacity')} aria-busy={rangePending}>
+        <CommunityCard source={data.command} onRetry={retryCommand} className="ceo-area-community" />
+        <UsersCard source={data.command} onRetry={retryCommand} className="ceo-area-users" />
+        <OffersCard source={data.command} range={range} onRangeChange={changeRange} onRetry={retryCommand} className="ceo-area-offers" />
+        <ModerationCard source={data.command} onRetry={retryCommand} className="ceo-area-moderation" />
 
-      <HealthStatus categories={health} loading={loadingCore} now={now} onOpenTeam={openTeam} />
+        <RevenueCard base={data.base} command={data.command} range={range} onRangeChange={changeRange} onRetry={retryAll} className="ceo-area-revenue" />
+        <PayoutsCard source={data.command} onRetry={retryCommand} className="ceo-area-payouts" />
+        <CapacityCard source={data.command} onRetry={retryCommand} className="ceo-area-capacity" />
 
-      <div className={cn('space-y-5', rangePending && 'opacity-80 transition-opacity')} aria-busy={rangePending}>
-        <PulseCard command={data.command} base={base} range={range} onRetry={retryCommand} />
-
-        <TeamCarousel teams={teams} active={team} loading={loadingCore && !base && !cmd} onChange={setTeam} now={now} />
-
-        <Section id="operacion" title="Operación" hint="Actividad del período y capacidad del equipo">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-            <PeriodActivityCard source={data.command} onRetry={retryCommand} className="md:col-span-2 xl:col-span-6" />
-            <CapacityCard source={data.command} onRetry={retryCommand} className="xl:col-span-3" />
-            <ModerationCard source={data.command} onRetry={retryCommand} className="xl:col-span-3" />
-          </div>
-        </Section>
-
-        <Section id="catalogo" title="Catálogo" hint="Ofertas del período y estado actual">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <OffersCard source={data.command} range={range} onRangeChange={changeRange} onRetry={retryCommand} />
-            <CatalogCard source={data.command} onRetry={retryCommand} />
-          </div>
-        </Section>
-
-        <Section id="growth" title="Growth y adquisición" hint="Usuarios, ingresos y pagos (solo lectura)">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <UsersCard source={data.command} onRetry={retryCommand} />
-            <RevenueCard base={data.base} command={data.command} range={range} onRangeChange={changeRange} onRetry={retryAll} />
-            <PayoutsCard source={data.command} onRetry={retryCommand} className="md:col-span-2 xl:col-span-1" />
-          </div>
-        </Section>
-
-        <Section id="comunidad" title="Comunidad">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
-            <CommunityCard source={data.command} onRetry={retryCommand} />
-            <PlazaCard source={data.command} onRetry={retryCommand} />
-          </div>
-        </Section>
+        <GoalsCard goals={goals} loading={loadingCore} className="ceo-area-goals" />
+        <SeasonCard todayYmd={todayYmd} className="ceo-area-season" />
+        <PrioritiesCard priorities={priorities} loading={loadingCore} dataMissing={!base && !cmd} className="ceo-area-priorities" />
       </div>
 
-      <Section id="metas" title="Metas y temporadas">
+      <TeamCarousel teams={teams} active={team} loading={loadingCore && !base && !cmd} onChange={setTeam} now={now} />
+
+      <Section id="operacion" title="Detalle del período">
+        <PeriodActivityCard source={data.command} onRetry={retryCommand} />
+      </Section>
+
+      <Section id="catalogo" title="Catálogo" hint="Estado actual del catálogo">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <GoalsCard goals={goals} loading={loadingCore} />
-          <SeasonCard todayYmd={todayYmd} />
+          <CatalogCard source={data.command} onRetry={retryCommand} />
+          <PlazaCard source={data.command} onRetry={retryCommand} />
         </div>
       </Section>
 
       <ActivityTimeline command={data.command} now={now} onRetry={retryCommand} />
+
+      <PulseCard command={data.command} base={base} range={range} onRetry={retryCommand} />
+
+      <HealthStatus categories={health} loading={loadingCore} now={now} onOpenTeam={openTeam} />
 
       <TechnicalDiagnostics data={data}>{base ? <CeoControlCenter data={base} /> : null}</TechnicalDiagnostics>
     </div>

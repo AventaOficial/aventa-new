@@ -54,7 +54,7 @@ export function CardHeader({
 }) {
   const Heading = level === 2 ? 'h2' : 'h3';
   return (
-    <header className={cn('flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5', className)}>
+    <header className={cn('flex items-center justify-between gap-2', className)}>
       <div className="flex min-w-0 items-center gap-2">
         {Icon ? (
           iconStyle === 'box' ? (
@@ -70,7 +70,7 @@ export function CardHeader({
           {suffix ? <span className="ml-1 font-normal text-white/45">{suffix}</span> : null}
         </Heading>
       </div>
-      {action ? <div className="flex shrink-0 items-center gap-1.5">{action}</div> : null}
+      {action ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">{action}</div> : null}
     </header>
   );
 }
