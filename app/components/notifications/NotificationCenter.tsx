@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Compass, Trash2, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { playNotificationDropSound } from '@/lib/playNotificationSound';
 import { formatModerationRelativeTime } from '@/lib/moderation/relativeTime';
 import AchievementSigil from '@/app/components/achievements/AchievementSigil';
 import AventaSignalIcon from './AventaSignalIcon';
@@ -169,7 +168,6 @@ export default function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [detail, setDetail] = useState<NotificationDetail | null>(null);
-  const soundPrimedRef = useRef(false);
   const loadedRef = useRef(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -179,13 +177,8 @@ export default function NotificationCenter() {
       const res = await fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as { notifications?: NotificationItem[]; unreadCount?: number };
-      const nextUnread = data.unreadCount ?? 0;
       setNotifications(data.notifications ?? []);
-      setUnreadCount((prev) => {
-        if (soundPrimedRef.current && nextUnread > prev) playNotificationDropSound();
-        soundPrimedRef.current = true;
-        return nextUnread;
-      });
+      setUnreadCount(data.unreadCount ?? 0);
       loadedRef.current = true;
       setStatus('ready');
     } catch {
