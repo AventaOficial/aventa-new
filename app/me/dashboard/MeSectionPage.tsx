@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import ClientLayout from '@/app/ClientLayout';
+import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
 export default function MeSectionPage({
   title,
@@ -15,7 +16,7 @@ export default function MeSectionPage({
   return (
     <ClientLayout>
       <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
-        <section className="mx-auto max-w-3xl px-4 pb-16 pt-24 md:px-8 md:pt-12">
+        <section className={`mx-auto max-w-3xl px-4 pb-16 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
           <Link
             href="/me"
             className="inline-flex min-h-11 items-center rounded-md text-xs font-medium text-violet-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 sm:min-h-0"

@@ -57,7 +57,7 @@ type ProfileData = {
   expiredCount?: number;
   totalScore: number;
   offers: ProfileOffer[];
-  featuredAchievements?: Array<{ name: string; icon: string }>;
+  featuredAchievements?: Array<{ code?: string; name: string; icon: string }>;
 };
 
 const FILTERS: Array<{ value: 'all' | DealStatus; label: string }> = [

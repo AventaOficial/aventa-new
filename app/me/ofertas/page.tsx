@@ -7,6 +7,7 @@ import { ArrowUpRight, BarChart3 } from 'lucide-react';
 import MeSectionPage from '@/app/me/dashboard/MeSectionPage';
 import OfferAdvancedMetricsModal from '@/app/components/OfferAdvancedMetricsModal';
 import { buildOfferPublicPath } from '@/lib/offerPath';
+import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
@@ -265,7 +266,7 @@ export default function OfertasPage() {
   return (
     <Suspense
       fallback={
-        <div className="px-4 pt-24" aria-hidden>
+        <div className={`px-4 ${PUBLIC_NAVBAR_OFFSET_CLASS}`} aria-hidden>
           <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-900" />
         </div>
       }

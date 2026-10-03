@@ -181,7 +181,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     userId: offer.created_by,
     slug: botAuthor ? null : ((prof as { slug?: string | null })?.slug?.trim() || null),
     isBot: botAuthor,
-    featuredAchievement: null as { name: string; icon: string } | null,
+    featuredAchievement: null as { code?: string; name: string; icon: string } | null,
   };
 
   if (!botAuthor && offer.created_by) {

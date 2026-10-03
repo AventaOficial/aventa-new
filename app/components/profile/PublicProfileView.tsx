@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { requestGuestSignIn } from '@/lib/auth/guestAccessPrompt';
+import AchievementSigil from '@/app/components/achievements/AchievementSigil';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
@@ -51,7 +52,7 @@ type PublicProfileViewProps = {
   comments: number | null;
   sharePath: string | null;
   levelHref?: string | null;
-  showcase?: Array<{ name: string; icon: string }>;
+  showcase?: Array<{ code?: string; name: string; icon: string }>;
   onOpenOffer: (offer: PublicProfileOffer) => void;
   onFavoriteChange?: (offerId: string, isFavorite: boolean) => void;
 };
@@ -438,8 +439,8 @@ export default function PublicProfileView({
             ) : (
               <ul className="mt-4 grid grid-cols-3 gap-2">
                 {showcase.slice(0, 5).map((logro) => (
-                  <li key={logro.name} className="rounded-xl bg-violet-50 px-2 py-3 text-center dark:bg-violet-950">
-                    <span className="text-base" aria-hidden>{logro.icon}</span>
+                  <li key={logro.name} className="flex flex-col items-center rounded-xl bg-[#f5f5f7] px-2 py-3 text-center dark:bg-white/[0.04]">
+                    <AchievementSigil code={logro.code} size="md" />
                     <p className="mt-2 text-[12px] font-medium leading-tight text-[#1d1d1f] dark:text-[#fafafa]">{logro.name}</p>
                   </li>
                 ))}
