@@ -7,7 +7,7 @@ import { cn } from '@/app/components/panel/utils';
 import { TEAM_LABEL, type CeoPriority, type PrioritySeverity } from '../types';
 import { Card, CardHeader, EmptyFrame, FOCUS_RING, Skel, ViewButton } from './kit';
 
-const VISIBLE = 6;
+const VISIBLE = 4;
 
 const SEVERITY_CHIP: Record<PrioritySeverity, string> = {
   critical: 'bg-red-500/20 text-red-300 ring-red-400/30',
@@ -61,7 +61,7 @@ export default function PrioritiesCard({
         iconStyle="plain"
         action={
           <>
-            <span className="hidden items-center gap-2 text-[10px] font-semibold sm:flex">
+            <span className="hidden items-center gap-2 text-[10px] font-semibold @xl:flex">
               {(Object.keys(counts) as PrioritySeverity[])
                 .filter((s) => counts[s] > 0)
                 .map((s) => (
@@ -79,7 +79,7 @@ export default function PrioritiesCard({
         }
       />
       {loading && priorities.length === 0 ? (
-        <div className="mt-3 grid gap-2.5 lg:grid-cols-2" aria-busy="true" aria-label="Cargando">
+        <div className="mt-3 grid gap-2.5 @3xl:grid-cols-2" aria-busy="true" aria-label="Cargando">
           {Array.from({ length: 4 }, (_, i) => (
             <Skel key={i} className="h-14 w-full" />
           ))}
@@ -96,41 +96,35 @@ export default function PrioritiesCard({
           )}
         </EmptyFrame>
       ) : (
-        <ol id="ceo-priorities-list" className="mt-3 grid gap-x-5 gap-y-1 lg:grid-cols-2">
+        <ol id="ceo-priorities-list" className="mt-3 grid gap-x-5 gap-y-1 @3xl:grid-cols-2">
           {list.map((p, i) => {
             const urgent = p.severity === 'critical' || p.severity === 'high';
             return (
-              <li key={p.id} className="grid grid-cols-[28px_36px_minmax(0,1fr)] items-start gap-2.5 border-b border-white/[0.05] py-2.5 last:border-b-0 sm:grid-cols-[28px_36px_minmax(0,1fr)_auto] lg:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
-                <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] text-[12px] font-semibold tabular-nums text-white/80">
+              <li
+                key={p.id}
+                className="grid grid-cols-[28px_36px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2.5 py-2"
+                title={`${SEVERITY_LABEL[p.severity]} · ${TEAM_LABEL[p.team]} · Impacto: ${p.impact}`}
+              >
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] text-[12px] font-semibold tabular-nums text-white/80">
                   {i + 1}
                 </span>
                 <span
-                  className={cn('mt-0.5 inline-flex h-7 min-w-[36px] items-center justify-center rounded-lg px-1 text-[13px] font-bold tabular-nums ring-1 ring-inset', SEVERITY_CHIP[p.severity])}
+                  className={cn('inline-flex h-8 min-w-[36px] items-center justify-center rounded-lg px-1 text-[13px] font-bold tabular-nums ring-1 ring-inset', SEVERITY_CHIP[p.severity])}
                   title={`Severidad ${SEVERITY_LABEL[p.severity]} · ${p.provenance === 'REAL' ? 'dato real' : 'calculado por regla'}`}
                 >
                   {p.quantity == null ? '!' : p.quantity > 999 ? '999+' : p.quantity}
-                  <span className="sr-only">. Severidad {SEVERITY_LABEL[p.severity]}</span>
+                  <span className="sr-only">. Severidad {SEVERITY_LABEL[p.severity]}, {TEAM_LABEL[p.team]}</span>
                 </span>
                 <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-semibold">
-                    <span className={SEVERITY_TAG[p.severity]}>{SEVERITY_LABEL[p.severity]}</span>
-                    <span className="text-white/45">{TEAM_LABEL[p.team]}</span>
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-[12.5px] font-semibold leading-snug text-white">{p.problem}</p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-white/60">
-                    <span className="text-white/40">Motivo: </span>
-                    {p.reason}
-                  </p>
-                  <p className="text-[11px] leading-snug text-white/50">
-                    <span className="text-white/40">Impacto: </span>
-                    {p.impact}
-                  </p>
+                  <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-white">{p.problem}</p>
+                  <p className="mt-0.5 line-clamp-1 text-[10.5px] leading-snug text-white/50">{p.reason}</p>
+                  <p className="sr-only">Impacto: {p.impact}</p>
                 </div>
                 <Link
                   href={p.href}
                   aria-label={`${p.action}: ${p.problem}`}
                   className={cn(
-                    'col-start-3 inline-flex min-h-[36px] w-fit items-center gap-1 whitespace-nowrap rounded-lg border px-3 text-[11px] font-semibold transition-colors sm:col-start-auto sm:mt-0.5',
+                    'inline-flex min-h-[32px] w-fit items-center gap-1 whitespace-nowrap rounded-lg border px-3 text-[11px] font-semibold transition-colors',
                     urgent
                       ? 'border-red-400/30 bg-red-500/15 text-red-200 hover:bg-red-500/25'
                       : 'border-white/[0.09] bg-white/[0.04] text-white/85 hover:bg-white/[0.08]',
