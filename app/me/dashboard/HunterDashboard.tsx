@@ -32,6 +32,7 @@ type HunterDashboardProps = {
   positiveVotes: number | null;
   comments: number | null;
   views: number | null;
+  saved: number | null;
   offers: Array<{
     id: string;
     title: string;
@@ -104,7 +105,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
 
       <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-3 xl:grid-cols-4">
         <StatCard icon={<Send className="h-4 w-4" aria-hidden />} value={String(props.published)} label="Ofertas publicadas" href="/me/ofertas" />
-        <StatCard icon={<Bookmark className="h-4 w-4" aria-hidden />} value="—" label="Guardadas" href="/me/favorites" />
+        <StatCard icon={<Bookmark className="h-4 w-4" aria-hidden />} value={props.saved == null ? '—' : String(props.saved)} label="Guardadas" href="/me/favorites" />
         <StatCard icon={<ThumbsUp className="h-4 w-4" aria-hidden />} value={props.positiveVotes == null ? '—' : String(props.positiveVotes)} label="Votos recibidos" href="/me/estadisticas" />
         <StatCard icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={props.comments == null ? '—' : String(props.comments)} label="Comentarios" href="/me/estadisticas" />
       </div>
@@ -129,9 +130,6 @@ export default function HunterDashboard(props: HunterDashboardProps) {
             </button>
           );
         })}
-        <Link href="/settings" className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-3.5 text-[14px] font-medium text-[#6e6e73] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-[#a3a3a3] sm:inline sm:min-h-0 sm:px-3 sm:py-2.5 sm:text-[13px]">
-          Configuración
-        </Link>
       </div>
 
       {panel === 'resumen' ? (
@@ -152,7 +150,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
                     key={item.id}
                     type="button"
                     onClick={() => setPanel(item.id)}
-                    className="flex min-h-11 items-center gap-2 rounded-2xl border border-black/[0.04] bg-white px-3 py-2.5 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/10 dark:bg-[#141414]"
+                    className="flex min-h-11 items-center gap-2 rounded-2xl border border-black/[0.04] bg-white px-3 py-2.5 text-left shadow-sm transition-colors duration-150 hover:bg-black/[0.02] active:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/10 dark:bg-[#141414] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.06]"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300">
                       {item.icon}
@@ -184,9 +182,15 @@ export default function HunterDashboard(props: HunterDashboardProps) {
       {panel === 'guardados' ? (
         <section className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Guardados</h2>
-          <p className="mt-2 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Tus guardados viven en Favoritos. Esta pantalla no trae el total.</p>
-          <Link href="/me/favorites" className="mt-3 inline-flex min-h-11 items-center text-[13px] font-medium text-violet-600 dark:text-violet-400 sm:mt-4 sm:inline sm:min-h-0">
-            Ver todos
+          <p className="mt-2 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">
+            {props.saved == null
+              ? 'Las ofertas que guardas viven en Favoritos.'
+              : props.saved === 0
+                ? 'Aún no guardas ofertas. Usa el marcador en cualquier oferta para tenerla a mano.'
+                : `Tienes ${props.saved} ${props.saved === 1 ? 'oferta guardada' : 'ofertas guardadas'} en Favoritos.`}
+          </p>
+          <Link href="/me/favorites" className="mt-3 inline-flex min-h-11 items-center rounded-md text-[13px] font-medium text-violet-600 transition-colors duration-150 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300 sm:mt-4 sm:inline sm:min-h-0">
+            Ver guardados
           </Link>
         </section>
       ) : null}
