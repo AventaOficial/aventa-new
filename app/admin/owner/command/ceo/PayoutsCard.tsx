@@ -45,11 +45,11 @@ export default function PayoutsCard({
         )
       ) : (
         <>
-          <p className="mt-3 flex items-baseline gap-1.5 text-[34px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Pagos abiertos: pendientes + en revisión">
+          <p className="mt-2 flex items-baseline gap-1.5 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Pagos abiertos: pendientes + en revisión">
             {open == null ? <NA why="Los pagos no se pudieron leer." /> : formatCount(open)}
             <span className="text-[12px] font-medium tracking-normal text-white/50">abiertos</span>
           </p>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[11px] text-white/60" title="No se agregan beneficiarios distintos en este panel.">
               <Users className="h-3.5 w-3.5" aria-hidden />
               <NA why="No se agregan beneficiarios distintos en este panel." /> usuarios
@@ -62,7 +62,7 @@ export default function PayoutsCard({
               <Chip tone="red">Pendiente</Chip>
             ) : null}
           </div>
-          <p className="mt-2 text-[11px] text-white/45">
+          <p className="mt-1.5 text-[11px] text-white/45">
             Último lote:{' '}
             {batch == null ? (
               <NA why="Los lotes de pago no se pudieron leer." />
@@ -74,7 +74,7 @@ export default function PayoutsCard({
               'sin lotes'
             )}
           </p>
-          <ul className="mt-4 space-y-2.5 border-t border-white/[0.06] pt-3.5">
+          <ul className="mt-2.5 space-y-1.5 border-t border-white/[0.06] pt-2.5">
             {rows.map((r) => (
               <li key={r.label} className="flex items-center gap-2 text-[11px]" title={r.hint}>
                 <span className={cn('h-2 w-2 shrink-0 rounded-full', r.dot)} aria-hidden />
@@ -86,8 +86,8 @@ export default function PayoutsCard({
               </li>
             ))}
           </ul>
-          <div className="mt-auto pt-3">
-            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[10px] leading-snug text-white/45">
+          <div className="mt-auto pt-2">
+            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-[10px] leading-snug text-white/45">
               {frozen
                 ? 'Pagos congelados por protección del flujo de dinero. Solo conteos; los montos se consultan en Contabilidad.'
                 : 'Conteos de pagos por estado; los montos se consultan en Contabilidad.'}

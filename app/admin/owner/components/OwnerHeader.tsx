@@ -49,7 +49,7 @@ export default function OwnerHeader({
     'h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/70 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60';
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-white/[0.05] bg-[#0b0b14]/90 px-4 backdrop-blur-xl lg:px-8">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/[0.05] bg-[#0b0b14]/90 px-4 backdrop-blur-xl lg:px-8">
       {onMenuClick ? (
         <button
           type="button"

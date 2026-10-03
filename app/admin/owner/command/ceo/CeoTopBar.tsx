@@ -85,7 +85,7 @@ export default function CeoTopBar({
           aria-controls="ceo-period-info"
           onClick={() => setOpen((v) => !v)}
           className={cn(
-            'inline-flex h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#12121c] px-3 text-[12px] font-medium text-white/85 hover:bg-white/[0.05] sm:gap-2.5 sm:px-3.5',
+            'inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#12121c] px-3 text-[12px] font-medium text-white/85 hover:bg-white/[0.05] sm:gap-2.5 sm:px-3.5',
             FOCUS_RING,
           )}
         >
@@ -123,7 +123,7 @@ export default function CeoTopBar({
         title="Actualizar ahora"
         aria-live="polite"
         className={cn(
-          'inline-flex h-10 min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl border border-white/[0.08] bg-[#12121c] px-3 text-[11px] font-medium hover:bg-white/[0.05] disabled:cursor-progress sm:flex-none sm:px-3.5',
+          'inline-flex h-9 min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl border border-white/[0.08] bg-[#12121c] px-3 text-[11px] font-medium hover:bg-white/[0.05] disabled:cursor-progress sm:flex-none sm:px-3.5',
           stale ? 'text-amber-300' : 'text-white/75',
           FOCUS_RING,
         )}
@@ -142,7 +142,7 @@ export default function CeoTopBar({
       <div
         role="radiogroup"
         aria-label="Período del panel"
-        className="inline-flex h-11 w-full items-center rounded-xl border border-white/[0.08] bg-[#12121c] p-1 sm:h-10 sm:w-auto"
+        className="inline-flex h-11 w-full items-center rounded-xl border border-white/[0.08] bg-[#12121c] p-1 sm:h-9 sm:w-auto"
         onKeyDown={(e) => {
           if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
           e.preventDefault();
@@ -164,7 +164,7 @@ export default function CeoTopBar({
               aria-checked={active}
               onClick={() => onRangeChange(key)}
               className={cn(
-                'h-9 flex-1 whitespace-nowrap rounded-lg px-3.5 text-[12px] font-medium transition-colors sm:h-8 sm:flex-none',
+                'h-9 flex-1 whitespace-nowrap rounded-lg px-3.5 text-[12px] font-medium transition-colors sm:h-7 sm:flex-none',
                 active ? 'bg-violet-600 text-white shadow-[0_6px_18px_-8px_rgba(139,92,246,0.9)]' : 'text-white/65 hover:text-white',
                 FOCUS_RING,
               )}

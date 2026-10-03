@@ -60,10 +60,10 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
       ) : (
         <>
           <div
-            className="mt-3 flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.025] px-3 py-2.5"
+            className="mt-2 flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.025] px-3 py-1.5"
             title="Metas derivadas por reglas a partir de datos reales; no se guardan."
           >
-            <ProgressRing pct={pct} size={44}>
+            <ProgressRing pct={pct} size={36}>
               {done}/{total}
             </ProgressRing>
             <div className="min-w-0 flex-1">
@@ -76,7 +76,7 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
               {cheer(pct)}
             </span>
           </div>
-          <ul className="mt-2.5 flex-1 space-y-1.5">
+          <ul className="mt-2 flex-1 space-y-1">
             {goals.map((g) => {
               const Icon = GOAL_ICON[g.id] ?? ListChecks;
               const p = progress(g);
@@ -100,7 +100,7 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
                   <Link
                     href={g.href}
                     className={cn(
-                      'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                      'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
                       primary
                         ? 'border-violet-500/60 bg-violet-600/90 text-white hover:bg-violet-500'
                         : 'border-white/[0.09] bg-white/[0.03] text-white/80 hover:bg-white/[0.08]',

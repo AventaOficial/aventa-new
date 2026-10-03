@@ -96,13 +96,13 @@ export default function PrioritiesCard({
           )}
         </EmptyFrame>
       ) : (
-        <ol id="ceo-priorities-list" className="mt-3 grid gap-x-5 gap-y-1 @3xl:grid-cols-2">
+        <ol id="ceo-priorities-list" className="mt-2 grid gap-x-5 gap-y-1 @3xl:grid-cols-2">
           {list.map((p, i) => {
             const urgent = p.severity === 'critical' || p.severity === 'high';
             return (
               <li
                 key={p.id}
-                className="grid grid-cols-[28px_36px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2.5 py-2"
+                className="grid grid-cols-[28px_36px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2.5 py-1.5"
                 title={`${SEVERITY_LABEL[p.severity]} · ${TEAM_LABEL[p.team]} · Impacto: ${p.impact}`}
               >
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] text-[12px] font-semibold tabular-nums text-white/80">

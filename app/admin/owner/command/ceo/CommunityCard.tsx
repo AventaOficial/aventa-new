@@ -51,24 +51,24 @@ export default function CommunityCard({
       {cmd == null && source.status === 'error' ? (
         <CardError message="No se pudo cargar la actividad de la comunidad. Detalle en Diagnóstico técnico." onRetry={onRetry} />
       ) : (
-        <ul className="mt-3.5 grid flex-1 grid-cols-3 gap-2 sm:grid-cols-6">
+        <ul className="mt-2.5 grid flex-1 grid-cols-3 gap-1.5 sm:grid-cols-6">
           {(cmd ? tiles(cmd.community) : Array.from({ length: 6 }, () => null)).map((t, i) => (
-            <li key={t?.id ?? i} className="flex min-w-0 flex-col rounded-xl border border-white/[0.05] bg-white/[0.03] px-2 py-2.5">
+            <li key={t?.id ?? i} className="flex min-w-0 flex-col rounded-xl border border-white/[0.05] bg-white/[0.03] px-2 py-2">
               {t == null ? (
                 <>
-                  <Skel className="h-10 w-10 rounded-xl" />
-                  <Skel className="mt-3 h-5 w-10" />
+                  <Skel className="h-8 w-8 rounded-lg" />
+                  <Skel className="mt-2 h-5 w-10" />
                   <Skel className="mt-1.5 h-3 w-full" />
                 </>
               ) : (
                 <>
                   <span
-                    className={cn('inline-flex h-10 w-10 items-center justify-center rounded-xl shadow-[0_8px_18px_-10px_rgba(0,0,0,0.8)]', t.tone)}
+                    className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg shadow-[0_8px_18px_-10px_rgba(0,0,0,0.8)]', t.tone)}
                     aria-hidden
                   >
-                    <t.icon className="h-5 w-5" fill="currentColor" strokeWidth={1.5} />
+                    <t.icon className="h-4 w-4" fill="currentColor" strokeWidth={1.5} />
                   </span>
-                  <p className="mt-2.5 text-[22px] font-bold leading-none tabular-nums text-white" title={t.hint}>
+                  <p className="mt-2 text-[20px] font-bold leading-none tabular-nums text-white" title={t.hint}>
                     {t.metric.value == null ? <NA why={`No se pudo leer: ${t.hint.toLowerCase()}`} /> : formatCount(t.metric.value)}
                   </p>
                   <p className="mt-1 text-[10px] leading-tight text-white/55">{t.label}</p>

@@ -92,7 +92,7 @@ export default function OwnerShell({ children }: { children: ReactNode }) {
           panelLabel={isCeoDashboard ? 'Abrir navegación de Founder OS' : sidebarCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
         />
         <main className="flex-1 overflow-y-auto">
-          <div className={cn('mx-auto w-full px-4 py-6 lg:px-8', isCeoDashboard ? 'max-w-[1600px] lg:py-5' : 'max-w-[1440px] lg:py-8')}>{children}</div>
+          <div className={cn('mx-auto w-full px-4 py-6', isCeoDashboard ? 'max-w-[1600px] lg:px-5 lg:py-3' : 'max-w-[1440px] lg:px-8 lg:py-8')}>{children}</div>
         </main>
       </div>
     </div>

@@ -56,7 +56,7 @@ export default function ModerationCard({
         <CardError message="No se pudo cargar el equipo de moderación. Detalle en Diagnóstico técnico." onRetry={onRetry} />
       ) : (
         <>
-          <div className="mt-3.5 flex items-center justify-between gap-2">
+          <div className="mt-2.5 flex items-center justify-between gap-2">
             <p
               className="flex min-w-0 items-center gap-2 whitespace-nowrap text-[15px] font-semibold tabular-nums text-white"
               title="Moderadores con decisiones en el período / usuarios con rol owner, admin o moderator"
@@ -91,11 +91,11 @@ export default function ModerationCard({
           ) : mods.length === 0 ? (
             <EmptyFrame className="mt-3 flex-1">Sin decisiones de moderación en el período.</EmptyFrame>
           ) : (
-            <ul className="mt-3 flex-1 space-y-1">
+            <ul className="mt-2 flex-1 space-y-0.5">
               {mods.slice(0, 7).map((m) => {
                 const name = m.displayName ?? 'Moderador sin nombre';
                 return (
-                  <li key={m.userId} className="flex items-center gap-2 rounded-xl py-1.5">
+                  <li key={m.userId} className="flex items-center gap-2 rounded-xl py-1">
                     <Avatar m={m} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[11.5px] font-semibold text-white" title={name}>
