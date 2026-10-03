@@ -20,6 +20,7 @@ import { useUI } from '@/app/providers/UIProvider';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
+import { ACHIEVEMENTS_HREF } from '@/app/components/notifications/notificationKinds';
 
 type MeView = 'public' | 'hunter';
 
@@ -408,6 +409,12 @@ function MePageInner() {
               expiredCount={statusCounts.expired}
               rejectedCount={statusCounts.rejected}
               positiveVotesTotal={metrics.positiveVotesTotal}
+              owner={{
+                onPickAvatar: () => fileInputRef.current?.click(),
+                avatarUploading,
+                achievementsHref: ACHIEVEMENTS_HREF,
+                onOpenAchievements: () => setMeView('hunter'),
+              }}
             />
             </>
           )}

@@ -27,8 +27,8 @@ export function startOfDayUtc(ref: Date = new Date(), timeZone = OWNER_DASHBOARD
 export function startOfYesterdayUtc(ref: Date = new Date(), timeZone = OWNER_DASHBOARD_TZ): string {
   const ymd = getYmdInTz(ref, timeZone);
   const [y, m, d] = ymd.split('-').map(Number);
-  const prev = new Date(Date.UTC(y, m - 1, d - 1));
-  return startOfYmdUtc(getYmdInTz(prev, timeZone));
+  const prevYmd = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+  return startOfYmdUtc(prevYmd);
 }
 
 export function daysAgoUtc(days: number, ref: Date = new Date()): string {

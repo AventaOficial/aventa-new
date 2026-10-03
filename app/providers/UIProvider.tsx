@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
+/** `choose` muestra el selector «¿Qué quieres compartir?»; `offer` abre directo el formulario (flujos con contexto). */
+export type UploadModalKind = 'choose' | 'offer'
+
 type UIContextType = {
   layoutReady: boolean
   hasDecided: boolean
@@ -33,8 +36,9 @@ type UIContextType = {
   closeOnboarding: () => void
   finalizeOnboarding: () => Promise<void>
   /** Request to open the upload-offer modal (e.g. from feed empty state). ActionBar reacts and opens its modal. */
-  openUploadModal: () => void
+  openUploadModal: (options?: { kind?: UploadModalKind }) => void
   uploadModalRequested: boolean
+  uploadModalRequestedKind: UploadModalKind
   clearUploadModalRequest: () => void
   openLotesModal: () => void
   lotesModalRequested: boolean
@@ -58,13 +62,15 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [isOfferOpen, setOfferOpen] = useState(false)
   const [lunaOpenRequested, setLunaOpenRequested] = useState(false)
-  const [uploadModalRequested, setUploadModalRequested] = useState(false)
+  const [uploadModalRequestedKind, setUploadModalRequestedKind] = useState<UploadModalKind | null>(null)
   const [lotesModalRequested, setLotesModalRequested] = useState(false)
   const [profileOnboardingCompleted, setProfileOnboardingCompleted] = useState<boolean | null>(null)
   const hasAutoOpenedGuide = useRef(false)
 
-  const openUploadModal = useCallback(() => setUploadModalRequested(true), [])
-  const clearUploadModalRequest = useCallback(() => setUploadModalRequested(false), [])
+  const openUploadModal = useCallback((options?: { kind?: UploadModalKind }) => {
+    setUploadModalRequestedKind(options?.kind === 'offer' ? 'offer' : 'choose')
+  }, [])
+  const clearUploadModalRequest = useCallback(() => setUploadModalRequestedKind(null), [])
   const openLotesModal = useCallback(() => setLotesModalRequested(true), [])
   const clearLotesModalRequest = useCallback(() => setLotesModalRequested(false), [])
 
@@ -260,7 +266,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         closeOnboarding,
         finalizeOnboarding,
         openUploadModal,
-        uploadModalRequested,
+        uploadModalRequested: uploadModalRequestedKind !== null,
+        uploadModalRequestedKind: uploadModalRequestedKind ?? 'choose',
         clearUploadModalRequest,
         openLotesModal,
         lotesModalRequested,

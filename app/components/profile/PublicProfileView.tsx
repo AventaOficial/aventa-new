@@ -5,7 +5,9 @@ import Link from 'next/link';
 import {
   Bookmark,
   CalendarDays,
+  Camera,
   Check,
+  Loader2,
   MessageCircle,
   Send,
   Share2,
@@ -22,6 +24,9 @@ import { useUI } from '@/app/providers/UIProvider';
 import { requestGuestSignIn } from '@/lib/auth/guestAccessPrompt';
 import AchievementSigil from '@/app/components/achievements/AchievementSigil';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
+import { achievementByCode } from '@/lib/achievements/catalog';
+
+const HERO_FEATURED_LIMIT = 4;
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
@@ -50,8 +55,18 @@ type PublicProfileViewProps = {
   sharePath: string | null;
   levelHref?: string | null;
   showcase?: Array<{ code?: string; name: string; icon: string }>;
+  showcaseLoading?: boolean;
+  unlockedPreview?: Array<{ code?: string; name: string; icon: string }>;
+  owner?: PublicProfileOwnerActions | null;
   onOpenOffer: (offer: PublicProfileOffer) => void;
   onFavoriteChange?: (offerId: string, isFavorite: boolean) => void;
+};
+
+export type PublicProfileOwnerActions = {
+  onPickAvatar: () => void;
+  avatarUploading: boolean;
+  achievementsHref: string;
+  onOpenAchievements?: () => void;
 };
 
 type Panel = 'ofertas' | 'actividad' | 'comentarios';
@@ -121,6 +136,9 @@ export default function PublicProfileView({
   sharePath,
   levelHref,
   showcase = [],
+  showcaseLoading = false,
+  unlockedPreview = [],
+  owner = null,
   onOpenOffer,
   onFavoriteChange,
 }: PublicProfileViewProps) {
@@ -159,6 +177,10 @@ export default function PublicProfileView({
   const band = REPUTATION_LEVELS.find((item) => item.level === level);
   const pct = Math.round(getReputationProgress(score, level) * 100);
   const progressLine = band && band.maxScore !== Infinity ? `${score} / ${band.maxScore + 1} puntos` : `${score} puntos`;
+  const featured = showcase.slice(0, HERO_FEATURED_LIMIT).map((logro) => ({
+    ...logro,
+    xp: logro.code ? achievementByCode(logro.code)?.xpReward ?? null : null,
+  }));
 
   const copyLink = async () => {
     if (!sharePath || typeof window === 'undefined') return;
@@ -193,22 +215,53 @@ export default function PublicProfileView({
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]">
-        <div className="relative h-36 bg-gradient-to-r from-[#5b4dff] via-[#c44bd4] to-[#ffb067] sm:h-44">
+      <section aria-label={`Perfil de ${displayName}`} className="overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]">
+        <div className="relative h-36 overflow-hidden bg-gradient-to-r from-[#5b4dff] via-[#c44bd4] to-[#ffb067] sm:h-48 lg:h-56">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt="" className="h-full w-full object-cover opacity-70 blur-[2px]" />
           ) : null}
         </div>
-        <div className="relative px-4 pb-5 sm:px-6">
+        <div className="relative px-4 pb-5 sm:px-6 sm:pb-6">
           <div className="flex items-end justify-between gap-3">
-            <div className="-mt-10 flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#1d1d1f] dark:border-[#141414]">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <User className="h-8 w-8 text-white" aria-hidden />
-              )}
+            <div className="relative -mt-12 h-24 w-24 shrink-0 sm:-mt-14 sm:h-28 sm:w-28">
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#1d1d1f] shadow-sm dark:border-[#141414]">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt={`Foto de perfil de ${displayName}`} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-9 w-9 text-white" aria-hidden />
+                )}
+              </div>
+              {owner ? (
+                <button
+                  type="button"
+                  onClick={owner.onPickAvatar}
+                  disabled={owner.avatarUploading}
+                  aria-busy={owner.avatarUploading}
+                  aria-label={owner.avatarUploading ? 'Subiendo foto de perfil' : 'Cambiar foto de perfil'}
+                  className="group absolute inset-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 disabled:cursor-wait dark:focus-visible:ring-offset-[#141414]"
+                >
+                  <span
+                    className={`absolute inset-1 flex items-center justify-center rounded-full bg-black/55 text-white transition-opacity duration-150 ${
+                      owner.avatarUploading
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100'
+                    }`}
+                    aria-hidden
+                  >
+                    {owner.avatarUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-6 w-6" />}
+                  </span>
+                  {owner.avatarUploading ? null : (
+                    <span
+                      className="absolute bottom-0.5 right-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-violet-600 text-white shadow-sm transition-colors duration-150 group-hover:bg-violet-700 dark:border-[#141414]"
+                      aria-hidden
+                    >
+                      <Camera className="h-4 w-4" />
+                    </span>
+                  )}
+                </button>
+              ) : null}
             </div>
             <div className="mb-1 flex items-center">
               <button
@@ -223,8 +276,71 @@ export default function PublicProfileView({
               </button>
             </div>
           </div>
-          <h1 className="mt-3 text-[28px] font-semibold leading-none text-[#1d1d1f] dark:text-[#fafafa]">{displayName}</h1>
-          {handle ? <p className="mt-1 text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">@{handle}</p> : null}
+          <h1 className="mt-3 break-words text-[26px] font-semibold leading-tight text-[#1d1d1f] dark:text-[#fafafa] sm:text-[28px]">{displayName}</h1>
+          {handle ? <p className="mt-0.5 break-all text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">@{handle}</p> : null}
+
+          {featured.length > 0 ? (
+            <div className="mt-5 border-t border-black/5 pt-4 dark:border-white/10">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#6e6e73] dark:text-[#a3a3a3]">Logros destacados</h2>
+                {owner ? (
+                  <Link
+                    href={owner.achievementsHref}
+                    onClick={owner.onOpenAchievements}
+                    className="-my-3 inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] font-medium text-violet-600 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
+                  >
+                    Ver todos →
+                  </Link>
+                ) : null}
+              </div>
+              <ul className="-mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0">
+                {featured.map((logro) => (
+                  <li
+                    key={logro.code ?? logro.name}
+                    className="flex min-w-[10.5rem] snap-start items-center gap-2.5 rounded-xl border border-black/[0.04] bg-[#f5f5f7] px-2.5 py-2.5 dark:border-white/10 dark:bg-white/[0.04] sm:min-w-0"
+                  >
+                    <AchievementSigil code={logro.code} size="sm" />
+                    <span className="min-w-0">
+                      <span className="line-clamp-2 block text-[13px] font-medium leading-tight text-[#1d1d1f] dark:text-[#fafafa]">{logro.name}</span>
+                      {logro.xp != null ? (
+                        <span className="mt-0.5 block text-[12px] font-medium tabular-nums text-violet-600 dark:text-violet-400">+{logro.xp} XP</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : owner && !showcaseLoading ? (
+            <div className="mt-5 flex flex-col gap-3 rounded-xl border border-dashed border-black/10 px-4 py-3.5 dark:border-white/15 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                  {unlockedPreview.length > 0
+                    ? 'Ya tienes logros conseguidos, pero los visitantes aún no los ven. Elige cuáles mostrar aquí. Solo tú ves este aviso.'
+                    : 'Cuando consigas logros podrás elegir cuáles mostrar aquí. Solo tú ves este aviso.'}
+                </p>
+                {unlockedPreview.length > 0 ? (
+                  <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Logros conseguidos, aún no visibles para otros">
+                    {unlockedPreview.map((logro) => (
+                      <li
+                        key={logro.code ?? logro.name}
+                        className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#f5f5f7] py-1 pl-1 pr-2.5 text-[12px] font-medium text-[#1d1d1f] dark:bg-white/[0.06] dark:text-[#fafafa]"
+                      >
+                        <AchievementSigil code={logro.code} size="xs" />
+                        <span className="truncate">{logro.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+              <Link
+                href={owner.achievementsHref}
+                onClick={owner.onOpenAchievements}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-violet-200 px-4 text-[13px] font-semibold text-violet-700 transition-colors duration-150 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-violet-900 dark:text-violet-300 dark:hover:bg-violet-950 sm:min-h-10"
+              >
+                Elegir logros
+              </Link>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -417,32 +533,6 @@ export default function PublicProfileView({
                 {next ? <p className="mt-2 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Siguiente nivel: {next.label}</p> : null}
               </div>
             </div>
-          </section>
-
-          <section className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Logros de {displayName}</h2>
-              {levelHref ? (
-                <Link
-                  href={levelHref}
-                  className="-my-3 inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] text-violet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400"
-                >
-                  Ver todos
-                </Link>
-              ) : null}
-            </div>
-            {showcase.length === 0 ? (
-              <p className="mt-4 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay logros públicos.</p>
-            ) : (
-              <ul className="mt-4 grid grid-cols-3 gap-2">
-                {showcase.slice(0, 5).map((logro) => (
-                  <li key={logro.name} className="flex flex-col items-center rounded-xl bg-[#f5f5f7] px-2 py-3 text-center dark:bg-white/[0.04]">
-                    <AchievementSigil code={logro.code} size="md" />
-                    <p className="mt-2 text-[12px] font-medium leading-tight text-[#1d1d1f] dark:text-[#fafafa]">{logro.name}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
 
           {panel !== 'actividad' ? <HunterActivityBoard dates={published.map((offer) => offer.createdAt)} /> : null}
