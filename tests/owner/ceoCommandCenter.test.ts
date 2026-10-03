@@ -111,7 +111,33 @@ describe('derive', () => {
     expect(deriveGoals(null, null, null)).toEqual([]);
   });
 
-  it('cron de métricas atrasado genera prioridad DERIVED', () => {
+  it('Aventa Health expone las 6 áreas de negocio en orden, con razón, CTA y enlace interno', () => {
+    const h = deriveHealth(makeBase(), null, '2026-10-03', NOW.getTime());
+    expect(h.map((c) => c.id)).toEqual(['PRODUCT', 'COMMUNITY', 'CATALOG', 'HUNTER', 'GROWTH', 'MONETIZATION']);
+    for (const c of h) {
+      expect(c.summary.length, c.id).toBeGreaterThan(0);
+      expect(c.cta.length, c.id).toBeGreaterThan(0);
+      expect(c.href.startsWith('/'), c.id).toBe(true);
+    }
+  });
+
+  it('las prioridades usan solo severidades válidas y traen motivo, impacto y acción', () => {
+    const p = derivePriorities(makeBase(), null, '2026-10-03', NOW.getTime());
+    expect(p.length).toBeGreaterThan(0);
+    for (const x of p) {
+      expect(['critical', 'high', 'medium', 'info']).toContain(x.severity);
+      expect(['REAL', 'CALCULATED']).toContain(x.provenance);
+      expect(x.reason.length, x.id).toBeGreaterThan(0);
+      expect(x.impact.length, x.id).toBeGreaterThan(0);
+      expect(x.action.length, x.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('sin condiciones reales no se inventan prioridades', () => {
+    expect(derivePriorities(null, null, '2026-10-03', NOW.getTime())).toEqual([]);
+  });
+
+  it('cron de métricas atrasado genera prioridad CALCULATED', () => {
     const cmd = {
       operations: { integrityFinishedAt: NOW.toISOString(), dailyMetricsLastDate: '2026-09-28', queueFailed: 0 },
       moderation: { pendingReports: 0 },
@@ -121,7 +147,7 @@ describe('derive', () => {
       range: { label: 'Hoy' },
     } as unknown as OwnerCommandPayload;
     const p = derivePriorities(null, cmd, '2026-10-03', NOW.getTime());
-    expect(p.find((x) => x.id === 'daily_metrics_stale')?.provenance).toBe('DERIVED');
+    expect(p.find((x) => x.id === 'daily_metrics_stale')?.provenance).toBe('CALCULATED');
     expect(daysSinceYmd('2026-10-01', '2026-10-03')).toBe(2);
   });
 });
@@ -134,11 +160,11 @@ describe('CEO Command Center security contracts', () => {
   });
 
   it('los componentes cliente no importan el cliente service_role', () => {
-    const dir = join(process.cwd(), 'app/admin/owner/command');
-    const files = [
-      ...readdirSync(dir).map((f) => join(dir, f)),
-      ...readdirSync(join(dir, 'teams')).map((f) => join(dir, 'teams', f)),
-    ].filter((f) => /\.(ts|tsx)$/.test(f));
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+    const root = join(process.cwd(), 'app/admin/owner');
+    const files = walk(root).filter((f) => /\.(ts|tsx)$/.test(f));
+    expect(files.some((f) => f.includes(join('command', 'ceo')))).toBe(true);
     for (const f of files) {
       const src = readFileSync(f, 'utf8');
       expect(src, f).not.toMatch(/lib\/supabase\/server['"]/);
@@ -149,5 +175,30 @@ describe('CEO Command Center security contracts', () => {
   it('el builder del command center es de solo lectura', () => {
     const src = readFileSync(join(process.cwd(), 'lib/owner/buildOwnerCommand.ts'), 'utf8');
     expect(src).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+  });
+
+  it('el dashboard no inventa presencia en vivo ni montos de payouts', () => {
+    const dir = join(process.cwd(), 'app/admin/owner/command/ceo');
+    const users = readFileSync(join(dir, 'UsersCard.tsx'), 'utf8');
+    expect(users).not.toMatch(/En línea/);
+    expect(users).toMatch(/No en vivo/);
+    expect(users).toMatch(/no registra presencia en tiempo real/);
+    const mods = readFileSync(join(dir, 'ModerationCard.tsx'), 'utf8');
+    expect(mods).toMatch(/Sin presencia/);
+    const payouts = readFileSync(join(dir, 'PayoutsCard.tsx'), 'utf8');
+    expect(payouts).not.toMatch(/formatMoneyCents/);
+    expect(payouts).not.toMatch(/fetch\(|method:\s*'POST'/);
+  });
+
+  it('las señales del CEO no muestran tablas ni columnas; eso vive solo en el diagnóstico técnico', () => {
+    const cmdDir = join(process.cwd(), 'app/admin/owner/command');
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+    const files = walk(cmdDir).filter((f) => f.endsWith('.tsx') && !f.endsWith('TechnicalDiagnostics.tsx'));
+    files.push(join(cmdDir, 'derive.ts'));
+    const technical = /\b(moderation_logs|user_activity|offer_events|offer_reports|payout_intents|creator_rewards|user_roles|hunter_supply_runs|write_jobs_queue|daily_system_metrics|created_at|last_seen_at|MONEY_PATH_FROZEN)\b/;
+    for (const f of files) {
+      expect(readFileSync(f, 'utf8'), f).not.toMatch(technical);
+    }
   });
 });

@@ -3,25 +3,35 @@
 import { useState } from 'react';
 import type { OwnerCommandPayload, SeriesPoint } from '@/lib/owner/buildOwnerCommand';
 import { cn } from '@/app/components/panel/utils';
-import { EmptyNote, ErrorNote } from './ui';
+import { BarSeries } from './ceo/charts';
+import { EmptyNote } from './ui';
 
-const METRICS: { key: keyof Omit<SeriesPoint, 'label'>; label: string; source: string }[] = [
-  { key: 'outbound', label: 'Clics a tienda', source: 'offer_events outbound' },
-  { key: 'offers', label: 'Ofertas creadas', source: 'offers.created_at' },
-  { key: 'newUsers', label: 'Usuarios nuevos', source: 'profiles.created_at' },
+type SeriesKey = keyof Omit<SeriesPoint, 'label'>;
+
+const METRICS: { key: SeriesKey; label: string; definition: string }[] = [
+  { key: 'outbound', label: 'Clics a tienda', definition: 'Clics salientes hacia tiendas' },
+  { key: 'offers', label: 'Ofertas creadas', definition: 'Ofertas creadas (todas las fuentes)' },
+  { key: 'newUsers', label: 'Usuarios nuevos', definition: 'Cuentas nuevas' },
+  { key: 'activeUsers', label: 'Último acceso', definition: 'Usuarios por hora/día de su último acceso (no es presencia en vivo)' },
 ];
 
-export default function ActivityChart({ series, compact = false }: { series: OwnerCommandPayload['series']; compact?: boolean }) {
-  const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('outbound');
+/** Serie del período seleccionado; en "Hoy" el eje cubre las 24 h y las horas futuras quedan vacías. */
+export default function ActivityChart({ series, rangeKey, compact = false }: { series: OwnerCommandPayload['series']; rangeKey?: string; compact?: boolean }) {
+  const [metric, setMetric] = useState<SeriesKey>('outbound');
   const def = METRICS.find((m) => m.key === metric) ?? METRICS[0];
+  const unavailable = !series.available || (metric === 'activeUsers' && !series.activeUsersAvailable);
 
-  if (!series.available) return <ErrorNote message="Serie temporal no disponible (falló la lectura de eventos)." />;
-
-  const values = series.points.map((p) => p[metric]);
-  const max = Math.max(0, ...values);
-  const total = values.reduce((a, b) => a + b, 0);
-  const step = Math.max(1, Math.ceil(series.points.length / (compact ? 4 : 8)));
-  const height = compact ? 'h-20' : 'h-32 xl:h-64';
+  const values: (number | null)[] = series.points.map((p) => p[metric]);
+  const labels = series.points.map((p) => p.label);
+  if (series.bucket === 'hour' && rangeKey === 'today') {
+    for (let h = values.length; h < 24; h += 1) {
+      values.push(null);
+      labels.push(String(h).padStart(2, '0'));
+    }
+  }
+  const real = values.filter((v): v is number => v != null);
+  const total = real.reduce((a, b) => a + b, 0);
+  const max = real.length ? Math.max(...real) : 0;
 
   return (
     <figure className="min-w-0">
@@ -34,39 +44,35 @@ export default function ActivityChart({ series, compact = false }: { series: Own
               aria-pressed={metric === m.key}
               onClick={() => setMetric(m.key)}
               className={cn(
-                'rounded-md px-2 py-0.5 text-[10px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60',
-                metric === m.key ? 'bg-violet-500/20 text-violet-100' : 'text-white/45 hover:text-white/75',
+                'min-h-[28px] rounded-lg px-2 py-0.5 text-[10.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70',
+                metric === m.key ? 'bg-violet-600 text-white' : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80',
               )}
             >
               {m.label}
             </button>
           ))}
         </div>
-        <span className="text-[10px] tabular-nums text-white/40">
-          total {total.toLocaleString('es-MX')} · máx {max.toLocaleString('es-MX')}/{series.bucket === 'hour' ? 'h' : 'día'}
-        </span>
+        {!unavailable ? (
+          <span className="text-[10px] tabular-nums text-white/45">
+            total {total.toLocaleString('es-MX')} · máx {max.toLocaleString('es-MX')}/{series.bucket === 'hour' ? 'h' : 'día'}
+          </span>
+        ) : null}
       </div>
-      {total === 0 ? (
-        <EmptyNote>Sin eventos de “{def.label.toLowerCase()}” en el período (0 real).</EmptyNote>
+      {unavailable ? (
+        <EmptyNote>Serie de “{def.label.toLowerCase()}” no disponible para este período.</EmptyNote>
       ) : (
-        <div className={cn('flex items-end gap-px', height)} role="img" aria-label={`${def.label} por ${series.bucket === 'hour' ? 'hora' : 'día'}: total ${total}, máximo ${max}`}>
-          {series.points.map((p, i) => {
-            const v = p[metric];
-            const pct = max > 0 ? (v / max) * 100 : 0;
-            return (
-              <div key={`${p.label}-${i}`} className="flex h-full min-w-0 flex-1 items-end" title={`${p.label}: ${v}`}>
-                <div className={cn('w-full rounded-t-sm', v > 0 ? 'bg-violet-400/70' : 'bg-white/[0.05]')} style={{ height: `${Math.max(v > 0 ? 4 : 2, pct)}%` }} />
-              </div>
-            );
-          })}
-        </div>
+        <BarSeries
+          values={values}
+          labels={labels}
+          height={compact ? 84 : 210}
+          labelEvery={series.bucket === 'hour' ? 4 : undefined}
+          ariaLabel={`${def.definition} por ${series.bucket === 'hour' ? 'hora' : 'día'}: total ${total}, máximo ${max}`}
+        />
       )}
-      <div className="mt-1 flex justify-between text-[9px] tabular-nums text-white/30" aria-hidden>
-        {series.points.map((p, i) => (i % step === 0 ? <span key={`${p.label}-l-${i}`}>{p.label}</span> : null))}
-      </div>
-      <figcaption className="mt-1 text-[10px] text-white/30">
-        Fuente: {def.source} · por {series.bucket === 'hour' ? 'hora (MX)' : 'día (MX)'}
-        {series.truncated ? ' · serie parcial: se superó el tope de filas leídas' : ''}
+      <figcaption className="mt-1 text-[10px] text-white/35">
+        {def.definition} · por {series.bucket === 'hour' ? 'hora (MX)' : 'día (MX)'}
+        {total === 0 && !unavailable ? ' · 0 real en el período' : ''}
+        {series.truncated ? ' · serie parcial' : ''}
       </figcaption>
     </figure>
   );

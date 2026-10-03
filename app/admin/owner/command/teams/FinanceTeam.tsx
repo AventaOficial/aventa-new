@@ -9,11 +9,20 @@ import { moneyProvenanceLabel } from '@/lib/finance/financialRecordClass';
 import { Metric, Unavailable, formatCount } from '../ui';
 import TeamBody, { type TeamAlert } from './TeamBody';
 
-function statusList(rec: Record<string, number> | null | undefined): string {
+const PAYOUT_STATUS_LABEL: Record<string, string> = {
+  RESERVED: 'reservados',
+  SUBMITTED: 'enviados',
+  SUCCEEDED: 'completados',
+  FAILED: 'fallidos',
+  UNKNOWN: 'por confirmar',
+  CANCELLED: 'cancelados',
+};
+
+function statusList(rec: Record<string, number> | null | undefined, labels?: Record<string, string>): string {
   if (!rec) return 'No disponible';
   const entries = Object.entries(rec);
   if (!entries.length) return 'Sin registros';
-  return entries.map(([k, v]) => `${k} ${v}`).join(' · ');
+  return entries.map(([k, v]) => `${v} ${labels?.[k] ?? k.toLowerCase()}`).join(' · ');
 }
 
 export default function FinanceTeam({
@@ -31,9 +40,9 @@ export default function FinanceTeam({
   const econ = base ? (range === 'today' ? base.economy.day : range === '7d' ? base.economy.week : range === 'month' ? base.economy.month : null) : null;
   const alerts: TeamAlert[] = [];
   if (base && base.economy.syntheticLedgerRowsExcluded > 0) {
-    alerts.push({ tone: 'info', text: `${base.economy.syntheticLedgerRowsExcluded} fila(s) QA/synthetic excluidas del revenue.` });
+    alerts.push({ tone: 'info', text: `${base.economy.syntheticLedgerRowsExcluded} registro(s) de prueba excluidos de los ingresos.` });
   }
-  if (base && !base.month.ledgerAvailable) alerts.push({ tone: 'warn', text: base.month.ledgerNote ?? 'Ledger no disponible.' });
+  if (base && !base.month.ledgerAvailable) alerts.push({ tone: 'warn', text: 'El libro de ingresos no está disponible para este mes.' });
   for (const a of base?.alerts ?? []) {
     if (a.id === 'ledger_empty' || a.id === 'affiliate_tags') alerts.push({ tone: a.severity === 'red' ? 'bad' : 'warn', text: `${a.title}: ${a.detail}` });
   }
@@ -44,66 +53,64 @@ export default function FinanceTeam({
         <span
           className={
             frozen
-              ? 'inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200'
-              : 'inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-200'
+              ? 'inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-200'
+              : 'inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200'
           }
         >
-          Money path <span aria-hidden>●</span> {frozen == null ? 'desconocido' : frozen ? 'Frozen' : 'Abierto'}
+          Pagos <span aria-hidden>●</span> {frozen == null ? 'estado desconocido' : frozen ? 'Congelado' : 'Abierto'}
         </span>
-        <span className="text-[11px] text-white/40">Vista estrictamente informativa: sin acciones de payout.</span>
+        <span className="text-[11px] text-white/45">Vista solo informativa: sin acciones de pago.</span>
       </div>
       <TeamBody
         metrics={
           <>
             <Metric
-              label="Revenue confirmed"
-              provenance={econ ? 'REAL' : 'UNKNOWN'}
-              value={econ ? formatMoneyCents(econ.realCents) : <Unavailable what="Ventana no soportada (30 días)" />}
+              label="Ingresos confirmados"
+              provenance={econ ? 'REAL' : 'UNAVAILABLE'}
+              value={econ ? formatMoneyCents(econ.realCents) : <Unavailable what="Sin ventana de 30 días para ingresos" />}
               hint={base ? moneyProvenanceLabel(base.economy.confirmedProvenance) : undefined}
             />
             <Metric
-              label="Estimated opportunity"
-              provenance={econ?.estimatedCents != null ? 'DERIVED' : 'UNKNOWN'}
-              value={econ?.estimatedCents != null ? formatMoneyCents(econ.estimatedCents) : <Unavailable what="EPC sin base productiva" />}
-              hint={base ? `clics × EPC (${base.economy.epcWindowLabel}). ${base.economy.confidenceReason}` : undefined}
+              label="Oportunidad estimada"
+              provenance={econ?.estimatedCents != null ? 'CALCULATED' : 'UNAVAILABLE'}
+              value={econ?.estimatedCents != null ? formatMoneyCents(econ.estimatedCents) : <Unavailable what="Sin base para estimar ingresos por clic" />}
+              hint={base ? `Clics × ingreso promedio por clic (${base.economy.epcWindowLabel}). ${base.economy.confidenceReason}` : undefined}
             />
             <Metric
-              label="User liability"
-              provenance={base ? 'REAL' : 'UNKNOWN'}
-              value={base ? formatMoneyCents(base.userLiabilityConfirmedCents) : <Unavailable what="Sin snapshot" />}
-              hint="creator_rewards productivos con ledger atribuible (QA excluido)"
+              label="Saldo comprometido con cazadores"
+              provenance={base ? 'REAL' : 'UNAVAILABLE'}
+              value={base ? formatMoneyCents(base.userLiabilityConfirmedCents) : <Unavailable what="Snapshot del panel no disponible" />}
+              hint="Recompensas confirmadas de cazadores con ingreso atribuible (sin registros de prueba)."
             />
             <Metric
               label="Asignaciones pendientes"
-              provenance={gerencia ? 'REAL' : 'UNKNOWN'}
-              value={gerencia ? formatCount(gerencia.pulse.payoutsPending) : <Unavailable what="Pulso de staff no disponible" />}
-              hint="commission_allocations.status = pending (pulso del equipo)"
+              provenance={gerencia ? 'REAL' : 'UNAVAILABLE'}
+              value={gerencia ? formatCount(gerencia.pulse.payoutsPending) : <Unavailable what="Tablero de equipo no disponible" />}
+              hint="Comisiones asignadas pendientes de procesar."
             />
           </>
         }
         note={
           <>
-            <span className="text-white/55">Rewards por estado:</span> {statusList(cmd?.finance.rewardsByStatus)}
+            <span className="text-white/60">Recompensas por estado:</span> {statusList(cmd?.finance.rewardsByStatus)}
             <br />
-            <span className="text-white/55">Payout intents:</span> {statusList(cmd?.finance.payoutIntentsByStatus)}
+            <span className="text-white/60">Pagos por estado:</span> {statusList(cmd?.finance.payoutIntentsByStatus, PAYOUT_STATUS_LABEL)}
             <br />
-            <span className="text-white/55">Último payout batch:</span>{' '}
+            <span className="text-white/60">Último lote de pagos:</span>{' '}
             {cmd?.finance.latestPayoutBatch == null
               ? 'No disponible'
               : cmd.finance.latestPayoutBatch.status
-                ? `${cmd.finance.latestPayoutBatch.periodKey ?? '—'} · ${cmd.finance.latestPayoutBatch.status}`
+                ? `${cmd.finance.latestPayoutBatch.periodKey ?? '—'} · ${cmd.finance.latestPayoutBatch.status.toLowerCase()}`
                 : 'Ninguno'}
-            {' · '}
-            <span className="text-white/55">Eventos de auditoría de rewards ({cmd?.range.label ?? '—'}):</span> {formatCount(cmd?.finance.rewardAuditEventsInRange)}
             <br />
-            Conteos de registros (incluyen QA/synthetic; sin montos).
+            Conteos de registros (sin montos).
           </>
         }
         alerts={alerts}
         ctas={[
           { href: '/equipo/contabilidad', label: 'Ver finanzas', primary: true },
           { href: '/admin/commissions', label: 'Comisiones' },
-          { href: '/admin/rewards', label: 'Rewards ops' },
+          { href: '/admin/rewards', label: 'Recompensas' },
         ]}
       />
     </div>
