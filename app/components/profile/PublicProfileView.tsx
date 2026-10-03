@@ -7,13 +7,10 @@ import {
   CalendarDays,
   Check,
   MessageCircle,
-  MoreHorizontal,
   Send,
   Share2,
   ThumbsUp,
   User,
-  UserPlus,
-  Users,
 } from 'lucide-react';
 import { REPUTATION_LEVELS, getReputationLabel, getReputationProgress } from '@/lib/reputation';
 import { formatPriceMXN } from '@/lib/formatPrice';
@@ -106,7 +103,7 @@ function StatTile({
       </span>
       <span className="min-w-0">
         <span className="block text-[18px] font-semibold tabular-nums leading-none text-[#1d1d1f] dark:text-[#fafafa]">{value}</span>
-        <span className="mt-1 block truncate text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">{label}</span>
+        <span className="mt-1 line-clamp-2 block text-[12px] leading-tight text-[#6e6e73] dark:text-[#a3a3a3]">{label}</span>
       </span>
     </div>
   );
@@ -191,6 +188,7 @@ export default function PublicProfileView({
     });
     setSavingId(null);
     if (result.ok) onFavoriteChange?.(offer.id, result.isFavorite);
+    else showToast('No se pudo actualizar tus favoritos. Inténtalo de nuevo.');
   };
 
   return (
@@ -212,33 +210,16 @@ export default function PublicProfileView({
                 <User className="h-8 w-8 text-white" aria-hidden />
               )}
             </div>
-            <div className="mb-1 flex items-center gap-2">
+            <div className="mb-1 flex items-center">
               <button
                 type="button"
                 onClick={() => void copyLink()}
                 disabled={!sharePath}
-                className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-violet-700 disabled:opacity-50"
+                aria-label={copied ? 'Enlace del perfil copiado' : 'Copiar enlace del perfil'}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 disabled:opacity-50 dark:focus-visible:ring-offset-[#141414] sm:min-h-10"
               >
                 {copied ? <Check className="h-4 w-4" aria-hidden /> : <Share2 className="h-4 w-4" aria-hidden />}
-                Compartir
-              </button>
-              <button
-                type="button"
-                onClick={() => void copyLink()}
-                disabled={!sharePath}
-                aria-label="Compartir perfil"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-[#1d1d1f] dark:border-white/15 dark:text-[#fafafa]"
-              >
-                <Share2 className="h-4 w-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => void copyLink()}
-                disabled={!sharePath}
-                aria-label="Más acciones del perfil"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-[#1d1d1f] dark:border-white/15 dark:text-[#fafafa]"
-              >
-                <MoreHorizontal className="h-4 w-4" aria-hidden />
+                {copied ? 'Copiado' : 'Compartir'}
               </button>
             </div>
           </div>
@@ -247,13 +228,11 @@ export default function PublicProfileView({
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile icon={<Send className="h-4 w-4" aria-hidden />} value={String(published.length)} label="Ofertas publicadas" />
         <StatTile icon={<ThumbsUp className="h-4 w-4" aria-hidden />} value={votesReceived == null ? '—' : String(votesReceived)} label="Votos recibidos" />
         <StatTile icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={comments == null ? '—' : String(comments)} label="Comentarios" />
         <StatTile icon={<CalendarDays className="h-4 w-4" aria-hidden />} value={String(counts.size)} label="Días activo" />
-        <StatTile icon={<Users className="h-4 w-4" aria-hidden />} value="—" label="Seguidores" />
-        <StatTile icon={<UserPlus className="h-4 w-4" aria-hidden />} value="—" label="Siguiendo" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,0.85fr)] lg:items-start">
@@ -275,8 +254,10 @@ export default function PublicProfileView({
                   role="tab"
                   aria-selected={selected}
                   onClick={() => setPanel(item.id)}
-                  className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-medium ${
-                    selected ? 'border-violet-600 text-violet-600 dark:text-violet-400' : 'border-transparent text-[#6e6e73] dark:text-[#a3a3a3]'
+                  className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 ${
+                    selected
+                      ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                      : 'border-transparent text-[#6e6e73] hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:text-[#fafafa]'
                   }`}
                 >
                   <Icon className="h-4 w-4" aria-hidden />
@@ -301,7 +282,7 @@ export default function PublicProfileView({
                   <select
                     value={sort}
                     onChange={(event) => setSort(event.target.value as Sort)}
-                    className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-[13px] dark:border-white/15 dark:bg-[#141414]"
+                    className="min-h-11 rounded-full border border-black/10 bg-white px-3 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15 dark:bg-[#141414] sm:min-h-9"
                   >
                     <option value="recent">Más recientes</option>
                     <option value="votes">Más votadas</option>
@@ -309,7 +290,15 @@ export default function PublicProfileView({
                 </label>
               </div>
               {visible.length === 0 ? (
-                <p className="py-8 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay hallazgos públicos.</p>
+                <div className="mt-4 flex flex-col items-center rounded-2xl border border-dashed border-black/10 px-6 py-10 text-center dark:border-white/15">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300">
+                    <Send className="h-5 w-5" aria-hidden />
+                  </span>
+                  <p className="mt-3 text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Todavía no hay hallazgos públicos</p>
+                  <p className="mt-1 max-w-xs text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                    Cuando una oferta de {displayName} se apruebe, aparecerá aquí.
+                  </p>
+                </div>
               ) : (
                 <ul className="mt-2">
                   {visible.map((offer) => {
@@ -325,7 +314,7 @@ export default function PublicProfileView({
                             type="button"
                             disabled={!openable}
                             onClick={openable ? () => onOpenOffer(offer) : undefined}
-                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-default"
                           >
                             {offer.image ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -356,10 +345,12 @@ export default function PublicProfileView({
                           </button>
                           <button
                             type="button"
-                            aria-label={offer.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                            aria-label={offer.isFavorite ? `Quitar ${offer.title} de favoritos` : `Guardar ${offer.title} en favoritos`}
+                            aria-pressed={Boolean(offer.isFavorite)}
+                            aria-busy={savingId === offer.id}
                             disabled={savingId === offer.id}
                             onClick={() => void toggleFavorite(offer)}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#6e6e73] hover:bg-black/5 dark:text-[#a3a3a3] dark:hover:bg-white/10"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#6e6e73] transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-60 dark:text-[#a3a3a3] dark:hover:bg-white/10 md:h-9 md:w-9"
                           >
                             <Bookmark className={`h-4 w-4 ${offer.isFavorite ? 'fill-violet-600 text-violet-600' : ''}`} aria-hidden />
                           </button>
@@ -373,7 +364,7 @@ export default function PublicProfileView({
                 <button
                   type="button"
                   onClick={() => setShowAll(true)}
-                  className="mt-3 flex w-full items-center justify-center rounded-xl bg-violet-50 py-3 text-[13px] font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-50 text-[13px] font-medium text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:bg-violet-950 dark:text-violet-300 dark:hover:bg-violet-900"
                 >
                   Ver todas sus ofertas →
                 </button>
@@ -400,7 +391,10 @@ export default function PublicProfileView({
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Nivel Aventa</h2>
               {levelHref ? (
-                <Link href={levelHref} className="text-[13px] text-violet-600 dark:text-violet-400">
+                <Link
+                  href={levelHref}
+                  className="-my-3 inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] text-violet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400"
+                >
                   Ver niveles
                 </Link>
               ) : null}
@@ -429,7 +423,10 @@ export default function PublicProfileView({
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Logros de {displayName}</h2>
               {levelHref ? (
-                <Link href={levelHref} className="text-[13px] text-violet-600 dark:text-violet-400">
+                <Link
+                  href={levelHref}
+                  className="-my-3 inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] text-violet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400"
+                >
                   Ver todos
                 </Link>
               ) : null}
