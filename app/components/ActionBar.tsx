@@ -26,6 +26,7 @@ import StoreBrandMark from './StoreBrandMark';
 import { extractOfferUrlsFromText } from '@/lib/offers/batchPaste';
 import AventaIcon from './AventaIcon';
 import SidebarProgressCard from './SidebarProgressCard';
+import UploadKindChooser from './upload/UploadKindChooser';
 import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
 
 function parseDecimalPrice(s: string): number {
@@ -60,7 +61,16 @@ export default function ActionBar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isOfferOpen, showToast, openRegisterModal, uploadModalRequested, clearUploadModalRequest, lotesModalRequested, clearLotesModalRequest } = useUI();
+  const {
+    isOfferOpen,
+    showToast,
+    openRegisterModal,
+    uploadModalRequested,
+    uploadModalRequestedKind,
+    clearUploadModalRequest,
+    lotesModalRequested,
+    clearLotesModalRequest,
+  } = useUI();
 
   const isActive = (path: string, exact?: boolean) =>
     exact ? pathname === path : pathname.startsWith(path);
@@ -76,6 +86,7 @@ export default function ActionBar() {
   const [reputationLevel, setReputationLevel] = useState(1);
   const [reputationScore, setReputationScore] = useState(0);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showUploadChooser, setShowUploadChooser] = useState(false);
   const [showOptionalSection, setShowOptionalSection] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [formData, setFormData] = useState({
@@ -168,9 +179,16 @@ export default function ActionBar() {
   };
 
   const openUploadModal = () => {
+    setShowUploadChooser(false);
     setShowSubmitThanksModal(false);
     resetUploadModalState();
     setShowUploadModal(true);
+  };
+
+  const openUploadChooser = () => {
+    if (showUploadModal) return;
+    setShowSubmitThanksModal(false);
+    setShowUploadChooser(true);
   };
 
   useEffect(() => {
@@ -200,10 +218,11 @@ export default function ActionBar() {
 
   useEffect(() => {
     if (uploadModalRequested) {
-      openUploadModal();
+      if (uploadModalRequestedKind === 'offer') openUploadModal();
+      else openUploadChooser();
       clearUploadModalRequest();
     }
-  }, [uploadModalRequested, clearUploadModalRequest]);
+  }, [uploadModalRequested, uploadModalRequestedKind, clearUploadModalRequest]);
 
   useEffect(() => {
     if (!lotesModalRequested) return;
@@ -792,7 +811,7 @@ export default function ActionBar() {
   };
 
   const isPanelRoute = pathname.startsWith('/admin') || pathname.startsWith('/equipo');
-  if (isPanelRoute && !showUploadModal) {
+  if (isPanelRoute && !showUploadModal && !showUploadChooser) {
     return null;
   }
 
@@ -830,7 +849,7 @@ export default function ActionBar() {
                 openRegisterModal('signup');
                 return;
               }
-              openUploadModal();
+              openUploadChooser();
             }}
             className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[56px] max-[400px]:min-h-[52px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2.5 max-[400px]:py-2 transition-all duration-200 active:scale-95 bg-gradient-to-b from-violet-600 to-violet-700 dark:from-violet-600 dark:to-purple-700 text-white shadow-lg shadow-violet-500/25 dark:shadow-violet-950/50 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
@@ -917,7 +936,7 @@ export default function ActionBar() {
               openRegisterModal('signup');
               return;
             }
-            openUploadModal();
+            openUploadChooser();
           }}
           className={`mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500 ${cooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
@@ -1033,6 +1052,12 @@ export default function ActionBar() {
           </div>
         </div>
       ) : null}
+
+      <UploadKindChooser
+        open={showUploadChooser}
+        onClose={() => setShowUploadChooser(false)}
+        onChooseOffer={openUploadModal}
+      />
 
       <AnimatePresence>
         {showUploadModal && (
