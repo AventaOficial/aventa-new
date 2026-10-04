@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { isValidUuid } from '@/lib/server/validateUuid';
 import { readRoleCommand } from '@/lib/team/membership/commands';
-import { rpcFailure } from '@/lib/team/membership/errors';
-import { callTeamRpc, commandError, isOwnerId, isRpcData, ownerId } from '../../../shared';
+import { callTeamRpc, commandError, dbFailure, isOwnerId, isRpcData, mutationResponse, ownerId } from '../../../shared';
 
 export async function PATCH(
   request: Request,
@@ -21,10 +20,7 @@ export async function PATCH(
     .select('user_id, team_id')
     .eq('id', membershipId)
     .maybeSingle();
-  if (error) {
-    const body = rpcFailure(error.message);
-    return NextResponse.json({ error: body.error }, { status: body.status });
-  }
+  if (error) return dbFailure('membership lookup', error);
   const row = data as { user_id: string; team_id: string } | null;
   if (!row) return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
 
@@ -39,5 +35,5 @@ export async function PATCH(
     p_request_id: crypto.randomUUID(),
   });
   if (!isRpcData(result)) return result;
-  return NextResponse.json(result.data);
+  return mutationResponse(result.data, membershipId);
 }

@@ -1,6 +1,6 @@
 import type { TransitionCode } from './transitions';
 
-const MESSAGES: Record<TransitionCode | 'forbidden' | 'schema_missing', { status: number; error: string }> = {
+const MESSAGES: Record<TransitionCode | 'forbidden' | 'schema_missing' | 'query_invalid', { status: number; error: string }> = {
   self_assignment: { status: 403, error: 'No puedes modificar tu propia membresía.' },
   forbidden: { status: 403, error: 'Forbidden' },
   invalid_actor: { status: 400, error: 'Actor inválido.' },
@@ -14,6 +14,7 @@ const MESSAGES: Record<TransitionCode | 'forbidden' | 'schema_missing', { status
   reason_required: { status: 400, error: 'El motivo es obligatorio.' },
   reason_invalid: { status: 400, error: 'El motivo no es válido.' },
   live_membership_exists: { status: 409, error: 'Ya tiene una membresía viva en ese equipo.' },
+  query_invalid: { status: 400, error: 'Búsqueda inválida.' },
   schema_missing: {
     status: 503,
     error: 'Falta aplicar docs/supabase-migrations/team_os_memberships.sql',
@@ -33,12 +34,17 @@ const RPC_CODES = [
   'reason_required',
   'reason_invalid',
   'live_membership_exists',
+  'query_invalid',
   'target_not_found',
   'membership_not_found',
 ] as const;
 
-export function failureBody(code: TransitionCode): { status: number; error: string } {
+export function failureBody(code: TransitionCode | 'query_invalid'): { status: number; error: string } {
   return MESSAGES[code];
+}
+
+export function isServerFailure(body: { status: number }): boolean {
+  return body.status >= 500;
 }
 
 export function rpcFailure(message: string): { status: number; error: string } {
@@ -49,6 +55,6 @@ export function rpcFailure(message: string): { status: number; error: string } {
     return { status: 404, error: 'No encontrado.' };
   }
   const code = RPC_CODES.find((item) => item !== 'target_not_found' && item !== 'membership_not_found' && message.includes(item));
-  if (code && code in MESSAGES) return MESSAGES[code as TransitionCode | 'forbidden'];
+  if (code && code in MESSAGES) return MESSAGES[code as TransitionCode | 'forbidden' | 'query_invalid'];
   return { status: 500, error: 'No se pudo completar la operación.' };
 }
