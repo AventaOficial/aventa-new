@@ -23,6 +23,7 @@ import {
 } from '@/lib/moderation/outcomes'
 import { enqueueDistributionForApprovedOfferFireAndForget } from '@/lib/distribution'
 import { syncAchievementsLater } from '@/lib/achievements/sync'
+import { recordModerationDecisionTeamXp } from '@/lib/team/xp/rules/moderation'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -242,15 +243,28 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error: logError } = await supabase.from('moderation_logs').insert({
+    const { data: logRow, error: logError } = await supabase.from('moderation_logs').insert({
       offer_id: id,
       user_id: auth.user.id,
       action: status,
       previous_status: previousStatus,
       new_status: status,
       reason: reason ?? null,
-    })
+    }).select('id').maybeSingle()
     if (logError) console.error('[moderate-offer] log insert failed:', logError.message)
+
+    const logId = logRow && (typeof logRow.id === 'string' || typeof logRow.id === 'number') ? String(logRow.id) : null
+    if (logId) {
+      await recordModerationDecisionTeamXp(supabase, {
+        logId,
+        actorUserId: auth.user.id,
+        offerId: id,
+        decision: status,
+        previousStatus,
+        offerAuthorId: createdBy ?? null,
+        bulk: bulkAction,
+      })
+    }
 
     void captureHumanModerationOutcome(id, status)
 
