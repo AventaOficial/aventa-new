@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
     const alertEmailTo = process.env.SYSTEM_ALERT_EMAIL_TO;
     const resendKey = process.env.RESEND_API_KEY;
     const from = process.env.EMAIL_FROM || 'AVENTA <onboarding@resend.dev>';
-    const details = failed.map((f) => `- ${f.name}: ${f.detail}`).join('\n');
+    const details = failed
+      .map((f) => `- [${f.severity ?? 'n/a'}] ${f.name}: ${f.evidence}${f.action ? ` → ${f.action}` : ''}`)
+      .join('\n');
     const text = `SYSTEM INTEGRITY FAILED\n${details}\n\nstartedAt=${payload.startedAt}\nfinishedAt=${payload.finishedAt}`;
 
     if (webhookUrl) {

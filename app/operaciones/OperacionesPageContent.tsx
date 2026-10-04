@@ -38,8 +38,18 @@ import {
   type PulseAlerts,
 } from '@/lib/operations/areaHealth';
 import AffiliateProgramsPanel from './components/AffiliateProgramsPanel';
+import { integrityStatusOf } from '@/lib/server/integrityClassification';
 
-type IntegrityCheck = { name: string; ok: boolean; detail: string };
+type IntegrityCheck = {
+  name: string;
+  ok: boolean;
+  detail: string;
+  status?: string;
+  severity?: string | null;
+  action?: string | null;
+};
+
+const INTEGRITY_STATUS_LABEL = { PASS: 'OK', WARN: 'AVISO', FAIL: 'FALLO', NOT_APPLICABLE: 'N/A' } as const;
 type IntegrityResult = {
   ok: boolean;
   startedAt: string;
@@ -270,7 +280,10 @@ function buildOperationsFullReportText(input: {
     );
     lines.push('- checks:');
     input.integrity.checks.forEach((c) => {
-      lines.push(`  - [${c.ok ? 'OK' : 'FALLO'}] ${c.name}: ${c.detail}`);
+      const status = integrityStatusOf(c);
+      lines.push(
+        `  - [${INTEGRITY_STATUS_LABEL[status]}${c.severity ? `/${c.severity}` : ''}] ${c.name}: ${c.detail}${c.action ? ` → ${c.action}` : ''}`,
+      );
     });
   } else {
     lines.push('- sin resultado de integridad cargado');
@@ -1165,18 +1178,31 @@ export default function OperacionesPageContent() {
                     Última ejecución: {new Date(integrity.finishedAt).toLocaleString('es-MX')}
                   </p>
                   <div className="grid gap-2">
-                    {integrity.checks.map((check) => (
-                      <div key={check.name} className="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs">
-                        <p
-                          className={`font-semibold ${
-                            check.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'
-                          }`}
-                        >
-                          {check.ok ? 'OK' : 'FALLO'} · {check.name}
-                        </p>
-                        <p className="mt-1 text-gray-600 dark:text-gray-400">{check.detail}</p>
-                      </div>
-                    ))}
+                    {integrity.checks.map((check) => {
+                      const status = integrityStatusOf(check);
+                      return (
+                        <div key={check.name} className="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs">
+                          <p
+                            className={`font-semibold ${
+                              status === 'FAIL'
+                                ? 'text-red-700 dark:text-red-300'
+                                : status === 'WARN'
+                                  ? 'text-amber-700 dark:text-amber-300'
+                                  : status === 'NOT_APPLICABLE'
+                                    ? 'text-gray-500 dark:text-gray-400'
+                                    : 'text-emerald-700 dark:text-emerald-300'
+                            }`}
+                          >
+                            {INTEGRITY_STATUS_LABEL[status]} · {check.name}
+                            {check.severity ? ` · ${check.severity}` : ''}
+                          </p>
+                          <p className="mt-1 text-gray-600 dark:text-gray-400">{check.detail}</p>
+                          {check.action ? (
+                            <p className="mt-1 text-gray-700 dark:text-gray-300">→ {check.action}</p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (

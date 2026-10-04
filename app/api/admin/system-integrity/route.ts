@@ -26,7 +26,8 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[system-integrity] snapshot read failed:', error.message);
+    return NextResponse.json({ error: 'snapshot_read_failed' }, { status: 500 });
   }
 
   const result = (data as { value?: unknown } | null)?.value as SystemIntegrityResult | undefined;

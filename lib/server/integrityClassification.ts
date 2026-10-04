@@ -43,6 +43,96 @@ function errorCheck(name: string, error: QueryErrorLike, migration: string): Cla
   return { name, ok: false, state: 'query_error', detail: `query failed (${describeQueryError(error)})` };
 }
 
+export type IntegrityStatus = 'PASS' | 'WARN' | 'FAIL' | 'NOT_APPLICABLE';
+export type IntegritySeverity = 'critical' | 'high' | 'medium' | 'low';
+
+export type IntegrityCheckSpec = {
+  severity: IntegritySeverity;
+  /** Estado cuando el check no pasa por datos (fail/overdue/stale). query_error siempre es FAIL. */
+  onViolation: 'FAIL' | 'WARN';
+  /** Estado cuando falta el esquema que el check consulta. */
+  onSchemaMissing: 'FAIL' | 'WARN' | 'NOT_APPLICABLE';
+  action: string;
+};
+
+export type FinalizedIntegrityCheck = {
+  name: string;
+  ok: boolean;
+  status: IntegrityStatus;
+  state: IntegrityCheckState;
+  severity: IntegritySeverity | null;
+  reason: string;
+  evidence: string;
+  detail: string;
+  checkedAt: string;
+  action: string | null;
+};
+
+export const DEFAULT_INTEGRITY_SPEC: IntegrityCheckSpec = {
+  severity: 'medium',
+  onViolation: 'FAIL',
+  onSchemaMissing: 'FAIL',
+  action: 'Investigar el check y documentar la causa.',
+};
+
+const STATE_REASON: Record<IntegrityCheckState, string> = {
+  pass: 'Dentro de los límites esperados.',
+  fail: 'Se encontraron filas que violan el invariante.',
+  overdue: 'La cola acumula trabajo vencido por encima del límite.',
+  stale: 'El proceso no ha corrido dentro de la ventana esperada.',
+  schema_missing: 'El esquema que el check consulta no existe en este entorno.',
+  query_error: 'El check no pudo ejecutarse; el resultado es desconocido.',
+};
+
+/** Un check que no pudo correr nunca se reporta como PASS. */
+export function finalizeIntegrityCheck(
+  check: { name: string; ok: boolean; detail: string; state?: IntegrityCheckState },
+  spec: IntegrityCheckSpec | undefined,
+  checkedAt: string,
+): FinalizedIntegrityCheck {
+  const s = spec ?? DEFAULT_INTEGRITY_SPEC;
+  const state: IntegrityCheckState = check.state ?? (check.ok ? 'pass' : 'fail');
+  let status: IntegrityStatus;
+  if (state === 'pass' && check.ok) status = 'PASS';
+  else if (state === 'schema_missing') status = s.onSchemaMissing;
+  else if (state === 'query_error') status = 'FAIL';
+  else status = s.onViolation;
+  return {
+    name: check.name,
+    ok: status !== 'FAIL',
+    status,
+    state,
+    severity: status === 'PASS' || status === 'NOT_APPLICABLE' ? null : s.severity,
+    reason: STATE_REASON[state],
+    evidence: check.detail,
+    detail: check.detail,
+    checkedAt,
+    action: status === 'PASS' ? null : s.action,
+  };
+}
+
+/** Snapshots anteriores al modelo de estados solo traen `ok`. */
+export function integrityStatusOf(check: { ok?: boolean; status?: string | null }): IntegrityStatus {
+  const s = check.status;
+  if (s === 'PASS' || s === 'WARN' || s === 'FAIL' || s === 'NOT_APPLICABLE') return s;
+  return check.ok ? 'PASS' : 'FAIL';
+}
+
+/** Resultado de un check basado en un error opcional y una condición de datos. */
+export function classifyGenericCheck(input: {
+  name: string;
+  error: QueryErrorLike;
+  violated: boolean;
+  detail: string;
+  migration?: string;
+  violationState?: Extract<IntegrityCheckState, 'fail' | 'overdue' | 'stale'>;
+}): ClassifiedCheck {
+  if (input.error) return errorCheck(input.name, input.error, input.migration ?? 'n/a');
+  return input.violated
+    ? { name: input.name, ok: false, state: input.violationState ?? 'fail', detail: input.detail }
+    : { name: input.name, ok: true, state: 'pass', detail: input.detail };
+}
+
 export const FRESHNESS_OVERDUE_LIMIT = 400;
 
 /**

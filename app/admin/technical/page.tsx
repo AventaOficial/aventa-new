@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bot, Check, Copy, Database, RefreshCw, ShieldAlert } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { integrityStatusOf } from '@/lib/server/integrityClassification';
 
 type BotStatus = {
   enabled: boolean;
@@ -37,7 +38,7 @@ type IntegrityResult = {
   ok: boolean;
   finishedAt: string;
   summary: { total: number; failed: number; passed: number };
-  checks: Array<{ name: string; ok: boolean; detail: string }>;
+  checks: Array<{ name: string; ok: boolean; detail: string; status?: string; action?: string | null }>;
 };
 
 export default function TechnicalPage() {
@@ -111,7 +112,7 @@ Cron:
 - Overall: ${integrity?.ok ? 'OK' : 'FAILED'}
 - Finished at: ${integrity?.finishedAt ?? 'N/A'}
 - Summary: ${integrity ? `${integrity.summary.passed}/${integrity.summary.total} passed` : 'No data'}
-${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detail}`).join('\n') ?? ''}`;
+${integrity?.checks.map((c) => `  [${integrityStatusOf(c)}] ${c.name}: ${c.detail}${c.action ? ` -> ${c.action}` : ''}`).join('\n') ?? ''}`;
   }, [botData, integrity]);
 
   const copyReport = async () => {
@@ -240,9 +241,10 @@ ${integrity?.checks.map((c) => `  [${c.ok ? 'OK' : 'FAIL'}] ${c.name}: ${c.detai
                     {integrity.checks.map((check) => (
                       <li key={check.name} className="border-b border-gray-200/70 dark:border-gray-800 pb-2 last:border-b-0 last:pb-0">
                         <p className="font-medium text-white/90">
-                          [{check.ok ? 'OK' : 'FAIL'}] {check.name}
+                          [{integrityStatusOf(check)}] {check.name}
                         </p>
                         <p className="text-gray-500 dark:text-gray-400">{check.detail}</p>
+                        {check.action ? <p className="text-gray-400">→ {check.action}</p> : null}
                       </li>
                     ))}
                   </ul>
