@@ -48,7 +48,8 @@ describe('expired offer page accessibility', () => {
   it('marks expired clearly without treating as active', () => {
     expect(contentSrc).toContain('Oferta expirada');
     expect(contentSrc).toContain('offer.isExpired');
-    expect(contentSrc).toContain("'Ver oferta'");
+    expect(contentSrc).toContain('offer.freshness?.ctaLabel');
+    expect(contentSrc).toContain('offer.freshness.ctaEnabled');
   });
 
   it('lifecycle helper: expired ≠ active feed eligibility', () => {

@@ -4,9 +4,10 @@ import AppShell from '@/app/AppShell';
 import LegalBackLink from '@/app/components/LegalBackLink';
 
 import { PRIVACY_LAST_UPDATED } from '@/lib/legal/constants';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidad | AVENTA',
+  ...brandedTitle('Política de Privacidad'),
   description:
     'Aviso de privacidad de AVENTA: datos de cuenta, actividad, afiliados, atribución de recompensas y derechos ARCO (LFPDPPP).',
 };

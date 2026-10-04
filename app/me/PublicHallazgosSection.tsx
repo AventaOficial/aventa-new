@@ -1,10 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import PublicProfileView, { type PublicProfileOffer } from '@/app/components/profile/PublicProfileView';
+import PublicProfileView, {
+  type PublicProfileOffer,
+  type PublicProfileOwnerActions,
+} from '@/app/components/profile/PublicProfileView';
 import type { CardOffer } from '@/lib/offers/transform';
 import type { VoteMap, VoteValueMap, FavoriteMap } from '@/lib/offers/batchUserData';
 import { createClient } from '@/lib/supabase/client';
+import type { AchievementRarity } from '@/lib/achievements/types';
+
+const UNLOCKED_PREVIEW_LIMIT = 4;
+const RARITY_ORDER: AchievementRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+
+function rarityRank(rarity: AchievementRarity | undefined): number {
+  return rarity ? RARITY_ORDER.indexOf(rarity) : -1;
+}
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
@@ -28,6 +39,7 @@ type PublicHallazgosSectionProps = {
   expiredCount: number;
   rejectedCount: number;
   positiveVotesTotal: number | null;
+  owner?: PublicProfileOwnerActions | null;
 };
 
 /**
@@ -47,28 +59,60 @@ export default function PublicHallazgosSection({
   onFavoriteChange,
   onOfferClick,
   positiveVotesTotal,
+  owner = null,
 }: PublicHallazgosSectionProps) {
-  const [showcase, setShowcase] = useState<Array<{ name: string; icon: string }>>([]);
+  const [showcase, setShowcase] = useState<Array<{ code: string; name: string; icon: string }>>([]);
+  const [unlockedPreview, setUnlockedPreview] = useState<Array<{ code: string; name: string; icon: string }>>([]);
+  const [showcaseLoading, setShowcaseLoading] = useState(true);
   useEffect(() => {
     let cancel = false;
     const run = async () => {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return;
-      const response = await fetch('/api/me/achievements', { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) return;
-      const payload = await response.json() as {
-        featured?: string[];
-        cards?: Array<{ code: string; name: string; icon: string; unlocked: boolean; concealed: boolean }>;
-      };
-      if (cancel) return;
-      const selected = new Set(payload.featured ?? []);
-      setShowcase(
-        (payload.cards ?? [])
-          .filter((card) => selected.has(card.code) && card.unlocked && !card.concealed)
-          .map((card) => ({ name: card.name, icon: card.icon })),
-      );
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const response = await fetch('/api/me/achievements', { headers: { Authorization: `Bearer ${token}` } });
+        if (!response.ok) return;
+        const payload = await response.json() as {
+          featured?: string[];
+          cards?: Array<{
+            code: string;
+            name: string;
+            icon: string;
+            unlocked: boolean;
+            concealed: boolean;
+            rarityKey?: AchievementRarity;
+            unlockedAt?: string | null;
+          }>;
+        };
+        if (cancel) return;
+        const visibleUnlocked = (payload.cards ?? []).filter((card) => card.unlocked && !card.concealed);
+        const byCode = new Map(visibleUnlocked.map((card) => [card.code, card]));
+        setShowcase(
+          (payload.featured ?? [])
+            .map((code) => byCode.get(code))
+            .filter((card): card is NonNullable<typeof card> => Boolean(card))
+            .map((card) => ({ code: card.code, name: card.name, icon: card.icon })),
+        );
+        setUnlockedPreview(
+          [...visibleUnlocked]
+            .sort(
+              (a, b) =>
+                rarityRank(b.rarityKey) - rarityRank(a.rarityKey) ||
+                (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''),
+            )
+            .slice(0, UNLOCKED_PREVIEW_LIMIT)
+            .map((card) => ({ code: card.code, name: card.name, icon: card.icon })),
+        );
+      } catch {
+        if (!cancel) {
+          setShowcase([]);
+          setUnlockedPreview([]);
+        }
+      } finally {
+        if (!cancel) setShowcaseLoading(false);
+      }
     };
     void run();
     return () => {
@@ -101,6 +145,9 @@ export default function PublicHallazgosSection({
       sharePath={sharePath}
       levelHref="/me/nivel"
       showcase={showcase}
+      showcaseLoading={showcaseLoading}
+      unlockedPreview={owner ? unlockedPreview : []}
+      owner={owner}
       onFavoriteChange={onFavoriteChange}
       onOpenOffer={(offer) => {
         const source = offers.find((item) => item.id === offer.id);

@@ -36,23 +36,16 @@ import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import OfferImageThumbs from '@/app/components/OfferImageThumbs';
 import OfferImageGallery from '@/app/components/OfferImageGallery';
+import AchievementSigil from '@/app/components/achievements/AchievementSigil';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
-
-function formatRemainingTime(createdAt?: string | null): string | null {
-  if (!createdAt) return null;
-  const expiry = new Date(createdAt);
-  expiry.setDate(expiry.getDate() + 7);
-  if (Number.isNaN(expiry.getTime())) return null;
-  const diffMs = expiry.getTime() - Date.now();
-  if (diffMs <= 0) return null;
-  const diffD = Math.ceil(diffMs / 86400000);
-  return diffD === 1 ? '1 día restante' : `${diffD} días restantes`;
-}
+import OfferMedia from '@/app/components/offers/OfferMedia';
+import { formatMexicoDateTime, remainingDaysLabel } from '@/lib/time/mexicoClock';
+import { alignCommentLike, toggleCommentLike } from '@/lib/comments/commentLikeState';
 
 function CommentAvatar({
   avatarUrl,
@@ -93,7 +86,11 @@ function formatRelativeDate(iso: string): string {
   if (diffD === 1) return 'hace 1 día';
   if (diffD < 7) return `hace ${diffD} días`;
   if (diffD < 30) return `hace ${Math.floor(diffD / 7)} sem`;
-  return d.toLocaleDateString();
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: 'numeric',
+    month: 'short',
+  }).format(d);
 }
 
 type CommentItem = {
@@ -146,7 +143,7 @@ type OfferPayload = {
     userId?: string | null;
     slug?: string | null;
     isBot?: boolean;
-    featuredAchievement?: { name: string; icon: string } | null;
+    featuredAchievement?: { code?: string; name: string; icon: string } | null;
   };
   createdAt: string | null;
   expiresAt?: string | null;
@@ -181,7 +178,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const [commentImageUploading, setCommentImageUploading] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
-  const [likingId, setLikingId] = useState<string | null>(null);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const likeLocks = useRef(new Set<string>());
+  const commentsRef = useRef<CommentItem[]>([]);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [couponCards, setCouponCards] = useState<
@@ -245,7 +244,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const userVote = localVote ?? 0;
   const storedVoteVal = voteValueMap[offer.id];
   const savings = offer.originalPrice - offer.discountPrice;
-  const remainingLabel = formatRemainingTime(offer.createdAt);
+  const remainingLabel = remainingDaysLabel(offer.expiresAt, Date.now());
+  const descriptionText = offer.description?.trim() ?? '';
+  const descriptionLong = descriptionText.length > 220 || descriptionText.split('\n').length > 4;
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
   const rawCurrentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
   const currentImage = isNextImageAllowedSrc(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
@@ -253,9 +254,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const offerAuthorProfileHref =
     offer.author?.username ? publicProfilePath(offer.author.username, offer.author.userId, offer.author.slug) : null;
 
-  const fetchComments = useCallback(() => {
+  const fetchComments = useCallback((opts?: { silent?: boolean }) => {
     if (!offer.id) return;
-    setCommentsLoading(true);
+    if (!opts?.silent && commentsRef.current.length === 0) setCommentsLoading(true);
     fetch(`/api/offers/${encodeURIComponent(offer.id)}/comments`, {
       headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
     })
@@ -270,21 +271,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           ),
         }));
+        commentsRef.current = withReplies;
         setComments(withReplies);
       })
-      .catch(() => setComments([]))
+      .catch(() => {
+        if (commentsRef.current.length === 0) setComments([]);
+      })
       .finally(() => setCommentsLoading(false));
   }, [offer.id, session?.access_token]);
 
   useEffect(() => {
     fetchComments();
-  }, [fetchComments]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') fetchComments();
-    }, 25_000);
-    return () => clearInterval(id);
   }, [fetchComments]);
 
   useEffect(() => {
@@ -406,7 +403,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
         showToast?.(
           needsMod ? 'Comentario enviado. Será visible cuando pase la moderación.' : 'Comentario publicado.'
         );
-        fetchComments();
+        fetchComments({ silent: true });
       } else {
         showToast?.(typeof data?.error === 'string' ? data.error : 'No se pudo publicar');
       }
@@ -416,16 +413,40 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   };
 
   const handleLikeComment = async (commentId: string) => {
-    if (!offer.id || !session?.access_token || likingId) return;
-    setLikingId(commentId);
+    if (!offer.id) return;
+    if (!session?.access_token) {
+      showToast?.('Inicia sesión para apoyar este comentario.');
+      return;
+    }
+    if (likeLocks.current.has(commentId)) return;
+    likeLocks.current.add(commentId);
+    const snapshot = commentsRef.current;
+    const next = toggleCommentLike(snapshot, commentId);
+    commentsRef.current = next;
+    setComments(next);
     try {
       const res = await fetch(
         `/api/offers/${encodeURIComponent(offer.id)}/comments/${encodeURIComponent(commentId)}/like`,
         { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } }
       );
-      if (res.ok) fetchComments();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data?.liked !== 'boolean') {
+        commentsRef.current = snapshot;
+        setComments(snapshot);
+        showToast?.('No se pudo registrar el apoyo.');
+        return;
+      }
+      setComments((prev) => {
+        const aligned = alignCommentLike(prev, commentId, data.liked);
+        commentsRef.current = aligned;
+        return aligned;
+      });
+    } catch {
+      commentsRef.current = snapshot;
+      setComments(snapshot);
+      showToast?.('No se pudo registrar el apoyo.');
     } finally {
-      setLikingId(null);
+      likeLocks.current.delete(commentId);
     }
   };
 
@@ -531,7 +552,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <p className="mt-0.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                 {offer.freshness.detail}
                 {offer.freshness.lastCheckedAt
-                  ? ` Última revisión: ${new Date(offer.freshness.lastCheckedAt).toLocaleString('es-MX')}.`
+                  ? ` Última revisión: ${formatMexicoDateTime(offer.freshness.lastCheckedAt)}`
                   : ''}
               </p>
             </div>
@@ -691,21 +712,21 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           </div>
 
           <div className="flex flex-col md:flex-row">
-            <div className="md:w-[45%] bg-gray-50 dark:bg-[#1a1a1a] p-4">
+            <div className="md:w-[45%] bg-gray-50 dark:bg-[#141414] p-4">
               <button
                 type="button"
-                className="relative aspect-square w-full overflow-hidden rounded-xl text-left"
+                className="w-full text-left"
                 onClick={() => setGalleryOpen(true)}
                 aria-label="Ampliar imagen"
               >
-                <Image
+                <OfferMedia
                   src={currentImage}
-                  alt=""
-                  fill
+                  alt={offer.title}
                   sizes="(max-width: 768px) 100vw, 45vw"
-                  className="object-contain p-2"
+                  ratioClass="aspect-square"
                   priority
                   unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
+                  className="rounded-xl"
                 />
               </button>
               <OfferImageThumbs
@@ -800,8 +821,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     </span>
                   )}
                   {offer.author.featuredAchievement ? (
-                    <span className="text-xs font-medium text-violet-700 dark:text-violet-300">
-                      {offer.author.featuredAchievement.icon} {offer.author.featuredAchievement.name}
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+                      <AchievementSigil code={offer.author.featuredAchievement.code} size="xs" />
+                      {offer.author.featuredAchievement.name}
                     </span>
                   ) : null}
                 </div>
@@ -885,22 +907,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <MessageCircle className="h-4 w-4" aria-hidden />
                   {comments.length}
                 </a>
-                {offer.categorySlug ? (
-                  <Link
-                    href={`/categoria/${offer.categorySlug}`}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  >
-                    {offer.categoryLabel ?? offer.categorySlug}
-                  </Link>
-                ) : null}
-                {offer.storeSlug && offer.storeName ? (
-                  <Link
-                    href={`/tienda/${offer.storeSlug}`}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  >
-                    {offer.storeName}
-                  </Link>
-                ) : null}
               </div>
 
               {couponCards.length > 0 ? (
@@ -982,7 +988,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     disabled
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-300 px-6 py-3 font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200"
                   >
-                    {offer.freshness.label}
+                    {offer.freshness.ctaLabel}
                   </button>
                 </div>
               ) : ctaUrl ? (
@@ -1004,11 +1010,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
                   >
-                    {offer.freshness?.state === 'price_changed'
-                      ? 'Ver precio actual'
-                      : offer.isExpired
-                        ? 'Ver oferta'
-                        : 'Cazar oferta'}
+                    {offer.freshness?.ctaLabel ?? 'Cazar oferta'}
                     <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                   {showCtaCouponChip ? (
@@ -1044,24 +1046,26 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           </div>
 
           <div className="divide-y divide-gray-200 dark:divide-gray-700 border-t border-gray-200 dark:border-gray-700">
-              {offer.id ? (
-                <details className="px-6 md:px-8 py-4" open>
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Información adicional
-                  </summary>
-                  <div className="mt-3 space-y-4">
-                    <OfferPriceInsightBlock offerId={offer.id} />
-                    <AffiliateDisclosure variant="block" includeAmazonEn />
-                  </div>
-                </details>
-              ) : null}
-              {offer.description?.trim() ? (
-                <details className="px-6 md:px-8 py-4">
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Descripción
-                  </summary>
-                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.description}</p>
-                </details>
+              {descriptionText ? (
+                <section className="px-6 md:px-8 py-5">
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Sobre esta oferta</h2>
+                  <p
+                    className={`mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400 whitespace-pre-wrap ${
+                      descriptionLong && !descExpanded ? 'line-clamp-4' : ''
+                    }`}
+                  >
+                    {descriptionText}
+                  </p>
+                  {descriptionLong ? (
+                    <button
+                      type="button"
+                      onClick={() => setDescExpanded((open) => !open)}
+                      className="mt-2 text-sm font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+                    >
+                      {descExpanded ? 'Ver menos' : 'Ver más'}
+                    </button>
+                  ) : null}
+                </section>
               ) : null}
               {offer.steps?.trim() ? (
                 <details className="px-6 md:px-8 py-4">
@@ -1093,7 +1097,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Comentarios ({comments.length})
             </h2>
-            {commentsLoading ? (
+            {comments.length === 0 && commentsLoading ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">Cargando comentarios…</p>
             ) : comments.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400 py-4">
@@ -1126,8 +1130,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                         <div className="mt-2 flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => session && handleLikeComment(comment.id)}
-                            disabled={!session || likingId === comment.id}
+                            onClick={() => void handleLikeComment(comment.id)}
+                            aria-pressed={comment.liked_by_me === true}
+                            aria-label={comment.liked_by_me ? 'Quitar apoyo' : 'Apoyar comentario'}
                             className={`flex items-center gap-1 text-xs font-medium ${comment.liked_by_me ? 'text-pink-500' : 'text-gray-500 dark:text-gray-400 hover:text-pink-500'}`}
                           >
                             <Heart className={`h-4 w-4 ${comment.liked_by_me ? 'fill-current' : ''}`} />
@@ -1167,8 +1172,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                                 <div className="mt-2 flex items-center gap-3">
                                   <button
                                     type="button"
-                                    onClick={() => session && handleLikeComment(reply.id)}
-                                    disabled={!session || likingId === reply.id}
+                                    onClick={() => void handleLikeComment(reply.id)}
+                                    aria-pressed={reply.liked_by_me === true}
+                                    aria-label={reply.liked_by_me ? 'Quitar apoyo' : 'Apoyar comentario'}
                                     className={`flex items-center gap-1 text-xs font-medium ${reply.liked_by_me ? 'text-pink-500' : 'text-gray-500 dark:text-gray-400 hover:text-pink-500'}`}
                                   >
                                     <Heart className={`h-4 w-4 ${reply.liked_by_me ? 'fill-current' : ''}`} />
@@ -1265,6 +1271,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               </div>
             </div>
           </div>
+          {offer.id ? (
+            <details className="px-6 md:px-8 py-4">
+              <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Información adicional
+              </summary>
+              <div className="mt-3 space-y-4">
+                <OfferPriceInsightBlock offerId={offer.id} />
+                <AffiliateDisclosure variant="block" includeAmazonEn />
+              </div>
+            </details>
+          ) : null}
           </div>
         </div>
       </article>

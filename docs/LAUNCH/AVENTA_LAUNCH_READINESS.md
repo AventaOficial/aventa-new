@@ -69,44 +69,111 @@ dependency precheck, expected row counts, lock analysis, rollback/forward note, 
 Between steps 2 and 6 the account-purge cron keeps failing exactly as it does today (no requests
 pending: 0); it starts working at step 6.
 
+## Production rollout log (Phase 2, 2026-10-04)
+
+| # | Step | Evidence | Result |
+|---|---|---|---|
+| 1 | M1 `offers_lifecycle_v2` (sha256 `CD7794BD…`) | `archived_at`/`archive_reason` present, `offers_archive_state_check` valid; `offer_lifecycle_runs` ACL `service_role=r` only; legacy job and `process_offers_lifecycle` gone; job `offers-lifecycle-v2` created inactive. Function md5 equal to staging for `reject_pending_offers_bulk`, `offers_archive_guard`, `offers_touch_updated_at`; `run_offers_lifecycle` differs only by 5 comment lines (body identical). Counts unchanged (offers 654, modlogs 446, events 404, clicks 11, ledger 10, rewards 6) | VERIFIED |
+| 2 | Code deploy: PR #39 squash `014cca5` | CI `verify` + Vercel prod/staging pass; prod smoke: `/` 200, `/api/health` 200, sitemap 200, robots 200, `/admin/moderation` 307, `GET /api/admin/moderation/claim-next` 401 (new route live and guarded) | VERIFIED |
+| 3 | Manual run `run_offers_lifecycle(1000)` | dry count = expectation; run `4e50a954…`: timed_out 0, locks_cleared 9, archived_rejected 5, archived_expired 0; modlogs +9 (`lock_cleared_non_pending`, same run_id); `updated_at` of touched rows unchanged; status counts unchanged; evidence counts unchanged | VERIFIED |
+| 4 | Enable (`F40ADF89…`) | `offers-lifecycle-v2` active, `17 * * * *`, command `SELECT maintenance.run_offers_lifecycle(1000);`; it is the only pg_cron job; legacy job absent | VERIFIED config; first automatic run (19:17 UTC) PENDING VERIFICATION — expected no-op (0/0/0/0); all 11 rollout migrations recorded in `supabase_migrations.schema_migrations` |
+| 5 | M2 `offers_evidence_protection` (`2486E633…`) | precheck: 14 FKs validated (no orphans), 0 DB functions deleting evidence, app code deletes evidence only in staging scripts; post: 14 FKs `RESTRICT` validated, 26 append-only triggers; rolled-back probe: DELETE on offer_events / moderation_logs / creator_rewards blocked (42501), DELETE of an offer with clicks blocked (23503); counts unchanged | VERIFIED |
+| 6 | M3 `launch_hardening_v2` (`A5EF6855…`) | precheck: health statuses within new CHECK, all columns present, every `offer_health_state` consumer uses the service client; post: 4 function md5 equal to staging, ACLs service_role only, `search_document` backfilled (0 null), 0 offers with moved `updated_at`, 0 deletion requests; rolled-back probes: anon/authenticated DENIED on health/product_events/deletion audit/search RPC/blockers/lifecycle runs | VERIFIED |
+| 7 | **New P0** `client_view_write_lockdown` (PR #40 `446e13c`) | see Security | VERIFIED |
+
+## Production audit results (Phases 3, 9, 10 — read-only)
+
+### Data integrity (Phase 3)
+
+| Check | Result | Severity | Disposition |
+|---|---|---|---|
+| Live offers flagged `out_of_stock` by the pre-fix classifier | 12/12 live offers; offer page renders `noindex` for them | HIGH | Systemic: M3 queue schedules all of them within 48 h; scanner (03:00 UTC daily) applies 404/410-only rule. Verify after 2026-10-06 03:00 UTC. No manual data edit |
+| Approved offers expired, not archived | 70 (69 in recovery plan + 1 natural expiry) | MEDIUM | `EXPIRED_OFFERS_RECOVERY_PLAN.md`; not restored automatically |
+| `moderation_logs.offer_id` null | 50 | LOW | Historical loss through the old `SET NULL`; irrecoverable; now prevented by M2 |
+| Approved without approval log | 3 (bot, 2026-09-08) | MEDIUM | Historical, kept; new bot inserts are structurally `pending` |
+| Price, URL, image, category, creator, vote counters, duplicate votes, click idempotency, orphan locks | 0 violations | CLEAN | — |
+
+### Security (Phase 9)
+
+- **P0 found and closed:** `ofertas_ranked_general` (single-table view over `offers`, owner `postgres`,
+  no `security_invoker`) granted INSERT/UPDATE/DELETE to anon/authenticated through Supabase default
+  privileges re-applied on every view recreation. Rolled-back probe: anon `UPDATE offers` = 0 rows,
+  through the view = 1 row. Fix: `client_view_write_lockdown.sql` (all public views/matviews, SELECT
+  untouched) validated in staging, applied in production; probes: writes DENIED, feed/profile reads
+  intact (82/18), `/api/health` `feedViewOk: true`. Regression guard: integrity check
+  `security.client_writable_views` (critical FAIL). Exploitation: no evidence (all `offer_url`
+  domains legitimate, all creators valid) but no per-row update audit exists — **UNKNOWN**.
+- Write policies: all scoped to `auth.uid()` or staff role. RLS disabled on client-reachable tables: 0.
+- `profiles`: no table-level UPDATE; column grants limited to display fields and
+  `account_deletion_requested_at`; reputation, badges, tracking tags, fiscal and `deletion_*` not writable.
+- Advisor residue: `public_profiles_view` SECURITY DEFINER (read-only, 7 public columns, intended
+  public surface) LOW; `is_moderator`/`user_has_moderation_role` executable by authenticated (self
+  boolean) LOW; 2 functions with mutable `search_path` LOW; Auth leaked-password protection disabled P2
+  (dashboard setting, Auth out of scope).
+
+### Money (Phase 10)
+
+- All 22 money rows are synthetic QA written on 2026-08-31 by a test pointed at production
+  (`AUDIT_staging_environment_forensics.md`): ledger `external_ref` `staging-qa-*`/`qa-*`, payouts
+  "staging QA simulado". Real conversions 0. Dashboards classify through the ledger
+  (`financialRecordClass` → `SYNTHETIC_QA`) and exclude them. Rows kept as evidence.
+- Inconsistency inside the QA set: rewards `f8278d7a`, `09cf8135` attributed `sub_id` while their ledger
+  rows are `attributable=false` with no creator — consistent with QA misuse, irrelevant while frozen.
+- Freeze: code is fail-closed in production; every money engine and mutating route checks it. No money
+  write since 2026-08-31 (34 days of daily money crons). `MONEY_PATH_FROZEN` value in Vercel: **UNKNOWN**
+  (CLI unavailable here); default is frozen.
+- Verdict: **FROZEN**. Not auditable as PASS for activation (prior P0s: farming, cancelReward race,
+  self/anonymous click attribution).
+
+### Platform
+
+- Supabase organization plan: **free** (no automated backups / PITR). Backup & recovery: **FAIL** (P1).
+
+### Tests (Phase 17)
+
+`npx vitest run` on `446e13c`: 4150 passed, 3 failed, 8 skipped. Failures are pre-existing/flaky and
+unrelated: `profileTheme.preMaster` (fails on baseline `bc0abde`), `writeAuthority.s91` (timeout under
+full-suite load; passes alone), `fanoutMatching.s63` "deterministic replay" (compares `stats` that
+include `latencyMs`). `tsc` clean, `npm run build` passed on the release branch, CI `verify` green on #39/#40.
+
 ## Domain matrix
 
 | Domain | Production | Staging | Repo / schema | Known issues (severity) | Required action | Tests | Status |
 |---|---|---|---|---|---|---|---|
-| Database | 1007 objects; M1/M2/M3 absent | M1/M2/M3 applied | 136 files in docs/supabase-migrations, applied ad hoc | Large staging/prod drift (P1 process) | Ordered plan; prod prechecks per migration | parity diff | IN_PROGRESS |
-| Lifecycle | Destructive job frozen (inactive) | v2 hourly, validated | M1 + enable | Destructive deletion (P0, contained by freeze) | Roll out M1 → code → manual run → enable | staging suite (report 2026-10-04) | READY_FOR_PRODUCTION |
-| Evidence | CASCADE/SET NULL from offers | RESTRICT + append-only | M2 | Evidence loss on offer delete (P0) | M2 after code deploy | staging delete/truncate tests | READY_FOR_PRODUCTION |
-| Auth | Supabase Auth | — | middleware unchanged | — | Phase 9 audit | — | NOT_STARTED |
-| Authorization | server-side guards | — | requireTeamManagement etc. | — | Phase 9 audit | — | NOT_STARTED |
-| RLS | 6 tables RLS-without-policy with grants | — | — | Least privilege debt (P3) | Revoke in M3 for offer_health_state; others documented | ACL probes | IN_PROGRESS |
+| Database | M1, M2, M3, view lockdown applied with prechecks/post-checks | same + lockdown | ordered plan executed | Staging/prod drift remains (P2 process) | — | parity md5 per migration | VERIFIED |
+| Lifecycle | v2 enabled hourly; manual run clean | v2 hourly | M1 + enable | — | Confirm automatic runs | staging suite + prod run `4e50a954` | VERIFIED |
+| Evidence | RESTRICT + append-only (26 triggers) | same | M2 | — | — | prod rolled-back delete probes | VERIFIED |
+| Auth | Supabase Auth; leaked-password protection off | — | middleware unchanged | P2 (dashboard setting) | Owner enables in Auth settings | — | IN_PROGRESS |
+| Authorization | server guards; `GET claim-next` 401 anonymous | — | requireModerationActor etc. | Admin flows not exercised with a real session here | Owner smoke with staff account | route tests | IN_PROGRESS |
+| RLS | write policies scoped; profiles column grants; views read-only | — | — | View write hole (P0) closed | — | prod role probes | VERIFIED |
 | Team OS | PR #38 live, 0 memberships | E2E validated | — | — | — | prior smoke | VERIFIED |
 | Moderation | queue + locks; auto-claim on open; 3 historical bot approvals without audit (2026-09-08, evidence kept) | — | explicit claim (commit "opening the queue reads stats"); bot inserts structurally `pending`; bulk reject via audited RPC; automatic expiry audited | Auto-claim (P2) fixed; stale locks 9 (P3) cleared by first lifecycle run | Deploy | tests/moderation/explicitClaim, healthScanWrites | READY_FOR_PRODUCTION |
-| Offers | 654 offers | — | — | Archive state absent (M1) | M1 | — | IN_PROGRESS |
-| Search | RPC absent → fallback | RPC applied | M3 | — | M3 + verify fallback | ACL probe staging | READY_FOR_PRODUCTION |
+| Offers | 654 offers; 12 live; 5 archived (rejected retention) | — | — | 12/12 live offers stale `out_of_stock` → `noindex` (HIGH, self-healing ≤48 h) | Verify after 2026-10-06 03:00 UTC | integrity audit | IN_PROGRESS |
+| Search | RPC applied (service_role only); returns 0 today because every live offer is `out_of_stock`; app falls back to ilike (no regression) | RPC applied | M3 | Inconsistency FTS vs fallback until health heals | none | ACL probes prod | VERIFIED |
 | Hunter / Supply | Vercel crons | — | — | — | Phase 6 audit | — | NOT_STARTED |
 | Health Scanner | 81/82 out_of_stock false positives; ~70 offers auto-expired | fixed classification validated | only 404/410 count; UPDATEs re-check live state (race-safe); expiry audited in moderation_logs | False expiry (P1 data, P2 check) | Deploy code after M1; recovery plan only | evaluateOfferHealth, healthScanWrites | READY_FOR_PRODUCTION |
 | Coupons | tables absent; public endpoint returns empty, but queried a missing table on every offer view | tables exist (legacy shape) | **Decision: coupon migrations deferred for launch** (new capability, out of closure scope); schema-missing memo (10 min) stops failing queries; admin API no raw errors | Failing queries (P2) fixed in code | Deploy | couponSchemaGuard | READY_FOR_PRODUCTION |
 | Distribution | tables absent; /admin/distribution raw 500 | foundation applied | foundation intentionally not applied; API returns `available:false` + "Distribution is not enabled in this environment." | Raw 500 (P2) fixed in code | Deploy | c3.opsSurface (not provisioned) | READY_FOR_PRODUCTION |
-| Analytics / Events | offer_events only | product_events | M3 | — | M3 | — | READY_FOR_PRODUCTION |
+| Analytics / Events | offer_events + product_events (service_role only) | product_events | M3 | — | — | ACL probes prod | VERIFIED |
 | Notifications | — | — | daily/weekly digest crons | — | Phase 14 | — | NOT_STARTED |
 | Achievements | live (#36) | — | — | — | Phase 12 smoke | — | NOT_STARTED |
 | Profile | live | — | — | — | Phase 13 smoke | — | NOT_STARTED |
 | Admin | live | — | — | raw errors on not-enabled modules (P2) | Phase 12 | — | NOT_STARTED |
 | CEO Dashboard | integrity false positives; errored count queries silently PASS; price_logic compared a column to a string | new checks validated | PASS/WARN/FAIL/NOT_APPLICABLE with severity, reason, evidence, checkedAt, action; query errors are FAIL; stale-lock check added | image/freshness false alarms (P2), hidden UNKNOWN (P2) fixed | Deploy; first prod run will show lifecycle FAIL until step 3 | integrityClassification, integrityStatusModel | READY_FOR_PRODUCTION |
-| Money | frozen (fail-closed) | — | — | Previously identified P0s | Read-only audit; stays frozen | — | IN_PROGRESS |
+| Money | FROZEN; 22 rows all synthetic QA; 0 writes since 2026-08-31 | — | — | Prior P0s if enabled; env value UNKNOWN | Stays frozen | Phase 10 audit | FROZEN |
 | Rewards | frozen | — | — | farming, cancelReward race (P0 if enabled) | Read-only audit | — | NOT_STARTED |
 | Attribution | 11 clicks, 0 conversions | — | — | self/anonymous click (P0 if enabled) | Read-only audit | — | NOT_STARTED |
 | Affiliate | ledger 10 rows | — | — | — | Read-only audit | — | NOT_STARTED |
-| Security | 0 unsafe definers | — | — | — | Phase 9 | — | IN_PROGRESS |
-| Observability | integrity cron daily | — | — | Silent job failures possible | Phase 14 | — | NOT_STARTED |
-| Performance | — | — | — | — | Phase 15 measure | — | NOT_STARTED |
-| Cron / background jobs | 16 Vercel crons, 1 pg_cron inactive | — | — | Lifecycle absent until enable | Phase 14 | — | IN_PROGRESS |
+| Security | P0 view write hole closed; advisor residue LOW/P2 | — | `client_view_write_lockdown.sql` + integrity guard | Exploitation UNKNOWN (no row audit) | — | clientViewWriteLockdown + prod probes | VERIFIED |
+| Observability | integrity cron 02:30 UTC with PASS/WARN/FAIL/NA + severity; `/api/health` reports `feedViewOk`; lifecycle runs logged | — | — | No per-row update audit on offers (P2) | — | integrityStatusModel | VERIFIED |
+| Performance | home 0.3–0.7 s, category/store 0.5–0.9 s; offer page 1.5–3 s warm, 10 s cold | — | — | Slow offer page (P2) | Post-launch profiling | prod HTTP timing | IN_PROGRESS |
+| Cron / background jobs | 16 Vercel crons; pg_cron `offers-lifecycle-v2` active (only job) | — | — | — | Confirm hourly runs in `offer_lifecycle_runs` | prod catalog | VERIFIED |
 | Storage | — | 2 legacy buckets | — | — | Phase 9 policies | — | NOT_STARTED |
 | Deployments | Vercel from master | — | — | — | PR + checks | — | IN_PROGRESS |
 | Mobile UX | — | — | — | — | Phase 13 | — | NOT_STARTED |
 | Desktop UX | — | — | — | — | Phase 12/13 | — | NOT_STARTED |
-| Public SEO | — | — | sitemap.ts, robots | — | Phase 16 | — | NOT_STARTED |
+| Public SEO | robots disallows private areas; sitemap 159 URLs; offer pages canonical slug + OG; expired → noindex; archived/unknown → 404 | — | sitemap.ts, robots | Live offers `noindex` (health, HIGH, self-healing); duplicated title suffix "\| AVENTA \| AVENTA" (P3); home without canonical (P3) | Verify after health heals | prod HTTP smoke | IN_PROGRESS |
 | Error handling | raw 500s on not-enabled modules | — | — | (P2) | Phase 7/12 | — | NOT_STARTED |
-| Account deletion | purge cron fails: profiles.deletion_* and account_deletion_audit absent | hold delta applied; `account_deletion_blockers` detects economic, Team OS and legacy FK evidence; anon/authenticated denied | anonymize → blockers → hold (sign-in ban + `deletion_hold_reason`, evidence retained) or auth delete; fails closed; idempotent; audited per phase | Broken purge (P1); team RESTRICT FKs would block deletion; cascade would drop fiscal data | M3 in prod, then prod purge dry run (0 requests) | accountPurge (6 cases) + staging SQL probes | READY_FOR_PRODUCTION |
+| Account deletion | M3 applied: columns, audit table, `account_deletion_blockers` (service_role only); 0 pending requests; first cron run 06:30 UTC | hold delta applied; `account_deletion_blockers` detects economic, Team OS and legacy FK evidence; anon/authenticated denied | anonymize → blockers → hold (sign-in ban + `deletion_hold_reason`, evidence retained) or auth delete; fails closed; idempotent; audited per phase | Broken purge (P1); team RESTRICT FKs would block deletion; cascade would drop fiscal data | M3 in prod, then prod purge dry run (0 requests) | accountPurge (6 cases) + staging SQL probes | READY_FOR_PRODUCTION |
 | Data retention | policy v2 documented | — | OFFERS_LIFECYCLE_RETENTION_POLICY.md | — | — | — | READY_FOR_PRODUCTION |
-| Backup / recovery | Supabase managed backups (plan-dependent) | — | — | Unverified PITR (P2) | Verify plan/backups | — | NOT_STARTED |
+| Backup / recovery | Supabase organization on **free** plan: no automated backups, no PITR | — | — | No recovery path for evidence (P1) | Owner upgrades to Pro (billing decision) | get_organization | NO_GO |

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import TiendaOfferList from './TiendaOfferList';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
@@ -28,14 +29,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const stores = await getStores();
   const storeName = resolveStoreSlugToCanonicalName(slug, stores);
-  if (!storeName) return { title: 'Tienda | AVENTA' };
+  if (!storeName) return brandedTitle('Tienda');
   const canonicalSlug = slugifyStore(storeName);
 
   const title = `Ofertas en ${storeName} | AVENTA`;
   const description = `Ofertas y descuentos en ${storeName}. Publicadas por usuarios.`;
 
   return {
-    title,
+    ...brandedTitle(title),
     description,
     alternates: { canonical: `${BASE_URL}/tienda/${canonicalSlug}` },
     openGraph: { title, description, url: `${BASE_URL}/tienda/${canonicalSlug}`, siteName: 'AVENTA', type: 'website' },

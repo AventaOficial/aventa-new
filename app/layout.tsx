@@ -41,6 +41,9 @@ export const metadata: Metadata = {
   },
   description:
     "Comunidad de ofertas en México. Publica, vota y caza precios reales antes de comprar.",
+  alternates: {
+    canonical: "./",
+  },
   applicationName: "AVENTA",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "AVENTA" },

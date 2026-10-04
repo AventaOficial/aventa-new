@@ -71,10 +71,17 @@ describe('public freshness', () => {
     expect(view.ctaEnabled).toBe(true);
   });
 
-  it('disables CTA and indexing for unavailable and expired offers', () => {
-    const unavailable = presentOfferFreshness({
+  it('blocks outbound only when the store page is confirmed gone', () => {
+    const unconfirmed = presentOfferFreshness({
       expiresAt: null,
       healthStatus: 'out_of_stock',
+      lastCheckedAt: now.toISOString(),
+      now,
+    });
+    const confirmed = presentOfferFreshness({
+      expiresAt: null,
+      healthStatus: 'out_of_stock',
+      confirmedGone: true,
       lastCheckedAt: now.toISOString(),
       now,
     });
@@ -83,12 +90,16 @@ describe('public freshness', () => {
       healthStatus: 'available',
       now,
     });
-    expect(unavailable.state).toBe('unavailable');
-    expect(unavailable.ctaEnabled).toBe(false);
-    expect(unavailable.indexable).toBe(false);
+    expect(unconfirmed.state).toBe('unavailable');
+    expect(unconfirmed.ctaEnabled).toBe(true);
+    expect(unconfirmed.ctaLabel).toBe('Comprobar oferta');
+    expect(unconfirmed.indexable).toBe(true);
+    expect(confirmed.ctaEnabled).toBe(false);
+    expect(confirmed.indexable).toBe(false);
     expect(expired.state).toBe('expired');
     expect(expired.indexable).toBe(false);
-    expect(expired.ctaEnabled).toBe(false);
+    expect(expired.ctaEnabled).toBe(true);
+    expect(expired.ctaLabel).toBe('Comprobar oferta');
   });
 
   it('keeps price changes visible and clickable', () => {
@@ -102,5 +113,6 @@ describe('public freshness', () => {
     expect(view.ctaEnabled).toBe(true);
     expect(view.indexable).toBe(true);
     expect(view.label).toBe('El precio cambió');
+    expect(view.ctaLabel).toBe('Verificar precio');
   });
 });

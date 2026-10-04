@@ -1,8 +1,13 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowUpRight, BarChart3 } from 'lucide-react';
 import MeSectionPage from '@/app/me/dashboard/MeSectionPage';
+import OfferAdvancedMetricsModal from '@/app/components/OfferAdvancedMetricsModal';
+import { buildOfferPublicPath } from '@/lib/offerPath';
+import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
@@ -36,6 +41,13 @@ const STATUS_LABEL: Record<DealStatus, string> = {
   expired: 'Expirada',
 };
 
+const STATUS_CLASS: Record<DealStatus, string> = {
+  approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  rejected: 'bg-black/5 text-[#6e6e73] dark:bg-white/10 dark:text-[#a3a3a3]',
+  expired: 'bg-black/5 text-[#6e6e73] dark:bg-white/10 dark:text-[#a3a3a3]',
+};
+
 function money(value: number | null): string | null {
   if (value == null || !Number.isFinite(value)) return null;
   return formatPriceMXN(value);
@@ -57,6 +69,7 @@ function OfertasInner() {
   );
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
+  const [metricsOfferId, setMetricsOfferId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -134,7 +147,7 @@ function OfertasInner() {
 
   return (
     <MeSectionPage title="Ofertas" lede="Tu centro de trabajo. El estado de cada hallazgo, sin datos de afiliación.">
-      <div className="mb-4 flex gap-1 overflow-x-auto" role="tablist" aria-label="Filtrar ofertas por estado">
+      <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
         {FILTERS.map((item) => (
           <button
             key={item.value}
@@ -142,10 +155,10 @@ function OfertasInner() {
             role="tab"
             aria-selected={filter === item.value}
             onClick={() => setFilter(item.value)}
-            className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+            className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
               filter === item.value
                 ? 'bg-violet-600 text-white'
-                : 'bg-white text-gray-700 dark:bg-[#121214] dark:text-zinc-300'
+                : 'bg-white text-[#1d1d1f] shadow-sm hover:bg-violet-50 hover:text-violet-700 dark:bg-[#141414] dark:text-[#a3a3a3] dark:hover:bg-violet-950/40 dark:hover:text-violet-300'
             }`}
           >
             {item.label}
@@ -158,39 +171,93 @@ function OfertasInner() {
           <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-900" />
         </div>
       ) : null}
-      {error ? <p className="text-sm text-gray-600 dark:text-zinc-300">No se pudieron cargar tus ofertas.</p> : null}
-      {rows != null && visible.length === 0 ? (
-        <p className="text-sm text-gray-600 dark:text-zinc-300">
-          {rows.length === 0 ? 'Nada publicado. ¿Cazamos una oferta?' : 'No tienes ofertas en este estado.'}
-        </p>
+      {error ? (
+        <div className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
+          <p className="text-sm text-[#1d1d1f] dark:text-[#fafafa]">No se pudieron cargar tus ofertas.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 inline-flex items-center justify-center rounded-full border border-black/10 px-4 py-2 text-xs font-semibold text-[#1d1d1f] transition-colors duration-150 hover:bg-black/[0.03] active:bg-black/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15 dark:text-[#fafafa] dark:hover:bg-white/5"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : null}
+      {rows != null && visible.length === 0 && !error ? (
+        <div className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
+          <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
+            {rows.length === 0 ? 'Nada publicado. ¿Cazamos una oferta?' : 'No tienes ofertas en este estado.'}
+          </p>
+          {rows.length === 0 ? (
+            <Link
+              href="/subir"
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white transition-colors duration-150 hover:bg-violet-700 active:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#141414]"
+            >
+              Subir oferta
+            </Link>
+          ) : null}
+        </div>
       ) : null}
       <ul className="space-y-3">
         {visible.map((row) => {
           const price = money(row.price);
           const discount = offerDiscountPercent(row.price, row.originalPrice);
           const date = when(row.createdAt);
+          const publicPage = row.dealStatus === 'approved' || row.dealStatus === 'expired';
           return (
-            <li key={row.id} className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-[#121214]">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  {row.store ? <p className="text-xs text-gray-500 dark:text-zinc-400">{row.store}</p> : null}
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{row.title}</p>
-                </div>
-                <span className="shrink-0 text-xs font-medium text-gray-700 dark:text-zinc-200">{STATUS_LABEL[row.dealStatus]}</span>
-              </div>
-              <p className="mt-2 text-xs text-gray-600 dark:text-zinc-300">
-                {price ? <span>Precio {price}</span> : <span>Precio no indicado</span>}
-                {discount != null ? <span> · Descuento {discount}%</span> : null}
-                {date ? <span> · {date}</span> : null}
-              </p>
-              {row.views != null ? (
-                <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">Vistas, solo para ti: {row.views}</p>
+            <li
+              key={row.id}
+              className="flex items-stretch overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]"
+            >
+              <button
+                type="button"
+                onClick={() => setMetricsOfferId(row.id)}
+                aria-haspopup="dialog"
+                aria-label={`Ver métricas de ${row.title}`}
+                className="group min-w-0 flex-1 px-4 py-3 text-left transition-colors duration-150 hover:bg-black/[0.02] active:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:hover:bg-white/[0.03] dark:active:bg-white/[0.06]"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    {row.store ? <span className="block truncate text-xs text-[#6e6e73] dark:text-[#a3a3a3]">{row.store}</span> : null}
+                    <span className="block text-sm font-medium leading-snug text-[#1d1d1f] line-clamp-2 dark:text-[#fafafa]">{row.title}</span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASS[row.dealStatus]}`}>
+                    {STATUS_LABEL[row.dealStatus]}
+                  </span>
+                </span>
+                <span className="mt-2 block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
+                  {price ? <span>Precio {price}</span> : <span>Precio no indicado</span>}
+                  {discount != null ? <span> · Descuento {discount}%</span> : null}
+                  {date ? <span> · {date}</span> : null}
+                </span>
+                {row.views != null ? (
+                  <span className="mt-1 block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">Vistas, solo para ti: {row.views}</span>
+                ) : null}
+                {row.rejectionReason ? (
+                  <span className="mt-1 block text-xs text-[#1d1d1f] dark:text-[#fafafa]">{row.rejectionReason}</span>
+                ) : null}
+                <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 transition-colors duration-150 group-hover:text-violet-700 dark:text-violet-400 dark:group-hover:text-violet-300">
+                  <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+                  Ver métricas
+                </span>
+              </button>
+              {publicPage ? (
+                <Link
+                  href={buildOfferPublicPath(row.id, row.title)}
+                  aria-label={`Ver publicación de ${row.title}`}
+                  title="Ver publicación"
+                  className="flex w-12 shrink-0 items-center justify-center border-l border-black/5 text-[#6e6e73] transition-colors duration-150 hover:bg-black/[0.03] hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:border-white/10 dark:text-[#a3a3a3] dark:hover:bg-white/[0.05] dark:hover:text-[#fafafa]"
+                >
+                  <ArrowUpRight className="h-4 w-4" aria-hidden />
+                </Link>
               ) : null}
-              {row.rejectionReason ? <p className="mt-1 text-xs text-gray-600 dark:text-zinc-300">{row.rejectionReason}</p> : null}
             </li>
           );
         })}
       </ul>
+      {metricsOfferId ? (
+        <OfferAdvancedMetricsModal offerId={metricsOfferId} onClose={() => setMetricsOfferId(null)} />
+      ) : null}
     </MeSectionPage>
   );
 }
@@ -199,7 +266,7 @@ export default function OfertasPage() {
   return (
     <Suspense
       fallback={
-        <div className="px-4 pt-24" aria-hidden>
+        <div className={`px-4 ${PUBLIC_NAVBAR_OFFSET_CLASS}`} aria-hidden>
           <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-900" />
         </div>
       }

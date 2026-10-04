@@ -177,7 +177,8 @@ function HomeContent() {
   // Abrir modal de subir oferta cuando se llega desde extensión o /subir (?upload=1&title=...&image=...&offer_url=...&store=...)
   useEffect(() => {
     if (pathname === '/' && searchParams.get('upload') === '1') {
-      openUploadModal();
+      const hasOfferContext = ['title', 'image', 'offer_url', 'store'].some((key) => searchParams.get(key));
+      openUploadModal(hasOfferContext ? { kind: 'offer' } : undefined);
     }
   }, [pathname, searchParams, openUploadModal]);
 
