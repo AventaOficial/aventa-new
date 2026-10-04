@@ -115,9 +115,9 @@ ALTER TABLE public.team_memberships FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.team_audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_audit_log FORCE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public.teams FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.team_memberships FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.team_audit_log FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.teams FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.team_memberships FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.team_audit_log FROM PUBLIC, anon, authenticated, service_role;
 
 GRANT SELECT ON TABLE public.teams TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.team_memberships TO service_role;

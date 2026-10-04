@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.team_xp_daily_totals (
 
 ALTER TABLE public.team_xp_daily_totals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_xp_daily_totals FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.team_xp_daily_totals FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_xp_daily_totals FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.team_xp_daily_totals TO service_role;
 
 -- Backfill idempotente: si team_xp_rules.sql ya concedió XP, el ranking parte de ese ledger.
@@ -259,7 +259,7 @@ CREATE TABLE IF NOT EXISTS public.team_xp_progress_receipts (
 
 ALTER TABLE public.team_xp_progress_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_xp_progress_receipts FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.team_xp_progress_receipts FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_xp_progress_receipts FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.team_xp_progress_receipts TO service_role;
 
 DROP TRIGGER IF EXISTS team_xp_progress_receipts_no_mutation ON public.team_xp_progress_receipts;
@@ -330,8 +330,8 @@ ALTER TABLE public.team_activity_days ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_activity_days FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.team_streaks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_streaks FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.team_activity_days FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.team_streaks FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_activity_days FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.team_streaks FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.team_activity_days TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.team_streaks TO service_role;
 
@@ -473,9 +473,9 @@ ALTER TABLE public.team_mission_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_mission_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.team_mission_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_mission_completions FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.team_mission_progress FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.team_mission_events FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.team_mission_completions FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_mission_progress FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.team_mission_events FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.team_mission_completions FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.team_mission_progress TO service_role;
 GRANT SELECT, INSERT ON TABLE public.team_mission_events TO service_role;
 GRANT SELECT, INSERT ON TABLE public.team_mission_completions TO service_role;
@@ -624,7 +624,7 @@ CREATE TABLE IF NOT EXISTS public.team_achievement_awards (
 
 ALTER TABLE public.team_achievement_awards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_achievement_awards FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.team_achievement_awards FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_achievement_awards FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.team_achievement_awards TO service_role;
 
 DROP TRIGGER IF EXISTS team_achievement_awards_no_mutation ON public.team_achievement_awards;

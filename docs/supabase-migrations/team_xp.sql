@@ -46,8 +46,8 @@ ALTER TABLE public.team_xp_balances FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.team_xp_grants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_xp_grants FORCE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public.team_xp_balances FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.team_xp_grants FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_xp_balances FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.team_xp_grants FROM PUBLIC, anon, authenticated, service_role;
 
 GRANT SELECT, INSERT, UPDATE ON TABLE public.team_xp_balances TO service_role;
 GRANT SELECT, INSERT ON TABLE public.team_xp_grants TO service_role;

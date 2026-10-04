@@ -65,7 +65,7 @@ CREATE INDEX IF NOT EXISTS team_xp_rule_outcomes_user_idx
 
 ALTER TABLE public.team_xp_rule_outcomes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_xp_rule_outcomes FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.team_xp_rule_outcomes FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.team_xp_rule_outcomes FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.team_xp_rule_outcomes TO service_role;
 
 DROP TRIGGER IF EXISTS team_xp_rule_outcomes_no_mutation ON public.team_xp_rule_outcomes;
