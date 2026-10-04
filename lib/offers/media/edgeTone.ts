@@ -64,6 +64,24 @@ export function classifyEdgePixels(data: ArrayLike<number>, width: number, heigh
   return close / total >= UNIFORM_RATIO ? { kind: 'plate', rgb: ref } : { kind: 'scene' };
 }
 
+/**
+ * Cómo se enmarca la foto.
+ * - `plate`: fondo uniforme medido; el marco toma ese color.
+ * - `neutral`: aún sin medir, PNG transparente o imagen que el navegador no deja leer (otra
+ *   tienda sin CORS). La gran mayoría son fotos de estudio claras: una placa clara las integra
+ *   y evita el recuadro blanco «flotando» sobre un pozo oscuro.
+ * - `scene`: foto con contexto medida; se rellena con su copia difuminada.
+ * - `cover`: superficies que muestran escenas y aceptan recorte.
+ */
+export type OfferFrameMode = 'plate' | 'neutral' | 'scene' | 'cover';
+
+export function offerFrameMode(edge: EdgeTone | null, fit: 'contain' | 'cover'): OfferFrameMode {
+  if (fit === 'cover') return 'cover';
+  if (edge?.kind === 'scene') return 'scene';
+  if (edge?.kind === 'plate') return 'plate';
+  return 'neutral';
+}
+
 /** Lee el borde de una imagen ya cargada. Devuelve null si el navegador no permite leerla (CORS). */
 export function readEdgeTone(img: HTMLImageElement): EdgeTone | null {
   if (!img.naturalWidth || !img.naturalHeight) return null;

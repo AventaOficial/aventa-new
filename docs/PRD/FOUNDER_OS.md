@@ -14,23 +14,24 @@ Rama: `product/founder-os` (desde `master` `0d97401`). Solo producto/UX: no toca
 
 ## 2. Arquitectura por capacidad
 
+Tres audiencias. Cada sección responde una pregunta.
+
 | Sección | Pregunta | Uso diario (visible) | Más herramientas (plegado) |
 |---|---|---|---|
-| Control Center | ¿Qué debo decidir hoy? | Control Center | — |
-| Producto | ¿Qué está viendo la gente hoy? | Moderación, Supply · Hunter, Usuarios | Cazadores de confianza, Cupones |
-| Crecimiento | ¿Estamos creciendo? | Crecimiento, Métricas en vivo | Distribución, Avisos del sitio |
-| Negocio | ¿Cuánto genera Aventa y cuánto debe? | Afiliación y comisiones, Recompensas | Contabilidad, Tags de creadores |
-| Salud | ¿Algo está fallando? | Salud del sistema, Centro de operaciones | Actividad, Infraestructura, Bot y trabajo |
-| Sistema | ¿Cómo está armado y quién puede hacer qué? | Mapa de sistemas, Roles y permisos, Equipos de trabajo | Team Hub, Configuración y contexto, Datos técnicos, Peso de voto, Mantenimiento |
+| CEO | ¿Qué debo decidir hoy? | Control Center, Moderation, Supply, Money, Users, Health | Cazadores de confianza, Cupones, Contabilidad |
+| Operations | ¿Cómo está funcionando Aventa hoy? | Live Metrics, Growth, Rewards Ops, Operaciones, Bot y trabajo, Activity | Distribución, Avisos del sitio, Tags de creadores |
+| Technical | ¿Cómo está armado y quién puede hacer qué? | Infrastructure, Systems Map, Configuration, Technical, Roles y permisos | Equipos de trabajo, Team Hub, Peso de voto, Mantenimiento |
 
-Fuente única: `lib/owner/navigation.ts` (sidebar + buscador). Nada se eliminó; el Mapa de sistemas se conserva.
+Fuente única: `lib/owner/navigation.ts` (sidebar + buscador). Nada se eliminó; el Mapa de sistemas se conserva. «Team» ya no aparece suelto: `/admin/team` es «Roles y permisos» y `/equipo` es «Team Hub».
+
+**Baneos**: `/admin/moderation/bans` es ahora una pestaña del hub de Moderación (`lib/moderation/hubConfig.ts`); misma página y mismos guards, sin ruta nueva.
 
 ## 3. Clasificación de superficies
 
 - **A · Core Founder**: `/admin/owner` (Control Center).
-- **B · Operación diaria**: moderación (+ pestañas), hunter, usuarios, crecimiento, métricas, comisiones, recompensas, salud, centro de operaciones, roles, equipos de trabajo, mapa de sistemas.
-- **C · Especializada** (plegada): cazadores de confianza, cupones, distribución, avisos, contabilidad, tags de creadores, actividad, bot y trabajo, Team Hub.
-- **D · Técnica** (plegada): infraestructura, datos técnicos, configuración y contexto, peso de voto, mantenimiento.
+- **B · Operación diaria**: moderación (+ pestañas, incluida Baneos), supply, usuarios, money, salud, métricas, growth, rewards ops, operaciones, bot y trabajo, activity.
+- **C · Especializada** (plegada): cazadores de confianza, cupones, distribución, avisos, contabilidad, tags de creadores, equipos de trabajo, Team Hub.
+- **D · Técnica**: infraestructura, systems map, configuration, technical, roles y permisos (visibles); peso de voto y mantenimiento (plegadas).
 - **E · Legacy / ocultable** (sin enlaces, no borradas): `/admin/owner/vista/*` (referencia visual), `/admin/dashboard` y `/admin/analista` (redirigen), `/admin/equipo` y `/admin/reports` (redirects). Componentes de owner sin uso listados arriba.
 
 ## 4. Control Center (una sola puerta)
@@ -46,7 +47,7 @@ Se queda todo el mosaico. Ninguna tarjeta duplica a otra; lo único duplicado er
 
 ## 5. Lenguaje humano por módulo
 
-`lib/founderOs/modules.ts` define para cada módulo principal: nombre, «Qué es» (≥10 líneas), por qué existe, qué protege, qué mide, cómo interpretarlo y responsable. **Estado, qué requiere atención y última actualización no se escriben a mano**: `lib/founderOs/moduleStatus.ts` los deriva de las mismas señales del Control Center. Se muestra en una tarjeta plegada «¿Qué es esto?» arriba de cada módulo (`ModuleBrief`), que solo consulta datos al abrirse. Rutas y fuentes quedan detrás de «Ver detalles técnicos». Tests impiden nombres técnicos en el texto humano.
+`lib/founderOs/modules.ts` define para cada uno de los 17 módulos visibles (el nombre coincide con la etiqueta del menú): «Qué es», por qué existe, qué protege (riesgo), qué mide (métrica), cómo interpretarlo, **qué decisión permite**, **qué NO controla**, **cuándo entrar** y responsable. **Estado, qué requiere atención y última actualización no se escriben a mano**: `lib/founderOs/moduleStatus.ts` los deriva de las mismas señales del Control Center. Se muestra en una tarjeta plegada «¿Qué es esto?» arriba de cada módulo (`ModuleBrief`), que solo consulta datos al abrirse. Rutas y fuentes quedan detrás de «Ver detalles técnicos». Tests impiden nombres técnicos en el texto humano.
 
 Pendiente: fichas para las herramientas plegadas (C/D).
 
@@ -65,7 +66,7 @@ Dos modelos, ambos intencionales: `user_roles` (acceso al panel, `/admin/team` =
 
 ## 8. Media, patrocinios y comunidad
 
-- **OfferMedia**: fondo derivado del borde real de la imagen (placa de color, transparente o escena con desenfoque), `contain` por defecto, fallback accesible, hosts fuera de la allowlist vía `<img>` (la CSP permite https). Aplicado también en favoritos, perfil público y vista previa del cazador.
+- **OfferMedia**: marco decidido por `offerFrameMode`. Si el borde es uniforme, la placa toma su color. Si la foto aún no se mide, es transparente o no se puede leer (otra tienda sin CORS), va sobre una placa neutra clara. Solo una escena medida usa el desenfoque. Esto elimina el recuadro blanco «flotando» en dark mode y el parpadeo previo a la medición. `contain` por defecto, fallback accesible, hosts fuera de la allowlist vía `<img>` (la CSP permite https). Aplicado también en favoritos, perfil público y vista previa del cazador.
 - **SponsoredPlacement**: catálogo de campañas + política de inserción (sin `index % 4` ni `index === 1`), rotación, ventanas de fechas, tope por feed, eventos locales de impresión/clic (sin red ni tablas). Paridad con producción: mismo creativo en la misma posición.
 - **Rail de comunidad**: Pedidos de caza, conversaciones de la Plaza y cazadores del feed, con datos reales y vacíos honestos.
 

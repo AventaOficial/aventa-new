@@ -7,6 +7,7 @@ import { summarizeDecision } from '@/app/admin/owner/command/decision';
 import { MOBILE_ORDER } from '@/app/admin/owner/command/ceo/mosaic';
 import { FOUNDER_MODULES, findFounderModule } from '@/lib/founderOs/modules';
 import { moduleStatus } from '@/lib/founderOs/moduleStatus';
+import { ADMIN_MODERATION_TABS, resolveModerationTabId } from '@/lib/moderation/hubConfig';
 import type { CeoPriority, HealthCategory } from '@/app/admin/owner/command/types';
 
 const root = process.cwd();
@@ -34,16 +35,25 @@ function priority(over: Partial<CeoPriority> & Pick<CeoPriority, 'id' | 'severit
 describe('Founder OS · navegación por capacidad', () => {
   const allItems = OWNER_NAV_SECTIONS.flatMap((s) => [...s.items, ...(s.more ?? [])]);
 
-  it('tiene una sola entrada y las seis capacidades en orden', () => {
-    expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['control', 'producto', 'crecimiento', 'negocio', 'salud', 'sistema']);
-    expect(OWNER_NAV_SECTIONS[0]!.items.map((i) => i.href)).toEqual(['/admin/owner']);
+  it('CEO / Operations / Technical, con el Control Center como primera entrada', () => {
+    expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['ceo', 'operations', 'technical']);
+    expect(OWNER_NAV_SECTIONS.map((s) => s.items.map((i) => i.label))).toEqual([
+      ['Control Center', 'Moderation', 'Supply', 'Money', 'Users', 'Health'],
+      ['Live Metrics', 'Growth', 'Rewards Ops', 'Operaciones', 'Bot y trabajo', 'Activity'],
+      ['Infrastructure', 'Systems Map', 'Configuration', 'Technical', 'Roles y permisos'],
+    ]);
+    expect(OWNER_NAV_SECTIONS[0]!.items[0]!.href).toBe('/admin/owner');
   });
 
-  it('cada sección responde una pregunta humana y su uso diario es corto', () => {
-    for (const s of OWNER_NAV_SECTIONS) {
-      expect(s.question).toMatch(/^¿.+\?$/);
-      expect(s.items.length).toBeLessThanOrEqual(3);
-    }
+  it('cada sección responde una pregunta humana', () => {
+    for (const s of OWNER_NAV_SECTIONS) expect(s.question).toMatch(/^¿.+\?$/);
+  });
+
+  it('los roles globales se llaman «Roles y permisos», nunca solo «Team»', () => {
+    const team = allItems.find((i) => i.href === '/admin/team');
+    expect(team?.label).toBe('Roles y permisos');
+    expect(allItems.some((i) => i.label === 'Team')).toBe(false);
+    expect(allItems.find((i) => i.href === '/equipo')?.label).toBe('Team Hub');
   });
 
   it('cada destino existe como página y no se repite', () => {
@@ -68,6 +78,16 @@ describe('Founder OS · navegación por capacidad', () => {
 
   it('el buscador cubre exactamente lo navegable', () => {
     expect(OWNER_COMMAND_ITEMS.map((i) => i.href).sort()).toEqual(allItems.map((i) => i.href).sort());
+  });
+
+  it('Baneos es una pestaña de Moderation (misma página, mismo shell)', () => {
+    const bans = ADMIN_MODERATION_TABS.find((t) => t.id === 'bans');
+    expect(bans).toMatchObject({ href: '/admin/moderation/bans', label: 'Baneos' });
+    expect(pageExists(bans!.href)).toBe(true);
+    expect(resolveModerationTabId('/admin/moderation/bans', 'admin')).toBe('bans');
+    expect(resolveModerationTabId('/admin/moderation/reports', 'admin')).toBe('reports');
+    expect(read('app/admin/moderation/ModerationHubShell.tsx')).not.toMatch(/moderation\/bans/);
+    expect(new Set(ADMIN_MODERATION_TABS.map((t) => t.href)).size).toBe(ADMIN_MODERATION_TABS.length);
   });
 
   it('Supply · Hunter ya no se titula como el Control Center', () => {
@@ -121,16 +141,21 @@ describe('Founder OS · Control Center', () => {
 });
 
 describe('Founder OS · explicación humana de módulos', () => {
-  it('cada módulo principal del menú tiene ficha', () => {
-    const primary = OWNER_NAV_SECTIONS.filter((s) => s.id !== 'control').flatMap((s) => s.items.map((i) => i.href));
-    for (const href of primary) expect(findFounderModule(href)?.href, href).toBe(href);
+  it('cada módulo principal del menú tiene ficha con su mismo nombre', () => {
+    const primary = OWNER_NAV_SECTIONS.flatMap((s) => s.items).filter((i) => i.href !== '/admin/owner');
+    for (const item of primary) {
+      const m = findFounderModule(item.href);
+      expect(m?.href, item.href).toBe(item.href);
+      expect(m?.name, item.href).toBe(item.label);
+    }
   });
 
   it('cada ficha cumple el formato y no expone nombres técnicos fuera de detalles', () => {
     for (const m of FOUNDER_MODULES) {
       expect(pageExists(m.href), m.href).toBe(true);
       expect(m.whatIs.length, m.name).toBeGreaterThanOrEqual(10);
-      const human = [m.name, ...m.whatIs, m.whyExists, m.protects, m.measures, m.howToRead, m.owner].join(' ');
+      for (const f of [m.decides, m.doesNotControl, m.whenToEnter]) expect(f.trim().length, m.name).toBeGreaterThan(10);
+      const human = [m.name, ...m.whatIs, m.whyExists, m.protects, m.measures, m.howToRead, m.decides, m.doesNotControl, m.whenToEnter, m.owner].join(' ');
       expect(human, m.name).not.toMatch(/\b[a-z]+_[a-z_]+\b|\/api\/|\bsupabase\b|\(\)/i);
       expect(m.technical.length).toBeGreaterThan(0);
     }
@@ -138,7 +163,8 @@ describe('Founder OS · explicación humana de módulos', () => {
 
   it('solo moderación hereda subpáginas', () => {
     expect(findFounderModule('/admin/moderation/reports')?.href).toBe('/admin/moderation');
-    expect(findFounderModule('/admin/operaciones/trabajo')).toBeNull();
+    expect(findFounderModule('/admin/operaciones/trabajo')?.name).toBe('Bot y trabajo');
+    expect(findFounderModule('/admin/operaciones/otra')).toBeNull();
     expect(findFounderModule('/admin/owner')).toBeNull();
   });
 

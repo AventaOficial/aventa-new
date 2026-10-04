@@ -7,6 +7,7 @@ import {
   MessageCircle,
   PackageX,
   Share2,
+  ShieldOff,
   TrendingDown,
   Users,
   Bot,
@@ -30,6 +31,7 @@ export const ADMIN_MODERATION_TABS: ModerationTabDef[] = [
   { id: 'rejected', href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
   { id: 'comments', href: '/admin/moderation/comments', label: 'Comentarios', icon: MessageCircle },
   { id: 'reports', href: '/admin/moderation/reports', label: 'Reportes', icon: Flag },
+  { id: 'bans', href: '/admin/moderation/bans', label: 'Baneos', icon: ShieldOff },
   { id: 'social', href: '/admin/moderation/social', label: 'Redes', icon: Share2 },
 ];
 
@@ -54,6 +56,7 @@ export function resolveModerationTabId(pathname: string, mode: ModerationHubMode
   if (mode === 'admin') {
     if (pathname === '/admin/reports' || pathname.startsWith('/admin/moderation/reports')) return 'reports';
     if (pathname.startsWith('/admin/moderation/social')) return 'social';
+    if (pathname.startsWith('/admin/moderation/bans')) return 'bans';
     if (pathname.startsWith('/admin/moderation/approved')) return 'approved';
     if (pathname.startsWith('/admin/moderation/rejected')) return 'rejected';
     if (pathname.startsWith('/admin/moderation/comments')) return 'comments';

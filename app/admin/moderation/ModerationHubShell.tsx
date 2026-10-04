@@ -31,10 +31,6 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
   const pathname = usePathname();
   const isWorkspace = mode === 'workspace';
 
-  if (!isWorkspace && pathname.startsWith('/admin/moderation/bans')) {
-    return <>{children}</>;
-  }
-
   const tabs = getModerationTabs(mode);
   const activeTab = resolveModerationTabId(pathname, mode);
   const focusPending = isFocusPendingPath(pathname, mode);

@@ -105,6 +105,9 @@ export default function ModuleBrief({ module }: { module: FounderModule }) {
               <Field label="Qué protege">{module.protects}</Field>
               <Field label="Qué mide">{module.measures}</Field>
               <Field label="Cómo interpretarlo">{module.howToRead}</Field>
+              <Field label="Qué decisión permite">{module.decides}</Field>
+              <Field label="Qué NO controla">{module.doesNotControl}</Field>
+              <Field label="Cuándo entrar">{module.whenToEnter}</Field>
             </dl>
           </div>
 

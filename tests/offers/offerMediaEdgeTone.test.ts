@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classifyEdgePixels } from '@/lib/offers/media/edgeTone';
+import { classifyEdgePixels, offerFrameMode } from '@/lib/offers/media/edgeTone';
 
 const SIZE = 16;
 
@@ -58,6 +58,29 @@ describe('classifyEdgePixels', () => {
   });
 });
 
+describe('offerFrameMode', () => {
+  it('sin medir o ilegible (CORS) → placa neutra clara, nunca el difuminado', () => {
+    expect(offerFrameMode(null, 'contain')).toBe('neutral');
+  });
+
+  it('PNG transparente → placa neutra', () => {
+    expect(offerFrameMode({ kind: 'transparent' }, 'contain')).toBe('neutral');
+  });
+
+  it('fondo uniforme medido → placa de su color', () => {
+    expect(offerFrameMode({ kind: 'plate', rgb: [255, 255, 255] }, 'contain')).toBe('plate');
+  });
+
+  it('solo una escena medida usa el difuminado', () => {
+    expect(offerFrameMode({ kind: 'scene' }, 'contain')).toBe('scene');
+  });
+
+  it('cover gana siempre', () => {
+    expect(offerFrameMode({ kind: 'scene' }, 'cover')).toBe('cover');
+    expect(offerFrameMode(null, 'cover')).toBe('cover');
+  });
+});
+
 describe('OfferMedia', () => {
   const media = readFileSync(join(process.cwd(), 'app/components/offers/OfferMedia.tsx'), 'utf8');
 
@@ -66,8 +89,10 @@ describe('OfferMedia', () => {
     expect(media).toContain('object-contain object-center');
   });
 
-  it('usa el borde medido para el fondo y cae al difuminado si no se puede leer', () => {
+  it('usa el borde medido para el fondo; el difuminado solo para escenas medidas', () => {
     expect(media).toContain('readEdgeTone(event.currentTarget)');
+    expect(media).toContain('offerFrameMode(edge, fit)');
+    expect(media).toContain("mode === 'scene' ? renderImage('backdrop') : null");
     expect(media).toMatch(/blur-xl/);
   });
 

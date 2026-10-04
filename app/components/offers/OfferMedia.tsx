@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useState, type SyntheticEvent } from 'react';
 import { Sparkles } from 'lucide-react';
 import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
-import { readEdgeTone, type EdgeTone } from '@/lib/offers/media/edgeTone';
+import { offerFrameMode, readEdgeTone, type EdgeTone } from '@/lib/offers/media/edgeTone';
 
 type OfferMediaProps = {
   src?: string | null;
@@ -41,8 +41,8 @@ function resolveSource(src: string | null | undefined): Source {
  * One frame for offer photos, reused by every product surface.
  * - Studio shots (uniform edge) sit on a plate of their own edge colour, so the photo
  *   blends into the card instead of floating as a white box inside a dark well.
- * - Transparent PNGs sit on a light plate so dark products keep contrast in dark mode.
- * - Scene photos keep their ratio over a blurred copy of themselves.
+ * - Unmeasured, transparent or cross-origin photos sit on a light neutral plate.
+ * - Only photos measured as scenes get a blurred copy of themselves behind them.
  */
 export default function OfferMedia({
   src,
@@ -71,11 +71,14 @@ export default function OfferMedia({
   };
   const onError = () => setFailedSrc(source?.url ?? null);
 
-  const plated = show && fit === 'contain' && edge != null && edge.kind !== 'scene';
+  const mode = offerFrameMode(edge, fit);
+  const plated = show && (mode === 'plate' || mode === 'neutral');
   const plateStyle =
-    plated && edge?.kind === 'plate' ? { backgroundColor: `rgb(${edge.rgb[0]} ${edge.rgb[1]} ${edge.rgb[2]})` } : undefined;
+    show && mode === 'plate' && edge?.kind === 'plate'
+      ? { backgroundColor: `rgb(${edge.rgb[0]} ${edge.rgb[1]} ${edge.rgb[2]})` }
+      : undefined;
   const mainClass =
-    fit === 'cover' ? 'object-cover object-center' : `object-contain object-center ${compact ? 'p-0.5' : plated ? 'p-[6%]' : 'p-1.5'}`;
+    mode === 'cover' ? 'object-cover object-center' : `object-contain object-center ${compact ? 'p-0.5' : plated ? 'p-[6%]' : 'p-1.5'}`;
   const backdropClass = 'scale-110 object-cover opacity-40 blur-xl dark:opacity-35';
 
   const renderImage = (variant: 'backdrop' | 'main') => {
@@ -115,15 +118,15 @@ export default function OfferMedia({
 
   return (
     <div
-      data-offer-media={show ? (plated ? edge?.kind : fit === 'cover' ? 'cover' : 'scene') : 'fallback'}
-      className={`relative overflow-hidden ring-1 ring-black/[0.06] dark:ring-white/10 ${
-        plated ? 'bg-[#f6f6f8] dark:brightness-[0.94]' : 'bg-[#f3f3f6] dark:bg-[#16161c]'
+      data-offer-media={show ? mode : 'fallback'}
+      className={`relative overflow-hidden ring-1 ring-black/[0.06] ${
+        plated ? 'bg-[#f6f6f8] dark:ring-white/[0.06] dark:brightness-[0.94]' : 'bg-[#f3f3f6] dark:bg-[#16161c] dark:ring-white/10'
       } ${ratioClass} ${className}`}
       style={plateStyle}
     >
       {show ? (
         <>
-          {!plated && fit === 'contain' ? renderImage('backdrop') : null}
+          {mode === 'scene' ? renderImage('backdrop') : null}
           {renderImage('main')}
         </>
       ) : (

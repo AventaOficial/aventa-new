@@ -38,7 +38,7 @@ export type OwnerNavItem = {
 export type OwnerNavSection = {
   id: string;
   title: string;
-  /** La pregunta de negocio que responde la sección. */
+  /** La pregunta que responde la sección. */
   question: string;
   /** CEO | OPERATIONS | TECHNICAL */
   audience: 'CEO' | 'OPERATIONS' | 'TECHNICAL';
@@ -49,89 +49,63 @@ export type OwnerNavSection = {
 };
 
 /**
- * Founder OS: una sola entrada (Control Center) y el resto agrupado por capacidad.
- * Nada se elimina: lo especializado o técnico queda como drill-down plegado.
+ * Founder OS: CEO decide, Operations ejecuta, Technical sostiene.
+ * Nada se elimina: lo especializado queda plegado y sigue en el buscador.
  */
 export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
   {
-    id: 'control',
-    title: 'Control Center',
+    id: 'ceo',
+    title: 'CEO',
     question: '¿Qué debo decidir hoy?',
     audience: 'CEO',
-    items: [{ href: '/admin/owner', label: 'Control Center', icon: LayoutDashboard, exact: true }],
-  },
-  {
-    id: 'producto',
-    title: 'Producto',
-    question: '¿Qué está viendo la gente hoy?',
-    audience: 'OPERATIONS',
     items: [
-      { href: '/admin/moderation', label: 'Moderación', icon: Shield },
-      { href: '/admin/hunter', label: 'Supply · Hunter', icon: BowArrow },
-      { href: '/admin/users', label: 'Usuarios', icon: Users },
+      { href: '/admin/owner', label: 'Control Center', icon: LayoutDashboard, exact: true },
+      { href: '/admin/moderation', label: 'Moderation', icon: Shield },
+      { href: '/admin/hunter', label: 'Supply', icon: BowArrow },
+      { href: '/admin/commissions', label: 'Money', icon: CircleDollarSign },
+      { href: '/admin/users', label: 'Users', icon: Users },
+      { href: '/admin/health', label: 'Health', icon: Heart },
     ],
     more: [
       { href: '/admin/owner/cazadores', label: 'Cazadores de confianza', icon: BadgeCheck },
       { href: '/admin/coupons', label: 'Cupones', icon: Ticket },
+      { href: '/equipo/contabilidad', label: 'Contabilidad', icon: Calculator },
     ],
   },
   {
-    id: 'crecimiento',
-    title: 'Crecimiento',
-    question: '¿Estamos creciendo?',
+    id: 'operations',
+    title: 'Operations',
+    question: '¿Cómo está funcionando Aventa hoy?',
     audience: 'OPERATIONS',
     items: [
-      { href: '/admin/owner/crecimiento', label: 'Crecimiento', icon: Rocket },
-      { href: '/admin/metrics', label: 'Métricas en vivo', icon: BarChart3 },
+      { href: '/admin/metrics', label: 'Live Metrics', icon: BarChart3 },
+      { href: '/admin/owner/crecimiento', label: 'Growth', icon: Rocket },
+      { href: '/admin/rewards', label: 'Rewards Ops', icon: Gift },
+      { href: '/admin/operaciones', label: 'Operaciones', icon: AlertTriangle, exact: true },
+      { href: '/admin/operaciones/trabajo', label: 'Bot y trabajo', icon: Zap },
+      { href: '/admin/logs', label: 'Activity', icon: Activity },
     ],
     more: [
       { href: '/admin/distribution', label: 'Distribución', icon: Share2 },
       { href: '/admin/announcements', label: 'Avisos del sitio', icon: Megaphone },
-    ],
-  },
-  {
-    id: 'negocio',
-    title: 'Negocio',
-    question: '¿Cuánto genera Aventa y cuánto debe?',
-    audience: 'CEO',
-    items: [
-      { href: '/admin/commissions', label: 'Afiliación y comisiones', icon: CircleDollarSign },
-      { href: '/admin/rewards', label: 'Recompensas', icon: Gift },
-    ],
-    more: [
-      { href: '/equipo/contabilidad', label: 'Contabilidad', icon: Calculator },
       { href: '/admin/creator-tags', label: 'Tags de creadores', icon: Tags },
     ],
   },
   {
-    id: 'salud',
-    title: 'Salud',
-    question: '¿Algo está fallando?',
-    audience: 'TECHNICAL',
-    items: [
-      { href: '/admin/health', label: 'Salud del sistema', icon: Heart },
-      { href: '/admin/operaciones', label: 'Centro de operaciones', icon: AlertTriangle, exact: true },
-    ],
-    more: [
-      { href: '/admin/logs', label: 'Actividad', icon: Activity },
-      { href: '/admin/infraestructura', label: 'Infraestructura', icon: Server },
-      { href: '/admin/operaciones/trabajo', label: 'Bot y trabajo', icon: Zap },
-    ],
-  },
-  {
-    id: 'sistema',
-    title: 'Sistema',
+    id: 'technical',
+    title: 'Technical',
     question: '¿Cómo está armado y quién puede hacer qué?',
     audience: 'TECHNICAL',
     items: [
-      { href: '/admin/sistemas/mapa', label: 'Mapa de sistemas', icon: Map },
+      { href: '/admin/infraestructura', label: 'Infrastructure', icon: Server },
+      { href: '/admin/sistemas/mapa', label: 'Systems Map', icon: Map },
+      { href: '/admin/contexto', label: 'Configuration', icon: Cog },
+      { href: '/admin/technical', label: 'Technical', icon: Network },
       { href: '/admin/team', label: 'Roles y permisos', icon: UserCog },
-      { href: '/admin/owner/team-management', label: 'Equipos de trabajo', icon: UsersRound },
     ],
     more: [
+      { href: '/admin/owner/team-management', label: 'Equipos de trabajo', icon: UsersRound },
       { href: '/equipo', label: 'Team Hub', icon: Users, exact: true },
-      { href: '/admin/contexto', label: 'Configuración y contexto', icon: Cog },
-      { href: '/admin/technical', label: 'Datos técnicos', icon: Network },
       { href: '/admin/vote-weights', label: 'Peso de voto', icon: Scale },
       { href: '/admin/mantenimiento', label: 'Mantenimiento', icon: Wrench },
     ],
