@@ -98,3 +98,9 @@ export async function POST(request: Request) {
     return unavailable();
   }
 }
+
+export async function DELETE() {
+  const cookieStore = await cookies();
+  cookieStore.set(TEAM_GATE_COOKIE, '', teamGateCookieOptions(0, process.env.NODE_ENV === 'production'));
+  return NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
+}

@@ -78,7 +78,7 @@ export async function requireTeamRole(
 export type TeamPageEntry =
   | { kind: 'login' | 'gate' | 'unavailable' | 'no-access' | 'forbidden' }
   | { kind: 'select'; memberships: TeamMembership[] }
-  | { kind: 'allow'; membership: TeamMembership };
+  | { kind: 'allow'; membership: TeamMembership; memberships: TeamMembership[] };
 
 /**
  * Resuelve la página sin consultar membresías si falta sesión o gate.
@@ -102,9 +102,9 @@ export async function resolveTeamPage(requestedTeam: string | null): Promise<Tea
   if (decision === 'no-access') return { kind: 'no-access' };
   if (decision === 'forbidden') return { kind: 'forbidden' };
   if (decision === 'select') return { kind: 'select', memberships: visibleMemberships };
-  const membership = loaded.memberships.find((item) => item.teamId === requestedTeam);
+  const membership = visibleMemberships.find((item) => item.teamId === requestedTeam);
   if (!membership) return { kind: 'forbidden' };
-  return { kind: 'allow', membership };
+  return { kind: 'allow', membership, memberships: visibleMemberships };
 }
 
 export async function requireTeamPermission(
