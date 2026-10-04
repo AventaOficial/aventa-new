@@ -71,11 +71,12 @@ export default function UsersCard({
               <b className="font-semibold tabular-nums text-white">{formatCount(cmd.users.newUsers.value)}</b> nuevos {PERIOD_SUFFIX[cmd.range.key]}
             </li>
           </ul>
-          <div className="mt-auto pt-2">
+          <div className="flex min-h-0 flex-1 flex-col justify-end pt-2">
             {cmd.series.activeUsersAvailable ? (
               <BarSeries
                 {...chartData(cmd)}
-                height={56}
+                height={36}
+                fill
                 labelEvery={cmd.range.key === 'today' ? 4 : undefined}
                 ariaLabel={`Usuarios por ${cmd.series.bucket === 'hour' ? 'hora' : 'día'} de último acceso`}
               />

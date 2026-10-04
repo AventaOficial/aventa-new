@@ -76,7 +76,7 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
               {cheer(pct)}
             </span>
           </div>
-          <ul className="mt-2 flex-1 space-y-1">
+          <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto [scrollbar-width:thin]">
             {goals.map((g) => {
               const Icon = GOAL_ICON[g.id] ?? ListChecks;
               const p = progress(g);

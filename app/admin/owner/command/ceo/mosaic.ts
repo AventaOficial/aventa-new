@@ -16,6 +16,21 @@ const DESKTOP_AREAS = [
   row(['goals', 10], ['season', 7], ['priorities', 7]),
 ].join('\n      ');
 
+/**
+ * Alto relativo de las 4 filas, según el contenido mínimo de cada una con ~610px de mosaico
+ * (1536×730 y 1280×750 útiles): Comunidad, franja Usuarios/Ofertas, Capacidad, fila inferior.
+ */
+const DESKTOP_ROWS = [152, 46, 162, 222].map((fr) => `minmax(0, ${fr}fr)`).join(' ');
+
+/**
+ * Lo que ocupa la pantalla encima del mosaico: header (56) + padding superior (12)
+ * + barra de fecha y período (36) + separación (12), más un margen inferior (4).
+ */
+const CHROME_PX = 120;
+
+/** Por debajo de este alto el contenido ya no cabe; la página hace scroll. */
+const MIN_HEIGHT_PX = 520;
+
 const AREAS = ['community', 'users', 'offers', 'moderation', 'revenue', 'payouts', 'capacity', 'goals', 'season', 'priorities'];
 
 /**
@@ -49,9 +64,12 @@ ${AREAS.map((a) => `.ceo-area-${a} { grid-area: ${a}; }`).join('\n')}
 @media (min-width: 1024px) {
   .ceo-mosaic {
     gap: 0.625rem;
+    height: max(${MIN_HEIGHT_PX}px, calc(100dvh - ${CHROME_PX}px));
     grid-template-columns: repeat(24, minmax(0, 1fr));
+    grid-template-rows: ${DESKTOP_ROWS};
     grid-template-areas:
       ${DESKTOP_AREAS};
   }
+  .ceo-mosaic > * { min-height: 0; overflow: hidden; }
 }
 `;

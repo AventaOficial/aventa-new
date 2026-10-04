@@ -24,7 +24,7 @@ export function Card({
       id={id}
       aria-labelledby={labelledBy}
       className={cn(
-        '@container flex min-w-0 flex-col rounded-2xl border border-white/[0.07] bg-[#12121c] p-3 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_12px_32px_-20px_rgba(0,0,0,0.9)]',
+        '@container flex min-w-0 flex-col rounded-2xl border border-white/[0.07] bg-[#12121c] p-3 lg:p-2.5 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_12px_32px_-20px_rgba(0,0,0,0.9)]',
         className,
       )}
     >
@@ -58,7 +58,7 @@ export function CardHeader({
       <div className="flex min-w-0 items-center gap-2">
         {Icon ? (
           iconStyle === 'box' ? (
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#2a1f4d] text-violet-300 ring-1 ring-inset ring-violet-400/20">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[#2a1f4d] text-violet-300 ring-1 ring-inset ring-violet-400/20">
               <Icon className="h-4 w-4" />
             </span>
           ) : (
@@ -76,7 +76,7 @@ export function CardHeader({
 }
 
 const VIEW_BTN =
-  'inline-flex min-h-[28px] items-center gap-1 whitespace-nowrap rounded-lg border border-white/[0.09] bg-white/[0.03] px-2 py-1 text-[10.5px] font-medium text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white';
+  'inline-flex min-h-[24px] items-center gap-1 whitespace-nowrap rounded-lg border border-white/[0.09] bg-white/[0.03] px-2 py-0.5 text-[10.5px] font-medium text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white';
 
 export function ViewLink({ href, children, label }: { href: string; children: ReactNode; label?: string }) {
   return (
@@ -136,7 +136,7 @@ export function Chip({ tone, children, hint, dot = true }: { tone: ChipTone; chi
 /** Chip "Hoy ▾" de la referencia: selector nativo que cambia el período global. */
 export function RangeChip({ range, onChange, label }: { range: OwnerRangeKey; onChange: (r: OwnerRangeKey) => void; label: string }) {
   return (
-    <span className="relative inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-white/[0.09] bg-white/[0.03] py-1 pl-2 pr-1.5 text-[10.5px] font-medium text-white/80 focus-within:ring-2 focus-within:ring-violet-400/70 hover:bg-white/[0.08]">
+    <span className="relative inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-white/[0.09] bg-white/[0.03] py-0.5 pl-2 pr-1.5 text-[10.5px] font-medium text-white/80 focus-within:ring-2 focus-within:ring-violet-400/70 hover:bg-white/[0.08]">
       <span aria-hidden>{OWNER_RANGE_LABELS[range]}</span>
       <ChevronDown className="h-3 w-3 text-white/60" aria-hidden />
       <select

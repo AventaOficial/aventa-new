@@ -83,18 +83,18 @@ export default function CapacityCard({
       ) : (
         <div className="mt-2 flex flex-1 flex-col items-center gap-3 @md:flex-row @md:items-center">
           <div className="flex flex-col items-center gap-1.5">
-            <Donut pct={null} size={88} stroke={9}>
-              <span className="text-[22px] font-semibold leading-none text-white">
+            <Donut pct={null} size={72} stroke={8}>
+              <span className="text-[18px] font-semibold leading-none text-white">
                 <NA why="No existe una métrica de capacidad total con base real; el porcentaje no se calcula." className="text-white/60" />
               </span>
-              <span className="mt-1 text-[11px] text-white/55">Uso actual</span>
+              <span className="mt-0.5 text-[10px] text-white/55">Uso actual</span>
             </Donut>
             <p className="text-center text-[10px] leading-snug text-white/45" title="Escrituras diferidas (votos, eventos) en cola y fallidas">
               Cola escritura: <b className="font-semibold text-white/75">{formatCount(ops?.queuePending)}</b> pend. ·{' '}
               <b className={ops?.queueFailed ? 'font-semibold text-red-300' : 'font-semibold text-white/75'}>{formatCount(ops?.queueFailed)}</b> fallidos
             </p>
           </div>
-          <ul className="w-full min-w-0 flex-1 space-y-1.5">
+          <ul className="w-full min-w-0 flex-1 space-y-1">
             {rows.map((r) => (
               <li
                 key={r.label}
