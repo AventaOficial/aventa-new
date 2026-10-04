@@ -74,8 +74,29 @@ No se ejerció en el preview lo que pide sesión: `/me`, favoritos con datos, no
 
 ## ROLLBACK
 
-Promover de nuevo el deployment de producción de `origin/master` `446e13c`.
+Promover de nuevo el deployment de producción de `446e13c` (deployment de GitHub `6845057675`).
 
 ## GATE
 
 GO WITH CONDITIONS. Se mergea a `master` y se promueve. La condición es revisar con una cuenta real, después del deploy, lo que pide sesión.
+
+## POST-DEPLOY
+
+PR #41 entró a `master` como `23bb8aa`. `verify` y Vercel pasaron. Vercel promovió `23bb8aa` a producción por la integración de Git. Staging solo recibió un preview.
+
+Smoke en `aventaofertas.com`, solo lectura, sin votos, favoritos, comentarios ni notificaciones marcadas:
+
+- `/api/health`: `ok`, `feedViewOk: true`, 654 ofertas.
+- 20 rutas muestreadas (home, Plaza, descubre, subir, sitemap, legales y 12 fichas del feed): 0 respuestas 5xx.
+- Ficha real a 390: foto con el marco nuevo, galería, banner "Sin confirmación" con hora de México, CTA "Comprobar oferta" hacia Amazon con tag y `sponsored`, comentarios cargados, "Sobre esta oferta". Sin `console.error`.
+- Con la sesión del owner: `/me` con nivel, métricas y accesos; favoritos con estado vacío; campana con 4 notificaciones. Sin `console.error`.
+- `/api/notifications` y el dashboard CEO responden 401 sin Bearer.
+
+Base de producción, solo `select`:
+
+- 52 migraciones. La última es `20261004182739`, de #40.
+- Cron `offers-lifecycle-v2` activo, última corrida 20:17 UTC, 0 fallos en 24 h.
+- Scanner: 82 filas en `offer_health_state`, última revisión 03:46 UTC, consistente con el cron diario de las 03:00. 81 `out_of_stock` sin 404/410 confirmado, por eso su CTA sigue activo.
+- `payout_intents`: 0. El dinero sigue congelado.
+
+Hallazgo de datos, no tocado: 11 ofertas aprobadas, cargadas por lote, muestran en "Sobre esta oferta" la nota interna "Oferta cargada por lote. Revisar ficha antes de aprobar." Hay que corregir la descripción desde moderación.
