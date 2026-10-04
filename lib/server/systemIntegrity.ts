@@ -4,11 +4,20 @@ import { BANK_COUPON_OPTIONS } from '@/lib/bankCoupons';
 import { getHomeFeed } from '@/lib/offers/feedService';
 import { computeOfferScore } from '@/lib/offers/scoring';
 import { ALLOWED_OFFER_VOTE_VALUES } from '@/lib/votes/reputationWeights';
+import {
+  classifyFreshnessCheck,
+  classifyImageIntegrityCheck,
+  classifyLifecycleRunCheck,
+  classifyZeroCountCheck,
+  type IntegrityCheckState,
+  type QueryErrorLike,
+} from '@/lib/server/integrityClassification';
 
 export type SystemIntegrityCheck = {
   name: string;
   ok: boolean;
   detail: string;
+  state?: IntegrityCheckState;
 };
 
 export type SystemIntegrityResult = {
@@ -125,22 +134,42 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
       detail: `legacy_value_1=${legacyVotes}`,
     });
 
-    const [msiInvalidRes, missingImageRes] = await Promise.all([
+    const nowIso = new Date().toISOString();
+    const missingImageFilter = 'image_url.is.null,image_url.eq.';
+    const [msiInvalidRes, missingImageAllRes, missingImageActiveRes, missingImagePendingRes] = await Promise.all([
       supabase.from('offers').select('id', { count: 'exact', head: true }).or('msi_months.lt.1,msi_months.gt.24'),
-      supabase.from('offers').select('id', { count: 'exact', head: true }).or('image_url.is.null,image_url.eq.'),
+      supabase.from('offers').select('id', { count: 'exact' }).or(missingImageFilter).limit(1),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact' })
+        .or(`and(or(${missingImageFilter}),or(expires_at.is.null,expires_at.gt.${nowIso}))`)
+        .in('status', ['approved', 'published'])
+        .is('deleted_at', null)
+        .limit(1),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact' })
+        .or(missingImageFilter)
+        .eq('status', 'pending')
+        .is('deleted_at', null)
+        .limit(1),
     ]);
     const msiInvalid = msiInvalidRes.count ?? 0;
-    const missingImage = missingImageRes.count ?? 0;
     checks.push({
       name: 'offers.msi_range.integrity',
       ok: msiInvalid === 0,
       detail: `invalid_msi_months=${msiInvalid}`,
     });
-    checks.push({
-      name: 'offers.image_url.integrity',
-      ok: missingImage === 0,
-      detail: `missing_image_url=${missingImage}`,
-    });
+    const activeMissing = missingImageActiveRes.count ?? 0;
+    const pendingMissing = missingImagePendingRes.count ?? 0;
+    checks.push(
+      classifyImageIntegrityCheck({
+        error: missingImageAllRes.error ?? missingImageActiveRes.error ?? missingImagePendingRes.error,
+        activeMissing,
+        pendingMissing,
+        nonOperationalMissing: Math.max(0, (missingImageAllRes.count ?? 0) - activeMissing - pendingMissing),
+      })
+    );
 
     const { data: viewRow, error: viewError } = await supabase
       .from('ofertas_ranked_general')
@@ -172,23 +201,79 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
     });
 
     const overdueBefore = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-    const { count: freshnessOverdue, error: freshnessError } = await supabase
+    const { error: freshnessProbeError } = await supabase
       .from('offer_health_state')
-      .select('offer_id', { count: 'exact', head: true })
-      .lte('next_check_at', overdueBefore);
-    const freshnessMissing =
-      freshnessError?.message?.includes('next_check_at') ||
-      freshnessError?.code === 'PGRST204' ||
-      freshnessError?.message?.toLowerCase().includes('does not exist');
-    checks.push({
-      name: 'freshness.overdue',
-      ok: Boolean(freshnessMissing) || (!freshnessError && (freshnessOverdue ?? 0) < 400),
-      detail: freshnessMissing
-        ? 'migration 20260923_launch_hardening.sql pending'
-        : freshnessError
-          ? freshnessError.message
-          : `overdue_gt_6h=${freshnessOverdue ?? 0}`,
-    });
+      .select('offer_id, next_check_at')
+      .limit(1);
+    let freshnessOverdue: number | null = null;
+    let freshnessCountError: QueryErrorLike = null;
+    if (!freshnessProbeError) {
+      const res = await supabase
+        .from('offer_health_state')
+        .select('offer_id', { count: 'exact' })
+        .lte('next_check_at', overdueBefore)
+        .limit(1);
+      freshnessOverdue = res.count;
+      freshnessCountError = res.error;
+    }
+    checks.push(
+      classifyFreshnessCheck({
+        probeError: freshnessProbeError,
+        countError: freshnessCountError,
+        overdue: freshnessOverdue,
+      })
+    );
+
+    const { data: lifecycleRun, error: lifecycleError } = await supabase
+      .from('offer_lifecycle_runs')
+      .select('started_at, backlog_remaining')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lifecycleRow = lifecycleRun as { started_at?: string; backlog_remaining?: boolean } | null;
+    checks.push(
+      classifyLifecycleRunCheck({
+        error: lifecycleError,
+        lastStartedAt: lifecycleRow?.started_at ?? null,
+        backlogRemaining: lifecycleRow?.backlog_remaining ?? null,
+        nowMs: Date.now(),
+      })
+    );
+
+    const [orphanLocksRes, archivedVisibleRes] = await Promise.all([
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact' })
+        .neq('status', 'pending')
+        .not('locked_by', 'is', null)
+        .limit(1),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact' })
+        .not('archived_at', 'is', null)
+        .in('status', ['approved', 'published'])
+        .is('deleted_at', null)
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+        .limit(1),
+    ]);
+    checks.push(
+      classifyZeroCountCheck({
+        name: 'moderation.orphan_locks',
+        error: orphanLocksRes.error,
+        count: orphanLocksRes.count,
+        label: 'locked_non_pending',
+        migration: 'n/a',
+      })
+    );
+    checks.push(
+      classifyZeroCountCheck({
+        name: 'lifecycle.archive_invariant',
+        error: archivedVisibleRes.error,
+        count: archivedVisibleRes.count,
+        label: 'archived_but_public',
+        migration: 'offers_lifecycle_v2.sql',
+      })
+    );
 
     const { count: pendingCount, error: pendingError } = await supabase
       .from('offers')
