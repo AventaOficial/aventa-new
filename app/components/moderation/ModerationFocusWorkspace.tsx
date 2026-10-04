@@ -23,11 +23,14 @@ export type ModerationFocusWorkspaceProps = {
   mode?: ModerationHubMode;
   /** all | bot | users (cazadores) */
   sourceTab?: FocusSourceTab;
+  /** Si está presente, los filtros de origen se quedan en esta ruta. */
+  queueBasePath?: string;
 };
 
 export default function ModerationFocusWorkspace({
   mode = 'admin',
   sourceTab = 'all',
+  queueBasePath,
 }: ModerationFocusWorkspaceProps) {
   const ui = moderationUi(mode);
   // ?focus=<offerId> desde Pending health. Solo reordena la cola; el claim sigue igual.
@@ -100,6 +103,12 @@ export default function ModerationFocusWorkspace({
     : null;
 
   const filterHref = (tab: FocusSourceTab) => {
+    if (queueBasePath) {
+      const base = queueBasePath.replace(/\/$/, '');
+      if (tab === 'bot') return `${base}?cola=bot`;
+      if (tab === 'users') return `${base}?cola=users`;
+      return base;
+    }
     if (mode === 'workspace') {
       if (tab === 'bot') return '/equipo/moderacion/bot';
       if (tab === 'users') return '/equipo/moderacion/cazadores';

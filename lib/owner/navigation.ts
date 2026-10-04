@@ -13,6 +13,7 @@ import {
   Rocket,
   Server,
   Shield,
+  UserCog,
   Users,
   Zap,
 } from 'lucide-react';
@@ -73,6 +74,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
       { href: '/admin/contexto', label: 'Configuration', icon: Cog },
       { href: '/admin/technical', label: 'Technical', icon: Network },
       { href: '/admin/team', label: 'Team', icon: Users },
+      { href: '/admin/owner/team-management', label: 'Membresías', icon: UserCog },
     ],
   },
 ];
@@ -86,6 +88,7 @@ export const OWNER_COMMAND_ITEMS: { href: string; label: string; group: string }
   { href: '/admin/creator-tags', label: 'Creator Tags', group: 'Operations' },
   { href: '/admin/owner/cazadores', label: 'Cazadores', group: 'CEO' },
   { href: '/equipo', label: 'Team Hub', group: 'Operations' },
+  { href: '/admin/owner/team-management', label: 'Membresías', group: 'Technical' },
   { href: '/admin/mantenimiento', label: 'Mantenimiento', group: 'Technical' },
   { href: '/equipo/contabilidad', label: 'Contabilidad', group: 'CEO' },
 ];

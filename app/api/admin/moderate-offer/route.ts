@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
-import { requireModeration } from '@/lib/server/requireAdmin'
+import { requireModerationActor } from '@/lib/team/moderation/access'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
@@ -23,6 +23,8 @@ import {
 } from '@/lib/moderation/outcomes'
 import { enqueueDistributionForApprovedOfferFireAndForget } from '@/lib/distribution'
 import { syncAchievementsLater } from '@/lib/achievements/sync'
+import { recordModerationDecisionTeamXp } from '@/lib/team/xp/rules/moderation'
+import { buildModerationTeamXpSnapshot, MODERATION_LOG_EVENT_COLUMNS } from '@/lib/team/xp/rules/moderationSource'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -36,7 +38,7 @@ const LOCK_CLEAR = {
 } as const
 
 export async function POST(request: Request) {
-  const auth = await requireModeration(request)
+  const auth = await requireModerationActor(request)
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
@@ -242,15 +244,42 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error: logError } = await supabase.from('moderation_logs').insert({
+    const teamXpSnapshot = await buildModerationTeamXpSnapshot(supabase, {
+      actorUserId: auth.user.id,
+      offerId: id,
+      decision: status,
+      offerAuthorId: createdBy ?? null,
+      bulk: bulkAction,
+    })
+    const logFields = {
       offer_id: id,
       user_id: auth.user.id,
       action: status,
       previous_status: previousStatus,
       new_status: status,
       reason: reason ?? null,
-    })
+    }
+    const logInsert = await supabase.from('moderation_logs').insert(
+      teamXpSnapshot ? { ...logFields, metadata: { team_xp: teamXpSnapshot } } : logFields,
+    ).select(MODERATION_LOG_EVENT_COLUMNS).maybeSingle()
+    let logRow: unknown = logInsert.data
+    let logError = logInsert.error
+    if (logError && hasMissingColumn(logError, 'metadata')) {
+      const retry = await supabase.from('moderation_logs').insert(logFields).select('id').maybeSingle()
+      logRow = retry.data
+      logError = retry.error
+    }
     if (logError) console.error('[moderate-offer] log insert failed:', logError.message)
+
+    const rawLogId = logRow && typeof logRow === 'object' && 'id' in logRow ? logRow.id : null
+    const logId = typeof rawLogId === 'string' || typeof rawLogId === 'number' ? String(rawLogId) : null
+    if (logId) {
+      await recordModerationDecisionTeamXp(supabase, {
+        logId,
+        actorUserId: auth.user.id,
+        logRow,
+      })
+    }
 
     void captureHumanModerationOutcome(id, status)
 

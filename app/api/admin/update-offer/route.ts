@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { requireModeration } from '@/lib/server/requireAdmin'
+import { requireModerationActor } from '@/lib/team/moderation/access'
 import { resolveAndNormalizeAffiliateOfferUrl, validateAffiliatePaste } from '@/lib/affiliate'
 import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories'
 import { normalizeOfferImageUrl } from '@/lib/offerPath'
@@ -32,7 +32,7 @@ function hasMissingColumn(error: { message?: string } | null, columnName: string
  * Approved + cambio material (precio/URL/imagen) → demote a pending (revalidación humana).
  */
 export async function PATCH(request: Request) {
-  const auth = await requireModeration(request)
+  const auth = await requireModerationActor(request)
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
