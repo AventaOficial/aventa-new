@@ -17,7 +17,7 @@ Staging no se mergeó. Los 12 commits de producto (`0dc9eb4`..`0461497`) se cher
 - Selector visual al subir.
 - Dashboard CEO de solo lectura, incluido el conteo de pagos. No liquida ni enciende dinero.
 
-## NOT PROMOTED
+## EXCLUDED
 
 - La rama `staging` como merge.
 - Cron `aventa_mark_expired` y el resto de jobs exclusivos de staging.
@@ -54,10 +54,28 @@ Contra el dev local con datos de staging, sin escribir:
 
 No se publicó un comentario ni se creó una oferta. El like real y el dashboard CEO con el owner de producción no se ejercieron.
 
+## CI
+
+PR [#41](https://github.com/AventaOficial/aventa-new/pull/41): `verify`, Vercel `aventa-new` y Vercel `aventa-staging` pasaron. `MERGEABLE`, `CLEAN`.
+
+## PREVIEW
+
+Preview del proyecto de producción, `aventa-new-git-launch-final-verdict-aventa-oficial.vercel.app`, apuntando a la base de staging. Solo lectura y como invitado.
+
+- `/api/health`: `ok`, `feedViewOk: true`. `/`, `/plaza`, `/subir`, `/u/<usuario>`, `/sitemap.xml`: 200. `/me` y `/me/favorites`: 307 a login.
+- Home a 390: feed con `OfferCard`. La imagen inválida del fixture cae al ícono y no tumba la página.
+- Ficha a 390, 430 y escritorio, claro y oscuro: breadcrumb `Inicio / Amazon` sin chips repetidos, precio, banner "Sin verificación reciente" con hora de México, CTA "Comprobar oferta" con `rel="noopener noreferrer sponsored"`, comentarios, "Información adicional" cerrada al fondo. Canonical a `aventaofertas.com`.
+- Plaza en escritorio oscuro: Centro de Caza, presupuesto, tienda y estado vacío.
+- Subir: selector "¿Qué quieres compartir?" con cupón marcado como próximamente.
+- Perfil público en claro: métricas, pestañas y nivel.
+- Sin scroll horizontal en ninguna vista. Sin `console.error` ni React #418 en la ficha, Plaza, subir y perfil.
+
+No se ejerció en el preview lo que pide sesión: `/me`, favoritos con datos, notificaciones, like real, formulario de subida completo y dashboard CEO. Lo cubren las pruebas de contrato y la revisión local.
+
 ## ROLLBACK
 
-El deployment de producción que corresponde a `origin/master` `446e13c`. Esta rama no está desplegada.
+Promover de nuevo el deployment de producción de `origin/master` `446e13c`.
 
 ## GATE
 
-No se promueve producción en este paso. Falta el PR, su CI y el preview. El código local está listo para esa revisión.
+GO WITH CONDITIONS. Se mergea a `master` y se promueve. La condición es revisar con una cuenta real, después del deploy, lo que pide sesión.
