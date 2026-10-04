@@ -88,13 +88,8 @@ export function TeamShell({ context, children }: { context: TeamShellContext; ch
         </aside>
 
         <main className="px-4 py-6 md:px-10 md:py-10">
-          <p className="text-sm text-[#737373]">
-            {context.greeting}, {context.personName}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">{metadata.displayName}</h1>
-          <p className="mt-1 text-sm text-[#424245] dark:text-[#a1a1a6]">{context.roleLabel}</p>
-          <TeamLinks context={context} className="mt-5 flex gap-2 md:hidden" />
-          <div className="mt-8 max-w-2xl">{children}</div>
+          <TeamLinks context={context} className="mb-6 flex gap-2 md:hidden" />
+          {children}
         </main>
       </div>
     </div>
