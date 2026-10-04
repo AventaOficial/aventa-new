@@ -1,4 +1,5 @@
 import type { TeamMembership } from '../roles/membership';
+import { getTeamXP } from '../xp/read';
 import { heroAccess } from './access';
 import { composeTeamHero } from './adapters';
 import { loadCommunityXp, loadTeamHeroFacts } from './load';
@@ -16,9 +17,10 @@ export async function buildTeamHeroPayload(input: {
 }): Promise<TeamHeroPayload | null> {
   const access = heroAccess(input.requestedTeam, input.memberships);
   if (!access.ok) return null;
-  const [facts, communityXp] = await Promise.all([
+  const [facts, communityXp, teamXp] = await Promise.all([
     loadTeamHeroFacts(access.teamId, access.membership.userId),
     loadCommunityXp(access.membership.userId),
+    getTeamXP(access.membership.userId, access.teamId),
   ]);
   return composeTeamHero({
     membership: access.membership,
@@ -26,5 +28,6 @@ export async function buildTeamHeroPayload(input: {
     personName: input.personName,
     facts,
     communityXp,
+    teamXp,
   });
 }

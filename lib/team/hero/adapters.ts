@@ -1,6 +1,7 @@
 import { teamMetadata } from '../config/catalog';
 import { teamRoleLabel } from '../roles/catalog';
 import type { TeamMembership } from '../roles/membership';
+import { teamXpSummary } from '../xp/present';
 import type {
   CommunityXpSummary,
   HeroActivityItem,
@@ -154,6 +155,7 @@ export function composeTeamHero(input: {
   personName: string;
   facts: TeamHeroFacts;
   communityXp: number | null;
+  teamXp?: number | null;
 }): TeamHeroPayload | null {
   if (input.facts.teamId !== input.membership.teamId) return null;
   if (input.membership.status !== 'ACTIVE') return null;
@@ -170,6 +172,7 @@ export function composeTeamHero(input: {
     primary: primaryFor(input.facts),
     metrics: metricsFor(input.facts).slice(0, 3),
     activity: activityFor(input.facts),
+    teamXp: teamXpSummary(input.membership.teamId, input.teamXp ?? null),
     communityXp: communityXpSummary(input.communityXp),
   };
 }

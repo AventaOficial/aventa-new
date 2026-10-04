@@ -4,7 +4,8 @@ import { isTeamId, type TeamId } from '../roles/teams';
  * Permisos de Team OS. Viven en código.
  * Formato: equipo.recurso.acción
  *
- * Finanzas es solo lectura. Hunter no lanza ingesta, supply ni run-now.
+ * Finanzas es solo lectura de dinero. Hunter no lanza ingesta, supply ni run-now.
+ * `*.xp.grant` existe para Team XP y no está asignado a ningún rol.
  * Ningún permiso abre `/admin`.
  */
 export const TEAM_PERMISSIONS = [
@@ -20,6 +21,13 @@ export const TEAM_PERMISSIONS = [
   'community.overview.read',
   'operations.overview.read',
   'finance.overview.read',
+  'moderation.xp.grant',
+  'hunter.xp.grant',
+  'growth.xp.grant',
+  'product.xp.grant',
+  'community.xp.grant',
+  'operations.xp.grant',
+  'finance.xp.grant',
 ] as const;
 
 export type TeamPermission = (typeof TEAM_PERMISSIONS)[number];

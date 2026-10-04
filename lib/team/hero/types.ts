@@ -31,6 +31,13 @@ export type CommunityXpSummary = {
   value: string;
 };
 
+export type TeamXpSummary = {
+  scope: 'team';
+  teamId: TeamId;
+  label: 'Team XP';
+  value: string;
+};
+
 export type TeamHeroPayload = {
   teamId: TeamId;
   greeting: string;
@@ -42,6 +49,7 @@ export type TeamHeroPayload = {
   primary: HeroPrimaryAction;
   metrics: HeroMetric[];
   activity: HeroActivityItem[];
+  teamXp: TeamXpSummary | null;
   communityXp: CommunityXpSummary | null;
 };
 

@@ -101,8 +101,11 @@ describe('team permissions', () => {
       expect(isTeamPermission(excluded)).toBe(false);
     }
     const finance = TEAM_PERMISSIONS.filter((permission) => permission.startsWith('finance.'));
-    expect(finance).toEqual(['finance.overview.read']);
-    expect(finance.every((permission) => permissionAction(permission) === 'read')).toBe(true);
+    expect(finance).toEqual(['finance.overview.read', 'finance.xp.grant']);
+    expect(finance.filter((permission) => permissionAction(permission) === 'read')).toEqual([
+      'finance.overview.read',
+    ]);
+    expect(roleHasPermission('finance', 'finance_viewer', 'finance.xp.grant')).toBe(false);
     expect(TEAM_PERMISSIONS.some((permission) => /ingest|supply|acquisition|payout|clawback|settlement/.test(permission))).toBe(false);
   });
 

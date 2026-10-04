@@ -2,6 +2,7 @@ import { windowToday } from '@/lib/owner/mxTime';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import { createServerClient } from '@/lib/supabase/server';
 import type { TeamId } from '../roles/teams';
+import { getCommunityXP } from '../xp/community';
 import type { HeroCount, TeamHeroFacts } from './types';
 
 const DECISION_ACTIONS = ['approved', 'rejected'] as const;
@@ -97,13 +98,5 @@ export async function loadTeamHeroFacts(teamId: TeamId, userId: string): Promise
 
 /** XP de la comunidad de esta cuenta. No es XP de equipo. */
 export async function loadCommunityXp(userId: string): Promise<number | null> {
-  try {
-    const supabase = createServerClient();
-    const { data, error } = await supabase.from('profiles').select('achievement_xp').eq('id', userId).maybeSingle();
-    if (error || !data || typeof data !== 'object') return null;
-    const xp = 'achievement_xp' in data ? data.achievement_xp : null;
-    return typeof xp === 'number' && Number.isFinite(xp) ? xp : null;
-  } catch {
-    return null;
-  }
+  return getCommunityXP(userId);
 }

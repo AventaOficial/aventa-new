@@ -15,6 +15,12 @@ export function TeamHero({ payload }: { payload: TeamHeroPayload }) {
         {payload.roleLabel}
         <span className="text-[#737373]"> · {payload.membershipLabel}</span>
       </p>
+      {payload.teamXp ? (
+        <p className="mt-4 text-sm text-[#424245] dark:text-[#a1a1a6]">
+          <span className="text-[#737373]">{payload.teamXp.label}</span>
+          <span className="ml-2 font-semibold tabular-nums">{payload.teamXp.value}</span>
+        </p>
+      ) : null}
 
       <section className="mt-10 border-t border-[#d2d2d7] pt-8 dark:border-[#2a2a2a]">
         <h2 className="text-xl font-semibold tracking-tight">{payload.primary.title}</h2>

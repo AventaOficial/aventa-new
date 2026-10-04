@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { teamMetadata } from '@/lib/team/config/catalog';
 import { teamRoleLabel } from '@/lib/team/roles/catalog';
 import { resolveTeamPage } from '@/lib/team/gate/require';
+import { formatTeamXpLabel } from '@/lib/team/xp/present';
+import { loadVisibleTeamXp } from '@/lib/team/xp/read';
 import { TeamMark } from '../shell/TeamMark';
 
 export default async function TeamSelectPage() {
@@ -13,6 +15,8 @@ export default async function TeamSelectPage() {
   }
   if (entry.kind !== 'select' || entry.memberships.length === 0) redirect('/team/no-access');
 
+  const balances = await loadVisibleTeamXp(entry.memberships);
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-4 py-12">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#737373]">Aventa Team OS</p>
@@ -21,6 +25,7 @@ export default async function TeamSelectPage() {
       <ul className="mt-8 flex flex-col gap-3">
         {entry.memberships.map((membership) => {
           const metadata = teamMetadata(membership.teamId);
+          const teamXp = formatTeamXpLabel(balances ? (balances[membership.teamId] ?? 0) : null);
           return (
             <li key={membership.teamId}>
               <Link
@@ -34,6 +39,9 @@ export default async function TeamSelectPage() {
                   <span className="mt-1 block text-sm text-[#424245] dark:text-[#a1a1a6]">
                     {teamRoleLabel(membership.teamId, membership.role)}
                   </span>
+                  {teamXp ? (
+                    <span className="mt-1 block text-sm tabular-nums text-[#424245] dark:text-[#a1a1a6]">{teamXp}</span>
+                  ) : null}
                 </span>
                 <span className="text-sm font-medium text-violet-600 dark:text-violet-400">Entrar</span>
               </Link>
