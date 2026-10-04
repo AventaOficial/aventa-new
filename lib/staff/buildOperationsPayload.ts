@@ -14,13 +14,22 @@ import {
 } from '@/lib/staff/workBoard';
 import { canOperationsMetrics } from '@/lib/staff/requireOperationsStaff';
 import { healthQueuePath } from '@/lib/staff/equipoAccess';
+import { integrityStatusOf, type IntegrityStatus } from '@/lib/server/integrityClassification';
 
 export type IntegritySnapshot = {
   ok: boolean;
   finishedAt: string | null;
   failed: number;
   passed: number;
-  checks: Array<{ name: string; ok: boolean; detail: string }>;
+  warned: number;
+  checks: Array<{
+    name: string;
+    ok: boolean;
+    detail: string;
+    status: IntegrityStatus;
+    severity: string | null;
+    action: string | null;
+  }>;
 };
 
 export type OperationsAlert = {
@@ -88,21 +97,33 @@ async function loadIntegrity(): Promise<IntegritySnapshot | null> {
   const value = (data as { value?: Record<string, unknown> } | null)?.value;
   if (!value || typeof value !== 'object') return null;
 
+  type StoredCheck = {
+    name?: string;
+    ok?: boolean;
+    detail?: string;
+    status?: string;
+    severity?: string | null;
+    action?: string | null;
+  };
   const checks = Array.isArray(value.checks)
-    ? (value.checks as Array<{ name?: string; ok?: boolean; detail?: string }>).map((c) => ({
+    ? (value.checks as StoredCheck[]).map((c) => ({
         name: String(c.name ?? 'check'),
         ok: Boolean(c.ok),
         detail: String(c.detail ?? ''),
+        status: integrityStatusOf(c),
+        severity: typeof c.severity === 'string' ? c.severity : null,
+        action: typeof c.action === 'string' ? c.action : null,
       }))
     : [];
 
-  const summary = (value.summary as { failed?: number; passed?: number } | undefined) ?? {};
+  const summary = (value.summary as { failed?: number; passed?: number; warned?: number } | undefined) ?? {};
 
   return {
     ok: Boolean(value.ok),
     finishedAt: typeof value.finishedAt === 'string' ? value.finishedAt : null,
-    failed: summary.failed ?? checks.filter((c) => !c.ok).length,
-    passed: summary.passed ?? checks.filter((c) => c.ok).length,
+    failed: summary.failed ?? checks.filter((c) => c.status === 'FAIL').length,
+    passed: summary.passed ?? checks.filter((c) => c.status === 'PASS').length,
+    warned: summary.warned ?? checks.filter((c) => c.status === 'WARN').length,
     checks,
   };
 }

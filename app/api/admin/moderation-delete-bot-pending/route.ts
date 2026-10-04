@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireTeamManagement } from '@/lib/server/requireAdmin';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
-import { deleteOffersByIdsCascade } from '@/lib/server/deleteOffersByIds';
-import { MODERATION_DELETE_BOT_CONFIRM_PHRASE } from '@/lib/moderation/deleteBotQueue';
+import {
+  BOT_QUEUE_REJECTION_REASON,
+  MODERATION_DELETE_BOT_CONFIRM_PHRASE,
+} from '@/lib/moderation/deleteBotQueue';
 
 function isBotOfferRow(
   row: {
@@ -22,8 +24,9 @@ function isBotOfferRow(
 }
 
 /**
- * POST: elimina físicamente todas las ofertas pending identificadas como del bot.
- * Solo owner/admin + frase de confirmación. Uso: limpiar cola en pruebas.
+ * POST: rechaza (no borra) todas las ofertas pending identificadas como del bot.
+ * Solo owner/admin + frase de confirmación. La oferta y su historial se conservan
+ * (retention policy v2); cada rechazo queda en moderation_logs con el actor.
  */
 export async function POST(request: Request) {
   const auth = await requireTeamManagement(request);
@@ -72,17 +75,21 @@ export async function POST(request: Request) {
   const ids = ((pendingRows ?? []) as Row[]).filter((row) => isBotOfferRow(row, botIds)).map((r) => r.id);
 
   if (ids.length === 0) {
-    return NextResponse.json({ ok: true, deleted: 0, message: 'No había ofertas del bot pendientes.' });
+    return NextResponse.json({ ok: true, rejected: 0, message: 'No había ofertas del bot pendientes.' });
   }
 
-  const result = await deleteOffersByIdsCascade(supabase, ids);
-  if (!result.ok) {
-    console.error('[moderation-delete-bot-pending] cascade:', result.message);
-    return NextResponse.json({ error: result.message }, { status: 500 });
+  const { data: rejected, error: rejectErr } = await supabase.rpc('reject_pending_offers_bulk', {
+    p_offer_ids: ids,
+    p_actor_id: auth.user.id,
+    p_reason: BOT_QUEUE_REJECTION_REASON,
+  });
+  if (rejectErr) {
+    console.error('[moderation-delete-bot-pending] reject:', rejectErr.message);
+    return NextResponse.json({ error: 'No se pudo rechazar la cola del bot' }, { status: 500 });
   }
 
   return NextResponse.json({
     ok: true,
-    deleted: ids.length,
+    rejected: typeof rejected === 'number' ? rejected : 0,
   });
 }

@@ -41,9 +41,8 @@ export async function GET(request: Request) {
       actorRole: auth.role,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'list_failed';
-    console.error('[distribution-ops] GET', message);
-    return NextResponse.json({ error: message, ok: false }, { status: 500 });
+    console.error('[distribution-ops] GET', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'list_failed', ok: false }, { status: 500 });
   }
 }
 
@@ -91,8 +90,8 @@ export async function POST(request: Request) {
           ? 400
           : result.reason === 'publication_not_found'
             ? 404
-            : result.reason === 'not_unknown_outcome'
-              ? 409
+            : result.reason === 'publication_read_failed'
+              ? 500
               : 409;
       return NextResponse.json(result, { status });
     }
@@ -104,8 +103,7 @@ export async function POST(request: Request) {
       offerMutated: false,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'release_failed';
-    console.error('[distribution-ops] POST', message);
-    return NextResponse.json({ ok: false, reason: message }, { status: 500 });
+    console.error('[distribution-ops] POST', e instanceof Error ? e.message : e);
+    return NextResponse.json({ ok: false, reason: 'release_failed' }, { status: 500 });
   }
 }

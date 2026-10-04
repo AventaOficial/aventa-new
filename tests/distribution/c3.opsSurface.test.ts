@@ -255,6 +255,68 @@ describe('Distribution Ops — list visibility', () => {
   });
 });
 
+describe('Distribution Ops — schema not provisioned', () => {
+  const missing = { code: 'PGRST205', message: "Could not find the table 'public.distribution_publications' in the schema cache" };
+
+  it('list returns a disabled state instead of throwing a raw DB error', async () => {
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          in: vi.fn(() => ({
+            order: vi.fn(() => ({
+              limit: vi.fn(async () => ({ data: null, error: missing })),
+            })),
+          })),
+        })),
+      })),
+    };
+    const r = await listDistributionOpsPublications(client as never, { filter: 'all' });
+    expect(r).toMatchObject({
+      ok: true,
+      available: false,
+      reason: 'distribution_not_provisioned',
+      message: 'Distribution is not enabled in this environment.',
+      publications: [],
+    });
+  });
+
+  it('other list errors still fail (not masked as disabled)', async () => {
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          in: vi.fn(() => ({
+            order: vi.fn(() => ({
+              limit: vi.fn(async () => ({ data: null, error: { code: '57014', message: 'statement timeout' } })),
+            })),
+          })),
+        })),
+      })),
+    };
+    await expect(listDistributionOpsPublications(client as never, { filter: 'all' })).rejects.toThrow();
+  });
+
+  it('release reports not provisioned without leaking the DB message', async () => {
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({ data: null, error: missing })),
+          })),
+        })),
+      })),
+    };
+    const r = await releaseUnknownOutcomeForOps(client as never, '11111111-1111-4111-8111-111111111111');
+    expect(r).toMatchObject({ ok: false, reason: 'distribution_not_provisioned' });
+    expect(JSON.stringify(r)).not.toContain('schema cache');
+  });
+
+  it('API route never echoes raw exception messages', () => {
+    const route = readFileSync(join(process.cwd(), 'app/api/admin/distribution-ops/route.ts'), 'utf8');
+    expect(route).not.toMatch(/error:\s*message/);
+    expect(route).not.toMatch(/reason:\s*message/);
+  });
+});
+
 describe('Distribution Ops — releaseUnknownOutcomeForOps', () => {
   it('publication missing → fail closed', async () => {
     const client = {

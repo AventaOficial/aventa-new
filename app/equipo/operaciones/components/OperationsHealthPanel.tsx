@@ -81,8 +81,12 @@ export default function OperationsHealthPanel() {
         {data.integrity ? (
           <>
             <div className="flex flex-wrap gap-3 text-sm mb-4">
-              <StatusBadge tone={data.integrity.ok ? 'ok' : 'critical'}>
-                {data.integrity.ok ? 'Todo OK' : `${data.integrity.failed} fallos`}
+              <StatusBadge tone={!data.integrity.ok ? 'critical' : data.integrity.warned > 0 ? 'attention' : 'ok'}>
+                {!data.integrity.ok
+                  ? `${data.integrity.failed} fallos`
+                  : data.integrity.warned > 0
+                    ? `${data.integrity.warned} avisos`
+                    : 'Todo OK'}
               </StatusBadge>
               <span className="text-gray-500 text-xs">
                 {data.integrity.passed} pasaron · último:{' '}
@@ -92,10 +96,26 @@ export default function OperationsHealthPanel() {
             <ul className="space-y-2">
               {data.integrity.checks.map((c) => (
                 <li key={c.name} className="flex items-start gap-2 text-sm">
-                  <span className={c.ok ? 'text-emerald-600' : 'text-red-600'}>{c.ok ? '✓' : '✗'}</span>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      c.status === 'FAIL'
+                        ? 'bg-red-500/10 text-red-600'
+                        : c.status === 'WARN'
+                          ? 'bg-amber-500/10 text-amber-600'
+                          : c.status === 'NOT_APPLICABLE'
+                            ? 'bg-gray-500/10 text-gray-500'
+                            : 'bg-emerald-500/10 text-emerald-600'
+                    }`}
+                  >
+                    {c.status === 'NOT_APPLICABLE' ? 'N/A' : c.status}
+                  </span>
                   <div>
-                    <p className="font-medium text-gray-800 dark:text-gray-200">{c.name}</p>
+                    <p className="font-medium text-gray-800 dark:text-gray-200">
+                      {c.name}
+                      {c.severity ? <span className="ml-1 text-xs font-normal text-gray-500">· {c.severity}</span> : null}
+                    </p>
                     <p className="text-xs text-gray-500">{c.detail}</p>
+                    {c.action ? <p className="text-xs text-gray-600 dark:text-gray-400">→ {c.action}</p> : null}
                   </div>
                 </li>
               ))}

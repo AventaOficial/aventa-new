@@ -220,7 +220,24 @@ export default function ModerationFocusWorkspace({
       <div className="flex flex-col">
         {queue.loading && !queue.offer ? (
           <div className={cn('flex items-center justify-center py-16 text-sm', ui.muted)}>
-            Buscando la siguiente oferta…
+            {queue.started ? 'Buscando la siguiente oferta…' : 'Cargando la cola…'}
+          </div>
+        ) : !queue.offer && !queue.started && queue.stats.availableEstimate > 0 ? (
+          <div className={cn('flex flex-col items-center justify-center py-16', ui.emptyDash)}>
+            <p className={cn('text-base font-medium', ui.title)}>
+              {queue.stats.availableEstimate} disponibles para revisar
+            </p>
+            <p className={cn('mt-1 text-sm', ui.muted)}>
+              Al empezar se te asigna la siguiente oferta y nadie más la toma mientras la revisas.
+            </p>
+            <button
+              type="button"
+              onClick={() => void queue.start()}
+              disabled={queue.acting}
+              className={cn('mt-4 rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40', ui.chipActive)}
+            >
+              Empezar a moderar
+            </button>
           </div>
         ) : !queue.offer ? (
           <div className={cn('flex flex-col items-center justify-center py-16', ui.emptyDash)}>

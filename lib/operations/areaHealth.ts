@@ -16,13 +16,16 @@ export type PulseAlerts = {
 
 export type MinimalIntegrity = {
   ok: boolean;
-  checks: { name: string; ok: boolean }[];
+  checks: { name: string; ok: boolean; status?: string }[];
 };
 
+/** null = sin dato o WARN (semáforo amarillo); NOT_APPLICABLE no penaliza. */
 function checkOk(result: MinimalIntegrity | null, name: string): boolean | null {
   if (!result) return null;
   const c = result.checks.find((x) => x.name === name);
   if (!c) return null;
+  if (c.status === 'WARN') return null;
+  if (c.status === 'NOT_APPLICABLE') return true;
   return c.ok;
 }
 
