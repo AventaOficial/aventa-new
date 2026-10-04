@@ -35,9 +35,9 @@ export default function PayoutsCard({
   ];
 
   return (
-    <Card labelledBy="ceo-payouts" className={className}>
+    <Card labelledBy="ceo-payouts" className={className} href="/admin/owner/vista/pagos">
       <CardHeader id="ceo-payouts" title="Pagos pendientes" icon={Wallet} action={
-          <ViewLink href="/equipo/contabilidad" label="Ver pagos en contabilidad">
+          <ViewLink href="/admin/owner/vista/pagos" label="Ver pagos pendientes">
             Ver<span className="hidden @[13rem]:inline"> pagos</span>
           </ViewLink>
         }

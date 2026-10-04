@@ -35,7 +35,7 @@ export default function UsersCard({
   const cmd = source.data;
   const title = cmd ? `Usuarios activos (${PERIOD_TITLE[cmd.range.key]})` : 'Usuarios activos';
   return (
-    <Card labelledBy="ceo-users" className={className}>
+    <Card labelledBy="ceo-users" className={className} href="/admin/owner/vista/usuarios">
       <CardHeader
         id="ceo-users"
         title={title}

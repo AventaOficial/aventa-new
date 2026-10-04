@@ -32,13 +32,13 @@ function useNow(intervalMs = 30_000) {
 }
 
 const TEAM_HREF: Record<TeamId, string> = {
-  moderacion: '/admin/moderation',
-  finanzas: '/equipo/contabilidad',
-  growth: '/admin/owner/crecimiento',
-  producto: '/admin/health',
-  hunter: '/admin/hunter',
-  comunidad: '/plaza',
-  operaciones: '/admin/operaciones',
+  moderacion: '/admin/owner/vista/equipos/moderacion',
+  finanzas: '/admin/owner/vista/equipos/finanzas',
+  growth: '/admin/owner/vista/equipos/growth',
+  producto: '/admin/owner/vista/equipos/producto',
+  hunter: '/admin/owner/vista/equipos/hunter',
+  comunidad: '/admin/owner/vista/equipos/comunidad',
+  operaciones: '/admin/owner/vista/equipos/operaciones',
 };
 
 export default function OwnerDashboardClient() {

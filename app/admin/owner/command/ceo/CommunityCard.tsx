@@ -39,14 +39,14 @@ export default function CommunityCard({
 }) {
   const cmd = source.data;
   return (
-    <Card labelledBy="ceo-community" className={className}>
+    <Card labelledBy="ceo-community" className={className} href="/admin/owner/vista/comunidad">
       <CardHeader
         id="ceo-community"
         title="Actividad de la comunidad"
         suffix={cmd ? `(${PERIOD_TITLE[cmd.range.key]})` : undefined}
         icon={Users}
         iconStyle="plain"
-        action={<ViewLink href="/admin/owner/crecimiento" label="Ver más sobre la actividad de la comunidad">Ver más</ViewLink>}
+        action={<ViewLink href="/admin/owner/vista/comunidad" label="Ver más sobre la actividad de la comunidad">Ver más</ViewLink>}
       />
       {cmd == null && source.status === 'error' ? (
         <CardError message="No se pudo cargar la actividad de la comunidad." onRetry={onRetry} />

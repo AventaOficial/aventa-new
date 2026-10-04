@@ -41,7 +41,7 @@ export default function RevenueCard({
   const estimated = period?.estimatedCents ?? null;
 
   return (
-    <Card labelledBy="ceo-revenue" className={className}>
+    <Card labelledBy="ceo-revenue" className={className} href="/admin/owner/vista/ingresos">
       <CardHeader
         id="ceo-revenue"
         title={

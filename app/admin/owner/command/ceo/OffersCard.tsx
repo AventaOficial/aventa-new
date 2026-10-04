@@ -51,7 +51,7 @@ export default function OffersCard({
   ];
 
   return (
-    <Card labelledBy="ceo-offers" className={className}>
+    <Card labelledBy="ceo-offers" className={className} href="/admin/owner/vista/ofertas">
       <CardHeader
         id="ceo-offers"
         title={

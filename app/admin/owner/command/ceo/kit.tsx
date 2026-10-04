@@ -1,7 +1,8 @@
 'use client';
 
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, ChevronDown, RefreshCw } from 'lucide-react';
 import { cn } from '@/app/components/panel/utils';
 import { OWNER_RANGE_KEYS, OWNER_RANGE_LABELS, type OwnerRangeKey } from '@/lib/owner/ownerRange';
@@ -13,18 +14,39 @@ export function Card({
   labelledBy,
   className,
   children,
+  href,
 }: {
   id?: string;
   labelledBy?: string;
   className?: string;
   children: ReactNode;
+  /** Al hacer clic en el bloque (no en un control interno) abre esta vista. */
+  href?: string;
 }) {
+  const router = useRouter();
+  const go = () => {
+    if (href) router.push(href);
+  };
+  const onClick = (e: MouseEvent<HTMLElement>) => {
+    if (!href) return;
+    const el = e.target as HTMLElement;
+    if (el.closest('a, button, select, input, textarea, label')) return;
+    go();
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (!href || e.key !== 'Enter' || e.target !== e.currentTarget) return;
+    go();
+  };
   return (
     <section
       id={id}
       aria-labelledby={labelledBy}
+      onClick={href ? onClick : undefined}
+      onKeyDown={href ? onKeyDown : undefined}
+      tabIndex={href ? 0 : undefined}
       className={cn(
         '@container flex min-w-0 flex-col rounded-2xl border border-white/[0.07] bg-[#12121c] p-3 lg:p-2.5 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_12px_32px_-20px_rgba(0,0,0,0.9)]',
+        href && 'cursor-pointer hover:border-violet-400/25',
         className,
       )}
     >
