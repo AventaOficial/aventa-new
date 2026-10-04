@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
@@ -11,6 +11,7 @@ import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import { presentOfferFreshness } from '@/lib/offers/freshness/present';
 import { isConfirmedGoneDiagnostic } from '@/lib/offers/evaluateOfferHealth';
 import { loadPrimaryAchievement } from '@/lib/achievements/showcase';
+import { publicOfferDescription } from '@/lib/offers/publicDescription';
 import OfferPageContent from './OfferPageContent';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 import { stringifyJsonLd } from '@/lib/seo/jsonLd';
@@ -122,7 +123,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const title = `${offer.title} | AVENTA`;
   const store = formatStoreDisplayName(offer.store) || 'Tienda';
   const desc =
-    offer.description?.trim()?.slice(0, 155) ||
+    publicOfferDescription(offer.description)?.slice(0, 155) ||
     `Oferta en ${store}. ${offer.original_price ? `Precio ${offer.price}` : ''}`;
 
   const canonical = `${BASE_URL}${buildOfferPublicPath(id, offer.title)}`;
@@ -169,7 +170,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
 
   const canonicalPath = buildOfferPublicPath(id, offer.title);
   if (rawSegment !== canonicalPath.replace(/^\/oferta\//, '')) {
-    redirect(canonicalPath);
+    permanentRedirect(canonicalPath);
   }
 
   const prof = Array.isArray(offer.profiles) ? offer.profiles[0] : offer.profiles;
@@ -216,7 +217,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     originalPrice,
     discountPrice,
     discount,
-    description: offer.description?.trim() || undefined,
+    description: publicOfferDescription(offer.description) ?? undefined,
     steps: offer.steps?.trim() || undefined,
     conditions: offer.conditions?.trim() || undefined,
     coupons: offer.coupons?.trim() || undefined,
@@ -247,7 +248,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: offer.title,
-    description: (offer.description?.trim() || offer.title).slice(0, 500),
+    description: (publicOfferDescription(offer.description) ?? offer.title).slice(0, 500),
     image: offer.image_url ? (offer.image_url.startsWith('http') ? offer.image_url : new URL(offer.image_url, BASE_URL).toString()) : undefined,
     offers: {
       '@type': 'Offer',

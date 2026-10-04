@@ -3,6 +3,7 @@ import { requireModeration } from '@/lib/server/requireAdmin';
 import { createServerClient } from '@/lib/supabase/server';
 import { ingestOfferObservation } from '@/lib/offers/ingestion/ingestOfferObservation';
 import { OFFER_DESCRIPTION_MAX } from '@/lib/contracts/offers';
+import { publicOfferDescription } from '@/lib/offers/publicDescription';
 
 /**
  * Una oferta por request (evita timeout al parsear 20 Amazon).
@@ -16,17 +17,16 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const description =
-    typeof body?.description === 'string' && body.description.trim()
-      ? body.description.trim().slice(0, OFFER_DESCRIPTION_MAX)
-      : 'Oferta cargada por lote. Revisar ficha antes de aprobar.';
+  const description = publicOfferDescription(
+    typeof body?.description === 'string' ? body.description : null,
+  )?.slice(0, OFFER_DESCRIPTION_MAX);
 
   const result = await ingestOfferObservation(createServerClient(), {
     createdBy: auth.user.id,
     source: 'community:batch',
     body: {
       ...body,
-      description,
+      description: description ?? '',
       tags: Array.isArray(body?.tags) ? [...body.tags, 'lote'] : ['lote'],
     },
     onDuplicate: 'reuse',

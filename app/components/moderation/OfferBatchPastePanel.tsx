@@ -303,10 +303,7 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
       const original = row.originalPrice.trim() ? Number(row.originalPrice) : undefined;
       const hasDiscount = original != null && Number.isFinite(original) && original > price;
       const why = row.why.trim().slice(0, OFFER_HUNTER_COMMENT_MAX);
-      const description = (why || 'Oferta cargada por lote. Revisar ficha antes de aprobar.').slice(
-        0,
-        OFFER_DESCRIPTION_MAX,
-      );
+      const description = why.slice(0, OFFER_DESCRIPTION_MAX);
       try {
         const res = await fetch('/api/admin/offer-batch/item', {
           method: 'POST',
