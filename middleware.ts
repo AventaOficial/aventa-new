@@ -6,15 +6,25 @@ import { isStaffPathAllowed, resolveUserStaffRole } from '@/lib/server/middlewar
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
 const STAFF_PREFIX = '/equipo';
+const TEAM_PREFIX = '/team';
 /** Edge middleware budget on Vercel; fail fast instead of 504. */
 const AUTH_TIMEOUT_MS = 8000;
+
+function isTeamPath(pathname: string): boolean {
+  return pathname === TEAM_PREFIX || pathname.startsWith(`${TEAM_PREFIX}/`);
+}
+
+function isTeamGatePath(pathname: string): boolean {
+  return pathname === '/team/gate' || pathname.startsWith('/team/gate/');
+}
 
 function isProtectedPath(pathname: string): boolean {
   const isStaff = pathname === STAFF_PREFIX || pathname.startsWith(`${STAFF_PREFIX}/`);
   return (
     PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
     pathname.startsWith(ADMIN_PREFIX) ||
-    isStaff
+    isStaff ||
+    isTeamPath(pathname)
   );
 }
 
@@ -83,7 +93,20 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!userResult.data.user) {
+    if (isTeamGatePath(pathname)) return response;
+    if (isTeamPath(pathname)) {
+      const gate = request.nextUrl.clone();
+      gate.pathname = '/team/gate';
+      gate.search = '';
+      gate.searchParams.set('next', pathname);
+      return NextResponse.redirect(gate);
+    }
     return redirectHome(request);
+  }
+
+  // Team OS no consulta user_roles. La membresía se comprueba en el servidor.
+  if (isTeamPath(pathname)) {
+    return response;
   }
 
   const isAdmin = pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`);
@@ -100,6 +123,11 @@ export async function middleware(request: NextRequest) {
       return redirectHome(request);
     }
     if (!isStaffPathAllowed(pathname, role)) {
+      if (isAdmin && role === 'moderator') {
+        const equipo = request.nextUrl.clone();
+        equipo.pathname = '/equipo/moderacion';
+        return NextResponse.redirect(equipo);
+      }
       return redirectHome(request);
     }
   }
@@ -120,5 +148,7 @@ export const config = {
     '/admin/:path*',
     '/equipo',
     '/equipo/:path*',
+    '/team',
+    '/team/:path*',
   ],
 };

@@ -36,8 +36,8 @@ export const ROLE_PRIORITY: Role[] = [
 /** Cualquier rol con acceso al hub externo `/equipo`. */
 export const STAFF_HUB_ROLES: Role[] = [...ROLES];
 
-/** Roles que pueden usar `/admin` (gerente, marketing y finance van solo a `/equipo`). */
-export const ADMIN_PANEL_ROLES: Role[] = ['owner', 'admin', 'moderator', 'analyst'];
+/** `/admin` es solo del Owner. El equipo operativo entra por `/equipo`. */
+export const ADMIN_PANEL_ROLES: Role[] = ['owner'];
 
 /** Supervisión del equipo. */
 export const GERENCIA_ROLES: Role[] = ['owner', 'admin', 'gerente'];
@@ -121,9 +121,9 @@ export function canAccessHealth(role: Role | null): boolean {
   return role !== null && (ADMIN_NAV.health as readonly Role[]).includes(role);
 }
 
-/** True si puede usar `/admin` (no incluye gerente, marketing, finance). */
+/** True solo para el Owner. Una membresía de equipo no usa esta función. */
 export function canAccessAdmin(role: Role | null): boolean {
-  return role !== null && ADMIN_PANEL_ROLES.includes(role);
+  return role === 'owner';
 }
 
 /** Roles que owner/admin pueden asignar desde /admin/team (no owner por API). */

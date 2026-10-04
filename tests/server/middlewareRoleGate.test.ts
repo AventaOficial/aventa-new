@@ -6,8 +6,13 @@ describe('middlewareRoleGate', () => {
     expect(isStaffPathAllowed('/admin/moderation', null)).toBe(false);
   });
 
-  it('permite moderator en /admin/moderation', () => {
-    expect(isStaffPathAllowed('/admin/moderation', 'moderator')).toBe(true);
+  it('solo el owner entra a /admin; el moderador se queda en /equipo', () => {
+    expect(isStaffPathAllowed('/admin', 'owner')).toBe(true);
+    expect(isStaffPathAllowed('/admin/owner', 'owner')).toBe(true);
+    expect(isStaffPathAllowed('/admin/moderation', 'moderator')).toBe(false);
+    expect(isStaffPathAllowed('/admin/metrics', 'analyst')).toBe(false);
+    expect(isStaffPathAllowed('/admin/users', 'admin')).toBe(false);
+    expect(isStaffPathAllowed('/equipo/moderacion', 'moderator')).toBe(true);
   });
 
   it('bloquea marketing en /admin (solo /equipo)', () => {
