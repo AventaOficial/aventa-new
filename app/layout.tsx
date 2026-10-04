@@ -21,9 +21,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const baseUrl =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://aventaofertas.com");
+/** Canonical y OpenGraph siempre apuntan al dominio público, nunca a la URL del deployment. */
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://aventaofertas.com";
 
 export const viewport: Viewport = {
   themeColor: [

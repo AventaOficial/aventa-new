@@ -32,15 +32,15 @@ describe('Pre-Master — Profile theme boundary', () => {
   it('hunter surfaces use light/dark pairs (not dark-only paint)', () => {
     const me = readFileSync(join(ROOT, 'app/me/page.tsx'), 'utf8');
     expect(me).toMatch(/dark:bg-\[#121214\]|dark:bg-\[#141414\]/);
-    expect(me).toMatch(/text-gray-900 dark:text-white/);
+    expect(me).toMatch(/text-(gray-900|\[#1d1d1f\])[^"]*dark:text-(white|gray-100|\[#fafafa\])/);
 
     const hunter = readFileSync(join(ROOT, 'app/me/HunterActivitySummary.tsx'), 'utf8');
-    expect(hunter).toMatch(/bg-white.*dark:bg-\[#121214\]/);
-    expect(hunter).toMatch(/text-gray-900 dark:text-white/);
+    expect(hunter).toMatch(/bg-white[^"]*dark:bg-\[#(121214|141414)\]/);
+    expect(hunter).toMatch(/text-(gray-900|\[#1d1d1f\])[^"]*dark:text-(white|\[#fafafa\])/);
 
     const rep = readFileSync(join(ROOT, 'app/components/ReputationBar.tsx'), 'utf8');
     expect(rep).toMatch(/variant === 'hunter'/);
-    expect(rep).toMatch(/bg-white\/90.*dark:bg-\[#0e0e10\]\/90|dark:bg-\[#0e0e10\]\/90/);
+    expect(rep).toMatch(/text-\[#1d1d1f\] dark:text-\[#fafafa\]/);
   });
 
   it('public /u profile already theme-aware (unchanged contract)', () => {

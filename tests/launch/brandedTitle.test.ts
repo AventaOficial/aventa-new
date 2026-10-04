@@ -1,5 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
+
+describe('layout metadataBase', () => {
+  it('never resolves canonical or og:url against the deployment URL', () => {
+    const layout = readFileSync(join(process.cwd(), 'app/layout.tsx'), 'utf8');
+    expect(layout).not.toMatch(/VERCEL_URL/);
+    expect(layout).toMatch(/process\.env\.NEXT_PUBLIC_APP_URL \|\| "https:\/\/aventaofertas\.com"/);
+    expect(layout).toMatch(/metadataBase: new URL\(baseUrl\)/);
+  });
+});
 
 describe('brandedTitle', () => {
   it('adds the brand once', () => {

@@ -1,5 +1,6 @@
 import { normalizeVoteCounts } from '@/lib/offers/scoring';
 import { parseOfferScopeFromConditions, type OfferScopeUi } from '@/lib/offerScope';
+import { publicOfferDescription } from '@/lib/offers/publicDescription';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
 export type CardOfferAuthor = {
@@ -173,7 +174,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
     msiMonths: row.msi_months != null ? Number(row.msi_months) : undefined,
     bankCoupon: row.bank_coupon?.trim() || undefined,
-    description: row.description?.trim() || undefined,
+    description: publicOfferDescription(row.description) ?? undefined,
     hunterComment: row.hunter_comment?.trim() || undefined,
     steps: row.steps?.trim() || undefined,
     conditions: row.conditions?.trim() || undefined,
@@ -236,7 +237,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     imageUrls: images.length > 0 ? images : undefined,
     msiMonths: msiOk,
     bankCoupon: item.bank_coupon?.trim() || undefined,
-    description: item.description?.trim() || undefined,
+    description: publicOfferDescription(item.description) ?? undefined,
     hunterComment: item.hunter_comment?.trim() || undefined,
     coupons: item.coupons?.trim() || undefined,
     conditions: item.conditions?.trim() || undefined,

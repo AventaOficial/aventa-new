@@ -4,6 +4,7 @@ import { ALL_CATEGORIES } from '@/lib/categories';
 import { listAllSubgroupRoutes } from '@/lib/categories/subgroups';
 import { slugifyStore } from '@/lib/slug';
 import { buildOfferPublicPath } from '@/lib/offerPath';
+import { isConfirmedGoneDiagnostic } from '@/lib/offers/evaluateOfferHealth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
@@ -98,11 +99,13 @@ export async function getSitemapOffers(
 
     const { data: unavailable } = await supabase
       .from('offer_health_state')
-      .select('offer_id')
+      .select('offer_id, diagnostic')
       .eq('status', 'out_of_stock')
       .limit(2000);
     const unavailableIds = new Set(
-      (unavailable ?? []).map((row: { offer_id: string }) => row.offer_id)
+      (unavailable ?? [])
+        .filter((row: { diagnostic?: string | null }) => isConfirmedGoneDiagnostic(row.diagnostic))
+        .map((row: { offer_id: string }) => row.offer_id)
     );
 
     return (rows ?? [])

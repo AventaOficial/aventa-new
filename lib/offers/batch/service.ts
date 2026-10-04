@@ -864,8 +864,6 @@ export type ItemActionResult =
   | { ok: true; item: OfferBatchItemRow; code?: string | null; message?: string | null }
   | { ok: false; httpStatus: 400 | 404 | 409 | 500; code: string; message: string; item?: OfferBatchItemRow };
 
-const DEFAULT_DESCRIPTION = 'Oferta cargada por lote. Revisar ficha antes de aprobar.';
-
 /** URL de salida persistida en evidencia. Null si no hay https válido. */
 export function persistedBatchOutbound(item: OfferBatchItemRow): string | null {
   const value = item.evidence?.outbound_url;
@@ -876,7 +874,7 @@ export function persistedBatchOutbound(item: OfferBatchItemRow): string | null {
 
 export function buildOfferBodyFromItem(item: OfferBatchItemRow): Record<string, unknown> {
   const images = item.images.slice(0, OFFER_MAX_IMAGES);
-  const description = (item.hint_note && item.hint_note.trim()) || DEFAULT_DESCRIPTION;
+  const description = item.hint_note?.trim() ?? '';
   const persisted = persistedBatchOutbound(item);
   return {
     title: item.title ?? '',
@@ -887,7 +885,7 @@ export function buildOfferBodyFromItem(item: OfferBatchItemRow): Record<string, 
     image_url: images[0] ?? null,
     image_urls: images.slice(1),
     offer_url: persisted ?? item.canonical_url ?? item.normalized_url ?? item.source_url,
-    description: description.slice(0, OFFER_DESCRIPTION_MAX),
+    ...(description ? { description: description.slice(0, OFFER_DESCRIPTION_MAX) } : {}),
     category: item.category,
     tags: ['lote'],
   };

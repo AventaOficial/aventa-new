@@ -82,6 +82,16 @@ export async function PATCH(request: Request) {
   if (status !== 'draft' && status !== 'locked' && status !== 'paid' && status !== 'cancelled') {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
   }
+  if (status === 'paid') {
+    return NextResponse.json(
+      {
+        error:
+          'commission_pools son legacy/reporting; no constituyen liquidación monetaria. Canal pagable: creator_rewards → reward_payouts.',
+        code: 'legacy_commission_not_payable',
+      },
+      { status: 403 },
+    );
+  }
 
   const supabase = createServerClient();
   const { error } = await supabase

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { writeRewardAuditLog } from '@/lib/rewards/audit';
 import { createRewardFromLedgerEntry } from '@/lib/rewards/rewardsEngine';
 import type { AffiliateNetworkId } from '@/lib/rewards/adapters/types';
+import { isMoneyPathFrozen, MONEY_PATH_FROZEN_CODE } from '@/lib/server/moneyPathFreeze';
 
 export type ManualAttributionResult =
   | { ok: true; rewardId: string }
@@ -36,6 +37,11 @@ export async function assignManualLedgerAttribution(
     reason?: string | null;
   },
 ): Promise<ManualAttributionResult> {
+  // Antes de tocar el ledger: con freeze el engine no crearía el reward y la atribución quedaría huérfana.
+  if (isMoneyPathFrozen()) {
+    return { ok: false, error: MONEY_PATH_FROZEN_CODE, status: 503 };
+  }
+
   const reason = input.reason?.trim() || 'manual_staff_attribution';
   const now = new Date().toISOString();
 
