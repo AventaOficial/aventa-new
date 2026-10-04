@@ -44,13 +44,17 @@ export default function RevenueCard({
     <Card labelledBy="ceo-revenue" className={className}>
       <CardHeader
         id="ceo-revenue"
-        title="Ingresos confirmados"
+        title={
+          <>
+            Ingresos<span className="hidden @[16rem]:inline"> confirmados</span>
+          </>
+        }
         icon={CircleDollarSign}
         action={<RangeChip range={range} onChange={onRangeChange} label="Período de ingresos" />}
       />
       {b == null ? (
         base.status === 'error' ? (
-          <CardError message="No se pudieron cargar los ingresos. Detalle en Diagnóstico técnico." onRetry={onRetry} />
+          <CardError message="No se pudieron cargar los ingresos." onRetry={onRetry} />
         ) : (
           <CardLoading rows={4} />
         )

@@ -10,9 +10,9 @@ function row(...cells: Cell[]): string {
  * debajo de éstas; por eso la franja superior usa 3 filas.
  */
 const DESKTOP_AREAS = [
-  row(['community', 10], ['users', 5], ['offers', 4], ['moderation', 5]),
-  row(['revenue', 6], ['payouts', 4], ['users', 5], ['offers', 4], ['moderation', 5]),
-  row(['revenue', 6], ['payouts', 4], ['capacity', 9], ['moderation', 5]),
+  row(['community', 10], ['users', 5], ['offers', 4], ['teams', 5]),
+  row(['revenue', 6], ['payouts', 4], ['users', 5], ['offers', 4], ['teams', 5]),
+  row(['revenue', 6], ['payouts', 4], ['capacity', 9], ['teams', 5]),
   row(['goals', 10], ['season', 7], ['priorities', 7]),
 ].join('\n      ');
 
@@ -31,7 +31,7 @@ const CHROME_PX = 120;
 /** Por debajo de este alto el contenido ya no cabe; la página hace scroll. */
 const MIN_HEIGHT_PX = 520;
 
-const AREAS = ['community', 'users', 'offers', 'moderation', 'revenue', 'payouts', 'capacity', 'goals', 'season', 'priorities'];
+const AREAS = ['community', 'users', 'offers', 'teams', 'revenue', 'payouts', 'capacity', 'goals', 'season', 'priorities'];
 
 /**
  * Composición del lienzo del CEO.
@@ -56,7 +56,7 @@ ${AREAS.map((a) => `.ceo-area-${a} { grid-area: ${a}; }`).join('\n')}
       "community community"
       "users offers"
       "revenue payouts"
-      "capacity moderation"
+      "capacity teams"
       "goals season"
       "priorities priorities";
   }

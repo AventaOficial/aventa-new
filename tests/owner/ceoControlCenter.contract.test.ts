@@ -24,8 +24,9 @@ describe('CEO Control Center contracts', () => {
     'utf8',
   );
 
-  it('monta CeoControlCenter en owner dashboard', () => {
-    expect(client).toMatch(/CeoControlCenter/);
+  it('el owner dashboard es solo el mosaico; el diagnóstico técnico no se monta', () => {
+    expect(client).toMatch(/TeamsCard/);
+    expect(client).not.toMatch(/CeoControlCenter|TechnicalDiagnostics/);
   });
 
   it('nunca presenta estimatedCents como único "Revenue"', () => {

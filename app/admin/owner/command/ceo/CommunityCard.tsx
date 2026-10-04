@@ -49,7 +49,7 @@ export default function CommunityCard({
         action={<ViewLink href="/admin/owner/crecimiento" label="Ver más sobre la actividad de la comunidad">Ver más</ViewLink>}
       />
       {cmd == null && source.status === 'error' ? (
-        <CardError message="No se pudo cargar la actividad de la comunidad. Detalle en Diagnóstico técnico." onRetry={onRetry} />
+        <CardError message="No se pudo cargar la actividad de la comunidad." onRetry={onRetry} />
       ) : (
         <ul className="mt-2 grid flex-1 grid-cols-3 gap-1.5 sm:grid-cols-6">
           {(cmd ? tiles(cmd.community) : Array.from({ length: 6 }, () => null)).map((t, i) => (
