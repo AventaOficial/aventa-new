@@ -1,173 +1,207 @@
 # AVENTA — FINAL RELEASE GATE
 
-Fecha: 2026-10-04, ~23:30 UTC. Auditoría de solo lectura: sin código nuevo, sin migraciones, sin escrituras en producción, sin deploy.
+Fecha: 2026-10-04, ~23:45 UTC. Auditoría de solo lectura: sin código, sin migraciones, sin escrituras en producción, sin deploy y sin merge.
+Producción: `aventaofertas.com`, `master` @ `0d97401`, Supabase `mkgsrpsuvedwwlzmzmzh`.
+Release candidate: [PR #44](https://github.com/AventaOficial/aventa-new/pull/44), `product/founder-os` @ `6349245`.
 
-## 1. Current release — PASS
+## 1. Executive verdict
 
-| | |
+**READY WITH CONDITIONS.**
+
+El código está cerrado: no hay blockers técnicos y PR #44 está **READY TO MERGE**. Quedan dos blockers, y ninguno requiere código:
+
+1. **EXTERNAL:** Supabase está en plan **free** (verificado por API: `plan: free`, `tier_free`). Falta Pro + backup visible + restore verificado.
+2. **P1 de operación (supply):** hay 12 ofertas vigentes y todas vencen entre las 00:59 y las 01:43 UTC del 2026-10-05. Después de esa hora el feed queda vacío.
+
+## 2. Technical status — PASS
+
+| Comprobación | Evidencia |
 |---|---|
-| Producción (`aventaofertas.com`) | `master` @ `0d97401` (#43), CI y Vercel en verde |
-| Release candidate | [PR #44](https://github.com/AventaOficial/aventa-new/pull/44), rama `product/founder-os` @ `7315f69` |
-| Contenido del RC | Founder OS (nav CEO / Operations / Technical, fichas de módulos), Baneos como pestaña de Moderación, OfferMedia sin imagen «flotando», fechas deterministas en el detalle (#418), flechas de voto sin error de consola, sponsored placement por política, rail de comunidad |
+| Git | Árbol limpio. `HEAD` = `origin/product/founder-os` = `6349245`. 4 commits por delante de `master` y 0 por detrás |
+| PR #44 | `OPEN`, `MERGEABLE`, `CLEAN`. `verify` pass. Vercel `aventa-new` y `aventa-staging` desplegados |
+| `master` | `verify`, `scrape-and-ingest` y Vercel en éxito |
+| Typecheck / build | `tsc --noEmit` OK; `next build` OK sobre `7315f69` (el último commit solo añade docs) |
+| Tests | Relevantes: 126 archivos, 1.182 OK. Suite completa previa: 4.254 OK y 8 saltados |
+| Lint | 0 errores nuevos. 5 errores de React Compiler en `app/page.tsx` idénticos en `master` (preexistentes) |
 
-## 2. Git state — PASS
+**PR #44: READY TO MERGE.**
 
-- Árbol de trabajo limpio (0 cambios sin commit). `.next/` está ignorado.
-- `product/founder-os` = `origin/product/founder-os` = `7315f69`. Va 3 commits por delante de `origin/master` y 0 por detrás: no hay conflictos ni rebase pendiente.
-- 52 archivos cambiados frente a `master`, todos de producto, UX, docs o tests. Se elimina 1 archivo (`app/components/RailOfferRequests.tsx`, sustituido por el rail de comunidad).
-- Búsqueda de palabras sensibles en las líneas del diff: no hay `MONEY_PATH`, service-role, `.insert/.update/.delete/.upsert/.rpc`, policies, migraciones, `suppressHydrationWarning`, `console.log`, `debugger` ni TODO. Las únicas coincidencias son enlaces de navegación (`/admin/commissions`, `/admin/rewards`), textos de las fichas y docs.
-- Sin código experimental ni restos de staging en el diff.
-- **Para reportar (no son blockers):** hay PRs antiguos abiertos que **no deben mergearse** como parte de este release: #42 (docs), #32, #14 (`reconcile/economy-ledger`, toca dinero), #13 y #8. PR #44 es el único cambio pendiente de este cierre.
+- **Qué cambia:**
+  - Navegación del owner en 3 audiencias, con 17 fichas.
+  - Baneos como pestaña de Moderación.
+  - Drilldowns del CEO Dashboard.
+  - OfferMedia (placa neutra; desenfoque solo para escenas medidas).
+  - Fechas deterministas en el detalle (#418).
+  - Flechas de voto sin error de framer-motion.
+  - Sponsored placement por política y rail de comunidad.
+  - Docs y tests.
+- **Qué no cambia:** seguridad, dinero, lifecycle, scanner, schema, migraciones, crons, middleware, auth, `.env` y `vercel.json`. El escaneo de las líneas del diff no encuentra escrituras a DB, service-role, policies ni `suppressHydrationWarning`.
+- **Deuda:** ninguna nueva. Elimina `RailOfferRequests.tsx`, sustituido por el rail de comunidad, y sus tests pasan.
 
-## 3. CI — PASS
+## 3. Security status — PASS
 
-- PR #44: `verify` pass y Vercel `aventa-new`/`aventa-staging` desplegados.
-- `master`: `verify`, `scrape-and-ingest` y Vercel en éxito.
-- Local sobre `7315f69`:
-  - `tsc --noEmit`: OK.
-  - `next build`: OK.
-  - Tests relevantes (launch, owner, offers, home, moderation, team): 126 archivos, 1.182 tests OK.
-  - Suite completa previa: 4.254 OK y 8 saltados.
-- Lint de los archivos tocados: 0 errores nuevos. `app/page.tsx` tiene 5 errores de React Compiler **idénticos en `master`** (preexistentes, sin cambio de comportamiento).
+- **Rutas protegidas (anónimo):**
+  - `/me`, `/me/favorites`, `/admin/*`, `/equipo` → 307 a `/`.
+  - 14 APIs `/api/admin/*` → 401.
+  - Crons (incluidos los de dinero) sin secret → 401.
+- **Owner (sesión real en producción):** `/admin/owner`, `/admin/moderation(/bans)`, `/admin/team`, `/admin/sistemas/mapa` y `/equipo` → 200 y renderizan. No hay 401/403 incorrectos.
+- **Separación owner / admin / moderator:** la cubren los guards existentes y los tests (`tests/owner`, `tests/team`, `tests/moderation`). No pude probarla en producción con una sesión no-owner.
+- **Bundles de producción (25 chunks JS):** el único JWT es `anon@mkgsrpsuvedwwlzmzmzh`. No aparece `service_role`, `sk_live`, `sk_test`, `CRON_SECRET`, `PRIVATE_KEY`, `client_secret` ni referencias a staging (`oojshofrpbfwsiypcecr`, `staging.aventaofertas`).
+- **Advisors de Supabase (seguridad):**
+  - 61 tablas con RLS y sin policies (INFO): deny-all para el cliente, que es lo correcto porque el servidor usa service-role.
+  - 2 vistas SECURITY DEFINER (`ofertas_ranked_general`, `public_profiles_view`): solo `SELECT` para anon y authenticated; las escrituras se revocaron en #40. Residuo aceptado en `AVENTA_LAUNCH_READINESS.md`.
+  - `is_moderator` y `user_has_moderation_role` son ejecutables, pero solo devuelven un boolean sobre el propio usuario (LOW).
+  - 2 funciones con `search_path` mutable (LOW).
+  - Protección de contraseñas filtradas desactivada (P2, ajuste del panel).
+- **Sin cambios de seguridad en PR #44.**
 
-## 4. Production — PASS
+## 4. Money status — FROZEN (SAFE)
 
-HTTP de solo lectura contra `aventaofertas.com` (y el preview de PR #44, con el mismo resultado):
+- `isMoneyPathFrozen()` (`lib/server/moneyPathFreeze.ts`) devuelve true en producción si `MONEY_PATH_FROZEN` falta o es inválida.
+- **Crons de dinero programados en `vercel.json`:** `ledger-reward-bridge`, `available-payout-intent`, `reserved-payout-submit`, `provider-payout-confirm` y `rewards-release-holds`. Todos exigen `CRON_SECRET` y llegan a un guard de congelamiento antes de escribir:
+  - `ledgerRewardBridge/classify.ts`
+  - `payoutIntent/engine.ts` (`reservePayoutIntent` y el envío)
+  - `providerConfirmationAutomation/processConfirmablePayoutIntent.ts`
+  - `rewardsEngine.ts`
+  - `payout.ts`
+  - `clawback.ts`
+  - `manualAttribution.ts`
+- **Evidencia en producción (solo lectura):**
+  - `affiliate_conversions`, `affiliate_commissions`, `payout_intents` y `payout_batches` = **0**.
+  - Filas históricas: 10 ledger entries, 6 rewards, 6 reward payouts y 6 clawbacks, todas del 2026-08-31. Hay 6 settlements del 2026-09-06.
+  - **No hay ninguna fila nueva en 4 semanas**, aunque esos crons corren cada día.
+- PR #44 no toca ningún archivo de dinero. `PayoutsCard.tsx` solo cambia el destino de un enlace.
 
-- 200: `/`, `/plaza`, `/subir`, `/descubre`, `/u/[usuario]`, `/api/health`, `/sitemap.xml`, `/robots.txt`.
-- 307 → `/` para un visitante anónimo, que es correcto: `/me`, `/me/favorites`, `/admin/owner`, `/admin/moderation`, `/admin/moderation/bans`, `/equipo`, `/admin/team`, `/admin/sistemas/mapa`.
-- Con la sesión del owner, todas las rutas del owner responden 200 y renderizan. No hay 401/403 incorrectos.
-- Sin 5xx.
-- `/api/health`: `{"status":"ok","feedViewOk":true}`.
-- Sitemap: 171 URLs, 0 referencias a staging.
-- `/subir` redirige a `/?upload=1` (modal de subida) por diseño.
+## 5. Database status — PASS (técnico) / FAIL (respaldo)
 
-## 5. Browser QA — PASS
+- Proyecto `ACTIVE_HEALTHY`, Postgres 17.6, `us-east-2`.
+- Sin migraciones pendientes en este release.
+- `/api/health`: `{"status":"ok","offersCount":654,"feedViewOk":true}`.
+- **Plan free:** no hay restore administrable. Ver §10.
 
-Producción (`master`), con la sesión real del owner y sin acciones de escritura:
+## 6. Reliability status — PASS
 
-| Página | Viewports | console.error / hidratación | Overflow | Imágenes rotas |
-|---|---|---|---|---|
-| `/` | escritorio, 390 oscuro | 0 | 0 | 0 de 51 |
-| `/plaza` | escritorio | 0 | 0 | 0 |
-| Detalle de oferta | escritorio, 390 oscuro | 0 | 0 | 0 |
-| `/descubre` | 390 oscuro | 0 | 0 | 0 |
-| `/subir` → `/` | 430 claro | 0 | 0 | 0 |
-| `/u/[usuario]` | 430 claro | 0 | 0 | 0 |
-| `/me`, `/me/favorites` | 430 claro y oscuro | 0 | 0 | 0 |
-| `/admin/owner`, `/admin/moderation/bans`, `/admin/sistemas/mapa`, `/equipo` | escritorio | 0 | 0 | — |
+- **Lifecycle** `offers-lifecycle-v2` (`17 * * * *`, activo):
+  - 5 corridas desde que se activó hoy a las 19:17 UTC, todas `succeeded`.
+  - 0 fallos y 0 solapamientos. Duración máxima menor a 1 s.
+  - La última corrida fue a las 23:17 UTC.
+- **pg_cron:** 1 job en total y 0 jobs de staging.
+- **Scanner** `/api/cron/offer-health-scan` (03:00 UTC):
+  - Último `last_checked_at`: 2026-10-04 03:46 UTC.
+  - 0 ofertas con `gone` o `not_found`.
+  - Las 12 vigentes tienen el health antiguo `out_of_stock`, con su procedimiento de cierre en `AVENTA_FINAL_GO_NO_GO.md`.
+  - La salida a la tienda solo se bloquea con 404/410.
+- **Expiraciones:** las 12 vigentes conservan su `expires_at` original. Hay 70 ofertas aprobadas ya vencidas que no se archivan: siguen visibles como página de detalle y no aparecen en el feed, que filtra por `expires_at`.
 
-- PR #44 se verificó contra staging en local (sesión de owner): Baneos dentro del hub, sidebar en 3 secciones, Team Hub para el owner y CEO Dashboard sin errores.
-- Diferencias esperadas de producción respecto al RC, todas cosméticas y que se corrigen al mergear PR #44:
-  - Baneos no tiene pestaña en Moderación (la página funciona).
+## 7. Product status — PASS
+
+QA de producción con la sesión real del owner y sin escrituras:
+
+- **Páginas públicas y de usuario:** `/`, `/plaza`, detalle de oferta, `/descubre`, `/subir` (redirige a `/?upload=1` por diseño), `/u/[usuario]`, `/me` y `/me/favorites`.
+- **Viewports:** escritorio, 390 y 430px, claro y oscuro.
+- **Resultado:** 0 `console.error`, 0 errores de hidratación, 0 overflow horizontal y 0 imágenes rotas.
+- **Admin:** CEO Dashboard, Baneos, Mapa de sistemas y Team Hub renderizan sin errores.
+- **Notificaciones:** el botón carga sin errores. No abrí el panel para no marcar nada como leído.
+- **SEO técnico:**
+  - Canonical correcto en `/`, `/plaza`, `/descubre`, `/u/*` y `/oferta/*` (slug).
+  - El detalle tiene `index, follow`.
+  - `robots.txt` bloquea `/admin`, `/api`, `/auth` y `/me`.
+  - Sitemap: 171 URLs, sin staging.
+- **Diferencias de producción frente a PR #44** (se corrigen al mergear):
+  - Baneos no tiene pestaña en Moderación.
   - Imagen blanca con halo en dark mode.
   - Navegación del owner antigua.
 
-## 6. Security — PASS
+## 8. Supply status — FAIL (P1, operación, sin código)
 
-PR #44 no toca RLS, auth, middleware/proxy, migraciones, schema, policies, service-role ni `.env`. El acceso a las rutas del owner sigue dependiendo de los guards existentes, verificado con anónimo (307) y owner (200).
+**Auditoría técnica (solo lectura):**
 
-## 7. Money freeze — PASS
+| Métrica | Valor |
+|---|---|
+| Vigentes (aprobadas, no borradas ni archivadas, `expires_at > now`) | **12** |
+| Aprobadas | 12 |
+| En el feed (`/api/feed/home`) | 12 |
+| Indexables (`/oferta/*` en el sitemap) | 12 |
+| Imagen https | 12 |
+| Descripción útil | **1** (11 con la nota de lote, oculta al público) |
+| Precio | 12 |
+| Descuento (`original_price > price`) | 12 |
+| Outbound https | 12 |
+| Primer vencimiento | 2026-10-05 00:59 UTC |
+| Último vencimiento | 2026-10-05 01:43 UTC |
+| Cola pendiente de moderación | 1 (desde el 2026-10-02) |
+| Aprobadas históricas | 82 |
 
-- `isMoneyPathFrozen()` (`lib/server/moneyPathFreeze.ts`) devuelve true en producción si `MONEY_PATH_FROZEN` falta o es inválida. Solo un `false/0/no/off` explícito lo descongela.
-- PR #44 no modifica ese archivo ni ninguna ruta de dinero. El único archivo con nombre relacionado (`PayoutsCard.tsx`) solo cambia el destino de un enlace. **PR #44 no puede habilitar dinero.**
-- Conteos en producción (solo lectura):
-  - `affiliate_conversions`, `affiliate_commissions`, `payout_intents` y `payout_batches`: **0**.
-  - Filas históricas: 10 ledger entries, 6 rewards, 6 reward payouts y 6 clawbacks, todas del 2026-08-31. Hay 6 settlements del 2026-09-06. **Ninguna fila de dinero nueva en 4 semanas.** Cada reward histórico tiene su clawback.
-- Estados: rewards, commissions, payouts, settlement, ledger y attribution congelados y sin cambios.
+**CURRENT LIVE CATALOG = 12, y será 0 a partir de las 01:43 UTC del 2026-10-05.**
 
-## 8. Lifecycle — PASS
+**Mínimo para abrir: ≥ 24 ofertas vigentes.** Es una decisión de producto, separada de la auditoría; se apoya en el diseño ya implementado:
 
-`offers-lifecycle-v2`, `17 * * * *`, activo. Última corrida `succeeded` el 2026-10-04 a las 23:17 UTC. Sin cambios en PR #44.
+- La política de patrocinio (`DEFAULT_FEED_POLICY`: primero tras 2 ofertas, luego cada 4, máximo 6) necesita **22 ofertas** para que el feed muestre su ritmo completo sin que los patrocinados dominen. Con menos, la proporción patrocinado/orgánico empeora; con 12, ya hay 3 patrocinados.
+- El home tiene 9 categorías. Con ≥ 24 ofertas repartidas en ≥ 5 categorías, ningún filtro queda vacío en la primera visita.
+- Cada oferta debe tener **≥ 72 h de vigencia** al abrir, para que el catálogo no se vacíe en el primer día, como ocurre hoy.
+- Calidad mínima por oferta: imagen, precio con descuento, outbound https y descripción útil. Las 12 actuales cumplen todo menos la descripción.
 
-## 9. Scanner — PASS
+## 9. Acquisition status — N/A (fuera del alcance técnico)
 
-`/api/cron/offer-health-scan`, diario a las 03:00 UTC. Último `last_checked_at`: 2026-10-04 03:46 UTC (la corrida de hoy). La salida a la tienda solo se bloquea con 404/410. Sin cambios en PR #44.
+- Lo técnico está listo para tráfico orgánico: sitemap, canonical, robots e indexación del detalle.
+- No hay campaña de adquisición activa ni verificada. Abrir adquisición antes de cumplir §8 llevaría tráfico a un feed vacío.
+- P3: `/descubre` y `/u/[usuario]` usan el título genérico «AVENTA · Ofertas de la comunidad».
 
-## 10. Founder OS — PASS
+## 10. External blockers
 
-- Navegación: CEO (¿Qué debo decidir hoy?), Operations (¿Cómo está funcionando Aventa hoy?) y Technical (¿Cómo está armado y quién puede hacer qué?).
-- 17 fichas, con qué decide, qué NO controla y cuándo entrar.
-- «Roles y permisos» y «Team Hub», sin «Team» suelto.
-- Baneos dentro de Moderación.
-- Cubierto por `tests/owner/founderOs.test.ts`.
+**Supabase Pro + backup visible + restore verificado — FAIL.** La organización `AventaOficial` está en `plan: free`. No se resuelve desde el código y no se debe simular.
 
-## 11. Product parity — PASS
+## 11. Founder actions
 
-- Paridad con staging cerrada en #41; feed, detalle, favoritos, Plaza, notificaciones, `/me`, moderación, Team Hub y CEO Dashboard verificados.
-- No se promovió staging. No se copiaron datos, usuarios, crons, tablas ni configuración de dinero.
+Por orden:
 
-## 12. Remaining P2 — PASS (no bloquean)
+1. **Supabase**, en el panel y sin código:
+   1. Abrir el proyecto `mkgsrpsuvedwwlzmzmzh` (no `oojshofrpbfwsiypcecr`).
+   2. En Organization → Billing, pasar `AventaOficial` a **Pro**.
+   3. En Database → Backups, esperar a que aparezca al menos un backup completado y anotar su fecha/hora UTC.
+   4. Hacer **Restore to a new project** desde ese backup. **Nunca** restaurar encima de producción. Si el panel no ofrece restaurar a un proyecto nuevo, pedirlo a soporte de Supabase.
+   5. En el proyecto restaurado, ejecutar `select count(*) from public.offers;`, `select count(*) from public.profiles;`, `select max(created_at) from public.offers;` y `select jobname, active from cron.job;`. Deben ser coherentes con producción a la hora del backup.
+   6. Anotar en este documento la hora del backup, el inicio y fin del restore (RTO) y el resultado.
+   7. Confirmar que producción sigue intacta (`/api/health` ok, conteo de `offers` sin bajar, lifecycle activo) y **pausar o borrar** el proyecto restaurado.
+2. **Supply:** aprobar desde Moderación ofertas reales hasta tener **≥ 24 vigentes con ≥ 72 h** en ≥ 5 categorías. Se hace con el flujo normal de moderación, sin escrituras directas a la DB.
+3. **Merge de PR #44**, preferiblemente con el backup ya verificado. Vercel despliega solo; después hay que repetir el smoke de §13.
+4. **Opcional (P2):** activar la protección de contraseñas filtradas en Auth y decidir la etiqueta «Patrocinado» de los creativos propios.
 
-**11 ofertas con «Oferta cargada por lote. Revisar ficha antes de aprobar.»** No se modificaron.
+## 12. Post-launch items (no tocar antes del release)
 
-| id | status | expires_at (UTC) |
-|---|---|---|
-| 61267a33-9779-4b77-83c5-11f646dff8bb | approved | 2026-10-05 01:08:24 |
-| c90a091c-90cc-4d32-9dfb-670db434dad3 | approved | 2026-10-05 01:43:19 |
-| aa9a51e8-cac2-4399-b141-6e9295338d2f | approved | 2026-10-05 01:43:21 |
-| c51e5ab4-d4c6-4f4d-82ec-4f636debfc93 | approved | 2026-10-05 01:43:22 |
-| 1beeea9c-98e4-4da6-aeb9-ebeff36f28ea | approved | 2026-10-05 01:43:24 |
-| 7ba0aaf5-81da-409c-8eb6-5273b7462540 | approved | 2026-10-05 01:43:25 |
-| a07c8ff8-f431-4b4b-9370-1718d000563a | approved | 2026-10-05 01:43:27 |
-| 54d0c08e-e254-4681-aa2c-91d544e76de1 | approved | 2026-10-05 01:43:28 |
-| 0b094e07-9657-40d4-9906-e2ae3418b323 | approved | 2026-10-05 01:43:29 |
-| 9924db0d-2840-4fe4-ae70-9129057bf0d3 | approved | 2026-10-05 01:43:31 |
-| d8bb8a67-33ed-42ca-ac0d-d8631f135d07 | approved | 2026-10-05 01:43:32 |
-
-- **¿Visibles?** Las ofertas sí, hasta que venzan solas (≈01:43 UTC del 5 de octubre). **El texto de lote no**: `lib/offers/publicDescription.ts` lo oculta. Verificado en producción sobre `c51e5ab4…`.
-- La limpieza opcional (SELECT, UPDATE y validación BEFORE/AFTER) está en `AVENTA_PRODUCTION_CLOSURE_STATUS.md` §10 como operación del owner. No es necesaria.
-- **Ojo:** después de ≈01:43 UTC del 5 de octubre quedarán 0 ofertas vigentes (hoy hay 12, todas de este lote más una). No es un fallo técnico, pero antes de abrir al público tiene que haber ofertas aprobadas y vigentes.
-
-Otros P2: la API del feed devuelve `description` sin filtrar en el JSON, y la etiqueta «Patrocinado» aparece en creativos propios de Aventa.
-
-## 13. External gate — BLOCKED
-
-**Supabase Pro + backup visible + restore verificado.** No se resuelve desde el repositorio. Checklist para el fundador (todo en el panel de Supabase):
-
-1. **Proyecto correcto.** Abrir el proyecto con ref `mkgsrpsuvedwwlzmzmzh` (producción). No confundir con `oojshofrpbfwsiypcecr` (staging). Comprobarlo en Settings → General → Reference ID.
-2. **Plan Pro.** En Organization → Billing, el plan de la organización que contiene `mkgsrpsuvedwwlzmzmzh` debe decir **Pro**.
-3. **Backup visible.** En Project → Database → Backups debe aparecer al menos un backup diario con fecha y estado completado.
-4. **Backup verificable.** Elegir el backup más reciente y anotar su fecha/hora exacta (UTC). Si PITR está activo, anotar también la ventana disponible. PITR no sustituye la prueba de restore.
-5. **Restore no destructivo.** Usar **Restore to a new project** desde ese backup, hacia un proyecto nuevo y temporal. **No** usar «Restore» sobre el proyecto de producción. Si el panel no ofrece restaurar a un proyecto nuevo, detenerse y pedir a soporte de Supabase un restore de prueba; no restaurar encima de producción.
-6. **Comprobar que funciona.** En el proyecto restaurado, ejecutar en el SQL Editor:
-   ```sql
-   select count(*) from public.offers;
-   select count(*) from public.profiles;
-   select max(created_at) from public.offers;
-   select jobname, active from cron.job;
-   ```
-   Los conteos deben ser coherentes con producción a la hora del backup (`offers` ≈ 654 hoy) y `max(created_at)` cercano a esa hora.
-7. **Fecha/hora del backup:** `____-__-__ __:__ UTC`.
-8. **Fecha/hora de la prueba de restore:** inicio `__:__ UTC`, fin `__:__ UTC`. Esto da el **RTO medido**. La distancia entre el backup y el incidente simulado da el **RPO**.
-9. **Resultado:** OK / FALLÓ, con conteos y capturas, anotado en este documento.
-10. **Producción intacta.** En `mkgsrpsuvedwwlzmzmzh`, comprobar que `/api/health` sigue en `ok`, que `select count(*) from public.offers` no bajó y que el job `offers-lifecycle-v2` sigue activo. Después, **pausar o borrar el proyecto restaurado** para no duplicar costos ni crons. Ese proyecto no debe recibir tráfico ni conectarse a Vercel.
-
-El gate solo se cierra con el punto 6 en OK. Que el backup exista no basta.
-
-## 14. Final GO / NO-GO — PASS (técnico) / BLOCKED (externo)
-
-GO técnico. El release final queda condicionado al gate externo.
-
----
-
-TECHNICAL STATUS: **PASS**. Código, CI, build, tests, seguridad, dinero congelado, lifecycle y scanner en orden. Sin blockers técnicos.
-
-EXTERNAL STATUS: **BLOCKED**. Falta Supabase Pro + backup visible + restore verificado.
-
-RELEASE STATUS: **READY FOR FINAL EXTERNAL GATE**
-
-BLOCKERS: **1, externo.** Supabase Pro + backup + restore verificado (§13). Blockers técnicos: 0.
-
-NON-BLOCKING P2:
-- 11 ofertas con nota de lote (oculta al público y vencen solas).
-- `description` sin filtrar en el JSON del feed.
-- Etiqueta «Patrocinado» en creativos propios.
+- Las 11 ofertas con nota de lote: vencen solas y la nota está oculta. La limpieza opcional está en `AVENTA_PRODUCTION_CLOSURE_STATUS.md` §10.
+- La API del feed devuelve `description` sin filtrar en el JSON.
 - 5 errores de lint preexistentes en `app/page.tsx`.
-- PRs antiguos abiertos (#42, #32, #14, #13, #8) que no deben mergearse con este release.
+- Títulos genéricos en `/descubre` y `/u/[usuario]`.
+- Residuo de advisors: vistas SECURITY DEFINER, `search_path` mutable y funciones de rol ejecutables.
+- 70 ofertas vencidas sin archivar (comportamiento actual del lifecycle).
+- Vistas legacy `/admin/owner/vista/*` y componentes de owner sin uso.
+- **PRs antiguos abiertos que NO se mergean con este release:** #42, #32, #14 (`reconcile/economy-ledger`, dinero), #13 y #8.
+- Todo lo de dinero: `MONEY_PATH_FROZEN`, rewards, commissions, payouts, settlement, ledger y attribution.
 
-NEXT ACTION:
-1. El fundador completa la checklist de §13 y anota el resultado aquí.
-2. Con el restore en OK, el fundador decide el merge de PR #44 a `master` (Vercel despliega solo) y se repite el smoke de §4 y §5.
-3. Antes de abrir al público, que haya ofertas aprobadas y vigentes en el feed.
-4. Con eso: **FINAL RELEASE READY**.
+## 13. Exact release checklist
+
+1. [ ] La organización de Supabase muestra `plan: Pro` (panel o API).
+2. [ ] Database → Backups muestra al menos un backup completado, con su fecha/hora anotada aquí.
+3. [ ] El restore a un proyecto nuevo termina, y sus 4 consultas de validación devuelven datos coherentes.
+4. [ ] El RTO medido y el resultado están anotados aquí.
+5. [ ] Producción sigue intacta tras el restore: `/api/health` ok y conteo de `offers` sin bajar. El proyecto restaurado está pausado o borrado.
+6. [ ] El catálogo tiene ≥ 24 ofertas vigentes con ≥ 72 h, en ≥ 5 categorías (consulta de §8).
+7. [ ] PR #44 sigue en `MERGEABLE`, `CLEAN` y con `verify` pass justo antes del merge.
+8. [ ] PR #44 mergeado y el deploy de producción de Vercel en «Ready».
+9. [ ] Smoke post-deploy: `/`, `/plaza`, detalle, `/u/*`, `/me` y `/me/favorites` dan 200 y `/api/health` da `ok`. Las rutas admin dan 307 para anónimo y 200 para el owner.
+10. [ ] En producción, Moderación muestra la pestaña Baneos y la navegación del owner tiene CEO / Operations / Technical.
+11. [ ] Sin `console.error` ni overflow en escritorio y 390px, claro y oscuro.
+12. [ ] Conteos de dinero sin cambios: `payout_intents = 0`, `affiliate_conversions = 0` y sin filas nuevas en ledger, rewards ni settlements.
+13. [ ] `offers-lifecycle-v2` sigue activo y su última corrida es `succeeded`.
+14. [ ] Después de las 03:00 UTC del 2026-10-05, se cierra el scanner sobre las 12 ofertas antiguas con el procedimiento de solo lectura de `AVENTA_FINAL_GO_NO_GO.md`.
+15. [ ] Con 1 a 14 en verde: **FINAL RELEASE READY**.
+
+## 14. Rollback procedure
+
+- **Antes del merge:** no hay nada que revertir; producción es `master` @ `0d97401`.
+- **Después del merge de PR #44:**
+  - Opción A: en Vercel, promover a producción el deployment anterior (`0d97401`). Es inmediato y no toca git.
+  - Opción B: `git revert -m 1 <merge-commit>` en `master` y dejar que Vercel redespliegue.
+- PR #44 no tiene migraciones ni cambios de datos, así que el rollback es solo de código.
+- **Datos:** el rollback de la base de datos depende del backup y restore de §10. Hasta que ese gate esté cerrado, **no existe un rollback de datos verificado**. Por eso es un blocker externo.
