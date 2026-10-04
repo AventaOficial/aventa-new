@@ -49,7 +49,10 @@ export async function GET(request: Request) {
     .limit(50);
   if (store) query = query.eq('store', store);
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: 'migration_pending', detail: error.message, coupons: [] }, { status: 503 });
+  if (error) {
+    console.error('[admin/coupons] list failed:', error.message);
+    return NextResponse.json({ error: 'migration_pending', coupons: [] }, { status: 503 });
+  }
   return NextResponse.json({ coupons: data ?? [], publishesOffers: false });
 }
 
@@ -91,7 +94,8 @@ export async function POST(request: Request) {
     offerStore: body?.offerStore,
   });
   if (result.error) {
-    return NextResponse.json({ error: 'migration_pending', detail: result.error, preview }, { status: 503 });
+    console.error('[admin/coupons] save failed:', result.error);
+    return NextResponse.json({ error: 'migration_pending', preview }, { status: 503 });
   }
   return NextResponse.json({ ...result, preview, publishesOffers: false });
 }

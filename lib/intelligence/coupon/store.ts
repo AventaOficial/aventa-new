@@ -6,6 +6,23 @@ import { relateCoupon } from '@/lib/intelligence/coupon/relate';
 import { COUPON_CONFIDENCE_CEILING, type CouponSnapshot, type CouponSourceClass } from '@/lib/intelligence/coupon/types';
 import { classifyCoupon } from '@/lib/intelligence/coupon/validate';
 import { recordCouponMetric } from '@/lib/intelligence/telemetry';
+import { isSchemaMissingError, type QueryErrorLike } from '@/lib/server/integrityClassification';
+
+/** Tras detectar esquema ausente, no reintentar en caliente: se reevalúa al vencer la ventana. */
+export const COUPON_SCHEMA_RECHECK_MS = 10 * 60 * 1000;
+let couponSchemaMissingUntil = 0;
+
+export function couponSchemaKnownMissing(nowMs = Date.now()): boolean {
+  return nowMs < couponSchemaMissingUntil;
+}
+
+function noteCouponSchemaError(error: QueryErrorLike, nowMs = Date.now()): void {
+  if (isSchemaMissingError(error)) couponSchemaMissingUntil = nowMs + COUPON_SCHEMA_RECHECK_MS;
+}
+
+export function resetCouponSchemaMemoForTests(): void {
+  couponSchemaMissingUntil = 0;
+}
 
 type CouponRow = {
   id: string;
@@ -257,6 +274,7 @@ export async function publicCouponsForOffer(
   offerId: string,
   now = new Date(),
 ): Promise<{ coupons: PublicCoupon[]; ready: boolean }> {
+  if (couponSchemaKnownMissing(now.getTime())) return { coupons: [], ready: false };
   const { data: offer, error: offerError } = await supabase
     .from('offers')
     .select('id, store')
@@ -271,7 +289,10 @@ export async function publicCouponsForOffer(
     .select('coupon_id, target_type, target_key, matched, uncertain, eligibility')
     .in('target_key', keys)
     .limit(40);
-  if (linkError) return { coupons: [], ready: false };
+  if (linkError) {
+    noteCouponSchemaError(linkError, now.getTime());
+    return { coupons: [], ready: false };
+  }
   const ids = [
     ...new Set(
       (links ?? [])
@@ -327,12 +348,14 @@ export async function recordCouponInteraction(
     relation?: 'none' | 'correlated' | 'ambiguous' | 'unknown';
   },
 ): Promise<{ correlationId: string | null; relation: string; recorded: boolean }> {
+  if (couponSchemaKnownMissing()) return { correlationId: null, relation: 'unknown', recorded: false };
   const code = input.code.trim().toUpperCase();
   const { data: offer } = await supabase.from('offers').select('store').eq('id', input.offerId).maybeSingle();
   const store = (offer as { store?: string | null } | null)?.store?.trim().toLowerCase() ?? '';
   let couponQuery = supabase.from('coupons').select('id').eq('code', code);
   if (store) couponQuery = couponQuery.eq('store', store);
   const { data: coupon, error } = await couponQuery.limit(1).maybeSingle();
+  if (error) noteCouponSchemaError(error);
   if (error || !coupon) return { correlationId: null, relation: 'unknown', recorded: false };
   const couponId = (coupon as { id: string }).id;
   const correlationId = input.correlationId?.trim() || input.idempotencyKey;
@@ -356,13 +379,18 @@ export async function recordCouponOutbound(
   supabase: SupabaseClient,
   input: { offerId: string; code: string; correlationId: string },
 ): Promise<{ relation: string; recorded: boolean }> {
-  const { data: copy } = await supabase
+  if (couponSchemaKnownMissing()) return { relation: 'unknown', recorded: false };
+  const { data: copy, error: copyError } = await supabase
     .from('coupon_interactions')
     .select('offer_id, correlation_id, observed_at')
     .eq('correlation_id', input.correlationId)
     .eq('event_type', 'coupon_copy')
     .limit(1)
     .maybeSingle();
+  if (copyError && isSchemaMissingError(copyError)) {
+    noteCouponSchemaError(copyError);
+    return { relation: 'unknown', recorded: false };
+  }
   const row = copy as { offer_id: string; correlation_id: string; observed_at: string } | null;
   const judged = relateCopyToOutbound({
     copy: row
