@@ -9,6 +9,7 @@ export {
   TEAM_ROLES,
   TEAM_ROLE_LABELS,
   isTeamRole,
+  teamRoleLabel,
   roleRank,
   meetsRoleRank,
   rolesForTeam,

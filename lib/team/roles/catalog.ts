@@ -47,6 +47,29 @@ export const TEAM_ROLE_LABELS = {
   },
 } as const satisfies { [T in TeamId]: Record<TeamRole<T>, string> };
 
+export function teamRoleLabel(teamId: TeamId, role: string): string {
+  switch (teamId) {
+    case 'moderation':
+      return isTeamRole('moderation', role) ? TEAM_ROLE_LABELS.moderation[role] : role;
+    case 'hunter':
+      return isTeamRole('hunter', role) ? TEAM_ROLE_LABELS.hunter[role] : role;
+    case 'finance':
+      return isTeamRole('finance', role) ? TEAM_ROLE_LABELS.finance[role] : role;
+    case 'growth':
+      return isTeamRole('growth', role) ? TEAM_ROLE_LABELS.growth[role] : role;
+    case 'product':
+      return isTeamRole('product', role) ? TEAM_ROLE_LABELS.product[role] : role;
+    case 'community':
+      return isTeamRole('community', role) ? TEAM_ROLE_LABELS.community[role] : role;
+    case 'operations':
+      return isTeamRole('operations', role) ? TEAM_ROLE_LABELS.operations[role] : role;
+    default: {
+      const _exhaustive: never = teamId;
+      return _exhaustive;
+    }
+  }
+}
+
 export function isTeamRole<T extends TeamId>(teamId: T, value: string): value is TeamRole<T> {
   const roles: readonly string[] = TEAM_ROLES[teamId];
   return roles.includes(value);
