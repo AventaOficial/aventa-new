@@ -18,6 +18,7 @@ export type OfferFreshnessPresentation = {
   state: PublicFreshnessState;
   indexable: boolean;
   ctaEnabled: boolean;
+  ctaLabel: string;
   announce: boolean;
   label: string;
   detail: string;
@@ -30,6 +31,8 @@ export function presentOfferFreshness(input: {
   deletedAt?: string | null;
   healthStatus?: string | null;
   lastCheckedAt?: string | null;
+  /** True only when the stored diagnostic is a confirmed http 404 or 410. */
+  confirmedGone?: boolean;
   now?: Date;
   staleAfterMs?: number;
 }): OfferFreshnessPresentation {
@@ -42,6 +45,7 @@ export function presentOfferFreshness(input: {
       state: 'expired',
       indexable: false,
       ctaEnabled: false,
+      ctaLabel: 'Oferta retirada',
       announce: false,
       label: 'Oferta retirada',
       detail: 'Esta publicación ya no está disponible.',
@@ -54,24 +58,39 @@ export function presentOfferFreshness(input: {
     return {
       state: 'expired',
       indexable: false,
-      ctaEnabled: false,
-      announce: false,
-      label: 'Oferta expirada',
-      detail: 'Ya no está activa. El precio mostrado es de referencia y puede haber cambiado en la tienda.',
+      ctaEnabled: true,
+      ctaLabel: 'Comprobar oferta',
+      announce: true,
+      label: 'Puede haber cambiado',
+      detail: 'El precio puede haber cambiado desde que se publicó. La ficha sigue como referencia.',
       schemaAvailability: 'https://schema.org/OutOfStock',
       lastCheckedAt,
     };
   }
 
   if (input.healthStatus === 'out_of_stock') {
+    if (input.confirmedGone) {
+      return {
+        state: 'unavailable',
+        indexable: false,
+        ctaEnabled: false,
+        ctaLabel: 'Oferta no disponible',
+        announce: true,
+        label: 'Oferta no disponible',
+        detail: 'La tienda respondió que esta página ya no existe.',
+        schemaAvailability: 'https://schema.org/OutOfStock',
+        lastCheckedAt,
+      };
+    }
     return {
       state: 'unavailable',
-      indexable: false,
-      ctaEnabled: false,
+      indexable: true,
+      ctaEnabled: true,
+      ctaLabel: 'Comprobar oferta',
       announce: true,
-      label: 'Oferta no disponible',
-      detail: 'La última verificación no encontró esta oferta disponible en la tienda.',
-      schemaAvailability: 'https://schema.org/OutOfStock',
+      label: 'Sin confirmación',
+      detail: 'El precio puede haber cambiado desde que se publicó. No confirmamos que esté agotada.',
+      schemaAvailability: 'https://schema.org/LimitedAvailability',
       lastCheckedAt,
     };
   }
@@ -81,6 +100,7 @@ export function presentOfferFreshness(input: {
       state: 'price_changed',
       indexable: true,
       ctaEnabled: true,
+      ctaLabel: 'Verificar precio',
       announce: true,
       label: 'El precio cambió',
       detail: 'El precio en la tienda ya no coincide con el publicado. Revisa el precio actual antes de comprar.',
@@ -94,6 +114,7 @@ export function presentOfferFreshness(input: {
       state: 'error',
       indexable: true,
       ctaEnabled: true,
+      ctaLabel: 'Comprobar oferta',
       announce: true,
       label: 'No pudimos verificar',
       detail: 'La última revisión falló. La oferta puede seguir activa; confirma el precio en la tienda.',
@@ -112,6 +133,7 @@ export function presentOfferFreshness(input: {
       state: 'unknown',
       indexable: true,
       ctaEnabled: true,
+      ctaLabel: 'Comprobar oferta',
       announce: instrumented,
       label: 'Sin verificación reciente',
       detail: 'Aún no tenemos una verificación reciente de precio y disponibilidad.',
@@ -124,6 +146,7 @@ export function presentOfferFreshness(input: {
     state: 'healthy',
     indexable: true,
     ctaEnabled: true,
+    ctaLabel: 'Cazar oferta',
     announce: false,
     label: 'Verificada',
     detail: 'La última revisión encontró la oferta disponible cerca del precio publicado.',

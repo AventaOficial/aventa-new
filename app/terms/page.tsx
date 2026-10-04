@@ -3,6 +3,7 @@ import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import LegalBackLink from '@/app/components/LegalBackLink';
 import { TERMS_LAST_UPDATED } from '@/lib/legal/constants';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 import {
   REWARDS_CREATOR_SHARE_BPS,
   REWARDS_HOLD_DAYS,
@@ -13,7 +14,7 @@ import {
 } from '@/lib/rewards/config';
 
 export const metadata: Metadata = {
-  title: 'Términos y Condiciones | AVENTA',
+  ...brandedTitle('Términos y Condiciones'),
   description:
     'Términos de uso de AVENTA: comunidad de ofertas, afiliados, Programa de Recompensas y reglas de la plataforma.',
 };

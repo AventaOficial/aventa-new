@@ -4,10 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Heart,
-  Sparkles,
   User,
   Share2,
-  Award,
   BadgeCheck,
   Eye,
   MousePointerClick,
@@ -38,6 +36,7 @@ import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { publicProfilePath } from '@/lib/profileSlug';
 import type { OfferScopeUi } from '@/lib/offerScope';
+import OfferMedia from '@/app/components/offers/OfferMedia';
 import StoreBrandMark from './StoreBrandMark';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
 
@@ -218,7 +217,6 @@ export default function OfferCard({
   msiMonths,
   createdAt,
   expiresAt: _expiresAt,
-  isDestacada = false,
   isTesterOffer = false,
   dealStatus,
   rejectionReason,
@@ -236,7 +234,6 @@ export default function OfferCard({
   const isLiked = localLiked !== null ? localLiked : (isLikedProp ?? false);
   const scoreFromFeed = votes?.score ?? upvotes * 2 - downvotes;
   const [localScore, setLocalScore] = useState(() => scoreFromFeed);
-  const [imgError, setImgError] = useState(false);
   const [votePending, setVotePending] = useState(false);
   const [favoritePending, setFavoritePending] = useState(false);
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false);
@@ -403,7 +400,6 @@ export default function OfferCard({
     }, () => onVoteChange?.(offerId, newVote, newVote === 0 ? undefined : wDown));
   };
 
-  const showImage = image && !imgError;
   const imageUnoptimized =
     Boolean(image) &&
     (image!.startsWith('/') ||
@@ -586,22 +582,15 @@ export default function OfferCard({
 
       <div className="flex flex-row items-stretch min-h-0">
         <div className="w-[36%] min-w-[88px] max-[400px]:min-w-[80px] md:w-[200px] md:min-w-[200px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
-          <div className="relative h-[112px] max-[400px]:h-[100px] md:h-[132px] rounded-xl overflow-hidden bg-[#f5f5f7] dark:bg-[#1a1a1a] shrink-0">
-            {showImage ? (
-              <Image
-                src={image}
-                alt=""
-                fill
-                sizes="(max-width: 400px) 80px, (max-width: 768px) 36vw, 200px"
-                className="object-contain object-center p-0.5 md:p-1"
-                onError={() => setImgError(true)}
-                unoptimized={imageUnoptimized}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              </div>
-            )}
+          <div className="relative shrink-0">
+            <OfferMedia
+              src={image}
+              alt={title}
+              sizes="(max-width: 400px) 80px, (max-width: 768px) 36vw, 200px"
+              ratioClass="aspect-square"
+              unoptimized={imageUnoptimized}
+              className="rounded-xl"
+            />
             {discountPct >= 1 ? (
               <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 <Flame className="h-3 w-3" aria-hidden />
@@ -691,31 +680,16 @@ export default function OfferCard({
                     ${formatPrice(originalPrice)}
                   </span>
                 ) : null}
-                {discountPct >= 1 ? (
-                  <span className="text-[10px] md:text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
-                    -{discountPct}%
-                  </span>
-                ) : null}
               </div>
               {savingsAmount > 0 ? (
                 <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
                   Ahorras ${formatPrice(savingsAmount)}
                 </p>
               ) : null}
-              {(isDestacada || isTesterOffer) ? (
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {isDestacada ? (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400" title="La están validando">
-                      <Award className="h-3 w-3" />
-                      Destacada
-                    </span>
-                  ) : null}
-                  {isTesterOffer ? (
-                    <span className="inline-flex text-[10px] font-medium text-amber-600/90 dark:text-amber-400/90" title="Oferta de ejemplo (relleno)">
-                      Prueba
-                    </span>
-                  ) : null}
-                </div>
+              {isTesterOffer ? (
+                <p className="mt-1 text-[10px] font-medium text-amber-600/90 dark:text-amber-400/90" title="Oferta de ejemplo (relleno)">
+                  Prueba
+                </p>
               ) : null}
             </div>
             {bankCouponLabel ? (

@@ -7,6 +7,7 @@ import CategoriaOfferList from '@/app/categoria/[slug]/CategoriaOfferList';
 import { findSubgroupBySlug } from '@/lib/categories/subgroups';
 import { slugifyTag } from '@/lib/offers/tagSlug';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
@@ -17,7 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const tag = slugifyTag(slug);
-  if (!tag) return { title: 'Tag | AVENTA' };
+  if (!tag) return brandedTitle('Tag');
 
   const hit = findSubgroupBySlug(tag);
   const label = hit?.subgroup.label ?? tag.replace(/-/g, ' ');
@@ -25,7 +26,7 @@ export async function generateMetadata({
   const description = `Todas las ofertas etiquetadas como ${label}.`;
 
   return {
-    title,
+    ...brandedTitle(title),
     description,
     alternates: { canonical: `${BASE_URL}/tag/${tag}` },
     openGraph: { title, description, url: `${BASE_URL}/tag/${tag}`, siteName: 'AVENTA', type: 'website' },

@@ -15,9 +15,10 @@ import {
   AMAZON_ASSOCIATES_DISCLOSURE,
 } from '@/lib/commissions/programStatus';
 import { Shield, Wallet, AlertTriangle, Scale, ArrowRight, Sparkles, Gift } from 'lucide-react';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 export const metadata: Metadata = {
-  title: 'Programa de Recompensas | AVENTA',
+  ...brandedTitle('Programa de Recompensas'),
   description:
     'Cómo funciona el Programa de Recompensas de AVENTA: calidad, split 40/60, Oferta de Bienvenida, hold de 60 días y anti-fraude. Sin garantía de ingresos.',
   openGraph: {

@@ -8,13 +8,14 @@ import AppShell from '@/app/AppShell';
 import CategoriaOfferList from './CategoriaOfferList';
 import CategorySubgroupNav from '@/app/components/CategorySubgroupNav';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const cat = ALL_CATEGORIES.find((c) => c.value === slug);
-  if (!cat) return { title: 'Categoría | AVENTA' };
+  if (!cat) return brandedTitle('Categoría');
 
   const title = `Ofertas de ${cat.label} | AVENTA`;
   const description = cat.subtitle
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     : `Ofertas y descuentos en ${cat.label}.`;
 
   return {
-    title,
+    ...brandedTitle(title),
     description,
     alternates: { canonical: `${BASE_URL}/categoria/${slug}` },
     openGraph: { title, description, url: `${BASE_URL}/categoria/${slug}`, siteName: 'AVENTA', type: 'website' },

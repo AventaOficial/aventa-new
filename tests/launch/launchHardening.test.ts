@@ -37,7 +37,7 @@ describe('freshness presentation', () => {
     expect(view.ctaEnabled).toBe(true);
   });
 
-  it('disables CTA for expired and unavailable offers and keeps them out of the index', () => {
+  it('keeps outbound on stale or unconfirmed offers and blocks a confirmed 404', () => {
     const expired = presentOfferFreshness({
       expiresAt: '2026-09-01T00:00:00.000Z',
       healthStatus: 'available',
@@ -50,12 +50,20 @@ describe('freshness presentation', () => {
       lastCheckedAt: now.toISOString(),
       now,
     });
+    const gone = presentOfferFreshness({
+      expiresAt: null,
+      healthStatus: 'out_of_stock',
+      confirmedGone: true,
+      lastCheckedAt: now.toISOString(),
+      now,
+    });
     expect(expired.state).toBe('expired');
-    expect(expired.ctaEnabled).toBe(false);
+    expect(expired.ctaEnabled).toBe(true);
     expect(expired.indexable).toBe(false);
-    expect(unavailable.state).toBe('unavailable');
-    expect(unavailable.ctaEnabled).toBe(false);
-    expect(unavailable.indexable).toBe(false);
+    expect(unavailable.ctaEnabled).toBe(true);
+    expect(unavailable.indexable).toBe(true);
+    expect(gone.ctaEnabled).toBe(false);
+    expect(gone.indexable).toBe(false);
   });
 
   it('keeps price_changed visible with a live CTA', () => {

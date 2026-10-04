@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { runOfferHealthBatch } from '@/lib/offers/runOfferHealthBatch';
 
-/** Verificación de salud. Schedule real en vercel.json: minuto 15, cada 2 horas. Lote acotado, no un scan completo. */
+/** Verificación de salud. Schedule en vercel.json: `0 3 * * *` (03:00 UTC). Lote acotado, no un scan completo. */
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
   if (denied) return denied;

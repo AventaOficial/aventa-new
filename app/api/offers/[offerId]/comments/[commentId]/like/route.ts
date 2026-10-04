@@ -79,6 +79,9 @@ export async function POST(
     .from('comment_likes')
     .insert({ comment_id: cId, user_id: userId });
   if (insErr) {
+    if ((insErr as { code?: string }).code === '23505') {
+      return NextResponse.json({ liked: true });
+    }
     console.error('[comment-like] insert:', insErr.message);
     return NextResponse.json({ error: 'Error al dar like' }, { status: 500 });
   }

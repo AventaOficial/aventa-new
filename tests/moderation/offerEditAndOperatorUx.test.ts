@@ -85,9 +85,13 @@ describe('Focus edit + desktop context + mobile intact', () => {
     expect(desk).toContain('data-focus-desktop-context');
   });
 
-  it('OfferCard desktop ya no usa object-cover', () => {
+  it('OfferCard desktop ya no recorta la foto del producto', () => {
     const card = readFileSync(join(process.cwd(), 'app/components/OfferCard.tsx'), 'utf8');
-    expect(card).toContain('object-contain object-center');
+    const media = readFileSync(join(process.cwd(), 'app/components/offers/OfferMedia.tsx'), 'utf8');
+    expect(card).toContain('<OfferMedia');
     expect(card).not.toMatch(/object-contain md:object-cover/);
+    expect(media).toContain('object-contain object-center');
+    expect(media).toContain('isNextImageAllowedSrc');
+    expect(media).not.toMatch(/object-contain md:object-cover/);
   });
 });

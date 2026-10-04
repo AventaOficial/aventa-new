@@ -9,8 +9,10 @@ import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import { presentOfferFreshness } from '@/lib/offers/freshness/present';
+import { isConfirmedGoneDiagnostic } from '@/lib/offers/evaluateOfferHealth';
 import { loadPrimaryAchievement } from '@/lib/achievements/showcase';
 import OfferPageContent from './OfferPageContent';
+import { brandedTitle } from '@/lib/seo/brandedTitle';
 import { stringifyJsonLd } from '@/lib/seo/jsonLd';
 
 const BASE_URL =
@@ -83,16 +85,18 @@ async function getOffer(id: string) {
   return data as unknown as OfferRow;
 }
 
-async function loadOfferHealth(id: string): Promise<{ status: string; last_checked_at: string | null } | null> {
+async function loadOfferHealth(
+  id: string,
+): Promise<{ status: string; last_checked_at: string | null; diagnostic: string | null } | null> {
   try {
     const supabase = createServerClient();
     const { data, error } = await supabase
       .from('offer_health_state')
-      .select('status, last_checked_at')
+      .select('status, last_checked_at, diagnostic')
       .eq('offer_id', id)
       .maybeSingle();
     if (error || !data) return null;
-    return data as { status: string; last_checked_at: string | null };
+    return data as { status: string; last_checked_at: string | null; diagnostic: string | null };
   } catch {
     return null;
   }
@@ -101,10 +105,10 @@ async function loadOfferHealth(id: string): Promise<{ status: string; last_check
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: rawSegment } = await params;
   const id = extractOfferIdFromPathSegment(rawSegment);
-  if (!id) return { title: 'Oferta no encontrada | AVENTA' };
+  if (!id) return brandedTitle('Oferta no encontrada');
   const offer = await getOffer(id);
-  if (!offer) return { title: 'Oferta no encontrada | AVENTA', robots: { index: false, follow: false } };
-  if (offer.deleted_at) return { title: 'Oferta no encontrada | AVENTA', robots: { index: false, follow: false } };
+  if (!offer) return { ...brandedTitle('Oferta no encontrada'), robots: { index: false, follow: false } };
+  if (offer.deleted_at) return { ...brandedTitle('Oferta no encontrada'), robots: { index: false, follow: false } };
 
   const health = await loadOfferHealth(id);
   const freshness = presentOfferFreshness({
@@ -112,6 +116,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     deletedAt: offer.deleted_at,
     healthStatus: health?.status ?? null,
     lastCheckedAt: health?.last_checked_at ?? null,
+    confirmedGone: isConfirmedGoneDiagnostic(health?.diagnostic),
   });
 
   const title = `${offer.title} | AVENTA`;
@@ -124,7 +129,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const ogGenerated = `${BASE_URL}${buildOfferPublicPath(id, offer.title)}/opengraph-image`;
 
   return {
-    title,
+    ...brandedTitle(offer.title),
     description: desc,
     alternates: { canonical },
     robots: freshness.indexable
@@ -159,6 +164,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     deletedAt: offer.deleted_at,
     healthStatus: health?.status ?? null,
     lastCheckedAt: health?.last_checked_at ?? null,
+    confirmedGone: isConfirmedGoneDiagnostic(health?.diagnostic),
   });
 
   const canonicalPath = buildOfferPublicPath(id, offer.title);
