@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requireModerationActor } from '@/lib/team/moderation/access';
 import {
   claimNextModerationOffer,
+  getModerationQueueStats,
   type ClaimSourceTab,
 } from '@/lib/moderation/claimNextModerationOffer';
 import { moderationMaxLevelForRole } from '@/lib/moderation/moderationMaxLevelForRole';
@@ -14,6 +15,24 @@ import { CLAIM_EXCLUDE_IDS_MAX } from '@/lib/moderation/slaContract';
 function parseSourceTab(value: unknown): ClaimSourceTab {
   if (value === 'bot' || value === 'users' || value === 'all') return value;
   return 'all';
+}
+
+/**
+ * GET — solo estadísticas de cola (?sourceTab=). No reclama, no toca locks ni escribe outcomes.
+ */
+export async function GET(request: Request) {
+  const auth = await requireModerationActor(request);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  const sourceTab = parseSourceTab(new URL(request.url).searchParams.get('sourceTab'));
+  try {
+    const stats = await getModerationQueueStats(createServerClient(), auth.user.id, sourceTab);
+    return NextResponse.json({ ok: true, stats, maxLevel: moderationMaxLevelForRole(auth.role) });
+  } catch (e) {
+    console.error('[moderation/claim-next GET]', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'No se pudieron cargar las estadísticas de la cola' }, { status: 500 });
+  }
 }
 
 /**

@@ -428,16 +428,13 @@ export default function ModerationPendingPanel({
     [authHeaders, mapClaimedOffer, session?.access_token, sourceTab]
   );
 
+  // Abrir la cola no reclama: la asignación es siempre una acción explícita.
   useEffect(() => {
-    if (loading || !session?.access_token) return;
-    if (deskList.length === 0) {
-      setSelectedId(null);
-      setMobileShowDetail(false);
-      return;
-    }
-    if (selectedId && deskList.some((o) => o.id === selectedId)) return;
-    void claimNextFromServer();
-  }, [loading, session?.access_token, deskList, selectedId, claimNextFromServer]);
+    if (loading || !selectedId) return;
+    if (deskList.some((o) => o.id === selectedId)) return;
+    setSelectedId(null);
+    setMobileShowDetail(false);
+  }, [loading, deskList, selectedId]);
 
   const postLock = useCallback(
     async (offerId: string, action: 'acquire' | 'release' | 'heartbeat') => {
@@ -1486,8 +1483,17 @@ export default function ModerationPendingPanel({
                     }}
                   />
                 ) : (
-                  <div className={`flex items-center justify-center p-10 text-sm ${ui.muted}`}>
+                  <div className={`flex flex-col items-center justify-center gap-3 p-10 text-sm ${ui.muted}`}>
                     Selecciona una oferta de la cola
+                    {deskList.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void claimNextFromServer()}
+                        className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                      >
+                        Tomar la siguiente
+                      </button>
+                    ) : null}
                   </div>
                 )}
               </div>

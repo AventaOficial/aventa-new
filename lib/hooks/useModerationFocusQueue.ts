@@ -68,6 +68,8 @@ export function useModerationFocusQueue({
   /** Lease servidor activo — independiente de offer mostrado en historial. */
   const [activeLeaseOfferId, setActiveLeaseOfferId] = useState<string | null>(null);
 
+  const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
   const claimInFlightRef = useRef(false);
   const actingRef = useRef(false);
   const heldLockIdRef = useRef<string | null>(null);
@@ -164,6 +166,8 @@ export function useModerationFocusQueue({
     }) => {
       if (!session?.access_token || claimInFlightRef.current) return null;
       claimInFlightRef.current = true;
+      startedRef.current = true;
+      setStarted(true);
       setError(null);
       try {
         const sess =
@@ -273,7 +277,42 @@ export function useModerationFocusQueue({
     [authHeaders, persistSession, session?.access_token, session?.user?.id, setHeldLease, sourceTab]
   );
 
-  // Bootstrap: un solo claim-next (stats + oldest vienen del mismo response).
+  const applyStats = useCallback((raw: Record<string, unknown> | undefined) => {
+    if (!raw) return;
+    setStats({
+      globalPending: Number(raw.globalPending) || 0,
+      availableEstimate: Number(raw.availableEstimate) || 0,
+      pendingGt24h: Number(raw.pendingGt24h) || 0,
+      claimedActive: Number(raw.claimedActive) || 0,
+      candidateCap: Number(raw.candidateCap) || undefined,
+    });
+    if (typeof raw.oldestPendingCreatedAt === 'string') {
+      setOldestCreatedAt(raw.oldestPendingCreatedAt);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    if (!session?.access_token) return;
+    const res = await fetch(
+      `/api/admin/moderation/claim-next?sourceTab=${encodeURIComponent(sourceTab)}`,
+      { headers: authHeaders() },
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(typeof data?.error === 'string' ? data.error : 'No se pudieron cargar las estadísticas');
+      return;
+    }
+    applyStats(data?.stats);
+  }, [applyStats, authHeaders, session?.access_token, sourceTab]);
+
+  /** Reclamo explícito: abrir la vista solo lee estadísticas. */
+  const start = useCallback(async () => {
+    startedRef.current = true;
+    setStarted(true);
+    return claimNext();
+  }, [claimNext]);
+
+  // Bootstrap: solo estadísticas, salvo deep-link explícito o sesión ya iniciada.
   useEffect(() => {
     if (!session?.access_token) {
       setLoading(false);
@@ -283,7 +322,9 @@ export function useModerationFocusQueue({
     setLoading(true);
     void (async () => {
       try {
-        if (!cancelled) await claimNext();
+        if (cancelled) return;
+        if (startedRef.current || preferOfferIdRef.current) await start();
+        else await loadStats();
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -812,6 +853,8 @@ export function useModerationFocusQueue({
     goNext,
     goPrev,
     claimNext,
+    started,
+    start,
     confirmAffiliateAndApprove,
     prepareAffiliateLink,
     applyOfferEditResult,

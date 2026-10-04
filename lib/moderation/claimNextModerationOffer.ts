@@ -98,6 +98,103 @@ export type ClaimNextResult = {
   };
 };
 
+export type ModerationQueueStats = ClaimNextResult['stats'];
+
+type ScopedQueueOffer = ModerationQueueOffer & Record<string, unknown> & { is_bot: boolean };
+
+/** Solo lectura: no libera locks ni escribe nada. */
+async function loadModerationQueueSnapshot(
+  supabase: SupabaseClient,
+  moderatorId: string,
+  sourceTab: ClaimSourceTab,
+): Promise<{ scoped: ScopedQueueOffer[]; botIds: Set<string>; stats: ModerationQueueStats }> {
+  const [{ count: pendingCount }, { count: claimedActive }, { count: pendingGt24hCount }] =
+    await Promise.all([
+      supabase.from('offers').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .not('locked_by', 'is', null),
+      supabase
+        .from('offers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+    ]);
+
+  let rows: Record<string, unknown>[];
+  // Escala: no traer toda la tabla; priorizar backlog (created_at ASC) hasta hard cap.
+  const first = await supabase
+    .from('offers')
+    .select(CLAIM_SELECT_WITH_ORIGINAL)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(CLAIM_QUEUE_HARD_CAP);
+  if (
+    first.error &&
+    (hasMissingColumn(first.error, 'original_offer_url') || hasMissingColumn(first.error, 'bot_meta'))
+  ) {
+    const fallback = await supabase
+      .from('offers')
+      .select(CLAIM_SELECT_CORE)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(CLAIM_QUEUE_HARD_CAP);
+    if (fallback.error) throw new Error(fallback.error.message);
+    rows = (fallback.data ?? []) as Record<string, unknown>[];
+  } else if (first.error) {
+    throw new Error(first.error.message);
+  } else {
+    rows = (first.data ?? []) as Record<string, unknown>[];
+  }
+
+  const config = loadBotIngestConfig('standard');
+  const botIds = new Set(config.botUserIdsForQuota);
+
+  const normalized = rows.map((r) => {
+    const profiles = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    return {
+      ...r,
+      profiles,
+      is_bot: computeIsBot(
+        r as { created_by?: string | null; moderator_comment?: string | null; description?: string | null },
+        botIds
+      ),
+    } as unknown as ScopedQueueOffer;
+  });
+
+  const scoped = filterBySourceTab(normalized, sourceTab);
+  const oldestPendingCreatedAt =
+    scoped.length > 0
+      ? scoped.reduce((a, b) =>
+          new Date(a.created_at).getTime() < new Date(b.created_at).getTime() ? a : b,
+        ).created_at
+      : null;
+
+  return {
+    scoped,
+    botIds,
+    stats: {
+      globalPending: pendingCount ?? scoped.length,
+      availableEstimate: countClaimEligibleOffers(scoped, moderatorId),
+      candidateCap: CLAIM_QUEUE_HARD_CAP,
+      oldestPendingCreatedAt,
+      pendingGt24h: pendingGt24hCount ?? 0,
+      claimedActive: claimedActive ?? 0,
+    },
+  };
+}
+
+/** Estadísticas de cola sin reclamar ni tocar locks (GET). */
+export async function getModerationQueueStats(
+  supabase: SupabaseClient,
+  moderatorId: string,
+  sourceTab: ClaimSourceTab = 'all',
+): Promise<ModerationQueueStats> {
+  return (await loadModerationQueueSnapshot(supabase, moderatorId, sourceTab)).stats;
+}
+
 export async function claimNextModerationOffer(
   supabase: SupabaseClient,
   moderatorId: string,
@@ -130,83 +227,12 @@ export async function claimNextModerationOffer(
   // Recovery pasivo: locks abandonados vuelven a cola antes de ordenar.
   await releaseStaleModerationLocks(supabase, { limit: 100 });
 
-  const [{ count: pendingCount }, { count: claimedActive }, { count: pendingGt24hCount }] =
-    await Promise.all([
-      supabase.from('offers').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase
-        .from('offers')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending')
-        .not('locked_by', 'is', null),
-      supabase
-        .from('offers')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending')
-        .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-    ]);
-
-  let rows: Record<string, unknown>[] | null = null;
-  {
-    // Escala: no traer toda la tabla; priorizar backlog (created_at ASC) hasta hard cap.
-    const first = await supabase
-      .from('offers')
-      .select(CLAIM_SELECT_WITH_ORIGINAL)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(CLAIM_QUEUE_HARD_CAP);
-    if (
-      first.error &&
-      (hasMissingColumn(first.error, 'original_offer_url') || hasMissingColumn(first.error, 'bot_meta'))
-    ) {
-      const fallback = await supabase
-        .from('offers')
-        .select(CLAIM_SELECT_CORE)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-        .limit(CLAIM_QUEUE_HARD_CAP);
-      if (fallback.error) throw new Error(fallback.error.message);
-      rows = (fallback.data ?? []) as Record<string, unknown>[];
-    } else if (first.error) {
-      throw new Error(first.error.message);
-    } else {
-      rows = (first.data ?? []) as Record<string, unknown>[];
-    }
-  }
-
-  const config = loadBotIngestConfig('standard');
-  const botIds = new Set(config.botUserIdsForQuota);
-
-  const normalized = (rows ?? []).map((row) => {
-    const r = row;
-    const profiles = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
-    return {
-      ...r,
-      profiles,
-      is_bot: computeIsBot(
-        r as { created_by?: string | null; moderator_comment?: string | null; description?: string | null },
-        botIds
-      ),
-    } as unknown as ModerationQueueOffer & Record<string, unknown> & { is_bot: boolean };
-  });
-
-  const scoped = filterBySourceTab(normalized, sourceTab);
-  const globalPending = pendingCount ?? scoped.length;
-  const availableEstimate = countClaimEligibleOffers(scoped, moderatorId);
-  const oldestPendingCreatedAt =
-    scoped.length > 0
-      ? scoped.reduce((a, b) =>
-          new Date(a.created_at).getTime() < new Date(b.created_at).getTime() ? a : b,
-        ).created_at
-      : null;
-
-  const emptyStats = {
-    globalPending,
-    availableEstimate,
-    candidateCap: CLAIM_QUEUE_HARD_CAP,
-    oldestPendingCreatedAt,
-    pendingGt24h: pendingGt24hCount ?? 0,
-    claimedActive: claimedActive ?? 0,
-  };
+  const { scoped, botIds, stats: emptyStats } = await loadModerationQueueSnapshot(
+    supabase,
+    moderatorId,
+    sourceTab,
+  );
+  const availableEstimate = emptyStats.availableEstimate;
 
   const eligible = scoped.filter((o) => isOfferClaimEligible(o, moderatorId, exclude));
   const offerIds = eligible.map((o) => o.id);
