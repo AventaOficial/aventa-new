@@ -1,6 +1,10 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { daysAgoUtc } from '@/lib/owner/mxTime';
-import { evaluateOfferHealth, type OfferHealthStatus } from '@/lib/offers/evaluateOfferHealth';
+import {
+  evaluateOfferHealth,
+  isConfirmedGoneDiagnostic,
+  type OfferHealthStatus,
+} from '@/lib/offers/evaluateOfferHealth';
 import {
   getOfferAutoApproveExpiryIso,
   OFFER_AUTO_APPROVE_TTL_MS,
@@ -265,10 +269,15 @@ export async function runOfferHealthBatch(opts?: { limit?: number }): Promise<Of
   const since7d = daysAgoUtc(7);
   const outboundMap = await rankOffersByOutbound(offerIds, since7d);
 
+  // Only live offers: expiring or extending a rejected/deleted/archived row would resurrect it.
+  const scanNowIso = new Date().toISOString();
   const { data: rows, error } = await supabase
     .from('offers')
     .select('id, price, offer_url, expires_at')
-    .in('id', offerIds);
+    .in('id', offerIds)
+    .in('status', ['approved', 'published'])
+    .is('deleted_at', null)
+    .or(`expires_at.is.null,expires_at.gt.${scanNowIso}`);
 
   if (error) {
     result.errors = offerIds.length;
@@ -320,7 +329,9 @@ export async function runOfferHealthBatch(opts?: { limit?: number }): Promise<Of
           : 0;
 
       const streak =
-        persisted === 'out_of_stock' && prev?.status === 'out_of_stock'
+        persisted === 'out_of_stock' &&
+        prev?.status === 'out_of_stock' &&
+        isConfirmedGoneDiagnostic(prev.diagnostic)
           ? OUT_OF_STOCK_AUTO_EXPIRE_STREAK
           : persisted === 'out_of_stock'
             ? 1
@@ -365,7 +376,7 @@ export async function runOfferHealthBatch(opts?: { limit?: number }): Promise<Of
       ).error;
 
       if (upsertErr && isMissingHealthSchema(upsertErr.message ?? '')) {
-        if (transient) {
+        if (transient || persisted === 'error') {
           result.skipped += 1;
           incrementLaunchMetric('freshness_skipped');
           if (result.scanned < offerIds.length && delayMs > 0) await sleep(delayMs);

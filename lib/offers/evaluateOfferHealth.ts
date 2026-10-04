@@ -5,11 +5,13 @@ export type OfferHealthStatus = 'available' | 'price_changed' | 'out_of_stock' |
 const PRICE_DELTA_PCT_THRESHOLD = 5;
 const PRICE_DELTA_MXN_THRESHOLD = 50;
 
-const OUT_OF_STOCK_DIAGNOSTICS = new Set([
-  'missing_discount_price',
-  'missing_title',
-  'http_error',
-]);
+/** Only a gone product page confirms unavailability; auto-expiry depends on this. */
+const GONE_HTTP_STATUSES = new Set([404, 410]);
+
+/** True when a stored diagnostic records a confirmed gone page (http_404 / http_410, optionally suffixed). */
+export function isConfirmedGoneDiagnostic(diagnostic: string | null | undefined): boolean {
+  return /^http_(404|410)(\||$)/.test(diagnostic ?? '');
+}
 
 export type OfferHealthEvaluation = {
   status: OfferHealthStatus;
@@ -42,28 +44,28 @@ export function evaluateOfferHealthFromParse(
     };
   }
 
-  if (OUT_OF_STOCK_DIAGNOSTICS.has(diagnostic)) {
-    const http404 = diagnostic === 'http_error' && attempt.httpStatus === 404;
-    if (diagnostic !== 'http_error' || http404 || attempt.httpStatus == null || attempt.httpStatus >= 400) {
-      return {
-        status: 'out_of_stock',
-        publishedPrice,
-        livePrice: null,
-        priceDeltaPct: null,
-        diagnostic,
-        skipped: false,
-      };
-    }
-  }
-
-  if (!attempt.meta) {
+  if (diagnostic === 'http_error' && attempt.httpStatus != null && GONE_HTTP_STATUSES.has(attempt.httpStatus)) {
     return {
       status: 'out_of_stock',
       publishedPrice,
       livePrice: null,
       priceDeltaPct: null,
-      diagnostic,
+      diagnostic: `http_${attempt.httpStatus}`,
       skipped: false,
+    };
+  }
+
+  // Parse failures (missing_title, missing_discount_price) and non-gone HTTP errors
+  // (403/429/5xx: bot walls, rate limits) are inconclusive, never out_of_stock.
+  if (!attempt.meta) {
+    return {
+      status: 'unknown',
+      publishedPrice,
+      livePrice: null,
+      priceDeltaPct: null,
+      diagnostic:
+        diagnostic === 'http_error' && attempt.httpStatus != null ? `http_${attempt.httpStatus}` : diagnostic,
+      skipped: true,
     };
   }
 
@@ -105,7 +107,7 @@ export async function evaluateOfferHealth(input: {
   const url = input.offerUrl?.trim();
   if (!url || publishedPrice <= 0) {
     return {
-      status: 'out_of_stock',
+      status: 'error',
       publishedPrice,
       livePrice: null,
       priceDeltaPct: null,
