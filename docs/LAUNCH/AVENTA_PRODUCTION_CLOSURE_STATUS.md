@@ -78,6 +78,7 @@ Fuente única: `lib/owner/navigation.ts`.
   - Tests: `tests/offers/offerMediaEdgeTone.test.ts`.
 - **Hidratación del detalle de oferta**: el servidor y la hidratación muestran fecha corta en America/Mexico_City; el texto relativo («hace 5 min», días restantes) aparece después (`useHydrated`). Sin `suppressHydrationWarning`. Tests: `tests/launch/offerDetailHydration.test.ts`.
 - Comentarios: sin polling. Verificado.
+- **Flechas de voto**: el rebote usaba `spring` con 3 keyframes, que framer-motion rechaza con un error en consola al montar cada botón (feed y detalle; también ocurre en `master`). Ahora usa una curva `ease` con los mismos tiempos. La lógica de voto no cambia. Test: `tests/launch/voteArrowMotion.test.ts`.
 
 ## 10. Problemas de datos conocidos
 
