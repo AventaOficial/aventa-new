@@ -305,9 +305,71 @@ ALTER TABLE public.account_deletion_audit ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.account_deletion_audit FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT ON public.account_deletion_audit TO service_role;
 
-CREATE INDEX IF NOT EXISTS idx_profiles_deletion_due
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS deletion_hold_reason text;
+
+COMMENT ON COLUMN public.profiles.deletion_hold_reason IS
+  'Set by the purge when retained evidence references the account (account_deletion_blockers). PII is anonymized and sign-in blocked; auth deletion waits for the retention policy.';
+
+DROP INDEX IF EXISTS public.idx_profiles_deletion_due;
+CREATE INDEX idx_profiles_deletion_due
   ON public.profiles (deletion_purge_after)
-  WHERE deletion_purged_at IS NULL AND account_deletion_requested_at IS NOT NULL;
+  WHERE deletion_purged_at IS NULL AND deletion_hold_reason IS NULL AND account_deletion_requested_at IS NOT NULL;
+
+-- Evidence that must survive an account purge: every RESTRICT/NO ACTION foreign key to
+-- auth.users or profiles (derived from the catalog, so new tables are covered) plus economic
+-- tables that reference the user without a foreign key.
+-- DEFINER: must read every referencing table regardless of the caller's grants.
+CREATE OR REPLACE FUNCTION public.account_deletion_blockers(p_user_id uuid)
+RETURNS text[]
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  r record;
+  v_found boolean;
+  v_out text[] := '{}';
+BEGIN
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'user required';
+  END IF;
+
+  FOR r IN
+    SELECT DISTINCT c.conrelid::regclass::text AS rel, a.attname::text AS col
+    FROM pg_catalog.pg_constraint c
+    JOIN pg_catalog.pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+    WHERE c.contype = 'f'
+      AND array_length(c.conkey, 1) = 1
+      AND c.confrelid IN ('auth.users'::regclass, 'public.profiles'::regclass)
+      AND c.confdeltype IN ('r', 'a')
+    UNION
+    SELECT t.rel, t.col
+    FROM (VALUES
+      ('public.creator_rewards', 'creator_id'),
+      ('public.affiliate_ledger_entries', 'creator_id'),
+      ('public.payout_intents', 'creator_id'),
+      ('public.payout_batch_lines', 'creator_id'),
+      ('public.reward_payouts', 'user_id'),
+      ('public.commission_allocations', 'user_id')
+    ) AS t(rel, col)
+    WHERE to_regclass(t.rel) IS NOT NULL
+    ORDER BY 1, 2
+  LOOP
+    EXECUTE format('SELECT EXISTS (SELECT 1 FROM %s WHERE %I = $1)', r.rel, r.col)
+      INTO v_found USING p_user_id;
+    IF v_found THEN
+      v_out := v_out || (r.rel || '.' || r.col);
+    END IF;
+  END LOOP;
+
+  RETURN v_out;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.account_deletion_blockers(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.account_deletion_blockers(uuid) TO service_role;
 
 COMMENT ON TABLE public.account_deletion_audit IS
   'Deletion audit. Retained. Not PII beyond user id.';
