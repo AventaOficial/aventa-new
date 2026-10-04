@@ -1,25 +1,37 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { loadActiveMemberships } from '../../gate/memberships';
 import type { TeamMembership } from '../../roles/membership';
+import type { TeamId } from '../../roles/teams';
 import { evaluateTeamXpEvent } from './engine';
 import type { TeamXpDomainEvent, TeamXpRuleDecision } from './types';
 
 export type TeamXpApplyResult = {
   ruleId: string;
   ruleVersion: number;
+  teamId: TeamId;
+  recipientUserId: string;
+  idempotencyKey: string;
   status: 'granted' | 'skipped' | 'duplicate' | 'failed';
   reason: string | null;
+  /** Solo en `duplicate`: lo que se decidió la primera vez. */
+  previous: 'granted' | 'skipped' | null;
 };
 
-function readStatus(data: unknown): Pick<TeamXpApplyResult, 'status' | 'reason'> {
-  if (!data || typeof data !== 'object' || !('status' in data)) return { status: 'failed', reason: 'bad_response' };
+type RpcStatus = Pick<TeamXpApplyResult, 'status' | 'reason' | 'previous'>;
+
+function readStatus(data: unknown): RpcStatus {
+  if (!data || typeof data !== 'object' || !('status' in data)) {
+    return { status: 'failed', reason: 'bad_response', previous: null };
+  }
   const status = data.status;
   const reason = 'reason' in data && typeof data.reason === 'string' ? data.reason : null;
-  if (status === 'granted' || status === 'skipped' || status === 'duplicate') return { status, reason };
-  return { status: 'failed', reason: 'bad_response' };
+  const rawPrevious = 'previous' in data ? data.previous : null;
+  const previous = rawPrevious === 'granted' || rawPrevious === 'skipped' ? rawPrevious : null;
+  if (status === 'granted' || status === 'skipped') return { status, reason, previous: null };
+  if (status === 'duplicate') return { status, reason, previous };
+  return { status: 'failed', reason: 'bad_response', previous: null };
 }
 
-async function persist(decision: TeamXpRuleDecision): Promise<TeamXpApplyResult> {
+export async function persistTeamXpDecision(decision: TeamXpRuleDecision): Promise<TeamXpApplyResult> {
   const supabase = createServerClient();
   const { data, error } = await supabase.rpc('apply_team_xp_rule', {
     p_actor_id: decision.actorUserId,
@@ -34,31 +46,30 @@ async function persist(decision: TeamXpRuleDecision): Promise<TeamXpApplyResult>
     p_daily_cap: decision.rule.dailyCap,
     p_skip_reason: decision.skipReason,
   });
-  const base = { ruleId: decision.rule.id, ruleVersion: decision.rule.version };
-  if (error) return { ...base, status: 'failed', reason: 'rpc_error' };
+  const base = {
+    ruleId: decision.rule.id,
+    ruleVersion: decision.rule.version,
+    teamId: decision.rule.teamId,
+    recipientUserId: decision.recipientUserId,
+    idempotencyKey: decision.idempotencyKey,
+  };
+  if (error) return { ...base, status: 'failed', reason: 'rpc_error', previous: null };
   return { ...base, ...readStatus(data) };
 }
 
 /**
  * Evento de dominio ya persistido → reglas → resultado idempotente.
+ * Las membresías son las congeladas con el evento, no las actuales.
  * Un fallo queda para la reconciliación; no se reintenta en caliente.
  */
-export async function applyTeamXpEvent(event: TeamXpDomainEvent): Promise<TeamXpApplyResult[]> {
+export async function applyTeamXpEvent(
+  event: TeamXpDomainEvent,
+  memberships: ReadonlyMap<string, readonly TeamMembership[]>,
+): Promise<TeamXpApplyResult[]> {
   if (event.actorKind !== 'human') return [];
-  const recipients = new Set<string>([event.actorUserId]);
-  if (event.batchItem) recipients.add(event.batchItem.submittedBy);
-
-  const memberships = new Map<string, readonly TeamMembership[]>();
-  for (const userId of recipients) {
-    const loaded = await loadActiveMemberships(userId);
-    if (!loaded.ok) return [];
-    memberships.set(userId, loaded.memberships);
-  }
-
-  const decisions = evaluateTeamXpEvent(event, memberships);
   const results: TeamXpApplyResult[] = [];
-  for (const decision of decisions) {
-    results.push(await persist(decision));
+  for (const decision of evaluateTeamXpEvent(event, memberships)) {
+    results.push(await persistTeamXpDecision(decision));
   }
   return results;
 }

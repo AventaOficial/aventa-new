@@ -4,10 +4,13 @@ import { mexicoCityHour, teamGreeting } from '@/lib/team/config/greeting';
 import { buildTeamHeroPayload } from '@/lib/team/hero/build';
 import { resolveTeamPage } from '@/lib/team/gate/require';
 import { roleHasPermission } from '@/lib/team/permissions/grants';
+import { teamProgressAccess } from '@/lib/team/progression/access';
+import { loadTeamProgress } from '@/lib/team/progression/read';
 import { readTeamPersonName } from '@/lib/team/shell/profile';
 import { isTeamId } from '@/lib/team/roles/teams';
 import { ModerationWorkspace } from '../moderation/ModerationWorkspace';
 import { TeamHero } from '../hero/TeamHero';
+import { TeamProgressPanel } from '../progress/TeamProgressPanel';
 import { TeamShell } from '../shell/TeamShell';
 
 type Props = { params: Promise<{ team: string }> };
@@ -35,12 +38,15 @@ export default async function TeamAreaPage({ params }: Props) {
   });
   if (!context) notFound();
 
-  const hero = await buildTeamHeroPayload({
-    requestedTeam: entry.membership.teamId,
-    memberships: entry.memberships,
-    greeting,
-    personName,
-  });
+  const [hero, progress] = await Promise.all([
+    buildTeamHeroPayload({
+      requestedTeam: entry.membership.teamId,
+      memberships: entry.memberships,
+      greeting,
+      personName,
+    }),
+    teamProgressAccess(entry.membership) ? loadTeamProgress(entry.membership) : Promise.resolve(null),
+  ]);
   if (!hero) notFound();
 
   const showModerationQueue =
@@ -50,6 +56,7 @@ export default async function TeamAreaPage({ params }: Props) {
   return (
     <TeamShell context={context}>
       <TeamHero payload={hero} />
+      {progress ? <TeamProgressPanel view={progress} /> : null}
       {showModerationQueue ? <ModerationWorkspace /> : null}
     </TeamShell>
   );
