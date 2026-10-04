@@ -743,7 +743,7 @@ export default function ModerationPendingPanel({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(typeof data?.error === 'string' ? data.error : 'No se pudo eliminar la cola del bot');
+        alert(typeof data?.error === 'string' ? data.error : 'No se pudo rechazar la cola del bot');
         return;
       }
       setShowDeleteBotModal(false);
@@ -751,8 +751,8 @@ export default function ModerationPendingPanel({
       setDeleteBotAck(false);
       setSelectedIds(new Set());
       await refreshList(true);
-      if (typeof data?.deleted === 'number' && data.deleted > 0) {
-        alert(`Se eliminaron ${data.deleted} oferta(s) pendientes del bot.`);
+      if (typeof data?.rejected === 'number' && data.rejected > 0) {
+        alert(`Se rechazaron ${data.rejected} oferta(s) pendientes del bot.`);
       }
     } finally {
       setDeleteBotLoading(false);
@@ -1233,11 +1233,12 @@ export default function ModerationPendingPanel({
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="mb-1 text-lg font-semibold text-red-700 dark:text-red-200">
-                Vaciar cola del bot (irreversible)
+                Vaciar cola del bot
               </h3>
               <p className={`mb-3 text-sm ${ui.subtitle}`}>
-                Se eliminarán las ofertas <strong className={ui.body}>pendientes</strong> del bot.
-                No afecta ofertas de usuarios reales.
+                Se rechazarán las ofertas <strong className={ui.body}>pendientes</strong> del bot.
+                Se conservan con su historial y el rechazo queda registrado. No afecta ofertas de
+                usuarios reales.
               </p>
               <label className={`mb-4 flex cursor-pointer items-start gap-2 text-sm ${ui.body}`}>
                 <input
@@ -1246,7 +1247,7 @@ export default function ModerationPendingPanel({
                   onChange={(e) => setDeleteBotAck(e.target.checked)}
                   className="mt-1 rounded border-gray-300 text-red-600 focus:ring-red-500 dark:border-white/20"
                 />
-                <span>Entiendo que esta acción no se puede deshacer.</span>
+                <span>Entiendo que todas las ofertas pendientes del bot saldrán de la cola.</span>
               </label>
               <p className={`mb-1 text-xs ${ui.muted}`}>
                 Escribe exactamente:{' '}
@@ -1285,7 +1286,7 @@ export default function ModerationPendingPanel({
                   ) : (
                     <Trash2 className="h-4 w-4" />
                   )}
-                  Eliminar todas (bot)
+                  Rechazar todas (bot)
                 </button>
               </div>
             </div>
