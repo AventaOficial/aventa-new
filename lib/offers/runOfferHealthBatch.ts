@@ -10,6 +10,7 @@ import {
   OFFER_AUTO_APPROVE_TTL_MS,
 } from '@/lib/server/offerAutoApprove';
 import { captureAutomaticExpireOutcome } from '@/lib/autonomous';
+import { expireConfirmedGoneOffer, extendLiveOfferExpiry } from '@/lib/offers/healthScanWrites';
 import {
   freshnessPriorityScore,
   freshnessStoreKey,
@@ -406,13 +407,13 @@ export async function runOfferHealthBatch(opts?: { limit?: number }): Promise<Of
         }
 
         if (streak >= OUT_OF_STOCK_AUTO_EXPIRE_STREAK && persisted === 'out_of_stock') {
-          const now = new Date().toISOString();
-          const { error: expErr } = await supabase
-            .from('offers')
-            .update({ expires_at: now })
-            .eq('id', row.id)
-            .or(`expires_at.is.null,expires_at.gt.${now}`);
-          if (!expErr) {
+          const expiry = await expireConfirmedGoneOffer(supabase, {
+            offerId: row.id,
+            previousExpiresAt: row.expires_at,
+            diagnostic: basePayload.diagnostic ?? null,
+            streak,
+          });
+          if (expiry.expired) {
             result.expired += 1;
             incrementLaunchMetric('expired_offers_seen');
             void captureAutomaticExpireOutcome(row.id);
@@ -424,11 +425,11 @@ export async function runOfferHealthBatch(opts?: { limit?: number }): Promise<Of
           const currentExp = row.expires_at ? new Date(row.expires_at).getTime() : 0;
           const floor = Date.now() + OFFER_AUTO_APPROVE_TTL_MS / 2;
           if (!row.expires_at || currentExp < floor) {
-            const { error: extErr } = await supabase
-              .from('offers')
-              .update({ expires_at: getOfferAutoApproveExpiryIso() })
-              .eq('id', row.id);
-            if (!extErr) result.extended += 1;
+            const extended = await extendLiveOfferExpiry(supabase, {
+              offerId: row.id,
+              expiresAt: getOfferAutoApproveExpiryIso(),
+            });
+            if (extended) result.extended += 1;
           }
         }
       }
