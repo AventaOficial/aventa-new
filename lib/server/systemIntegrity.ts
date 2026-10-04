@@ -60,6 +60,11 @@ export const INTEGRITY_CHECK_SPECS: Record<string, IntegrityCheckSpec> = {
   'offers.image_url.integrity': spec('medium', 'WARN', 'Completar imagen en ofertas públicas o pendientes sin image_url.'),
   'view.ofertas_ranked_general': spec('critical', 'FAIL', 'Restaurar la vista ofertas_ranked_general: el feed depende de ella.'),
   'view.score_consistency': spec('medium', 'WARN', 'Revisar el cálculo de score en la vista frente a computeOfferScore.'),
+  'security.client_writable_views': spec(
+    'critical',
+    'FAIL',
+    'Una vista de public es escribible por anon/authenticated: ejecutar client_view_write_lockdown.sql.',
+  ),
   'feed.home.smoke': spec('critical', 'FAIL', 'El feed principal falla: revisar getHomeFeed y logs.'),
   'freshness.overdue': spec(
     'high',
@@ -285,6 +290,18 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
         error: viewError,
         violated: false,
         detail: `OK (sample id=${viewRow?.id ?? 'n/a'})`,
+      })
+    );
+
+    const { data: writableViews, error: writableViewsError } = await supabase.rpc('client_writable_views');
+    const writableRows = Array.isArray(writableViews) ? (writableViews as { view_name: string }[]) : [];
+    checks.push(
+      classifyZeroCountCheck({
+        name: 'security.client_writable_views',
+        error: writableViewsError,
+        count: writableViewsError ? null : writableRows.length,
+        label: `client_writable_view_grants${writableRows.length ? ` (${[...new Set(writableRows.map((r) => r.view_name))].join(', ')})` : ''}`,
+        migration: 'client_view_write_lockdown.sql',
       })
     );
 
