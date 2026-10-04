@@ -91,7 +91,7 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
   const next = seasons[0] ?? null;
 
   return (
-    <Card labelledBy="ceo-season" className={className}>
+    <Card labelledBy="ceo-season" className={className} href="/admin/owner/vista/temporada">
       <CardHeader
         id="ceo-season"
         title={
@@ -143,7 +143,7 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
                 <span className="hidden text-white/50 @xs:inline">· {next.active ? 'en curso' : `en ${next.daysUntil} días`}</span>
               </p>
               <Link
-                href="/admin/announcements"
+                href="/admin/owner/vista/temporada"
                 className={cn(
                   'mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1 text-[12px] font-semibold text-white shadow-[0_8px_22px_-10px_rgba(139,92,246,0.9)] hover:bg-violet-500',
                   FOCUS_RING,

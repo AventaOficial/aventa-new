@@ -60,7 +60,7 @@ export default function CapacityCard({
   ];
 
   return (
-    <Card labelledBy="ceo-capacity" className={className}>
+    <Card labelledBy="ceo-capacity" className={className} href="/admin/owner/vista/capacidad">
       <CardHeader
         id="ceo-capacity"
         title={
@@ -71,7 +71,7 @@ export default function CapacityCard({
         icon={Server}
         action={
           <>
-            <ViewLink href="/admin/operaciones" label="Ver detalles de operaciones">
+            <ViewLink href="/admin/owner/vista/capacidad" label="Ver capacidad de Aventa">
               Ver detalles
             </ViewLink>
             {integrityChip}

@@ -40,13 +40,13 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
-    <Card labelledBy="ceo-goals" className={className}>
+    <Card labelledBy="ceo-goals" className={className} href="/admin/owner/vista/metas">
       <CardHeader
         id="ceo-goals"
         title="Metas del día"
         icon={Target}
         iconStyle="plain"
-        action={<ViewLink href="/equipo/gerencia" label="Ver todas las metas en gerencia">Ver todas</ViewLink>}
+        action={<ViewLink href="/admin/owner/vista/metas" label="Ver todas las metas del día">Ver todas</ViewLink>}
       />
       {loading && total === 0 ? (
         <div className="mt-3 space-y-2" aria-busy="true" aria-label="Cargando">

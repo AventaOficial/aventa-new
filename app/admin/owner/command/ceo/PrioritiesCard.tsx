@@ -51,7 +51,7 @@ export default function PrioritiesCard({
   );
 
   return (
-    <Card id="prioridades" labelledBy="ceo-priorities" className={cn('scroll-mt-20', className)}>
+    <Card id="prioridades" labelledBy="ceo-priorities" className={cn('scroll-mt-20', className)} href="/admin/owner/vista/prioridades">
       <CardHeader
         id="ceo-priorities"
         level={level}
