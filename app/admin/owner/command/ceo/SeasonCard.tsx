@@ -94,12 +94,17 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
     <Card labelledBy="ceo-season" className={className}>
       <CardHeader
         id="ceo-season"
-        title="Siguiente temporada de ofertas"
+        title={
+          <>
+            Siguiente temporada<span className="hidden @sm:inline"> de ofertas</span>
+          </>
+        }
         icon={CalendarDays}
         iconStyle="plain"
         action={
           <ViewButton onClick={() => setShowAll((v) => !v)} expanded={showAll} controls="ceo-season-calendar">
-            Ver calendario
+            <span className="hidden @sm:inline">Ver calendario</span>
+            <span className="@sm:hidden">Calendario</span>
           </ViewButton>
         }
       />
@@ -135,7 +140,7 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
               <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-white/85">
                 <Tag className="h-3.5 w-3.5 text-orange-300" aria-hidden />
                 {rangeLong(next.start, next.end)}
-                <span className="text-white/50">· {next.active ? 'en curso' : `en ${next.daysUntil} días`}</span>
+                <span className="hidden text-white/50 @xs:inline">· {next.active ? 'en curso' : `en ${next.daysUntil} días`}</span>
               </p>
               <Link
                 href="/admin/announcements"
@@ -170,8 +175,10 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
                     </span>
                     {i < all.length - 1 ? <span className="mx-1 h-px flex-1 border-t border-dashed border-white/20" aria-hidden /> : null}
                   </div>
-                  <p className="mt-1.5 w-full break-words pr-1.5 text-[10px] font-medium leading-tight text-white/85">{p.label}</p>
-                  <p className="mt-0.5 w-full break-words pr-1.5 text-[9px] leading-tight tabular-nums text-white/45">{phaseRange(p)}</p>
+                  <p className="mt-1.5 w-full truncate pr-1.5 text-[10px] font-medium leading-tight text-white/85 @xs:whitespace-normal @xs:break-words" title={p.label}>
+                    {p.label}
+                  </p>
+                  <p className="mt-0.5 hidden w-full break-words pr-1.5 text-[9px] leading-tight tabular-nums text-white/45 @xs:block">{phaseRange(p)}</p>
                 </li>
               );
             })}

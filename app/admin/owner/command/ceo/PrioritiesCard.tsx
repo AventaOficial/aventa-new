@@ -102,10 +102,10 @@ export default function PrioritiesCard({
             return (
               <li
                 key={p.id}
-                className="grid grid-cols-[28px_36px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2.5 py-1.5"
+                className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2 py-1.5 @sm:grid-cols-[28px_36px_minmax(0,1fr)_auto] @sm:gap-2.5 @sm:px-2.5"
                 title={`${SEVERITY_LABEL[p.severity]} · ${TEAM_LABEL[p.team]} · Impacto: ${p.impact}`}
               >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] text-[12px] font-semibold tabular-nums text-white/80">
+                <span className="hidden h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] text-[12px] font-semibold tabular-nums text-white/80 @sm:inline-flex">
                   {i + 1}
                 </span>
                 <span
@@ -117,21 +117,21 @@ export default function PrioritiesCard({
                 </span>
                 <div className="min-w-0">
                   <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-white">{p.problem}</p>
-                  <p className="mt-0.5 line-clamp-1 text-[10.5px] leading-snug text-white/50">{p.reason}</p>
+                  <p className="mt-0.5 hidden text-[10.5px] leading-snug text-white/50 @sm:line-clamp-1">{p.reason}</p>
                   <p className="sr-only">Impacto: {p.impact}</p>
                 </div>
                 <Link
                   href={p.href}
                   aria-label={`${p.action}: ${p.problem}`}
                   className={cn(
-                    'inline-flex min-h-[32px] w-fit items-center gap-1 whitespace-nowrap rounded-lg border px-3 text-[11px] font-semibold transition-colors',
+                    'inline-flex min-h-[32px] w-fit items-center gap-1 whitespace-nowrap rounded-lg border px-2 text-[11px] font-semibold transition-colors @sm:px-3',
                     urgent
                       ? 'border-red-400/30 bg-red-500/15 text-red-200 hover:bg-red-500/25'
                       : 'border-white/[0.09] bg-white/[0.04] text-white/85 hover:bg-white/[0.08]',
                     FOCUS_RING,
                   )}
                 >
-                  {p.action}
+                  <span className="hidden @sm:inline">{p.action}</span>
                   <ArrowRight className="h-3 w-3" aria-hidden />
                 </Link>
               </li>

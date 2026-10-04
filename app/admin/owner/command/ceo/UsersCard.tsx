@@ -41,14 +41,16 @@ export default function UsersCard({
         title={title}
         icon={Users}
         action={
-          <Chip tone="gray" hint={NO_PRESENCE}>
-            No en vivo
-          </Chip>
+          <span className="hidden @[17rem]:inline-flex">
+            <Chip tone="gray" hint={NO_PRESENCE}>
+              No en vivo
+            </Chip>
+          </span>
         }
       />
       {cmd == null ? (
         source.status === 'error' ? (
-          <CardError message="No se pudieron cargar los usuarios. Detalle en Diagnóstico técnico." onRetry={onRetry} />
+          <CardError message="No se pudieron cargar los usuarios." onRetry={onRetry} />
         ) : (
           <CardLoading rows={4} />
         )

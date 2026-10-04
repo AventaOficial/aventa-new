@@ -71,7 +71,7 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
               <ThinBar pct={pct} className="mt-1.5" />
             </div>
             <span className="text-[13px] font-semibold tabular-nums text-white">{pct}%</span>
-            <span className="hidden flex-col items-center text-[10px] text-white/55 sm:flex">
+            <span className="hidden flex-col items-center text-[10px] text-white/55 @md:flex">
               <Rocket className="h-4 w-4 text-violet-300" aria-hidden />
               {cheer(pct)}
             </span>
@@ -82,7 +82,7 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
               const p = progress(g);
               const primary = g.done === false && g.target != null && g.target > 0;
               return (
-                <li key={g.id} className="grid grid-cols-[18px_16px_minmax(0,1fr)_52px_auto] items-center sm:grid-cols-[18px_16px_minmax(0,1fr)_minmax(48px,0.45fr)_52px_auto] gap-x-2.5 py-0.5" title={g.rule}>
+                <li key={g.id} className="grid grid-cols-[18px_16px_minmax(0,1fr)_52px_auto] items-center gap-x-2.5 py-0.5 @lg:grid-cols-[18px_16px_minmax(0,1fr)_minmax(48px,0.45fr)_52px_auto]" title={g.rule}>
                   <span
                     role="img"
                     aria-label={g.done === true ? 'Completada' : g.done === false ? 'Pendiente' : 'Sin dato'}
@@ -95,7 +95,7 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
                   </span>
                   <Icon className="h-4 w-4 text-white/55" aria-hidden />
                   <span className="truncate text-[11px] text-white/85">{g.label}</span>
-                  <ThinBar pct={p.pct} className="hidden h-1 sm:block" />
+                  <ThinBar pct={p.pct} className="hidden h-1 @lg:block" />
                   <span className="text-right text-[11px] tabular-nums text-white/70">{p.text}</span>
                   <Link
                     href={g.href}

@@ -63,7 +63,11 @@ export default function CapacityCard({
     <Card labelledBy="ceo-capacity" className={className}>
       <CardHeader
         id="ceo-capacity"
-        title="Capacidad de Aventa"
+        title={
+          <>
+            Capacidad<span className="hidden @md:inline"> de Aventa</span>
+          </>
+        }
         icon={Server}
         action={
           <>
@@ -76,12 +80,12 @@ export default function CapacityCard({
       />
       {cmd == null ? (
         source.status === 'error' ? (
-          <CardError message="No se pudo cargar la capacidad. Detalle en Diagnóstico técnico." onRetry={onRetry} />
+          <CardError message="No se pudo cargar la capacidad." onRetry={onRetry} />
         ) : (
           <CardLoading rows={5} />
         )
       ) : (
-        <div className="mt-2 flex flex-1 flex-col items-center gap-3 @md:flex-row @md:items-center">
+        <div className="mt-2 flex flex-1 flex-col items-center gap-3 @xs:flex-row @xs:items-center">
           <div className="flex flex-col items-center gap-1.5">
             <Donut pct={null} size={72} stroke={8}>
               <span className="text-[18px] font-semibold leading-none text-white">
@@ -104,7 +108,7 @@ export default function CapacityCard({
                 <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-md bg-violet-500/15 text-violet-300" aria-hidden>
                   <r.icon className="h-3 w-3" />
                 </span>
-                <span className="break-words leading-tight text-white/75">{r.label}</span>
+                <span className="truncate leading-tight text-white/75">{r.label}</span>
                 <span className="whitespace-nowrap text-right tabular-nums text-white/80">{r.value ?? <NA why={r.why ?? r.hint} long />}</span>
                 <ThinBar pct={r.pct} className="hidden h-1 @lg:block" />
                 <span className="w-8 text-right tabular-nums text-white/55">{r.pct == null ? <NA why={r.why ?? 'Sin base para porcentaje.'} /> : `${r.pct}%`}</span>

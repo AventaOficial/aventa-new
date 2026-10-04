@@ -54,13 +54,17 @@ export default function OffersCard({
     <Card labelledBy="ceo-offers" className={className}>
       <CardHeader
         id="ceo-offers"
-        title="Ofertas publicadas"
+        title={
+          <>
+            Ofertas<span className="hidden @[13rem]:inline"> publicadas</span>
+          </>
+        }
         icon={Tag}
         action={<RangeChip range={range} onChange={onRangeChange} label="Período de ofertas publicadas" />}
       />
       {cmd == null ? (
         source.status === 'error' ? (
-          <CardError message="No se pudieron cargar las ofertas. Detalle en Diagnóstico técnico." onRetry={onRetry} />
+          <CardError message="No se pudieron cargar las ofertas." onRetry={onRetry} />
         ) : (
           <CardLoading rows={4} />
         )

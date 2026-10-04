@@ -36,10 +36,15 @@ export default function PayoutsCard({
 
   return (
     <Card labelledBy="ceo-payouts" className={className}>
-      <CardHeader id="ceo-payouts" title="Pagos pendientes" icon={Wallet} action={<ViewLink href="/equipo/contabilidad" label="Ver pagos en contabilidad">Ver pagos</ViewLink>} />
+      <CardHeader id="ceo-payouts" title="Pagos pendientes" icon={Wallet} action={
+          <ViewLink href="/equipo/contabilidad" label="Ver pagos en contabilidad">
+            Ver<span className="hidden @[13rem]:inline"> pagos</span>
+          </ViewLink>
+        }
+      />
       {cmd == null ? (
         source.status === 'error' ? (
-          <CardError message="No se pudieron cargar los pagos. Detalle en Diagnóstico técnico." onRetry={onRetry} />
+          <CardError message="No se pudieron cargar los pagos." onRetry={onRetry} />
         ) : (
           <CardLoading rows={4} />
         )
@@ -62,7 +67,7 @@ export default function PayoutsCard({
               <Chip tone="red">Pendiente</Chip>
             ) : null}
           </div>
-          <p className="mt-1.5 text-[11px] text-white/45">
+          <p className="mt-1.5 truncate text-[11px] text-white/45">
             Último lote:{' '}
             {batch == null ? (
               <NA why="Los lotes de pago no se pudieron leer." />
@@ -80,7 +85,7 @@ export default function PayoutsCard({
                 <span className={cn('h-2 w-2 shrink-0 rounded-full', r.dot)} aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-white/75">{r.label}</span>
                 <b className="w-8 text-right font-semibold tabular-nums text-white">{r.value == null ? <NA why={r.hint} /> : formatCount(r.value)}</b>
-                <span className="w-16 text-right tabular-nums">
+                <span className="hidden w-16 text-right tabular-nums @[13rem]:inline">
                   <NA why={NO_AMOUNTS} />
                 </span>
               </li>
