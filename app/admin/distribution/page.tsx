@@ -71,6 +71,7 @@ export default function DistributionOpsPage() {
   const [filter, setFilter] = useState<OpsFilter>('all');
   const [rows, setRows] = useState<OpsRow[]>([]);
   const [engineEnabled, setEngineEnabled] = useState(false);
+  const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
@@ -109,10 +110,23 @@ export default function DistributionOpsPage() {
       );
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.error ?? `HTTP ${res.status}`);
+        setError(
+          json.error === 'list_failed' || !json.error
+            ? 'No se pudieron cargar las publicaciones. Intenta de nuevo.'
+            : String(json.error),
+        );
         setRows([]);
         return;
       }
+      if (json.available === false) {
+        setUnavailableMessage(
+          typeof json.message === 'string' ? json.message : 'Distribution is not enabled in this environment.',
+        );
+        setRows([]);
+        setEngineEnabled(false);
+        return;
+      }
+      setUnavailableMessage(null);
       setRows(json.publications ?? []);
       setEngineEnabled(Boolean(json.engineEnabled));
     } catch (e) {
@@ -230,6 +244,13 @@ export default function DistributionOpsPage() {
 
       {loading ? (
         <p className="text-sm text-white/40">Cargando…</p>
+      ) : unavailableMessage ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-6">
+          <p className="text-sm font-medium text-white/80">{unavailableMessage}</p>
+          <p className="mt-1 text-xs text-white/45">
+            El esquema de Distribution no está aplicado en este entorno. No hay publicaciones que operar.
+          </p>
+        </div>
       ) : rows.length === 0 ? (
         <p className="text-sm text-white/40">Sin publicaciones para este filtro.</p>
       ) : (

@@ -10,6 +10,33 @@ import {
   isDistributionEngineEnabled,
 } from './constants';
 import { releaseUnknownOutcomeToRetryable } from './reclaim';
+import { isSchemaMissingError } from '@/lib/server/integrityClassification';
+
+export const DISTRIBUTION_NOT_PROVISIONED_MESSAGE =
+  'Distribution is not enabled in this environment.';
+
+/** El esquema de Distribution no está aplicado en este entorno (estado esperado, no error). */
+export type DistributionOpsUnavailableResult = {
+  ok: true;
+  available: false;
+  reason: 'distribution_not_provisioned';
+  message: typeof DISTRIBUTION_NOT_PROVISIONED_MESSAGE;
+  engineEnabled: false;
+  count: 0;
+  publications: [];
+};
+
+function notProvisioned(): DistributionOpsUnavailableResult {
+  return {
+    ok: true,
+    available: false,
+    reason: 'distribution_not_provisioned',
+    message: DISTRIBUTION_NOT_PROVISIONED_MESSAGE,
+    engineEnabled: false,
+    count: 0,
+    publications: [],
+  };
+}
 
 export const DISTRIBUTION_OPS_LIST_STATUSES = [
   'publishing',
@@ -114,6 +141,7 @@ export type DistributionOpsStatusCounts = {
 
 export type DistributionOpsListResult = {
   ok: true;
+  available: true;
   filter: DistributionOpsStatusFilter;
   engineEnabled: boolean;
   count: number;
@@ -249,7 +277,7 @@ export async function listDistributionOpsPublications(
     limit?: number;
     env?: NodeJS.ProcessEnv;
   },
-): Promise<DistributionOpsListResult> {
+): Promise<DistributionOpsListResult | DistributionOpsUnavailableResult> {
   const filter = options?.filter ?? 'all';
   const limit = Math.max(1, Math.min(options?.limit ?? 50, 100));
   const statuses =
@@ -267,6 +295,7 @@ export async function listDistributionOpsPublications(
     .limit(limit);
 
   if (error) {
+    if (isSchemaMissingError(error)) return notProvisioned();
     throw new Error(error.message);
   }
 
@@ -338,6 +367,7 @@ export async function listDistributionOpsPublications(
 
   return {
     ok: true,
+    available: true,
     filter,
     engineEnabled: isDistributionEngineEnabled(options?.env ?? process.env),
     count: publications.length,
@@ -382,7 +412,11 @@ export async function releaseUnknownOutcomeForOps(
     .maybeSingle();
 
   if (error) {
-    return { ok: false, reason: error.message, publicationId };
+    if (isSchemaMissingError(error)) {
+      return { ok: false, reason: 'distribution_not_provisioned', publicationId };
+    }
+    console.error('[distribution-ops] publication read failed:', error.message);
+    return { ok: false, reason: 'publication_read_failed', publicationId };
   }
   if (!row) {
     return { ok: false, reason: 'publication_not_found', publicationId };
