@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { writeRewardAuditLog } from '@/lib/rewards/audit';
+import { isMoneyPathFrozen, MONEY_PATH_FROZEN_CODE } from '@/lib/server/moneyPathFreeze';
 
 export type ClawbackResult =
   | { ok: true; adjustmentId: string }
@@ -19,6 +20,10 @@ export async function createPaidRewardClawbackAdjustment(
     speiClawbackReference?: string | null;
   },
 ): Promise<ClawbackResult> {
+  if (isMoneyPathFrozen()) {
+    return { ok: false, error: MONEY_PATH_FROZEN_CODE, status: 503 };
+  }
+
   const reason = input.reason?.trim();
   if (!reason || reason.length < 3) {
     return { ok: false, error: 'Motivo obligatorio', status: 400 };
