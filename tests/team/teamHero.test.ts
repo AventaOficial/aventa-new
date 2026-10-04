@@ -74,7 +74,7 @@ describe('team hero adapters', () => {
     expect(payload?.metrics).toEqual([]);
     expect(payload?.activity).toEqual([]);
     expect(payload?.primary.body).not.toMatch(/\d/);
-    expect(payload?.primary.href).toBe('/equipo/moderacion');
+    expect(payload?.primary.href).toBe('#cola');
     expect(payload?.roleLabel).toBe('Moderador');
     expect(payload?.communityXp).toBeNull();
   });

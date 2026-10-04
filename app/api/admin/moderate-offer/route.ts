@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
-import { requireModeration } from '@/lib/server/requireAdmin'
+import { requireModerationActor } from '@/lib/team/moderation/access'
 import { recalculateUserReputation } from '@/lib/server/reputation'
 import { buildOfferPublicPath } from '@/lib/offerPath'
 import { sendOfferApprovedUserEmail } from '@/lib/email/sendModerationEmail'
@@ -36,7 +36,7 @@ const LOCK_CLEAR = {
 } as const
 
 export async function POST(request: Request) {
-  const auth = await requireModeration(request)
+  const auth = await requireModerationActor(request)
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }

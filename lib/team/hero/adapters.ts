@@ -25,23 +25,23 @@ function moderationPrimary(pending: HeroCount): HeroPrimaryAction {
   if (pending.origin === 'UNAVAILABLE') {
     return {
       title: 'Tu centro de trabajo',
-      body: 'La moderación sigue en el flujo actual. Desde aquí no se cuenta la cola.',
-      href: '/equipo/moderacion',
+      body: 'La cola de esta sesión está debajo. Desde aquí no se cuenta cuántas faltan.',
+      href: '#cola',
       label: 'Empezar a moderar',
     };
   }
   if (pending.count > 0) {
     return {
       title: 'Hay trabajo pendiente.',
-      body: 'La cola de ofertas sigue en el flujo de moderación.',
-      href: '/equipo/moderacion',
+      body: 'La cola de ofertas está en este espacio.',
+      href: '#cola',
       label: 'Empezar a moderar',
     };
   }
   return {
     title: 'La cola está al día.',
     body: 'No hay ofertas en espera ahora. El flujo de moderación sigue siendo el de siempre.',
-    href: '/equipo/moderacion',
+    href: '#cola',
     label: 'Abrir moderación',
   };
 }

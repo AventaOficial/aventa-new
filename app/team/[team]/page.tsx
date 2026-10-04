@@ -3,8 +3,10 @@ import { buildTeamShellContext } from '@/lib/team/config/navigation';
 import { mexicoCityHour, teamGreeting } from '@/lib/team/config/greeting';
 import { buildTeamHeroPayload } from '@/lib/team/hero/build';
 import { resolveTeamPage } from '@/lib/team/gate/require';
+import { roleHasPermission } from '@/lib/team/permissions/grants';
 import { readTeamPersonName } from '@/lib/team/shell/profile';
 import { isTeamId } from '@/lib/team/roles/teams';
+import { ModerationWorkspace } from '../moderation/ModerationWorkspace';
 import { TeamHero } from '../hero/TeamHero';
 import { TeamShell } from '../shell/TeamShell';
 
@@ -41,9 +43,14 @@ export default async function TeamAreaPage({ params }: Props) {
   });
   if (!hero) notFound();
 
+  const showModerationQueue =
+    entry.membership.teamId === 'moderation' &&
+    roleHasPermission(entry.membership.teamId, entry.membership.role, 'moderation.offers.read');
+
   return (
     <TeamShell context={context}>
       <TeamHero payload={hero} />
+      {showModerationQueue ? <ModerationWorkspace /> : null}
     </TeamShell>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { requireModeration } from '@/lib/server/requireAdmin';
+import { requireModerationActor } from '@/lib/team/moderation/access';
 import {
   isModerationLockStale,
   MODERATION_LOCK_STALE_MS,
@@ -22,7 +22,7 @@ type LockAction = 'acquire' | 'release' | 'heartbeat';
  * POST { offerId, action: 'acquire' | 'release' | 'heartbeat' }
  */
 export async function POST(request: Request) {
-  const auth = await requireModeration(request);
+  const auth = await requireModerationActor(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
