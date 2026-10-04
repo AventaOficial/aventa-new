@@ -86,7 +86,7 @@ export default function PayoutsCard({
               </li>
             ))}
           </ul>
-          <div className="mt-auto pt-2">
+          <div className="mt-auto pt-2 lg:hidden">
             <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-[10px] leading-snug text-white/45">
               {frozen
                 ? 'Pagos congelados por protección del flujo de dinero. Solo conteos; los montos se consultan en Contabilidad.'

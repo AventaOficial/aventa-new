@@ -82,7 +82,7 @@ export default function RevenueCard({
               {estimated == null ? <NA why={b.economy.confidenceReason || 'Sin ingreso promedio por clic con base suficiente.'} /> : <b className="font-semibold text-white/75">{formatMoneyCents(estimated)}</b>}
             </span>
           </div>
-          <div className="mt-auto pt-2">
+          <div className="flex min-h-0 flex-1 flex-col justify-end pt-2">
             <p className="mb-1 text-[10px] text-white/40" title="Base de los ingresos estimados (clics × ingreso promedio por clic). No existe serie de ingresos por hora.">
               Clics salientes por {cmd?.series.bucket === 'day' ? 'día' : 'hora'}
             </p>
@@ -92,7 +92,8 @@ export default function RevenueCard({
               <LineSeries
                 values={cmd.series.points.map((p) => p.outbound)}
                 labels={cmd.series.points.map((p) => p.label)}
-                height={84}
+                height={48}
+                fill
                 ariaLabel="Clics salientes por período"
               />
             ) : (

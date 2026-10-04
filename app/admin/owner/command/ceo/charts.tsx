@@ -67,12 +67,15 @@ export function BarSeries({
   values,
   labels,
   height = 96,
+  fill = false,
   ariaLabel,
   labelEvery,
 }: {
   values: (number | null)[];
   labels: string[];
   height?: number;
+  /** Ocupa el alto libre del contenedor flex (con `height` como mínimo). */
+  fill?: boolean;
   ariaLabel: string;
   labelEvery?: number;
 }) {
@@ -83,8 +86,8 @@ export function BarSeries({
   const barW = slot * 0.62;
   const every = labelEvery ?? Math.max(1, Math.ceil(n / 6));
   return (
-    <figure className="w-full" aria-label={ariaLabel} role="img">
-      <div className="grid grid-cols-[auto_1fr]" style={{ height }}>
+    <figure className={cn('w-full', fill && 'flex min-h-0 flex-1 flex-col')} aria-label={ariaLabel} role="img">
+      <div className={cn('grid grid-cols-[auto_1fr]', fill && 'flex-1')} style={fill ? { minHeight: height } : { height }}>
         <YAxis max={max} />
         <div className="relative">
           <GridLines max={max} />
@@ -119,12 +122,15 @@ export function LineSeries({
   values,
   labels,
   height = 120,
+  fill = false,
   ariaLabel,
   labelEvery,
 }: {
   values: (number | null)[];
   labels: string[];
   height?: number;
+  /** Ocupa el alto libre del contenedor flex (con `height` como mínimo). */
+  fill?: boolean;
   ariaLabel: string;
   labelEvery?: number;
 }) {
@@ -139,8 +145,8 @@ export function LineSeries({
   const every = labelEvery ?? Math.max(1, Math.ceil(n / 6));
   const showDots = pts.length <= 31;
   return (
-    <figure className="w-full" aria-label={ariaLabel} role="img">
-      <div className="grid grid-cols-[auto_1fr]" style={{ height }}>
+    <figure className={cn('w-full', fill && 'flex min-h-0 flex-1 flex-col')} aria-label={ariaLabel} role="img">
+      <div className={cn('grid grid-cols-[auto_1fr]', fill && 'flex-1')} style={fill ? { minHeight: height } : { height }}>
         <YAxis max={max} />
         <div className="relative">
           <GridLines max={max} />

@@ -96,7 +96,7 @@ export default function PrioritiesCard({
           )}
         </EmptyFrame>
       ) : (
-        <ol id="ceo-priorities-list" className="mt-2 grid gap-x-5 gap-y-1 @3xl:grid-cols-2">
+        <ol id="ceo-priorities-list" className="mt-2 grid min-h-0 flex-1 content-start gap-x-5 gap-y-1 overflow-y-auto [scrollbar-width:thin] @3xl:grid-cols-2">
           {list.map((p, i) => {
             const urgent = p.severity === 'critical' || p.severity === 'high';
             return (

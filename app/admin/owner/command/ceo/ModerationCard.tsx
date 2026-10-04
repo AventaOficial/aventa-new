@@ -91,7 +91,7 @@ export default function ModerationCard({
           ) : mods.length === 0 ? (
             <EmptyFrame className="mt-3 flex-1">Sin decisiones de moderación en el período.</EmptyFrame>
           ) : (
-            <ul className="mt-2 flex-1 space-y-0.5">
+            <ul className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto [scrollbar-width:thin]">
               {mods.slice(0, 7).map((m) => {
                 const name = m.displayName ?? 'Moderador sin nombre';
                 return (
@@ -127,7 +127,7 @@ export default function ModerationCard({
           {mods && mods.length > 7 ? (
             <p className="mt-2 text-[10px] text-white/40">+{mods.length - 7} moderadores más en el período.</p>
           ) : null}
-          <div className="mt-2">
+          <div className="mt-2 lg:hidden">
             <Chip tone="gray" hint={`${NO_PRESENCE} ${NO_HOURS}`}>
               Presencia y horas no disponibles
             </Chip>
