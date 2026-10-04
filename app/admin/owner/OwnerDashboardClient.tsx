@@ -13,6 +13,7 @@ import CommunityCard from './command/ceo/CommunityCard';
 import UsersCard from './command/ceo/UsersCard';
 import OffersCard from './command/ceo/OffersCard';
 import TeamsCard, { type TeamRow } from './command/ceo/TeamsCard';
+import { teamSnapshot } from './command/ceo/teamSnapshot';
 import RevenueCard from './command/ceo/RevenueCard';
 import PayoutsCard from './command/ceo/PayoutsCard';
 import CapacityCard from './command/ceo/CapacityCard';
@@ -66,6 +67,7 @@ export default function OwnerDashboardClient() {
     icon,
     status: teamStatusFromHealth(id, health, priorities, missing),
     href: TEAM_HREF[id],
+    snapshot: teamSnapshot(id, base, cmd, priorities),
   });
 
   const teams: TeamRow[] = [
