@@ -120,6 +120,16 @@ PASS. Every production step verified with read-only queries and rolled-back prob
 unchanged (offers 654, offer_events 404, clicks 11, ledger 10, rewards 6; moderation_logs 446 → 455,
 +9 audited lock clears).
 
+## PENDING AUTOMATIC VERIFICATION
+
+- First automatic `offers-lifecycle-v2` run (19:17 UTC 2026-10-04): PENDING VERIFICATION. Job active,
+  `17 * * * *`, `postgres`, command `SELECT maintenance.run_offers_lifecycle(1000);`; function has
+  advisory lock + SKIP LOCKED, no DELETE, policy v2. Expected: one `cron.job_run_details` row
+  `succeeded` and one `offer_lifecycle_runs` row with timed_out 0, locks_cleared 0, archived_rejected 0,
+  archived_expired 0, backlog_remaining false (backlog drained by the manual run).
+- Health scanner runs 2026-10-05 and 2026-10-06 03:00 UTC (P1 #2).
+- Account-deletion purge first run with M3 (06:30 UTC): expected 0 requests, no errors.
+
 ## REMAINING RISKS
 
 - Data loss without backups (P1 #1).
