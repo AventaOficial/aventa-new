@@ -907,22 +907,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <MessageCircle className="h-4 w-4" aria-hidden />
                   {comments.length}
                 </a>
-                {offer.categorySlug ? (
-                  <Link
-                    href={`/categoria/${offer.categorySlug}`}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  >
-                    {offer.categoryLabel ?? offer.categorySlug}
-                  </Link>
-                ) : null}
-                {offer.storeSlug && offer.storeName ? (
-                  <Link
-                    href={`/tienda/${offer.storeSlug}`}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  >
-                    {offer.storeName}
-                  </Link>
-                ) : null}
               </div>
 
               {couponCards.length > 0 ? (
