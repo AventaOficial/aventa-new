@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import OwnerSidebar from './OwnerSidebar';
 import OwnerHeader from './OwnerHeader';
+import ModuleBrief from './ModuleBrief';
+import { findFounderModule } from '@/lib/founderOs/modules';
 import LoadingState from '@/app/components/panel/LoadingState';
 import { cn } from '@/app/components/panel/utils';
 
@@ -17,6 +19,7 @@ export default function OwnerShell({ children }: { children: ReactNode }) {
   const isCeoDashboard = pathname === CEO_DASHBOARD_PATH;
   const isCeoVista = pathname.startsWith('/admin/owner/vista');
   const isCeoCanvas = isCeoDashboard || isCeoVista;
+  const brief = isCeoCanvas ? null : findFounderModule(pathname);
   const [ready, setReady] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -94,7 +97,10 @@ export default function OwnerShell({ children }: { children: ReactNode }) {
           panelLabel={isCeoCanvas ? 'Abrir navegación de Founder OS' : sidebarCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
         />
         <main className="flex-1 overflow-y-auto">
-          <div className={cn('mx-auto w-full', isCeoVista ? 'max-w-none' : 'px-4 py-6', isCeoDashboard ? 'max-w-[1600px] lg:px-5 lg:py-3' : isCeoVista ? '' : 'max-w-[1440px] lg:px-8 lg:py-8')}>{children}</div>
+          <div className={cn('mx-auto w-full', isCeoVista ? 'max-w-none' : 'px-4 py-6', isCeoDashboard ? 'max-w-[1600px] lg:px-5 lg:py-3' : isCeoVista ? '' : 'max-w-[1440px] lg:px-8 lg:py-8')}>
+            {brief ? <ModuleBrief key={brief.href} module={brief} /> : null}
+            {children}
+          </div>
         </main>
       </div>
     </div>

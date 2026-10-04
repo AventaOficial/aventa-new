@@ -5,6 +5,7 @@ import { Cpu, Gauge, HardDrive, Mail, Server, Users, type LucideIcon } from 'luc
 import type { OwnerCommandPayload } from '@/lib/owner/buildOwnerCommand';
 import type { SourceState } from '../types';
 import { Donut } from './charts';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, CardLoading, Chip, NA, ThinBar, ViewLink } from './kit';
 import { formatCount, share } from './model';
 
@@ -60,7 +61,7 @@ export default function CapacityCard({
   ];
 
   return (
-    <Card labelledBy="ceo-capacity" className={className} href="/admin/owner/vista/capacidad">
+    <Card labelledBy="ceo-capacity" className={className} href={CEO_CARD_DRILLDOWN.capacity}>
       <CardHeader
         id="ceo-capacity"
         title={
@@ -71,7 +72,7 @@ export default function CapacityCard({
         icon={Server}
         action={
           <>
-            <ViewLink href="/admin/owner/vista/capacidad" label="Ver capacidad de Aventa">
+            <ViewLink href={CEO_CARD_DRILLDOWN.capacity} label="Ver capacidad de Aventa">
               Ver detalles
             </ViewLink>
             {integrityChip}

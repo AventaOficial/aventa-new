@@ -4,6 +4,7 @@ import { Flag, Heart, MessageCircle, Tag, ThumbsUp, User, Users, type LucideIcon
 import type { OwnerCommandPayload, RangeMetric } from '@/lib/owner/buildOwnerCommand';
 import { cn } from '@/app/components/panel/utils';
 import type { SourceState } from '../types';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, DeltaPct, NA, Skel, ViewLink } from './kit';
 import { formatCount, PERIOD_TITLE } from './model';
 
@@ -39,14 +40,14 @@ export default function CommunityCard({
 }) {
   const cmd = source.data;
   return (
-    <Card labelledBy="ceo-community" className={className} href="/admin/owner/vista/comunidad">
+    <Card labelledBy="ceo-community" className={className} href={CEO_CARD_DRILLDOWN.community}>
       <CardHeader
         id="ceo-community"
         title="Actividad de la comunidad"
         suffix={cmd ? `(${PERIOD_TITLE[cmd.range.key]})` : undefined}
         icon={Users}
         iconStyle="plain"
-        action={<ViewLink href="/admin/owner/vista/comunidad" label="Ver más sobre la actividad de la comunidad">Ver más</ViewLink>}
+        action={<ViewLink href={CEO_CARD_DRILLDOWN.community} label="Ver más sobre la actividad de la comunidad">Ver más</ViewLink>}
       />
       {cmd == null && source.status === 'error' ? (
         <CardError message="No se pudo cargar la actividad de la comunidad." onRetry={onRetry} />

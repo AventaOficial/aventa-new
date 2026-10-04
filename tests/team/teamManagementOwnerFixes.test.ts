@@ -440,11 +440,17 @@ describe('I–J. /team/gate y /team/select', () => {
     expect(existsSync(join(process.cwd(), 'app/admin/owner/team'))).toBe(false);
   });
 
-  it('ningún enlace a Team OS es relativo; Team Management abre la ruta canónica', () => {
+  it('ningún enlace a Team OS es relativo', () => {
     const offenders = sourceFiles(join(process.cwd(), 'app'))
       .filter((file) => /(href|redirect|push|replace)\(?\s*[=(]?\s*[{]?\s*['"`](\.\/)?team\//.test(readFileSync(file, 'utf8')));
     expect(offenders).toEqual([]);
-    expect(read('app/admin/owner/team-management/TeamManagementClient.tsx')).toContain('href="/team"');
+  });
+
+  it('Team Management no manda al Owner a Team OS (exige membresía que el Owner no puede tener)', () => {
+    const client = read('app/admin/owner/team-management/TeamManagementClient.tsx');
+    expect(client).not.toContain('href="/team"');
+    expect(client).toContain('href="/equipo"');
+    expect(read('lib/staff/permissions.ts')).toMatch(/owner/);
   });
 });
 

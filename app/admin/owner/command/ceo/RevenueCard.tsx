@@ -6,6 +6,7 @@ import type { OwnerCommandPayload } from '@/lib/owner/buildOwnerCommand';
 import type { OwnerRangeKey } from '@/lib/owner/ownerRange';
 import type { SourceState } from '../types';
 import { LineSeries } from './charts';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, CardLoading, Chip, EmptyFrame, NA, RangeChip } from './kit';
 import { formatMoneyCents } from './model';
 
@@ -41,7 +42,7 @@ export default function RevenueCard({
   const estimated = period?.estimatedCents ?? null;
 
   return (
-    <Card labelledBy="ceo-revenue" className={className} href="/admin/owner/vista/ingresos">
+    <Card labelledBy="ceo-revenue" className={className} href={CEO_CARD_DRILLDOWN.revenue}>
       <CardHeader
         id="ceo-revenue"
         title={

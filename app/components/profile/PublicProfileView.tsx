@@ -23,6 +23,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { requestGuestSignIn } from '@/lib/auth/guestAccessPrompt';
 import AchievementSigil from '@/app/components/achievements/AchievementSigil';
+import OfferMedia from '@/app/components/offers/OfferMedia';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
 import { achievementByCode } from '@/lib/achievements/catalog';
 
@@ -432,12 +433,14 @@ export default function PublicProfileView({
                             onClick={openable ? () => onOpenOffer(offer) : undefined}
                             className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-default"
                           >
-                            {offer.image ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={offer.image} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-                            ) : (
-                              <span className="h-14 w-14 shrink-0 rounded-xl bg-black/5 dark:bg-white/10" aria-hidden />
-                            )}
+                            <OfferMedia
+                              src={offer.image}
+                              alt=""
+                              sizes="56px"
+                              ratioClass="aspect-square"
+                              compact
+                              className="h-14 w-14 shrink-0 rounded-xl"
+                            />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[15px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
                               <span className="mt-0.5 block truncate text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">

@@ -323,7 +323,8 @@ export default function TeamManagementClient() {
         <div>
           <h1 className="text-xl font-semibold text-white">Membresías</h1>
           <p className="mt-1 text-sm text-white/45">
-            Quién está en cada equipo. Una membresía no abre /admin.
+            Quién está en cada equipo. Una membresía no abre /admin. Team OS es el espacio de trabajo de los
+            miembros; como Owner supervisas el trabajo del equipo desde Team Hub.
             {TEAM_MANAGEMENT_STEP_UP.enforced
               ? ''
               : ' Los cambios usan la sesión de Owner; la reautenticación adicional todavía no está disponible.'}
@@ -331,10 +332,10 @@ export default function TeamManagementClient() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/team"
+            href="/equipo"
             className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white/80 hover:bg-white/[0.04]"
           >
-            Abrir Team OS
+            Abrir Team Hub
           </Link>
           <button
             type="button"

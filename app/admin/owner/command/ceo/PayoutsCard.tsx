@@ -4,6 +4,7 @@ import { Users, Wallet } from 'lucide-react';
 import type { OwnerCommandPayload } from '@/lib/owner/buildOwnerCommand';
 import { cn } from '@/app/components/panel/utils';
 import type { SourceState } from '../types';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, CardLoading, Chip, NA, ViewLink } from './kit';
 import { formatCount } from './model';
 
@@ -35,9 +36,9 @@ export default function PayoutsCard({
   ];
 
   return (
-    <Card labelledBy="ceo-payouts" className={className} href="/admin/owner/vista/pagos">
+    <Card labelledBy="ceo-payouts" className={className} href={CEO_CARD_DRILLDOWN.payouts}>
       <CardHeader id="ceo-payouts" title="Pagos pendientes" icon={Wallet} action={
-          <ViewLink href="/admin/owner/vista/pagos" label="Ver pagos pendientes">
+          <ViewLink href={CEO_CARD_DRILLDOWN.payouts} label="Ver pagos pendientes">
             Ver<span className="hidden @[13rem]:inline"> pagos</span>
           </ViewLink>
         }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, BarChart3 } from 'lucide-react';
 import OfferAdvancedMetricsModal from '@/app/components/OfferAdvancedMetricsModal';
+import OfferMedia from '@/app/components/offers/OfferMedia';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { formatPriceMXN } from '@/lib/formatPrice';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
@@ -124,12 +125,14 @@ export default function HunterOffersPreview({ offers, limit = 3, onPublish }: Hu
                   aria-label={`Ver métricas de ${offer.title}`}
                   className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1.5 py-3 text-left transition-colors duration-150 hover:bg-black/[0.025] active:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:hover:bg-white/[0.04] dark:active:bg-white/[0.06]"
                 >
-                  {offer.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={offer.image} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-black/5 object-cover dark:bg-white/10" />
-                  ) : (
-                    <span className="h-12 w-12 shrink-0 rounded-xl bg-black/5 dark:bg-white/10" aria-hidden />
-                  )}
+                  <OfferMedia
+                    src={offer.image}
+                    alt=""
+                    sizes="48px"
+                    ratioClass="aspect-square"
+                    compact
+                    className="h-12 w-12 shrink-0 rounded-xl"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-medium leading-tight text-[#1d1d1f] dark:text-[#fafafa]">{offer.title}</span>
                     {offer.store || meta.price ? (

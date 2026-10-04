@@ -8,6 +8,9 @@ import { useCommandCenter } from './command/useCommandCenter';
 import { deriveGoals, deriveHealth, derivePriorities, teamStatusFromHealth } from './command/derive';
 import { ErrorNote } from './command/ui';
 import type { TeamId } from './command/types';
+import { TEAM_TOOL_HREF } from './command/drilldowns';
+import { summarizeDecision } from './command/decision';
+import DecisionStrip from './command/ceo/DecisionStrip';
 import CeoTopBar from './command/ceo/CeoTopBar';
 import CommunityCard from './command/ceo/CommunityCard';
 import UsersCard from './command/ceo/UsersCard';
@@ -32,16 +35,6 @@ function useNow(intervalMs = 30_000) {
   return now;
 }
 
-const TEAM_HREF: Record<TeamId, string> = {
-  moderacion: '/admin/owner/vista/equipos/moderacion',
-  finanzas: '/admin/owner/vista/equipos/finanzas',
-  growth: '/admin/owner/vista/equipos/growth',
-  producto: '/admin/owner/vista/equipos/producto',
-  hunter: '/admin/owner/vista/equipos/hunter',
-  comunidad: '/admin/owner/vista/equipos/comunidad',
-  operaciones: '/admin/owner/vista/equipos/operaciones',
-};
-
 export default function OwnerDashboardClient() {
   const { range, changeRange, data, refreshAll, retryCommand, refreshing, lastUpdated, authError } = useCommandCenter();
   const now = useNow();
@@ -54,6 +47,7 @@ export default function OwnerDashboardClient() {
   const health = useMemo(() => deriveHealth(base, cmd, todayYmd, now), [base, cmd, todayYmd, now]);
   const priorities = useMemo(() => derivePriorities(base, cmd, todayYmd, now), [base, cmd, todayYmd, now]);
   const goals = useMemo(() => deriveGoals(base, cmd, gerencia), [base, cmd, gerencia]);
+  const decision = useMemo(() => summarizeDecision(health, priorities), [health, priorities]);
 
   if (authError) return <ErrorNote message={authError} />;
 
@@ -66,7 +60,7 @@ export default function OwnerDashboardClient() {
     label,
     icon,
     status: teamStatusFromHealth(id, health, priorities, missing),
-    href: TEAM_HREF[id],
+    href: TEAM_TOOL_HREF[id],
     snapshot: teamSnapshot(id, base, cmd, priorities),
   });
 
@@ -84,6 +78,7 @@ export default function OwnerDashboardClient() {
     <div className="space-y-5 pb-10" data-ceo-dashboard>
       <header className="-mb-2 flex flex-wrap items-center justify-end gap-3">
         <h1 className="sr-only">CEO Dashboard</h1>
+        <DecisionStrip summary={decision} loading={loadingCore && !base && !cmd} />
         <CeoTopBar
           range={range}
           onRangeChange={changeRange}

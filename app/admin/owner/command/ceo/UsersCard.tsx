@@ -4,6 +4,7 @@ import { Users } from 'lucide-react';
 import type { OwnerCommandPayload } from '@/lib/owner/buildOwnerCommand';
 import type { SourceState } from '../types';
 import { BarSeries } from './charts';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, CardLoading, Chip, EmptyFrame, NA } from './kit';
 import { formatCount, PERIOD_SUFFIX, PERIOD_TITLE } from './model';
 
@@ -35,7 +36,7 @@ export default function UsersCard({
   const cmd = source.data;
   const title = cmd ? `Usuarios activos (${PERIOD_TITLE[cmd.range.key]})` : 'Usuarios activos';
   return (
-    <Card labelledBy="ceo-users" className={className} href="/admin/owner/vista/usuarios">
+    <Card labelledBy="ceo-users" className={className} href={CEO_CARD_DRILLDOWN.users}>
       <CardHeader
         id="ceo-users"
         title={title}
