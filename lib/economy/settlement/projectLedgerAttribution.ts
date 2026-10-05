@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { encodeAventaSubId } from '@/lib/rewards/adapters/types';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
 export type LedgerAttributionProjection = {
   click_id: string | null;
@@ -105,8 +106,10 @@ async function loadOfferCreatorId(
     .eq('id', offerId)
     .maybeSingle();
   if (error || !data) return null;
-  const creatorId = (data as { created_by?: string | null }).created_by;
-  return creatorId?.trim() || null;
+  const creatorId = (data as { created_by?: string | null }).created_by?.trim() || null;
+  if (!creatorId) return null;
+  if (await isEconomicallyInertAuthor(supabase, creatorId)) return null;
+  return creatorId;
 }
 
 async function loadClickOfferId(

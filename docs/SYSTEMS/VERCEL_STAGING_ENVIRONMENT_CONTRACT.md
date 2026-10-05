@@ -86,7 +86,7 @@ Drain aborts unless **all** staging surface checks pass. Production project must
 | `TELEGRAM_BOT_TOKEN_STAGING` | **STAGING-ONLY** | |
 | Production Telegram (if any) | **PRODUCTION-ONLY** | Must not exist on staging project |
 | `RESEND_API_KEY` | **UNKNOWN** until founder decides | Prefer staging mailbox / no-send on staging |
-| `UPSTASH_REDIS_*` | **UNKNOWN** | Prefer separate Upstash DB for staging |
+| `UPSTASH_REDIS_*` | **UNKNOWN** | Temporarily shared with production (accepted risk); requires `AVENTA_REDIS_ENVIRONMENT=staging` and marker `aventa:staging:environment`. See `MCP_GROK_BOTS.md` §14 |
 | Affiliate tags (Amazon/ML) | **PRODUCTION-ONLY** preferred | Staging may use non-monetizing tags or unset |
 | `ML_OAUTH_*` | **PRODUCTION-ONLY** | Do not put on staging unless needed |
 | `AVENTA_*` target/ref/surface | **SHARED-SAFE** names | Values differ |

@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
 /**
  * Recalcula reputation_score, reputation_level e is_trusted de un usuario.
@@ -10,6 +11,7 @@ import { createServerClient } from '@/lib/supabase/server';
 export async function recalculateUserReputation(userId: string): Promise<void> {
   try {
     const supabase = createServerClient();
+    if (await isEconomicallyInertAuthor(supabase, userId)) return;
     await supabase.rpc('recalculate_user_reputation', { p_user_id: userId });
   } catch (e) {
     console.error('[reputation] recalculate_user_reputation failed for', userId, e);

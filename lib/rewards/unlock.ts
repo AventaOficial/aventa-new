@@ -3,6 +3,7 @@ import { REWARDS_REQUIRED_APPROVED_OFFERS, REWARDS_TERMS_VERSION } from '@/lib/r
 import { getRewardsProgress } from '@/lib/rewards/eligibility';
 import { writeRewardAuditLog } from '@/lib/rewards/audit';
 import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
+import { BOT_AUTHOR_BLOCKED_REASON, isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 import {
   evaluateQualityGates,
   getHunterQualitySignals,
@@ -28,6 +29,10 @@ export async function maybeUnlockRewardsProgram(
   userId: string,
   actorId?: string | null,
 ): Promise<{ unlocked: boolean; unlockedAt: string | null; blockedReason?: string | null }> {
+  if (await isEconomicallyInertAuthor(supabase, userId)) {
+    return { unlocked: false, unlockedAt: null, blockedReason: BOT_AUTHOR_BLOCKED_REASON };
+  }
+
   const { data: profile, error: readErr } = await supabase
     .from('profiles')
     .select('reward_program_unlocked_at')

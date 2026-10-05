@@ -1,7 +1,10 @@
 import type { GetHomeFeedSuccess } from '@/lib/offers/feedService';
-import { getUpstashRedis } from '@/lib/server/redisClient';
+import { isUpstashConfigured } from '@/lib/server/redisClient';
+import { resolveRedisAccess } from '@/lib/server/redisEnvironment';
+import { getAppRedis } from '@/lib/server/scopedRedis';
 
-const VERSION_KEY = 'aventa:feed:home:ver';
+/** Sufijos relativos: el namespace del entorno lo pone getAppRedis(). */
+const VERSION_KEY = 'feed:home:ver';
 
 export type HomeFeedCacheParams = {
   limit: number;
@@ -38,9 +41,9 @@ function buildParamsKey(params: HomeFeedCacheParams): string {
   return parts.join(':');
 }
 
-async function getCacheVersion(): Promise<number> {
-  const redis = getUpstashRedis();
-  if (!redis) return 0;
+type AppRedis = NonNullable<Awaited<ReturnType<typeof getAppRedis>>>;
+
+async function getCacheVersion(redis: AppRedis): Promise<number> {
   const v = await redis.get<number>(VERSION_KEY);
   return typeof v === 'number' && Number.isFinite(v) ? v : 0;
 }
@@ -49,11 +52,10 @@ export async function getCachedHomeFeed(
   params: HomeFeedCacheParams
 ): Promise<GetHomeFeedSuccess | null> {
   if (!isFeedCacheEnabled()) return null;
-  const redis = getUpstashRedis();
+  const redis = await getAppRedis();
   if (!redis) return null;
-  const version = await getCacheVersion();
-  const key = `aventa:feed:home:v${version}:${buildParamsKey(params)}`;
-  const raw = await redis.get<string>(key);
+  const version = await getCacheVersion(redis);
+  const raw = await redis.get<string>(`feed:home:v${version}:${buildParamsKey(params)}`);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as GetHomeFeedSuccess;
@@ -69,18 +71,17 @@ export async function setCachedHomeFeed(
   payload: GetHomeFeedSuccess
 ): Promise<void> {
   if (!isFeedCacheEnabled()) return;
-  const redis = getUpstashRedis();
+  const redis = await getAppRedis();
   if (!redis) return;
-  const version = await getCacheVersion();
-  const key = `aventa:feed:home:v${version}:${buildParamsKey(params)}`;
+  const version = await getCacheVersion(redis);
   const ttl = feedCacheTtlSeconds();
   if (ttl <= 0) return;
-  await redis.set(key, JSON.stringify(payload), { ex: ttl });
+  await redis.set(`feed:home:v${version}:${buildParamsKey(params)}`, JSON.stringify(payload), { ex: ttl });
 }
 
 /** Invalida todas las entradas del feed home (bump de versión). */
 export async function invalidateHomeFeedCache(): Promise<boolean> {
-  const redis = getUpstashRedis();
+  const redis = await getAppRedis();
   if (!redis) return false;
   await redis.incr(VERSION_KEY);
   return true;
@@ -90,6 +91,6 @@ export function feedCacheMeta(): { enabled: boolean; ttlSeconds: number; redis: 
   return {
     enabled: isFeedCacheEnabled(),
     ttlSeconds: feedCacheTtlSeconds(),
-    redis: !!getUpstashRedis(),
+    redis: isUpstashConfigured() && resolveRedisAccess().mode !== 'none',
   };
 }

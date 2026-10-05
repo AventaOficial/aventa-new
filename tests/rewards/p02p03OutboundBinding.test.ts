@@ -8,6 +8,7 @@ import {
 import { encodeAventaSubId } from '../../lib/rewards/adapters/types';
 import { offerUrlFingerprint } from '../../lib/offers/offerUrlFingerprint';
 import { detectNetworkFromUrl } from '../../lib/rewards/adapters/types';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 
 const OFFER_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const OFFER_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
@@ -240,6 +241,7 @@ describe('P0-2/P0-3 — createRewardFromLedgerEntry chain', () => {
     const settlements: string[] = [];
     const rewards: unknown[] = [];
     const from = vi.fn((table: string) => {
+      if (table === 'machine_clients') return emptyMachineClientsTable();
       const filters: Record<string, unknown> = {};
       let op = 'select';
       const builder: Record<string, unknown> = {};

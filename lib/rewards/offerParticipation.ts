@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
 export type OfferRewardsParticipationInput = {
   offerId: string;
@@ -52,6 +53,7 @@ export async function loadOfferParticipationContext(
     created_at?: string;
   };
   if (!row.created_by) return null;
+  if (await isEconomicallyInertAuthor(supabase, row.created_by)) return null;
 
   const { data: profile } = await supabase
     .from('profiles')

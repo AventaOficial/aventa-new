@@ -7,6 +7,7 @@ import {
 } from '@/lib/rewards/config';
 import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
+import { BOT_AUTHOR_BLOCKED_REASON, isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 import { isOfferParticipatingInRewards } from '@/lib/rewards/offerParticipation';
 import {
   resolveCommissionAttribution,
@@ -215,6 +216,9 @@ export async function createRewardFromLedgerEntry(
     const status = (offerRow as { status?: string } | null)?.status;
     if (!creatorId || (status !== 'approved' && status !== 'published')) {
       return { created: false, reason: 'invalid_manual_offer' };
+    }
+    if (await isEconomicallyInertAuthor(supabase, creatorId)) {
+      return { created: false, reason: BOT_AUTHOR_BLOCKED_REASON };
     }
     match = {
       offerId: ledger.offer_id,

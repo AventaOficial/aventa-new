@@ -492,6 +492,33 @@ export const FOUNDER_MODULES: FounderModule[] = [
     teams: ['producto'],
     technical: ['Ruta: /admin/technical.'],
   },
+  {
+    href: '/admin/machine-clients',
+    name: 'Clientes MCP',
+    whatIs: [
+      'Es donde se dan de alta los bots externos que proponen ofertas, como Grok.',
+      'Un bot externo solo sugiere candidatos: no publica, no modera y no gana dinero.',
+      'Cada candidato entra a la cola de lotes y una persona del equipo decide.',
+      'Cada cliente tiene un nombre, permisos, un autor bot y una cuota diaria.',
+      'El token se muestra una sola vez al crearlo y Aventa no lo puede recuperar.',
+      'Pausar detiene sus envíos. Reanudar los vuelve a permitir.',
+      'Revocar es permanente: el cliente queda registrado y su token deja de servir.',
+      'Para cambiar un token se crea un cliente nuevo y se revoca el anterior.',
+      'La recepción general se enciende aparte, solo después de validarla en staging.',
+      'El autor bot nunca es un Aventa Hunter ni una persona del equipo.',
+    ],
+    whyExists: 'Para recibir candidatos de bots externos sin abrir otra puerta de escritura.',
+    protects: 'La moderación humana, el escritor único de ofertas y el dinero de los usuarios.',
+    measures: 'Qué clientes existen, en qué estado están y cuánto pueden enviar al día.',
+    howToRead: 'Activo envía. Pausado solo consulta. Revocado ya no entra.',
+    decides: 'Qué bot puede proponer candidatos y con qué permisos.',
+    doesNotControl: 'No publica ofertas, no modera y no toca recompensas ni pagos.',
+    whenToEnter: 'Cuando vas a conectar, pausar o retirar un bot externo.',
+    owner: 'Owner',
+    healthArea: null,
+    teams: ['producto'],
+    technical: ['Tablas machine_clients y machine_client_calls. Endpoint MCP en /api/mcp. Kill switch MCP_INGEST_ENABLED.'],
+  },
 ];
 
 export function findFounderModule(pathname: string): FounderModule | null {

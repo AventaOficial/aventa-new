@@ -1,7 +1,9 @@
 import { Ratelimit, type Duration } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import { isProductionRuntime } from '@/lib/server/moneyPathFreeze';
-import { decideRateLimitBackend } from '@/lib/server/rateLimitPolicy';
+import { getUpstashRedis, isUpstashConfigured } from '@/lib/server/redisClient';
+import { DISTRIBUTED_ONLY_RATE_LIMIT_PRESETS, decideRateLimitBackend } from '@/lib/server/rateLimitPolicy';
+import { rateLimitPrefix, resolveRedisAccess } from '@/lib/server/redisEnvironment';
+import { verifyRuntimeRedisMarker } from '@/lib/server/scopedRedis';
 import { incrementLaunchMetric } from '@/lib/observability/launchMetrics';
 
 const limiters: Record<string, Ratelimit> = {};
@@ -46,11 +48,11 @@ function memoryAllow(key: string, limit: number, windowMs: number): boolean {
   return false;
 }
 
-function getRatelimit(key: string, limit: number, window: Duration): Ratelimit | null {
+function getRatelimit(presetKey: string, limit: number, window: Duration, prefix?: string): Ratelimit | null {
+  const key = prefix ? `${prefix}|${presetKey}` : presetKey;
   if (limiters[key]) return limiters[key];
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
+  const redis = getUpstashRedis();
+  if (!redis) {
     if (!hasWarnedNoRedis && process.env.NODE_ENV === 'production') {
       hasWarnedNoRedis = true;
       console.warn(
@@ -59,10 +61,10 @@ function getRatelimit(key: string, limit: number, window: Duration): Ratelimit |
     }
     return null;
   }
-  const redis = new Redis({ url, token });
   limiters[key] = new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(limit, window),
+    ...(prefix ? { prefix } : {}),
   });
   return limiters[key];
 }
@@ -86,15 +88,32 @@ export type EnforceResult =
 
 const REDIS_LIMIT_TIMEOUT_MS = 1200;
 
-function hasDistributedBackend(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+/**
+ * Redis compartido entre entornos: sólo se usa con entorno declarado y coherente (`aventa:<env>:ratelimit`)
+ * o, sin declaración, en Aventa Production canónica con su prefijo histórico. MCP exige lo primero.
+ */
+function resolveDistributedTarget(distributedOnly: boolean): { prefix?: string; markerOf?: 'staging' | 'production' } | null {
+  if (!isUpstashConfigured()) return null;
+  const access = resolveRedisAccess();
+  if (access.mode === 'scoped') return { prefix: rateLimitPrefix(access.environment), markerOf: access.environment };
+  if (access.mode === 'legacy_production' && !distributedOnly) return {};
+  return null;
 }
 
+function backendUnavailable(): EnforceResult {
+  incrementLaunchMetric('rate_limit_backend_denied');
+  return { success: false, status: 503, code: 'rate_limit_backend_unavailable' };
+}
+
+/** Un error de Redis cuenta como backend no disponible, igual que el timeout. */
 async function limitWithTimeout(rl: Ratelimit, identifier: string): Promise<'ok' | 'blocked' | 'timeout'> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
-      rl.limit(identifier).then((value) => (value.success ? 'ok' : 'blocked') as 'ok' | 'blocked'),
+      rl
+        .limit(identifier)
+        .then((value) => (value.success ? 'ok' : 'blocked') as 'ok' | 'blocked')
+        .catch(() => 'timeout' as const),
       new Promise<'timeout'>((resolve) => {
         timer = setTimeout(() => resolve('timeout'), REDIS_LIMIT_TIMEOUT_MS);
       }),
@@ -110,22 +129,27 @@ async function enforceWithPolicy(
   presetKey: string,
   limit: number,
   window: Duration,
-  critical: boolean
+  critical: boolean,
+  distributedOnly = false
 ): Promise<EnforceResult> {
+  const target = resolveDistributedTarget(distributedOnly);
   const backend = decideRateLimitBackend({
-    hasDistributedBackend: hasDistributedBackend(),
+    hasDistributedBackend: target !== null,
     production: isProductionRuntime(),
     critical,
+    distributedOnly,
   });
 
   if (backend === 'deny') {
-    incrementLaunchMetric('rate_limit_backend_denied');
     incrementLaunchMetric('critical_errors');
-    return { success: false, status: 503, code: 'rate_limit_backend_unavailable' };
+    return backendUnavailable();
   }
 
-  if (backend === 'distributed') {
-    const rl = getRatelimit(presetKey, limit, window);
+  if (backend === 'distributed' && target) {
+    const failClosed = (critical && isProductionRuntime()) || distributedOnly;
+    const redis = getUpstashRedis();
+    const markerOk = !target.markerOf || (redis !== null && (await verifyRuntimeRedisMarker(redis, target.markerOf)) === 'match');
+    const rl = markerOk ? getRatelimit(presetKey, limit, window, target.prefix) : null;
     if (rl) {
       const outcome = await limitWithTimeout(rl, identifier);
       if (outcome === 'ok') return { success: true };
@@ -133,13 +157,11 @@ async function enforceWithPolicy(
         incrementLaunchMetric('rate_limit_blocks');
         return { success: false, status: 429, code: 'rate_limited' };
       }
-      if (critical && isProductionRuntime()) {
-        incrementLaunchMetric('rate_limit_backend_denied');
-        return { success: false, status: 503, code: 'rate_limit_backend_unavailable' };
-      }
     }
+    if (failClosed) return backendUnavailable();
   }
 
+  if (distributedOnly) return backendUnavailable();
   incrementLaunchMetric('rate_limit_memory_fallback');
   const ok = memoryAllow(`${presetKey}:${identifier}`, limit, durationToMs(window));
   if (ok) return { success: true };
@@ -164,9 +186,10 @@ export function getClientIp(request: Request): string {
   return 'unknown';
 }
 
-const CRITICAL_PRESETS = new Set(['reports', 'comments', 'offers']);
+const CRITICAL_PRESETS = new Set(['reports', 'comments', 'offers', 'mcp']);
+const DISTRIBUTED_ONLY_PRESETS = new Set<string>(DISTRIBUTED_ONLY_RATE_LIMIT_PRESETS);
 
-/** reports | comments | events | offers | parseOffer | feed | telemetryView | telemetryOutbound | clientEvents | clientEventAlerts | similarOffers | uploadImage */
+/** reports | comments | events | offers | parseOffer | feed | telemetryView | telemetryOutbound | clientEvents | clientEventAlerts | similarOffers | uploadImage | mcp */
 export async function enforceRateLimitCustom(
   identifier: string,
   preset:
@@ -182,6 +205,7 @@ export async function enforceRateLimitCustom(
     | 'clientEventAlerts'
     | 'similarOffers'
     | 'uploadImage'
+    | 'mcp'
 ): Promise<EnforceResult> {
   const configs: Record<string, [number, Duration, string]> = {
     reports: [10, '1 m', 'RATE_LIMIT_REPORTS_PER_MIN'],
@@ -196,8 +220,16 @@ export async function enforceRateLimitCustom(
     clientEventAlerts: [1, '30 m', 'RATE_LIMIT_CLIENT_EVENT_ALERTS_PER_WINDOW'],
     similarOffers: [30, '1 m', 'RATE_LIMIT_SIMILAR_OFFERS_PER_MIN'],
     uploadImage: [15, '1 h', 'RATE_LIMIT_UPLOAD_IMAGE_PER_HOUR'],
+    mcp: [10, '1 m', 'RATE_LIMIT_MCP_PER_MIN'],
   };
   const [baseLimit, window, envName] = configs[preset];
   const limit = applyAdaptiveMultiplier(readPositiveIntEnv(envName) ?? baseLimit);
-  return enforceWithPolicy(identifier, `rl:${preset}`, limit, window, CRITICAL_PRESETS.has(preset));
+  return enforceWithPolicy(
+    identifier,
+    `rl:${preset}`,
+    limit,
+    window,
+    CRITICAL_PRESETS.has(preset),
+    DISTRIBUTED_ONLY_PRESETS.has(preset)
+  );
 }

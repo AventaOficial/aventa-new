@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 import { achievementByCode, activeAchievements } from './catalog';
 import { projectAchievements } from './evaluate';
 import { loadUserAchievementFacts } from './loadFacts';
@@ -37,7 +37,9 @@ export async function syncUserAchievements(
   userId: string,
   trigger?: AchievementTrigger,
 ): Promise<AchievementSyncResult> {
-  if (!userId || isBotUserId(userId)) return { ok: true, skipped: 'bot', unlocked: [], facts: null };
+  if (!userId || (await isEconomicallyInertAuthor(supabase, userId))) {
+    return { ok: true, skipped: 'bot', unlocked: [], facts: null };
+  }
 
   let loaded;
   try {
