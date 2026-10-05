@@ -938,7 +938,7 @@ export default function AdminCommissionsPage() {
         <p className="text-xs text-gray-500 dark:text-gray-400 inline-flex items-start gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Con 0 ofertas/usuarios es normal ver todo en $0. La economía ya está en modo “40% por tag”; esta pantalla
+            Con 0 ofertas/usuarios es normal ver todo en $0. La economía ya reparte por tag con la tasa configurada; esta pantalla
             solo es más clara. Detalle: <code className="text-[10px]">docs/POLITICA_COMISIONES_CREADORES.md</code>
           </span>
         </p>

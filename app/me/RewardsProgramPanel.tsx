@@ -17,13 +17,20 @@ import RewardsOfferSelection, {
 } from '@/app/me/RewardsOfferSelection';
 import MysteryGiftBox from '@/app/me/MysteryGiftBox';
 import RewardsProgramGuide from '@/app/me/RewardsProgramGuide';
-import { buildRewardsOnboarding } from '@/lib/rewards/onboarding';
+import {
+  PROGRAM_STATUS_COPY,
+  buildRewardsOnboarding,
+  resolveRewardsMemberStatus,
+  resolveRewardsProgramStatus,
+} from '@/lib/rewards/onboarding';
 
 type ClaimPhase = 'locked' | 'unlocked' | 'pending_selection' | 'complete';
 
 type StatusPayload = {
   programName: string;
   programActive: boolean;
+  /** Ausente (respuesta antigua) se trata como congelado: fail-closed. */
+  moneyPathFrozen?: boolean;
   surpriseMode?: boolean;
   claimPhase?: ClaimPhase;
   encouragement?: string | null;
@@ -331,7 +338,12 @@ export default function RewardsProgramPanel() {
   const phase = resolveClaimPhase(data);
   const sharePct = Math.round(data.policy.creatorShareBps / 100);
   const termsHref = data.terms?.href ?? '/terms#comisiones';
-  const pausedNotice = buildRewardsOnboarding(data.programActive).locked;
+  const programStatus = resolveRewardsProgramStatus({
+    programActive: data.programActive,
+    moneyPathFrozen: data.moneyPathFrozen ?? true,
+  });
+  const memberStatus = resolveRewardsMemberStatus(phase);
+  const pausedNotice = buildRewardsOnboarding(programStatus).locked;
 
   return (
     <>
@@ -511,7 +523,7 @@ export default function RewardsProgramPanel() {
                 ) : null}
               </div>
 
-              {data.programActive ? (
+              {programStatus === 'ACTIVE' ? (
                 <>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-xl border border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-[#0e0e10] p-3">
@@ -541,22 +553,24 @@ export default function RewardsProgramPanel() {
                 </>
               ) : (
                 <p className="text-xs text-zinc-500">
-                  Tu reconocimiento quedó registrado. Cuando el programa abra públicamente, AVENTA
-                  lo anunciará — sin promesas de pago mientras esté cerrado.
+                  {programStatus === 'PAUSED'
+                    ? 'Tu reconocimiento quedó registrado. Cuando el programa abra públicamente, AVENTA lo anunciará — sin promesas de pago mientras esté cerrado.'
+                    : 'Tu reconocimiento quedó registrado. Ningún monto se libera ni se paga mientras los pagos estén congelados.'}
                 </p>
               )}
 
-              {!data.programActive ? (
-                <div className="flex items-start gap-2 text-xs text-amber-400/90">
+              {programStatus !== 'ACTIVE' ? (
+                <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400/90">
                   <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>Programa aún no activo públicamente.</span>
+                  <span>{PROGRAM_STATUS_COPY[programStatus].label}: {PROGRAM_STATUS_COPY[programStatus].description}</span>
                 </div>
               ) : null}
             </div>
           ) : null}
 
           <RewardsProgramGuide
-            programActive={data.programActive}
+            programStatus={programStatus}
+            memberStatus={memberStatus}
             defaultOpen={phase === 'unlocked'}
           />
 

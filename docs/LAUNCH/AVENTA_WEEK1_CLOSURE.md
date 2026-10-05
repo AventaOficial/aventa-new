@@ -21,9 +21,11 @@ Sin cambios en dinero, RLS, auth, schema, migraciones, lifecycle, scanner ni cro
 
 Diferencias legítimas entre las rutas de equipo: `/admin/team` asigna **roles** (permisos), `/admin/owner/team-management` asigna **equipos** (organización), `/equipo` es el **trabajo diario** por rol y `/team` es la **experiencia del miembro**. Ninguna duplica a otra.
 
+Capas de progresión, frontera de dinero y frontera fiscal: [`docs/REWARDS_MONEY_FISCAL_BOUNDARY.md`](../REWARDS_MONEY_FISCAL_BOUNDARY.md).
+
 ## 2. Cambios de la semana
 
-- **Rewards onboarding** (`lib/rewards/onboarding.ts`, `app/me/RewardsProgramGuide.tsx`): explica las tres capas (Gamificación, Recompensas, Programa monetario), qué cuenta y qué no, estados, abuso y cuándo se recibe algo. Se deriva de `config.ts` y del estado del programa; no lee base.
+- **Rewards onboarding** (`lib/rewards/onboarding.ts`, `app/me/RewardsProgramGuide.tsx`): separa lo que nunca es dinero (XP, reputación) del camino de una recompensa (pendiente → disponible → retiro). Explica qué cuenta y qué no, por qué algo queda pendiente, qué se pide para cobrar, abuso y garantías. Muestra el estado real del programa (`ACTIVE`/`FROZEN`/`PAUSED`) y del cazador (`LOCKED`/`ELIGIBLE`/`UNLOCKED`), derivados de `REWARDS_PROGRAM_ACTIVE`, `MONEY_PATH_FROZEN` y `claimPhase`. No lee base.
 - **Copy honesto**: el panel ya no anima a un desbloqueo que está en pausa; se quitaron «gana XP», «desbloquea beneficios», «ahorra y gana» y la promesa de «cooldowns más cortos y mayor visibilidad», que no existe.
 - **Logros**: «Cazador» pide nivel 4 (el máximo); «Explorador» (nivel 10) queda inactivo. Un test impide metas por encima del nivel máximo.
 - **Equipo**: el botón «Gestionar roles» en `/equipo/gerencia` solo aparece a quien puede abrir `/admin/team`; el texto de acceso restringido de `/admin` ya dice «solo Owner».
