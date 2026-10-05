@@ -174,7 +174,7 @@ export default function HuntCenter({
               {challenge.kind === 'ready' && challenge.poolSize > 1 ? 'Dame otro reto' : 'Dame un reto'}
             </span>
             <span className="block text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
-              {session ? 'Acepta un reto y gana XP' : 'Inicia sesión para recibir retos'}
+              {session ? 'Acepta un reto y suma XP de colección' : 'Inicia sesión para recibir retos'}
             </span>
           </span>
           <ArrowRight className="h-4 w-4 shrink-0 text-[#6e6e73] transition-colors duration-150 group-hover:text-violet-600 dark:text-[#a3a3a3] dark:group-hover:text-violet-400" aria-hidden />

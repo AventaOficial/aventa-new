@@ -264,7 +264,7 @@ export default function AdminLayout({
         <div className="text-center">
           <p className="text-white/80 font-medium">Acceso restringido</p>
           <p className="text-sm text-white/45 mt-1">
-            Solo usuarios con rol admin panel (owner, admin, moderator, analyst) pueden acceder aquí.
+            El panel de administración es solo para el Owner.
             Si eres del equipo operativo, entra a{' '}
             <Link href="/equipo" className="text-emerald-600 hover:underline">
               /equipo

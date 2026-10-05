@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createOfferInputSchema, describeOfferIssue } from '@/lib/contracts/offers';
+import { createOfferInputSchema, describeOfferIssue, OFFER_COUPON_MAX } from '@/lib/contracts/offers';
 
 const base = {
   title: 'Colchón matrimonial Fred 14 cm',
@@ -21,6 +21,15 @@ describe('createOfferInputSchema', () => {
       expect(parsed.data.price).toBe(1788.88);
       expect(parsed.data.original_price).toBeUndefined();
     }
+  });
+
+  it('acota el cupón libre al mismo tope que la edición en moderación', () => {
+    const ok = createOfferInputSchema.safeParse({ ...base, price: 100, coupons: `  ${'A'.repeat(OFFER_COUPON_MAX)}  ` });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data.coupons).toBe('A'.repeat(OFFER_COUPON_MAX));
+    const tooLong = createOfferInputSchema.safeParse({ ...base, price: 100, coupons: 'A'.repeat(OFFER_COUPON_MAX + 1) });
+    expect(tooLong.success).toBe(false);
+    if (!tooLong.success) expect(tooLong.error.issues[0]?.message).toMatch(/cupón/);
   });
 
   it('acepta oferta con descuento', () => {

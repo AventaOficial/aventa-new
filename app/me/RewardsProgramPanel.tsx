@@ -16,6 +16,8 @@ import RewardsOfferSelection, {
   type WelcomeChoiceCard,
 } from '@/app/me/RewardsOfferSelection';
 import MysteryGiftBox from '@/app/me/MysteryGiftBox';
+import RewardsProgramGuide from '@/app/me/RewardsProgramGuide';
+import { buildRewardsOnboarding } from '@/lib/rewards/onboarding';
 
 type ClaimPhase = 'locked' | 'unlocked' | 'pending_selection' | 'complete';
 
@@ -329,6 +331,7 @@ export default function RewardsProgramPanel() {
   const phase = resolveClaimPhase(data);
   const sharePct = Math.round(data.policy.creatorShareBps / 100);
   const termsHref = data.terms?.href ?? '/terms#comisiones';
+  const pausedNotice = buildRewardsOnboarding(data.programActive).locked;
 
   return (
     <>
@@ -364,11 +367,11 @@ export default function RewardsProgramPanel() {
                   Publica ofertas que realmente valgan la pena y recibe un reconocimiento por tu
                   aporte a la comunidad.
                 </p>
-                {data.encouragement?.trim() ? (
+                {pausedNotice ? (
+                  <p className="text-sm text-amber-600 dark:text-amber-400/90">{pausedNotice}</p>
+                ) : data.encouragement?.trim() ? (
                   <p className="text-sm text-violet-300/90">{data.encouragement.trim()}</p>
-                ) : (
-                  <p className="text-sm text-zinc-500">¡Estás cada vez más cerca!</p>
-                )}
+                ) : null}
               </div>
 
               <MysteryGiftBox className="mx-auto w-full md:row-span-3 md:mx-0 md:justify-self-end" />
@@ -392,12 +395,12 @@ export default function RewardsProgramPanel() {
                 <Target className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" aria-hidden />
                 <div>
                   <p>
-                    Tu próxima{' '}
-                    <span className="font-medium text-violet-300">recompensa</span> se desbloquea al
-                    cumplir los requisitos.
+                    El{' '}
+                    <span className="font-medium text-violet-300">reconocimiento</span> se desbloquea
+                    al cumplir los requisitos{data.programActive ? '' : ' cuando el programa abra'}.
                   </p>
                   <p className="mt-1">
-                    Los votos no garantizan ingresos, pero ayudan a reconocer tu aporte.
+                    Votos, nivel y XP no generan dinero: reconocen tu aporte.
                   </p>
                 </div>
               </div>
@@ -415,8 +418,8 @@ export default function RewardsProgramPanel() {
                     ¡Lo lograste, cazador!
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-400 lg:mx-0 mx-auto">
-                    Has completado el desafío. AVENTA quiere reconocer tu aporte — hay una
-                    recompensa esperándote.
+                    Has completado el desafío. AVENTA quiere reconocer tu aporte con una oferta
+                    de bienvenida; no es un pago.
                   </p>
                 </div>
                 <button
@@ -551,6 +554,11 @@ export default function RewardsProgramPanel() {
               ) : null}
             </div>
           ) : null}
+
+          <RewardsProgramGuide
+            programActive={data.programActive}
+            defaultOpen={phase === 'unlocked'}
+          />
 
           {phase !== 'locked' ? (
             <p className="mt-6 text-xs text-zinc-500">

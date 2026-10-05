@@ -4,6 +4,7 @@ import { claimAchievementXp, projectAchievements, achievementIsConcealed } from 
 import { foldAchievementEvents } from '@/lib/achievements/fold';
 import { presentCatalog } from '@/lib/achievements/present';
 import type { AchievementDomainEvent } from '@/lib/achievements/types';
+import { REPUTATION_LEVELS } from '@/lib/reputation';
 
 const USER = 'user-1';
 const noon = (day: string) => `${day}T18:00:00.000Z`;
@@ -150,7 +151,16 @@ describe('logros de Aventa', () => {
     expect(ACHIEVEMENT_CATALOG.filter((item) => item.category === 'experiencia').every((item) => item.xpReward === 0)).toBe(true);
     const hunter = projectAchievements(facts).find((item) => item.code === 'hunter_rank');
     expect(hunter?.unlocked).toBe(false);
-    expect(hunter?.target).toBe(5);
+    expect(hunter?.target).toBe(4);
+  });
+
+  it('ningún logro activo de nivel exige más que el nivel máximo de reputación', () => {
+    const maxLevel = Math.max(...REPUTATION_LEVELS.map((l) => l.level));
+    const levelRules = ACHIEVEMENT_CATALOG.filter((item) => item.isActive && item.rule.type === 'level');
+    expect(levelRules.length).toBeGreaterThan(0);
+    for (const item of levelRules) {
+      expect(item.rule.type === 'level' && item.rule.target, item.code).toBeLessThanOrEqual(maxLevel);
+    }
   });
 
   it('el logro oculto no revela su nombre hasta desbloquearse', () => {

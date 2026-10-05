@@ -4,6 +4,7 @@
  */
 
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
+import { OFFER_COUPON_MAX } from '@/lib/contracts/offers';
 
 export type OfferEditSnapshot = {
   title?: string | null;
@@ -63,7 +64,7 @@ export function sanitizeOfferEditHunterComment(raw: unknown): string | null {
 export function sanitizeOfferEditCoupons(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw !== 'string') return null;
-  const t = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
+  const t = raw.replace(/\s+/g, ' ').trim().slice(0, OFFER_COUPON_MAX);
   return t.length > 0 ? t : null;
 }
 

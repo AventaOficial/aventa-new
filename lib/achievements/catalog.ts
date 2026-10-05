@@ -562,7 +562,7 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
   {
     code: 'hunter_rank',
     name: 'Cazador',
-    description: 'Alcanza Nivel 5.',
+    description: 'Alcanza Nivel 4, el máximo de reputación.',
     unlockLine: 'El nivel de cazador es prestigio, no otro puñado de XP.',
     icon: '🧠',
     category: 'experiencia',
@@ -574,7 +574,7 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
     isRepeatable: false,
     v1Spotlight: false,
     displayOrder: 300,
-    rule: { type: 'level', target: 5 },
+    rule: { type: 'level', target: 4 },
     triggers: ['LEVEL_REACHED'],
     progressNoun: 'nivel',
   },
@@ -589,7 +589,8 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
     xpReward: 0,
     isHidden: false,
     reveal: 'visible',
-    isActive: true,
+    /** La reputación termina en nivel 4; se reactiva solo si existe un nivel 10. */
+    isActive: false,
     isRepeatable: false,
     v1Spotlight: false,
     displayOrder: 310,

@@ -5,6 +5,7 @@ import {
   DEFAULT_FEED_POLICY,
   eligibleCampaigns,
   planFeedPlacements,
+  sponsoredDisclosure,
   type SponsoredCampaign,
 } from '@/lib/sponsored/placements';
 import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
@@ -75,6 +76,19 @@ describe('eligibleCampaigns', () => {
   });
 });
 
+describe('sponsoredDisclosure', () => {
+  it('solo una campaña pagada se rotula como Patrocinado', () => {
+    expect(sponsoredDisclosure('paid')).toBe('Patrocinado');
+    expect(sponsoredDisclosure('house')).not.toMatch(/patrocin/i);
+  });
+
+  it('las campañas propias no prometen descuentos que nadie respalda', () => {
+    for (const c of SPONSORED_CAMPAIGNS.filter((x) => x.kind === 'house')) {
+      expect(c.creative.title, c.id).not.toMatch(/\d+\s*%/);
+    }
+  });
+});
+
 describe('Home usa la abstracción', () => {
   const page = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf8');
   const slot = readFileSync(join(process.cwd(), 'app/components/HomeSponsored.tsx'), 'utf8');
@@ -89,6 +103,8 @@ describe('Home usa la abstracción', () => {
   it('el slot mide impresión y clic sin escribir en base', () => {
     expect(slot).toContain("type: 'impression'");
     expect(slot).toContain("type: 'click'");
+    expect(slot).toContain('sponsoredDisclosure(campaign.kind)');
+    expect(slot).not.toMatch(/>\s*Patrocinado\s*</);
     expect(tracking).not.toMatch(/fetch\(|supabase/);
   });
 });

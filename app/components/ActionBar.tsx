@@ -13,7 +13,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { describeOfferIssue, OFFER_DESCRIPTION_MAX, OFFER_HUNTER_COMMENT_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { describeOfferIssue, OFFER_COUPON_MAX, OFFER_DESCRIPTION_MAX, OFFER_HUNTER_COMMENT_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
 import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
@@ -1609,6 +1609,7 @@ export default function ActionBar() {
                       <input
                         type="text"
                         value={formData.coupons}
+                        maxLength={OFFER_COUPON_MAX}
                         onChange={(e) => handleInputChange('coupons', e.target.value)}
                         placeholder="Código (ej. DESCUENTO20)"
                         className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-[#1a1a1a]/50 px-4 py-3 text-[15px] text-gray-900 dark:text-gray-100"

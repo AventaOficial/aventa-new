@@ -25,7 +25,7 @@ const HUB: Record<
     minutes: 5,
   },
   cazador: {
-    label: 'SUBE, IMPACTA Y GANA',
+    label: 'SUBE, IMPACTA Y CRECE',
     heading: 'Conviértete en Cazador',
     description:
       'Aprende a encontrar ofertas, publicarlas, pasar moderación, ganar reputación y desbloquear recompensas.',
@@ -168,7 +168,7 @@ export default function GuideHub({ onSelect, progress }: Props) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Completa tus guías</p>
           <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
-            Aprende Aventa, gana progreso y desbloquea beneficios. {doneGuides} de {GUIDES.length} guías completadas
+            Aprende cómo funciona AVENTA a tu ritmo. {doneGuides} de {GUIDES.length} guías completadas
           </p>
         </div>
       </div>

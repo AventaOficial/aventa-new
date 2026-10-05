@@ -74,6 +74,7 @@ describe('Founder OS · navegación por capacidad', () => {
       expect(item.href.startsWith('/admin/owner/vista')).toBe(false);
       expect(item.href === '/team' || item.href.startsWith('/team/')).toBe(false);
     }
+    expect(existsSync(join(root, 'app/admin/owner/vista'))).toBe(false);
   });
 
   it('el buscador cubre exactamente lo navegable', () => {

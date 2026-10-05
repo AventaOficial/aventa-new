@@ -35,6 +35,11 @@ export type FeedPlacementPolicy = {
 /** 2 ofertas → espacio → 4 ofertas → espacio… Con solo campañas house (1 por vista) queda un único espacio. */
 export const DEFAULT_FEED_POLICY: FeedPlacementPolicy = { firstAfter: 2, every: 4, maxSlots: 6 };
 
+/** Etiqueta visible del espacio: solo una campaña pagada se presenta como publicidad. */
+export function sponsoredDisclosure(kind: SponsoredCampaign['kind']): string {
+  return kind === 'paid' ? 'Patrocinado' : 'Destacado por AVENTA';
+}
+
 function inWindow(c: SponsoredCampaign, now: number): boolean {
   const start = c.startsAt ? Date.parse(c.startsAt) : NaN;
   const end = c.endsAt ? Date.parse(c.endsAt) : NaN;

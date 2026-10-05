@@ -9,6 +9,9 @@ export const OFFER_DESCRIPTION_MAX = 300;
 /** Comentario corto del cazador para la Offer Card (opcional; no sustituye description). */
 export const OFFER_HUNTER_COMMENT_MAX = 160;
 
+/** Tope del cupón libre (`offers.coupons`) al crear y al editar en moderación. */
+export const OFFER_COUPON_MAX = 200;
+
 /** Sanitiza hunter_comment: sin HTML, colapsa espacios, acota longitud. */
 export function sanitizeHunterComment(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
@@ -119,7 +122,11 @@ export const createOfferInputSchema = z
       .transform((v) => (v && v.length > 0 ? v : undefined)),
     steps: optionalTrimmedString,
     conditions: optionalTrimmedString,
-    coupons: optionalTrimmedString,
+    coupons: z
+      .string({ error: 'El cupón debe ser texto' })
+      .trim()
+      .max(OFFER_COUPON_MAX, `El cupón no puede pasar de ${OFFER_COUPON_MAX} caracteres`)
+      .optional(),
     category: optionalNullableString,
     bank_coupon: optionalNullableString,
     tags: z

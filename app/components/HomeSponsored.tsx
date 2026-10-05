@@ -6,7 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import StoreBrandMark from './StoreBrandMark';
 import RailCommunity from './RailCommunity';
 import { slugifyStore } from '@/lib/slug';
-import { eligibleCampaigns, type SponsoredCampaign, type SponsoredSurface } from '@/lib/sponsored/placements';
+import { eligibleCampaigns, sponsoredDisclosure, type SponsoredCampaign, type SponsoredSurface } from '@/lib/sponsored/placements';
 import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
 import { trackSponsoredEvent } from '@/lib/sponsored/tracking';
 import type { FeedHunter } from '@/lib/community/feedHunters';
@@ -18,11 +18,12 @@ function matchStore(name: string, stores: string[]): string | null {
 
 function SponsoredInner({ surface, campaign, store }: { surface: SponsoredSurface; campaign: SponsoredCampaign; store: string }) {
   const ad = campaign.creative;
+  const disclosure = sponsoredDisclosure(campaign.kind);
   if (surface === 'rail') {
     return (
       <div className="overflow-hidden rounded-2xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414] p-3.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
-          Patrocinado
+          {disclosure}
         </p>
         <div className="mt-2">
           <StoreBrandMark store={store} />
@@ -40,7 +41,7 @@ function SponsoredInner({ surface, campaign, store }: { surface: SponsoredSurfac
     <div className="rounded-2xl bg-violet-50 dark:bg-violet-950/25 border border-violet-100 dark:border-violet-900/40 px-4 py-3.5 max-[400px]:px-3 max-[400px]:py-3 flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-          Patrocinado
+          {disclosure}
         </p>
         <div className="mt-1.5">
           <StoreBrandMark store={store} />
