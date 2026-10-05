@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { OWNER_NAV_SECTIONS, type OwnerNavItem } from '@/lib/owner/navigation';
+import { OWNER_NAV_SECTIONS, OWNER_VISTA_NAV, type OwnerNavItem } from '@/lib/owner/navigation';
 import { cn } from '@/app/components/panel/utils';
 
 export default function OwnerSidebar({
@@ -24,9 +24,13 @@ export default function OwnerSidebar({
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   };
 
-  const navLink = (item: OwnerNavItem, secondary = false) => {
+  const vistaActiveHref = OWNER_VISTA_NAV.filter(isActive).reduce<string | null>(
+    (best, item) => (best == null || item.href.length > best.length ? item.href : best),
+    null,
+  );
+
+  const navLink = (item: OwnerNavItem, secondary = false, active = isActive(item)) => {
     const Icon = item.icon;
-    const active = isActive(item);
     return (
       <Link
         href={item.href}
@@ -67,38 +71,57 @@ export default function OwnerSidebar({
       </div>
 
       <nav aria-label="Founder OS" className="flex-1 overflow-y-auto p-2 space-y-4 scrollbar-hide">
-        {OWNER_NAV_SECTIONS.map((section) => {
-          const more = section.more ?? [];
-          const moreActive = more.some(isActive);
-          return (
-            <div key={section.id} data-owner-nav-section={section.id}>
-              {!collapsed ? (
-                <div className="mb-1 px-2">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">{section.title}</p>
-                  <p className="text-[10px] leading-snug text-white/30">{section.question}</p>
-                </div>
-              ) : null}
-              <ul className="space-y-0.5">
-                {section.items.map((item) => (
-                  <li key={`${section.id}-${item.href}`}>{navLink(item)}</li>
-                ))}
-              </ul>
-              {!collapsed && more.length > 0 ? (
-                <details className="group mt-0.5" open={moreActive || undefined}>
-                  <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-white/30 hover:text-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 [&::-webkit-details-marker]:hidden">
-                    <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" aria-hidden />
-                    Más herramientas ({more.length})
-                  </summary>
-                  <ul className="mt-0.5 space-y-0.5 pl-2">
-                    {more.map((item) => (
-                      <li key={`${section.id}-more-${item.href}`}>{navLink(item, true)}</li>
-                    ))}
-                  </ul>
-                </details>
-              ) : null}
+        <div data-owner-nav-section="vista">
+          {!collapsed ? (
+            <p className="mb-1 px-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">CEO Dashboard</p>
+          ) : null}
+          <ul className="space-y-0.5">
+            {OWNER_VISTA_NAV.map((item) => (
+              <li key={`vista-${item.href}`}>{navLink(item, false, item.href === vistaActiveHref)}</li>
+            ))}
+          </ul>
+        </div>
+
+        {!collapsed ? (
+          <details className="group/all border-t border-white/[0.06] pt-3" data-owner-nav-section="all-tools">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 hover:text-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 [&::-webkit-details-marker]:hidden">
+              <ChevronRight className="h-3 w-3 transition-transform group-open/all:rotate-90" aria-hidden />
+              Todas las herramientas
+            </summary>
+            <div className="mt-2 space-y-4">
+              {OWNER_NAV_SECTIONS.map((section) => {
+                const more = section.more ?? [];
+                const moreActive = more.some(isActive);
+                return (
+                  <div key={section.id} data-owner-nav-section={section.id}>
+                    <div className="mb-1 px-2">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">{section.title}</p>
+                      <p className="text-[10px] leading-snug text-white/30">{section.question}</p>
+                    </div>
+                    <ul className="space-y-0.5">
+                      {section.items.map((item) => (
+                        <li key={`${section.id}-${item.href}`}>{navLink(item)}</li>
+                      ))}
+                    </ul>
+                    {more.length > 0 ? (
+                      <details className="group mt-0.5" open={moreActive || undefined}>
+                        <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-white/30 hover:text-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 [&::-webkit-details-marker]:hidden">
+                          <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" aria-hidden />
+                          Más herramientas ({more.length})
+                        </summary>
+                        <ul className="mt-0.5 space-y-0.5 pl-2">
+                          {more.map((item) => (
+                            <li key={`${section.id}-more-${item.href}`}>{navLink(item, true)}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </details>
+        ) : null}
       </nav>
 
       <div className="border-t border-white/[0.06] p-2">

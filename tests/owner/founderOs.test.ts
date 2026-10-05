@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { OWNER_COMMAND_ITEMS, OWNER_NAV_SECTIONS } from '@/lib/owner/navigation';
+import { OWNER_COMMAND_ITEMS, OWNER_NAV_SECTIONS, OWNER_VISTA_NAV } from '@/lib/owner/navigation';
 import { CEO_CARD_DRILLDOWN, TEAM_TOOL_HREF } from '@/app/admin/owner/command/drilldowns';
 import { summarizeDecision } from '@/app/admin/owner/command/decision';
 import { MOBILE_ORDER } from '@/app/admin/owner/command/ceo/mosaic';
@@ -93,6 +93,55 @@ describe('Founder OS · navegación por capacidad', () => {
 
   it('Supply · Hunter ya no se titula como el Control Center', () => {
     expect(read('app/admin/hunter/page.tsx')).not.toMatch(/CEO Control Center/);
+  });
+});
+
+describe('Founder OS · menú CEO Dashboard', () => {
+  it('es el menú principal, con las secciones del CEO Dashboard en su orden', () => {
+    expect(OWNER_VISTA_NAV.map((i) => i.label)).toEqual([
+      'Vista general',
+      'Ingresos estimados',
+      'Actividad de la comunidad',
+      'Usuarios en tiempo real',
+      'Ofertas publicadas',
+      'Equipo de moderación',
+      'Pagos pendientes',
+      'Capacidad de Aventa',
+      'Siguiente temporada',
+      'Metas del día',
+      'Prioridades del CEO',
+    ]);
+    expect(OWNER_VISTA_NAV[0]).toMatchObject({ href: '/admin/owner', exact: true });
+  });
+
+  it('cada entrada abre una herramienta real, sin repetir destino', () => {
+    for (const item of OWNER_VISTA_NAV) {
+      expect(pageExists(item.href), item.href).toBe(true);
+      expect(item.href.startsWith('/admin/owner/vista')).toBe(false);
+    }
+    const hrefs = OWNER_VISTA_NAV.map((i) => i.href);
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
+  it('las tarjetas del Control Center y su entrada del menú llevan al mismo lugar', () => {
+    const byLabel = Object.fromEntries(OWNER_VISTA_NAV.map((i) => [i.label, i.href]));
+    expect(byLabel['Ingresos estimados']).toBe(CEO_CARD_DRILLDOWN.revenue);
+    expect(byLabel['Ofertas publicadas']).toBe(CEO_CARD_DRILLDOWN.offers);
+    expect(byLabel['Pagos pendientes']).toBe(CEO_CARD_DRILLDOWN.payouts);
+    expect(byLabel['Capacidad de Aventa']).toBe(CEO_CARD_DRILLDOWN.capacity);
+    expect(byLabel['Siguiente temporada']).toBe(CEO_CARD_DRILLDOWN.seasonPrep);
+    expect(byLabel['Metas del día']).toBe(CEO_CARD_DRILLDOWN.goals);
+  });
+
+  it('el resto de herramientas va debajo, plegado hasta que se hace clic', () => {
+    const sidebar = read('app/admin/owner/components/OwnerSidebar.tsx');
+    const vistaAt = sidebar.indexOf('OWNER_VISTA_NAV.map');
+    const allAt = sidebar.indexOf('data-owner-nav-section="all-tools"');
+    expect(vistaAt).toBeGreaterThan(-1);
+    expect(allAt).toBeGreaterThan(vistaAt);
+    expect(sidebar.indexOf('OWNER_NAV_SECTIONS.map')).toBeGreaterThan(allAt);
+    const allTag = sidebar.slice(sidebar.lastIndexOf('<details', allAt), sidebar.indexOf('>', allAt));
+    expect(allTag).not.toMatch(/\bopen\b/);
   });
 });
 
