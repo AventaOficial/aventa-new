@@ -69,12 +69,11 @@ describe('Founder OS · navegación por capacidad', () => {
     }
   });
 
-  it('no enlaza composiciones de referencia ni Team OS', () => {
+  it('el menú no lista las vistas del CEO ni Team OS', () => {
     for (const item of allItems) {
       expect(item.href.startsWith('/admin/owner/vista')).toBe(false);
       expect(item.href === '/team' || item.href.startsWith('/team/')).toBe(false);
     }
-    expect(existsSync(join(root, 'app/admin/owner/vista'))).toBe(false);
   });
 
   it('el buscador cubre exactamente lo navegable', () => {
@@ -97,18 +96,36 @@ describe('Founder OS · navegación por capacidad', () => {
 });
 
 describe('Founder OS · Control Center', () => {
-  it('ninguna tarjeta del CEO lleva a datos de referencia', () => {
-    const dir = join(root, 'app/admin/owner/command/ceo');
-    for (const f of readdirSync(dir).filter((n) => n.endsWith('.tsx'))) {
-      expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/\/admin\/owner\/vista/);
-    }
-    expect(read('app/admin/owner/OwnerDashboardClient.tsx')).not.toMatch(/\/admin\/owner\/vista/);
-  });
-
-  it('cada drill-down apunta a una herramienta real', () => {
-    for (const href of [...Object.values(CEO_CARD_DRILLDOWN), ...Object.values(TEAM_TOOL_HREF)]) {
+  it('cada bloque del CEO abre su vista', () => {
+    expect(CEO_CARD_DRILLDOWN.revenue).toBe('/admin/owner/vista/ingresos');
+    expect(CEO_CARD_DRILLDOWN.community).toBe('/admin/owner/vista/comunidad');
+    expect(CEO_CARD_DRILLDOWN.users).toBe('/admin/owner/vista/usuarios');
+    expect(CEO_CARD_DRILLDOWN.offers).toBe('/admin/owner/vista/ofertas');
+    expect(CEO_CARD_DRILLDOWN.payouts).toBe('/admin/owner/vista/pagos');
+    expect(CEO_CARD_DRILLDOWN.capacity).toBe('/admin/owner/vista/capacidad');
+    expect(CEO_CARD_DRILLDOWN.goals).toBe('/admin/owner/vista/metas');
+    expect(CEO_CARD_DRILLDOWN.seasonPrep).toBe('/admin/owner/vista/temporada');
+    expect(CEO_CARD_DRILLDOWN.priorities).toBe('/admin/owner/vista/prioridades');
+    for (const href of Object.values(CEO_CARD_DRILLDOWN)) {
       expect(pageExists(href), href).toBe(true);
     }
+    for (const href of Object.values(TEAM_TOOL_HREF)) {
+      expect(href.startsWith('/admin/owner/vista/equipos/')).toBe(true);
+    }
+    expect(existsSync(join(root, 'app/admin/owner/vista/equipos/[team]/page.tsx'))).toBe(true);
+    const dir = join(root, 'app/admin/owner/command/ceo');
+    const linked = readdirSync(dir)
+      .filter((n) => n.endsWith('Card.tsx'))
+      .map((f) => readFileSync(join(dir, f), 'utf8'))
+      .join('\n');
+    expect(linked).toMatch(/CEO_CARD_DRILLDOWN|team\.href/);
+  });
+
+  it('cada drill-down apunta a una vista que existe', () => {
+    for (const href of Object.values(CEO_CARD_DRILLDOWN)) {
+      expect(pageExists(href), href).toBe(true);
+    }
+    expect(existsSync(join(root, 'app/admin/owner/vista/equipos/[team]/page.tsx'))).toBe(true);
   });
 
   it('el resumen de decisión prioriza crítico > atención > sano', () => {

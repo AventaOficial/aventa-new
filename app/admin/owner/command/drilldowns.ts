@@ -1,27 +1,28 @@
 import type { TeamId } from './types';
 
 /**
- * A dónde lleva cada tarjeta del Control Center.
- * Siempre a la herramienta real que opera ese dato; nunca a una composición de referencia.
+ * Cada bloque del CEO abre su vista en /admin/owner/vista.
+ * Las herramientas operativas siguen en el menú; estas rutas son el detalle del mosaico.
  */
 export const CEO_CARD_DRILLDOWN = {
-  community: '/admin/metrics',
-  users: '/admin/users',
-  offers: '/admin/moderation/approved',
-  revenue: '/admin/commissions',
-  payouts: '/admin/rewards',
-  capacity: '/admin/infraestructura',
-  goals: '/admin/moderation',
-  seasonPrep: '/admin/announcements',
+  community: '/admin/owner/vista/comunidad',
+  users: '/admin/owner/vista/usuarios',
+  offers: '/admin/owner/vista/ofertas',
+  revenue: '/admin/owner/vista/ingresos',
+  payouts: '/admin/owner/vista/pagos',
+  capacity: '/admin/owner/vista/capacidad',
+  goals: '/admin/owner/vista/metas',
+  seasonPrep: '/admin/owner/vista/temporada',
+  priorities: '/admin/owner/vista/prioridades',
 } as const;
 
-/** Herramienta real de cada equipo (la misma a la que apuntan sus alertas). */
+/** Cada equipo del mosaico abre su tablero en /admin/owner/vista/equipos. */
 export const TEAM_TOOL_HREF: Record<TeamId, string> = {
-  moderacion: '/admin/moderation',
-  finanzas: '/admin/commissions',
-  growth: '/admin/owner/crecimiento',
-  producto: '/admin/health',
-  hunter: '/admin/hunter',
-  comunidad: '/admin/moderation/reports',
-  operaciones: '/admin/operaciones',
+  moderacion: '/admin/owner/vista/equipos/moderacion',
+  finanzas: '/admin/owner/vista/equipos/finanzas',
+  growth: '/admin/owner/vista/equipos/growth',
+  producto: '/admin/owner/vista/equipos/producto',
+  hunter: '/admin/owner/vista/equipos/hunter',
+  comunidad: '/admin/owner/vista/equipos/comunidad',
+  operaciones: '/admin/owner/vista/equipos/operaciones',
 };

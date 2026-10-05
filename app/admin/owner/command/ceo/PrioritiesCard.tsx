@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, CheckCircle2, Zap } from 'lucide-react';
 import { cn } from '@/app/components/panel/utils';
 import { TEAM_LABEL, type CeoPriority, type PrioritySeverity } from '../types';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardHeader, EmptyFrame, FOCUS_RING, Skel, ViewButton } from './kit';
 
 const VISIBLE = 4;
@@ -51,7 +52,7 @@ export default function PrioritiesCard({
   );
 
   return (
-    <Card id="prioridades" labelledBy="ceo-priorities" className={cn('scroll-mt-20', className)}>
+    <Card id="prioridades" labelledBy="ceo-priorities" className={cn('scroll-mt-20', className)} href={CEO_CARD_DRILLDOWN.priorities}>
       <CardHeader
         id="ceo-priorities"
         level={level}
