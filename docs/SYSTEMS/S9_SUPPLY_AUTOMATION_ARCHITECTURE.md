@@ -120,6 +120,6 @@ Worktrees at `d06a026`: `agent/s9-{orchestrator,policy,s7-adapter,canary,audit}`
 ## Non-goals
 
 - Continuous automation / cron activation
-- ChatGPT/Grok live DB wiring
+- Direct ChatGPT/Grok DB wiring. Grok now reaches Aventa only as an MCP candidate supplier through the batch lane and human moderation: see [MCP_GROK_BOTS.md](./MCP_GROK_BOTS.md). It never writes `offers` and never runs through S9.
 - Distribution / Rewards / Settlement activation
 - Production canary

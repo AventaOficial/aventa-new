@@ -3,6 +3,7 @@ import { writeRewardAuditLog } from '@/lib/rewards/audit';
 import { createRewardFromLedgerEntry } from '@/lib/rewards/rewardsEngine';
 import type { AffiliateNetworkId } from '@/lib/rewards/adapters/types';
 import { isMoneyPathFrozen, MONEY_PATH_FROZEN_CODE } from '@/lib/server/moneyPathFreeze';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
 export type ManualAttributionResult =
   | { ok: true; rewardId: string }
@@ -21,6 +22,7 @@ async function verifyOfferOwner(
   const row = data as { id: string; created_by?: string; status?: string };
   if (!row.created_by) return null;
   if (row.status !== 'approved' && row.status !== 'published') return null;
+  if (await isEconomicallyInertAuthor(supabase, row.created_by)) return null;
   return { offerId: row.id, creatorId: row.created_by };
 }
 

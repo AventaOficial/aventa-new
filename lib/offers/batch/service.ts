@@ -270,7 +270,27 @@ export type CreateBatchResult =
       openConflicts: number;
       conflictIdentityKeys: string[];
     }
-  | { ok: false; error: string; httpStatus: 400 | 500 };
+  | { ok: false; error: string; httpStatus: 400 | 409 | 500; code?: 'IDEMPOTENCY_KEY_TAKEN' };
+
+/** Pistas estructuradas por identidad (MCP). Sustituyen al parseo del texto pegado. */
+export type OfferBatchStructuredHint = {
+  title: string | null;
+  price: number | null;
+  originalPrice: number | null;
+  note: string | null;
+};
+
+/**
+ * Lote propuesto por un cliente máquina MCP.
+ * Con 0 ítems insertados el lote se conserva archivado para que la idempotencia responda igual.
+ */
+export type OfferBatchMachineOrigin = {
+  machineClientId: string;
+  idempotencyKey: string;
+  payloadHash: string;
+  runId: string | null;
+  meta?: Record<string, unknown>;
+};
 
 function isUniqueViolation(error: { code?: string; message?: string } | null | undefined): boolean {
   if (!error) return false;
@@ -307,15 +327,22 @@ export async function createOfferBatch(params: {
   text: string;
   /** Identidad de producto → linaje. El pegado manual no lo envía. */
   lineageByIdentityKey?: Readonly<Record<string, OfferBatchItemLineage>>;
+  /** URLs ya validadas (MCP). Si viene, no se extrae nada del texto. */
+  urls?: readonly BatchUrlCandidate[];
+  structuredHintsByIdentityKey?: Readonly<Record<string, OfferBatchStructuredHint>>;
+  machineOrigin?: OfferBatchMachineOrigin;
 }): Promise<CreateBatchResult> {
-  const { supabase, createdBy } = params;
+  const { supabase, createdBy, machineOrigin } = params;
   const text = String(params.text ?? '');
-  const { urls, duplicatesInText, truncated } = extractBatchUrls(text);
-  if (urls.length === 0) {
+  const extracted = params.urls
+    ? { urls: [...params.urls], duplicatesInText: 0, truncated: 0 }
+    : extractBatchUrls(text);
+  const { urls, duplicatesInText, truncated } = extracted;
+  if (urls.length === 0 && !machineOrigin) {
     return { ok: false, httpStatus: 400, error: 'No encontré enlaces https en el texto.' };
   }
 
-  const hints = parsePastedOfferDump(text);
+  const hints = params.urls ? [] : parsePastedOfferDump(text);
   const hintByKey = new Map(hints.map((h) => [offerBatchIdentityKey(h.url), h]));
   const name = typeof params.name === 'string' && params.name.trim() ? params.name.trim().slice(0, 120) : null;
   const hash = createHash('sha256').update(text).digest('hex').slice(0, 32);
@@ -329,17 +356,34 @@ export async function createOfferBatch(params: {
       source_text_hash: hash,
       total_items: urls.length,
       pending_items: urls.length,
-      meta: { duplicates_in_text: duplicatesInText, truncated, source_chars: text.length },
+      meta: {
+        duplicates_in_text: duplicatesInText,
+        truncated,
+        source_chars: text.length,
+        ...(machineOrigin ? { mcp: machineOrigin.meta ?? {} } : {}),
+      },
+      ...(machineOrigin
+        ? {
+            machine_client_id: machineOrigin.machineClientId,
+            mcp_idempotency_key: machineOrigin.idempotencyKey,
+            mcp_payload_hash: machineOrigin.payloadHash,
+            mcp_run_id: machineOrigin.runId,
+          }
+        : {}),
     })
     .select('*')
     .single();
   if (batchError || !batchRow) {
+    if (machineOrigin && isUniqueViolation(batchError)) {
+      return { ok: false, httpStatus: 409, code: 'IDEMPOTENCY_KEY_TAKEN', error: 'La llave de idempotencia ya existe.' };
+    }
     console.error('[offer-batch] create batch failed:', batchError?.message);
     return { ok: false, httpStatus: 500, error: 'No se pudo crear el lote.' };
   }
   const batchId = (batchRow as { id: string }).id;
 
   const rows = urls.map((u, i) => {
+    const structured = params.structuredHintsByIdentityKey?.[u.identityKey];
     const hint = hintByKey.get(u.identityKey);
     const lineage = params.lineageByIdentityKey?.[u.identityKey];
     return {
@@ -348,11 +392,11 @@ export async function createOfferBatch(params: {
       status: 'INGESTED',
       identity_key: u.identityKey,
       source_url: u.url,
-      hint_title: hint?.title ?? null,
-      hint_price: hint?.price ?? null,
-      hint_original_price: hint?.originalPrice ?? null,
-      hint_note: hint?.why ?? null,
-      store: hint?.store ?? null,
+      hint_title: structured ? structured.title : hint?.title ?? null,
+      hint_price: structured ? structured.price : hint?.price ?? null,
+      hint_original_price: structured ? structured.originalPrice : hint?.originalPrice ?? null,
+      hint_note: structured ? structured.note : hint?.why ?? null,
+      store: structured ? null : hint?.store ?? null,
       ...(lineage
         ? {
             evidence: {
@@ -406,6 +450,30 @@ export async function createOfferBatch(params: {
     break;
   }
 
+  if (inserted === 0 && machineOrigin) {
+    const { data: archived } = await supabase
+      .from('offer_batches')
+      .update({ status: 'archived', total_items: 0, pending_items: 0, updated_at: new Date().toISOString() })
+      .eq('id', batchId)
+      .select('*')
+      .maybeSingle();
+    await appendBatchEvent(supabase, {
+      batchId,
+      actorId: createdBy,
+      action: 'batch_created',
+      payload: { items: 0, open_conflicts: conflictIdentityKeys.length, origin: 'machine', machine_client_id: machineOrigin.machineClientId },
+    });
+    return {
+      ok: true,
+      batch: normalizeBatchRow((archived ?? batchRow) as Record<string, unknown>),
+      inserted: 0,
+      duplicatesInText,
+      truncated,
+      openConflicts: conflictIdentityKeys.length,
+      conflictIdentityKeys,
+    };
+  }
+
   if (inserted === 0) {
     await supabase.from('offer_batches').delete().eq('id', batchId);
     return {
@@ -429,6 +497,7 @@ export async function createOfferBatch(params: {
       truncated,
       open_conflicts: conflictIdentityKeys.length,
       name,
+      ...(machineOrigin ? { origin: 'machine', machine_client_id: machineOrigin.machineClientId } : {}),
     },
   });
 
@@ -891,6 +960,44 @@ export function buildOfferBodyFromItem(item: OfferBatchItemRow): Record<string, 
   };
 }
 
+type BatchItemAuthor =
+  | { ok: true; createdBy: string; machineClientId: string | null }
+  | { ok: false };
+
+/**
+ * Autor de la oferta que nace de un ítem.
+ * Lote humano: quien aprueba. Lote MCP: machine_clients.author_profile_id, nunca el moderador.
+ * Si el lote es MCP y el autor bot no se puede leer, falla cerrado (no cae al moderador).
+ */
+export async function resolveBatchItemAuthor(
+  supabase: SupabaseClient,
+  batchId: string,
+  actorId: string,
+): Promise<BatchItemAuthor> {
+  const { data: batch, error } = await supabase
+    .from('offer_batches')
+    .select('machine_client_id')
+    .eq('id', batchId)
+    .maybeSingle();
+  if (error) {
+    // Antes de la migración MCP la columna no existe: ningún lote es de origen máquina.
+    if (/machine_client_id/i.test(error.message ?? '') || error.code === '42703' || error.code === 'PGRST204') {
+      return { ok: true, createdBy: actorId, machineClientId: null };
+    }
+    return { ok: false };
+  }
+  const machineClientId = (batch as { machine_client_id?: string | null } | null)?.machine_client_id ?? null;
+  if (!machineClientId) return { ok: true, createdBy: actorId, machineClientId: null };
+  const { data: client, error: clientError } = await supabase
+    .from('machine_clients')
+    .select('author_profile_id')
+    .eq('id', machineClientId)
+    .maybeSingle();
+  const authorId = (client as { author_profile_id?: string | null } | null)?.author_profile_id ?? null;
+  if (clientError || !authorId) return { ok: false };
+  return { ok: true, createdBy: authorId, machineClientId };
+}
+
 /**
  * Aprobar = crear la oferta `pending` con el writer de comunidad existente.
  * Idempotente: si ya tiene offer_id devuelve ok sin crear otra.
@@ -932,11 +1039,32 @@ export async function approveOfferBatchItem(params: {
     };
   }
 
+  const author = await resolveBatchItemAuthor(supabase, item.batch_id, actorId);
+  if (!author.ok) {
+    await appendBatchEvent(supabase, {
+      batchId: item.batch_id,
+      itemId: item.id,
+      actorId,
+      action: 'approve_failed',
+      fromStatus: item.status,
+      toStatus: item.status,
+      payload: { code: 'MACHINE_AUTHOR_UNAVAILABLE' },
+    });
+    return {
+      ok: false,
+      httpStatus: 409,
+      code: 'MACHINE_AUTHOR_UNAVAILABLE',
+      message: 'No se pudo resolver el autor bot de este lote. No se crea la oferta.',
+      item,
+    };
+  }
+
   const result = await createCommunityOfferPending({
     supabase,
-    createdBy: actorId,
-    sourceDetail: 'community:batch',
+    createdBy: author.createdBy,
+    sourceDetail: author.machineClientId ? 'mcp:batch' : 'community:batch',
     body: buildOfferBodyFromItem(item),
+    ...(author.machineClientId ? { recordSubmissionCount: false } : {}),
   });
 
   const now = new Date().toISOString();
@@ -999,7 +1127,11 @@ export async function approveOfferBatchItem(params: {
     action: 'approved',
     fromStatus: item.status,
     toStatus: 'APPROVED',
-    payload: { offer_id: result.id, offer_url: item.canonical_url ?? item.normalized_url ?? item.source_url },
+    payload: {
+      offer_id: result.id,
+      offer_url: item.canonical_url ?? item.normalized_url ?? item.source_url,
+      ...(author.machineClientId ? { author: 'machine', machine_client_id: author.machineClientId } : {}),
+    },
   });
 
   return {

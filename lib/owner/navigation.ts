@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   BadgeCheck,
   BarChart3,
+  Bot,
   BowArrow,
   Calculator,
   CircleDollarSign,
@@ -106,6 +107,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
     more: [
       { href: '/admin/owner/team-management', label: 'Equipos de trabajo', icon: UsersRound },
       { href: '/equipo', label: 'Team Hub', icon: Users, exact: true },
+      { href: '/admin/machine-clients', label: 'Clientes MCP', icon: Bot },
       { href: '/admin/vote-weights', label: 'Peso de voto', icon: Scale },
       { href: '/admin/mantenimiento', label: 'Mantenimiento', icon: Wrench },
     ],

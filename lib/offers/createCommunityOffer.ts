@@ -25,6 +25,8 @@ export async function createCommunityOfferPending(params: {
   createdBy: string;
   body: unknown;
   sourceDetail?: string;
+  /** false para autores máquina: no suman offers_submitted_count. */
+  recordSubmissionCount?: boolean;
 }): Promise<CreateCommunityOfferResult> {
   const result = await ingestOfferObservation(params.supabase, {
     createdBy: params.createdBy,
@@ -33,6 +35,7 @@ export async function createCommunityOfferPending(params: {
     onDuplicate: 'reuse',
     forceLoteTag: true,
     allowMissingUrl: false,
+    ...(params.recordSubmissionCount === false ? { recordSubmissionCount: false } : {}),
   });
 
   if (!result.ok) {

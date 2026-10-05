@@ -13,8 +13,8 @@ import {
   buildSettlementReversalContract,
   ECONOMIC_LEDGER_BOUNDARY,
 } from '@/lib/economy';
-import { transitionCommissionStatus } from '@/lib/economy/recordCommission';
 import { splitCommissionCents, REWARDS_CREATOR_SHARE_BPS } from '@/lib/rewards/config';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 
 type Store = {
   commission: Record<string, unknown> | null;
@@ -48,7 +48,8 @@ function emptyStore(
 ): Store {
   const commission =
     'commission' in overrides ? (overrides.commission ?? null) : approvedCommission();
-  const { commission: _c, ...rest } = overrides;
+  const rest: Partial<Store> = { ...overrides };
+  delete rest.commission;
   return {
     conversion: defaultConversion(),
     clicks: new Map(),
@@ -71,6 +72,7 @@ function emptyStore(
 function makeSettlementMock(store: Store) {
   const sb = {
     from: vi.fn((table: string) => {
+      if (table === 'machine_clients') return emptyMachineClientsTable();
       if (table === 'affiliate_economic_events') {
         return {
           insert: vi.fn(async (row: Record<string, unknown>) => {
@@ -227,7 +229,7 @@ function makeSettlementMock(store: Store) {
             // Also support .eq().eq() without .is for status transitions
             api.then = undefined;
             const chain = {
-              eq: (_c: string, _v: unknown) => ({
+              eq: () => ({
                 eq: async () => {
                   if (store.commission && patch.status) {
                     store.commission = { ...store.commission, ...patch };

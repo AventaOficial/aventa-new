@@ -20,6 +20,8 @@ External Hunter (ChatGPT / Grok / other)
   → creator_rewards / payouts                           [OFF by default]
 ```
 
+Grok Bots over MCP follow a separate, narrower path: `/api/mcp` → `offer_batches` / `offer_batch_items` → existing batch pipeline → human approval → `ingestOfferObservation`. The bot author is economically inert. See [MCP_GROK_BOTS.md](./MCP_GROK_BOTS.md).
+
 ## Who writes which table
 
 | Table / store | Writer authority | Wave 1 status |

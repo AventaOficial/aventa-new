@@ -21,6 +21,7 @@ import {
 import { basicFraudFlags } from '../../lib/rewards/rewardsEngine';
 import { isMoneyPathFrozen, MONEY_PATH_FROZEN_CODE } from '../../lib/server/moneyPathFreeze';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 
 function qualifyingSignals(over: Partial<HunterQualitySignals> = {}): HunterQualitySignals {
   return {
@@ -112,6 +113,7 @@ describe('P0-1 — distinct voters (no suma upvotes)', () => {
     ];
     const supabase = {
       from: (table: string) => {
+        if (table === 'machine_clients') return emptyMachineClientsTable();
         if (table === 'offers') {
           return {
             select: () => ({
@@ -149,6 +151,7 @@ describe('P0-1 — distinct voters (no suma upvotes)', () => {
   it('12 — negative votes no cuentan (.gt value 0)', async () => {
     const supabase = {
       from: (table: string) => {
+        if (table === 'machine_clients') return emptyMachineClientsTable();
         if (table === 'offers') {
           return {
             select: () => ({
@@ -184,6 +187,7 @@ describe('P0-1 — distinct voters (no suma upvotes)', () => {
   it('13 — banned voters excluidos del distinct count', async () => {
     const supabase = {
       from: (table: string) => {
+        if (table === 'machine_clients') return emptyMachineClientsTable();
         if (table === 'offers') {
           return {
             select: () => ({
@@ -366,6 +370,7 @@ describe('P0-1 — maybeUnlockRewardsProgram', () => {
 
     const supabase = {
       from: (table: string) => {
+        if (table === 'machine_clients') return emptyMachineClientsTable();
         if (table === 'profiles') {
           return {
             select: (cols: string) => ({

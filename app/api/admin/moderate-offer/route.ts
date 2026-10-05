@@ -13,6 +13,7 @@ import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveRe
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall'
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess'
 import { captureHumanModerationOutcome } from '@/lib/autonomous'
 import { expiresAtOnApprove, createdAtOnApprove } from '@/lib/moderation/moderationPriority'
@@ -305,18 +306,20 @@ export async function POST(request: Request) {
       }
     })()
 
-    if (createdBy) recalculateUserReputation(createdBy).catch(() => {})
+    const economicAuthor = createdBy && !(await isEconomicallyInertAuthor(supabase, createdBy)) ? createdBy : null
 
-    if (createdBy && (status === 'approved' || status === 'rejected')) {
-      syncAchievementsLater(supabase, [createdBy], {
+    if (economicAuthor) recalculateUserReputation(economicAuthor).catch(() => {})
+
+    if (economicAuthor && (status === 'approved' || status === 'rejected')) {
+      syncAchievementsLater(supabase, [economicAuthor], {
         eventType: status === 'approved' ? 'OFFER_APPROVED' : 'OFFER_REJECTED',
         eventId: id,
         metadata: { offerId: id, status },
       })
     }
 
-    if (status === 'approved' && previousStatus !== 'approved' && createdBy) {
-      maybeUnlockRewardsProgram(supabase, createdBy, auth.user.id).catch((err) =>
+    if (status === 'approved' && previousStatus !== 'approved' && economicAuthor) {
+      maybeUnlockRewardsProgram(supabase, economicAuthor, auth.user.id).catch((err) =>
         console.error('[moderate-offer] rewards unlock:', err),
       )
       const { data: modProfile } = await supabase.from('profiles').select('display_name').eq('id', auth.user.id).single()
@@ -325,14 +328,14 @@ export async function POST(request: Request) {
       const notifTitle = isOwner ? `CEO ${modName} aprobó tu oferta` : `Moderador ${modName} aprobó tu oferta`
       const notifBody = 'Ya está visible en el feed.' + (modMessage ? `\n\n${modMessage}` : '')
       await supabase.from('notifications').insert({
-        user_id: createdBy,
+        user_id: economicAuthor,
         type: 'offer_approved',
         title: notifTitle,
         body: notifBody,
         link: offerPublicPath,
       }).then(({ error: notifErr }) => { if (notifErr) console.error('[moderate-offer] notification insert failed:', notifErr.message); })
 
-      const { data: userRow } = await supabase.auth.admin.getUserById(createdBy)
+      const { data: userRow } = await supabase.auth.admin.getUserById(economicAuthor)
       const email = userRow?.user?.email?.trim()
       if (email) {
         sendOfferApprovedUserEmail(email, offerTitle, id).catch((err) =>
@@ -341,14 +344,14 @@ export async function POST(request: Request) {
       }
     }
 
-    if (status === 'rejected' && createdBy) {
+    if (status === 'rejected' && economicAuthor) {
       const { data: modProfile } = await supabase.from('profiles').select('display_name').eq('id', auth.user.id).single()
       const modName = (modProfile as { display_name?: string } | null)?.display_name?.trim() || 'El equipo'
       const isOwner = auth.role === 'owner'
       const notifTitle = isOwner ? `CEO ${modName} rechazó tu oferta` : `Moderador ${modName} rechazó tu oferta`
       const notifBody = reason ? `Motivo: ${reason}` : 'Revisa los criterios y puedes volver a subir una nueva oferta.'
       await supabase.from('notifications').insert({
-        user_id: createdBy,
+        user_id: economicAuthor,
         type: 'offer_rejected',
         title: notifTitle,
         body: notifBody,

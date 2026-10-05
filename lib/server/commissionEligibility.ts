@@ -7,6 +7,7 @@ import {
 import { isFiscalProfileComplete, type CommissionFiscalProfile } from '@/lib/commissions/fiscal';
 import { getCommissionFiscalProfile } from '@/lib/server/commissionFiscal';
 import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
 export type CommissionEligibility = {
   qualifyingCount: number;
@@ -29,6 +30,10 @@ export async function countQualifyingCommissionOffers(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ qualifyingCount: number; eligible: boolean }> {
+  if (await isEconomicallyInertAuthor(supabase, userId)) {
+    return { qualifyingCount: 0, eligible: false };
+  }
+
   const { data: rows, error } = await supabase
     .from('offers')
     .select('id, upvotes_count, status')

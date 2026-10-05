@@ -7,6 +7,7 @@ import {
   listSettledLedgerEntryIds,
 } from '../../lib/rewards/ledgerSettlements';
 import { MONEY_PATH_FROZEN_CODE } from '../../lib/server/moneyPathFreeze';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 
 const OFFER = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const CREATOR = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
@@ -26,6 +27,7 @@ function makeConcurrentStore() {
   let settlementInserts = 0;
 
   const from = (table: string) => {
+    if (table === 'machine_clients') return emptyMachineClientsTable();
     const filters: Record<string, unknown> = {};
     const builder: Record<string, unknown> = {};
     const self = () => builder;

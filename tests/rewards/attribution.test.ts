@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { resolveCommissionAttribution } from '../../lib/rewards/attribution/matcher';
 import { encodeAventaSubId } from '../../lib/rewards/adapters/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 
 const OFFER = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const CREATOR = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
@@ -13,6 +14,7 @@ function makeSupabase(opts: {
   productClicks?: Array<{ id: string; offer_id: string }>;
 }) {
   const from = vi.fn((table: string) => {
+    if (table === 'machine_clients') return emptyMachineClientsTable();
     if (table === 'reward_outbound_clicks') {
       return {
         select: vi.fn().mockReturnThis(),

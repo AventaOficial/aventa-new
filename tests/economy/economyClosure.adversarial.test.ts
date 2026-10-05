@@ -8,6 +8,7 @@ import {
   resolveExternalProviderReference,
 } from '@/lib/rewards/payoutIntent/confirmation';
 import { presentCreatorReward } from '@/lib/rewards/payoutReadModel';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 
 const prev = { ...process.env };
 const OFFER = '11111111-1111-1111-1111-111111111111';
@@ -125,6 +126,7 @@ describe('economy closure — reward and audit atomicity', () => {
         }
         if (table === 'ledger_settlements') return chain(null);
         if (table === 'affiliate_ledger_entries') return chain(null);
+        if (table === 'machine_clients') return emptyMachineClientsTable();
         throw new Error(`unexpected ${table}`);
       },
       async rpc() {

@@ -11,6 +11,7 @@ import {
 } from '@/lib/rewards/adapters/types';
 import { offerUrlFingerprint } from '@/lib/offers/offerUrlFingerprint';
 import { extractAmazonAsin, extractMercadoLibreItemId } from '@/lib/offers/offerUrlFingerprint';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
 export type LedgerAttributionInput = {
   id: string;
@@ -77,6 +78,7 @@ async function resolveOfferCreator(
   if (error || !data) return null;
   const creatorId = (data as { created_by?: string }).created_by;
   if (!creatorId) return null;
+  if (await isEconomicallyInertAuthor(supabase, creatorId)) return null;
   return { offerId, creatorId };
 }
 
