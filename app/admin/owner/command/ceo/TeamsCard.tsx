@@ -52,7 +52,7 @@ export default function TeamsCard({ teams, loading, className }: { teams: TeamRo
   };
 
   return (
-    <Card id="equipos" labelledBy="ceo-teams" className={cn('scroll-mt-20', className)}>
+    <Card id="equipos" labelledBy="ceo-teams" className={cn('scroll-mt-20', className)} href={team?.href}>
       <CardHeader
         id="ceo-teams"
         title="Equipos"
