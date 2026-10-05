@@ -6,7 +6,8 @@ import { slugifyStore } from '@/lib/slug';
 import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offerPath';
 import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
-import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import { presentOfferFreshness } from '@/lib/offers/freshness/present';
 import { isConfirmedGoneDiagnostic } from '@/lib/offers/evaluateOfferHealth';
@@ -174,12 +175,13 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   }
 
   const prof = Array.isArray(offer.profiles) ? offer.profiles[0] : offer.profiles;
-  const botAuthor = isBotUserId(offer.created_by);
+  const displayName = prof?.display_name?.trim() || 'Usuario';
+  const presented = presentAuthor({ userId: offer.created_by, displayName });
+  const hunterAuthor: HunterPublicIdentity | null = presented.kind === 'hunter' ? presented.hunter : null;
+  const botAuthor = hunterAuthor != null || isBotUserId(offer.created_by);
   const author = {
-    username: botAuthor
-      ? BOT_AUTHOR_DISPLAY_NAME
-      : prof?.display_name?.trim() || 'Usuario',
-    avatar_url: botAuthor ? null : (prof?.avatar_url ?? null),
+    username: hunterAuthor?.name ?? displayName,
+    avatar_url: hunterAuthor ? hunterAuthor.avatarUrl : (prof?.avatar_url ?? null),
     leaderBadge: botAuthor
       ? null
       : ((prof as { leader_badge?: string | null })?.leader_badge ?? null),
@@ -188,6 +190,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     userId: offer.created_by,
     slug: botAuthor ? null : ((prof as { slug?: string | null })?.slug?.trim() || null),
     isBot: botAuthor,
+    hunter: hunterAuthor,
     featuredAchievement: null as { code?: string; name: string; icon: string } | null,
   };
 

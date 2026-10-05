@@ -17,6 +17,8 @@ import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
+import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
+import { HunterFoundLine, HunterFoundSection } from '@/app/components/hunters/HunterIdentity';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { createClient } from '@/lib/supabase/client';
@@ -54,6 +56,7 @@ interface OfferModalProps {
     creatorAmazonTag?: string | null;
     userId?: string | null;
     slug?: string | null;
+    hunter?: HunterPublicIdentity | null;
   };
   image?: string;
   imageUrls?: string[];
@@ -169,8 +172,11 @@ export default function OfferModal({
     setImageIndex(idx);
     setGalleryOpen(true);
   };
-  const authorProfileHref =
-    author?.username ? publicProfilePath(author.username, author.userId, author.slug) : null;
+  const authorProfileHref = author?.hunter
+    ? author.hunter.profilePath
+    : author?.username
+      ? publicProfilePath(author.username, author.userId, author.slug)
+      : null;
   const baseWeightedScore =
     votesScore != null && !Number.isNaN(Number(votesScore))
       ? Number(votesScore)
@@ -649,7 +655,12 @@ export default function OfferModal({
                 <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight break-words">
                   {title}
                 </h2>
-                {author?.username && (
+                {author?.hunter ? (
+                  <div className="space-y-3">
+                    <HunterFoundLine hunter={author.hunter} />
+                    <HunterFoundSection hunter={author.hunter} />
+                  </div>
+                ) : author?.username && (
                   <div className="flex items-center gap-2 flex-wrap">
                     {authorProfileHref ? (
                       <Link

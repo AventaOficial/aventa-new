@@ -27,6 +27,8 @@ import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
+import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
+import { HunterFoundSection, HunterMark } from '@/app/components/hunters/HunterIdentity';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
@@ -124,6 +126,7 @@ type OfferPayload = {
     userId?: string | null;
     slug?: string | null;
     isBot?: boolean;
+    hunter?: HunterPublicIdentity | null;
     featuredAchievement?: { code?: string; name: string; icon: string } | null;
   };
   createdAt: string | null;
@@ -766,7 +769,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     </Link>
                   ) : (
                     <span className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                      {offer.author.avatar_url ? (
+                      {offer.author.hunter ? (
+                        <HunterMark name={offer.author.hunter.name} accent={offer.author.hunter.accent} avatarUrl={offer.author.hunter.avatarUrl} size={40} />
+                      ) : offer.author.avatar_url ? (
                         <img
                           src={offer.author.avatar_url}
                           alt=""
@@ -779,8 +784,8 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       )}
                       <span className="flex flex-col leading-tight">
                         <span className="font-medium text-gray-800 dark:text-gray-200">
-                          {offer.author.username}
-                          {offer.author.isBot ? (
+                          {offer.author.hunter ? offer.author.hunter.foundLabel : offer.author.username}
+                          {offer.author.isBot && !offer.author.hunter ? (
                             <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
                               sistema
                             </span>
@@ -812,6 +817,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   ) : null}
                 </div>
               )}
+              {offer.author.hunter ? <HunterFoundSection hunter={offer.author.hunter} /> : null}
 
               <div className="flex flex-wrap items-baseline gap-3 mt-4">
                 <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">

@@ -134,6 +134,7 @@ export default async function RootLayout({
                   <li><Link href="/" className="hover:text-violet-600 dark:hover:text-violet-400">Inicio</Link></li>
                   <li><Link href="/descubre" className="hover:text-violet-600 dark:hover:text-violet-400">Guía rápida</Link></li>
                   <li><Link href="/plaza" className="hover:text-violet-600 dark:hover:text-violet-400">Plaza</Link></li>
+                  <li><Link href="/cazadores" className="hover:text-violet-600 dark:hover:text-violet-400">Hunters</Link></li>
                   <li><Link href="/subir" className="hover:text-violet-600 dark:hover:text-violet-400">Subir oferta</Link></li>
                   <li><Link href="/extension" className="hover:text-violet-600 dark:hover:text-violet-400">Extensión (próx.)</Link></li>
                 </ul>

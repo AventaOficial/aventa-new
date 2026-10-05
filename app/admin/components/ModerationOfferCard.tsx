@@ -11,6 +11,7 @@ import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets'
 import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { presentAuthor } from '@/lib/product/hunters/identity';
 
 type ModerationOffer = {
   id: string;
@@ -127,9 +128,12 @@ export default function ModerationOfferCard({
     isBotUserId(offer.created_by) ||
     (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
     (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
-  const authorName = isBotOffer
-    ? BOT_AUTHOR_DISPLAY_NAME
-    : offer.profiles?.display_name?.trim() || 'Usuario';
+  const presented = presentAuthor({ userId: offer.created_by, displayName: offer.profiles?.display_name });
+  const authorName = presented.kind === 'hunter'
+    ? presented.hunter.name
+    : isBotOffer
+      ? BOT_AUTHOR_DISPLAY_NAME
+      : offer.profiles?.display_name?.trim() || 'Usuario';
   const authorSlug =
     !isBotOffer && offer.created_by != null
       ? profileSlugFromDisplayName(offer.profiles?.display_name, offer.created_by)

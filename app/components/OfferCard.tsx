@@ -35,6 +35,8 @@ import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { publicProfilePath } from '@/lib/profileSlug';
+import { HunterFoundLine } from '@/app/components/hunters/HunterIdentity';
+import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import type { OfferScopeUi } from '@/lib/offerScope';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import StoreBrandMark from './StoreBrandMark';
@@ -157,6 +159,7 @@ interface OfferCardProps {
     creatorAmazonTag?: string | null;
     userId?: string | null;
     slug?: string | null;
+    hunter?: HunterPublicIdentity | null;
   };
   onFavoriteChange?: (isFavorite: boolean) => void;
   onVoteChange?: (offerId: string, value: 1 | -1 | 0, storedWeight?: number) => void;
@@ -239,8 +242,11 @@ export default function OfferCard({
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false);
 
   const baseScore = scoreFromFeed;
-  const authorProfileHref =
-    author?.username ? publicProfilePath(author.username, author.userId, author.slug) : null;
+  const authorProfileHref = author?.hunter
+    ? author.hunter.profilePath
+    : author?.username
+      ? publicProfilePath(author.username, author.userId, author.slug)
+      : null;
 
   const cardRef = useRef<HTMLDivElement>(null);
   const viewTrackedRef = useRef(false);
@@ -610,7 +616,9 @@ export default function OfferCard({
               {title}
             </h3>
 
-            {author?.username ? (
+            {author?.hunter ? (
+              <HunterFoundLine hunter={author.hunter} />
+            ) : author?.username ? (
               <span className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
                 {authorProfileHref ? (
                   <Link

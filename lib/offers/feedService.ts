@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin } from '@/lib/offers/homeFeedFilters';
+import { presentAuthor } from '@/lib/product/hunters/identity';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -8,6 +9,7 @@ export type FeedOfferAuthor = {
   ml_tracking_tag: string | null;
   amazon_tracking_tag: string | null;
   slug: string | null;
+  hunter_code?: string | null;
 };
 
 export type FeedOffer = {
@@ -185,14 +187,30 @@ export async function getHomeFeed({
           row.conditions != null && String(row.conditions).trim() !== '' ? String(row.conditions).trim() : null,
         slug: String(row.id ?? ''),
         created_by: createdBy,
-        author: {
-          display_name: prof?.display_name?.trim() || 'Usuario',
-          avatar_url: prof?.avatar_url ?? null,
-          leader_badge: prof?.leader_badge ?? null,
-          ml_tracking_tag: prof?.ml_tracking_tag ?? null,
-          amazon_tracking_tag: (prof as { amazon_tracking_tag?: string | null } | undefined)?.amazon_tracking_tag ?? null,
-          slug: prof?.slug != null && String(prof.slug).trim() !== '' ? String(prof.slug).trim() : null,
-        },
+        author: (() => {
+          const displayName = prof?.display_name?.trim() || 'Usuario';
+          const presented = presentAuthor({ userId: createdBy, displayName });
+          if (presented.kind !== 'hunter') {
+            return {
+              display_name: displayName,
+              avatar_url: prof?.avatar_url ?? null,
+              leader_badge: prof?.leader_badge ?? null,
+              ml_tracking_tag: prof?.ml_tracking_tag ?? null,
+              amazon_tracking_tag: (prof as { amazon_tracking_tag?: string | null } | undefined)?.amazon_tracking_tag ?? null,
+              slug: prof?.slug != null && String(prof.slug).trim() !== '' ? String(prof.slug).trim() : null,
+              hunter_code: null,
+            };
+          }
+          return {
+            display_name: presented.hunter.name,
+            avatar_url: presented.hunter.avatarUrl,
+            leader_badge: null,
+            ml_tracking_tag: null,
+            amazon_tracking_tag: null,
+            slug: null,
+            hunter_code: presented.hunter.code,
+          };
+        })(),
       };
     });
 
