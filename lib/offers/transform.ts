@@ -1,6 +1,7 @@
 import { normalizeVoteCounts } from '@/lib/offers/scoring';
 import { parseOfferScopeFromConditions, type OfferScopeUi } from '@/lib/offerScope';
 import { publicOfferDescription } from '@/lib/offers/publicDescription';
+import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
 export type CardOfferAuthor = {
@@ -13,6 +14,9 @@ export type CardOfferAuthor = {
   userId?: string | null;
   /** `profiles.slug` cuando la vista lo expone; debe coincidir con get_profile_by_slug. */
   slug?: string | null;
+  /** Presente cuando quien encontró la oferta es un Hunter de Aventa. */
+  hunter?: HunterPublicIdentity | null;
+  foundLabel?: string | null;
 };
 
 export type CardOffer = {
@@ -119,13 +123,28 @@ export type FeedApiItemShape = {
     ml_tracking_tag?: string | null;
     amazon_tracking_tag?: string | null;
     slug?: string | null;
+    hunter_code?: string | null;
   };
   created_by?: string | null;
 };
 
+function asPublicAuthor(author: CardOfferAuthor, hunterCode?: string | null): CardOfferAuthor {
+  const presented = presentAuthor({ userId: author.userId, displayName: author.username, hunterCode });
+  if (presented.kind !== 'hunter') return author;
+  return {
+    ...author,
+    username: presented.hunter.name,
+    avatar_url: presented.hunter.avatarUrl,
+    slug: null,
+    leaderBadge: null,
+    hunter: presented.hunter,
+    foundLabel: presented.hunter.foundLabel,
+  };
+}
+
 function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undefined): CardOfferAuthor {
   const prof = Array.isArray(profiles) ? profiles[0] : profiles;
-  return {
+  return asPublicAuthor({
     username: prof?.display_name?.trim() || 'Usuario',
     avatar_url: prof?.avatar_url ?? null,
     leaderBadge: (prof as { leader_badge?: string | null } | undefined)?.leader_badge ?? null,
@@ -134,7 +153,7 @@ function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undef
       (prof as { amazon_tracking_tag?: string | null } | undefined)?.amazon_tracking_tag ?? null,
     userId: createdBy ?? null,
     slug: (prof as { slug?: string | null } | undefined)?.slug?.trim() || null,
-  };
+  });
 }
 
 /**
@@ -209,7 +228,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
   const images = Array.isArray(item.images) ? item.images : [];
   const image = images[0] ?? null;
   const a = item.author;
-  const author: CardOfferAuthor = {
+  const author: CardOfferAuthor = asPublicAuthor({
     username: a?.display_name?.trim() || 'Usuario',
     avatar_url: a?.avatar_url ?? null,
     leaderBadge: a?.leader_badge ?? null,
@@ -217,7 +236,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     creatorAmazonTag: a?.amazon_tracking_tag ?? null,
     userId: item.created_by ?? null,
     slug: a?.slug?.trim() || null,
-  };
+  }, a?.hunter_code);
   const msiRaw = item.msi_months;
   const msiMonths =
     msiRaw != null && msiRaw !== ('' as unknown) ? Number(msiRaw) : undefined;

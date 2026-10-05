@@ -23,6 +23,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { requestGuestSignIn } from '@/lib/auth/guestAccessPrompt';
 import AchievementSigil from '@/app/components/achievements/AchievementSigil';
+import { MAX_FEATURED_ACHIEVEMENTS } from '@/lib/achievements/types';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
 import { achievementByCode } from '@/lib/achievements/catalog';
@@ -58,6 +59,8 @@ type PublicProfileViewProps = {
   showcase?: Array<{ code?: string; name: string; icon: string }>;
   showcaseLoading?: boolean;
   unlockedPreview?: Array<{ code?: string; name: string; icon: string }>;
+  showcaseChoices?: Array<{ code: string; name: string; icon: string }>;
+  onSaveShowcase?: (codes: string[]) => Promise<string | null>;
   owner?: PublicProfileOwnerActions | null;
   onOpenOffer: (offer: PublicProfileOffer) => void;
   onFavoriteChange?: (offerId: string, isFavorite: boolean) => void;
@@ -139,6 +142,8 @@ export default function PublicProfileView({
   showcase = [],
   showcaseLoading = false,
   unlockedPreview = [],
+  showcaseChoices = [],
+  onSaveShowcase,
   owner = null,
   onOpenOffer,
   onFavoriteChange,
@@ -150,6 +155,42 @@ export default function PublicProfileView({
   const [showAll, setShowAll] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [pickerSaving, setPickerSaving] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [pickerSaved, setPickerSaved] = useState(false);
+
+  function openPicker() {
+    const current = showcase.map((item) => item.code).filter((code): code is string => Boolean(code));
+    setPicked(current);
+    setPickerError(null);
+    setPickerSaved(false);
+    setPickerOpen(true);
+  }
+
+  function togglePicked(code: string) {
+    setPickerSaved(false);
+    setPicked((current) => {
+      if (current.includes(code)) return current.filter((item) => item !== code);
+      if (current.length >= MAX_FEATURED_ACHIEVEMENTS) return current;
+      return [...current, code];
+    });
+  }
+
+  async function savePicked() {
+    if (!onSaveShowcase) return;
+    setPickerSaving(true);
+    setPickerError(null);
+    const error = await onSaveShowcase(picked);
+    setPickerSaving(false);
+    if (error) {
+      setPickerError(error);
+      return;
+    }
+    setPickerSaved(true);
+    setPickerOpen(false);
+  }
 
   const published = useMemo(
     () => offers.filter((offer) => offer.dealStatus === 'approved' || offer.dealStatus === 'expired'),
@@ -285,13 +326,24 @@ export default function PublicProfileView({
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#6e6e73] dark:text-[#a3a3a3]">Logros destacados</h2>
                 {owner ? (
-                  <Link
-                    href={owner.achievementsHref}
-                    onClick={owner.onOpenAchievements}
-                    className="-my-3 inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] font-medium text-violet-600 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
-                  >
-                    Ver todos →
-                  </Link>
+                  <span className="flex items-center gap-2">
+                    {onSaveShowcase ? (
+                      <button
+                        type="button"
+                        onClick={openPicker}
+                        className="inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] font-medium text-violet-600 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
+                      >
+                        Elegir logros
+                      </button>
+                    ) : null}
+                    <Link
+                      href={owner.achievementsHref}
+                      onClick={owner.onOpenAchievements}
+                      className="-my-3 inline-flex min-h-11 items-center rounded-lg px-1 text-[13px] font-medium text-violet-600 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
+                    >
+                      Ver todos →
+                    </Link>
+                  </span>
                 ) : null}
               </div>
               <ul className="-mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0">
@@ -333,13 +385,23 @@ export default function PublicProfileView({
                   </ul>
                 ) : null}
               </div>
-              <Link
-                href={owner.achievementsHref}
-                onClick={owner.onOpenAchievements}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-violet-200 px-4 text-[13px] font-semibold text-violet-700 transition-colors duration-150 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-violet-900 dark:text-violet-300 dark:hover:bg-violet-950 sm:min-h-10"
-              >
-                Elegir logros
-              </Link>
+              {onSaveShowcase ? (
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-violet-200 px-4 text-[13px] font-semibold text-violet-700 transition-colors duration-150 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-violet-900 dark:text-violet-300 dark:hover:bg-violet-950 sm:min-h-10"
+                >
+                  Elegir logros
+                </button>
+              ) : (
+                <Link
+                  href={owner.achievementsHref}
+                  onClick={owner.onOpenAchievements}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-violet-200 px-4 text-[13px] font-semibold text-violet-700 transition-colors duration-150 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-violet-900 dark:text-violet-300 dark:hover:bg-violet-950 sm:min-h-10"
+                >
+                  Elegir logros
+                </Link>
+              )}
             </div>
           ) : null}
         </div>
@@ -541,6 +603,54 @@ export default function PublicProfileView({
           {panel !== 'actividad' ? <HunterActivityBoard dates={published.map((offer) => offer.createdAt)} /> : null}
         </div>
       </div>
+      {pickerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" role="presentation" onClick={() => setPickerOpen(false)}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="showcase-picker-title"
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-[#141414]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="showcase-picker-title" className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Logros en tu perfil</h2>
+            <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Elige hasta {MAX_FEATURED_ACHIEVEMENTS}. Solo se guardan logros que ya conseguiste.</p>
+            {showcaseChoices.length === 0 ? (
+              <p className="mt-4 text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">Todavía no hay logros desbloqueados para mostrar.</p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {showcaseChoices.map((logro) => {
+                  const on = picked.includes(logro.code);
+                  const blocked = !on && picked.length >= MAX_FEATURED_ACHIEVEMENTS;
+                  return (
+                    <li key={logro.code}>
+                      <button
+                        type="button"
+                        disabled={blocked}
+                        aria-pressed={on}
+                        onClick={() => togglePicked(logro.code)}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${on ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40' : 'border-black/10 dark:border-white/10'} disabled:opacity-40`}
+                      >
+                        <AchievementSigil code={logro.code} size="sm" />
+                        <span className="min-w-0 flex-1 text-[14px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{logro.name}</span>
+                        {on ? <Check className="h-4 w-4 text-violet-600" aria-hidden /> : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {pickerError ? <p className="mt-3 text-[13px] text-red-600">{pickerError}</p> : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setPickerOpen(false)} className="min-h-11 rounded-full px-4 text-[13px] font-medium text-[#6e6e73]">Cancelar</button>
+              <button type="button" disabled={pickerSaving || !onSaveShowcase} onClick={() => void savePicked()} className="inline-flex min-h-11 items-center rounded-full bg-violet-600 px-4 text-[13px] font-semibold text-white disabled:opacity-50">
+                {pickerSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
+                Guardar
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {pickerSaved ? <p className="sr-only">Logros guardados en el perfil público.</p> : null}
     </div>
   );
 }

@@ -63,6 +63,7 @@ export default function PublicHallazgosSection({
 }: PublicHallazgosSectionProps) {
   const [showcase, setShowcase] = useState<Array<{ code: string; name: string; icon: string }>>([]);
   const [unlockedPreview, setUnlockedPreview] = useState<Array<{ code: string; name: string; icon: string }>>([]);
+  const [unlockedChoices, setUnlockedChoices] = useState<Array<{ code: string; name: string; icon: string }>>([]);
   const [showcaseLoading, setShowcaseLoading] = useState(true);
   useEffect(() => {
     let cancel = false;
@@ -95,20 +96,20 @@ export default function PublicHallazgosSection({
             .filter((card): card is NonNullable<typeof card> => Boolean(card))
             .map((card) => ({ code: card.code, name: card.name, icon: card.icon })),
         );
+        const ranked = [...visibleUnlocked].sort(
+          (a, b) =>
+            rarityRank(b.rarityKey) - rarityRank(a.rarityKey) ||
+            (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''),
+        );
+        setUnlockedChoices(ranked.map((card) => ({ code: card.code, name: card.name, icon: card.icon })));
         setUnlockedPreview(
-          [...visibleUnlocked]
-            .sort(
-              (a, b) =>
-                rarityRank(b.rarityKey) - rarityRank(a.rarityKey) ||
-                (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''),
-            )
-            .slice(0, UNLOCKED_PREVIEW_LIMIT)
-            .map((card) => ({ code: card.code, name: card.name, icon: card.icon })),
+          ranked.slice(0, UNLOCKED_PREVIEW_LIMIT).map((card) => ({ code: card.code, name: card.name, icon: card.icon })),
         );
       } catch {
         if (!cancel) {
           setShowcase([]);
           setUnlockedPreview([]);
+          setUnlockedChoices([]);
         }
       } finally {
         if (!cancel) setShowcaseLoading(false);
@@ -147,6 +148,23 @@ export default function PublicHallazgosSection({
       showcase={showcase}
       showcaseLoading={showcaseLoading}
       unlockedPreview={owner ? unlockedPreview : []}
+      showcaseChoices={owner ? unlockedChoices : []}
+      onSaveShowcase={owner ? async (codes) => {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return 'Inicia sesión para guardar los logros.';
+        const response = await fetch('/api/me/achievements', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codes }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) return typeof payload.error === 'string' ? payload.error : 'No se pudo guardar.';
+        const byCode = new Map(unlockedChoices.map((card) => [card.code, card]));
+        setShowcase(codes.map((code) => byCode.get(code)).filter((card): card is { code: string; name: string; icon: string } => Boolean(card)));
+        return null;
+      } : undefined}
       owner={owner}
       onFavoriteChange={onFavoriteChange}
       onOpenOffer={(offer) => {

@@ -97,7 +97,7 @@ describe('offer detail author avatar', () => {
       'utf8',
     );
     expect(page).toContain('isBotUserId');
-    expect(page).toContain('BOT_AUTHOR_DISPLAY_NAME');
+    expect(page).toContain('presentAuthor');
     expect(content).toContain('h-10 w-10 rounded-full');
     expect(content).toContain('isBot');
   });

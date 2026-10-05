@@ -5,6 +5,8 @@ import {
   getSitemapStores,
   getSitemapOffers,
 } from '@/lib/sitemap';
+import { hunterSitemapPaths } from '@/lib/product/hunters/contract';
+import { loadPublicHunters } from '@/lib/product/hunters/load';
 
 /** Prefer runtime/ISR so preview builds without service-role still succeed. */
 export const revalidate = 3600;
@@ -18,12 +20,21 @@ export const revalidate = 3600;
  * (and static URLs in the index or a /sitemaps/static.xml)
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [staticUrls, categoryUrls, storeUrls, offerUrls] = await Promise.all([
+  const [staticUrls, categoryUrls, storeUrls, offerUrls, hunters] = await Promise.all([
     Promise.resolve(getSitemapStatic()),
     Promise.resolve(getSitemapCategories()),
     getSitemapStores(),
     getSitemapOffers(),
+    loadPublicHunters(),
   ]);
 
-  return [...staticUrls, ...categoryUrls, ...storeUrls, ...offerUrls];
+  const base = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
+  const hunterUrls: MetadataRoute.Sitemap = hunterSitemapPaths(hunters).map((path) => ({
+    url: `${base}${path}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.6,
+  }));
+
+  return [...staticUrls, ...categoryUrls, ...storeUrls, ...offerUrls, ...hunterUrls];
 }
