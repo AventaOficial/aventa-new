@@ -33,9 +33,12 @@ const MIN_HEIGHT_PX = 520;
 
 const AREAS = ['community', 'users', 'offers', 'teams', 'revenue', 'payouts', 'capacity', 'goals', 'season', 'priorities'];
 
+/** Móvil: decisiones → alertas por equipo → acciones del día → métricas. */
+export const MOBILE_ORDER = ['priorities', 'teams', 'goals', 'payouts', 'community', 'offers', 'users', 'revenue', 'capacity', 'season'];
+
 /**
  * Composición del lienzo del CEO.
- * Móvil: una columna, en el orden de lectura de la referencia.
+ * Móvil: una columna, primero lo que pide decisión (MOBILE_ORDER).
  * Tablet vertical (768–1023): dos columnas.
  * PC y tablet horizontal (≥1024): la composición de la referencia con áreas nombradas (no depende del orden del DOM).
  */
@@ -45,7 +48,7 @@ export const CEO_MOSAIC_CSS = `
   gap: 0.75rem;
   align-items: stretch;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: ${AREAS.map((a) => `"${a}"`).join(' ')};
+  grid-template-areas: ${MOBILE_ORDER.map((a) => `"${a}"`).join(' ')};
 }
 .ceo-mosaic > * { min-width: 0; height: 100%; }
 ${AREAS.map((a) => `.ceo-area-${a} { grid-area: ${a}; }`).join('\n')}

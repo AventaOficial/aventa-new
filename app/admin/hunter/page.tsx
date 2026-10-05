@@ -906,7 +906,7 @@ export default function HunterPage() {
             </p>
             <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl">
               <BowArrow className="h-7 w-7 shrink-0 text-violet-300 sm:h-8 sm:w-8" />
-              CEO Control Center
+              Supply · Hunter
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/50 leading-relaxed">
               Centro operativo único: salud de supply, fuentes y cola. El motor observa; no publica ni

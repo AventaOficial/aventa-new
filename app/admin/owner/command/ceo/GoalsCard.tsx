@@ -6,6 +6,7 @@ import { ArrowRight, Check, Flag, ListChecks, MessageSquare, Rocket, ShieldCheck
 import { cn } from '@/app/components/panel/utils';
 import type { DerivedGoal } from '../types';
 import { ProgressRing } from './charts';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardHeader, EmptyFrame, FOCUS_RING, NA, Skel, ThinBar, ViewLink } from './kit';
 import { formatCount } from './model';
 
@@ -40,13 +41,13 @@ export default function GoalsCard({ goals, loading, className }: { goals: Derive
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
-    <Card labelledBy="ceo-goals" className={className} href="/admin/owner/vista/metas">
+    <Card labelledBy="ceo-goals" className={className} href={CEO_CARD_DRILLDOWN.goals}>
       <CardHeader
         id="ceo-goals"
         title="Metas del día"
         icon={Target}
         iconStyle="plain"
-        action={<ViewLink href="/admin/owner/vista/metas" label="Ver todas las metas del día">Ver todas</ViewLink>}
+        action={<ViewLink href={CEO_CARD_DRILLDOWN.goals} label="Ver todas las metas del día">Ver todas</ViewLink>}
       />
       {loading && total === 0 ? (
         <div className="mt-3 space-y-2" aria-busy="true" aria-label="Cargando">

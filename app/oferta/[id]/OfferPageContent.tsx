@@ -44,7 +44,8 @@ import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import OfferMedia from '@/app/components/offers/OfferMedia';
-import { formatMexicoDateTime, remainingDaysLabel } from '@/lib/time/mexicoClock';
+import { formatMexicoDateTime, formatRelativeMexico, remainingDaysLabel } from '@/lib/time/mexicoClock';
+import { useHydrated } from '@/lib/hooks/useHydrated';
 import { alignCommentLike, toggleCommentLike } from '@/lib/comments/commentLikeState';
 
 function CommentAvatar({
@@ -71,26 +72,6 @@ function CommentAvatar({
     );
   }
   return <User className={`${sizeClass} shrink-0 text-gray-400 dark:text-gray-500`} />;
-}
-
-function formatRelativeDate(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffM = Math.floor(diffMs / 60000);
-  const diffH = Math.floor(diffMs / 3600000);
-  const diffD = Math.floor(diffMs / 86400000);
-  if (diffM < 1) return 'Ahora mismo';
-  if (diffM < 60) return `hace ${diffM} min`;
-  if (diffH < 24) return `hace ${diffH}h`;
-  if (diffD === 1) return 'hace 1 día';
-  if (diffD < 7) return `hace ${diffD} días`;
-  if (diffD < 30) return `hace ${Math.floor(diffD / 7)} sem`;
-  return new Intl.DateTimeFormat('es-MX', {
-    timeZone: 'America/Mexico_City',
-    day: 'numeric',
-    month: 'short',
-  }).format(d);
 }
 
 type CommentItem = {
@@ -160,6 +141,7 @@ type OfferPayload = {
 export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const { session } = useAuth();
   const { showToast } = useUI();
+  const hydrated = useHydrated();
   const { up: wUp, down: wDown } = useVoterVoteWeights();
 
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
@@ -244,7 +226,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const userVote = localVote ?? 0;
   const storedVoteVal = voteValueMap[offer.id];
   const savings = offer.originalPrice - offer.discountPrice;
-  const remainingLabel = remainingDaysLabel(offer.expiresAt, Date.now());
+  const nowMs = hydrated ? Date.now() : null;
+  const formatRelativeDate = (iso: string) => formatRelativeMexico(iso, nowMs);
+  const remainingLabel = nowMs == null ? null : remainingDaysLabel(offer.expiresAt, nowMs);
   const descriptionText = offer.description?.trim() ?? '';
   const descriptionLong = descriptionText.length > 220 || descriptionText.split('\n').length > 4;
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);

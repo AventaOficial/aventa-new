@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import type { Role } from '@/lib/admin/roles';
-import { ROLE_LABELS, pickEffectiveRole } from '@/lib/admin/roles';
+import { ROLE_LABELS, canAccessAdmin, pickEffectiveRole } from '@/lib/admin/roles';
 import { getDefaultAdminHome } from '@/lib/admin/navigation';
 import type { StaffDepartmentId } from '@/lib/staff/permissions';
 import { STAFF_DEPARTMENTS, canAccessStaffDepartment } from '@/lib/staff/permissions';
@@ -164,6 +164,7 @@ export type GerenciaPayload = {
   generatedAt: string;
   greeting: string;
   role: Role;
+  /** Muestra el enlace a /admin/team; debe coincidir con el gate del middleware de /admin. */
   canAssignRoles: boolean;
   board: StaffWorkBoard;
   taskPct: number;
@@ -282,7 +283,7 @@ export async function buildGerenciaPayload(role: Role, displayName: string | nul
     generatedAt: new Date().toISOString(),
     greeting: gerenciaGreeting(displayName),
     role,
-    canAssignRoles: role === 'owner' || role === 'admin',
+    canAssignRoles: canAccessAdmin(role),
     board,
     taskPct: taskCompletionPct(board.tasks),
     pulse,

@@ -7,6 +7,7 @@ import {
 } from '@/lib/rewards/unlock';
 import { getUserRewardBalances } from '@/lib/rewards/rewardsEngine';
 import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
+import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import {
   evaluateQualityGates,
   getHunterQualitySignals,
@@ -78,6 +79,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     programName: 'Recompensa sorpresa del Cazador',
     programActive: isRewardsProgramActive(),
+    moneyPathFrozen: isMoneyPathFrozen(),
     surpriseMode: true,
     claimPhase: membership.claimPhase,
     encouragement: eligibility.userMessage,

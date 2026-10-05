@@ -98,10 +98,10 @@ export default function BansPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
         <ShieldOff className="h-5 w-5" />
         Baneos
-      </h1>
+      </h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Usuarios baneados no pueden publicar comentarios ni ofertas. Para banear necesitas el UUID del usuario (desde Logs o base de datos).
       </p>

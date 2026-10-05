@@ -7,6 +7,7 @@ import { addCalendarDays } from '@/lib/achievements/calendar';
 import { cn } from '@/app/components/panel/utils';
 import { daysSinceYmd } from '../derive';
 import { formatYmdShort, upcomingSeasons, type SeasonWindow } from '../seasons';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardHeader, EmptyFrame, FOCUS_RING, ViewButton } from './kit';
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -91,7 +92,7 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
   const next = seasons[0] ?? null;
 
   return (
-    <Card labelledBy="ceo-season" className={className} href="/admin/owner/vista/temporada">
+    <Card labelledBy="ceo-season" className={className}>
       <CardHeader
         id="ceo-season"
         title={
@@ -143,13 +144,13 @@ export default function SeasonCard({ todayYmd, className }: { todayYmd: string; 
                 <span className="hidden text-white/50 @xs:inline">· {next.active ? 'en curso' : `en ${next.daysUntil} días`}</span>
               </p>
               <Link
-                href="/admin/owner/vista/temporada"
+                href={CEO_CARD_DRILLDOWN.seasonPrep}
                 className={cn(
                   'mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1 text-[12px] font-semibold text-white shadow-[0_8px_22px_-10px_rgba(139,92,246,0.9)] hover:bg-violet-500',
                   FOCUS_RING,
                 )}
               >
-                Preparar temporada
+                Preparar avisos
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </div>

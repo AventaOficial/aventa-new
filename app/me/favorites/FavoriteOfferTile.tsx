@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { ArrowBigUp, Heart, Sparkles } from 'lucide-react';
+import { ArrowBigUp, Heart } from 'lucide-react';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
+import OfferMedia from '@/app/components/offers/OfferMedia';
 import { formatOfferMoneyInput } from '@/lib/formatPrice';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import type { CardOffer } from '@/lib/offers/transform';
@@ -17,12 +17,9 @@ type FavoriteOfferTileProps = {
 };
 
 export default function FavoriteOfferTile({ offer, isFavorite, saving, onToggleFavorite, className = '' }: FavoriteOfferTileProps) {
-  const [imageFailed, setImageFailed] = useState(false);
   const price = offer.discountPrice > 0 ? offer.discountPrice : null;
   const before = price != null && offer.originalPrice > price ? offer.originalPrice : null;
   const discount = Math.round(offer.discount);
-  const showImage = Boolean(offer.image) && !imageFailed;
-
   return (
     <article
       className={`group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md dark:border-white/10 dark:bg-[#141414] dark:hover:border-violet-500/50 ${className}`}
@@ -31,21 +28,14 @@ export default function FavoriteOfferTile({ offer, isFavorite, saving, onToggleF
         href={buildOfferPublicPath(offer.id, offer.title)}
         className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400"
       >
-        <div className="relative m-2 mb-0 aspect-[4/3] overflow-hidden rounded-xl bg-[#f5f5f7]">
-          {showImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={offer.image}
-              alt=""
-              loading="lazy"
-              onError={() => setImageFailed(true)}
-              className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-[#86868b]" aria-hidden>
-              <Sparkles className="h-6 w-6" />
-            </span>
-          )}
+        <div className="relative m-2 mb-0">
+          <OfferMedia
+            src={offer.image}
+            alt={offer.title}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 240px"
+            ratioClass="aspect-[4/3]"
+            className="rounded-xl"
+          />
           {discount >= 1 ? (
             <span className="absolute left-2 top-2 rounded-md bg-orange-500 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-white shadow-sm">
               -{discount}%<span className="sr-only"> de descuento</span>

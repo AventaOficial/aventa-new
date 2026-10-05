@@ -264,7 +264,7 @@ export const GUIDES: GuideMeta[] = [
         subtitle: 'Sube de nivel',
         illustration: 'reputation',
         body: [
-          'Cada oferta bien recibida suma a tu reputación. Niveles altos desbloquean auto-aprobación, cooldowns más cortos al subir y mayor visibilidad.',
+          'Tu reputación sube con ofertas y comentarios aprobados y con likes en tus comentarios; baja con rechazos. Desde nivel 2 tus comentarios se publican sin revisión y desde nivel 3 también tus ofertas. Tu voto pesa más a mayor nivel. La reputación no genera dinero.',
           'Evita duplicados, precios inflados o enlaces rotos: la comunidad vota y eso define tu trayectoria.',
         ],
         cta: { label: 'Mis ofertas', href: '/me' },

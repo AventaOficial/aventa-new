@@ -172,7 +172,7 @@ function PageWelcome({ onNext }: { onNext: () => void }) {
         Encuentra las mejores ofertas,{' '}
         <span className={HIGHLIGHT_CLASS}>ahorra</span>
         {' '}y{' '}
-        <span className={HIGHLIGHT_CLASS}>gana</span>.
+        <span className={HIGHLIGHT_CLASS}>comparte</span>.
       </motion.p>
 
       <motion.button

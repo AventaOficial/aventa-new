@@ -38,6 +38,9 @@ import {
 } from '@/lib/offers/homeFeedClient';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { testersForTab } from '@/lib/offers/testerOffers';
+import { DEFAULT_FEED_POLICY, planFeedPlacements, type SponsoredCampaign } from '@/lib/sponsored/placements';
+import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
+import { activeHuntersFromFeed } from '@/lib/community/feedHunters';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = HomeFeedViewMode | 'personalized';
@@ -108,6 +111,8 @@ function HomeContent() {
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('day');
   const [viewMode, setViewMode] = useState<ViewMode>('latest');
+  /** Vigencia de campañas patrocinadas: se evalúa una vez por visita, no en cada render. */
+  const [sessionStartedAt] = useState(() => Date.now());
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
@@ -454,6 +459,10 @@ function HomeContent() {
     ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id)),
   ];
   const displayOffers = testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers;
+  const sponsoredAfter = debouncedQuery.trim()
+    ? new Map<number, SponsoredCampaign>()
+    : planFeedPlacements(displayOffers.length, SPONSORED_CAMPAIGNS, DEFAULT_FEED_POLICY, sessionStartedAt);
+  const feedHunters = activeHuntersFromFeed(displayOffers);
   const featuredOffers = (() => {
     if (viewMode !== 'top' || debouncedQuery.trim()) return [];
     const testers = showTesterOffers ? testersForTab('top') : [];
@@ -820,8 +829,14 @@ function HomeContent() {
                     offerScope={offer.offerScope ?? null}
                   />
                 </motion.div>
-                {index === 1 && !debouncedQuery.trim() ? (
-                  <SponsoredSlot kind="feed" stores={storeList} onSearch={setSearchQuery} />
+                {sponsoredAfter.has(index) ? (
+                  <SponsoredSlot
+                    campaign={sponsoredAfter.get(index) as SponsoredCampaign}
+                    surface="feed"
+                    position={index}
+                    stores={storeList}
+                    onSearch={setSearchQuery}
+                  />
                 ) : null}
                 </Fragment>
               ))}
@@ -853,6 +868,8 @@ function HomeContent() {
           storeFilter={storeFilter}
           onStoreFilter={setStoreFilter}
           onSearch={setSearchQuery}
+          hunters={feedHunters}
+          now={sessionStartedAt}
         />
         </div>
       </section>

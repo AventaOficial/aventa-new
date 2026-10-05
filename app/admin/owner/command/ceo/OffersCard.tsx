@@ -5,6 +5,7 @@ import type { OwnerCommandPayload } from '@/lib/owner/buildOwnerCommand';
 import type { OwnerRangeKey } from '@/lib/owner/ownerRange';
 import { cn } from '@/app/components/panel/utils';
 import type { SourceState } from '../types';
+import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, CardLoading, NA, RangeChip, ThinBar, type BarTone } from './kit';
 import { formatCount, share, VS_LABEL } from './model';
 
@@ -51,7 +52,7 @@ export default function OffersCard({
   ];
 
   return (
-    <Card labelledBy="ceo-offers" className={className} href="/admin/owner/vista/ofertas">
+    <Card labelledBy="ceo-offers" className={className} href={CEO_CARD_DRILLDOWN.offers}>
       <CardHeader
         id="ceo-offers"
         title={

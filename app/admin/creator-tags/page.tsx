@@ -134,7 +134,7 @@ export default function AdminCreatorTagsPage() {
           <p className="text-sm text-gray-500 mt-1">
             Asigná <code className="text-xs">ml_tracking_tag</code> y{' '}
             <code className="text-xs">amazon_tracking_tag</code>. Los CTAs de sus ofertas usan esos
-            tags (prioridad sobre el tag de plataforma) para poder pagar el 40% atribuible.
+            tags (prioridad sobre el tag de plataforma) para poder atribuir al creador su parte de la comisión.
           </p>
           <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
             Requiere migración{' '}

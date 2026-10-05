@@ -34,7 +34,10 @@ function FloatingDelta({ value, id }: { value: '+1' | '-1'; id: number }) {
   );
 }
 
-/** Voto con flecha — spring suave y delta flotante (+1 / -1). */
+/**
+ * Voto con flecha — rebote corto y delta flotante (+1 / -1).
+ * El rebote usa 3 keyframes: framer-motion no admite `spring` con más de 2 (error en consola).
+ */
 export default function VoteArrowButton({
   direction,
   active,
@@ -76,10 +79,7 @@ export default function VoteArrowButton({
         transition={{
           duration: 0.32,
           times: [0, 0.38, 1],
-          type: 'spring',
-          stiffness: 480,
-          damping: 24,
-          mass: 0.55,
+          ease: [0.22, 1, 0.36, 1],
         }}
         className="relative z-10 flex items-center justify-center"
       >

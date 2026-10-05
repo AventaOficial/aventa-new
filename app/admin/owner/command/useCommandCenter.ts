@@ -13,7 +13,7 @@ export const STALE_AFTER_MS = 10 * 60_000;
 
 const initial = <T,>(): SourceState<T> => ({ status: 'loading', data: null, error: null, fetchedAt: null });
 
-async function getToken(): Promise<string | null> {
+export async function getToken(): Promise<string | null> {
   const supabase = createClient();
   const {
     data: { session },
@@ -21,7 +21,7 @@ async function getToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
-async function fetchJson<T>(url: string, token: string): Promise<T> {
+export async function fetchJson<T>(url: string, token: string): Promise<T> {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
   const json: unknown = await res.json().catch(() => null);
   if (!res.ok) {

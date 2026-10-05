@@ -40,11 +40,3 @@ export function getReputationProgress(score: number, level: number): number {
   const inLevel = score - config.minScore;
   return Math.min(1, Math.max(0, inLevel / span));
 }
-
-/** Puntos de voto por nivel (backend only; up, down). Nivel 1: +2/-1, 2: +2.2/-1.1, 3: +2.5/-1.2, 4: +3/-1.5 */
-export const VOTE_POINTS_BY_LEVEL: Record<number, { up: number; down: number }> = {
-  1: { up: 2, down: 1 },
-  2: { up: 2.2, down: 1.1 },
-  3: { up: 2.5, down: 1.2 },
-  4: { up: 3, down: 1.5 },
-};

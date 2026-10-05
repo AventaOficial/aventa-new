@@ -1,30 +1,29 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import StoreBrandMark from './StoreBrandMark';
-import RailOfferRequests from './RailOfferRequests';
+import RailCommunity from './RailCommunity';
 import { slugifyStore } from '@/lib/slug';
-
-type SponsoredKind = 'feed' | 'rail';
-
-const COPY: Record<SponsoredKind, { store: string; title: string; cta: string }> = {
-  feed: { store: 'Amazon', title: 'Hasta 30% en electrónicos', cta: 'Ver ofertas' },
-  rail: { store: 'Costco', title: 'Hasta 25% en tecnología', cta: 'Ver ofertas' },
-};
+import { eligibleCampaigns, sponsoredDisclosure, type SponsoredCampaign, type SponsoredSurface } from '@/lib/sponsored/placements';
+import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
+import { trackSponsoredEvent } from '@/lib/sponsored/tracking';
+import type { FeedHunter } from '@/lib/community/feedHunters';
 
 function matchStore(name: string, stores: string[]): string | null {
   const q = name.toLowerCase();
   return stores.find((s) => s.toLowerCase() === q || s.toLowerCase().includes(q)) ?? null;
 }
 
-function SponsoredInner({ kind, store }: { kind: SponsoredKind; store: string }) {
-  const ad = COPY[kind];
-  if (kind === 'rail') {
+function SponsoredInner({ surface, campaign, store }: { surface: SponsoredSurface; campaign: SponsoredCampaign; store: string }) {
+  const ad = campaign.creative;
+  const disclosure = sponsoredDisclosure(campaign.kind);
+  if (surface === 'rail') {
     return (
       <div className="overflow-hidden rounded-2xl border border-[#e8e8ed] bg-white dark:border-[#2a2a2a] dark:bg-[#141414] p-3.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
-          Patrocinado
+          {disclosure}
         </p>
         <div className="mt-2">
           <StoreBrandMark store={store} />
@@ -42,7 +41,7 @@ function SponsoredInner({ kind, store }: { kind: SponsoredKind; store: string })
     <div className="rounded-2xl bg-violet-50 dark:bg-violet-950/25 border border-violet-100 dark:border-violet-900/40 px-4 py-3.5 max-[400px]:px-3 max-[400px]:py-3 flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-          Patrocinado
+          {disclosure}
         </p>
         <div className="mt-1.5">
           <StoreBrandMark store={store} />
@@ -57,31 +56,62 @@ function SponsoredInner({ kind, store }: { kind: SponsoredKind; store: string })
   );
 }
 
+/** Un espacio patrocinado. Registra una impresión al verse por primera vez y cada clic. */
 export function SponsoredSlot({
-  kind,
+  campaign,
+  surface,
+  position = null,
   stores,
   onSearch,
 }: {
-  kind: SponsoredKind;
+  campaign: SponsoredCampaign;
+  surface: SponsoredSurface;
+  /** Índice de la oferta tras la que aparece (feed). */
+  position?: number | null;
   stores: string[];
   onSearch: (query: string) => void;
 }) {
-  const ad = COPY[kind];
-  const matched = matchStore(ad.store, stores);
-  const inner = <SponsoredInner kind={kind} store={matched ?? ad.store} />;
+  const ref = useRef<HTMLDivElement>(null);
+  const matched = matchStore(campaign.store, stores);
 
-  if (matched) {
-    return (
-      <Link href={`/tienda/${slugifyStore(matched)}`} className="block">
-        {inner}
-      </Link>
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          trackSponsoredEvent({ type: 'impression', campaignId: campaign.id, surface, position });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 },
     );
-  }
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [campaign.id, surface, position]);
+
+  const onClick = () => trackSponsoredEvent({ type: 'click', campaignId: campaign.id, surface, position });
+  const inner = <SponsoredInner surface={surface} campaign={campaign} store={matched ?? campaign.store} />;
 
   return (
-    <button type="button" onClick={() => onSearch(ad.store)} className="block w-full text-left">
-      {inner}
-    </button>
+    <div ref={ref} data-sponsored-campaign={campaign.id}>
+      {matched ? (
+        <Link href={`/tienda/${slugifyStore(matched)}`} className="block" onClick={onClick}>
+          {inner}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            onClick();
+            onSearch(campaign.store);
+          }}
+          className="block w-full text-left"
+        >
+          {inner}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -90,16 +120,22 @@ export function HomeDesktopRail({
   storeFilter,
   onStoreFilter,
   onSearch,
+  hunters,
+  now,
 }: {
   stores: string[];
   storeFilter: string | null;
   onStoreFilter: (store: string | null) => void;
   onSearch: (query: string) => void;
+  hunters: FeedHunter[];
+  /** Momento de referencia para la vigencia de campañas. */
+  now: number;
 }) {
   const shown = stores.slice(0, 8);
+  const railCampaign = eligibleCampaigns(SPONSORED_CAMPAIGNS, 'rail', now)[0] ?? null;
   return (
     <aside className="hidden xl:block w-[220px] shrink-0 sticky top-24 space-y-3 opacity-90">
-      <SponsoredSlot kind="rail" stores={stores} onSearch={onSearch} />
+      {railCampaign ? <SponsoredSlot campaign={railCampaign} surface="rail" stores={stores} onSearch={onSearch} /> : null}
       {shown.length > 0 ? (
         <div className="rounded-2xl bg-white dark:bg-[#141414] border border-[#e8e8ed] dark:border-[#2a2a2a] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
@@ -135,7 +171,7 @@ export function HomeDesktopRail({
           </div>
         </div>
       ) : null}
-      <RailOfferRequests />
+      <RailCommunity hunters={hunters} />
     </aside>
   );
 }

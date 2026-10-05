@@ -5,18 +5,20 @@ import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import OwnerSidebar from './OwnerSidebar';
 import OwnerHeader from './OwnerHeader';
+import ModuleBrief from './ModuleBrief';
+import { findFounderModule } from '@/lib/founderOs/modules';
 import LoadingState from '@/app/components/panel/LoadingState';
 import { cn } from '@/app/components/panel/utils';
 
-/** El CEO Dashboard (/admin/owner) y sus vistas usan el lienzo completo; la navegación se abre desde el header. */
+/** El CEO Dashboard (/admin/owner) usa el lienzo completo; la navegación se abre desde el header. */
 const CEO_DASHBOARD_PATH = '/admin/owner';
 const CEO_DASHBOARD_BG = { backgroundColor: '#0b0b14', backgroundImage: 'radial-gradient(ellipse 70% 40% at 15% -10%, rgba(124,58,237,0.10), transparent)' };
 
 export default function OwnerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isCeoDashboard = pathname === CEO_DASHBOARD_PATH;
-  const isCeoVista = pathname.startsWith('/admin/owner/vista');
-  const isCeoCanvas = isCeoDashboard || isCeoVista;
+  const isCeoCanvas = isCeoDashboard;
+  const brief = isCeoCanvas ? null : findFounderModule(pathname);
   const [ready, setReady] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -94,7 +96,10 @@ export default function OwnerShell({ children }: { children: ReactNode }) {
           panelLabel={isCeoCanvas ? 'Abrir navegación de Founder OS' : sidebarCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
         />
         <main className="flex-1 overflow-y-auto">
-          <div className={cn('mx-auto w-full', isCeoVista ? 'max-w-none' : 'px-4 py-6', isCeoDashboard ? 'max-w-[1600px] lg:px-5 lg:py-3' : isCeoVista ? '' : 'max-w-[1440px] lg:px-8 lg:py-8')}>{children}</div>
+          <div className={cn('mx-auto w-full px-4 py-6', isCeoDashboard ? 'max-w-[1600px] lg:px-5 lg:py-3' : 'max-w-[1440px] lg:px-8 lg:py-8')}>
+            {brief ? <ModuleBrief key={brief.href} module={brief} /> : null}
+            {children}
+          </div>
         </main>
       </div>
     </div>
