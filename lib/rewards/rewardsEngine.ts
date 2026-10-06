@@ -269,10 +269,10 @@ export async function createRewardFromLedgerEntry(
     };
   }
 
-  if (!options?.force) {
+  if (!options?.force && !isRewardsProgramActive()) {
     const membership = await latestBetaMembership(supabase, match.creatorId);
     const access = resolveRewardsAccess({
-      programActive: isRewardsProgramActive(),
+      programActive: false,
       betaEnabled: isRewardsBetaEnabled(),
       payoutEnabled: false,
       membership,
