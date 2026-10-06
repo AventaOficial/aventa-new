@@ -57,6 +57,7 @@ import { selectOfferImages, OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selec
 import { mergeMercadoLibreImageCandidates } from '@/lib/offers/mergeMercadoLibreImageCandidates';
 import { enrichRetailOfferFromHtml, pdpVerifiedFacts } from '@/lib/offers/enrichRetailOfferFromHtml';
 import {
+  amazonHtmlFallbackUrl,
   amazonHtmlScrapeUrl,
   isAmazonBotWallHtml,
 } from '@/lib/offers/amazonProductScrapeUrl';
@@ -367,20 +368,19 @@ export async function POST(request: Request) {
     let html = htmlResult?.html ?? '';
     let pageUrl = htmlResult?.pageUrl ?? workingUrl;
 
-    // If we still landed on a bot wall, retry once via /gp/aw/d/{ASIN}.
-    if (html && amazonAsinHint && isAmazonBotWallHtml(html)) {
-      const scrapeRetry = amazonHtmlScrapeUrl(
-        `https://www.amazon.com.mx/dp/${amazonAsinHint}`,
-      );
-      if (scrapeRetry !== htmlFetchHref) {
-        const retry = await fetchHtml(scrapeRetry);
+    // Mobile `/gp/aw/d/` is the first HTML hop. If that hop is a wall or fails,
+    // fall back to the canonical `/dp/` document (and the reverse).
+    if (amazonAsinHint && (!html || isAmazonBotWallHtml(html))) {
+      const fallbackHref = amazonHtmlFallbackUrl(htmlFetchHref, offerResolved.canonicalUrl);
+      if (fallbackHref) {
+        const retry = await fetchHtml(fallbackHref);
         if (retry?.html && !isAmazonBotWallHtml(retry.html)) {
           html = retry.html;
           pageUrl = retry.pageUrl;
-        } else {
+        } else if (!html || isAmazonBotWallHtml(html)) {
           html = '';
         }
-      } else {
+      } else if (html && isAmazonBotWallHtml(html)) {
         html = '';
       }
     }

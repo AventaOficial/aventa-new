@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  amazonHtmlFallbackUrl,
   amazonHtmlScrapeUrl,
   isAmazonBotWallHtml,
 } from '@/lib/offers/amazonProductScrapeUrl';
@@ -18,6 +19,19 @@ describe('amazonHtmlScrapeUrl', () => {
     expect(amazonHtmlScrapeUrl('https://link.amazon/B0BHTTDBC2')).toBe(
       'https://link.amazon/B0BHTTDBC2',
     );
+  });
+
+  it('falls back from the mobile hop to the canonical /dp/ URL', () => {
+    const canonical = 'https://www.amazon.com.mx/dp/B0BHTTDBC2';
+    const mobile = 'https://www.amazon.com.mx/gp/aw/d/B0BHTTDBC2';
+    expect(amazonHtmlFallbackUrl(mobile, canonical)).toBe(canonical);
+    expect(amazonHtmlFallbackUrl(canonical, canonical)).toBe(mobile);
+  });
+
+  it('keeps a product page that still has #productTitle', () => {
+    const html =
+      '<html><head>validateCaptcha</head><span id="productTitle">Audífonos</span></html>';
+    expect(isAmazonBotWallHtml(html)).toBe(false);
   });
 
   it('detects bot wall HTML', () => {
