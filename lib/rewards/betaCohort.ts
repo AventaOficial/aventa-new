@@ -1,7 +1,8 @@
 /**
- * Cohorte REWARDS_BETA.
+ * Cohorte de Rewards.
  * La participación en basis points vive solo en config.ts.
- * Esta capa decide quién puede verla y activarla. No crea rewards ni payouts.
+ * REWARDS_BETA_UI_ENABLED decide la experiencia. REWARDS_PROGRAM_ACTIVE decide si se acumula.
+ * Esta capa no crea rewards ni payouts.
  */
 import { REWARDS_CREATOR_SHARE_BPS, REWARDS_HOLD_DAYS, REWARDS_MIN_PAYOUT_CENTS, type RewardStatus, REWARD_STATUSES } from '@/lib/rewards/config';
 
@@ -46,9 +47,12 @@ function envFlag(name: string): boolean {
   return value === 'true' || value === '1' || value === 'yes';
 }
 
-/** Cohorte cerrada. Apagada por defecto. No abre el programa a todo el mundo. */
-export function isRewardsBetaEnabled(): boolean {
-  return envFlag('REWARDS_BETA_ENABLED');
+/**
+ * Experiencia de la cohorte. Apagada por defecto.
+ * Solo decide onboarding y visibilidad. No autoriza rewards, settlements ni payouts.
+ */
+export function isRewardsBetaUiEnabled(): boolean {
+  return envFlag('REWARDS_BETA_UI_ENABLED');
 }
 
 /** Pagos reales de la cohorte. Apagado por defecto. No sustituye el freeze del money path. */
@@ -94,14 +98,16 @@ export type RewardsAccess = {
 
 export function resolveRewardsAccess(input: {
   programActive: boolean;
-  betaEnabled: boolean;
   payoutEnabled: boolean;
   membership: RewardsBetaMembership | null;
+  /** Visibilidad. No participa en canAccrue ni en payoutEnabled. */
+  experience: { uiEnabled: boolean };
 }): RewardsAccess {
   const status = input.membership?.status ?? 'none';
   const version = input.membership?.ruleVersion ?? null;
-  const enrolled = status === 'enrolled';
   const invited = status === 'invited';
+  const enrolled = status === 'enrolled';
+  const experienceVisible = input.experience.uiEnabled && (invited || enrolled);
 
   if (input.programActive) {
     const rule = activeRewardsRule();
@@ -117,29 +123,16 @@ export function resolveRewardsAccess(input: {
     };
   }
 
-  if (!input.betaEnabled || status === 'none' || status === 'removed' || status === 'suspended') {
-    return {
-      audience: 'closed',
-      membership: status,
-      canSeeEconomics: false,
-      canAccrue: false,
-      needsOnboarding: false,
-      payoutEnabled: false,
-      shareBps: null,
-      ruleVersion: null,
-    };
-  }
-
-  const rule = ruleByVersion(version);
+  const rule = experienceVisible ? ruleByVersion(version) : null;
   return {
-    audience: 'beta',
+    audience: experienceVisible ? 'beta' : 'closed',
     membership: status,
-    canSeeEconomics: invited || enrolled,
-    canAccrue: enrolled,
-    needsOnboarding: invited,
-    payoutEnabled: input.payoutEnabled && enrolled,
+    canSeeEconomics: experienceVisible,
+    canAccrue: false,
+    needsOnboarding: input.experience.uiEnabled && invited,
+    payoutEnabled: false,
     shareBps: rule?.creatorShareBps ?? null,
-    ruleVersion: version,
+    ruleVersion: experienceVisible ? version : null,
   };
 }
 

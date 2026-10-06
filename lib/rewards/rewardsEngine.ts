@@ -6,9 +6,7 @@ import {
   type RewardStatus,
 } from '@/lib/rewards/config';
 import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
-import { isRewardsBetaEnabled } from '@/lib/rewards/betaCohort';
-import { latestBetaMembership } from '@/lib/rewards/betaCohortStore';
-import { resolveRewardsAccess } from '@/lib/rewards/betaCohort';
+import { isRewardsPayoutEnabled, resolveRewardsAccess } from '@/lib/rewards/betaCohort';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import { BOT_AUTHOR_BLOCKED_REASON, isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 import { isOfferParticipatingInRewards } from '@/lib/rewards/offerParticipation';
@@ -189,8 +187,14 @@ export async function createRewardFromLedgerEntry(
     return { created: false, reason: 'money_path_frozen' };
   }
 
-  if (!options?.force && !isRewardsProgramActive() && !isRewardsBetaEnabled()) {
-    return { created: false, reason: 'program_inactive' };
+  if (!options?.force) {
+    const access = resolveRewardsAccess({
+      programActive: isRewardsProgramActive(),
+      payoutEnabled: isRewardsPayoutEnabled(),
+      membership: null,
+      experience: { uiEnabled: false },
+    });
+    if (!access.canAccrue) return { created: false, reason: 'program_inactive' };
   }
 
   if (ledger.status === 'void' || ledger.status === 'reversed') {
@@ -267,17 +271,6 @@ export async function createRewardFromLedgerEntry(
       method: autoMatch.method,
       confidence: 'high',
     };
-  }
-
-  if (!options?.force && !isRewardsProgramActive()) {
-    const membership = await latestBetaMembership(supabase, match.creatorId);
-    const access = resolveRewardsAccess({
-      programActive: false,
-      betaEnabled: isRewardsBetaEnabled(),
-      payoutEnabled: false,
-      membership,
-    });
-    if (!access.canAccrue) return { created: false, reason: 'program_inactive' };
   }
 
   const participating = await isOfferParticipatingInRewards(supabase, match.offerId);
