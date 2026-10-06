@@ -7,6 +7,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { observeExplicitOrderIdentity } from '../shadow/crossSourceOrder';
 import { recordCommission } from '../recordCommission';
 import { recordConversion } from '../recordConversion';
 import { recordCommissionRevision } from '../revisions/recordCommissionRevision';
@@ -63,6 +64,15 @@ export async function persistNormalizedBatch(
     conversionIdByExternal.set(c.externalConversionId, row.conversionId);
     conversions += 1;
     if (row.reused) reused += 1;
+    if (c.explicitOrderKey?.trim()) {
+      const noted = await observeExplicitOrderIdentity(supabase, {
+        network: c.network,
+        source: c.source,
+        conversionId: row.conversionId,
+        explicitOrderKey: c.explicitOrderKey,
+      });
+      if (!noted.ok) return { ok: false, error: noted.reason, code: 'order_identity_failed' };
+    }
   }
 
   for (const m of batch.commissions) {
