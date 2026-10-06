@@ -4,21 +4,24 @@ const KEY = 'aventa_guide_progress_v1';
 
 export type GuideProgressMap = Record<GuideId, number>;
 
-const EMPTY: GuideProgressMap = { aventa: -1, cazador: -1, ahorrador: -1 };
+export function emptyGuideProgress(): GuideProgressMap {
+  return Object.fromEntries(GUIDES.map((guide) => [guide.id, -1])) as GuideProgressMap;
+}
 
 export function readGuideProgress(): GuideProgressMap {
-  if (typeof window === 'undefined') return { ...EMPTY };
+  const empty = emptyGuideProgress();
+  if (typeof window === 'undefined') return empty;
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...EMPTY };
+    if (!raw) return empty;
     const parsed = JSON.parse(raw) as Partial<GuideProgressMap>;
-    return {
-      aventa: Number.isFinite(parsed.aventa) ? Number(parsed.aventa) : -1,
-      cazador: Number.isFinite(parsed.cazador) ? Number(parsed.cazador) : -1,
-      ahorrador: Number.isFinite(parsed.ahorrador) ? Number(parsed.ahorrador) : -1,
-    };
+    for (const guide of GUIDES) {
+      const value = parsed[guide.id];
+      empty[guide.id] = Number.isFinite(value) ? Number(value) : -1;
+    }
+    return empty;
   } catch {
-    return { ...EMPTY };
+    return emptyGuideProgress();
   }
 }
 

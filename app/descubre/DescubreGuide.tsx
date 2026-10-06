@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GuideHub from './components/GuideHub';
 import InteractiveGuide from './components/InteractiveGuide';
 import { getGuideById, isGuideId, type GuideId } from './guides/content';
-import { markGuideStep, readGuideProgress, stepsSeen, type GuideProgressMap } from '@/lib/guides/guideProgress';
+import { emptyGuideProgress, markGuideStep, readGuideProgress, stepsSeen, type GuideProgressMap } from '@/lib/guides/guideProgress';
 
 type StepState = { index: number; dir: number };
 
@@ -19,11 +19,7 @@ export default function DescubreGuide() {
   const pasoParam = Number.parseInt(searchParams.get('paso') ?? '', 10);
 
   const [step, setStep] = useState<StepState>({ index: 0, dir: 0 });
-  const [progress, setProgress] = useState<GuideProgressMap>({
-    aventa: -1,
-    cazador: -1,
-    ahorrador: -1,
-  });
+  const [progress, setProgress] = useState<GuideProgressMap>(emptyGuideProgress);
 
   useEffect(() => {
     setProgress(readGuideProgress());

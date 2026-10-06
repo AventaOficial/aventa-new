@@ -5,11 +5,8 @@ import {
   ArrowUp,
   Heart,
   UserRound,
-  Settings,
-  Bell,
   Compass,
   Target,
-  ShoppingBag,
   PlusCircle,
   Shield,
   Coins,
@@ -17,13 +14,24 @@ import {
   Filter,
   Mail,
   Smartphone,
+  ShoppingBag,
 } from 'lucide-react';
 import {
-  REWARDS_REQUIRED_APPROVED_OFFERS,
-  REWARDS_REQUIRED_POSITIVE_VOTES,
+  REWARDS_CREATOR_SHARE_BPS,
+  REWARDS_HOLD_DAYS,
+  REWARDS_MIN_PAYOUT_CENTS,
+  REWARD_STATUSES,
 } from '@/lib/rewards/config';
+import {
+  REWARDS_LEVEL_COUNT,
+  REWARDS_VALID_STATUSES,
+  REWARDS_WELCOME_DAYS,
+  rewardsLevelShareBps,
+} from '@/lib/rewards/levels';
+import { isRewardsPayoutEnabled } from '@/lib/rewards/betaCohort';
+import { explainRewardPresentation } from '@/lib/me/rewardStatusCopy';
 
-export type GuideId = 'aventa' | 'cazador' | 'ahorrador';
+export type GuideId = 'aventa' | 'cazador' | 'ahorrador' | 'gana';
 
 export type GuideFilter = 'interactive' | 'steps' | 'rewards';
 
@@ -75,12 +83,47 @@ export type GuideMeta = {
   steps: GuideStep[];
 };
 
+function pct(bps: number): string {
+  return `${Math.round(bps / 100)}%`;
+}
+
+function levelPath(): string {
+  return Array.from({ length: REWARDS_LEVEL_COUNT }, (_, index) => pct(rewardsLevelShareBps(index + 1))).join(' → ');
+}
+
+function statusMeaning(status: (typeof REWARD_STATUSES)[number]): string {
+  const label =
+    status === 'PENDING'
+      ? 'Pendiente'
+      : status === 'VALIDATING'
+        ? 'En validación'
+        : status === 'AVAILABLE'
+          ? 'Disponible'
+          : status === 'PAID'
+            ? 'Entregada'
+            : status === 'CANCELLED'
+              ? 'Cancelada'
+              : 'Revertida';
+  const uiStatus =
+    status === 'AVAILABLE' ? 'available' : status === 'PAID' ? 'delivered' : status === 'CANCELLED' ? 'cancelled' : 'validating';
+  return explainRewardPresentation({ status, statusLabel: label, uiStatus }).meaning;
+}
+
+const welcomeShare = pct(REWARDS_CREATOR_SHARE_BPS);
+const maxShare = pct(rewardsLevelShareBps(REWARDS_LEVEL_COUNT));
+const minPayout = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(
+  REWARDS_MIN_PAYOUT_CENTS / 100,
+);
+const payoutLine = isRewardsPayoutEnabled()
+  ? 'El pago del programa está abierto solo para quien ya cumple las reglas de cobro.'
+  : 'Hoy no se puede cobrar. El pago del programa está apagado, aunque una recompensa llegue a disponible.';
+
 export const GUIDES: GuideMeta[] = [
   {
     id: 'aventa',
-    title: 'Guía Aventa',
-    tagline: 'Todo lo que puedes hacer',
-    description: 'Feed, votos, favoritos, perfil, configuración y más — la guía completa de la plataforma.',
+    title: 'Conoce Aventa',
+    tagline: 'Empieza aquí',
+    description: 'El feed, los votos, los favoritos y tu perfil.',
     icon: Compass,
     accent: 'from-violet-600 to-fuchsia-600',
     theme: 'violet',
@@ -94,7 +137,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'community',
         body: [
           'AVENTA reúne ofertas reales votadas por personas como tú. No es un catálogo estático: la comunidad sube, valida y empuja al ranking lo que vale la pena.',
-          'Puedes explorar, votar, guardar, comentar y — si quieres — convertirte en cazador subiendo hallazgos.',
+          'Puedes explorar, votar, guardar, comentar y, si quieres, publicar hallazgos como cazador.',
         ],
         cta: { label: 'Ir al inicio', href: '/' },
       },
@@ -120,7 +163,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'vote',
         body: [
           'Flecha arriba si el precio y la oferta son buenos. Flecha abajo si crees que puede mejorar o no convence.',
-          'Los votos alimentan el ranking: lo bueno sube, lo dudoso baja. Ayudas a miles sin escribir un comentario.',
+          'Los votos alimentan el ranking: lo bueno sube, lo dudoso baja.',
         ],
       },
       {
@@ -130,8 +173,8 @@ export const GUIDES: GuideMeta[] = [
         subtitle: 'Favoritos',
         illustration: 'favorites',
         body: [
-          'Toca el corazón en cualquier oferta para guardarla. Ideal cuando aún no compras pero no quieres perder el link.',
-          'Revisa todo en Mis favoritos desde tu menú de perfil.',
+          'Toca el corazón en cualquier oferta para guardarla. Sirve cuando aún no compras y no quieres perder el enlace.',
+          'Revisa todo en Favoritos.',
         ],
         cta: { label: 'Ver favoritos', href: '/me/favorites' },
       },
@@ -142,8 +185,8 @@ export const GUIDES: GuideMeta[] = [
         subtitle: 'Personalización',
         illustration: 'personalized',
         body: [
-          'En onboarding y Configuración eliges categorías y tiendas. El tab Para ti prioriza ofertas que encajan contigo.',
-          'También mejora con tus votos y favoritos: cuanto más usas AVENTA, más fino queda tu feed.',
+          'En Configuración eliges categorías. El tab Para ti prioriza ofertas que encajan con esa elección.',
+          'También mejora con tus votos y favoritos.',
         ],
         cta: { label: 'Ajustar preferencias', href: '/settings' },
       },
@@ -155,55 +198,32 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'comments',
         body: [
           'Dentro de cada oferta puedes comentar dudas, tips o experiencias. Los comentarios pasan por moderación.',
-          'Si algo no cuadra — precio falso, enlace roto, spam — repórtalo. Mantienes limpio el ecosistema para todos.',
+          'Si algo no cuadra — precio falso, enlace roto, spam — repórtalo.',
         ],
       },
       {
         id: 'perfil',
         icon: UserRound,
-        title: 'Tu perfil público',
-        subtitle: '/u/tu-nombre',
+        title: 'Tu perfil',
+        subtitle: 'Identidad en Aventa',
         illustration: 'profile',
         body: [
-          'Cada usuario tiene una URL pública para compartir su actividad y ofertas subidas.',
-          'Nombre y avatar se editan en Configuración (el nombre visible tiene cooldown de 14 días).',
+          'Tu perfil muestra el nombre, el usuario, el Nivel Aventa y, si los configuras, la bio, la portada y la ubicación.',
+          'Lo que dejes vacío no se muestra. La actividad y la ciudad solo se publican si tú lo activas en Configuración.',
         ],
         cta: { label: 'Mi espacio', href: '/me' },
-      },
-      {
-        id: 'config',
-        icon: Settings,
-        title: 'Configuración y categorías',
-        subtitle: 'Tu cuenta',
-        illustration: 'settings',
-        body: [
-          'Desde Configuración cambias preferencias de feed, resúmenes por correo, contraseña y datos de perfil.',
-          'Las categorías que elijas alimentan el tab Para ti junto con tu comportamiento en la app.',
-        ],
-        cta: { label: 'Abrir configuración', href: '/settings' },
-      },
-      {
-        id: 'avisos',
-        icon: Bell,
-        title: 'Notificaciones y PWA',
-        subtitle: 'No te pierdas nada',
-        illustration: 'notifications',
-        body: [
-          'La campana agrupa avisos de ofertas y del equipo. Puedes instalar AVENTA como app (PWA) en móvil.',
-          'En Android suele aparecer «Instalar app»; en iPhone: Compartir → Añadir a pantalla de inicio.',
-        ],
       },
     ],
   },
   {
     id: 'cazador',
-    title: 'Guía del Cazador',
-    tagline: 'Sube, impacta y participa',
-    description: 'Cómo subir ofertas, pasar moderación, sumar reputación y entender el Programa de Recompensas.',
+    title: 'Conviértete en Cazador',
+    tagline: 'Sube e impacta',
+    description: 'Cómo publicar un hallazgo, pasar moderación y subir de nivel.',
     icon: Target,
     accent: 'from-orange-500 to-amber-500',
     theme: 'orange',
-    filters: ['interactive', 'steps', 'rewards'],
+    filters: ['interactive', 'steps'],
     steps: [
       {
         id: 'quien-es',
@@ -213,7 +233,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'hunter-intro',
         body: [
           'Un cazador encuentra precios reales — en tiendas, redes o promos — y los comparte con la comunidad.',
-          'Tu oferta ayuda a otros a ahorrar. Si cumples los requisitos del Programa de Recompensas y tus ofertas generan comisiones reales atribuibles, AVENTA puede otorgarte recompensas internas. No están garantizadas.',
+          'Publicar no activa Rewards. Esa explicación está en Gana con Aventa, y no aplica a todas las cuentas.',
         ],
         cta: { label: 'Subir mi primera oferta', href: '/subir' },
       },
@@ -225,59 +245,43 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'upload-flow',
         body: [
           'Pulsa + en la barra inferior (móvil) o lateral (escritorio). Pega el enlace de la tienda: intentamos rellenar título, imagen y tienda.',
-          'Completa precio, categoría y — si quieres — descripción, pasos, cupones o MSI. Envía y espera moderación (salvo auto-aprobación).',
+          'Completa precio, categoría y, si quieres, descripción, pasos, cupones o MSI. Envía y espera moderación, salvo auto-aprobación.',
         ],
-        tips: [
-          'Título claro: producto + tienda + beneficio.',
-          'Precio real y enlace que funcione.',
-          'Buena foto = más votos.',
-        ],
+        tips: ['Título claro: producto + tienda + beneficio.', 'Precio real y enlace que funcione.', 'Buena foto = más votos.'],
         cta: { label: 'Abrir subir oferta', href: '/subir' },
       },
       {
         id: 'moderacion',
         icon: Shield,
-        title: 'Moderación y auto-aprobación',
+        title: 'Moderación',
         subtitle: 'Calidad primero',
         illustration: 'moderation',
         body: [
           'Las ofertas nuevas pasan por moderación para evitar spam y precios falsos.',
-          'Con reputación alta (nivel ≥ 3) tus ofertas pueden publicarse al instante con vigencia de 7 días. El owner también puede autorizar cazadores de confianza (equipo de subida) con la misma exención.',
+          'Con Nivel Aventa 3 tus ofertas pueden publicarse al instante, con vigencia de 7 días. Eso es reputación, no una recompensa.',
         ],
-      },
-      {
-        id: 'recompensas',
-        icon: Coins,
-        title: 'Programa de Recompensas',
-        subtitle: 'Calidad y comisión real',
-        illustration: 'commissions',
-        body: [
-          `AVENTA monetiza mediante enlaces de afiliado propios (no eres afiliado de Amazon ni Mercado Libre). Para desbloquear el programa necesitas ${REWARDS_REQUIRED_APPROVED_OFFERS} ofertas aprobadas y ${REWARDS_REQUIRED_POSITIVE_VOTES} votantes positivos distintos (más antigüedad y tasa de aprobación). Los votos ayudan al desbloqueo; no generan dinero por sí solos.`,
-          'Tras desbloquear, eliges una Oferta de Bienvenida única. Solo participan esa oferta y las elegibles que publiques después. Una recompensa depende de una comisión real confirmada y atribuible; en Mercado Libre puede requerir revisión manual. No todas las ofertas generan recompensa.',
-        ],
-        cta: { label: 'Ver mi perfil y recompensas', href: '/me' },
       },
       {
         id: 'reputacion',
         icon: TrendingUp,
-        title: 'Reputación y confianza',
-        subtitle: 'Sube de nivel',
+        title: 'Nivel Aventa',
+        subtitle: 'Reputación, no dinero',
         illustration: 'reputation',
         body: [
-          'Tu reputación sube con ofertas y comentarios aprobados y con likes en tus comentarios; baja con rechazos. Desde nivel 2 tus comentarios se publican sin revisión y desde nivel 3 también tus ofertas. Tu voto pesa más a mayor nivel. La reputación no genera dinero.',
-          'Evita duplicados, precios inflados o enlaces rotos: la comunidad vota y eso define tu trayectoria.',
+          'El Nivel Aventa sube con ofertas y comentarios aprobados y con likes en tus comentarios. Baja con rechazos. Desde el nivel 2 tus comentarios se publican sin revisión. Tu voto pesa más a mayor nivel.',
+          'No es Rewards y no es el XP de los logros. La reputación no genera dinero.',
         ],
-        cta: { label: 'Mis ofertas', href: '/me' },
+        cta: { label: 'Ver mi nivel', href: '/me/nivel' },
       },
       {
         id: 'tips-cazador',
         icon: Sparkles,
-        title: 'Tips de cazador pro',
+        title: 'Tips de cazador',
         subtitle: 'Destaca en el feed',
         illustration: 'hunter-tips',
         body: [
-          'Sube antes que nadie en promos fuertes (Buen Fin, Hot Sale, Prime Day).',
-          'Explica en la descripción por qué es buena oferta: precio histórico, comparativa, cupón extra.',
+          'Sube pronto cuando hay una promo fuerte.',
+          'Explica por qué es buena oferta: precio, comparativa o cupón.',
           'Responde comentarios: una oferta viva genera más confianza y votos.',
         ],
       },
@@ -285,106 +289,192 @@ export const GUIDES: GuideMeta[] = [
   },
   {
     id: 'ahorrador',
-    title: 'Guía del Ahorrador',
+    title: 'Aprende a ahorrar',
     tagline: 'Encuentra sin complicarte',
-    description: 'Para quien solo quiere buenas ofertas: feed, filtros, favoritos y alertas.',
+    description: 'Filtros, correo y la app en tu pantalla.',
     icon: ShoppingBag,
-    accent: 'from-teal-600 to-emerald-500',
+    accent: 'from-teal-500 to-emerald-500',
     theme: 'teal',
     filters: ['interactive', 'steps'],
     steps: [
       {
-        id: 'intro',
-        icon: Heart,
-        title: 'Ahorra sin subir nada',
-        subtitle: 'Modo ahorrador',
+        id: 'intro-ahorrador',
+        icon: ShoppingBag,
+        title: 'Ahorrar en Aventa',
+        subtitle: 'Sin perseguir cada tienda',
         illustration: 'saver-intro',
         body: [
-          'No necesitas publicar ofertas para sacarle jugo a AVENTA. Explora, vota lo bueno, guarda favoritos y deja que la comunidad haga el trabajo pesado.',
-          'Entre más interactúes, mejor se ajusta tu tab Para ti.',
+          'El feed ya ordena hallazgos de la comunidad. Tu trabajo es filtrar lo que te importa y guardar lo que vas a revisar.',
+          'Votar, favoritos y las pestañas del inicio se explican en Conoce Aventa.',
         ],
-        cta: { label: 'Ver ofertas', href: '/' },
-      },
-      {
-        id: 'feed-ahorrador',
-        icon: LayoutGrid,
-        title: 'Elige cómo navegar',
-        subtitle: 'Tabs del inicio',
-        illustration: 'browse-feed',
-        body: [
-          'Para ti — lo más relevante para tus gustos.',
-          'Top — lo que más respalda la comunidad.',
-          'Día a día — básicos y súper.',
-          'Recientes — recién publicado, ideal para cazar antes que se acabe.',
-        ],
-        cta: { label: 'Ir al feed', href: '/' },
+        cta: { label: 'Ir al inicio', href: '/' },
       },
       {
         id: 'filtros',
         icon: Filter,
-        title: 'Filtra por categoría o tienda',
-        subtitle: 'Menos ruido',
+        title: 'Filtra antes de abrir',
+        subtitle: 'Tienda, búsqueda y Día a día',
         illustration: 'filters',
         body: [
-          'Usa los filtros del inicio o entra directo a una categoría (Tecnología, Moda, Gaming…) o tienda (Amazon, Liverpool…).',
-          'Configura tus 3 temas favoritos en onboarding o Configuración para afinar Para ti.',
+          'Busca por producto y, en escritorio, filtra por tienda. Día a día concentra hogar, súper y básicos.',
+          'Si una oferta no convence, sigue. El ranking no se compra.',
         ],
-        cta: { label: 'Tecnología', href: '/categoria/tecnologia' },
-      },
-      {
-        id: 'favoritos-ahorrador',
-        icon: Heart,
-        title: 'Lista de deseos inteligente',
-        subtitle: 'Favoritos',
-        illustration: 'saver-favorites',
-        body: [
-          'Marca ofertas con el corazón y vuelve cuando estés listo para comprar.',
-          'Es tu historial personal de oportunidades — sin emails ni hojas de cálculo.',
-        ],
-        cta: { label: 'Mis favoritos', href: '/me/favorites' },
       },
       {
         id: 'correo',
         icon: Mail,
-        title: 'Resúmenes en tu bandeja',
-        subtitle: 'Sin abrir la app',
+        title: 'Resúmenes por correo',
+        subtitle: 'Diario y semanal',
         illustration: 'saver-digest',
         body: [
-          'Activa en Configuración el resumen diario (Top 10) o semanal (más comentadas y mejor votadas).',
-          'Perfecto si entras poco pero no quieres perderte lo mejor.',
+          'En Configuración puedes activar el resumen diario y el resumen semanal. Son los dos avisos de correo que existen hoy.',
+          'No hay alertas separadas por oferta destacada, por categoría o por comentarios.',
         ],
-        cta: { label: 'Activar resúmenes', href: '/settings' },
-      },
-      {
-        id: 'vota-ahorrador',
-        icon: ArrowUp,
-        title: 'Vota y ayuda gratis',
-        subtitle: '1 segundo, mucho impacto',
-        illustration: 'saver-vote',
-        body: [
-          'Aunque no subas ofertas, tu flecha arriba o abajo ordena el feed para todos.',
-          'Es la forma más rápida de participar y mantener la calidad de la comunidad.',
-        ],
+        cta: { label: 'Abrir configuración', href: '/settings' },
       },
       {
         id: 'pwa-ahorrador',
         icon: Smartphone,
-        title: 'Llévala en el bolsillo',
-        subtitle: 'App instalada',
+        title: 'Aventa en tu pantalla',
+        subtitle: 'Instalar la app',
         illustration: 'notifications',
         body: [
-          'Instala AVENTA en tu pantalla de inicio para abrirla como app nativa.',
-          'Combínala con notificaciones y favoritos: ahorras tiempo en cada compra.',
+          'En el celular puedes añadir Aventa a la pantalla de inicio.',
+          'En Android suele aparecer Instalar. En iPhone: Compartir → Añadir a pantalla de inicio.',
         ],
+      },
+    ],
+  },
+  {
+    id: 'gana',
+    title: 'Gana con Aventa',
+    tagline: 'Rewards, con claridad',
+    description: 'Qué es una recompensa, quién puede tenerla y qué no promete.',
+    icon: Coins,
+    accent: 'from-violet-600 to-fuchsia-600',
+    theme: 'violet',
+    filters: ['rewards', 'steps'],
+    steps: [
+      {
+        id: 'que-es-rewards',
+        icon: Coins,
+        title: 'Qué es Rewards',
+        subtitle: 'No está abierto para todos',
+        illustration: 'commissions',
+        body: [
+          'Rewards es un programa de participación sobre comisiones de afiliado de Aventa. No es tu Nivel Aventa y no son los logros.',
+          'No está disponible para todas las cuentas. Solo participa quien recibe invitación y queda inscrito. Una cuenta sin esa inscripción no tiene Rewards activo.',
+          'Esta guía no promete dinero ni un pago.',
+        ],
+        cta: { label: 'Ver mi Rewards', href: '/me/recompensas' },
+      },
+      {
+        id: 'que-es-recompensa',
+        icon: Coins,
+        title: 'Qué significa una recompensa',
+        subtitle: 'Una parte de una comisión elegible',
+        illustration: 'commissions',
+        body: [
+          `Una recompensa es la parte del creador sobre una comisión real, confirmada y atribuible. El máximo de esa parte es ${maxShare}.`,
+          'Publicar, votar o comprar cualquier cosa no crea una recompensa. No todas las ofertas generan una.',
+        ],
+      },
+      {
+        id: 'bienvenida-rewards',
+        icon: Sparkles,
+        title: 'Bienvenida',
+        subtitle: `${welcomeShare} durante ${REWARDS_WELCOME_DAYS} días`,
+        illustration: 'commissions',
+        body: [
+          `Si tu cuenta queda inscrita, la bienvenida usa el máximo, ${welcomeShare}, durante ${REWARDS_WELCOME_DAYS} días desde esa inscripción.`,
+          'Si ese plazo cierra sin una recompensa válida, quedas en el primer nivel. La bienvenida no abre el programa a quien no está inscrito.',
+        ],
+      },
+      {
+        id: 'niveles',
+        icon: TrendingUp,
+        title: 'Niveles de Rewards',
+        subtitle: `Hasta ${maxShare}`,
+        illustration: 'reputation',
+        body: [
+          `Después de la bienvenida, cada recompensa válida sube un nivel: ${levelPath()}.`,
+          `El tope es ${maxShare}. Cancelada y revertida no suben de nivel. Estos niveles no mueven el Nivel Aventa.`,
+        ],
+      },
+      {
+        id: 'cuando-aparece',
+        icon: Coins,
+        title: 'Cuándo aparece',
+        subtitle: 'Comisión elegible',
+        illustration: 'commissions',
+        body: [
+          'Aparece cuando hay una comisión real, confirmada y atribuible a una oferta elegible. En Mercado Libre puede hacer falta revisión manual.',
+          'Un clic, una visita o una compra que Aventa no puede atribuir no generan recompensa.',
+        ],
+      },
+      {
+        id: 'estados',
+        icon: Shield,
+        title: 'Estados',
+        subtitle: REWARD_STATUSES.join(' · '),
+        illustration: 'moderation',
+        body: REWARD_STATUSES.map((status) => `${status}. ${statusMeaning(status)}`),
+      },
+      {
+        id: 'cancelacion',
+        icon: Shield,
+        title: 'Cancelada o revertida',
+        subtitle: 'Deja de contar',
+        illustration: 'moderation',
+        body: [
+          `Aventa puede pasar a CANCELLED una recompensa que sigue en ${['PENDING', 'VALIDATING', 'AVAILABLE'].join(', ')}. REVERSED es otro estado.`,
+          `Ninguno de los dos está en las que cuentan para el nivel (${REWARDS_VALID_STATUSES.join(', ')}). Por eso dejan de sumar.`,
+        ],
+      },
+      {
+        id: 'cobro',
+        icon: Coins,
+        title: 'Compra elegible y cobro',
+        subtitle: 'La regla existe; el pago no está abierto',
+        illustration: 'commissions',
+        body: [
+          `Una compra elegible es la que produce una comisión atribuible y confirmada, no cualquier compra hecha desde Aventa. Antes de AVAILABLE hay ${REWARDS_HOLD_DAYS} días de validación.`,
+          `La regla de monto mínimo es ${minPayout}. ${payoutLine}`,
+          'Si algún día un pago real se abre, Aventa puede pedir datos de pago y fiscales para identificar a la persona y el depósito. Esta guía no los pide y el pago sigue apagado.',
+        ],
+      },
+      {
+        id: 'tres-cosas',
+        icon: UserRound,
+        title: 'Nivel, logros y Rewards',
+        subtitle: 'Tres sistemas distintos',
+        illustration: 'profile',
+        body: [
+          'Nivel Aventa es reputación: puntos por ofertas, comentarios y likes. Sirve para confianza y peso del voto.',
+          'Los logros son reconocimientos que puedes destacar en el perfil, hasta cinco.',
+          'Rewards es la parte de una comisión elegible, solo si tu cuenta está inscrita. Ninguno de los tres garantiza un pago.',
+        ],
+      },
+      {
+        id: 'sin-rewards',
+        icon: UserRound,
+        title: 'Si tu cuenta no participa',
+        subtitle: 'Rewards no está activo',
+        illustration: 'profile',
+        body: [
+          'Si no tienes invitación o no quedaste inscrito, Rewards no está activo en tu cuenta. No verás porcentajes ni podrás cobrar.',
+          'Puedes seguir publicando, votando y usando el Nivel Aventa. Eso no desbloquea Rewards por sí solo.',
+        ],
+        cta: { label: 'Revisar mi cuenta', href: '/me/recompensas' },
       },
     ],
   },
 ];
 
-export function getGuideById(id: string | null | undefined): GuideMeta | undefined {
-  return GUIDES.find((g) => g.id === id);
+export function isGuideId(value: string | null | undefined): value is GuideId {
+  return GUIDES.some((guide) => guide.id === value);
 }
 
-export function isGuideId(value: string | null | undefined): value is GuideId {
-  return value === 'aventa' || value === 'cazador' || value === 'ahorrador';
+export function getGuideById(id: GuideId): GuideMeta | undefined {
+  return GUIDES.find((guide) => guide.id === id);
 }

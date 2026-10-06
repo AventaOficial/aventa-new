@@ -170,9 +170,11 @@ export default function MyRewardsHistory() {
 
   const welcome = data?.welcome;
   const phase = welcome?.claimPhase ?? 'locked';
-  const commissionRewards = data?.rewards ?? [];
+  const commissionRewards = (data?.rewards ?? []).filter((reward) => reward.uiStatus !== 'synthetic' && !reward.isSynthetic);
   const hasWelcomePending = phase === 'pending_selection';
   const hasWelcomeComplete = phase === 'complete';
+  const syntheticNote = data?.moneyTruth?.emptyProductionMessage;
+  void syntheticNote;
   const isEmpty = !hasWelcomePending && !hasWelcomeComplete && commissionRewards.length === 0;
 
   return (
@@ -252,17 +254,6 @@ export default function MyRewardsHistory() {
         </article>
       ) : null}
 
-      {commissionRewards.length > 0 && data?.moneyTruth?.emptyProductionMessage ? (
-        <div className="rounded-2xl border border-dashed border-amber-500/30 bg-amber-950/20 p-4 text-center">
-          <p className="text-sm font-medium text-amber-100">
-            {data.moneyTruth.emptyProductionMessage}
-          </p>
-          <p className="mt-1 text-xs text-zinc-400">
-            Los registros de prueba no representan pagos reales.
-          </p>
-        </div>
-      ) : null}
-
       {commissionRewards.map((r, index) => {
         const num = (hasWelcomeComplete ? 2 : 1) + index;
         const Icon =
@@ -279,7 +270,11 @@ export default function MyRewardsHistory() {
               : r.uiStatus === 'synthetic'
                 ? 'bg-zinc-500/20 text-zinc-300'
                 : 'bg-amber-500/15 text-amber-300';
-        const explained = explainRewardPresentation({ uiStatus: r.uiStatus, statusLabel: r.statusLabel });
+        const explained = explainRewardPresentation({
+          uiStatus: r.uiStatus,
+          statusLabel: r.statusLabel,
+          status: r.status,
+        });
         const share = formatRewardShare(r.shareCents ?? null, r.currency ?? null);
 
         return (

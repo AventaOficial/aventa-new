@@ -28,7 +28,7 @@ import OfferMedia from '@/app/components/offers/OfferMedia';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
 import { achievementByCode } from '@/lib/achievements/catalog';
 
-const HERO_FEATURED_LIMIT = 4;
+const HERO_FEATURED_LIMIT = MAX_FEATURED_ACHIEVEMENTS;
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
@@ -55,6 +55,10 @@ type PublicProfileViewProps = {
   votesReceived: number | null;
   comments: number | null;
   sharePath: string | null;
+  bio?: string | null;
+  location?: string | null;
+  coverUrl?: string | null;
+  activityVisible?: boolean;
   levelHref?: string | null;
   showcase?: Array<{ code?: string; name: string; icon: string }>;
   showcaseLoading?: boolean;
@@ -69,6 +73,8 @@ type PublicProfileViewProps = {
 export type PublicProfileOwnerActions = {
   onPickAvatar: () => void;
   avatarUploading: boolean;
+  onPickCover?: () => void;
+  coverUploading?: boolean;
   achievementsHref: string;
   onOpenAchievements?: () => void;
 };
@@ -138,6 +144,10 @@ export default function PublicProfileView({
   votesReceived,
   comments,
   sharePath,
+  bio = null,
+  location = null,
+  coverUrl = null,
+  activityVisible = true,
   levelHref,
   showcase = [],
   showcaseLoading = false,
@@ -259,9 +269,22 @@ export default function PublicProfileView({
     <div className="space-y-4">
       <section aria-label={`Perfil de ${displayName}`} className="overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]">
         <div className="relative h-36 overflow-hidden bg-gradient-to-r from-[#5b4dff] via-[#c44bd4] to-[#ffb067] sm:h-48 lg:h-56">
-          {avatarUrl ? (
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+          ) : avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt="" className="h-full w-full object-cover opacity-70 blur-[2px]" />
+          ) : null}
+          {owner?.onPickCover ? (
+            <button
+              type="button"
+              onClick={owner.onPickCover}
+              disabled={owner.coverUploading}
+              className="absolute bottom-3 right-3 inline-flex min-h-11 items-center rounded-full bg-black/55 px-3 text-[13px] font-medium text-white"
+            >
+              {owner.coverUploading ? 'Subiendo portada…' : 'Cambiar portada'}
+            </button>
           ) : null}
         </div>
         <div className="relative px-4 pb-5 sm:px-6 sm:pb-6">
@@ -305,7 +328,17 @@ export default function PublicProfileView({
                 </button>
               ) : null}
             </div>
-            <div className="mb-1 flex items-center">
+            <div className="mb-1 flex items-center gap-2">
+              {owner ? (
+                <button
+                  type="button"
+                  onClick={owner.onPickAvatar}
+                  disabled={owner.avatarUploading}
+                  className="inline-flex min-h-11 items-center rounded-full border border-black/10 bg-white px-4 text-[13px] font-medium text-[#1d1d1f] disabled:opacity-50 dark:border-white/15 dark:bg-[#141414] dark:text-[#fafafa] sm:min-h-10"
+                >
+                  {owner.avatarUploading ? 'Subiendo…' : 'Cambiar foto de perfil'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void copyLink()}
@@ -320,6 +353,9 @@ export default function PublicProfileView({
           </div>
           <h1 className="mt-3 break-words text-[26px] font-semibold leading-tight text-[#1d1d1f] dark:text-[#fafafa] sm:text-[28px]">{displayName}</h1>
           {handle ? <p className="mt-0.5 break-all text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">@{handle}</p> : null}
+          <p className="mt-1 text-[13px] font-medium text-violet-600 dark:text-violet-400">Nivel Aventa · {label}</p>
+          {bio ? <p className="mt-3 max-w-2xl whitespace-pre-wrap text-[15px] leading-relaxed text-[#1d1d1f] dark:text-[#fafafa]">{bio}</p> : null}
+          {location ? <p className="mt-2 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">{location}</p> : null}
 
           {featured.length > 0 ? (
             <div className="mt-5 border-t border-black/5 pt-4 dark:border-white/10">
@@ -407,12 +443,17 @@ export default function PublicProfileView({
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {activityVisible ? (
+      <>
+      <section aria-label="Actividad">
+        <h2 className="mb-3 text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Actividad</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile icon={<Send className="h-4 w-4" aria-hidden />} value={String(published.length)} label="Ofertas publicadas" />
         <StatTile icon={<ThumbsUp className="h-4 w-4" aria-hidden />} value={votesReceived == null ? '—' : String(votesReceived)} label="Votos recibidos" />
         <StatTile icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={comments == null ? '—' : String(comments)} label="Comentarios" />
         <StatTile icon={<CalendarDays className="h-4 w-4" aria-hidden />} value={String(counts.size)} label="Días activo" />
-      </div>
+        </div>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,0.85fr)] lg:items-start">
         <div className="min-w-0 space-y-4">
@@ -452,7 +493,7 @@ export default function PublicProfileView({
                 <div>
                   <h2 className="flex items-center gap-2 text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">
                     <Send className="h-4 w-4 text-violet-600" aria-hidden />
-                    Ofertas de {displayName}
+                    Últimas ofertas
                   </h2>
                   <p className="mt-0.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Todas las ofertas que ha compartido con la comunidad.</p>
                 </div>
@@ -603,6 +644,8 @@ export default function PublicProfileView({
           {panel !== 'actividad' ? <HunterActivityBoard dates={published.map((offer) => offer.createdAt)} /> : null}
         </div>
       </div>
+      </>
+      ) : null}
       {pickerOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" role="presentation" onClick={() => setPickerOpen(false)}>
           <section

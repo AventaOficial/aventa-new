@@ -58,8 +58,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Solo jpg, jpeg, png, webp' }, { status: 400 });
     }
 
+    const kind = formData.get('kind') === 'cover' ? 'cover' : 'avatar';
     const ext = EXT_MAP[mime] ?? '.jpg';
-    const objectPath = `avatars/${userId}/${crypto.randomUUID()}${ext}`;
+    const objectPath = `${kind === 'cover' ? 'covers' : 'avatars'}/${userId}/${crypto.randomUUID()}${ext}`;
 
     const { error: upErr } = await supabase.storage
       .from('offer-images')
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
     const { error: dbErr } = await supabase
       .from('profiles')
-      .update({ avatar_url: publicUrl })
+      .update(kind === 'cover' ? { cover_url: publicUrl } : { avatar_url: publicUrl })
       .eq('id', userId);
 
     if (dbErr) {
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No se pudo guardar el perfil' }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, avatar_url: publicUrl });
+    return NextResponse.json(kind === 'cover' ? { ok: true, cover_url: publicUrl } : { ok: true, avatar_url: publicUrl });
   } catch (e) {
     console.error('[upload-profile-avatar]', e);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });

@@ -41,6 +41,8 @@ import { testersForTab } from '@/lib/offers/testerOffers';
 import { DEFAULT_FEED_POLICY, planFeedPlacements, type SponsoredCampaign } from '@/lib/sponsored/placements';
 import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
 import { activeHuntersFromFeed } from '@/lib/community/feedHunters';
+import { resolveActiveSeason, type SeasonDefinition } from '@/lib/seasons/resolve';
+import SeasonLayer from './components/SeasonLayer';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = HomeFeedViewMode | 'personalized';
@@ -113,6 +115,7 @@ function HomeContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('latest');
   /** Vigencia de campañas patrocinadas: se evalúa una vez por visita, no en cada render. */
   const [sessionStartedAt] = useState(() => Date.now());
+  const [season, setSeason] = useState<SeasonDefinition | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
@@ -141,6 +144,10 @@ function HomeContent() {
       feedStaleTimerRef.current = null;
       fetchOffersRef.current?.(undefined, { silent: true });
     }, 700);
+  }, []);
+
+  useEffect(() => {
+    setSeason(resolveActiveSeason(new Date()));
   }, []);
 
   useEffect(() => {
@@ -534,8 +541,13 @@ function HomeContent() {
         </div>
 
         <div className="hero-section">
-          <Hero searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+          <Hero
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            season={season?.modules.includes('hero') ? season.hero : null}
+          />
         </div>
+        <SeasonLayer season={season} onSearch={setSearchQuery} />
 
         <section className="mx-auto max-w-[1400px] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pt-1 pb-32 md:pb-12">
         <div className="mb-3 max-[400px]:mb-2 md:mb-4">
@@ -870,6 +882,7 @@ function HomeContent() {
           onStoreFilter={setStoreFilter}
           onSearch={setSearchQuery}
           hunters={feedHunters}
+          hunterNote={season?.modules.includes('hunter') ? season.hunterNote : null}
           now={sessionStartedAt}
         />
         </div>

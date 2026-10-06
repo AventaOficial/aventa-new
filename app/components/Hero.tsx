@@ -44,6 +44,7 @@ function HeroScene() {
 interface HeroProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
+  season?: { kicker: string; line: string; accent: string; sub: string } | null;
 }
 
 export function SearchField({
@@ -76,7 +77,7 @@ export function SearchField({
   );
 }
 
-export default function Hero({ searchQuery: controlledQuery = '', onSearchChange }: HeroProps) {
+export default function Hero({ searchQuery: controlledQuery = '', onSearchChange, season = null }: HeroProps) {
   useTheme();
   const [internalQuery, setInternalQuery] = useState('');
   const searchQuery = onSearchChange ? controlledQuery : internalQuery;
@@ -87,13 +88,14 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
       <div className="hero-liquid-glass relative mx-auto max-w-[1400px] overflow-hidden rounded-[28px] max-[400px]:rounded-[22px]">
         <div className="md:hidden">
           <div className="px-5 max-[400px]:px-4 pt-5 max-[400px]:pt-4">
+            {season?.kicker ? <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">{season.kicker}</p> : null}
             <h1 className="text-[1.7rem] max-[400px]:text-[1.45rem] font-semibold tracking-[-0.04em] leading-[1.15] text-[#1d1d1f] dark:text-[#fafafa]">
-              Descubre ofertas que
+              {season?.line ?? 'Descubre ofertas que'}
               <br />
-              <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
+              <span className="text-violet-600 dark:text-violet-400">{season?.accent ?? 'valen la pena'}</span>
             </h1>
             <p className="mt-2 max-w-[34ch] text-[14px] max-[400px]:text-[13px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
-              La comunidad publica, vota y encuentra las mejores ofertas de México.
+              {season?.sub ?? 'La comunidad publica, vota y encuentra las mejores ofertas de México.'}
             </p>
           </div>
           <div className="relative mx-auto mt-0.5 h-[176px] max-[400px]:h-[156px] w-full max-w-[300px]">
@@ -110,13 +112,14 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
               <HeroScene />
             </div>
             <div className="relative z-10 flex min-h-[216px] lg:min-h-[248px] xl:min-h-[280px] max-w-[34rem] flex-col justify-center py-6 lg:py-7 pr-[250px] lg:pr-[300px] xl:pr-[340px]">
+              {season?.kicker ? <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">{season.kicker}</p> : null}
               <h1 className="text-[1.85rem] lg:text-[2.15rem] xl:text-[2.35rem] font-semibold tracking-[-0.045em] leading-[1.12] text-[#1d1d1f] dark:text-[#fafafa]">
-                Descubre ofertas que
+                {season?.line ?? 'Descubre ofertas que'}
                 <br />
-                <span className="text-violet-600 dark:text-violet-400">valen la pena</span>
+                <span className="text-violet-600 dark:text-violet-400">{season?.accent ?? 'valen la pena'}</span>
               </h1>
               <p className="mt-2.5 max-w-[42ch] text-[14px] lg:text-[15px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">
-                La comunidad publica, vota y encuentra las mejores ofertas de México.
+                {season?.sub ?? 'La comunidad publica, vota y encuentra las mejores ofertas de México.'}
               </p>
             </div>
           </div>

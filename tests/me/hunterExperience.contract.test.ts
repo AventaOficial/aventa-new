@@ -21,7 +21,7 @@ describe('experiencia del cazador', () => {
       expect(file).not.toMatch(/creator_rewards|payout_intent|RewardsProgramPanel|paidCents/);
     }
     expect(progress).toMatch(/No es el programa de recompensas/);
-    expect(nivel).toMatch(/No mide recompensas/);
+    expect(nivel).toMatch(/No es el programa de recompensas/);
     expect(source('app/me/dashboard/HunterProgram.tsx')).not.toMatch(/RewardsProgramPanel/);
     expect(source('app/me/dashboard/HunterProgram.tsx')).toMatch(/\/me\/programa/);
     expect(source('app/me/programa/page.tsx')).toMatch(/RewardsProgramPanel/);

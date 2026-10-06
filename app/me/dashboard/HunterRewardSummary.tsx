@@ -97,7 +97,7 @@ export default function HunterRewardSummary({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Recompensas Aventa</h2>
-          <p className="mt-0.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Convierte tu actividad en recompensas reales.</p>
+          <p className="mt-0.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Rewards no está activo en todas las cuentas.</p>
         </div>
         <Link href="/me/recompensas" className={`${quietLink} inline-flex min-h-11 shrink-0 items-center text-violet-600 dark:text-violet-400 sm:inline sm:min-h-0`}>
           Ver recompensas

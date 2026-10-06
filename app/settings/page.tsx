@@ -12,6 +12,7 @@ import { ALL_CATEGORIES } from '@/lib/categories';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { notifyUserError } from '@/lib/utils/handleError';
 import { writeCachedDisplayName } from '@/lib/profileDisplayName';
+import ProfileFields, { AppearancePicker } from '@/app/settings/ProfileFields';
 
 const DAYS_LIMIT = 14;
 
@@ -326,8 +327,8 @@ function SettingsPageInner() {
                   <User className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Perfil</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Nombre visible en la app</p>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Cuenta y perfil</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Nombre, foto, portada, bio y ubicación</p>
                 </div>
               </div>
             </div>
@@ -373,6 +374,7 @@ function SettingsPageInner() {
                 )}
               </div>
             </form>
+            <ProfileFields />
           </section>
 
           <section className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
@@ -382,8 +384,8 @@ function SettingsPageInner() {
                   <Bell className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Correos</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Resumen diario y semanal en tu correo</p>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Notificaciones</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Solo los resúmenes de correo que ya existen</p>
                 </div>
               </div>
             </div>
@@ -420,14 +422,15 @@ function SettingsPageInner() {
                   <Tag className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Preferencias de categorías</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Qué ofertas te interesan más</p>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Personalización</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Apariencia y categorías favoritas</p>
                 </div>
               </div>
             </div>
             <div className="p-5 md:p-6 space-y-4">
+              <AppearancePicker />
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                En el inicio elegiste hasta 3 temas. Aquí puedes añadir o quitar: el inicio mostrará más de lo que te interesa.
+                Estas categorías alimentan Para ti. Puedes añadir o quitar las que quieras.
               </p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
@@ -504,7 +507,7 @@ function SettingsPageInner() {
                   <Lock className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Contraseña</h2>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Seguridad</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Restablecer contraseña por correo</p>
                 </div>
               </div>
@@ -576,12 +579,15 @@ function SettingsPageInner() {
                   <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Eliminar cuenta</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Solicitud sujeta a retenciones legales</p>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Datos y cuenta</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Eliminación sujeta a retenciones legales</p>
                 </div>
               </div>
             </div>
             <div className="p-5 md:p-6 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                La descarga de una copia de tus datos todavía no existe en Aventa. Aquí solo puedes solicitar la eliminación.
+              </p>
               {deletionRequestedAt ? (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   Solicitud registrada el{' '}
