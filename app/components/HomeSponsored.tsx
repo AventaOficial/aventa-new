@@ -121,6 +121,7 @@ export function HomeDesktopRail({
   onStoreFilter,
   onSearch,
   hunters,
+  hunterNote = null,
   now,
 }: {
   stores: string[];
@@ -128,6 +129,7 @@ export function HomeDesktopRail({
   onStoreFilter: (store: string | null) => void;
   onSearch: (query: string) => void;
   hunters: FeedHunter[];
+  hunterNote?: string | null;
   /** Momento de referencia para la vigencia de campañas. */
   now: number;
 }) {
@@ -171,7 +173,7 @@ export function HomeDesktopRail({
           </div>
         </div>
       ) : null}
-      <RailCommunity hunters={hunters} />
+      <RailCommunity hunters={hunters} note={hunterNote} />
     </aside>
   );
 }

@@ -51,6 +51,11 @@ type ProfileData = {
     avatar_url: string | null;
     reputation_level?: number;
     reputation_score?: number;
+    bio?: string | null;
+    location?: string | null;
+    cover_url?: string | null;
+    is_private?: boolean;
+    activity_visible?: boolean;
   };
   offersCount: number;
   activeCount?: number;
@@ -251,6 +256,10 @@ export default function ProfilePage() {
             displayName={profile.username}
             handle={username}
             avatarUrl={profile.avatar_url}
+            bio={profile.bio}
+            location={profile.location}
+            coverUrl={profile.cover_url}
+            activityVisible={profile.activity_visible !== false && !profile.is_private}
             level={profile.reputation_level ?? 1}
             score={profile.reputation_score ?? 0}
             showcase={data.featuredAchievements ?? []}

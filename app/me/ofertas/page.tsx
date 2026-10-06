@@ -3,10 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowUpRight, BarChart3 } from 'lucide-react';
 import MeSectionPage from '@/app/me/dashboard/MeSectionPage';
-import OfferAdvancedMetricsModal from '@/app/components/OfferAdvancedMetricsModal';
-import { buildOfferPublicPath } from '@/lib/offerPath';
+import OfferDetailDrawer, { type OfferDrawerModel } from '@/app/me/ofertas/OfferDetailDrawer';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
 import { formatPriceMXN } from '@/lib/formatPrice';
@@ -14,14 +12,7 @@ import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
-type Row = {
-  id: string;
-  title: string;
-  store: string | null;
-  price: number | null;
-  originalPrice: number | null;
-  createdAt: string | null;
-  dealStatus: DealStatus;
+type Row = OfferDrawerModel & {
   rejectionReason: string | null;
   views: number | null;
 };
@@ -69,7 +60,7 @@ function OfertasInner() {
   );
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
-  const [metricsOfferId, setMetricsOfferId] = useState<string | null>(null);
+  const [metricsOffer, setMetricsOffer] = useState<Row | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -82,7 +73,7 @@ function OfertasInner() {
       }
       const { data, error: loadError } = await supabase
         .from('offers')
-        .select('id, title, store, price, original_price, created_at, status, rejection_reason, expires_at')
+        .select('id, title, store, price, original_price, image_url, offer_url, category, hunter_comment, upvotes_count, created_at, status, rejection_reason, expires_at')
         .eq('created_by', auth.user.id)
         .order('created_at', { ascending: false });
       if (!active) return;
@@ -100,21 +91,71 @@ function OfertasInner() {
         else if (status === 'approved' || status === 'published') {
           dealStatus = expiresAt && expiresAt < now ? 'expired' : 'approved';
         }
-        const price = (row as { price?: number | null }).price;
-        const original = (row as { original_price?: number | null }).original_price;
+        const raw = row as {
+          id: string;
+          title?: string;
+          store?: string | null;
+          price?: number | null;
+          original_price?: number | null;
+          image_url?: string | null;
+          offer_url?: string | null;
+          category?: string | null;
+          hunter_comment?: string | null;
+          upvotes_count?: number | null;
+          created_at?: string | null;
+          rejection_reason?: string | null;
+        };
         return {
-          id: String((row as { id: string }).id),
-          title: String((row as { title?: string }).title ?? 'Oferta'),
-          store: (row as { store?: string | null }).store?.trim() || null,
-          price: typeof price === 'number' ? price : null,
-          originalPrice: typeof original === 'number' ? original : null,
-          createdAt: (row as { created_at?: string | null }).created_at ?? null,
+          id: String(raw.id),
+          title: String(raw.title ?? 'Oferta'),
+          store: raw.store?.trim() || null,
+          price: typeof raw.price === 'number' ? raw.price : null,
+          originalPrice: typeof raw.original_price === 'number' ? raw.original_price : null,
+          image: raw.image_url?.trim() || null,
+          offerUrl: raw.offer_url?.trim() || null,
+          category: raw.category?.trim() || null,
+          hunterComment: raw.hunter_comment?.trim() || null,
+          upvotes: typeof raw.upvotes_count === 'number' ? raw.upvotes_count : null,
+          comments: null,
+          favorites: null,
+          createdAt: raw.created_at ?? null,
           dealStatus,
-          rejectionReason: (row as { rejection_reason?: string | null }).rejection_reason?.trim() || null,
+          rejectionReason: raw.rejection_reason?.trim() || null,
           views: null,
         };
       });
       setRows(mapped);
+
+      if (mapped.length > 0) {
+        const ids = mapped.map((row) => row.id);
+        const [commentsRes, favoritesRes] = await Promise.all([
+          supabase.from('comments').select('offer_id').in('offer_id', ids).eq('status', 'approved'),
+          supabase.from('offer_favorites').select('offer_id').in('offer_id', ids),
+        ]);
+        if (active) {
+          const comments = new Map<string, number>();
+          if (!commentsRes.error) {
+            for (const item of commentsRes.data ?? []) {
+              const id = (item as { offer_id?: string }).offer_id;
+              if (id) comments.set(id, (comments.get(id) ?? 0) + 1);
+            }
+          }
+          const favorites = new Map<string, number>();
+          if (!favoritesRes.error) {
+            for (const item of favoritesRes.data ?? []) {
+              const id = (item as { offer_id?: string }).offer_id;
+              if (id) favorites.set(id, (favorites.get(id) ?? 0) + 1);
+            }
+          }
+          setRows((current) =>
+            (current ?? mapped).map((row) => ({
+              ...row,
+              comments: commentsRes.error ? null : comments.get(row.id) ?? 0,
+              favorites: favoritesRes.error ? null : favorites.get(row.id) ?? 0,
+            })),
+          );
+        }
+      }
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -203,61 +244,38 @@ function OfertasInner() {
           const price = money(row.price);
           const discount = offerDiscountPercent(row.price, row.originalPrice);
           const date = when(row.createdAt);
-          const publicPage = row.dealStatus === 'approved' || row.dealStatus === 'expired';
           return (
-            <li
-              key={row.id}
-              className="flex items-stretch overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]"
-            >
+            <li key={row.id}>
               <button
                 type="button"
-                onClick={() => setMetricsOfferId(row.id)}
-                aria-haspopup="dialog"
-                aria-label={`Ver métricas de ${row.title}`}
-                className="group min-w-0 flex-1 px-4 py-3 text-left transition-colors duration-150 hover:bg-black/[0.02] active:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:hover:bg-white/[0.03] dark:active:bg-white/[0.06]"
+                onClick={() => setMetricsOffer(row)}
+                className="flex w-full items-stretch overflow-hidden rounded-2xl border border-black/[0.04] bg-white text-left shadow-sm transition-colors duration-150 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/10 dark:bg-[#141414] dark:hover:bg-white/[0.03]"
               >
-                <span className="flex items-start justify-between gap-3">
-                  <span className="min-w-0">
-                    {row.store ? <span className="block truncate text-xs text-[#6e6e73] dark:text-[#a3a3a3]">{row.store}</span> : null}
-                    <span className="block text-sm font-medium leading-snug text-[#1d1d1f] line-clamp-2 dark:text-[#fafafa]">{row.title}</span>
+                <span className="min-w-0 flex-1 px-4 py-3">
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      {row.store ? <span className="block truncate text-xs text-[#6e6e73] dark:text-[#a3a3a3]">{row.store}</span> : null}
+                      <span className="block text-sm font-medium leading-snug text-[#1d1d1f] line-clamp-2 dark:text-[#fafafa]">{row.title}</span>
+                    </span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASS[row.dealStatus]}`}>
+                      {STATUS_LABEL[row.dealStatus]}
+                    </span>
                   </span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASS[row.dealStatus]}`}>
-                    {STATUS_LABEL[row.dealStatus]}
+                  <span className="mt-2 block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
+                    {price ? <span>Precio {price}</span> : <span>Precio no indicado</span>}
+                    {discount != null ? <span> · Descuento {discount}%</span> : null}
+                    {date ? <span> · {date}</span> : null}
                   </span>
-                </span>
-                <span className="mt-2 block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
-                  {price ? <span>Precio {price}</span> : <span>Precio no indicado</span>}
-                  {discount != null ? <span> · Descuento {discount}%</span> : null}
-                  {date ? <span> · {date}</span> : null}
-                </span>
-                {row.views != null ? (
-                  <span className="mt-1 block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">Vistas, solo para ti: {row.views}</span>
-                ) : null}
-                {row.rejectionReason ? (
-                  <span className="mt-1 block text-xs text-[#1d1d1f] dark:text-[#fafafa]">{row.rejectionReason}</span>
-                ) : null}
-                <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 transition-colors duration-150 group-hover:text-violet-700 dark:text-violet-400 dark:group-hover:text-violet-300">
-                  <BarChart3 className="h-3.5 w-3.5" aria-hidden />
-                  Ver métricas
+                  {row.rejectionReason ? (
+                    <span className="mt-1 block text-xs text-[#1d1d1f] dark:text-[#fafafa]">{row.rejectionReason}</span>
+                  ) : null}
                 </span>
               </button>
-              {publicPage ? (
-                <Link
-                  href={buildOfferPublicPath(row.id, row.title)}
-                  aria-label={`Ver publicación de ${row.title}`}
-                  title="Ver publicación"
-                  className="flex w-12 shrink-0 items-center justify-center border-l border-black/5 text-[#6e6e73] transition-colors duration-150 hover:bg-black/[0.03] hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:border-white/10 dark:text-[#a3a3a3] dark:hover:bg-white/[0.05] dark:hover:text-[#fafafa]"
-                >
-                  <ArrowUpRight className="h-4 w-4" aria-hidden />
-                </Link>
-              ) : null}
             </li>
           );
         })}
       </ul>
-      {metricsOfferId ? (
-        <OfferAdvancedMetricsModal offerId={metricsOfferId} onClose={() => setMetricsOfferId(null)} />
-      ) : null}
+      {metricsOffer ? <OfferDetailDrawer offer={metricsOffer} onClose={() => setMetricsOffer(null)} /> : null}
     </MeSectionPage>
   );
 }

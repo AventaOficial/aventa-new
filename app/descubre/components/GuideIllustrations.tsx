@@ -144,7 +144,7 @@ function CommissionDemo() {
         transition={{ delay: 0.5 }}
         className="mt-3 text-center text-xs font-semibold text-violet-700 dark:text-violet-300"
       >
-        Impacto → reparto mensual
+        Solo una comisión elegible
       </motion.p>
     </Scene>
   );

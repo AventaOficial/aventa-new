@@ -81,9 +81,12 @@ export function useRewardGoal(): RewardGoalState {
     setPending(true);
     (async () => {
       try {
-        const result = await fetchMeJson<{ programName?: string; progress?: RewardGoal }>('/api/me/rewards/status');
+        const result = await fetchMeJson<{ programName?: string; progress?: RewardGoal; beta?: { audience?: string } }>('/api/me/rewards/status');
         const progress = result?.ok ? result.body.progress : undefined;
-        if (!live || !progress) return;
+        if (!live || !progress || result?.body.beta?.audience !== 'beta') {
+          if (live) setGoal(null);
+          return;
+        }
         setGoal({
           programName: result?.body.programName?.trim() || 'Recompensa de bienvenida',
           approvedOffers: progress.approvedOffers ?? 0,

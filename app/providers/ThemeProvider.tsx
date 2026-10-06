@@ -3,32 +3,52 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 
 type Theme = 'light' | 'dark'
+export type ThemePreference = 'light' | 'dark' | 'system'
 
 type ThemeContextType = {
   theme: Theme
+  preference: ThemePreference
   toggleTheme: () => void
+  setThemePreference: (preference: ThemePreference) => void
   isDark: boolean
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null)
 
+function systemTheme(): Theme {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark')
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light')
+  const [preference, setPreference] = useState<ThemePreference>('light')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem('aventa-theme') as Theme | null
-    const isDarkMode = document.documentElement.classList.contains('dark')
-    const initialTheme = storedTheme || (isDarkMode ? 'dark' : 'light')
-    setTheme(initialTheme)
-    if (initialTheme === 'dark' && !isDarkMode) {
-      document.documentElement.classList.add('dark')
-    } else if (initialTheme === 'light' && isDarkMode) {
-      document.documentElement.classList.remove('dark')
-    }
-    
+    const stored = localStorage.getItem('aventa-theme')
+    const preference: ThemePreference = stored === 'dark' || stored === 'system' ? stored : 'light'
+    const resolved = preference === 'system' ? systemTheme() : preference
+    setPreference(preference)
+    setTheme(resolved)
+    applyTheme(resolved)
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!mounted || preference !== 'system') return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      const resolved = media.matches ? 'dark' : 'light'
+      setTheme(resolved)
+      applyTheme(resolved)
+    }
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
+  }, [mounted, preference])
 
   useEffect(() => {
     if (!mounted) return
@@ -48,24 +68,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mounted])
 
+  const setThemePreference = (next: ThemePreference) => {
+    const resolved = next === 'system' ? systemTheme() : next
+    localStorage.setItem('aventa-theme', next)
+    setPreference(next)
+    setTheme(resolved)
+    applyTheme(resolved)
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: resolved }))
+  }
+
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    const html = document.documentElement
-    if (newTheme === 'dark') {
-      html.classList.add('dark')
-    } else {
-      html.classList.remove('dark')
-    }
-    localStorage.setItem('aventa-theme', newTheme)
-    setTheme(newTheme)
-    window.dispatchEvent(new CustomEvent('theme-change', { detail: newTheme }))
+    setThemePreference(theme === 'dark' ? 'light' : 'dark')
   }
 
   return (
     <ThemeContext.Provider
       value={{
         theme,
+        preference,
         toggleTheme,
+        setThemePreference,
         isDark: theme === 'dark',
       }}
     >

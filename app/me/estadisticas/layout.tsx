@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Estadísticas',
-  description: 'Tu nivel, puntos y cómo mejorar en AVENTA.',
+  title: 'Tu actividad',
+  description: 'Tu actividad y progreso en Aventa.',
 };
 
 export default function EstadisticasLayout({ children }: { children: React.ReactNode }) {

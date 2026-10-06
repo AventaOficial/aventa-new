@@ -13,7 +13,7 @@ export const revalidate = 300;
 
 /**
  * GET: cuántas ofertas vivas hay por rango de presupuesto y cuántas faltan.
- * Público: lo consumen moderación, Plaza y la Guía del Cazador.
+ * Lo consumen moderación y Plaza. Las guías de usuario no muestran estos huecos.
  */
 export async function GET(request: Request) {
   const rl = await enforceRateLimit(`gaps:${getClientIp(request)}`);

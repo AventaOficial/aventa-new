@@ -39,7 +39,7 @@ export default function HunterHeader({
           type="button"
           disabled={avatarUploading}
           onClick={onPickAvatar}
-          aria-label={avatarUploading ? 'Subiendo foto' : 'Cambiar foto'}
+          aria-label={avatarUploading ? 'Subiendo foto de perfil' : 'Cambiar foto de perfil'}
           className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-black/5 bg-white text-[#1d1d1f] shadow-sm transition-colors duration-150 hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#1c1c1c] dark:text-[#fafafa] dark:hover:bg-[#262626]"
         >
           <Camera className="h-3.5 w-3.5" aria-hidden />
@@ -59,7 +59,7 @@ export default function HunterHeader({
         className="inline-flex h-11 shrink-0 items-center gap-2 self-center whitespace-nowrap rounded-full border border-black/10 px-3 text-[13px] font-medium text-[#1d1d1f] transition-colors duration-150 hover:bg-black/[0.03] active:bg-black/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:text-[#fafafa] dark:hover:bg-white/5 dark:active:bg-white/10 sm:h-9 sm:px-3.5"
       >
         <Camera className="h-3.5 w-3.5" aria-hidden />
-        {avatarUploading ? 'Subiendo…' : 'Cambiar foto'}
+        {avatarUploading ? 'Subiendo…' : 'Cambiar foto de perfil'}
       </button>
     </header>
   );

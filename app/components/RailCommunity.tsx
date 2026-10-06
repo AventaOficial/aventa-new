@@ -30,7 +30,7 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof Target; children:
  * Comunidad en el Home: pedidos de caza, conversaciones de Plaza y cazadores del feed.
  * Cada bloque solo aparece si tiene contenido real; los pedidos muestran una invitación si están vacíos.
  */
-export default function RailCommunity({ hunters }: { hunters: FeedHunter[] }) {
+export default function RailCommunity({ hunters, note = null }: { hunters: FeedHunter[]; note?: string | null }) {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [discussions, setDiscussions] = useState<DiscussionItem[]>([]);
   const [offset, setOffset] = useState(0);
@@ -58,14 +58,16 @@ export default function RailCommunity({ hunters }: { hunters: FeedHunter[] }) {
       : Array.from({ length: VISIBLE_REQUESTS }, (_, i) => requests[(offset + i) % requests.length]);
 
   return (
+    <div className="space-y-3">
     <section
-      aria-labelledby="rail-community-title"
+      aria-labelledby="rail-requests-title"
       className="rounded-2xl border border-[#e8e8ed] bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#141414]"
     >
-      <h2 id="rail-community-title" className="text-xs font-semibold text-[#1d1d1f] dark:text-[#fafafa]">
-        Comunidad
+      <h2 id="rail-requests-title" className="text-xs font-semibold text-[#1d1d1f] dark:text-[#fafafa]">
+        Pedidos de caza
       </h2>
-      <p className="mt-0.5 text-[10px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">Lo que la comunidad está cazando.</p>
+      <p className="mt-0.5 text-[10px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">Lo que la comunidad está pidiendo.</p>
+      {note ? <p className="mt-2 text-[11px] leading-snug text-violet-700 dark:text-violet-300">{note}</p> : null}
 
       <div className="mt-3 space-y-2">
         <SectionTitle icon={Target}>Pedidos de caza</SectionTitle>
@@ -111,8 +113,22 @@ export default function RailCommunity({ hunters }: { hunters: FeedHunter[] }) {
         </div>
       ) : null}
 
+      <Link
+        href="/plaza"
+        className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-semibold text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300"
+      >
+        Ir a la Plaza
+        <ArrowRight className="ml-1 h-3 w-3" aria-hidden />
+      </Link>
+    </section>
+
       {hunters.length > 0 ? (
-        <div className="mt-4 space-y-2 border-t border-[#f0f0f2] pt-3 dark:border-[#2a2a2a]">
+        <section
+          aria-labelledby="rail-hunters-title"
+          className="rounded-2xl border border-[#e8e8ed] bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#141414]"
+        >
+          <h2 id="rail-hunters-title" className="sr-only">Cazadores en el feed</h2>
+          <div className="space-y-2">
           <SectionTitle icon={BowArrow}>Cazadores en el feed</SectionTitle>
           <ul className="space-y-1.5">
             {hunters.map((h) => {
@@ -148,16 +164,9 @@ export default function RailCommunity({ hunters }: { hunters: FeedHunter[] }) {
               );
             })}
           </ul>
-        </div>
+          </div>
+        </section>
       ) : null}
-
-      <Link
-        href="/plaza"
-        className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-semibold text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300"
-      >
-        Ir a la Plaza
-        <ArrowRight className="ml-1 h-3 w-3" aria-hidden />
-      </Link>
-    </section>
+    </div>
   );
 }

@@ -20,33 +20,39 @@ export function formatRewardShare(cents: number | null, currency: string | null)
 export function explainRewardPresentation(input: {
   uiStatus: string;
   statusLabel: string;
+  status?: string;
 }): { meaning: string; next: string | null } {
-  if (input.statusLabel === 'Revertida') {
-    return { meaning: 'Revertida. Ya no está lista ni en validación.', next: null };
+  if (input.statusLabel === 'Revertida' || input.status === 'REVERSED') {
+    return { meaning: 'Revertida. Esta recompensa dejó de contar.', next: null };
   }
-  if (input.statusLabel === 'Cancelada') {
-    return { meaning: 'Cancelada. Ya no está lista ni en validación.', next: null };
+  if (input.statusLabel === 'Cancelada' || input.status === 'CANCELLED') {
+    return { meaning: 'Cancelada. Ya no sigue en curso.', next: null };
+  }
+  if (input.status === 'PENDING') {
+    return { meaning: 'Pendiente. Aventa todavía la está revisando.', next: null };
+  }
+  if (input.status === 'VALIDATING') {
+    return { meaning: 'En validación. Sigue en revisión antes de quedar disponible.', next: null };
   }
   switch (input.uiStatus) {
     case 'available':
       return {
-        meaning: 'Lista. El historial ya la marcó así. Esta pantalla no inicia un pago.',
+        meaning: 'Disponible. Ya quedó lista. Esta pantalla no inicia un pago.',
         next: null,
       };
     case 'delivered':
       return {
-        meaning: 'Entregada. El historial la certificó.',
+        meaning: 'Entregada. El historial ya la certificó como pagada.',
         next: null,
       };
+    case 'cancelled':
+      return { meaning: 'Cancelada. Ya no sigue en curso.', next: null };
     case 'synthetic':
-      return {
-        meaning: 'Registro de prueba. No es una recompensa real.',
-        next: null,
-      };
+      return { meaning: '', next: null };
     case 'validating':
     default:
       return {
-        meaning: 'En validación. Todavía no está lista ni entregada.',
+        meaning: 'En validación. Todavía no está disponible ni entregada.',
         next: null,
       };
   }

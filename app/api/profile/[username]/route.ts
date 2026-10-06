@@ -6,6 +6,7 @@ import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { publicDisplayName } from '@/lib/profile/publicDisplayName';
 import { filterPublicCatalogRows } from '@/lib/offers/publicCatalogGate';
 import { loadAchievementShowcase } from '@/lib/achievements/showcase';
+import { presentPublicProfile, type ProfileIdentityInput } from '@/lib/profile/visibility';
 
 type OfferRow = {
   id: string;
@@ -90,6 +91,34 @@ export async function GET(
 
   const profileId = (profile as { id: string }).id;
 
+  let identity: ProfileIdentityInput = {};
+  const { data: identityRow, error: identityError } = await supabase
+    .from('profiles')
+    .select('bio, city, state, cover_url, show_location, show_activity, profile_visibility')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (!identityError && identityRow) {
+    const row = identityRow as {
+      bio?: string | null;
+      city?: string | null;
+      state?: string | null;
+      cover_url?: string | null;
+      show_location?: boolean | null;
+      show_activity?: boolean | null;
+      profile_visibility?: string | null;
+    };
+    identity = {
+      bio: row.bio,
+      city: row.city,
+      state: row.state,
+      coverUrl: row.cover_url,
+      showLocation: row.show_location,
+      showActivity: row.show_activity,
+      profileVisibility: row.profile_visibility,
+    };
+  }
+  const publicIdentity = presentPublicProfile(identity);
+
   let reputation_level = 1;
   let reputation_score = 0;
   try {
@@ -106,15 +135,18 @@ export async function GET(
     // columnas pueden no existir aún
   }
 
-  const { data: rows, error: offersError } = await supabase
-    .from('offers')
-    .select(
-      'id, title, price, original_price, image_url, image_urls, store, offer_url, description, hunter_comment, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum'
-    )
-    .eq('created_by', profileId)
-    .is('deleted_at', null)
-    .or('status.eq.approved,status.eq.published')
-    .order('created_at', { ascending: false });
+  const offerResult = publicIdentity.showActivity
+    ? await supabase
+        .from('offers')
+        .select(
+          'id, title, price, original_price, image_url, image_urls, store, offer_url, description, hunter_comment, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum'
+        )
+        .eq('created_by', profileId)
+        .is('deleted_at', null)
+        .or('status.eq.approved,status.eq.published')
+        .order('created_at', { ascending: false })
+    : { data: [], error: null };
+  const { data: rows, error: offersError } = offerResult;
 
   if (offersError) {
     console.error('[profile] offers fetch:', offersError.message);
@@ -188,7 +220,7 @@ export async function GET(
     };
   });
 
-  const showcase = await loadAchievementShowcase(supabase, profileId);
+  const showcase = publicIdentity.showActivity ? await loadAchievementShowcase(supabase, profileId) : [];
 
   return NextResponse.json({
     profile: {
@@ -196,6 +228,11 @@ export async function GET(
       avatar_url: (profile as { avatar_url?: string | null }).avatar_url ?? null,
       reputation_level,
       reputation_score,
+      bio: publicIdentity.bio,
+      location: publicIdentity.location,
+      cover_url: publicIdentity.coverUrl,
+      is_private: publicIdentity.isPrivate,
+      activity_visible: publicIdentity.showActivity,
     },
     offersCount: offers.length,
     activeCount,

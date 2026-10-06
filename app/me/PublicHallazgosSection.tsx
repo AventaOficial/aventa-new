@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PublicProfileView, {
   type PublicProfileOffer,
   type PublicProfileOwnerActions,
@@ -8,6 +8,8 @@ import PublicProfileView, {
 import type { CardOffer } from '@/lib/offers/transform';
 import type { VoteMap, VoteValueMap, FavoriteMap } from '@/lib/offers/batchUserData';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/app/providers/AuthProvider';
+import { presentOwnProfile } from '@/lib/profile/visibility';
 import type { AchievementRarity } from '@/lib/achievements/types';
 
 const UNLOCKED_PREVIEW_LIMIT = 4;
@@ -65,6 +67,32 @@ export default function PublicHallazgosSection({
   const [unlockedPreview, setUnlockedPreview] = useState<Array<{ code: string; name: string; icon: string }>>([]);
   const [unlockedChoices, setUnlockedChoices] = useState<Array<{ code: string; name: string; icon: string }>>([]);
   const [showcaseLoading, setShowcaseLoading] = useState(true);
+  const { session } = useAuth();
+  const coverInput = useRef<HTMLInputElement>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [ownIdentity, setOwnIdentity] = useState<{ bio: string | null; location: string | null; coverUrl: string | null }>({
+    bio: null,
+    location: null,
+    coverUrl: null,
+  });
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    let cancel = false;
+    void createClient()
+      .from('profiles')
+      .select('bio, city, state, cover_url')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancel || !data) return;
+        const row = data as { bio?: string | null; city?: string | null; state?: string | null; cover_url?: string | null };
+        setOwnIdentity(presentOwnProfile({ bio: row.bio, city: row.city, state: row.state, coverUrl: row.cover_url }));
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [session?.user?.id, coverUploading]);
   useEffect(() => {
     let cancel = false;
     const run = async () => {
@@ -133,11 +161,44 @@ export default function PublicHallazgosSection({
     isFavorite: Boolean(favoriteMap[offer.id]),
   }));
 
+  async function uploadCover(file: File) {
+    const token = session?.access_token;
+    if (!token) return;
+    setCoverUploading(true);
+    try {
+      const formData = new FormData();
+      formData.set('file', file);
+      formData.set('kind', 'cover');
+      await fetch('/api/upload-profile-avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+    } finally {
+      setCoverUploading(false);
+    }
+  }
+
   return (
+    <>
+    <input
+      ref={coverInput}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      className="sr-only"
+      onChange={(event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (file) void uploadCover(file);
+      }}
+    />
     <PublicProfileView
       displayName={displayName}
       handle={handle}
       avatarUrl={avatarUrl}
+      bio={ownIdentity.bio}
+      location={ownIdentity.location}
+      coverUrl={ownIdentity.coverUrl}
       level={level}
       score={score}
       offers={publicOffers}
@@ -165,7 +226,7 @@ export default function PublicHallazgosSection({
         setShowcase(codes.map((code) => byCode.get(code)).filter((card): card is { code: string; name: string; icon: string } => Boolean(card)));
         return null;
       } : undefined}
-      owner={owner}
+      owner={owner ? { ...owner, onPickCover: () => coverInput.current?.click(), coverUploading } : null}
       onFavoriteChange={onFavoriteChange}
       onOpenOffer={(offer) => {
         const source = offers.find((item) => item.id === offer.id);
@@ -174,5 +235,6 @@ export default function PublicHallazgosSection({
         if (openable) onOfferClick(source);
       }}
     />
+    </>
   );
 }

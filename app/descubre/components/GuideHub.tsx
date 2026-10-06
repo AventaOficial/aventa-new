@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Trophy } from 'lucide-react';
-import CatalogGapsBoard from '@/app/components/CatalogGapsBoard';
 import { GUIDES, type GuideId, type GuideTheme } from '../guides/content';
 import {
   completedGuideCount,
@@ -20,22 +19,25 @@ const HUB: Record<
   aventa: {
     label: 'EMPIEZA AQUÍ',
     heading: 'Conoce Aventa',
-    description:
-      'Descubre el feed, votos, favoritos, perfiles, configuración y todo lo esencial para empezar.',
-    minutes: 5,
+    description: 'Feed, votos, favoritos y tu perfil.',
+    minutes: 4,
   },
   cazador: {
-    label: 'SUBE, IMPACTA Y CRECE',
+    label: 'SUBE E IMPACTA',
     heading: 'Conviértete en Cazador',
-    description:
-      'Aprende a encontrar ofertas, publicarlas, pasar moderación, ganar reputación y desbloquear recompensas.',
-    minutes: 4,
+    description: 'Publica un hallazgo, pasa moderación y entiende el Nivel Aventa.',
+    minutes: 3,
   },
   ahorrador: {
     label: 'ENCUENTRA SIN COMPLICARTE',
     heading: 'Aprende a ahorrar',
-    description:
-      'Domina filtros, favoritos, alertas y las herramientas que te ayudan a no dejar pasar una buena oferta.',
+    description: 'Filtros, resúmenes por correo y la app en tu pantalla.',
+    minutes: 3,
+  },
+  gana: {
+    label: 'REWARDS, CON CLARIDAD',
+    heading: 'Gana con Aventa',
+    description: 'Qué es una recompensa, quién puede tenerla y qué no promete el programa.',
     minutes: 4,
   },
 };
@@ -142,7 +144,7 @@ export default function GuideHub({ onSelect, progress }: Props) {
         <FeaturedCard guideId={featured.id} icon={featured.icon} theme={featured.theme} total={featured.steps.length} seen={stepsSeen(featured.id, featured.steps.length, progress)} onSelect={onSelect} />
       ) : null}
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
         {secondary.map((guide, i) => (
           <GuideCard
             key={guide.id}
@@ -155,10 +157,6 @@ export default function GuideHub({ onSelect, progress }: Props) {
             onSelect={onSelect}
           />
         ))}
-      </div>
-
-      <div className="mt-4">
-        <CatalogGapsBoard title="Qué le falta al catálogo hoy" />
       </div>
 
       <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#e8e8ed] bg-white px-4 py-3.5 dark:border-[#2a2a2a] dark:bg-[#141414]">
