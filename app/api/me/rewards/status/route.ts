@@ -20,6 +20,13 @@ import {
   REWARDS_TERMS_VERSION,
 } from '@/lib/rewards/config';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import {
+  betaOnboardingSteps,
+  isRewardsBetaEnabled,
+  isRewardsPayoutEnabled,
+  resolveRewardsAccess,
+} from '@/lib/rewards/betaCohort';
+import { latestBetaMembership } from '@/lib/rewards/betaCohortStore';
 
 /** GET: estado del Programa de Recompensas para el usuario autenticado. */
 export async function GET(request: Request) {
@@ -76,6 +83,14 @@ export async function GET(request: Request) {
     }
   }
 
+  const betaMembership = await latestBetaMembership(supabase, user.id);
+  const betaAccess = resolveRewardsAccess({
+    programActive: isRewardsProgramActive(),
+    betaEnabled: isRewardsBetaEnabled(),
+    payoutEnabled: isRewardsPayoutEnabled(),
+    membership: betaMembership,
+  });
+
   return NextResponse.json({
     programName: 'Recompensa sorpresa del Cazador',
     programActive: isRewardsProgramActive(),
@@ -115,6 +130,17 @@ export async function GET(request: Request) {
       creatorShareBps: REWARDS_CREATOR_SHARE_BPS,
       minPayoutCents: REWARDS_MIN_PAYOUT_CENTS,
       holdDays: REWARDS_HOLD_DAYS,
+    },
+    beta: {
+      betaEnabled: isRewardsBetaEnabled(),
+      audience: betaAccess.audience,
+      membership: betaAccess.membership,
+      canSeeEconomics: betaAccess.canSeeEconomics,
+      needsOnboarding: betaAccess.needsOnboarding,
+      payoutEnabled: betaAccess.payoutEnabled,
+      shareBps: betaAccess.shareBps,
+      ruleVersion: betaAccess.ruleVersion,
+      steps: betaAccess.audience === 'beta' ? betaOnboardingSteps(betaAccess.shareBps) : [],
     },
   });
 }

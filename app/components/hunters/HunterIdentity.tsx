@@ -56,7 +56,7 @@ export function HunterFoundSection({ hunter }: { hunter: HunterPublicIdentity })
         <HunterMark name={hunter.name} accent={hunter.accent} avatarUrl={hunter.avatarUrl} size={40} />
         <div className="min-w-0">
           <Link href={hunter.profilePath} className="text-sm font-semibold text-gray-900 hover:text-violet-600 dark:text-white dark:hover:text-violet-300">
-            {hunter.name}
+            {hunter.displayName}
           </Link>
           <p className="text-xs text-gray-500 dark:text-zinc-400">{hunter.role}</p>
         </div>

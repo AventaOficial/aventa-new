@@ -825,6 +825,7 @@ function HomeContent() {
                     bankCoupon={offer.bankCoupon}
                     coupons={offer.coupons}
                     isDestacada={offer.ranking_blend != null && offer.ranking_blend >= DESTACADA_RANKING_BLEND_MIN}
+                    dailyNeed={offer.dailyNeed}
                     isTesterOffer={offer.id.startsWith('tester-')}
                     offerScope={offer.offerScope ?? null}
                   />

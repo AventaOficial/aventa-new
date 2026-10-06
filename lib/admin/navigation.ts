@@ -20,6 +20,7 @@ import {
   Scale,
   Share2,
   ShieldOff,
+  Sparkles,
   Tags,
   UserCog,
   Users,
@@ -132,6 +133,14 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   {
     href: '/admin/moderation/lote',
     label: 'Lote',
+    domain: 'contenido',
+    frequency: 'diario',
+    audiences: ['founder', 'moderador', 'admin'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/hunters-ai',
+    label: 'Hunters IA',
     domain: 'contenido',
     frequency: 'diario',
     audiences: ['founder', 'moderador', 'admin'],
@@ -344,6 +353,7 @@ const ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = {
   '/admin/creator-tags': Tags,
   '/admin/moderation': ClipboardList,
   '/admin/moderation/lote': ClipboardPaste,
+  '/admin/hunters-ai': Sparkles,
   '/admin/moderation/reports': Flag,
   '/admin/reports': Flag,
   '/admin/moderation/comments': MessageCircle,
@@ -577,6 +587,7 @@ export function getAdminMobileSectionTitle(pathname: string): string {
   if (pathname === '/admin/moderation/bans') return 'Personas';
   if (
     pathname.startsWith('/admin/moderation') ||
+    pathname.startsWith('/admin/hunters-ai') ||
     pathname.startsWith('/admin/reports') ||
     pathname === '/admin/announcements'
   ) {

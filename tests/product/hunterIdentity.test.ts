@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSupplyHunter, isTechnicalAuthorLabel, presentAuthor } from '@/lib/product/hunters/identity';
+import { defaultSupplyHunter, hunterByCode, isTechnicalAuthorLabel, presentAuthor } from '@/lib/product/hunters/identity';
 
 describe('identidad pública de Hunters', () => {
   it('un nombre técnico de suministro se presenta como Ximena, sin el UUID del cliente', () => {
@@ -7,6 +7,8 @@ describe('identidad pública de Hunters', () => {
     expect(presented.kind).toBe('hunter');
     if (presented.kind !== 'hunter') return;
     expect(presented.hunter.name).toBe('Ximena');
+    expect(presented.hunter.displayName).toBe('Ximena "Fuego"');
+    expect(presented.hunter.role).toBe('Cazadora de conexiones');
     expect(presented.hunter.foundLabel).toBe('Ximena encontró esta oferta');
     expect(presented.hunter.profilePath).toBe('/cazadores/ximena-fuego');
     expect(presented.hunter.code).toBe(defaultSupplyHunter().code);
@@ -23,5 +25,17 @@ describe('identidad pública de Hunters', () => {
     expect(presented.kind).toBe('hunter');
     if (presented.kind !== 'hunter') return;
     expect(presented.hunter.name).toBe('Tomás');
+  });
+
+  it('hunter_code ximena-fuego resuelve a Ximena sin usar el nombre del cliente', () => {
+    const presented = presentAuthor({ displayName: 'Ana López', hunterCode: 'ximena-fuego' });
+    expect(presented.kind).toBe('hunter');
+    if (presented.kind !== 'hunter') return;
+    expect(presented.hunter.name).toBe('Ximena');
+    expect(presented.hunter.code).toBe(defaultSupplyHunter().code);
+    expect(presented.hunter.profilePath).toBe('/cazadores/ximena-fuego');
+    expect(hunterByCode('ximena-fuego')?.displayName).toBe('Ximena "Fuego"');
+    expect(hunterByCode('otro-codigo')).toBeNull();
+    expect(JSON.stringify(presented)).not.toMatch(/machine_client|avk_|mcp/i);
   });
 });

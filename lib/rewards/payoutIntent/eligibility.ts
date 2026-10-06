@@ -5,6 +5,9 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { REWARDS_MIN_PAYOUT_CENTS } from '@/lib/rewards/config';
+import { isRewardsBetaEnabled, isRewardsPayoutEnabled, resolveRewardsAccess } from '@/lib/rewards/betaCohort';
+import { latestBetaMembership } from '@/lib/rewards/betaCohortStore';
+import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
 import { getUserRewardBalances } from '@/lib/rewards/rewardsEngine';
 import type {
   CreatorRewardPayoutSnapshot,
@@ -45,6 +48,17 @@ export async function evaluatePayoutIntentEligibility(
   }
   if (reward.status !== 'AVAILABLE') {
     return { ok: false, reason: 'reward_not_available' };
+  }
+
+  if (!isRewardsProgramActive() && isRewardsBetaEnabled()) {
+    const membership = await latestBetaMembership(supabase, reward.creator_id);
+    const access = resolveRewardsAccess({
+      programActive: false,
+      betaEnabled: true,
+      payoutEnabled: isRewardsPayoutEnabled(),
+      membership,
+    });
+    if (!access.payoutEnabled) return { ok: false, reason: 'payout_disabled' };
   }
 
   const amount = Number(reward.creator_share_cents);

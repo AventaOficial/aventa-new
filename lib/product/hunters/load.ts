@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { EDITORIAL_CANON } from './canon';
-import { hunterByCode, HUNTER_PUBLIC_FILES, SUPPLY_HUNTER_CODE } from './identity';
+import { hunterAssets, hunterByCode, SUPPLY_HUNTER_CODE } from './identity';
 import type { EditorialHunter } from './types';
 
 const COLUMNS =
@@ -62,15 +62,15 @@ export function supplyHunterProjection(slug: string): EditorialHunter | null {
     code: source.code,
     slug: source.slug,
     name: pub.name,
-    displayName: pub.name,
+    displayName: pub.displayName,
     title: pub.role,
     specialty: pub.specialty,
     shortBio: pub.voice,
     longBio: source.longBio,
     personality: source.personality,
-    avatarUrl: HUNTER_PUBLIC_FILES[source.code]?.avatarUrl ?? source.avatarUrl,
-    coverUrl: HUNTER_PUBLIC_FILES[source.code]?.coverUrl ?? source.coverUrl,
-    icon: HUNTER_PUBLIC_FILES[source.code]?.icon ?? source.icon,
+    avatarUrl: hunterAssets(source.code).avatarUrl ?? source.avatarUrl,
+    coverUrl: hunterAssets(source.code).coverUrl ?? source.coverUrl,
+    icon: hunterAssets(source.code).icon ?? source.icon,
     accent: pub.accent,
     status: 'active',
     sortOrder: source.sortOrder,
