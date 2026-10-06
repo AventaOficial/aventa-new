@@ -41,17 +41,12 @@ import type { OfferScopeUi } from '@/lib/offerScope';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import StoreBrandMark from './StoreBrandMark';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
+import { presentOfferPrice } from '@/lib/formatPrice';
 
 /** Tope visual del comentario del cazador en la card (ellipsis / line-clamp). */
 export const OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH = 120;
 /** @deprecated Prefer OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH — description ya no se muestra bajo el título. */
 export const OFFER_CARD_DESCRIPTION_MAX_LENGTH = OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH;
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat('es-MX', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value);
 
 function formatRelativeTime(iso: string): string {
   const d = new Date(iso);
@@ -141,6 +136,8 @@ interface OfferCardProps {
   brand: string;
   originalPrice: number;
   discountPrice: number;
+  /** ISO 4217 del origen. Sin este dato el precio no se muestra como MXN. */
+  sourceCurrency?: string | null;
   discount: number;
   description?: string;
   /** Comentario corto del cazador; solo se muestra si existe (no sustituye description del detalle). */
@@ -202,6 +199,7 @@ export default function OfferCard({
   brand,
   originalPrice,
   discountPrice,
+  sourceCurrency = null,
   discount,
   description: _description,
   hunterComment,
@@ -687,17 +685,17 @@ export default function OfferCard({
             <div className="min-w-0">
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-lg max-[400px]:text-base md:text-2xl font-semibold text-violet-600 dark:text-violet-400 tracking-tight tabular-nums">
-                  ${formatPrice(discountPrice)}
+                  {presentOfferPrice(discountPrice, sourceCurrency)}
                 </span>
                 {originalPrice > discountPrice && originalPrice > 0 ? (
                   <span className="text-xs md:text-sm text-gray-400 dark:text-gray-500 line-through tabular-nums">
-                    ${formatPrice(originalPrice)}
+                    {presentOfferPrice(originalPrice, sourceCurrency)}
                   </span>
                 ) : null}
               </div>
               {savingsAmount > 0 ? (
                 <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
-                  Ahorras ${formatPrice(savingsAmount)}
+                  Ahorras {presentOfferPrice(savingsAmount, sourceCurrency)}
                 </p>
               ) : null}
               {isTesterOffer ? (

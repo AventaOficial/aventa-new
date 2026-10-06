@@ -27,6 +27,8 @@ export type CardOffer = {
   originalPrice: number;
   discountPrice: number;
   discount: number;
+  /** ISO 4217 si el origen lo trae. Ausente: el precio no se muestra como MXN. */
+  sourceCurrency?: string | null;
   description?: string;
   /** Comentario corto del cazador para la card (no sustituye description). */
   hunterComment?: string;
@@ -77,6 +79,7 @@ export type RankedOfferSource = {
   title: string;
   price: number;
   original_price?: number | null;
+  source_currency?: string | null;
   store?: string | null;
   offer_url?: string | null;
   description?: string | null;
@@ -106,6 +109,7 @@ export type FeedApiItemShape = {
   title: string;
   price: number;
   original_price: number | null;
+  source_currency?: string | null;
   created_at: string;
   score: number;
   up_votes?: number;
@@ -190,6 +194,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     brand: row.store ?? '',
     originalPrice,
     discountPrice,
+    sourceCurrency: row.source_currency?.trim().toUpperCase() || null,
     discount,
     upvotes: up,
     downvotes: down,
@@ -254,6 +259,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     brand: item.store ?? '',
     originalPrice,
     discountPrice,
+    sourceCurrency: item.source_currency?.trim().toUpperCase() || null,
     discount,
     upvotes: up,
     downvotes: down,

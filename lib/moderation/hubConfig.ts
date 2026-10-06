@@ -26,6 +26,7 @@ export type ModerationTabDef = {
 
 export const ADMIN_MODERATION_TABS: ModerationTabDef[] = [
   { id: 'pending', href: '/admin/moderation', label: 'Pendientes', icon: ClipboardList, exact: true },
+  { id: 'hunter', href: '/admin/moderation/hunter', label: 'Hunter IA', icon: Bot },
   { id: 'lote', href: '/admin/moderation/lote', label: 'Lote', icon: ClipboardPaste },
   { id: 'approved', href: '/admin/moderation/approved', label: 'Aprobadas', icon: CheckCircle },
   { id: 'rejected', href: '/admin/moderation/rejected', label: 'Rechazadas', icon: XCircle },
@@ -60,6 +61,7 @@ export function resolveModerationTabId(pathname: string, mode: ModerationHubMode
     if (pathname.startsWith('/admin/moderation/approved')) return 'approved';
     if (pathname.startsWith('/admin/moderation/rejected')) return 'rejected';
     if (pathname.startsWith('/admin/moderation/comments')) return 'comments';
+    if (pathname.startsWith('/admin/moderation/hunter')) return 'hunter';
     if (pathname.startsWith('/admin/moderation/lote')) return 'lote';
     return 'pending';
   }

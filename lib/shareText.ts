@@ -1,4 +1,4 @@
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 
 export type OfferForShare = {
   title: string;
@@ -14,9 +14,9 @@ export function generateDealShareText(
   offer: OfferForShare,
   dealUrl: string
 ): string {
-  const price = formatPriceMXN(offer.discountPrice);
+  const price = presentOfferPrice(offer.discountPrice);
   const originalPrice =
-    offer.originalPrice > 0 ? formatPriceMXN(offer.originalPrice) : null;
+    offer.originalPrice > 0 ? presentOfferPrice(offer.originalPrice) : null;
 
   const lines: string[] = [
     '🔥 Ofertaza cazada en Aventa',

@@ -1,3 +1,4 @@
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { escapeTelegramHtml } from './escape';
 import { assertSafeHttpsUrl } from '../security/urls';
 
@@ -16,15 +17,12 @@ export type TelegramRenderResult = {
   parseMode: 'HTML';
 };
 
-function formatPrice(value: number | string | null | undefined): string | null {
+function formatPrice(
+  value: number | string | null | undefined,
+  currency?: string | null,
+): string | null {
   if (value === null || value === undefined || value === '') return null;
-  const n = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(n)) return null;
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(n);
+  return presentOfferPrice(value, currency);
 }
 
 function discountPct(

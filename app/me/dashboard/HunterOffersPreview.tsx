@@ -6,7 +6,7 @@ import { ArrowUpRight, BarChart3 } from 'lucide-react';
 import OfferAdvancedMetricsModal from '@/app/components/OfferAdvancedMetricsModal';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import { buildOfferPublicPath } from '@/lib/offerPath';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 type PreviewOffer = {
@@ -42,7 +42,7 @@ function offerMeta(offer: PreviewOffer): { price: string | null; discount: numbe
   const price = offer.discountPrice;
   if (price == null || !Number.isFinite(price) || price <= 0) return { price: null, discount: null };
   return {
-    price: formatPriceMXN(price),
+    price: presentOfferPrice(price),
     discount: offerDiscountPercent(price, offer.originalPrice ?? null),
   };
 }

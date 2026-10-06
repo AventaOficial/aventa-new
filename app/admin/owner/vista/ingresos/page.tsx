@@ -4,6 +4,7 @@ import { BarChart3, Bell, CircleDollarSign, PieChart, ShoppingCart, Tag } from '
 import VistaShell from '../shell';
 import { Columns, DateChip, Delta, Donut, Ghost, KpiCard, LineChart, Panel, PeriodBar, Thin } from '../ui';
 import { deltaOf, economyFor, money, num, seriesValues, useVista } from '../live';
+import { revenueDonutSplit } from '@/lib/owner/revenueSplit';
 
 export default function IngresosVistaPage() {
   const { range, changeRange, base, cmd } = useVista();
@@ -21,6 +22,7 @@ export default function IngresosVistaPage() {
   const catTotal = cats.reduce((acc, c) => acc + c.outbound, 0);
   const clickSeries = seriesValues((cmd?.series.points ?? []).map((p) => ({ label: p.label, value: p.outbound })));
   const frozen = base?.systemHealth.moneyPathFrozen ?? cmd?.finance.moneyPathFrozen;
+  const split = revenueDonutSplit(confirmed, estimated);
 
   return (
     <VistaShell
@@ -52,10 +54,14 @@ export default function IngresosVistaPage() {
         </Panel>
         <Panel className="xl:col-span-4" title="Confirmado y estimado" icon={PieChart}>
           <div className="flex flex-wrap items-center gap-4">
-            <Donut parts={[{ pct: confirmed && estimated ? 50 : 100, color: '#8b5cf6' }, ...(estimated != null ? [{ pct: 50, color: '#c4b5fd' }] : [])]}>
-              <span className="text-[13px] font-semibold tabular-nums text-white">{money(confirmed)}</span>
-              <span className="text-[10px] text-white/45">Confirmado</span>
-            </Donut>
+            {split.ok ? (
+              <Donut parts={[{ pct: split.confirmedPct, color: '#8b5cf6' }, { pct: split.estimatedPct, color: '#c4b5fd' }]}>
+                <span className="text-[13px] font-semibold tabular-nums text-white">{money(confirmed)}</span>
+                <span className="text-[10px] text-white/45">Confirmado</span>
+              </Donut>
+            ) : (
+              <p className="max-w-[9rem] text-[12px] text-white/55">No hay datos suficientes</p>
+            )}
             <ul className="min-w-0 flex-1 space-y-2 text-[12px]">
               <li className="flex justify-between gap-3 text-white/70"><span>Confirmado</span><b className="text-white">{money(confirmed)}</b></li>
               <li className="flex justify-between gap-3 text-white/70"><span>Estimado</span><b className="text-white">{money(estimated)}</b></li>

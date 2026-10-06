@@ -72,7 +72,7 @@ export default function VistaShell({
         </nav>
       </aside>
       <div className="min-w-0 flex-1 px-4 py-4 lg:px-5 lg:py-5">
-        <p className="sr-only">Composición visual de referencia. Las cifras de esta pantalla copian el diseño y no son datos en vivo de Aventa.</p>
+        <p className="sr-only">Cifras del período cargadas desde la operación. Un valor vacío significa que el dato no está disponible.</p>
         <p className="text-[11px] text-white/40">
           <Link href="/admin/owner" className="hover:text-white/70">
             CEO Dashboard

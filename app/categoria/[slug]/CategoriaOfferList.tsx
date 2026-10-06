@@ -17,6 +17,7 @@ export default function CategoriaOfferList({ offers }: { offers: CardOffer[] }) 
           brand={offer.brand}
           originalPrice={offer.originalPrice}
           discountPrice={offer.discountPrice}
+          sourceCurrency={offer.sourceCurrency}
           discount={offer.discount}
           description={offer.description}
           hunterComment={offer.hunterComment}

@@ -23,7 +23,7 @@ import {
   type PlazaDiscussionItem,
   type PlazaRequestItem,
 } from '@/app/plaza/plazaShared';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { formatModerationRelativeTime } from '@/lib/moderation/relativeTime';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
@@ -582,7 +582,7 @@ function PlazaInner() {
 }
 
 function RequestCard({ item }: { item: PlazaRequestItem }) {
-  const budget = item.budget_max != null && item.budget_max > 0 ? formatPriceMXN(item.budget_max) : null;
+  const budget = item.budget_max != null && item.budget_max > 0 ? presentOfferPrice(item.budget_max) : null;
   const store = item.preferred_store?.trim() || null;
   return (
     <article className={`${card} p-4 transition-colors duration-150 hover:border-violet-200 dark:hover:border-violet-900/60 sm:p-5`}>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowBigUp, Heart } from 'lucide-react';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import OfferMedia from '@/app/components/offers/OfferMedia';
-import { formatOfferMoneyInput } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import type { CardOffer } from '@/lib/offers/transform';
 
@@ -51,14 +51,14 @@ export default function FavoriteOfferTile({ offer, isFavorite, saving, onToggleF
           <p className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-2">
             {price != null ? (
               <span className="text-[17px] font-bold tracking-tight tabular-nums text-orange-600 dark:text-orange-400">
-                ${formatOfferMoneyInput(price)}
+                {presentOfferPrice(price, offer.sourceCurrency)}
               </span>
             ) : (
               <span className="text-[13px] font-medium text-[#6e6e73] dark:text-[#a3a3a3]">Ver precio en tienda</span>
             )}
             {before != null ? (
               <span className="text-[12px] tabular-nums text-[#86868b] line-through dark:text-[#8e8e93]">
-                <span className="sr-only">Antes </span>${formatOfferMoneyInput(before)}
+                <span className="sr-only">Antes </span>{presentOfferPrice(before, offer.sourceCurrency)}
               </span>
             ) : null}
           </p>

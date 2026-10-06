@@ -7,12 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import StoreBrandMark from './StoreBrandMark';
 import OfferMedia from '@/app/components/offers/OfferMedia';
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat('es-MX', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value);
+import { presentOfferPrice } from '@/lib/formatPrice';
 
 type FeaturedOfferCardProps = {
   offerId?: string;
@@ -21,6 +16,7 @@ type FeaturedOfferCardProps = {
   image?: string;
   originalPrice: number;
   discountPrice: number;
+  sourceCurrency?: string | null;
   discount: number;
   isLiked?: boolean;
   isTesterOffer?: boolean;
@@ -35,6 +31,7 @@ export default function FeaturedOfferCard({
   image,
   originalPrice,
   discountPrice,
+  sourceCurrency = null,
   discount,
   isLiked: isLikedProp = false,
   isTesterOffer = false,
@@ -113,17 +110,17 @@ export default function FeaturedOfferCard({
         <div className="mt-auto">
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-semibold tabular-nums text-violet-600 dark:text-violet-400">
-              ${formatPrice(discountPrice)}
+              {presentOfferPrice(discountPrice, sourceCurrency)}
             </span>
             {originalPrice > discountPrice && originalPrice > 0 ? (
               <span className="text-xs text-gray-400 line-through tabular-nums">
-                ${formatPrice(originalPrice)}
+                {presentOfferPrice(originalPrice, sourceCurrency)}
               </span>
             ) : null}
           </div>
           {savings > 0 ? (
             <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-              Ahorras ${formatPrice(savings)}
+              Ahorras {presentOfferPrice(savings, sourceCurrency)}
             </p>
           ) : null}
         </div>

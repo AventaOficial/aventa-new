@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
@@ -700,12 +700,12 @@ export default function OfferModal({
                 )}
                 <div className="flex flex-wrap items-baseline gap-3 pt-1">
                   <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
-                    {formatPriceMXN(discountPrice)}
+                    {presentOfferPrice(discountPrice)}
                   </span>
                   {originalPrice > 0 && (
                     <>
                       <span className="text-lg md:text-xl text-[#6B7280] dark:text-gray-400 line-through">
-                        {formatPriceMXN(originalPrice)}
+                        {presentOfferPrice(originalPrice)}
                       </span>
                       {discount > 0 && (
                         <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
@@ -717,14 +717,14 @@ export default function OfferModal({
                 </div>
                 {originalPrice > 0 && savings > 0 && (
                   <p className="text-sm text-[#6B7280] dark:text-gray-400 -mt-1">
-                    Ahorras {formatPriceMXN(savings)}
+                    Ahorras {presentOfferPrice(savings)}
                   </p>
                 )}
                 {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
                   <div className="-mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                     {msiMonths != null && msiMonths >= 1 ? (
                       <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                        {msiMonths} MSI: {formatPriceMXN(discountPrice / msiMonths)}/mes
+                        {msiMonths} MSI: {presentOfferPrice(discountPrice / msiMonths)}/mes
                       </p>
                     ) : null}
                     {bankCouponLabel ? (
