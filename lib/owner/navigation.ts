@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bot,
   BowArrow,
+  CalendarDays,
   Calculator,
   CircleDollarSign,
   Cog,
@@ -20,11 +21,14 @@ import {
   Server,
   Share2,
   Shield,
+  Tag,
   Tags,
+  Target,
   Ticket,
   UserCog,
   Users,
   UsersRound,
+  Wallet,
   Wrench,
   Zap,
 } from 'lucide-react';
@@ -48,6 +52,24 @@ export type OwnerNavSection = {
   /** Herramientas especializadas: plegadas bajo «Más herramientas». */
   more?: OwnerNavItem[];
 };
+
+/**
+ * Menú principal del owner: las secciones del CEO Dashboard.
+ * Cada entrada abre la herramienta real que opera ese dato, nunca una composición de referencia.
+ */
+export const OWNER_VISTA_NAV: OwnerNavItem[] = [
+  { href: '/admin/owner', label: 'Vista general', icon: LayoutDashboard, exact: true },
+  { href: '/admin/commissions', label: 'Ingresos estimados', icon: CircleDollarSign },
+  { href: '/admin/owner/crecimiento', label: 'Actividad de la comunidad', icon: UsersRound },
+  { href: '/admin/metrics', label: 'Usuarios en tiempo real', icon: Users },
+  { href: '/admin/moderation/approved', label: 'Ofertas publicadas', icon: Tag },
+  { href: '/admin/owner/team-management', label: 'Equipo de moderación', icon: Shield },
+  { href: '/admin/rewards', label: 'Pagos pendientes', icon: Wallet },
+  { href: '/admin/infraestructura', label: 'Capacidad de Aventa', icon: Server },
+  { href: '/admin/announcements', label: 'Siguiente temporada', icon: CalendarDays },
+  { href: '/admin/moderation', label: 'Metas del día', icon: Target },
+  { href: '/admin/operaciones', label: 'Prioridades del CEO', icon: Zap, exact: true },
+];
 
 /**
  * Founder OS: CEO decide, Operations ejecuta, Technical sostiene.
