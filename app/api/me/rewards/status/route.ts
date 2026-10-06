@@ -22,7 +22,7 @@ import {
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import {
   betaOnboardingSteps,
-  isRewardsBetaEnabled,
+  isRewardsBetaUiEnabled,
   isRewardsPayoutEnabled,
   resolveRewardsAccess,
 } from '@/lib/rewards/betaCohort';
@@ -86,9 +86,9 @@ export async function GET(request: Request) {
   const betaMembership = await latestBetaMembership(supabase, user.id);
   const betaAccess = resolveRewardsAccess({
     programActive: isRewardsProgramActive(),
-    betaEnabled: isRewardsBetaEnabled(),
     payoutEnabled: isRewardsPayoutEnabled(),
     membership: betaMembership,
+    experience: { uiEnabled: isRewardsBetaUiEnabled() },
   });
 
   return NextResponse.json({
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
       holdDays: REWARDS_HOLD_DAYS,
     },
     beta: {
-      betaEnabled: isRewardsBetaEnabled(),
+      betaEnabled: isRewardsBetaUiEnabled(),
       audience: betaAccess.audience,
       membership: betaAccess.membership,
       canSeeEconomics: betaAccess.canSeeEconomics,

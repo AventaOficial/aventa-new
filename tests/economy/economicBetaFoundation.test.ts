@@ -177,7 +177,7 @@ describe('shadow eligibility', () => {
 });
 
 describe('shadow persistence', () => {
-  it('guarda una proyección y no escribe dinero', async () => {
+  it('TEST 11 y 12 guarda una proyección SHADOW_ONLY, withdrawable false, y no escribe dinero', async () => {
     const db = seeded();
     const first = await persistShadowProjection(db.client, { commissionId: 'c1', rule: RULE });
     expect(first.ok).toBe(true);
@@ -185,6 +185,8 @@ describe('shadow persistence', () => {
     expect(first.reused).toBe(false);
     expect(first.observation.projectedCreatorCents).toBe(4000);
     expect(db.tables.economic_shadow_projections).toHaveLength(1);
+    expect(db.tables.economic_shadow_projections[0]?.withdrawable).toBe(false);
+    expect(db.tables.economic_shadow_projections[0]?.observation_kind).toBe('SHADOW_ONLY');
     expect(db.writes.some((write) => write.startsWith('creator_rewards'))).toBe(false);
     expect(db.writes.some((write) => write.startsWith('affiliate_ledger_entries'))).toBe(false);
     expect(db.writes.some((write) => write.startsWith('payout_intents'))).toBe(false);
