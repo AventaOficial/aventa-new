@@ -18,7 +18,11 @@ import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
 import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
 import { logClientError } from '@/lib/utils/handleError';
-import { normalizePastedOfferUrl } from '@/lib/offerUrl';
+import {
+  normalizePastedOfferUrl,
+  pastedOfferUrlStillCurrent,
+  uploadLinkGateUnlocksAfterParse,
+} from '@/lib/offerUrl';
 import { offerExtractionUserMessage } from '@/lib/offers/productExtraction/classifyExtraction';
 import { refreshSessionIfNeeded } from '@/lib/supabase/refreshSessionIfNeeded';
 import OfferCard from './OfferCard';
@@ -428,14 +432,18 @@ export default function ActionBar() {
           typeof data.suggested_original_price === 'number' && data.suggested_original_price > 0
             ? formatOfferMoneyInput(data.suggested_original_price)
             : null;
+        let stillCurrent = true;
         setFormData((prev) => {
-          if (prev.offer_url.trim() !== url) return prev;
-          const next = { ...prev };
-          if (!edited.has('title')) {
-            next.title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '';
+          if (!pastedOfferUrlStillCurrent(prev.offer_url, url)) {
+            stillCurrent = false;
+            return prev;
           }
-          if (!edited.has('store')) {
-            next.store = typeof data.store === 'string' && data.store.trim() ? data.store.trim() : '';
+          const next = { ...prev };
+          if (!edited.has('title') && typeof data.title === 'string' && data.title.trim()) {
+            next.title = data.title.trim();
+          }
+          if (!edited.has('store') && typeof data.store === 'string' && data.store.trim()) {
+            next.store = data.store.trim();
           }
           if (!edited.has('category')) {
             next.category =
@@ -477,7 +485,7 @@ export default function ActionBar() {
           parsedImages.unshift(data.image);
         }
         let galleryCount = 0;
-        if (!cancelled && !imagesUserEditedRef.current) {
+        if (!cancelled && stillCurrent && !imagesUserEditedRef.current) {
           const preferred = typeof data.image === 'string' ? data.image : parsedImages[0] || null;
           const gallery = selectOfferImages(parsedImages, { preferredCover: preferred });
           galleryCount = gallery.length;
@@ -582,7 +590,7 @@ export default function ActionBar() {
     if (!wasLoading || urlParseLoading) return;
     // Advance after parse settles: ok unlocks with autofill; extract_failed still
     // unlocks so the user can complete fields manually with the pasted URL.
-    if (urlParseKind !== 'ok' && urlParseKind !== 'partial' && urlParseKind !== 'extract_failed') return;
+    if (!uploadLinkGateUnlocksAfterParse(urlParseKind)) return;
     const t = window.setTimeout(() => setUploadLinkGatePassed(true), 350);
     return () => window.clearTimeout(t);
   }, [showUploadModal, uploadLinkGatePassed, formData.offer_url, urlParseLoading, urlParseKind, session?.access_token]);

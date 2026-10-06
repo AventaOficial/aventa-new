@@ -8,9 +8,21 @@
 import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 import { isAmazonExpandableHost, isOfferAmazonHost } from '@/lib/offers/commerceHostAllowlist';
 
+/**
+ * Historical product markup (`og:title` / `og:image` / `#productTitle` / `#landingImage`).
+ * A page that already exposes those is a product document, even if a captcha script is present.
+ */
+export function amazonHtmlHasProductMarkup(html: string): boolean {
+  if (!html) return false;
+  return /property=["']og:title["']|property=["']og:image["']|id=["']productTitle["']|id=["']landingImage["']/i.test(
+    html,
+  );
+}
+
 /** True when the response is Amazon's anti-bot interstitial, not a product page. */
 export function isAmazonBotWallHtml(html: string): boolean {
   if (!html) return true;
+  if (amazonHtmlHasProductMarkup(html)) return false;
   const head = html.slice(0, 12_000);
   if (/opfcaptcha|validateCaptcha|api-services-support@amazon\.com|automated access/i.test(head)) {
     return true;
@@ -39,4 +51,27 @@ export function amazonHtmlScrapeUrl(href: string): string {
   } catch {
     return href;
   }
+}
+
+/**
+ * The other Amazon HTML URL when the first fetch is a bot wall or fails.
+ * Mobile `/gp/aw/d/` falls back to the canonical `/dp/` (and the reverse).
+ */
+export function amazonHtmlFallbackUrl(fetchedHref: string, canonicalHref: string | null): string | null {
+  let canonical = canonicalHref;
+  if (!canonical) {
+    try {
+      const u = new URL(fetchedHref);
+      const asin = extractAmazonAsin(fetchedHref);
+      if (asin && isOfferAmazonHost(u.hostname) && !isAmazonExpandableHost(u.hostname)) {
+        canonical = `https://${u.hostname}/dp/${asin}`;
+      }
+    } catch {
+      canonical = null;
+    }
+  }
+  const mobile = amazonHtmlScrapeUrl(canonical || fetchedHref);
+  if (fetchedHref === mobile && canonical && canonical !== fetchedHref) return canonical;
+  if (mobile && mobile !== fetchedHref) return mobile;
+  return null;
 }

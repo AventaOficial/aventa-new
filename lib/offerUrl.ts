@@ -22,6 +22,21 @@ export function normalizePastedOfferUrl(raw: string): string {
   return normalizeMercadoLibreInputUrl(raw);
 }
 
+/**
+ * The in-flight parse still belongs to the field the user is looking at.
+ * Compares normalized URLs so a wrapped Amazon paste is not treated as a new URL.
+ */
+export function pastedOfferUrlStillCurrent(fieldValue: string, requestedUrl: string): boolean {
+  return normalizePastedOfferUrl(fieldValue) === requestedUrl;
+}
+
+/** A finished parse — including a failure — must leave the form usable. */
+export function uploadLinkGateUnlocksAfterParse(
+  kind: 'ok' | 'partial' | 'invalid_url' | 'extract_failed' | null,
+): boolean {
+  return kind === 'ok' || kind === 'partial' || kind === 'extract_failed';
+}
+
 /** Enlaces cortos del programa de colaboradores (redirigen a articulo.mercadolibre…). */
 export function isMeliLaShortUrl(url: string): boolean {
   try {
