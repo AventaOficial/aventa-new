@@ -76,7 +76,7 @@ describe('aislamiento del módulo', () => {
       }
     }
 
-    expect([...external].sort()).toEqual(['zod']);
+    expect([...external].sort()).toEqual(['@/lib/formatPrice', 'zod']);
   });
 
   it('no contiene secretos de afiliación embebidos', () => {

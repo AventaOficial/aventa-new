@@ -713,6 +713,7 @@ function HomeContent() {
                       image={offer.image ?? undefined}
                       originalPrice={offer.originalPrice}
                       discountPrice={offer.discountPrice}
+                      sourceCurrency={offer.sourceCurrency}
                       discount={offer.discount}
                       isLiked={!!favoriteMap[offer.id]}
                       isTesterOffer={offer.id.startsWith('tester-')}
@@ -815,6 +816,7 @@ function HomeContent() {
                     brand={offer.brand}
                     originalPrice={offer.originalPrice}
                     discountPrice={offer.discountPrice}
+                    sourceCurrency={offer.sourceCurrency}
                     discount={offer.discount}
                     description={offer.description}
                     hunterComment={offer.hunterComment}

@@ -7,7 +7,7 @@ import MeSectionPage from '@/app/me/dashboard/MeSectionPage';
 import OfferDetailDrawer, { type OfferDrawerModel } from '@/app/me/ofertas/OfferDetailDrawer';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
@@ -41,7 +41,7 @@ const STATUS_CLASS: Record<DealStatus, string> = {
 
 function money(value: number | null): string | null {
   if (value == null || !Number.isFinite(value)) return null;
-  return formatPriceMXN(value);
+  return presentOfferPrice(value);
 }
 
 function when(iso: string | null): string | null {

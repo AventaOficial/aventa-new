@@ -6,6 +6,7 @@
  * hay cliente HTTP, token ni envío.
  */
 
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { CAZAOFERTAS_PUBLICATION_BOUNDARY } from '../constants';
 import type { CazaCurrency, CazaResult, DealCandidate, DealGrade } from '../types';
 import { failResult, okResult } from '../types';
@@ -51,11 +52,7 @@ export function escapeTelegramText(value: string): string {
 }
 
 export function formatCazaPrice(value: number, currency: CazaCurrency): string {
-  const formatted = value.toLocaleString('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return `$${formatted} ${currency}`;
+  return presentOfferPrice(value, currency);
 }
 
 /**

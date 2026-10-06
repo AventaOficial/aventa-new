@@ -17,7 +17,7 @@ import {
   Sparkles,
   Archive,
 } from 'lucide-react';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
@@ -820,12 +820,12 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
               <div className="flex flex-wrap items-baseline gap-3 mt-4">
                 <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">
-                  {formatPriceMXN(offer.discountPrice)}
+                  {presentOfferPrice(offer.discountPrice)}
                 </span>
                 {offer.originalPrice > 0 && (
                   <>
                     <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                      {formatPriceMXN(offer.originalPrice)}
+                      {presentOfferPrice(offer.originalPrice)}
                     </span>
                     {offer.discount > 0 && (
                       <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
@@ -836,13 +836,13 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 )}
               </div>
               {offer.originalPrice > 0 && savings > 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ahorras {formatPriceMXN(savings)}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ahorras {presentOfferPrice(savings)}</p>
               )}
               {(offer.msiMonths != null && offer.msiMonths >= 1) || bankCouponLabel ? (
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {offer.msiMonths != null && offer.msiMonths >= 1 ? (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      {offer.msiMonths} MSI: {formatPriceMXN(offer.discountPrice / offer.msiMonths)}/mes
+                      {offer.msiMonths} MSI: {presentOfferPrice(offer.discountPrice / offer.msiMonths)}/mes
                     </p>
                   ) : null}
                   {bankCouponLabel ? (

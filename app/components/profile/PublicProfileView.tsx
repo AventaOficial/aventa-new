@@ -15,7 +15,7 @@ import {
   User,
 } from 'lucide-react';
 import { REPUTATION_LEVELS, getReputationLabel, getReputationProgress } from '@/lib/reputation';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { createClient } from '@/lib/supabase/client';
@@ -523,7 +523,7 @@ export default function PublicProfileView({
                 <ul className="mt-2">
                   {visible.map((offer) => {
                     const discount = offerDiscountPercent(offer.discountPrice ?? null, offer.originalPrice ?? null);
-                    const price = offer.discountPrice != null && offer.discountPrice > 0 ? formatPriceMXN(offer.discountPrice) : null;
+                    const price = offer.discountPrice != null && offer.discountPrice > 0 ? presentOfferPrice(offer.discountPrice) : null;
                     const status = statusMeta(offer.dealStatus);
                     const when = relativeTime(offer.createdAt);
                     const openable = offer.dealStatus === 'approved' || offer.dealStatus === 'expired';

@@ -6,7 +6,7 @@ import { ArrowRight, Crosshair, RefreshCw, Shuffle, Target } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { createClient } from '@/lib/supabase/client';
-import { formatPriceMXN } from '@/lib/formatPrice';
+import { presentOfferPrice } from '@/lib/formatPrice';
 import { REPUTATION_LEVELS, getReputationLabel, getReputationProgress } from '@/lib/reputation';
 import type { AchievementCard } from '@/lib/achievements/present';
 import { requestHuntHref, type PlazaRequestItem } from '@/app/plaza/plazaShared';
@@ -151,7 +151,7 @@ export default function HuntCenter({
             <p className="mt-1 line-clamp-2 text-[14px] font-semibold leading-snug text-[#1d1d1f] dark:text-[#fafafa]">{hunt.title}</p>
             {hunt.budget_max || hunt.preferred_store ? (
               <p className="mt-1 truncate text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
-                {hunt.budget_max ? `Hasta ${formatPriceMXN(hunt.budget_max)}` : null}
+                {hunt.budget_max ? `Hasta ${presentOfferPrice(hunt.budget_max)}` : null}
                 {hunt.budget_max && hunt.preferred_store ? ' · ' : null}
                 {hunt.preferred_store}
               </p>
