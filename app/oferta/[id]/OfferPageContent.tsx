@@ -104,6 +104,7 @@ type OfferPayload = {
   brand: string;
   originalPrice: number;
   discountPrice: number;
+  sourceCurrency?: string | null;
   discount: number;
   description?: string;
   steps?: string;
@@ -594,7 +595,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     {(() => {
                       const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
                       const shareText = generateDealShareText(
-                        { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice },
+                        { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice, sourceCurrency: offer.sourceCurrency },
                         dealUrl
                       );
                       const trackShare = () => {
@@ -820,12 +821,12 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
               <div className="flex flex-wrap items-baseline gap-3 mt-4">
                 <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">
-                  {presentOfferPrice(offer.discountPrice)}
+                  {presentOfferPrice(offer.discountPrice, offer.sourceCurrency)}
                 </span>
                 {offer.originalPrice > 0 && (
                   <>
                     <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                      {presentOfferPrice(offer.originalPrice)}
+                      {presentOfferPrice(offer.originalPrice, offer.sourceCurrency)}
                     </span>
                     {offer.discount > 0 && (
                       <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
@@ -836,13 +837,13 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 )}
               </div>
               {offer.originalPrice > 0 && savings > 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ahorras {presentOfferPrice(savings)}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ahorras {presentOfferPrice(savings, offer.sourceCurrency)}</p>
               )}
               {(offer.msiMonths != null && offer.msiMonths >= 1) || bankCouponLabel ? (
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {offer.msiMonths != null && offer.msiMonths >= 1 ? (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      {offer.msiMonths} MSI: {presentOfferPrice(offer.discountPrice / offer.msiMonths)}/mes
+                      {offer.msiMonths} MSI: {presentOfferPrice(offer.discountPrice / offer.msiMonths, offer.sourceCurrency)}/mes
                     </p>
                   ) : null}
                   {bankCouponLabel ? (

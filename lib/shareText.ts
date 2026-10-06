@@ -4,6 +4,7 @@ export type OfferForShare = {
   title: string;
   discountPrice: number;
   originalPrice: number;
+  sourceCurrency?: string | null;
 };
 
 /**
@@ -14,9 +15,9 @@ export function generateDealShareText(
   offer: OfferForShare,
   dealUrl: string
 ): string {
-  const price = presentOfferPrice(offer.discountPrice);
+  const price = presentOfferPrice(offer.discountPrice, offer.sourceCurrency);
   const originalPrice =
-    offer.originalPrice > 0 ? presentOfferPrice(offer.originalPrice) : null;
+    offer.originalPrice > 0 ? presentOfferPrice(offer.originalPrice, offer.sourceCurrency) : null;
 
   const lines: string[] = [
     '🔥 Ofertaza cazada en Aventa',
