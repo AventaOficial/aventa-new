@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canAccessAdmin } from '../../lib/admin/roles';
 import { isStaffPathAllowed } from '../../lib/server/middlewareRoleGate';
+import { decideProtectedNavigation } from '@/lib/server/protectedNavigation';
 import { membershipGrantsAdmin, type TeamMembership } from '../../lib/team';
 import {
   consumeGateAttempt,
@@ -247,8 +248,12 @@ describe('team gate no reabre admin ni moderación legacy', () => {
     const roleLookup = middleware.indexOf('resolveUserStaffRole(');
     expect(teamReturn).toBeGreaterThan(-1);
     expect(roleLookup).toBeGreaterThan(teamReturn);
-    expect(middleware).toContain("gate.pathname = '/team/gate'");
-    expect(middleware).toContain("equipo.pathname = '/equipo/moderacion'");
+    expect(decideProtectedNavigation('/team', 'anonymous')).toEqual({
+      type: 'redirect',
+      pathname: '/team/gate',
+      next: '/team',
+    });
+    expect(middleware).toContain("redirectWithSession(request, '/equipo/moderacion', pendingCookies)");
   });
 
   it('las rutas de equipo no consultan user_roles ni localStorage', () => {

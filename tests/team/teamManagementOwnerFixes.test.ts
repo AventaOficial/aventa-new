@@ -11,6 +11,7 @@ import {
   readMemberStatusFilter,
 } from '../../lib/team/membership/view';
 import { decideTeamEntry, membershipFromRow, resolveTeamNext, visibleActiveTeamIds } from '../../lib/team/gate/policy';
+import { decideProtectedNavigation } from '@/lib/server/protectedNavigation';
 import type { TeamMembership } from '../../lib/team/roles/membership';
 
 const { requireOwner, rpc, from } = vi.hoisted(() => ({
@@ -428,8 +429,7 @@ describe('D–H. GET /users', () => {
 describe('I–J. /team/gate y /team/select', () => {
   it('I. /team/gate existe, el middleware lo deja pasar sin sesión y el next solo apunta a Team OS', () => {
     expect(existsSync(join(process.cwd(), 'app/team/gate/page.tsx'))).toBe(true);
-    const middleware = read('middleware.ts');
-    expect(middleware).toContain("if (isTeamGatePath(pathname)) return response;");
+    expect(decideProtectedNavigation('/team/gate', 'anonymous')).toEqual({ type: 'continue' });
     expect(resolveTeamNext('/team/select')).toBe('/team/select');
     expect(resolveTeamNext('/admin/owner/team/select')).toBe('/team/select');
   });
