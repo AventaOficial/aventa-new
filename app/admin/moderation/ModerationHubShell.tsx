@@ -17,7 +17,7 @@ type Props = {
 
 function isFocusPendingPath(pathname: string, mode: ModerationHubMode): boolean {
   if (mode === 'admin') {
-    return pathname === '/admin/moderation' || pathname === '/admin/moderation/';
+    return pathname === '/admin/moderation' || pathname === '/admin/moderation/' || pathname.startsWith('/admin/moderation/hunter');
   }
   return (
     pathname === '/equipo/moderacion' ||

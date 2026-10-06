@@ -17,6 +17,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import OfferIntelligencePanel from '@/app/admin/components/OfferIntelligencePanel';
 import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/lib/categories';
 import { inferOfferCategory } from '@/lib/offers/inferOfferCategory';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
@@ -509,6 +510,7 @@ export default function ModerationOfferDetail({
           <ModerationConfidenceChip offer={offer} mode={mode} size="sm" />
         </div>
       </div>
+      <OfferIntelligencePanel offerId={offer.id} />
 
       {readOnly ? (
         <div className="flex items-center gap-2 border-b border-amber-500/25 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-950 dark:text-amber-100">
