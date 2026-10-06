@@ -2,20 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { isStaffPathAllowed, resolveUserStaffRole } from '@/lib/server/middlewareRoleGate';
+import {
+  decideProtectedNavigation,
+  sessionObservationFromAuthResult,
+} from '@/lib/server/protectedNavigation';
+import { applyPendingAuthCookies, type PendingAuthCookie } from '@/lib/server/sessionCookies';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
 const STAFF_PREFIX = '/equipo';
 const TEAM_PREFIX = '/team';
-/** Edge middleware budget on Vercel; fail fast instead of 504. */
-const AUTH_TIMEOUT_MS = 8000;
+/** Solo la consulta de rol. getUser() no se corta: un timeout descartaría el refresh. */
+const ROLE_TIMEOUT_MS = 8000;
 
 function isTeamPath(pathname: string): boolean {
   return pathname === TEAM_PREFIX || pathname.startsWith(`${TEAM_PREFIX}/`);
-}
-
-function isTeamGatePath(pathname: string): boolean {
-  return pathname === '/team/gate' || pathname.startsWith('/team/gate/');
 }
 
 function isProtectedPath(pathname: string): boolean {
@@ -28,10 +29,34 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
-function redirectHome(request: NextRequest) {
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = '/';
-  return NextResponse.redirect(loginUrl);
+function redirectWithSession(
+  request: NextRequest,
+  pathname: string,
+  pending: readonly PendingAuthCookie[],
+  next?: string,
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = '';
+  if (next) url.searchParams.set('next', next);
+  const redirect = NextResponse.redirect(url);
+  applyPendingAuthCookies(redirect, pending);
+  return redirect;
+}
+
+function sessionUnavailable(pending: readonly PendingAuthCookie[]) {
+  const unavailable = new NextResponse(
+    'No se pudo comprobar la sesión. Recarga para continuar.',
+    {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    },
+  );
+  applyPendingAuthCookies(unavailable, pending);
+  return unavailable;
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | 'timeout'> {
@@ -73,36 +98,44 @@ export async function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next();
+  const pendingCookies: PendingAuthCookie[] = [];
 
   const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookiesToSet) => {
-        for (const { name, value, options } of cookiesToSet) {
-          response.cookies.set(name, value, options);
+        for (const cookie of cookiesToSet) {
+          const index = pendingCookies.findIndex((item) => item.name === cookie.name);
+          if (index >= 0) pendingCookies[index] = cookie;
+          else pendingCookies.push(cookie);
+          response.cookies.set(cookie.name, cookie.value, cookie.options);
         }
       },
     },
   });
 
-  // Session-only gate: roles are enforced in /admin and /equipo layouts (client + API).
-  const userResult = await withTimeout(supabase.auth.getUser(), AUTH_TIMEOUT_MS);
-  if (userResult === 'timeout') {
-    console.error('[middleware] auth timeout on', pathname);
-    return redirectHome(request);
+  // getUser() valida y puede rotar el refresh. Esperarlo evita devolver
+  // una respuesta que tire esas cookies y deje al navegador con el token viejo.
+  let session: 'authenticated' | 'anonymous' | 'unavailable' = 'anonymous';
+  let userId: string | null = null;
+  try {
+    const userResult = await supabase.auth.getUser();
+    userId = userResult.data.user?.id ?? null;
+    session = sessionObservationFromAuthResult({
+      userId,
+      errorName: userResult.error?.name ?? null,
+    });
+  } catch (error) {
+    console.error('[middleware] auth check failed', pathname, error);
+    session = 'unavailable';
   }
 
-  if (!userResult.data.user) {
-    if (isTeamGatePath(pathname)) return response;
-    if (isTeamPath(pathname)) {
-      const gate = request.nextUrl.clone();
-      gate.pathname = '/team/gate';
-      gate.search = '';
-      gate.searchParams.set('next', pathname);
-      return NextResponse.redirect(gate);
-    }
-    return redirectHome(request);
+  const navigation = decideProtectedNavigation(pathname, session);
+  if (navigation.type === 'unavailable') return sessionUnavailable(pendingCookies);
+  if (navigation.type === 'redirect') {
+    return redirectWithSession(request, navigation.pathname, pendingCookies, navigation.next);
   }
+  if (!userId) return response;
 
   // Team OS no consulta user_roles. La membresía se comprueba en el servidor.
   if (isTeamPath(pathname)) {
@@ -114,21 +147,16 @@ export async function middleware(request: NextRequest) {
     pathname === STAFF_PREFIX || pathname.startsWith(`${STAFF_PREFIX}/`);
 
   if (isAdmin || isStaff) {
-    const role = await withTimeout(
-      resolveUserStaffRole(supabase, userResult.data.user.id),
-      AUTH_TIMEOUT_MS,
-    );
+    const role = await withTimeout(resolveUserStaffRole(supabase, userId), ROLE_TIMEOUT_MS);
     if (role === 'timeout') {
       console.error('[middleware] role timeout on', pathname);
-      return redirectHome(request);
+      return sessionUnavailable(pendingCookies);
     }
     if (!isStaffPathAllowed(pathname, role)) {
       if (isAdmin && role === 'moderator') {
-        const equipo = request.nextUrl.clone();
-        equipo.pathname = '/equipo/moderacion';
-        return NextResponse.redirect(equipo);
+        return redirectWithSession(request, '/equipo/moderacion', pendingCookies);
       }
-      return redirectHome(request);
+      return redirectWithSession(request, '/', pendingCookies);
     }
   }
 
