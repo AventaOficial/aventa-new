@@ -38,3 +38,16 @@ export async function readTeamActor(): Promise<TeamActor | null> {
     email: user.email ?? null,
   };
 }
+
+/** Sesión de Supabase validada. No lee el gate de Team OS. */
+export async function readAuthenticatedUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const supabase = createServerAuthClient({
+    getAll: async () => cookieStore.getAll(),
+    set: () => {},
+    delete: () => {},
+  });
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user.id;
+}

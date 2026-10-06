@@ -7,6 +7,7 @@ import type { TeamMembership } from '../roles/membership';
 import type { TeamId } from '../roles/teams';
 import { logTeamGate } from './log';
 import { loadActiveMemberships } from './memberships';
+import { withPlatformOwner } from '../authz/platformRole';
 import { decideTeamEntry, interpretGate, visibleActiveTeamIds } from './policy';
 import { readTeamActor, type TeamActor } from './session';
 import { TEAM_GATE_COOKIE, verifyTeamGate } from './token';
@@ -47,12 +48,13 @@ async function guardedMemberships(
   if (!gate.ok) return gate;
   const loaded = await loadActiveMemberships(gate.actor.userId);
   if (!loaded.ok) return { ok: false, status: 503, code: 'schema_unavailable' };
-  const allowed = visibleActiveTeamIds(loaded.memberships);
+  const memberships = await withPlatformOwner(gate.actor.userId, loaded.memberships);
+  const allowed = visibleActiveTeamIds(memberships);
   if (!allowed.includes(teamId)) {
     logTeamGate('forbidden', gate.actor.userId);
     return { ok: false, status: 403, code: 'forbidden' };
   }
-  return { ok: true, actor: gate.actor, memberships: loaded.memberships };
+  return { ok: true, actor: gate.actor, memberships };
 }
 
 export async function requireTeamMembership(teamId: TeamId): Promise<TeamMembershipOk | TeamDenial> {
@@ -93,14 +95,15 @@ export async function resolveTeamPage(requestedTeam: string | null): Promise<Tea
   if (!gate.ok) return { kind: 'gate' };
   const loaded = await loadActiveMemberships(actor.userId);
   if (!loaded.ok) return { kind: 'unavailable' };
-  const visible = visibleActiveTeamIds(loaded.memberships);
+  const memberships = await withPlatformOwner(actor.userId, loaded.memberships);
+  const visible = visibleActiveTeamIds(memberships);
   const decision = decideTeamEntry({
     hasSession: true,
     gateValid: true,
     activeTeamIds: visible,
     requestedTeam,
   });
-  const visibleMemberships = loaded.memberships.filter((item) => visible.includes(item.teamId));
+  const visibleMemberships = memberships.filter((item) => visible.includes(item.teamId));
   if (decision === 'no-access') return { kind: 'no-access' };
   if (decision === 'forbidden') return { kind: 'forbidden' };
   if (decision === 'select') return { kind: 'select', memberships: visibleMemberships };

@@ -96,3 +96,9 @@ export function rolesForTeam(teamId: TeamId): readonly string[] {
 export function everyTeamHasRoles(): boolean {
   return TEAM_IDS.every((teamId) => TEAM_ROLES[teamId].length > 0);
 }
+
+/** El rol de mayor rango ya definido para ese equipo. */
+export function leadRole<T extends TeamId>(teamId: T): TeamRole<T> {
+  const roles = TEAM_ROLES[teamId];
+  return roles[roles.length - 1];
+}
