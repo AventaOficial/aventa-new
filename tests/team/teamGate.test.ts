@@ -280,7 +280,8 @@ describe('team gate no reabre admin ni moderación legacy', () => {
     expect(page).toContain('notFound()');
     expect(page).toContain('resolveTeamPage');
     const route = readFileSync('app/api/team/access/route.ts', 'utf8');
-    expect(route).toContain('requireTeamMembership');
+    expect(route).toContain('requireTeamPermission');
+    expect(route).toContain('teamHomePermission');
     expect(route).not.toContain("searchParams.get('userId')");
     expect(route).not.toContain("searchParams.get('role')");
     const requireSource = readFileSync('lib/team/gate/require.ts', 'utf8');
@@ -288,6 +289,7 @@ describe('team gate no reabre admin ni moderación legacy', () => {
     expect(requireSource).toContain('requireTeamGate');
     expect(requireSource).toContain('requireTeamRole');
     expect(requireSource).toContain('requireTeamPermission');
+    expect(requireSource).toContain('teamHomePermission');
     const resolver = requireSource.slice(requireSource.indexOf('export async function resolveTeamPage'));
     expect(resolver.indexOf("return { kind: 'login' }")).toBeLessThan(resolver.indexOf('loadActiveMemberships'));
     expect(resolver.indexOf("return { kind: 'gate' }")).toBeLessThan(resolver.indexOf('loadActiveMemberships'));

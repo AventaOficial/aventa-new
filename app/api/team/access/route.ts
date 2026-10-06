@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireTeamMembership } from '@/lib/team/gate/require';
+import { teamHomePermission } from '@/lib/team/config/catalog';
+import { requireTeamPermission } from '@/lib/team/gate/require';
 import { readRequestedTeam } from '@/lib/team/gate/policy';
 
 export const runtime = 'nodejs';
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, code: 'invalid_team' }, { status: 400, headers: noStore });
   }
 
-  const access = await requireTeamMembership(teamId);
+  const access = await requireTeamPermission(teamId, teamHomePermission(teamId));
   if (!access.ok) {
     return NextResponse.json({ ok: false, code: access.code }, { status: access.status, headers: noStore });
   }

@@ -82,3 +82,8 @@ export const TEAM_METADATA = {
 export function teamMetadata(teamId: TeamId): TeamMetadata {
   return TEAM_METADATA[teamId];
 }
+
+/** Permiso de inicio del equipo. Entrar al dashboard exige este permiso, no solo la membresía. */
+export function teamHomePermission(teamId: TeamId): TeamMetadata['navigation'][number]['permission'] {
+  return TEAM_METADATA[teamId].navigation[0].permission;
+}

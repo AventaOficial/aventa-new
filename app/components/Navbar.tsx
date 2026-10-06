@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, LogOut, Moon, Sun, Settings, Puzzle, ShieldCheck, Layers } from 'lucide-react';
+import { User, LogOut, Moon, Sun, Settings, ShieldCheck, Users } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import NotificationCenter from './notifications/NotificationCenter';
 import { useState, useEffect, useRef } from 'react';
@@ -11,10 +11,12 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { readCachedDisplayName, writeCachedDisplayName } from '@/lib/profileDisplayName';
 
+type ProfileMenuLink = { id: string; href: string; label: string };
+
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const { user, session, signOut, isLoading: authLoading } = useAuth();
-  const { openRegisterModal, openLotesModal } = useUI();
+  const { openRegisterModal } = useUI();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [signOutStatus, setSignOutStatus] = useState<'idle' | 'closing' | 'closed'>('idle');
   const [signOutFading, setSignOutFading] = useState(false);
@@ -24,16 +26,14 @@ export default function Navbar() {
   const [displayName, setDisplayName] = useState<string | null>(() =>
     user?.id ? readCachedDisplayName(user.id) : null,
   );
-  const [canAccessModeration, setCanAccessModeration] = useState(false);
-  const [canAccessStaffHub, setCanAccessStaffHub] = useState(false);
+  const [menuLinks, setMenuLinks] = useState<ProfileMenuLink[]>([]);
   const [reputationLevel, setReputationLevel] = useState<number>(1);
   const [reputationScore, setReputationScore] = useState<number>(0);
 
   useEffect(() => {
     if (!user?.id) {
       setDisplayName(null);
-      setCanAccessModeration(false);
-      setCanAccessStaffHub(false);
+      setMenuLinks([]);
       setReputationLevel(1);
       setReputationScore(0);
       return;
@@ -55,18 +55,24 @@ export default function Navbar() {
       if (nextName) writeCachedDisplayName(user.id, nextName);
       setReputationLevel((profile as { reputation_level?: number } | null)?.reputation_level ?? 1);
       setReputationScore((profile as { reputation_score?: number } | null)?.reputation_score ?? 0);
-
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-      const roleList = (roles ?? []) as { role: string }[];
-      setCanAccessStaffHub(roleList.length > 0);
-      setCanAccessModeration(
-        roleList.some((r) => r.role === 'owner' || r.role === 'admin' || r.role === 'moderator'),
-      );
+    };
+    let cancelled = false;
+    const loadMenu = async () => {
+      const response = await fetch('/api/team/menu', { credentials: 'same-origin', cache: 'no-store' });
+      if (cancelled) return;
+      if (!response.ok) {
+        setMenuLinks([]);
+        return;
+      }
+      const body = (await response.json()) as { links?: ProfileMenuLink[] };
+      if (cancelled) return;
+      setMenuLinks(Array.isArray(body.links) ? body.links : []);
     };
     loadProfileAndRole();
+    loadMenu();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   const userName = displayName || (user ? '' : 'Usuario');
@@ -167,45 +173,21 @@ export default function Navbar() {
                     <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
                   </Link>
                   <UserMenuContent />
-                  {canAccessStaffHub && (
+                  {menuLinks.map((link) => (
                     <Link
-                      href="/equipo"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors duration-150"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Hub de equipo
-                    </Link>
-                  )}
-                  {canAccessModeration && (
-                    <Link
-                      href="/admin/moderation"
+                      key={link.id}
+                      href={link.href}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
                       onClick={() => setShowUserMenu(false)}
                     >
-                      <ShieldCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                      Moderación
+                      {link.id === 'mine' ? (
+                        <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <ShieldCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      )}
+                      {link.label}
                     </Link>
-                  )}
-                  <Link
-                    href="/extension"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Puzzle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Extensión (aún no disponible)
-                  </Link>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      openLotesModal();
-                    }}
-                  >
-                    <Layers className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Lotes
-                  </button>
+                  ))}
                   <Link
                     href="/settings"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors duration-150"

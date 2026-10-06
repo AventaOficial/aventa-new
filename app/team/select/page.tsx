@@ -20,7 +20,7 @@ export default async function TeamSelectPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-4 py-12">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#737373]">Aventa Team OS</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">Elige tu área</h1>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">Mi equipo</h1>
       <p className="mt-2 text-sm text-[#424245] dark:text-[#a1a1a6]">Solo aparecen los equipos activos de tu cuenta.</p>
       <ul className="mt-8 flex flex-col gap-3">
         {entry.memberships.map((membership) => {
