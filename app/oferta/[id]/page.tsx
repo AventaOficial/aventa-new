@@ -25,6 +25,7 @@ type OfferRow = {
   title: string;
   price: number;
   original_price: number | null;
+  source_currency?: string | null;
   image_url: string | null;
   image_urls: string[] | null;
   msi_months: number | null;
@@ -74,7 +75,7 @@ async function getOffer(id: string) {
   const { data, error } = await supabase
     .from('offers')
     .select(`
-      id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon,
+      id, title, price, original_price, source_currency, image_url, image_urls, msi_months, bank_coupon,
       store, offer_url, description, steps, conditions, coupons, expires_at, deleted_at,
       created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)
@@ -198,6 +199,8 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     author.featuredAchievement = await loadPrimaryAchievement(createServerClient(), offer.created_by);
   }
 
+  const sourceCurrency = offer.source_currency?.trim().toUpperCase() ?? '';
+  const confirmedCurrency = /^[A-Z]{3}$/.test(sourceCurrency) ? sourceCurrency : null;
   const originalPrice = Number(offer.original_price) || 0;
   const discountPrice = Number(offer.price) || 0;
   const discount =
@@ -219,6 +222,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     brand: formatStoreDisplayName(offer.store) || offer.store || '',
     originalPrice,
     discountPrice,
+    sourceCurrency: confirmedCurrency,
     discount,
     description: publicOfferDescription(offer.description) ?? undefined,
     steps: offer.steps?.trim() || undefined,
@@ -256,8 +260,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     offers: {
       '@type': 'Offer',
       url: `${BASE_URL}${canonicalPath}`,
-      price: discountPrice,
-      priceCurrency: 'MXN',
+      ...(confirmedCurrency ? { price: discountPrice, priceCurrency: confirmedCurrency } : {}),
       availability: freshness.schemaAvailability,
       seller: {
         '@type': 'Organization',
