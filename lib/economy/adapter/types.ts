@@ -87,6 +87,11 @@ export type NormalizedConversion = {
   orderAmountCents: number | null;
   currency: string | null;
   rawReference: Record<string, unknown>;
+  /**
+   * Clave de orden entregada por el canal. No se infiere de externalConversionId.
+   * Ausente = no hay candidato cross-source.
+   */
+  explicitOrderKey?: string | null;
 };
 
 export type NormalizedCommission = {
