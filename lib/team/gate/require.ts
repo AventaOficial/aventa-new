@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers';
 import { authorizeMinimumRole, authorizeTeamPermission } from '../authz/authorize';
+import { teamHomePermission } from '../config/catalog';
+import { roleHasPermission } from '../permissions/grants';
 import type { TeamPermission } from '../permissions/registry';
 import type { TeamMembership } from '../roles/membership';
 import type { TeamId } from '../roles/teams';
@@ -104,6 +106,9 @@ export async function resolveTeamPage(requestedTeam: string | null): Promise<Tea
   if (decision === 'select') return { kind: 'select', memberships: visibleMemberships };
   const membership = visibleMemberships.find((item) => item.teamId === requestedTeam);
   if (!membership) return { kind: 'forbidden' };
+  if (!roleHasPermission(membership.teamId, membership.role, teamHomePermission(membership.teamId))) {
+    return { kind: 'forbidden' };
+  }
   return { kind: 'allow', membership, memberships: visibleMemberships };
 }
 

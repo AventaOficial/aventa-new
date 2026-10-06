@@ -36,7 +36,7 @@ export default async function TeamAreaPage({ params }: Props) {
     personName,
     greeting,
   });
-  if (!context) notFound();
+  if (!context || context.navigation.length === 0) notFound();
 
   const [hero, progress] = await Promise.all([
     buildTeamHeroPayload({
