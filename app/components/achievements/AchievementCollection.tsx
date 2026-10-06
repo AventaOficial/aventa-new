@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, EyeOff, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { CATEGORY_LABEL, MAX_FEATURED_ACHIEVEMENTS } from '@/lib/achievements/types';
+import { CATEGORY_LABEL, MAX_FEATURED_ACHIEVEMENTS, type AchievementCategory } from '@/lib/achievements/types';
 import type { AchievementCard } from '@/lib/achievements/present';
 import AchievementSigil, { type AchievementSigilState } from './AchievementSigil';
 import { CATEGORY_TONE, achievementDefinition, formatAchievementDate } from './achievementVisuals';
@@ -20,9 +20,9 @@ type Payload = {
   celebration: AchievementCard | null;
 };
 
-type Filter = 'all' | 'unlocked' | 'locked';
+type Filter = 'all' | 'unlocked' | 'locked' | 'secrets' | AchievementCategory;
 
-const FILTERS: Array<{ id: Filter; label: string }> = [
+const FILTERS: Array<{ id: 'all' | 'unlocked' | 'locked'; label: string }> = [
   { id: 'all', label: 'Todos' },
   { id: 'unlocked', label: 'Conseguidos' },
   { id: 'locked', label: 'Por conseguir' },
@@ -190,7 +190,7 @@ function Celebration({
   onClose: () => void;
 }) {
   const definition = achievementDefinition(card.code);
-  const tone = definition ? CATEGORY_TONE[definition.category] : CATEGORY_TONE.caceria;
+  const tone = definition ? CATEGORY_TONE[definition.category] : CATEGORY_TONE.caza;
   return (
     <motion.section
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -324,9 +324,13 @@ export default function AchievementCollection({
 
   const groups = useMemo(() => {
     if (!payload) return [];
-    const visible = payload.cards.filter((card) =>
-      filter === 'all' ? true : filter === 'unlocked' ? card.unlocked : !card.unlocked,
-    );
+    const visible = payload.cards.filter((card) => {
+      if (filter === 'all') return true;
+      if (filter === 'unlocked') return card.unlocked;
+      if (filter === 'locked') return !card.unlocked;
+      if (filter === 'secrets') return achievementDefinition(card.code)?.isHidden === true;
+      return achievementDefinition(card.code)?.category === filter;
+    });
     const map = new Map<string, AchievementCard[]>();
     for (const card of visible) {
       const key = categoryLabel(card);
@@ -376,7 +380,7 @@ export default function AchievementCollection({
   const celebration = payload.celebration;
   const preview = (payload.next.length > 0 ? payload.next : payload.cards.filter((card) => !card.concealed)).slice(0, 3);
   const unlockedTotal = payload.cards.filter((card) => card.unlocked).length;
-  const filterCount: Record<Filter, number> = {
+  const filterCount: Record<'all' | 'unlocked' | 'locked', number> = {
     all: payload.cards.length,
     unlocked: unlockedTotal,
     locked: payload.cards.length - unlockedTotal,
@@ -399,7 +403,7 @@ export default function AchievementCollection({
               {variant === 'compact' ? 'Logros' : 'Tu colección'}
             </h2>
             <p className="mt-0.5 text-[13px] tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">
-              {payload.unlockedCount} de {payload.total} conseguidos
+              {payload.unlockedCount} / {payload.total} desbloqueados
             </p>
           </div>
           {variant === 'compact' && onViewAll ? (
@@ -478,6 +482,7 @@ export default function AchievementCollection({
             <h3 id="logros-coleccion" className="text-[13px] font-semibold uppercase tracking-wide text-[#6e6e73] dark:text-[#a3a3a3]">
               Colección
             </h3>
+            <div className="flex max-w-full flex-col gap-1.5">
             <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrar logros">
               {FILTERS.map((item) => {
                 const active = filter === item.id;
@@ -498,6 +503,39 @@ export default function AchievementCollection({
                   </button>
                 );
               })}
+              <button
+                type="button"
+                aria-pressed={filter === 'secrets'}
+                onClick={() => setFilter('secrets')}
+                className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-9 ${
+                  filter === 'secrets'
+                    ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                    : 'border border-black/10 bg-white text-[#515154] hover:bg-black/[0.03] dark:border-white/15 dark:bg-[#141414] dark:text-[#d1d1d6] dark:hover:bg-white/[0.06]'
+                }`}
+              >
+                Secretos
+              </button>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrar por categoría">
+              {(Object.keys(CATEGORY_LABEL) as AchievementCategory[]).map((category) => {
+                const active = filter === category;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setFilter(category)}
+                    className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-9 ${
+                      active
+                        ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                        : 'border border-black/10 bg-white text-[#515154] hover:bg-black/[0.03] dark:border-white/15 dark:bg-[#141414] dark:text-[#d1d1d6] dark:hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    {CATEGORY_LABEL[category]}
+                  </button>
+                );
+              })}
+            </div>
             </div>
           </div>
           {groups.length === 0 ? (

@@ -23,6 +23,7 @@ import {
 } from '@/lib/offers/ingestion/mergePendingOffer';
 import { buildObservationIdempotencyKey } from '@/lib/offers/ingestion/observationIdempotency';
 import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
+import { incrementHumanOfferCounter } from '@/lib/server/reputation';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
 
 export type IngestObservationSource =
@@ -575,7 +576,7 @@ export async function ingestOfferObservation(
     }
     if (recordSubmissionCount) {
       try {
-        await supabase.rpc('increment_offers_submitted_count', { uuid: input.createdBy });
+        await incrementHumanOfferCounter(supabase, input.createdBy, 'increment_offers_submitted_count');
       } catch {
         /* ignore */
       }

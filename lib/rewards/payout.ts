@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 import { REWARDS_MIN_PAYOUT_CENTS } from '@/lib/rewards/config';
 import { getUserRewardBalances } from '@/lib/rewards/rewardsEngine';
 import {
@@ -195,6 +196,15 @@ export async function createManualRewardPayout(
       error: `${MONEY_PATH_FROZEN_MESSAGE} [${MONEY_PATH_FROZEN_CODE}]`,
       status: 503,
       code: MONEY_PATH_FROZEN_CODE,
+    };
+  }
+
+  if (await isEconomicallyInertAuthor(supabase, input.userId)) {
+    return {
+      ok: false,
+      error: 'Este actor no participa en payouts',
+      status: 403,
+      code: 'non_human_actor',
     };
   }
 

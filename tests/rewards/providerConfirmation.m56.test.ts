@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { emptyMachineClientsTable } from '../helpers/machineClientsTable';
 import { REWARDS_MIN_PAYOUT_CENTS } from '@/lib/rewards/config';
 import {
   reservePayoutIntent,
@@ -226,6 +227,7 @@ function makeClient(store: Store): SupabaseClient {
         }
         return { data: null, error: null };
       }
+      if (table === 'machine_clients') return emptyMachineClientsTable();
       return { data: null, error: { message: `unexpected ${table}` } };
     };
 

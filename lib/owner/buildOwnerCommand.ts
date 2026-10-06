@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { loadActorDirectory, type ActorDirectory } from '@/lib/actors/actorType';
 import { createServerClient } from '@/lib/supabase/server';
-import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import {
   bucketIndex,
@@ -55,7 +55,7 @@ export type OwnerCommandPayload = {
     comments: RangeMetric;
     favorites: RangeMetric;
     reports: RangeMetric;
-    /** Autores humanos distintos con ofertas creadas en el rango (excluye bots de ingesta). */
+    /** Autores HUMAN distintos con ofertas creadas en el rango. Excluye MACHINE_HUNTER y SYSTEM. */
     activeHunters: RangeMetric;
     plazaRequests: RangeMetric;
     plazaDiscussions: RangeMetric;
@@ -179,20 +179,22 @@ async function rangeMetric(
   return { value, previous };
 }
 
-function botIds(): string[] {
-  try {
-    return loadBotIngestConfig('standard').botUserIdsForQuota;
-  } catch {
-    return [];
-  }
+function excludeNonHuman<Q extends { not: (column: string, op: string, value: string) => Q }>(
+  query: Q,
+  column: string,
+  ids: string[],
+): Q {
+  if (ids.length === 0) return query;
+  return query.not(column, 'in', `(${ids.join(',')})`);
 }
 
 async function distinctHumanAuthors(
   supabase: SupabaseClient,
   start: string,
   end: string,
-  bots: string[],
+  directory: ActorDirectory | null,
 ): Promise<number | null> {
+  if (!directory) return null;
   const res = await rows<{ created_by: string | null }>(
     supabase
       .from('offers')
@@ -205,7 +207,7 @@ async function distinctHumanAuthors(
   if (res.total != null && res.total > res.data.length) return null;
   const set = new Set<string>();
   for (const row of res.data) {
-    if (row.created_by && !bots.includes(row.created_by)) set.add(row.created_by);
+    if (row.created_by && directory.classify(row.created_by) === 'HUMAN') set.add(row.created_by);
   }
   return set.size;
 }
@@ -222,6 +224,7 @@ function tally(list: { status: string | null }[]): Record<string, number> {
 async function buildSeries(
   supabase: SupabaseClient,
   r: ResolvedOwnerRange,
+  directory: ActorDirectory | null,
 ): Promise<OwnerCommandPayload['series']> {
   const [offers, outbound, profiles, seen] = await Promise.all([
     rows<{ created_at: string }>(
@@ -241,22 +244,26 @@ async function buildSeries(
         .lt('created_at', r.end)
         .range(0, SERIES_ROW_CAP - 1),
     ),
-    rows<{ created_at: string }>(
-      supabase
-        .from('profiles')
-        .select('created_at', { count: 'exact' })
-        .gte('created_at', r.start)
-        .lt('created_at', r.end)
-        .range(0, SERIES_ROW_CAP - 1),
-    ),
-    rows<{ last_seen_at: string | null }>(
-      supabase
-        .from('user_activity')
-        .select('last_seen_at', { count: 'exact' })
-        .gte('last_seen_at', r.start)
-        .lt('last_seen_at', r.end)
-        .range(0, SERIES_ROW_CAP - 1),
-    ),
+    directory
+      ? rows<{ id: string; created_at: string }>(
+          supabase
+            .from('profiles')
+            .select('id, created_at', { count: 'exact' })
+            .gte('created_at', r.start)
+            .lt('created_at', r.end)
+            .range(0, SERIES_ROW_CAP - 1),
+        )
+      : Promise.resolve(null),
+    directory
+      ? rows<{ user_id: string | null; last_seen_at: string | null }>(
+          supabase
+            .from('user_activity')
+            .select('user_id, last_seen_at', { count: 'exact' })
+            .gte('last_seen_at', r.start)
+            .lt('last_seen_at', r.end)
+            .range(0, SERIES_ROW_CAP - 1),
+        )
+      : Promise.resolve(null),
   ]);
 
   const points: SeriesPoint[] = Array.from({ length: r.bucketCount }, (_, i) => ({
@@ -275,11 +282,19 @@ async function buildSeries(
   };
   fill(offers, 'offers');
   fill(outbound, 'outbound');
-  fill(profiles, 'newUsers');
-  for (const row of seen?.data ?? []) {
-    if (!row.last_seen_at) continue;
-    const idx = bucketIndex(r, row.last_seen_at);
-    if (idx >= 0) points[idx].activeUsers += 1;
+  if (directory && profiles) {
+    for (const row of profiles.data) {
+      if (directory.classify(row.id) !== 'HUMAN') continue;
+      const idx = bucketIndex(r, row.created_at);
+      if (idx >= 0) points[idx].newUsers += 1;
+    }
+  }
+  if (directory && seen) {
+    for (const row of seen.data) {
+      if (!row.last_seen_at || !row.user_id || directory.classify(row.user_id) !== 'HUMAN') continue;
+      const idx = bucketIndex(r, row.last_seen_at);
+      if (idx >= 0) points[idx].activeUsers += 1;
+    }
   }
 
   const isTruncated = (res: { data: unknown[]; total: number | null } | null) =>
@@ -289,8 +304,8 @@ async function buildSeries(
     bucket: r.bucket,
     points,
     truncated: isTruncated(offers) || isTruncated(outbound) || isTruncated(profiles),
-    available: offers != null && outbound != null && profiles != null,
-    activeUsersAvailable: seen != null && !isTruncated(seen),
+    available: offers != null && outbound != null && (!directory || profiles != null),
+    activeUsersAvailable: directory != null && seen != null && !isTruncated(seen),
   };
 }
 
@@ -417,7 +432,8 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
   const supabase = createServerClient();
   const r = resolveOwnerRange(rangeKey, now);
   const nowIso = now.toISOString();
-  const bots = botIds();
+  const directory = await loadActorDirectory(supabase);
+  const nonHumanIds = directory?.nonHumanIds() ?? [];
 
   const [
     offersCreated,
@@ -467,21 +483,39 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
     rangeMetric((s, e) => between(supabase, 'offer_reports', 'created_at', s, e), r),
     rangeMetric((s, e) => between(supabase, 'plaza_requests', 'created_at', s, e), r),
     rangeMetric((s, e) => between(supabase, 'plaza_discussions', 'created_at', s, e), r),
-    rangeMetric((s, e) => between(supabase, 'profiles', 'created_at', s, e), r),
+    directory
+      ? rangeMetric(
+          (s, e) =>
+            excludeNonHuman(
+              supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', s).lt('created_at', e),
+              'id',
+              nonHumanIds,
+            ),
+          r,
+        )
+      : Promise.resolve({ value: null, previous: null }),
     rangeMetric((s, e) => between(supabase, 'offer_events', 'created_at', s, e).eq('event_type', 'view'), r),
     rangeMetric((s, e) => between(supabase, 'offer_events', 'created_at', s, e).eq('event_type', 'outbound'), r),
     rangeMetric((s, e) => between(supabase, 'moderation_logs', 'created_at', s, e).eq('action', 'approved'), r),
     rangeMetric((s, e) => between(supabase, 'moderation_logs', 'created_at', s, e).eq('action', 'rejected'), r),
-    distinctHumanAuthors(supabase, r.start, r.end, bots),
-    distinctHumanAuthors(supabase, r.prevStart, r.prevEnd, bots),
-    count(
-      supabase
-        .from('user_activity')
-        .select('user_id', { count: 'exact', head: true })
-        .gte('last_seen_at', r.start)
-        .lt('last_seen_at', r.end),
-    ),
-    count(supabase.from('profiles').select('id', { count: 'exact', head: true })),
+    distinctHumanAuthors(supabase, r.start, r.end, directory),
+    distinctHumanAuthors(supabase, r.prevStart, r.prevEnd, directory),
+    directory
+      ? count(
+          excludeNonHuman(
+            supabase
+              .from('user_activity')
+              .select('user_id', { count: 'exact', head: true })
+              .gte('last_seen_at', r.start)
+              .lt('last_seen_at', r.end),
+            'user_id',
+            nonHumanIds,
+          ),
+        )
+      : Promise.resolve(null),
+    directory
+      ? count(excludeNonHuman(supabase.from('profiles').select('id', { count: 'exact', head: true }), 'id', nonHumanIds))
+      : Promise.resolve(null),
     rows<{ user_id: string | null; action: string | null }>(
       supabase
         .from('moderation_logs')
@@ -572,7 +606,7 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
         .limit(1),
     ),
     count(between(supabase, 'reward_audit_log', 'created_at', r.start, r.end)),
-    buildSeries(supabase, r),
+    buildSeries(supabase, r, directory),
     buildActivity(supabase),
     rows<{ user_id: string | null }>(
       supabase.from('user_roles').select('user_id').in('role', MODERATION_TEAM_ROLES).range(0, SERIES_ROW_CAP - 1),

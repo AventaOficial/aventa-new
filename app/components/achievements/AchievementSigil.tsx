@@ -37,14 +37,14 @@ const STUDS_BY_TIER: Record<number, number[]> = {
 type GlyphProps = { color: string };
 
 const GLYPHS: Record<AchievementCategory | 'concealed', (props: GlyphProps) => ReactNode> = {
-  caceria: ({ color }) => (
+  caza: ({ color }) => (
     <g fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M4.5 19c3.5-.8 5.6-3 7.2-6.2 1.5-3 3.6-5.3 7.8-6.3" strokeDasharray="0.1 3.6" />
       <path d="M15.6 5.2l4.2 1.3-1.6 4" />
       <circle cx={4.5} cy={19} r={1.6} fill={color} stroke="none" />
     </g>
   ),
-  precision: ({ color }) => (
+  calidad: ({ color }) => (
     <g fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
       <circle cx={12} cy={12} r={6.5} />
       <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" />
@@ -57,28 +57,25 @@ const GLYPHS: Record<AchievementCategory | 'concealed', (props: GlyphProps) => R
       <circle cx={15} cy={12} r={5.5} />
     </g>
   ),
-  constancia: ({ color }) => (
+  progresion: ({ color }) => (
     <g fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M3.5 19.5h4.2v-4.6h4.4v-4.6h4.4V5.7h4" />
       <circle cx={20.5} cy={5.7} r={1.6} fill={color} stroke="none" />
     </g>
   ),
-  impacto: ({ color }) => (
+  exploracion: ({ color }) => (
     <g fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
       <circle cx={5.5} cy={18.5} r={1.9} fill={color} stroke="none" />
       <path d="M5.5 12.5a6 6 0 0 1 6 6" />
       <path d="M5.5 6.5a12 12 0 0 1 12 12" />
     </g>
   ),
-  experiencia: ({ color }) => (
+  temporadas: ({ color }) => (
     <g fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 9.5l6-4.5 6 4.5" />
       <path d="M6 14.5l6-4.5 6 4.5" opacity={0.8} />
       <path d="M6 19.5l6-4.5 6 4.5" opacity={0.6} />
     </g>
-  ),
-  especiales: ({ color }) => (
-    <path d="M12 2.8l2.3 6.9 6.9 2.3-6.9 2.3L12 21.2l-2.3-6.9L2.8 12l6.9-2.3z" fill={color} />
   ),
   concealed: ({ color }) => (
     <g fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
@@ -109,7 +106,7 @@ export default function AchievementSigil({
 }) {
   const uid = useId().replace(/:/g, '');
   const definition = achievementDefinition(code);
-  const family = category ?? definition?.category ?? 'caceria';
+  const family = category ?? definition?.category ?? 'caza';
   const tier = RARITY_TIER[rarity ?? definition?.rarity ?? 'common'];
   const tone = CATEGORY_TONE[family];
   const px = SIZE_PX[size];

@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase/server';
 import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 
@@ -16,6 +17,26 @@ export async function recalculateUserReputation(userId: string): Promise<void> {
   } catch (e) {
     console.error('[reputation] recalculate_user_reputation failed for', userId, e);
   }
+}
+
+export type HumanOfferCounterRpc =
+  | 'increment_offers_approved_count'
+  | 'increment_offers_rejected_count'
+  | 'increment_offers_submitted_count';
+
+/**
+ * Contadores de perfil usados por moderación y por el alta de ofertas.
+ * MACHINE_HUNTER y SYSTEM no los incrementan. La oferta en catálogo no depende de esto.
+ */
+export async function incrementHumanOfferCounter(
+  supabase: SupabaseClient,
+  userId: string,
+  rpc: HumanOfferCounterRpc,
+): Promise<'skipped' | 'ok' | 'error'> {
+  if (await isEconomicallyInertAuthor(supabase, userId)) return 'skipped';
+  const { error } = await supabase.rpc(rpc, { uuid: userId });
+  if (error) return 'error';
+  return 'ok';
 }
 
 /** Umbral de nivel para auto-aprobar comentarios (>= 2). */

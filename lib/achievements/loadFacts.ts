@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { excludesHumanSurfaces, resolveActorType } from '@/lib/actors/actorType';
 import { lookupUserBan } from '@/lib/server/isUserBanned';
 import { foldAchievementEvents } from './fold';
 import { offerWasCorrected, readOfferQuality } from './quality';
@@ -14,6 +14,8 @@ type OfferRow = {
   bot_meta?: unknown;
   created_at: string | null;
   expires_at?: string | null;
+  category?: string | null;
+  store?: string | null;
 };
 
 type VoteRow = {
@@ -75,8 +77,8 @@ export async function loadUserAchievementFacts(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<LoadedAchievementFacts> {
-  if (isBotUserId(userId)) {
-    return { facts: foldAchievementEvents([], { banned: true }), banned: true, unavailable: false };
+  if (excludesHumanSurfaces(await resolveActorType(supabase, userId))) {
+    return { facts: foldAchievementEvents([]), banned: false, unavailable: false };
   }
 
   const ban = await lookupUserBan(supabase, userId);
@@ -95,7 +97,7 @@ export async function loadUserAchievementFacts(
 
   const offerQuery = await supabase
     .from('offers')
-    .select('id, status, deleted_at, moderator_comment, rejection_reason, bot_meta, created_at, expires_at')
+    .select('id, status, deleted_at, moderator_comment, rejection_reason, bot_meta, created_at, expires_at, category, store')
     .eq('created_by', userId);
 
   let offerRows = (offerQuery.data ?? []) as OfferRow[];
@@ -146,6 +148,8 @@ export async function loadUserAchievementFacts(
       qualifies: quality.qualifies,
       secret: quality.secret,
       expiresAt: offer.expires_at ?? null,
+      category: offer.category ?? null,
+      store: offer.store ?? null,
       deleted: false,
       duplicate: false,
       gateFailed: false,
@@ -236,6 +240,22 @@ export async function loadUserAchievementFacts(
     : { rows: [], missingColumn: false };
   const ownOfferById = new Map(ownOfferRows.rows.map((offer) => [offer.id, offer]));
 
+  const ownCommentIds = ownRows.map((comment) => comment.id);
+  const ownLikes = ownCommentIds.length
+    ? await selectIn<{ comment_id: string; user_id: string }>(
+        supabase,
+        'comment_likes',
+        'comment_id, user_id',
+        'comment_id',
+        ownCommentIds,
+      )
+    : { rows: [] as Array<{ comment_id: string; user_id: string }>, missingColumn: false };
+  const likedOwnComments = new Set(
+    ownLikes.rows
+      .filter((like) => like.user_id !== userId)
+      .map((like) => like.comment_id),
+  );
+
   for (const comment of ownRows) {
     const offer = ownOfferById.get(comment.offer_id);
     const onOwnOffer = offer?.created_by === userId;
@@ -248,6 +268,7 @@ export async function loadUserAchievementFacts(
       approved: comment.status === 'approved' && live,
       onOwnOffer,
       authorBanned: false,
+      useful: likedOwnComments.has(comment.id),
       commentBody: comment.content ?? '',
     });
   }
@@ -304,11 +325,23 @@ export async function loadUserAchievementFacts(
     level: reputationLevel,
   });
 
+  const favorites = await countFavorites(supabase, userId);
+
   return {
-    facts: foldAchievementEvents(events, { reputationLevel }),
+    facts: foldAchievementEvents(events, { reputationLevel, favorites }),
     banned: false,
     unavailable: false,
   };
+}
+
+async function countFavorites(supabase: SupabaseClient, userId: string): Promise<number> {
+  const { data, error } = await supabase.from('offer_favorites').select('id').eq('user_id', userId);
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes('column') || message.includes('schema') || message.includes('relation')) return 0;
+    throw new Error(error.message);
+  }
+  return (data ?? []).length;
 }
 
 async function activeBanSet(supabase: SupabaseClient, userIds: string[]): Promise<Set<string>> {

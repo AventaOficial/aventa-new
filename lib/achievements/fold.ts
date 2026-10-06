@@ -7,6 +7,7 @@ import {
   longestConsecutiveDays,
   mexicoDayAndHour,
 } from './calendar';
+import { seasonIdAt } from './seasons';
 import type { AchievementDomainEvent, ApprovedOfferFact, UserFacts } from './types';
 
 export function emptyFacts(partial: Partial<UserFacts> = {}): UserFacts {
@@ -23,6 +24,11 @@ export function emptyFacts(partial: Partial<UserFacts> = {}): UserFacts {
     distinctContributionDays: 0,
     longestConsecutiveDays: 0,
     reputationLevel: 1,
+    votesCast: 0,
+    favorites: 0,
+    uniqueCategories: 0,
+    uniqueStores: 0,
+    commentLikesReceived: 0,
     dawnExceptional: false,
     nightExceptional: false,
     flashHunter: false,
@@ -38,6 +44,11 @@ function normalizeBody(body: string | undefined): string {
   return (body ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function normalizeLabel(value: string | null | undefined): string | null {
+  const label = (value ?? '').trim().toLowerCase();
+  return label.length > 0 ? label : null;
+}
+
 function eventKey(event: AchievementDomainEvent): string {
   return `${event.type}:${event.eventId}`;
 }
@@ -49,7 +60,7 @@ function eventKey(event: AchievementDomainEvent): string {
  */
 export function foldAchievementEvents(
   events: readonly AchievementDomainEvent[],
-  options: { reputationLevel?: number; banned?: boolean } = {},
+  options: { reputationLevel?: number; banned?: boolean; favorites?: number } = {},
 ): UserFacts {
   if (options.banned) return emptyFacts({ banned: true, reputationLevel: options.reputationLevel ?? 1 });
 
@@ -63,6 +74,8 @@ export function foldAchievementEvents(
   const conversationBodies = new Set<string>();
   const contributionDays = new Set<string>();
   let level = options.reputationLevel ?? 1;
+  let votesCast = 0;
+  let commentLikes = 0;
 
   const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at) || eventKey(a).localeCompare(eventKey(b)));
 
@@ -105,6 +118,9 @@ export function foldAchievementEvents(
         secret: event.secret === true || current?.secret === true,
         expiresAt: event.expiresAt ?? current?.expiresAt ?? null,
         votes: current?.votes ?? 0,
+        category: normalizeLabel(event.category) ?? current?.category ?? null,
+        store: normalizeLabel(event.store) ?? current?.store ?? null,
+        seasonId: current?.seasonId ?? seasonIdAt(current?.at ?? event.at),
       });
       const when = mexicoDayAndHour(event.at);
       if (when) contributionDays.add(when.day);
@@ -130,6 +146,7 @@ export function foldAchievementEvents(
       bucket.add(event.eventId);
       votesByOffer.set(event.offerId, bucket);
       if (event.type === 'USER_VOTED') {
+        votesCast += 1;
         const when = mexicoDayAndHour(event.at);
         if (when) contributionDays.add(when.day);
       }
@@ -156,6 +173,7 @@ export function foldAchievementEvents(
       if (event.type === 'USER_COMMENTED' && event.offerId && !conversationBodies.has(body)) {
         conversationBodies.add(body);
         conversationOffers.add(event.offerId);
+        if (event.useful === true) commentLikes += 1;
         const when = mexicoDayAndHour(event.at);
         if (when) contributionDays.add(when.day);
       }
@@ -205,6 +223,11 @@ export function foldAchievementEvents(
     distinctContributionDays: contributionDays.size,
     longestConsecutiveDays: longestConsecutiveDays([...contributionDays]),
     reputationLevel: level,
+    votesCast,
+    favorites: Math.max(0, options.favorites ?? 0),
+    uniqueCategories: new Set(offers.map((offer) => offer.category).filter((value): value is string => Boolean(value))).size,
+    uniqueStores: new Set(offers.map((offer) => offer.store).filter((value): value is string => Boolean(value))).size,
+    commentLikesReceived: commentLikes,
     dawnExceptional: dawn,
     nightExceptional: night,
     flashHunter: flash,
