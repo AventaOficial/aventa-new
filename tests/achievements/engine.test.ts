@@ -148,7 +148,7 @@ describe('logros de Aventa', () => {
     const step = projectAchievements(facts).find((item) => item.code === 'first_step');
     expect(step?.unlocked).toBe(true);
     expect(ACHIEVEMENT_CATALOG.find((item) => item.code === 'first_step')?.xpReward).toBe(0);
-    expect(ACHIEVEMENT_CATALOG.filter((item) => item.category === 'experiencia').every((item) => item.xpReward === 0)).toBe(true);
+    expect(ACHIEVEMENT_CATALOG.filter((item) => item.rule.type === 'level').every((item) => item.xpReward === 0)).toBe(true);
     const hunter = projectAchievements(facts).find((item) => item.code === 'hunter_rank');
     expect(hunter?.unlocked).toBe(false);
     expect(hunter?.target).toBe(4);
@@ -174,14 +174,15 @@ describe('logros de Aventa', () => {
     expect(open.find((card) => card.code === 'secret_offer')?.name).toBe('Oferta secreta');
   });
 
-  it('el logro temporal permanece oculto fuera de su ventana', () => {
-    const black = ACHIEVEMENT_CATALOG.find((item) => item.code === 'black_friday_hunter');
-    expect(achievementIsConcealed(black!, false, new Date('2026-06-01T18:00:00.000Z'))).toBe(true);
-    expect(achievementIsConcealed(black!, false, new Date('2026-11-27T18:00:00.000Z'))).toBe(false);
-    const outside = foldAchievementEvents([approved('bf', '2026-06-01', { qualifies: true })]);
-    expect(outside.blackFridayHunter).toBe(false);
-    const inside = foldAchievementEvents([approved('bf', '2026-11-27', { qualifies: true })]);
-    expect(inside.blackFridayHunter).toBe(true);
+  it('la temporada cuenta ofertas dentro de la ventana de Seasons', () => {
+    const outside = foldAchievementEvents([approved('bf', '2026-06-01')]);
+    expect(outside.offers[0]?.seasonId).toBeNull();
+    expect(projectAchievements(outside).find((item) => item.code === 'buen_fin_1')?.unlocked).toBe(false);
+    const inside = foldAchievementEvents([approved('bf', '2026-11-13')]);
+    expect(inside.offers[0]?.seasonId).toBe('buen-fin');
+    expect(projectAchievements(inside).find((item) => item.code === 'buen_fin_1')?.unlocked).toBe(true);
+    const muertos = foldAchievementEvents([approved('dm', '2026-11-13')]);
+    expect(projectAchievements(muertos).find((item) => item.code === 'muertos_1')?.unlocked).toBe(false);
   });
 
   it('un logro ya desbloqueado se conserva aunque el hecho baje', () => {
@@ -242,13 +243,13 @@ describe('logros de Aventa', () => {
       'Primer paso',
       'Contribuidor',
       'Cazador',
-      'Explorador',
       'Madrugador',
       'Cazador nocturno',
       'Flash Hunter',
-      'Black Friday Hunter',
-      'Cazador de temporada',
       'Oferta secreta',
+      'Buen Fin',
+      'Ofrenda',
+      'Primera de Navidad',
     ]) {
       expect(names).toContain(name);
     }

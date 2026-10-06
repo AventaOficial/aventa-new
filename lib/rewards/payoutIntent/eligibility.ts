@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall';
 import { REWARDS_MIN_PAYOUT_CENTS } from '@/lib/rewards/config';
 import { isRewardsBetaEnabled, isRewardsPayoutEnabled, resolveRewardsAccess } from '@/lib/rewards/betaCohort';
 import { latestBetaMembership } from '@/lib/rewards/betaCohortStore';
@@ -39,6 +40,10 @@ export async function evaluatePayoutIntentEligibility(
 ): Promise<PayoutIntentEligibility> {
   const reward = await loadCreatorRewardForPayout(supabase, rewardId);
   if (!reward) return { ok: false, reason: 'reward_not_found' };
+
+  if (await isEconomicallyInertAuthor(supabase, reward.creator_id)) {
+    return { ok: false, reason: 'non_human_actor' };
+  }
 
   if (reward.status === 'CANCELLED' || reward.status === 'REVERSED') {
     return { ok: false, reason: 'reward_terminal' };

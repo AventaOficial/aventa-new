@@ -21,13 +21,12 @@ export const ACHIEVEMENT_EVENT_TYPES = [
 export type AchievementEventType = (typeof ACHIEVEMENT_EVENT_TYPES)[number];
 
 export type AchievementCategory =
-  | 'caceria'
-  | 'precision'
+  | 'caza'
+  | 'calidad'
   | 'comunidad'
-  | 'constancia'
-  | 'impacto'
-  | 'experiencia'
-  | 'especiales';
+  | 'progresion'
+  | 'exploracion'
+  | 'temporadas';
 
 export type AchievementRarity =
   | 'common'
@@ -51,6 +50,13 @@ export type AchievementRule =
   | { type: 'distinct_days'; target: number }
   | { type: 'consecutive_days'; target: number }
   | { type: 'level'; target: number }
+  | { type: 'votes_cast'; target: number }
+  | { type: 'favorites'; target: number }
+  | { type: 'unique_categories'; target: number }
+  | { type: 'unique_stores'; target: number }
+  | { type: 'comment_likes'; target: number }
+  | { type: 'season_offers'; seasonId: string; target: number }
+  | { type: 'seasons_visited'; target: number }
   | { type: 'dawn' }
   | { type: 'night' }
   | { type: 'flash' }
@@ -84,6 +90,8 @@ export type AchievementDomainEvent = {
   authorBanned?: boolean;
   level?: number;
   expiresAt?: string | null;
+  category?: string | null;
+  store?: string | null;
 };
 
 export type ApprovedOfferFact = {
@@ -94,6 +102,9 @@ export type ApprovedOfferFact = {
   secret: boolean;
   expiresAt: string | null;
   votes: number;
+  category: string | null;
+  store: string | null;
+  seasonId: string | null;
 };
 
 export type UserFacts = {
@@ -109,6 +120,11 @@ export type UserFacts = {
   distinctContributionDays: number;
   longestConsecutiveDays: number;
   reputationLevel: number;
+  votesCast: number;
+  favorites: number;
+  uniqueCategories: number;
+  uniqueStores: number;
+  commentLikesReceived: number;
   dawnExceptional: boolean;
   nightExceptional: boolean;
   flashHunter: boolean;
@@ -142,23 +158,21 @@ export type AchievementDefinition = {
 export const MAX_FEATURED_ACHIEVEMENTS = 5;
 
 export const CATEGORY_LABEL: Record<AchievementCategory, string> = {
-  caceria: 'Cacería',
-  precision: 'Precisión',
+  caza: 'Caza',
+  calidad: 'Calidad',
   comunidad: 'Comunidad',
-  constancia: 'Constancia',
-  impacto: 'Impacto',
-  experiencia: 'Experiencia',
-  especiales: 'Especiales',
+  progresion: 'Progresión',
+  exploracion: 'Exploración',
+  temporadas: 'Temporadas',
 };
 
 export const CATEGORY_ICON: Record<AchievementCategory, string> = {
-  caceria: '🏹',
-  precision: '🎯',
+  caza: '🏹',
+  calidad: '🎯',
   comunidad: '❤️',
-  constancia: '🔥',
-  impacto: '📈',
-  experiencia: '🧠',
-  especiales: '💎',
+  progresion: '🔥',
+  exploracion: '🧭',
+  temporadas: '🎉',
 };
 
 export const RARITY_LABEL: Record<AchievementRarity, string> = {

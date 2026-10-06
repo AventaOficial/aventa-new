@@ -5,13 +5,12 @@ export type AchievementTone = { from: string; to: string; ink: string };
 
 /** Un tono por familia del catálogo. La rareza no cambia el color: cambia el marco. */
 export const CATEGORY_TONE: Record<AchievementCategory, AchievementTone> = {
-  caceria: { from: '#8b5cf6', to: '#5b21b6', ink: '#7c3aed' },
-  precision: { from: '#6366f1', to: '#3730a3', ink: '#4f46e5' },
+  caza: { from: '#8b5cf6', to: '#5b21b6', ink: '#7c3aed' },
+  calidad: { from: '#6366f1', to: '#3730a3', ink: '#4f46e5' },
   comunidad: { from: '#f43f5e', to: '#9f1239', ink: '#e11d48' },
-  constancia: { from: '#f59e0b', to: '#b45309', ink: '#d97706' },
-  impacto: { from: '#10b981', to: '#047857', ink: '#059669' },
-  experiencia: { from: '#0ea5e9', to: '#0369a1', ink: '#0284c7' },
-  especiales: { from: '#d946ef', to: '#86198f', ink: '#c026d3' },
+  progresion: { from: '#f59e0b', to: '#b45309', ink: '#d97706' },
+  exploracion: { from: '#0ea5e9', to: '#0369a1', ink: '#0284c7' },
+  temporadas: { from: '#d946ef', to: '#86198f', ink: '#c026d3' },
 };
 
 export const MYTHIC_STOPS = ['#7c3aed', '#d946ef', '#f59e0b'] as const;

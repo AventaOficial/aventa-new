@@ -1,5 +1,6 @@
 import { activeAchievements } from './catalog';
 import { blackFridayWindowOpen, seasonWindowOpen } from './calendar';
+import { seasonWindowOpenFor } from './seasons';
 import type { AchievementDefinition, AchievementRule, UserFacts } from './types';
 
 export type AchievementProjection = {
@@ -20,6 +21,24 @@ function approvalRate(facts: UserFacts): number | null {
   const evaluated = facts.approvedOffers + facts.rejectedOffers;
   if (evaluated <= 0) return null;
   return facts.approvedOffers / evaluated;
+}
+
+function countOf(current: number, target: number): Omit<AchievementProjection, 'code'> {
+  return {
+    progress: current,
+    target,
+    percent: ratio(current, target),
+    unlocked: current >= target,
+    approvalRate: null,
+  };
+}
+
+function seasonOfferCount(facts: UserFacts, seasonId: string): number {
+  return facts.offers.filter((offer) => offer.seasonId === seasonId).length;
+}
+
+function seasonsVisited(facts: UserFacts): number {
+  return new Set(facts.offers.map((offer) => offer.seasonId).filter((id): id is string => Boolean(id))).size;
 }
 
 function projectRule(rule: AchievementRule, facts: UserFacts): Omit<AchievementProjection, 'code'> {
@@ -44,6 +63,20 @@ function projectRule(rule: AchievementRule, facts: UserFacts): Omit<AchievementP
       return { progress: facts.longestConsecutiveDays, target: rule.target, percent: ratio(facts.longestConsecutiveDays, rule.target), unlocked: facts.longestConsecutiveDays >= rule.target, approvalRate: null };
     case 'level':
       return { progress: facts.reputationLevel, target: rule.target, percent: ratio(facts.reputationLevel, rule.target), unlocked: facts.reputationLevel >= rule.target, approvalRate: null };
+    case 'votes_cast':
+      return countOf(facts.votesCast, rule.target);
+    case 'favorites':
+      return countOf(facts.favorites, rule.target);
+    case 'unique_categories':
+      return countOf(facts.uniqueCategories, rule.target);
+    case 'unique_stores':
+      return countOf(facts.uniqueStores, rule.target);
+    case 'comment_likes':
+      return countOf(facts.commentLikesReceived, rule.target);
+    case 'season_offers':
+      return countOf(seasonOfferCount(facts, rule.seasonId), rule.target);
+    case 'seasons_visited':
+      return countOf(seasonsVisited(facts), rule.target);
     case 'dawn':
       return flag(facts.dawnExceptional);
     case 'night':
@@ -106,6 +139,7 @@ export function achievementIsConcealed(
   if (definition.reveal === 'during_window') {
     if (definition.rule.type === 'black_friday' && blackFridayWindowOpen(now)) return false;
     if (definition.rule.type === 'season' && seasonWindowOpen(now)) return false;
+    if (definition.rule.type === 'season_offers' && seasonWindowOpenFor(definition.rule.seasonId, now)) return false;
   }
   return true;
 }

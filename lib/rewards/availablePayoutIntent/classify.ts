@@ -16,6 +16,7 @@ const TERMINAL = new Set<string>([
   'currency_mismatch',
   'creator_mismatch',
   'schema_missing',
+  'non_human_actor',
 ]);
 
 const DEFERRED = new Set<string>([
