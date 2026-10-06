@@ -115,22 +115,26 @@ export default function ProfileFields() {
   }, [session?.user?.id]);
 
   async function save(next: Identity) {
-    const userId = session?.user?.id;
-    if (!userId) return;
+    const token = session?.access_token;
+    if (!token) return;
     setSaving(true);
-    const { error } = await createClient()
-      .from('profiles')
-      .update({
+    const response = await fetch('/api/me/profile-identity', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
         bio: next.bio.trim() || null,
         city: next.city.trim() || null,
         state: next.state.trim() || null,
         show_location: next.showLocation,
         show_activity: next.showActivity,
         profile_visibility: next.profileVisibility,
-      })
-      .eq('id', userId);
+      }),
+    });
     setSaving(false);
-    if (error) {
+    if (!response.ok) {
       showToast('No se pudo guardar el perfil.');
       return;
     }
