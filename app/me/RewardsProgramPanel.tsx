@@ -17,6 +17,7 @@ import RewardsOfferSelection, {
 } from '@/app/me/RewardsOfferSelection';
 import MysteryGiftBox from '@/app/me/MysteryGiftBox';
 import RewardsProgramGuide from '@/app/me/RewardsProgramGuide';
+import RewardsBetaOnboarding from '@/app/me/RewardsBetaOnboarding';
 import {
   PROGRAM_STATUS_COPY,
   buildRewardsOnboarding,
@@ -69,6 +70,17 @@ type StatusPayload = {
     paidCents: number;
   };
   policy: { creatorShareBps: number; minPayoutCents: number; holdDays: number };
+  beta?: {
+    betaEnabled: boolean;
+    audience: 'closed' | 'program' | 'beta';
+    membership: string;
+    canSeeEconomics: boolean;
+    needsOnboarding: boolean;
+    payoutEnabled: boolean;
+    shareBps: number | null;
+    ruleVersion: string | null;
+    steps: { id: string; title: string; body: string[] }[];
+  };
 };
 
 function centsToMx(cents: number): string {
@@ -345,6 +357,24 @@ export default function RewardsProgramPanel() {
   const memberStatus = resolveRewardsMemberStatus(phase);
   const pausedNotice = buildRewardsOnboarding(programStatus).locked;
 
+  if (data.beta?.needsOnboarding) {
+    return <RewardsBetaOnboarding steps={data.beta.steps} onDone={() => void reload()} />;
+  }
+
+  if (data.beta?.betaEnabled && !data.programActive && data.beta.audience === 'closed') {
+    const closed =
+      data.beta.membership === 'suspended'
+        ? 'Tu lugar en la beta de Rewards está suspendido.'
+        : data.beta.membership === 'removed'
+          ? 'Ya no estás en la beta de Rewards.'
+          : 'Rewards está en una beta cerrada. Esta cuenta no está invitada.';
+    return (
+      <section className="rounded-3xl border border-gray-200 bg-white p-6 text-sm text-gray-700 dark:border-zinc-800 dark:bg-[#141416] dark:text-zinc-300">
+        {closed}
+      </section>
+    );
+  }
+
   return (
     <>
       <section
@@ -365,6 +395,12 @@ export default function RewardsProgramPanel() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-400/90">
             Programa del Cazador
           </p>
+          {data.beta?.audience === 'beta' && data.beta.shareBps != null ? (
+            <p className="mt-3 text-sm text-gray-700 dark:text-zinc-300">
+              Tu participación actual: {Math.round(data.beta.shareBps / 100)}%.
+              {data.beta.payoutEnabled ? ' Los pagos de la beta están habilitados.' : ' Esto todavía no puede pagarse.'}
+            </p>
+          ) : null}
 
           {phase === 'locked' ? (
             <div className="mt-4 grid items-center gap-5 sm:gap-6 md:grid-cols-[minmax(0,1fr)_minmax(220px,42%)] lg:gap-4">

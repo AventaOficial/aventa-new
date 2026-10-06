@@ -167,7 +167,10 @@ export default function AdminLayout({
   useEffect(() => {
     if (!authGateReady || !hasAllowedRole) return;
     const isDashboardPath = pathname === '/admin/dashboard';
-    const isModPath = pathname.startsWith('/admin/moderation') || pathname.startsWith('/admin/reports');
+    const isModPath =
+      pathname.startsWith('/admin/moderation') ||
+      pathname.startsWith('/admin/reports') ||
+      pathname.startsWith('/admin/hunters-ai');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
     const isTeamPath = pathname === '/admin/team';
     const isOwnerPanelPath = pathname.startsWith('/admin/owner');

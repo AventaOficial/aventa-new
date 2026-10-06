@@ -5,6 +5,15 @@
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { EDITORIAL_CANON } from './canon';
 
+export type HunterAssetSet = {
+  avatarUrl: string | null;
+  portraitUrl: string | null;
+  coverUrl: string | null;
+  icon: string | null;
+  fullBodyUrl: string | null;
+  expressions: Record<string, string>;
+};
+
 export type HunterPublicIdentity = {
   code: string;
   slug: string;
@@ -15,25 +24,47 @@ export type HunterPublicIdentity = {
   voice: string;
   accent: string;
   avatarUrl: string | null;
+  portraitUrl: string | null;
+  coverUrl: string | null;
+  icon: string | null;
+  fullBodyUrl: string | null;
+  expressions: Record<string, string>;
   profilePath: string;
   foundLabel: string;
+};
+
+const EMPTY_ASSETS: HunterAssetSet = {
+  avatarUrl: null,
+  portraitUrl: null,
+  coverUrl: null,
+  icon: null,
+  fullBodyUrl: null,
+  expressions: {},
 };
 
 /** El carril de suministro actual se presenta como este Hunter. No es un UUID. */
 export const SUPPLY_HUNTER_CODE = 'ximena';
 
-/** Recortes de la ficha definitiva. No pasan por el alta editorial. */
-export const HUNTER_PUBLIC_FILES: Record<string, { avatarUrl: string; coverUrl: string; icon: string }> = {
+/** Assets públicos por code. Un slot vacío no se inventa en el componente. */
+export const HUNTER_PUBLIC_FILES: Record<string, HunterAssetSet> = {
   ximena: {
     avatarUrl: '/hunters/ximena/avatar.png',
+    portraitUrl: null,
     coverUrl: '/hunters/ximena/cover.png',
     icon: '/hunters/ximena/icon.png',
+    fullBodyUrl: null,
+    expressions: {},
   },
 };
 
+export function hunterAssets(code: string | null | undefined): HunterAssetSet {
+  const key = code?.trim().toLowerCase() ?? '';
+  return HUNTER_PUBLIC_FILES[key] ?? EMPTY_ASSETS;
+}
+
 const PRODUCT_VOICE: Record<string, Pick<HunterPublicIdentity, 'role' | 'specialty' | 'voice' | 'accent'>> = {
   ximena: {
-    role: 'Hunter de Ofertas',
+    role: 'Cazadora de conexiones',
     specialty: 'Ofertas del día a día, hogar, despensa, higiene y productos que realmente necesitas.',
     voice: 'Estoy siempre buscando productos que usamos en casa: limpieza, despensa, higiene y básicos del día a día.',
     accent: '#f97316',
@@ -49,6 +80,7 @@ function toPublic(code: string): HunterPublicIdentity | null {
   if (!source) return null;
   const voice = PRODUCT_VOICE[source.code];
   const name = source.name;
+  const assets = hunterAssets(source.code);
   return {
     code: source.code,
     slug: source.slug,
@@ -58,7 +90,12 @@ function toPublic(code: string): HunterPublicIdentity | null {
     specialty: voice?.specialty ?? source.specialty,
     voice: voice?.voice ?? source.shortBio,
     accent: voice?.accent ?? source.accent ?? '#7c3aed',
-    avatarUrl: HUNTER_PUBLIC_FILES[source.code]?.avatarUrl ?? source.avatarUrl,
+    avatarUrl: assets.avatarUrl ?? source.avatarUrl,
+    portraitUrl: assets.portraitUrl,
+    coverUrl: assets.coverUrl ?? source.coverUrl,
+    icon: assets.icon ?? source.icon,
+    fullBodyUrl: assets.fullBodyUrl,
+    expressions: assets.expressions,
     profilePath: `/cazadores/${source.slug}`,
     foundLabel: `${name} encontró esta oferta`,
   };
@@ -67,7 +104,10 @@ function toPublic(code: string): HunterPublicIdentity | null {
 export function hunterByCode(code: string | null | undefined): HunterPublicIdentity | null {
   const normalized = code?.trim().toLowerCase();
   if (!normalized) return null;
-  return toPublic(normalized);
+  const direct = toPublic(normalized);
+  if (direct) return direct;
+  const bySlug = EDITORIAL_CANON.find((hunter) => hunter.slug === normalized);
+  return bySlug ? toPublic(bySlug.code) : null;
 }
 
 export function defaultSupplyHunter(): HunterPublicIdentity {

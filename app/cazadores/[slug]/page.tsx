@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ClientLayout from '@/app/ClientLayout';
 import HunterProfile from '@/app/components/hunters/HunterProfile';
+import { loadHunterActivity } from '@/lib/product/hunters/activity';
+import { hunterAssets } from '@/lib/product/hunters/identity';
 import { loadPublicHunterBySlug } from '@/lib/product/hunters/load';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 
@@ -38,6 +40,7 @@ export default async function HunterPage({ params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const hunter = await loadPublicHunterBySlug(slug);
   if (!hunter) notFound();
+  const activity = await loadHunterActivity(hunter.code);
 
   return (
     <ClientLayout>
@@ -46,7 +49,7 @@ export default async function HunterPage({ params }: { params: Promise<{ slug: s
           Todos los Hunters
         </Link>
         <div className="mt-4">
-          <HunterProfile hunter={hunter} />
+          <HunterProfile hunter={hunter} assets={hunterAssets(hunter.code)} activity={activity} />
         </div>
       </main>
     </ClientLayout>

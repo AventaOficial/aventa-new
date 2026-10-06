@@ -23,6 +23,7 @@ import CapacityCard from './command/ceo/CapacityCard';
 import GoalsCard from './command/ceo/GoalsCard';
 import SeasonCard from './command/ceo/SeasonCard';
 import PrioritiesCard from './command/ceo/PrioritiesCard';
+import HuntersSupplyPulse from './command/ceo/HuntersSupplyPulse';
 import { CEO_MOSAIC_CSS } from './command/ceo/mosaic';
 
 /** Reloj de pantalla para tiempos relativos y detección de datos stale. */
@@ -99,6 +100,7 @@ export default function OwnerDashboardClient() {
       ) : null}
 
       <style>{CEO_MOSAIC_CSS}</style>
+      <HuntersSupplyPulse />
       <div className={cn('ceo-mosaic', rangePending && 'opacity-80 transition-opacity')} aria-busy={rangePending}>
         <CommunityCard source={data.command} onRetry={retryCommand} className="ceo-area-community" />
         <UsersCard source={data.command} onRetry={retryCommand} className="ceo-area-users" />

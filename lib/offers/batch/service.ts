@@ -943,7 +943,14 @@ export function persistedBatchOutbound(item: OfferBatchItemRow): string | null {
 
 export function buildOfferBodyFromItem(item: OfferBatchItemRow): Record<string, unknown> {
   const images = item.images.slice(0, OFFER_MAX_IMAGES);
-  const description = item.hint_note?.trim() ?? '';
+  const editorial =
+    item.evidence?.editorial && typeof item.evidence.editorial === 'object'
+      ? (item.evidence.editorial as { description?: unknown; why_good_deal?: unknown })
+      : null;
+  const editedDescription = typeof editorial?.description === 'string' ? editorial.description.trim() : '';
+  const why = typeof editorial?.why_good_deal === 'string' ? editorial.why_good_deal.trim() : '';
+  const base = editedDescription || item.hint_note?.trim() || '';
+  const description = (why ? `${base}${base ? '\n\n' : ''}${why}` : base).slice(0, OFFER_DESCRIPTION_MAX);
   const persisted = persistedBatchOutbound(item);
   return {
     title: item.title ?? '',
@@ -1235,6 +1242,9 @@ export type EditItemFields = {
   images?: string[];
   category?: string | null;
   hint_note?: string | null;
+  /** Texto editorial del moderador. No sustituye precios ni evidencia de tienda. */
+  editorial_description?: string | null;
+  why_good_deal?: string | null;
 };
 
 function cleanImageUrls(list: unknown): string[] | null {
@@ -1310,7 +1320,59 @@ export async function editOfferBatchItem(params: {
     setField('hint_note', n || null);
   }
 
+  const prevEditorial =
+    item.evidence.editorial && typeof item.evidence.editorial === 'object'
+      ? (item.evidence.editorial as Record<string, unknown>)
+      : {};
+  let editorialNext: Record<string, unknown> | null = null;
+  if (fields.editorial_description !== undefined || fields.why_good_deal !== undefined) {
+    editorialNext = { ...prevEditorial };
+    if (fields.editorial_description !== undefined) {
+      const d = typeof fields.editorial_description === 'string' ? fields.editorial_description.trim().slice(0, 2000) : '';
+      editorialNext.description = d || null;
+    }
+    if (fields.why_good_deal !== undefined) {
+      const w = typeof fields.why_good_deal === 'string' ? fields.why_good_deal.trim().slice(0, 600) : '';
+      editorialNext.why_good_deal = w || null;
+    }
+    editorialNext.needs_edit = true;
+    changes.editorial = { from: prevEditorial, to: editorialNext };
+  }
+
   if (Object.keys(changes).length === 0) return { ok: true, item, code: 'NO_CHANGES' };
+
+  if (Object.keys(next).length === 0 && editorialNext) {
+    const now = new Date().toISOString();
+    const { data: updated, error } = await supabase
+      .from('offer_batch_items')
+      .update({
+        updated_at: now,
+        evidence: {
+          ...item.evidence,
+          editorial: editorialNext,
+          manual_edits: [
+            ...((item.evidence.manual_edits as unknown[] | undefined) ?? []).slice(-9),
+            { at: now, actor_id: actorId, changes },
+          ],
+        },
+      })
+      .eq('id', item.id)
+      .eq('status', item.status)
+      .select(ITEM_COLUMNS)
+      .maybeSingle();
+    if (error) return { ok: false, httpStatus: 500, code: 'UPDATE_FAILED', message: 'No se pudo guardar la edición.', item };
+    if (!updated) return { ok: false, httpStatus: 409, code: 'CONCURRENT_UPDATE', message: 'El ítem cambió mientras editabas. Recarga.', item };
+    await appendBatchEvent(supabase, {
+      batchId: item.batch_id,
+      itemId: item.id,
+      actorId,
+      action: 'edited',
+      fromStatus: item.status,
+      toStatus: item.status,
+      payload: { changes },
+    });
+    return { ok: true, item: normalizeItemRow(updated as Record<string, unknown>) };
+  }
 
   const merged = { ...item, ...next } as OfferBatchItemRow;
   const finalPrice = merged.price;
@@ -1357,6 +1419,7 @@ export async function editOfferBatchItem(params: {
     updated_at: now,
     evidence: {
       ...item.evidence,
+      ...(editorialNext ? { editorial: editorialNext } : {}),
       manual_edits: [
         ...((item.evidence?.manual_edits as unknown[] | undefined) ?? []).slice(-9),
         { at: now, actor_id: actorId, changes },

@@ -190,6 +190,8 @@ interface OfferCardProps {
     views: number;
     shares: number;
   } | null;
+  /** Necesidad cotidiana. No cambia el orden del feed. */
+  dailyNeed?: boolean;
   /** Alcance en línea vs tienda (desde `conditions`). */
   offerScope?: OfferScopeUi | null;
 }
@@ -225,6 +227,7 @@ export default function OfferCard({
   rejectionReason,
   onManagementAction,
   ownerMetrics,
+  dailyNeed = false,
   offerScope = null,
 }: OfferCardProps) {
   const router = useRouter();
@@ -615,6 +618,9 @@ export default function OfferCard({
             <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
               {title}
             </h3>
+            {dailyNeed ? (
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Uso diario</p>
+            ) : null}
 
             {author?.hunter ? (
               <HunterFoundLine hunter={author.hunter} />

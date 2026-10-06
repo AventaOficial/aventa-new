@@ -89,6 +89,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
     more: [
       { href: '/admin/distribution', label: 'Distribución', icon: Share2 },
       { href: '/admin/announcements', label: 'Avisos del sitio', icon: Megaphone },
+      { href: '/admin/hunters-ai', label: 'Hunters IA', icon: Bot },
       { href: '/admin/creator-tags', label: 'Tags de creadores', icon: Tags },
     ],
   },

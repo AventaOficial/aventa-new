@@ -817,7 +817,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   ) : null}
                 </div>
               )}
-              {offer.author.hunter ? <HunterFoundSection hunter={offer.author.hunter} /> : null}
 
               <div className="flex flex-wrap items-baseline gap-3 mt-4">
                 <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">
@@ -1055,6 +1054,11 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       {descExpanded ? 'Ver menos' : 'Ver más'}
                     </button>
                   ) : null}
+                </section>
+              ) : null}
+              {offer.author.hunter ? (
+                <section className="px-6 md:px-8 py-5">
+                  <HunterFoundSection hunter={offer.author.hunter} />
                 </section>
               ) : null}
               {offer.steps?.trim() ? (

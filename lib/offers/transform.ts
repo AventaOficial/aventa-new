@@ -2,6 +2,7 @@ import { normalizeVoteCounts } from '@/lib/offers/scoring';
 import { parseOfferScopeFromConditions, type OfferScopeUi } from '@/lib/offerScope';
 import { publicOfferDescription } from '@/lib/offers/publicDescription';
 import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
+import { isDailyCategory } from '@/lib/huntersAi/contract';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
 export type CardOfferAuthor = {
@@ -46,6 +47,8 @@ export type CardOffer = {
   createdAt?: string | null;
   /** Derivado de `conditions` (Alcance: en línea / tienda). */
   offerScope?: OfferScopeUi | null;
+  /** Necesidad cotidiana. No cambia el ranking de la comunidad. */
+  dailyNeed?: boolean;
 };
 
 type ProfilesJoin =
@@ -94,6 +97,7 @@ export type RankedOfferSource = {
   created_by?: string | null;
   ranking_momentum?: number | null;
   ranking_blend?: number | null;
+  category?: string | null;
   profiles?: ProfilesJoin;
 };
 
@@ -125,6 +129,7 @@ export type FeedApiItemShape = {
     slug?: string | null;
     hunter_code?: string | null;
   };
+  category?: string | null;
   created_by?: string | null;
 };
 
@@ -204,6 +209,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     ranking_momentum: Number(row.ranking_momentum) || 0,
     ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
     createdAt: row.created_at ?? null,
+    dailyNeed: isDailyCategory(row.category),
   };
 }
 
@@ -266,6 +272,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     ranking_momentum: item.ranking_momentum != null ? Number(item.ranking_momentum) : score,
     ranking_blend: item.ranking_blend != null ? Number(item.ranking_blend) : score,
     createdAt: item.created_at ?? null,
+    dailyNeed: isDailyCategory(item.category),
   };
 }
 
