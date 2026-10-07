@@ -27,11 +27,11 @@ describe('votos — estados y pesos', () => {
     expect(isOfferExpiredByExpiresAt('2026-09-01T00:00:00.000Z', now)).toBe(true);
   });
 
-  it('pesa +2/−1 … +12/−6 y el CHECK los cubre', () => {
-    expect(voteWeightPairForLevel(1)).toEqual({ up: 2, down: -1 });
+  it('pesa +2/−2, +4/−2, +6/−2 y +8/−2, y el CHECK cubre votos ya guardados', () => {
+    expect(voteWeightPairForLevel(1)).toEqual({ up: 2, down: -2 });
     expect(voteWeightPairForLevel(2)).toEqual({ up: 4, down: -2 });
-    expect(voteWeightPairForLevel(3)).toEqual({ up: 8, down: -4 });
-    expect(voteWeightPairForLevel(4)).toEqual({ up: 12, down: -6 });
+    expect(voteWeightPairForLevel(3)).toEqual({ up: 6, down: -2 });
+    expect(voteWeightPairForLevel(4)).toEqual({ up: 8, down: -2 });
     for (const pair of [1, 2, 3, 4].map((l) => voteWeightPairForLevel(l))) {
       expect(ALLOWED_OFFER_VOTE_VALUES).toContain(pair.up);
       expect(ALLOWED_OFFER_VOTE_VALUES).toContain(pair.down);

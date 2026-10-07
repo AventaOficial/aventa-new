@@ -87,6 +87,7 @@ export function MeSpaceShell({
   eyebrow = 'Tu espacio',
   mark,
   integrated = false,
+  hideHeading = false,
   children,
 }: {
   title: string;
@@ -103,6 +104,7 @@ export function MeSpaceShell({
   eyebrow?: string;
   mark?: ReactNode;
   integrated?: boolean;
+  hideHeading?: boolean;
   children: ReactNode;
 }) {
   void tone;
@@ -148,7 +150,7 @@ export function MeSpaceShell({
             <Suspense fallback={<SpaceNav panel={null} />}>
               <SpaceNavLive />
             </Suspense>
-            {integrated ? (
+            {hideHeading ? null : integrated ? (
               <div className={`mt-4 rounded-3xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 shadow-sm dark:shadow-none sm:p-5 ${aside ? 'lg:grid lg:items-center lg:gap-6' : ''} ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]') : ''}`}>
                 {heading}
                 {aside ? <div className="mt-4 min-w-0 border-t border-[var(--me-line)] pt-4 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">{aside}</div> : null}
