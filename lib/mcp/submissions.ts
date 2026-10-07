@@ -13,7 +13,7 @@ import {
   type SubmissionCandidateState,
 } from '@/lib/mcp/contract';
 import { isMcpIngestEnabled } from '@/lib/mcp/flags';
-import { enqueueHunterOffer } from '@/lib/mcp/enqueueHunterOffer';
+import { enqueueHunterOffer } from '@/lib/offers/ingestion/enqueueHunterOffer';
 
 export type McpQuota = { dailyCap: number; usedToday: number; remainingToday: number };
 

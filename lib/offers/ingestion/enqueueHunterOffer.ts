@@ -1,12 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
+import type { ValidCandidate } from '@/lib/mcp/candidates';
 import { appendBatchEvent, recountBatch } from '@/lib/offers/batch/service';
 import { ingestOfferObservation } from '@/lib/offers/ingestion/ingestOfferObservation';
-import type { ValidCandidate } from '@/lib/mcp/candidates';
 
 /**
  * El lote queda como registro de la importación.
  * La oferta nace pending y entra a la cola de moderación en el mismo envío.
+ * Un producto que ya existe no se reescribe ni se duplica.
  */
 export async function enqueueHunterOffer(
   supabase: SupabaseClient,
@@ -28,7 +29,7 @@ export async function enqueueHunterOffer(
   const result = await ingestOfferObservation(supabase, {
     createdBy,
     source: 'mcp:hunter',
-    onDuplicate: 'reuse',
+    onDuplicate: 'reject',
     forceLoteTag: false,
     recordSubmissionCount: false,
     body: {
@@ -43,7 +44,7 @@ export async function enqueueHunterOffer(
   });
 
   if (!result.ok) {
-    console.error('[mcp] hunter offer not queued:', result.httpStatus);
+    if (result.httpStatus >= 500) console.error('[mcp] hunter offer not queued:', result.httpStatus);
     return { offerId: null };
   }
 
