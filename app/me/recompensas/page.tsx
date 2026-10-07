@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Compass, Gift, Share2, Sparkles, Unlock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import MeSectionPage, { meCardClass } from '@/app/me/dashboard/MeSectionPage';
+import { MeSpaceShell, meCardClass, meHeroAccentClass, meHeroActionClass } from '@/app/me/dashboard/MeSectionPage';
 import MyRewardsHistory from '@/app/me/MyRewardsHistory';
 import RewardsBetaOnboarding from '@/app/me/RewardsBetaOnboarding';
 import { REWARDS_LEVEL_COUNT, REWARDS_WELCOME_DAYS, rewardsLevelShareBps } from '@/lib/rewards/levels';
@@ -33,28 +33,16 @@ const HOW_STEPS = [
   { title: 'Desbloquea', body: 'Tu progreso puede abrir nuevas posibilidades.', icon: Unlock },
 ] as const;
 
-function HowItWorks() {
-  const [open, setOpen] = useState(false);
+function HowItWorks({ open }: { open: boolean }) {
   return (
     <section className={`${meCardClass} p-5 sm:p-6`} aria-labelledby="how-rewards">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 id="how-rewards" className="text-[18px] font-semibold">Cómo funciona</h2>
-          {open ? null : (
-            <p className="mt-1 text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
-              Tu actividad en Aventa puede abrir nuevas posibilidades.
-            </p>
-          )}
-        </div>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls="how-rewards-panel"
-          onClick={() => setOpen((value) => !value)}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-violet-600 px-4 text-[13px] font-semibold text-white hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-        >
-          {open ? 'Ocultar' : 'Descubrir cómo funciona'}
-        </button>
+      <div className="min-w-0">
+        <h2 id="how-rewards" className="text-[18px] font-semibold">Cómo funciona</h2>
+        {open ? null : (
+          <p className="mt-1 text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
+            Tu actividad en Aventa puede abrir nuevas posibilidades.
+          </p>
+        )}
       </div>
       <div
         id="how-rewards-panel"
@@ -200,18 +188,40 @@ function RewardsSpace() {
 }
 
 export default function RecompensasPage() {
+  const [open, setOpen] = useState(false);
   return (
-    <MeSectionPage
-      eyebrow="Recompensas"
-      mark={<Gift className="h-3.5 w-3.5" aria-hidden />}
+    <MeSpaceShell
+      wide
+      integrated
+      accentClassName={meHeroAccentClass}
       title="Hay algo"
       accent="esperándote."
       lede="Tu actividad en Aventa puede abrir nuevas posibilidades."
+      note={
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="how-rewards-panel"
+          onClick={() => setOpen((value) => !value)}
+          className={meHeroActionClass}
+        >
+          {open ? 'Ocultar' : 'Descubrir cómo funciona'}
+        </button>
+      }
+      aside={
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-[15px] font-semibold">
+            <Gift className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+            Cómo funciona
+          </p>
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">Caza, comparte, contribuye y desbloquea. El programa sigue en su estado real.</p>
+        </div>
+      }
     >
       <div className="space-y-6">
-        <HowItWorks />
+        <HowItWorks open={open} />
         <RewardsSpace />
       </div>
-    </MeSectionPage>
+    </MeSpaceShell>
   );
 }

@@ -115,7 +115,7 @@ export default function HunterActivityBoard({
   const [tip, setTip] = useState<{ key: string; count: number } | null>(null);
   const selected = year != null && years.includes(year) ? year : years[0];
   const night = tone === 'night';
-  const card = 'min-w-0 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-5 text-[var(--me-ink)] shadow-sm dark:shadow-none';
+  const card = 'min-w-0 overflow-hidden rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-5 text-[var(--me-ink)] shadow-sm dark:shadow-none';
 
   if (!stats.hasActivity || selected == null) {
     if (variant === 'summary') {
@@ -312,9 +312,9 @@ export default function HunterActivityBoard({
             <span className="mt-0.5 block text-[11px] text-[var(--me-muted)]">Racha actual</span>
           </p>
           <p className="rounded-xl bg-[var(--me-soft)] px-3 py-2">
-            <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--me-ink)]">
-              <Zap className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" aria-hidden />
-              {dayLabel}
+            <span className="flex min-w-0 items-start gap-1 text-[13px] font-semibold text-[var(--me-ink)]">
+              <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-600 dark:text-violet-300" aria-hidden />
+              <span className="min-w-0 break-words">{dayLabel}</span>
             </span>
             <span className="mt-0.5 block text-[11px] text-[var(--me-muted)]">Día más activo</span>
           </p>

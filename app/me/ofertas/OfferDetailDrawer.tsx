@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Eye, Heart, MessageCircle, ThumbsUp, X } from 'lucide-react';
+import { useAuth } from '@/app/providers/AuthProvider';
+import { useUI } from '@/app/providers/UIProvider';
 import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { presentOfferPrice } from '@/lib/formatPrice';
@@ -57,6 +59,133 @@ function when(iso: string | null): string | null {
   return date.toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+type HourPoint = { hour: string; views: number; outbound: number };
+
+type HourlyActivity = {
+  totals: { views: number; outbound: number };
+  hourly: HourPoint[];
+  peakViews: { hour: string; views: number } | null;
+};
+
+function formatHourMx(iso: string): string {
+  return new Date(iso).toLocaleString('es-MX', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    timeZone: 'America/Mexico_City',
+  });
+}
+
+function peakOutbound(hourly: HourPoint[]): { hour: string; outbound: number } | null {
+  let best: { hour: string; outbound: number } | null = null;
+  for (const point of hourly) {
+    if (point.outbound > 0 && (best == null || point.outbound > best.outbound)) {
+      best = { hour: point.hour, outbound: point.outbound };
+    }
+  }
+  return best;
+}
+
+function HourlyActivityPanel({ offerId }: { offerId: string }) {
+  const { session } = useAuth();
+  const [data, setData] = useState<HourlyActivity | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
+
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!token) return;
+    let active = true;
+    fetch(`/api/me/offer-metrics/${encodeURIComponent(offerId)}/advanced`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        const body = await response.json().catch(() => null);
+        if (!response.ok) throw new Error('metrics');
+        return body as { totals?: { views?: number; outbound?: number }; hourly?: HourPoint[]; peak?: { hour: string; views: number } | null };
+      })
+      .then((body) => {
+        if (!active) return;
+        const hourly = Array.isArray(body.hourly) ? body.hourly.filter((point) => point.views > 0 || point.outbound > 0) : [];
+        const totals = { views: body.totals?.views ?? 0, outbound: body.totals?.outbound ?? 0 };
+        if (hourly.length === 0 && totals.views === 0 && totals.outbound === 0) {
+          setData(null);
+          setState('empty');
+          return;
+        }
+        setData({
+          totals,
+          hourly,
+          peakViews: body.peak && body.peak.views > 0 ? body.peak : null,
+        });
+        setState('ready');
+      })
+      .catch(() => {
+        if (active) setState('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [offerId, session?.access_token]);
+
+  if (state === 'loading') return <p className="mt-4 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Cargando actividad por hora…</p>;
+  if (state === 'error') return <p className="mt-4 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">No se pudo cargar la actividad por hora.</p>;
+  if (state === 'empty' || !data) return <p className="mt-4 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Sin vistas ni clics a tienda en los últimos 7 días.</p>;
+
+  const clicks = peakOutbound(data.hourly);
+  const ctr = data.totals.views > 0 ? Math.round((data.totals.outbound / data.totals.views) * 1000) / 10 : null;
+  const max = Math.max(1, ...data.hourly.map((point) => Math.max(point.views, point.outbound)));
+
+  return (
+    <section className="mt-4" aria-label="Actividad por hora">
+      <h3 className="text-[15px] font-semibold">Últimos 7 días</h3>
+      <table className="mt-3 w-full table-fixed text-left text-[13px]">
+        <caption className="sr-only">Horas con más vistas y más clics a tienda</caption>
+        <tbody>
+          {data.peakViews ? (
+            <tr className="border-b border-black/[0.06] dark:border-white/10">
+              <th scope="row" className="break-words py-2 pr-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3]">Hora más vista</th>
+              <td className="py-2">{formatHourMx(data.peakViews.hour)}</td>
+              <td className="py-2 text-right tabular-nums font-semibold">{data.peakViews.views}</td>
+            </tr>
+          ) : null}
+          {clicks ? (
+            <tr className="border-b border-black/[0.06] dark:border-white/10">
+              <th scope="row" className="break-words py-2 pr-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3]">Hora con más clics a tienda</th>
+              <td className="py-2">{formatHourMx(clicks.hour)}</td>
+              <td className="py-2 text-right tabular-nums font-semibold">{clicks.outbound}</td>
+            </tr>
+          ) : null}
+          {ctr != null ? (
+            <tr>
+              <th scope="row" className="break-words py-2 pr-3 font-medium text-[#6e6e73] dark:text-[#a3a3a3]">CTR a tienda</th>
+              <td className="py-2" colSpan={2}>Clics a tienda entre vistas · {ctr}%</td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+      {data.hourly.length > 0 ? (
+        <div className="mt-4 min-w-0">
+          <p className="text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
+            <span className="mr-3 inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-600" aria-hidden />Vistas</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-fuchsia-500" aria-hidden />Clics a tienda</span>
+          </p>
+          <div className="mt-2 overflow-x-auto pb-1">
+            <div className="flex h-28 items-end gap-1" style={{ width: Math.max(data.hourly.length * 28, 0) }}>
+              {data.hourly.map((point) => (
+                <div key={point.hour} className="flex w-6 shrink-0 items-end justify-center gap-0.5" title={`${formatHourMx(point.hour)}: ${point.views} vistas, ${point.outbound} clics`}>
+                  <span className="w-2 rounded-t bg-violet-600" style={{ height: point.views > 0 ? Math.max(4, Math.round((point.views / max) * 96)) : 0 }} />
+                  <span className="w-2 rounded-t bg-fuchsia-500" style={{ height: point.outbound > 0 ? Math.max(4, Math.round((point.outbound / max) * 96)) : 0 }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function OfferDetailDrawer({
   offer,
   onClose,
@@ -64,7 +193,13 @@ export default function OfferDetailDrawer({
   offer: OfferDrawerModel;
   onClose: () => void;
 }) {
+  const { setOfferOpen } = useUI();
   useBodyScrollLock(true);
+
+  useEffect(() => {
+    setOfferOpen(true);
+    return () => setOfferOpen(false);
+  }, [setOfferOpen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -146,6 +281,7 @@ export default function OfferDetailDrawer({
               );
             })}
           </dl>
+          <HourlyActivityPanel offerId={offer.id} />
           {offer.hunterComment || category || date ? (
             <dl className="mt-4 space-y-3 rounded-2xl border border-black/[0.06] px-4 py-3 text-[14px] dark:border-white/10">
               {offer.hunterComment ? (

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
+import { MeSpaceShell, meHeroAccentClass, meHeroActionClass } from '@/app/me/dashboard/MeSectionPage';
 import PublicHallazgosSection from '@/app/me/PublicHallazgosSection';
 import HunterDashboard from '@/app/me/dashboard/HunterDashboard';
 import HunterProgress from '@/app/me/dashboard/HunterProgress';
@@ -330,13 +330,13 @@ function MePageInner() {
       integrated={isHunter}
       title={isHunter ? 'Hola,' : spaceTitle}
       accent={isHunter ? displayName : spaceAccent}
-      accentClassName={isHunter ? 'bg-linear-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-fuchsia-200 dark:to-violet-300' : undefined}
+      accentClassName={isHunter ? meHeroAccentClass : undefined}
       lede={isHunter ? 'Sigue cazando ofertas. Cada publicación ayuda a miles de personas a ahorrar.' : spaceLede}
       note={isHunter ? (
         <button
           type="button"
           onClick={() => openUploadModal()}
-          className="inline-flex min-h-10 items-center rounded-full bg-violet-600 px-4 text-[13px] font-semibold text-white hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+          className={meHeroActionClass}
         >
           Publicar oferta
         </button>

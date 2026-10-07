@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowRight,
-  BarChart3,
   Check,
   Clock,
   MessageCircle,
@@ -15,7 +14,7 @@ import {
   ThumbsUp,
   X,
 } from 'lucide-react';
-import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
+import { MeSpaceShell, meHeroAccentClass, meHeroActionClass } from '@/app/me/dashboard/MeSectionPage';
 import OfferDetailDrawer, { type OfferDrawerModel } from '@/app/me/ofertas/OfferDetailDrawer';
 import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
@@ -86,35 +85,15 @@ function Spark({ color }: { color: string }) {
   );
 }
 
-function OfertasHeroAside({ onPublish }: { onPublish: () => void }) {
+function OfertasHeroAside({ total, ready }: { total: number; ready: boolean }) {
   return (
-    <div className="flex items-center justify-end gap-4">
-      <div className="relative hidden h-36 w-52 shrink-0 lg:block" aria-hidden>
-        <div className="absolute left-0 top-8 h-24 w-24 -rotate-12 rounded-3xl border border-[var(--me-line)] bg-violet-200 dark:bg-violet-800/50" />
-        <div className="absolute left-8 top-1 flex h-28 w-28 rotate-6 items-center justify-center rounded-3xl border border-violet-200/30 bg-violet-600/55 shadow-[0_0_36px_rgba(139,92,246,0.45)]">
-          <Tag className="h-10 w-10 text-white" />
-        </div>
-        <div className="absolute right-0 top-10 flex h-20 w-20 rotate-12 items-center justify-center rounded-3xl border border-[var(--me-line)] bg-fuchsia-200 dark:bg-fuchsia-700/50">
-          <BarChart3 className="h-8 w-8 text-fuchsia-700 dark:text-fuchsia-100" />
-        </div>
-      </div>
-      <aside className="flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm p-4 backdrop-blur-sm">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[15px] font-semibold leading-snug">
-            <Tag className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" aria-hidden />
-            Comparte buenas ofertas
-          </p>
-          <p className="mt-1 text-[13px] leading-relaxed text-[var(--me-muted)]">Tus publicaciones ayudan a miles de personas a ahorrar.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onPublish}
-          aria-label="Publicar nueva oferta"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-        >
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </button>
-      </aside>
+    <div className="min-w-0">
+      <p className="flex items-center gap-2 text-[15px] font-semibold">
+        <Tag className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+        Tu impacto
+      </p>
+      <p className="mt-2 text-[28px] font-semibold tabular-nums leading-none">{ready ? total : '—'}</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">Descubrimientos que ya publicaste.</p>
     </div>
   );
 }
@@ -299,17 +278,19 @@ function OfertasInner() {
     <MeSpaceShell
       tone="night"
       wide
-      asideBare
-      asideColumns="lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
-      eyebrow="Mis ofertas"
-      mark={<Tag className="h-3.5 w-3.5" aria-hidden />}
+      integrated
+      accentClassName={meHeroAccentClass}
       title="Tus ofertas,"
       accent="tu impacto"
       lede="Aquí viven los descubrimientos que publicaste."
-      note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
-      aside={<OfertasHeroAside onPublish={publish} />}
+      note={
+        <button type="button" onClick={publish} className={meHeroActionClass}>
+          Publicar oferta
+        </button>
+      }
+      aside={<OfertasHeroAside total={counts.all} ready={rows != null} />}
     >
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={<Send className="h-4 w-4" aria-hidden />}
           iconClass="bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200"
@@ -346,22 +327,10 @@ function OfertasInner() {
           detailClass="text-rose-700 dark:text-rose-400"
           spark="#fb7185"
         />
-        <button
-          type="button"
-          onClick={publish}
-          className="flex h-full items-center gap-3 rounded-2xl bg-linear-to-br from-violet-600 via-fuchsia-500 to-violet-500 px-4 py-4 text-left text-white shadow-[0_12px_40px_rgba(139,92,246,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-        >
-          <Send className="h-5 w-5 shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-semibold leading-tight">Publicar nueva oferta</span>
-            <span className="mt-1 block text-[12px] leading-snug text-white/85">Comparte una oferta con la comunidad.</span>
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
-        </button>
       </section>
 
-      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-3 lg:flex-row lg:items-center">
-        <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
+      <div className="mt-4 flex min-w-0 flex-col gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-3 lg:flex-row lg:items-center">
+        <div className="flex min-w-0 gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
           {FILTERS.map((item) => {
             const selected = filter === item.value;
             const count = counts[item.value];
