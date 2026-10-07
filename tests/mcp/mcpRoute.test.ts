@@ -268,7 +268,7 @@ describe('/api/mcp herramientas', () => {
     const b = seedClient({ id: '22222222-2222-4222-8222-222222222222' });
     const { payload } = await call(a, 'submit_deal_candidates', { idempotencyKey: 'grok-run-0007', candidates: [candidate] });
     const mine = await call(a, 'get_submission_status', { submissionId: payload.submissionId });
-    expect(mine.payload.candidates).toEqual([{ index: 0, state: 'received' }]);
+    expect(mine.payload.candidates).toEqual([{ index: 0, state: 'accepted' }]);
     const theirs = await call(b, 'get_submission_status', { submissionId: payload.submissionId });
     expect(theirs.payload.error.code).toBe('NOT_FOUND');
   });

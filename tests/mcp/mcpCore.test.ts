@@ -283,7 +283,7 @@ describe('MCP candidatos: validación por índice', () => {
 });
 
 describe('submit_deal_candidates', () => {
-  it('crea un lote MCP con pistas y autor bot; nunca toca offers', async () => {
+  it('registra el lote y deja la oferta pending en moderación', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
     const r = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-0001', candidates: [candidate()] }, NOW);
@@ -299,14 +299,23 @@ describe('submit_deal_candidates', () => {
     expect(String(batch.mcp_payload_hash)).toMatch(/^[0-9a-f]{64}$/);
     const item = db.tables.offer_batch_items[0];
     expect(item).toMatchObject({
-      status: 'INGESTED',
+      status: 'APPROVED',
       source_url: 'https://www.amazon.com.mx/dp/B0TESTAAAA',
       hint_title: 'Audífonos inalámbricos',
       hint_price: 499,
       hint_original_price: 899,
       hint_note: 'Bajó 40% hoy',
     });
-    expect(db.tables.offers ?? []).toHaveLength(0);
+    expect(item.offer_id).toEqual(expect.any(String));
+    const offers = db.tables.offers ?? [];
+    expect(offers).toHaveLength(1);
+    expect(offers[0]).toMatchObject({
+      status: 'pending',
+      created_by: BOT_AUTHOR,
+      source_currency: 'MXN',
+      title: 'Audífonos inalámbricos',
+    });
+    expect(offers[0].id).toBe(item.offer_id);
   });
 
   it('la respuesta no expone notas de moderación, scores, bot_meta, staff ni economía', async () => {
@@ -477,7 +486,7 @@ describe('get_submission_status', () => {
     const r = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-s-1-key', candidates: [candidate()] }, NOW);
     if (!r.ok) throw new Error('setup');
     const mine = await getSubmissionStatus(sb, client(), r.data.submissionId);
-    expect(mine.ok && mine.data.candidates).toEqual([{ index: 0, state: 'received' }]);
+    expect(mine.ok && mine.data.candidates).toEqual([{ index: 0, state: 'accepted' }]);
     const other = client({ id: '22222222-2222-4222-8222-222222222222' });
     const theirs = await getSubmissionStatus(sb, other, r.data.submissionId);
     const missing = await getSubmissionStatus(sb, other, '33333333-3333-4333-8333-333333333333');

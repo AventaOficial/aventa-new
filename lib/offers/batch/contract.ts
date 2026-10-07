@@ -371,7 +371,7 @@ export const BATCH_ITEM_STATUS_LABEL: Record<BatchItemStatus, string> = {
   READY: 'Listo',
   NEEDS_REVIEW: 'Revisar',
   ERROR: 'Error',
-  APPROVED: 'Aprobado',
+  APPROVED: 'En moderación',
   PUBLISHED: 'Publicado',
   REJECTED: 'Rechazado',
 };

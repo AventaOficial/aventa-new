@@ -28,12 +28,13 @@ function campaign(over: Partial<SponsoredCampaign> & { id: string }): SponsoredC
 const positions = (plan: Map<number, SponsoredCampaign>) => [...plan.entries()].map(([i, c]) => [i, c.id]);
 
 describe('planFeedPlacements', () => {
-  it('campañas actuales: un solo espacio después de la segunda oferta (paridad con producción)', () => {
+  it('inserta el bloque propio cada 3 ofertas', () => {
     const plan = planFeedPlacements(20, SPONSORED_CAMPAIGNS, DEFAULT_FEED_POLICY, NOW);
-    expect(positions(plan)).toEqual([[1, 'house-amazon-electronica']]);
+    expect(positions(plan).map(([index]) => index)).toEqual([2, 5, 8, 11, 14, 17]);
+    expect(new Set(positions(plan).map(([, id]) => id))).toEqual(new Set(['house-amazon-electronica']));
   });
 
-  it('con campañas pagadas: 2 ofertas → espacio → 4 ofertas → espacio, pagadas primero', () => {
+  it('con campañas pagadas respeta la frecuencia de 3 y prioriza las pagadas', () => {
     const plan = planFeedPlacements(
       20,
       [campaign({ id: 'house', kind: 'house' }), campaign({ id: 'a', maxPerFeed: 2 }), campaign({ id: 'b', priority: 5 })],
@@ -41,17 +42,17 @@ describe('planFeedPlacements', () => {
       NOW,
     );
     expect(positions(plan)).toEqual([
-      [1, 'b'],
+      [2, 'b'],
       [5, 'a'],
-      [9, 'house'],
-      [13, 'a'],
+      [8, 'house'],
+      [11, 'a'],
     ]);
   });
 
   it('respeta maxSlots y no pone espacios más allá de las ofertas cargadas', () => {
     const many = Array.from({ length: 10 }, (_, i) => campaign({ id: `c${i}`, maxPerFeed: 5 }));
     expect(planFeedPlacements(100, many, { firstAfter: 2, every: 4, maxSlots: 3 }, NOW).size).toBe(3);
-    expect(positions(planFeedPlacements(5, many, DEFAULT_FEED_POLICY, NOW)).map(([i]) => i)).toEqual([1]);
+    expect(positions(planFeedPlacements(5, many, DEFAULT_FEED_POLICY, NOW)).map(([i]) => i)).toEqual([2]);
     expect(planFeedPlacements(1, many, DEFAULT_FEED_POLICY, NOW).size).toBe(0);
   });
 

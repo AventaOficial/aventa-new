@@ -32,8 +32,8 @@ export type FeedPlacementPolicy = {
   maxSlots: number;
 };
 
-/** 2 ofertas → espacio → 4 ofertas → espacio… Con solo campañas house (1 por vista) queda un único espacio. */
-export const DEFAULT_FEED_POLICY: FeedPlacementPolicy = { firstAfter: 2, every: 4, maxSlots: 6 };
+/** 3 ofertas → bloque → 3 ofertas → bloque. La frecuencia vive aquí, no en cada página. */
+export const DEFAULT_FEED_POLICY: FeedPlacementPolicy = { firstAfter: 3, every: 3, maxSlots: 40 };
 
 /** Etiqueta visible del espacio: solo una campaña pagada se presenta como publicidad. */
 export function sponsoredDisclosure(kind: SponsoredCampaign['kind']): string {

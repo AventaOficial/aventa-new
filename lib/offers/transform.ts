@@ -3,6 +3,7 @@ import { parseOfferScopeFromConditions, type OfferScopeUi } from '@/lib/offerSco
 import { publicOfferDescription } from '@/lib/offers/publicDescription';
 import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import { isDailyCategory } from '@/lib/huntersAi/contract';
+import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
 export type CardOfferAuthor = {
@@ -110,6 +111,7 @@ export type FeedApiItemShape = {
   price: number;
   original_price: number | null;
   source_currency?: string | null;
+  offer_url?: string | null;
   created_at: string;
   score: number;
   up_votes?: number;
@@ -194,7 +196,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     brand: row.store ?? '',
     originalPrice,
     discountPrice,
-    sourceCurrency: row.source_currency?.trim().toUpperCase() || null,
+    sourceCurrency: resolveOfferSourceCurrency(row.source_currency, row.offer_url),
     discount,
     upvotes: up,
     downvotes: down,
@@ -259,7 +261,7 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     brand: item.store ?? '',
     originalPrice,
     discountPrice,
-    sourceCurrency: item.source_currency?.trim().toUpperCase() || null,
+    sourceCurrency: resolveOfferSourceCurrency(item.source_currency, item.offer_url),
     discount,
     upvotes: up,
     downvotes: down,

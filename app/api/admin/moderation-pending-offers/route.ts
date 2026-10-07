@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -29,7 +30,7 @@ function computeIsBot(
   },
   botIds: Set<string>
 ): boolean {
-  if (row.created_by && botIds.has(row.created_by)) return true;
+  if (row.created_by && (botIds.has(row.created_by) || isBotUserId(row.created_by))) return true;
   if ((row.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]')) return true;
   if ((row.description ?? '').toLowerCase().includes('ingesta automática (bot)')) return true;
   return false;

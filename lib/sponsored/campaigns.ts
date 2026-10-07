@@ -13,7 +13,7 @@ export const SPONSORED_CAMPAIGNS: readonly SponsoredCampaign[] = [
     surfaces: ['feed'],
     priority: 0,
     active: true,
-    maxPerFeed: 1,
+    maxPerFeed: 40,
   },
   {
     id: 'house-costco-tecnologia',
