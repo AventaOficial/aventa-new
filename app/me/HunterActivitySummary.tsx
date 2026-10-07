@@ -35,10 +35,10 @@ export default function HunterActivitySummary({
       <div className="flex items-end justify-between gap-3">
         <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Actividad</h2>
         <Link
-          href="/me/estadisticas"
+          href="/me/nivel#actividad"
           className="rounded-md text-[13px] text-[#6e6e73] transition-colors duration-150 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:text-[#fafafa] dark:focus-visible:ring-[#fafafa]"
         >
-          Ver estadísticas
+          Ver actividad
         </Link>
       </div>
       <p className="text-[15px] leading-relaxed text-[#1d1d1f] dark:text-[#fafafa]">{line}</p>

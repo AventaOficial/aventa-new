@@ -119,8 +119,8 @@ export default function HunterDashboard(props: HunterDashboardProps) {
       <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-3 xl:grid-cols-4">
         <StatCard icon={<Send className="h-4 w-4" aria-hidden />} value={String(props.published)} label="Ofertas publicadas" href="/me/ofertas" />
         <StatCard icon={<Bookmark className="h-4 w-4" aria-hidden />} value={props.saved == null ? '—' : String(props.saved)} label="Guardadas" href="/me/favorites" />
-        <StatCard icon={<ThumbsUp className="h-4 w-4" aria-hidden />} value={props.positiveVotes == null ? '—' : String(props.positiveVotes)} label="Votos recibidos" href="/me/estadisticas" />
-        <StatCard icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={props.comments == null ? '—' : String(props.comments)} label="Comentarios" href="/me/estadisticas" />
+        <StatCard icon={<ThumbsUp className="h-4 w-4" aria-hidden />} value={props.positiveVotes == null ? '—' : String(props.positiveVotes)} label="Votos recibidos" href="/me/nivel#actividad" />
+        <StatCard icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={props.comments == null ? '—' : String(props.comments)} label="Comentarios" href="/me/nivel#actividad" />
       </div>
 
       <div className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Secciones de tu espacio">

@@ -36,7 +36,6 @@ const NAV_ICONS = {
   '/me': Home,
   '/me/favorites': Heart,
   '/me/ofertas': Tag,
-  '/me/estadisticas': Activity,
   '/me/nivel': Crown,
   '/me?panel=logros': Trophy,
   '/me/recompensas': Gift,
@@ -246,7 +245,7 @@ export default function NivelPage() {
                 </aside>
               </section>
 
-              <section aria-label="Actividad">
+              <section id="actividad" aria-label="Actividad">
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-violet-600" aria-hidden />
                   <h2 className="text-[22px] font-semibold tracking-tight">Actividad</h2>
