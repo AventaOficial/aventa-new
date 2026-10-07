@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Camera, MapPin, User } from 'lucide-react';
 import { getReputationLabel } from '@/lib/reputation';
 
@@ -85,15 +86,13 @@ export default function HunterHeader({
           </p>
         ) : null}
       </div>
-      <button
-        type="button"
-        disabled={avatarUploading}
-        onClick={onPickAvatar}
-        className="inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-full border border-white/15 px-3 text-[13px] font-medium text-white hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50 sm:self-center"
+      <Link
+        href="/settings"
+        className="inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-full border border-white/15 px-3 text-[13px] font-medium text-white hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:self-center"
       >
         <Camera className="h-3.5 w-3.5" aria-hidden />
-        {avatarUploading ? 'Subiendo…' : 'Cambiar foto de perfil'}
-      </button>
+        Editar perfil
+      </Link>
     </header>
   );
 }

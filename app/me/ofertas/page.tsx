@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowRight,
+  BarChart3,
   Check,
   Clock,
   MessageCircle,
@@ -59,6 +60,10 @@ function compactCount(value: number | null): string {
   return `${scaled.toFixed(digits).replace(/\.0$/, '')}K`;
 }
 
+function countWord(value: number | null, singular: string, plural: string): string {
+  return value === 1 ? singular : plural;
+}
+
 function ago(iso: string | null): string | null {
   if (!iso) return null;
   const then = new Date(iso).getTime();
@@ -83,15 +88,22 @@ function Spark({ color }: { color: string }) {
 
 function OfertasHeroAside({ onPublish }: { onPublish: () => void }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative hidden h-24 w-28 sm:block" aria-hidden>
-        <div className="absolute right-2 top-1 flex h-16 w-14 rotate-12 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-500/30">
-          <Tag className="h-7 w-7 text-violet-100" />
+    <div className="flex items-center justify-end gap-4">
+      <div className="relative hidden h-36 w-52 shrink-0 lg:block" aria-hidden>
+        <div className="absolute left-0 top-8 h-24 w-24 -rotate-12 rounded-3xl border border-white/10 bg-violet-800/50" />
+        <div className="absolute left-8 top-1 flex h-28 w-28 rotate-6 items-center justify-center rounded-3xl border border-violet-200/30 bg-violet-600/55 shadow-[0_0_36px_rgba(139,92,246,0.45)]">
+          <Tag className="h-10 w-10 text-violet-50" />
+        </div>
+        <div className="absolute right-0 top-10 flex h-20 w-20 rotate-12 items-center justify-center rounded-3xl border border-white/10 bg-fuchsia-700/50">
+          <BarChart3 className="h-8 w-8 text-fuchsia-100" />
         </div>
       </div>
-      <aside className="flex items-center gap-3 rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">
-        <div>
-          <p className="text-[15px] font-semibold leading-snug">Comparte buenas ofertas</p>
+      <aside className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-[#1b1034]/85 p-4 backdrop-blur-sm">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-[15px] font-semibold leading-snug">
+            <Tag className="h-4 w-4 shrink-0 text-violet-300" aria-hidden />
+            Comparte buenas ofertas
+          </p>
           <p className="mt-1 text-[13px] leading-relaxed text-white/70">Tus publicaciones ayudan a miles de personas a ahorrar.</p>
         </div>
         <button
@@ -285,10 +297,13 @@ function OfertasInner() {
 
   return (
     <MeSpaceShell
+      tone="night"
       wide
       asideBare
+      asideColumns="lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
       title="Mis"
       accent="ofertas"
+      accentClassName="bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent"
       lede="Gestiona todas las ofertas que has publicado, revisa su estado y sigue su rendimiento."
       note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
       aside={<OfertasHeroAside onPublish={publish} />}
@@ -296,55 +311,55 @@ function OfertasInner() {
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           icon={<Send className="h-4 w-4" aria-hidden />}
-          iconClass="bg-violet-100 text-violet-600"
+          iconClass="bg-violet-500/20 text-violet-200"
           value={counts.all}
           label="Total publicadas"
           detail={`+${counts.week} esta semana`}
-          detailClass="text-emerald-600"
+          detailClass="text-emerald-400"
           spark="#22c55e"
         />
         <StatCard
           icon={<Check className="h-4 w-4" aria-hidden />}
-          iconClass="bg-emerald-100 text-emerald-600"
+          iconClass="bg-emerald-500/20 text-emerald-300"
           value={counts.approved}
           label="Aprobadas"
           detail={`${percent(counts.approved)}% del total`}
-          detailClass="text-[#6e6e73]"
+          detailClass="text-emerald-400"
           spark="#22c55e"
         />
         <StatCard
           icon={<Clock className="h-4 w-4" aria-hidden />}
-          iconClass="bg-amber-100 text-amber-600"
+          iconClass="bg-amber-400/20 text-amber-300"
           value={counts.pending}
           label="En revisión"
           detail={`${percent(counts.pending)}% del total`}
-          detailClass="text-[#6e6e73]"
+          detailClass="text-white/55"
           spark="#f59e0b"
         />
         <StatCard
           icon={<X className="h-4 w-4" aria-hidden />}
-          iconClass="bg-rose-100 text-rose-500"
+          iconClass="bg-rose-500/20 text-rose-300"
           value={counts.rejected}
           label="Rechazadas"
           detail={`${percent(counts.rejected)}% del total`}
-          detailClass="text-[#6e6e73]"
-          spark="#f43f5e"
+          detailClass="text-rose-400"
+          spark="#fb7185"
         />
         <button
           type="button"
           onClick={publish}
-          className="flex items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 px-4 py-4 text-left text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+          className="flex h-full items-center gap-3 rounded-2xl bg-linear-to-br from-violet-600 via-fuchsia-500 to-violet-500 px-4 py-4 text-left text-white shadow-[0_12px_40px_rgba(139,92,246,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
         >
           <Send className="h-5 w-5 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-semibold">Publicar nueva oferta</span>
-            <span className="mt-0.5 block text-[12px] text-white/80">Comparte una oferta con la comunidad.</span>
+            <span className="block text-[15px] font-semibold leading-tight">Publicar nueva oferta</span>
+            <span className="mt-1 block text-[12px] leading-snug text-white/85">Comparte una oferta con la comunidad.</span>
           </span>
           <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
         </button>
       </section>
 
-      <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-white p-3 shadow-sm dark:bg-[#141414] lg:flex-row lg:items-center">
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#120a22] p-3 lg:flex-row lg:items-center">
         <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
           {FILTERS.map((item) => {
             const selected = filter === item.value;
@@ -357,27 +372,27 @@ function OfertasInner() {
                 aria-selected={selected}
                 onClick={() => setFilter(item.value)}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-                  selected ? 'bg-violet-600 text-white' : 'text-[#3a3a3c] hover:bg-black/4 dark:text-[#d1d1d6] dark:hover:bg-white/10'
+                  selected ? 'bg-violet-600 text-white' : 'text-white/75 hover:bg-white/10'
                 }`}
               >
                 {item.value === 'all' ? null : <span className={`h-2 w-2 rounded-full ${selected ? 'bg-white' : item.dot}`} aria-hidden />}
                 {item.label}
-                <span className={`tabular-nums ${selected ? 'text-white/80' : 'text-[#8e8e93]'}`}>{count}</span>
+                <span className={`tabular-nums ${selected ? 'text-white/80' : 'text-white/45'}`}>{count}</span>
               </button>
             );
           })}
         </div>
-        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f4f2fb] px-3 py-2 text-[#6e6e73] dark:bg-white/5">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/8 px-3 py-2 text-white/55">
           <Search className="h-4 w-4 shrink-0" aria-hidden />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar en tus ofertas..."
-            className="w-full bg-transparent text-[13px] text-[#1d1d1f] outline-none placeholder:text-[#8e8e93] dark:text-[#fafafa]"
+            className="w-full bg-transparent text-[13px] text-white outline-none placeholder:text-white/40"
             aria-label="Buscar en tus ofertas"
           />
         </label>
-        <label className="inline-flex items-center gap-2 rounded-full bg-[#f4f2fb] px-3 py-2 text-[13px] text-[#3a3a3c] dark:bg-white/5 dark:text-[#d1d1d6]">
+        <label className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 text-[13px] text-white/80">
           <span className="sr-only">Orden</span>
           <select
             value={sort}
@@ -390,7 +405,7 @@ function OfertasInner() {
             <option value="votes">Más votos</option>
           </select>
         </label>
-        <label className="inline-flex items-center gap-2 rounded-full bg-[#f4f2fb] px-3 py-2 text-[13px] text-[#3a3a3c] dark:bg-white/5 dark:text-[#d1d1d6]">
+        <label className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 text-[13px] text-white/80">
           <span className="sr-only">Categoría</span>
           <select
             value={category}
@@ -410,25 +425,25 @@ function OfertasInner() {
 
       {rows == null && !error ? (
         <div className="mt-3 space-y-2" aria-hidden>
-          <div className="h-20 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
-          <div className="h-20 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
+          <div className="h-20 animate-pulse rounded-2xl bg-[#120a22]" />
+          <div className="h-20 animate-pulse rounded-2xl bg-[#120a22]" />
         </div>
       ) : null}
       {error ? (
-        <div className="mt-3 rounded-2xl bg-white p-5 shadow-sm dark:bg-[#141414]">
-          <p className="text-sm">No se pudieron cargar tus ofertas.</p>
+        <div className="mt-3 rounded-2xl border border-white/10 bg-[#120a22] p-5">
+          <p className="text-sm text-white">No se pudieron cargar tus ofertas.</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-3 inline-flex items-center justify-center rounded-full border border-black/10 px-4 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15"
+            className="mt-3 inline-flex items-center justify-center rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
           >
             Reintentar
           </button>
         </div>
       ) : null}
       {rows != null && visible.length === 0 && !error ? (
-        <div className="mt-3 rounded-2xl bg-white p-5 shadow-sm dark:bg-[#141414]">
-          <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
+        <div className="mt-3 rounded-2xl border border-white/10 bg-[#120a22] p-5">
+          <p className="text-sm text-white/70">
             {rows.length === 0 ? 'Nada publicado. ¿Cazamos una oferta?' : 'No tienes ofertas en esta vista.'}
           </p>
           {rows.length === 0 ? (
@@ -445,53 +460,61 @@ function OfertasInner() {
 
       <ul className="mt-3 space-y-2">
         {visible.map((row) => {
+          const label = categoryLabel(row.category);
           const tone =
             row.dealStatus === 'approved'
-              ? 'bg-emerald-50 text-emerald-700'
+              ? 'bg-emerald-500 text-white'
               : row.dealStatus === 'pending'
-                ? 'bg-amber-50 text-amber-700'
+                ? 'bg-amber-400 text-[#1a1204]'
                 : row.dealStatus === 'rejected'
-                  ? 'bg-rose-50 text-rose-600'
-                  : 'bg-zinc-100 text-zinc-600';
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-white/15 text-white';
           const StatusIcon = row.dealStatus === 'approved' ? Check : row.dealStatus === 'pending' ? Clock : X;
           return (
-            <li key={row.id} className="flex flex-col gap-3 rounded-2xl bg-white px-3 py-3 shadow-sm dark:bg-[#141414] lg:flex-row lg:items-center">
+            <li key={row.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#120a22] px-3 py-3 lg:flex-row lg:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#f4f2fb] dark:bg-white/5">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/5">
                   {row.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={row.image} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="flex h-full items-center justify-center text-[#8e8e93]">
+                    <span className="flex h-full items-center justify-center text-white/40">
                       <Tag className="h-5 w-5" aria-hidden />
                     </span>
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold">{row.title}</p>
-                  <p className="mt-0.5 truncate text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                  <p className="truncate text-[15px] font-semibold text-white">{row.title}</p>
+                  <p className="mt-0.5 truncate text-[12px] text-white/55">
                     {row.store ?? 'Tienda'}
-                    {categoryLabel(row.category) ? ` · ${categoryLabel(row.category)}` : ''}
+                    {label ? ` · ${label}` : ''}
                   </p>
-                  {ago(row.createdAt) ? <p className="mt-0.5 text-[12px] text-[#8e8e93]">{ago(row.createdAt)}</p> : null}
-                  {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-600">{row.rejectionReason}</p> : null}
+                  {ago(row.createdAt) ? <p className="mt-0.5 text-[12px] text-white/40">{ago(row.createdAt)}</p> : null}
+                  {label || row.store ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {label ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{label}</span> : null}
+                      {row.store ? <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] text-violet-200">{row.store}</span> : null}
+                    </div>
+                  ) : null}
+                  {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-300">{row.rejectionReason}</p> : null}
                 </div>
               </div>
               <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone}`}>
                 <StatusIcon className="h-3.5 w-3.5" aria-hidden />
                 {STATUS_LABEL[row.dealStatus]}
               </span>
-              <div className="flex flex-wrap items-center gap-4 text-[13px] text-[#3a3a3c] dark:text-[#d1d1d6] lg:w-70 lg:justify-between">
-                <Metric icon={<MousePointer2 className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.views)} label="Vistas" />
-                <Metric icon={<ThumbsUp className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.upvotes)} label="Votos" />
-                <Metric icon={<MessageCircle className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.comments)} label="Comentarios" />
+              <div className="flex flex-wrap items-center gap-4 text-[13px] text-white lg:w-70 lg:justify-between">
+                <Metric icon={<MousePointer2 className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.views)} label={countWord(row.views, 'Vista', 'Vistas')} />
+                <Metric icon={<ThumbsUp className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.upvotes)} label={countWord(row.upvotes, 'Voto', 'Votos')} />
+                <Metric icon={<MessageCircle className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.comments)} label={countWord(row.comments, 'Comentario', 'Comentarios')} />
               </div>
               <button
                 type="button"
                 onClick={() => setMetricsOffer(row)}
-                className="inline-flex items-center justify-center rounded-xl border border-black/10 px-3 py-2 text-[13px] font-medium hover:bg-black/3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15 dark:hover:bg-white/5"
+                className="inline-flex items-center justify-center gap-1 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-medium text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 Ver detalles
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </button>
             </li>
           );
@@ -520,11 +543,11 @@ function StatCard({
   spark: string;
 }) {
   return (
-    <article className="flex items-center gap-3 rounded-2xl bg-white px-4 py-4 shadow-sm dark:bg-[#141414]">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>{icon}</span>
+    <article className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#120a22] px-4 py-4">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${iconClass}`}>{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[22px] font-semibold leading-none tabular-nums">{value}</span>
-        <span className="mt-1 block text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">{label}</span>
+        <span className="block text-[22px] font-semibold leading-none tabular-nums text-white">{value}</span>
+        <span className="mt-1 block text-[12px] text-white/55">{label}</span>
         <span className={`mt-0.5 block text-[11px] font-medium ${detailClass}`}>{detail}</span>
       </span>
       <Spark color={spark} />
@@ -538,7 +561,7 @@ function Metric({ icon, value, label }: { icon: ReactNode; value: string; label:
       <span className="text-violet-500">{icon}</span>
       <span>
         <span className="block font-semibold tabular-nums leading-none">{value}</span>
-        <span className="mt-0.5 block text-[11px] text-[#8e8e93]">{label}</span>
+        <span className="mt-0.5 block text-[11px] text-white/45">{label}</span>
       </span>
     </span>
   );
@@ -548,8 +571,8 @@ export default function OfertasPage() {
   return (
     <Suspense
       fallback={
-        <div className={`px-4 ${PUBLIC_NAVBAR_OFFSET_CLASS}`} aria-hidden>
-          <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-900" />
+        <div className={`min-h-screen bg-[#07040f] px-4 ${PUBLIC_NAVBAR_OFFSET_CLASS}`} aria-hidden>
+          <div className="h-20 animate-pulse rounded-2xl bg-[#120a22]" />
         </div>
       }
     >

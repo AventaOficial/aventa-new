@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
 import PublicHallazgosSection from '@/app/me/PublicHallazgosSection';
 import HunterDashboard from '@/app/me/dashboard/HunterDashboard';
+import HunterProgress from '@/app/me/dashboard/HunterProgress';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime';
@@ -321,11 +322,15 @@ function MePageInner() {
 
   return (
     <MeSpaceShell
-      title={spaceTitle}
-      accent={spaceAccent}
-      lede={spaceLede}
+      tone={isHunter ? 'night' : 'day'}
+      wide={isHunter}
+      asideBare={isHunter}
+      title={isHunter ? 'Hola,' : spaceTitle}
+      accent={isHunter ? displayName : spaceAccent}
+      accentClassName={isHunter ? 'bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent' : undefined}
+      lede={isHunter ? 'Sigue cazando ofertas. Cada publicación ayuda a miles de personas a ahorrar.' : spaceLede}
       note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
-      aside={<p className="text-[15px] font-semibold leading-snug">Más ofertas, más gente ahorrando, una comunidad más fuerte.</p>}
+      aside={isHunter ? <HunterProgress level={repLevel} score={profile?.reputation_score ?? 0} /> : <p className="text-[15px] font-semibold leading-snug">Más ofertas, más gente ahorrando, una comunidad más fuerte.</p>}
     >
           <input
             ref={fileInputRef}
@@ -337,7 +342,7 @@ function MePageInner() {
           />
           <div className="mb-3 flex justify-end sm:mb-4">
             <div
-              className="inline-flex max-w-full shrink-0 gap-1 rounded-full bg-white p-1 shadow-sm dark:bg-[#141414]"
+              className={`inline-flex max-w-full shrink-0 gap-1 rounded-full p-1 ${isHunter ? 'border border-white/10 bg-[#120a22]' : 'bg-white shadow-sm dark:bg-[#141414]'}`}
               role="tablist"
               aria-label="Vista de perfil"
             >
@@ -358,7 +363,9 @@ function MePageInner() {
                     className={`inline-flex min-h-11 items-center rounded-full px-4 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-0 sm:py-2 ${
                       selected
                         ? 'bg-violet-600 text-white'
-                        : 'text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:bg-white/[0.06] dark:hover:text-[#fafafa]'
+                        : isHunter
+                          ? 'text-white/70 hover:bg-white/10 hover:text-white'
+                          : 'text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:bg-white/[0.06] dark:hover:text-[#fafafa]'
                     }`}
                   >
                     {tab.label}
@@ -403,6 +410,7 @@ function MePageInner() {
                 sourceCurrency: offer.sourceCurrency ?? null,
                 createdAt: offer.createdAt ?? null,
                 upvotes: offer.upvotes,
+                views: ownerMetricsByOffer?.[offer.id]?.views ?? null,
               }))}
             />
 

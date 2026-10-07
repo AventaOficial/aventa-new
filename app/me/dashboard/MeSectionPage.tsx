@@ -75,6 +75,8 @@ export function MeSpaceShell({
   asideBare = false,
   tone = 'day',
   wide = false,
+  accentClassName,
+  asideColumns,
   children,
 }: {
   title: string;
@@ -85,6 +87,8 @@ export function MeSpaceShell({
   asideBare?: boolean;
   tone?: 'day' | 'night';
   wide?: boolean;
+  accentClassName?: string;
+  asideColumns?: string;
   children: ReactNode;
 }) {
   const night = tone === 'night';
@@ -103,11 +107,13 @@ export function MeSpaceShell({
             <Suspense fallback={<SpaceNav panel={null} />}>
               <SpaceNavLive />
             </Suspense>
-            <div className={`mt-8 grid items-end gap-6 ${aside ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+            <div className={`mt-8 grid items-end gap-6 ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_340px]') : ''}`}>
               <div>
                 <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
                   {title}
-                  {accent ? <span className="text-violet-400"> {accent}</span> : null}
+                  {accent ? (
+                    <span className={accentClassName ? `inline-block ${accentClassName}` : 'text-violet-400'}> {accent}</span>
+                  ) : null}
                 </h1>
                 {lede ? <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/75">{lede}</p> : null}
                 {note ? <div className="mt-4">{note}</div> : null}

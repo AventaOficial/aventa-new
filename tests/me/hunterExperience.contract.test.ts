@@ -77,14 +77,16 @@ describe('experiencia del cazador', () => {
 
   it('ordena el dashboard para móvil y conserva una cuadrícula en pantallas mayores', () => {
     const dashboard = source('app/me/dashboard/HunterDashboard.tsx');
-    expect(dashboard).toMatch(/lg:grid-cols-\[minmax\(0,1\.6fr\)_minmax\(240px,0\.9fr\)\]/);
+    const page = source('app/me/page.tsx');
+    expect(dashboard).toMatch(/lg:grid-cols-3/);
     expect(dashboard).not.toMatch(/md:grid-cols-2/);
     expect(dashboard).not.toMatch(/<HunterNextAction/);
     expect(dashboard).not.toMatch(/Secciones de tu espacio/);
-    const progress = dashboard.indexOf('<HunterProgress');
+    const progress = page.indexOf('<HunterProgress');
     const activity = dashboard.indexOf('<HunterActivityBoard');
     expect(progress).toBeGreaterThan(-1);
-    expect(activity).toBeGreaterThan(progress);
+    expect(progress).toBeLessThan(page.indexOf('<HunterDashboard'));
+    expect(activity).toBeGreaterThan(-1);
     expect(dashboard).toMatch(/<AchievementCollection/);
     expect(source('app/me/dashboard/useMyRewards.ts')).toMatch(/\/api\/me\/rewards/);
     expect(source('app/me/dashboard/HunterRewardSummary.tsx')).not.toMatch(/fetch\(/);

@@ -65,18 +65,18 @@ export default function CommunityTopCarousel({ favoriteIds, savingId, onToggleFa
   const atEnd = page.index >= page.count - 1;
 
   return (
-    <section aria-labelledby="favorites-community-top" className="border-t border-black/[0.06] pt-8 dark:border-white/10">
+    <section aria-labelledby="favorites-community-top" className="border-t border-white/10 pt-8">
       <div className="mb-4 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="favorites-community-top" className="flex items-center gap-2 text-[18px] font-bold text-[#1d1d1f] dark:text-[#fafafa]">
+          <h2 id="favorites-community-top" className="flex items-center gap-2 text-[18px] font-bold text-white">
             <span className="h-4 w-1 rounded-full bg-violet-600" aria-hidden />
             Lo más votado de la comunidad
           </h2>
-          <p className="mt-0.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Las ofertas con más votos esta semana en Aventa.</p>
+          <p className="mt-0.5 text-[13px] text-white/65">Las ofertas con más votos esta semana en Aventa.</p>
         </div>
         <Link
           href="/"
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-[13px] font-semibold text-violet-600 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-[13px] font-semibold text-violet-300 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
         >
           Ver más
           <ArrowRight className="h-4 w-4" aria-hidden />
@@ -87,7 +87,7 @@ export default function CommunityTopCarousel({ favoriteIds, savingId, onToggleFa
         {status === 'loading' ? (
           <div className="flex gap-3 overflow-hidden" aria-busy="true" aria-label="Cargando ofertas más votadas">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className={`${TILE_WIDTH} h-72 shrink-0 animate-pulse rounded-2xl bg-black/[0.04] dark:bg-white/[0.05]`} />
+              <div key={i} className={`${TILE_WIDTH} h-72 shrink-0 animate-pulse rounded-2xl bg-white/10`} />
             ))}
           </div>
         ) : (
