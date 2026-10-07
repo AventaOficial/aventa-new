@@ -80,14 +80,12 @@ describe('experiencia del cazador', () => {
     expect(dashboard).toMatch(/lg:grid-cols-\[minmax\(0,1\.6fr\)_minmax\(240px,0\.9fr\)\]/);
     expect(dashboard).not.toMatch(/md:grid-cols-2/);
     expect(dashboard).not.toMatch(/<HunterNextAction/);
+    expect(dashboard).not.toMatch(/Secciones de tu espacio/);
     const progress = dashboard.indexOf('<HunterProgress');
-    const offers = dashboard.indexOf('<HunterOffersPreview');
-    const rewards = dashboard.indexOf('<HunterRewardSummary');
     const activity = dashboard.indexOf('<HunterActivityBoard');
     expect(progress).toBeGreaterThan(-1);
-    expect(offers).toBeGreaterThan(progress);
-    expect(rewards).toBeGreaterThan(offers);
-    expect(activity).toBeGreaterThan(rewards);
+    expect(activity).toBeGreaterThan(progress);
+    expect(dashboard).toMatch(/<AchievementCollection/);
     expect(source('app/me/dashboard/useMyRewards.ts')).toMatch(/\/api\/me\/rewards/);
     expect(source('app/me/dashboard/HunterRewardSummary.tsx')).not.toMatch(/fetch\(/);
   });
@@ -115,7 +113,7 @@ describe('experiencia del cazador', () => {
     expect(source('app/me/dashboard/HunterNextAction.tsx')).not.toMatch(/Continuar/);
     expect(source('app/me/MyRewardsHistory.tsx')).toMatch(/Cuando el programa registre una recompensa/);
     expect(source('app/me/MyRewardsHistory.tsx')).not.toMatch(/\{r\.status\}/);
-    expect(source('app/me/ofertas/page.tsx')).toMatch(/Activa/);
+    expect(source('app/me/ofertas/page.tsx')).toMatch(/Aprobada/);
     expect(source('app/me/ofertas/page.tsx')).toMatch(/En revisión/);
     expect(source('app/me/ofertas/page.tsx')).toMatch(/Rechazada/);
     expect(source('app/me/ofertas/page.tsx')).toMatch(/Expirada/);

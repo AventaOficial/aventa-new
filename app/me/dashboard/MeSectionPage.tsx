@@ -12,7 +12,7 @@ export const SPACE_LINKS = [
   { href: '/me/favorites', label: 'Favoritos' },
   { href: '/me/ofertas', label: 'Mis ofertas' },
   { href: '/me/nivel', label: 'Nivel' },
-  { href: '/me?panel=logros', label: 'Logros' },
+  { href: '/me/logros', label: 'Logros' },
   { href: '/me/recompensas', label: 'Recompensas' },
   { href: '/settings', label: 'Configuración' },
 ] as const;
@@ -22,7 +22,7 @@ const NAV_ICONS = {
   '/me/favorites': Heart,
   '/me/ofertas': Tag,
   '/me/nivel': Crown,
-  '/me?panel=logros': Trophy,
+  '/me/logros': Trophy,
   '/me/recompensas': Gift,
   '/settings': Settings,
 } as const;
@@ -31,7 +31,6 @@ export const meCardClass =
   'rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]';
 
 function isCurrentLink(href: string, pathname: string, panel: string | null): boolean {
-  if (href === '/me?panel=logros') return pathname === '/me' && panel === 'logros';
   if (href === '/me') return pathname === '/me' && panel !== 'logros';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -73,6 +72,9 @@ export function MeSpaceShell({
   lede,
   note,
   aside,
+  asideBare = false,
+  tone = 'day',
+  wide = false,
   children,
 }: {
   title: string;
@@ -80,38 +82,47 @@ export function MeSpaceShell({
   lede?: ReactNode;
   note?: ReactNode;
   aside?: ReactNode;
+  asideBare?: boolean;
+  tone?: 'day' | 'night';
+  wide?: boolean;
   children: ReactNode;
 }) {
+  const night = tone === 'night';
+  const width = wide ? 'max-w-7xl' : 'max-w-6xl';
   return (
     <ClientLayout>
-      <div className="min-h-screen bg-[#f4f2fb] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]">
+      <div className={night ? 'min-h-screen bg-[#07040f] text-white' : 'min-h-screen bg-[#f4f2fb] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]'}>
         <section className={`relative overflow-hidden bg-[#140826] text-white ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div className="absolute -right-16 top-8 h-56 w-56 rotate-12 rounded-4xl bg-violet-600/40" />
             <div className="absolute right-24 top-24 h-40 w-72 -rotate-6 rounded-4xl bg-fuchsia-700/30" />
             <div className="absolute -left-10 bottom-0 h-24 w-40 rotate-6 bg-violet-900/50" />
           </div>
-          <div className="relative mx-auto max-w-6xl px-4 pb-28 md:px-8">
+          <div className={`relative mx-auto px-4 pb-28 md:px-8 ${width}`}>
             <p className="text-[13px] text-white/70">Tu espacio</p>
             <Suspense fallback={<SpaceNav panel={null} />}>
               <SpaceNavLive />
             </Suspense>
-            <div className={`mt-8 grid items-end gap-6 ${aside ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : ''}`}>
+            <div className={`mt-8 grid items-end gap-6 ${aside ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
               <div>
                 <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
                   {title}
                   {accent ? <span className="text-violet-400"> {accent}</span> : null}
                 </h1>
                 {lede ? <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/75">{lede}</p> : null}
-                {note ? <p className="mt-2 text-[13px] text-white/55">{note}</p> : null}
+                {note ? <div className="mt-4">{note}</div> : null}
               </div>
               {aside ? (
-                <aside className="rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">{aside}</aside>
+                asideBare ? (
+                  <div>{aside}</div>
+                ) : (
+                  <aside className="rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">{aside}</aside>
+                )
               ) : null}
             </div>
           </div>
         </section>
-        <div className="relative z-10 mx-auto -mt-16 max-w-6xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8">
+        <div className={`relative z-10 mx-auto -mt-16 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8 ${width}`}>
           {children}
         </div>
       </div>
