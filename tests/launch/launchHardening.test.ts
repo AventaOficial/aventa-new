@@ -35,6 +35,7 @@ describe('freshness presentation', () => {
     });
     expect(view.state).toBe('unknown');
     expect(view.ctaEnabled).toBe(true);
+    expect(view.announce).toBe(false);
   });
 
   it('keeps outbound on stale or unconfirmed offers and blocks a confirmed 404', () => {
