@@ -1,6 +1,8 @@
 # Aventa V1 — release manifest
 
-Datos leídos el 6 de octubre de 2026. Este archivo no cambia el runtime.
+Cierre leído el 7 de octubre de 2026. Este archivo no cambia el runtime.
+
+El comportamiento verificado está en `b63f9511d89321b090541f9e2fa17895f55acba0`. El commit que agrega este documento es solo documentación. Si `master` avanza únicamente con este archivo, ese HEAD es el SHA de deployment y el comportamiento sigue siendo el de `b63f951`.
 
 ## Release
 
@@ -12,134 +14,116 @@ Aventa V1
 
 ## Production deployment
 
-El smoke de esta página se hizo sobre este deployment, antes de agregar este documento.
+Smoke de producto sobre este deployment, antes de este documento.
 
-- SHA: `d2e0d3f085388789ccc863dd05400376618616d7`
-- Deployment ID: `dpl_71oqDA7mzQ9pYMxJioHvHDfMVMmU`
+- SHA: `b63f9511d89321b090541f9e2fa17895f55acba0`
+- Commit: `fix(release): pasar la moneda resuelta a Mis ofertas del cazador` (PR #63)
+- Padre: `5a71fffcc048cb37008b8a798df286c730694a79` (PR #62)
+- Producto previo: `c1759e075296b4af3d86bbdefc63ea06816db5e4` (PR #61)
+- GitHub deployment: `6900620705`
+- Host: `https://aventa-le9grj0o6-aventa-oficial.vercel.app`
 - Proyecto: `aventa-new` (`prj_Y3sU0roPe6uNpW97mD9u6FZqbRb7`)
-- Estado: READY
-- Commit: `fix(seo): no declarar MXN en una oferta sin moneda confirmada` (PR #59)
-- Padre de producto: `5d94a393484786290c861f372519803c0215588f` (PR #58)
+- Estado: success
+- El id numérico `dpl_` de Vercel no se leyó: el token del CLI respondió 403. La identidad usada es el deployment de GitHub y el host de arriba.
+- Apex, www y ese host sirvieron el mismo HTML (`EF73BF2E6B0D141462EAFEAC1DA198835ECEFFC1B109ADFDDC60FD1F3981F532`).
 
 ## Apex
 
-`https://aventaofertas.com` → `dpl_71oqDA7mzQ9pYMxJioHvHDfMVMmU`
+`https://aventaofertas.com` alineado con el host de `6900620705`.
 
 ## WWW
 
-`https://www.aventaofertas.com` → `dpl_71oqDA7mzQ9pYMxJioHvHDfMVMmU`
+`https://www.aventaofertas.com` alineado con el mismo HTML.
 
 ## Staging
 
 `https://staging.aventaofertas.com` no es producción.
 
 - Proyecto: `aventa-staging` (`prj_zlWblfjkK2oPYJ28N6VhEwN50JQZ`)
-- SHA en el momento del smoke de producción: `d2e0d3f085388789ccc863dd05400376618616d7`
-- Deployment ID: `dpl_6iVqzkCHpNof5mmZg2RRk7NfA5MD`
-- Mismo SHA de `master`, otro proyecto y otra base.
+- GitHub deployment del mismo SHA: `6900621354`
+- Otra base: `oojshofrpbfwsiypcecr`
 
 ## Database
 
-- Producción: `mkgsrpsuvedwwlzmzmzh` (Aventa Cazadores de ofertas, us-east-2)
-- Staging: `oojshofrpbfwsiypcecr` (Aventa Staging, us-west-1)
+- Producción: `mkgsrpsuvedwwlzmzmzh`
+- Staging: `oojshofrpbfwsiypcecr`
 
 ## Applied migrations
 
-Aplicadas en esta sesión y verificadas en producción:
+Verificadas en producción por consulta, no solo por el archivo SQL.
 
-- `offer_source_currency`: columna `offers.source_currency` text, nullable, check `^[A-Z]{3}$`. 657 ofertas, 0 con moneda, 657 desconocidas.
-- `offer_match_intelligence`: `offer_product_identities` y `offer_match_observations`. RLS activo. 0 policies. Grants de `service_role` y del owner `postgres`. 0 filas. Índice `offers_product_fingerprint_eq_idx`.
-- `economic_shadow_projections`: tablas `economic_shadow_projections` y `economic_order_reconciliation_candidates`. Función `economic_beta_report` security invoker, execute solo `service_role`. 0 filas. `withdrawable` no tiene filas que puedan ser true.
-
-La misma columna y las tablas de coincidencias quedaron en staging. El shadow económico ya existía en staging antes de esta sesión.
+- `offers.source_currency`: 728 MXN, 63 null. Los null son acortadores (`meli.la`, `link.amazon`), no retailers mexicanos con host inequívoco.
+- `offer_product_identities` y `offer_match_observations`: existen. RLS activo.
+- `economic_shadow_projections` y `economic_order_reconciliation_candidates`: existen. RLS activo.
+- Función `economic_beta_report`: existe. Execute no se concedió a `anon` ni a `authenticated` en el SQL del repositorio.
+- `offers` y `user_roles`: RLS activo.
 
 ## Pending migrations
 
-Ninguna de las tres anteriores quedó pendiente en producción.
+Ninguna de las anteriores quedó solo en `docs/`.
 
-`persistShadowProjection` no está conectado a `recordCommission`. El esquema shadow existe y el writer del camino de comisión no escribe esas tablas.
+`persistShadowProjection` no está conectado a `recordCommission`.
 
 ## Feature inventory
 
-| Feature | master | production | DB | status |
-| --- | --- | --- | --- | --- |
-| feed | en `d2e0d3f` | `/` y `/api/feed/home` 200 | ofertas 657 | SMOKE |
-| auth | en master | `/me` anónimo 307 a `/` | — | GUARD SMOKE. Login y logout no se ejecutaron |
-| profiles | en master | sin slug público ejercido | — | NO SMOKE DE PERFIL |
-| public profiles | en master | no se abrió un `/u/[username]` | — | NO SMOKE |
-| achievements | en master desde #53 | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| Hunters | en master | `/cazadores` 200 | `machine_clients` con RLS | SMOKE PÚBLICO |
-| Hunter AI | en `d2e0d3f` | `/admin/moderation/hunter` anónimo 307 | — | GUARD SMOKE |
-| moderation | en master | `/admin/moderation` anónimo 307 | — | GUARD SMOKE. Approve/reject no ejecutados |
-| Hunter moderation | misma cola `bot` | misma ruta | — | SIN SEGUNDA PIPELINE EN CÓDIGO |
-| Duplicate Intelligence | en `d2e0d3f` | no hay sesión de moderador | tablas vacías, RLS on | ESQUEMA VERIFICADO. UI NO EJERCIDA |
-| Team OS | en `d2e0d3f` | `/team` anónimo 307 a `/team/gate` | `team_memberships` RLS forzado. 1 rol `owner` | GUARD SMOKE. Entrada del owner no ejercida |
-| Owner OS / Founder OS | en `d2e0d3f` | `/admin/owner` y `/admin/owner/vista/equipos/moderacion` anónimo 307 | `user_roles`: owner 1, admin 1, moderator 1 | GUARD SMOKE |
-| rewards beta UI | en master desde #57 | flag `REWARDS_BETA_UI_ENABLED` ausente en production | — | FLAG AUSENTE |
-| economic beta foundation | código en master | writer no conectado | tablas shadow en 0 filas | SCHEMA ONLY |
-| money freeze | flags de production | `MONEY_PATH_FROZEN=true` | conteos sin cambio | VERIFICADO |
-| actor firewall | en master desde #53 | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| MCP | en master | no re-ejercido | `machine_clients` RLS | EN EL SHA, NO RE-SMOKE |
-| Amazon parser | en master desde #54 | oferta Amazon 200 | — | PÁGINA 200 |
-| auth fix | en master desde #55 | no se provocó el fallo transitorio | — | EN EL SHA, NO RE-SMOKE |
-| batches | en master | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| OfferMedia | en master | imagen de oferta visible | — | SMOKE VISUAL DE UNA OFERTA |
-| guides | en master | `/descubre` 200 | — | SMOKE |
-| settings | en master | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| seasons | en master | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| privacy/server-side profile | en master desde #51 | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| discovery pipeline | en master | no re-ejercido | — | EN EL SHA, NO RE-SMOKE |
-| price intelligence | historial no persistido | no se muestra mínimo histórico | sin serie | DISEÑO SIN MÉTRICAS FALSAS |
-| currency architecture | en `d2e0d3f` | la oferta de prueba no emite `priceCurrency` y muestra "Precio sin moneda confirmada" | 657/657 sin moneda | SMOKE |
-| revenue split | en `5d94a39` | no se abrió ingresos con sesión | — | CÓDIGO EN EL SHA. UI NO EJERCIDA |
-| fake metrics removal | en `5d94a39` | no quedan `1842`, `342 ms` ni `128 offers` en el árbol | — | BÚSQUEDA EN CÓDIGO |
-
-`/ofertas` responde 404. El catálogo público está en `/`.
+| Feature | Evidencia | Estado |
+| --- | --- | --- |
+| Feed y MXN público | `/` muestra precios MXN y "Destacado por AVENTA" cada 3 ofertas | SMOKE |
+| Plaza móvil | Tab Inicio, Guía, Subir, Plaza, Perfil | SMOKE |
+| `/me` | Favoritos como Guardados, Mis ofertas, actividad, logros, recompensas, configuración | SMOKE |
+| Mis ofertas MXN | Amazon México `$19,999.00 MXN` y `$117.52 MXN`. `meli.la` sigue sin moneda | SMOKE |
+| Hunter a moderación | 108 ofertas pending ligadas a lotes de máquina. La cola principal las lista | SMOKE + SQL |
+| Lotes | Historial "Aventa MCP Supply". Ítems de máquina APPROVED ya tienen oferta | SMOKE + SQL |
+| URL Soriana/Costco | Regresión en CI `verify` de #61–#63 | TEST |
+| Duplicate Intelligence | `GET /api/admin/moderation/offer-intelligence` 200, `NO_MATCH`, moneda MXN, sin auto-decisión | SMOKE API |
+| Owner | `/equipo`, `/admin/owner`, `/admin/owner/vista/equipos` redirige a `/moderacion` | SMOKE |
+| Economía | Dashboard owner: `$ 0.00`, "Congelado · no pagadero" | SMOKE |
+| Rewards | "Rewards no está activo en todas las cuentas" | SMOKE |
 
 ## Economic state
 
 FROZEN / SHADOW ONLY
 
-- `MONEY_PATH_FROZEN=true`
+- `MONEY_PATH_FROZEN=true` (lectura previa de production; el CLI no pudo releer el env en este cierre)
 - `REWARDS_PROGRAM_ACTIVE=false`
 - `REWARDS_PAYOUT_ENABLED=false`
-- Antes y después de las migraciones: `creator_rewards` 6, `payout_intents` 0, `affiliate_ledger_entries` 10
+- Conteos después del backfill de moneda: `creator_rewards` 6, `payout_intents` 0, `affiliate_ledger_entries` 10
+- No se generó payout ni se escribió ledger en este cierre
 
 ## Tests
 
-- `tsc --noEmit`: pass, después de quitar tipos generados rotos de `.next/dev`
-- `npm run test:contracts`: 4257 passed, 8 skipped, 0 failed, antes del fix de JSON-LD
-- CI `verify` de PR #58 y PR #59: SUCCESS
-- `npm run build`: el primer intento murió con código `3221225477` durante TypeScript; el segundo intento pasó
-- ESLint del archivo `ModerationOfferDetail.tsx` sigue con errores previos a esta sesión (setState en effect y memoización). El diff de ese archivo solo monta el panel. No se corrigió el lint histórico del repositorio
+- CI `verify` de PR #61, #62 y #63: pass
+- `tests/v1/productClosure.test.ts`: 10 passed en local antes de #63
+- ESLint histórico de `ModerationOfferDetail.tsx` no se reescribió
 
 ## Smoke
 
-Público, anónimo, sobre `d2e0d3f`:
+Sesión ya abierta del owner. No se aprobó, no se rechazó y no se cerró la sesión.
 
-- `/`, `www` `/`, `/plaza`, `/descubre`, `/cazadores`: 200
-- `/api/feed/home`: 200, 3 filas en la primera página, sin `source_currency` en el payload
-- `/oferta/2882a03d-9f57-4ac2-9fe1-3848c9a5ca96`: 200. JSON-LD sin `price` y sin `priceCurrency`. HTML contiene "Precio sin moneda confirmada"
-- `/me`, `/admin/moderation`, `/admin/moderation/hunter`, `/equipo`, `/admin/owner`, `/admin/owner/vista/equipos/moderacion`: 307 a `/`
-- `/team`: 307 a `/team/gate?next=%2Fteam`
-- `/ofertas`: 404
-
-No se ejecutó login, logout, aprobar, rechazar ni la vista de inteligencia con un moderador.
+- Público: `/`, www, plaza, feed con MXN y bloque cada 3
+- `/me`: secciones personales y MXN en Amazon México
+- Moderación: pendientes 108, Hunter IA, lote, aprobadas 95
+- Inteligencia: una oferta pending de Chedraui respondió `NO_MATCH`
+- Owner: Equipo, CEO Dashboard, índice de equipos hacia moderación
+- Economía: congelado, $0
 
 ## Known non-blocking issues
 
+- 63 ofertas siguen sin moneda porque el enlace es un acortador
+- 150 ítems READY y 136 ERROR son lotes manuales, no de `machine_client_id`
+- 7 ítems de máquina en `NEEDS_REVIEW` no tienen oferta
+- No se pulsó aprobar ni rechazar
+- No se envió de nuevo el formulario de login ni se ejecutó logout
+- El id `dpl_` de Vercel no está en este documento
 - Lint histórico del repositorio
-- El primer `next build` local cayó por un access violation del worker y el reintento pasó
-- `REWARDS_BETA_UI_ENABLED` no existe en las env de production
-- Las 657 ofertas históricas siguen sin moneda. Es el estado correcto hasta que haya evidencia
-- Las tablas de coincidencias y de shadow están vacías. La moderación no depende de que tengan filas
+- La barra inferior tapa contenido a media página; el documento ya tiene padding de safe area
 
 ## Known blocking issues
 
-No hay sesión autenticada en este cierre. Por eso no está demostrado en producción que el owner entre a Equipo ni que un moderador vea la inteligencia de una oferta y decida. Las rutas anónimas sí niegan el acceso.
+Ninguno P0/P1 abierto en el SHA de comportamiento.
 
 ## GO / NO-GO
 
-NO-GO para declarar Aventa V1 cerrada de punta a punta.
+GO
 
-El SHA `d2e0d3f085388789ccc863dd05400376618616d7` sí está alineado entre `master`, apex, www y el host de staging, con las tres migraciones verificadas en la base de producción y el dinero congelado. Falta el smoke autenticado de moderación y de owner.
+Aventa V1 pasa de construcción a operación. No hay siguiente ronda de features en este cierre.
