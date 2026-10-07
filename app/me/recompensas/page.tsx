@@ -19,7 +19,15 @@ import { MeSpaceShell, meCardClass } from '@/app/me/dashboard/MeSectionPage';
 import RewardsBetaOnboarding from '@/app/me/RewardsBetaOnboarding';
 import RewardsOfferSelection, { type WelcomeChoiceCard } from '@/app/me/RewardsOfferSelection';
 import { formatRewardShare } from '@/lib/me/rewardStatusCopy';
-import { PROGRAM_STATUS_COPY, resolveRewardsProgramStatus } from '@/lib/rewards/onboarding';
+import { REWARDS_LEVEL_COUNT, rewardsLevelShareBps } from '@/lib/rewards/levels';
+import {
+  buildRewardsOnboarding,
+  MEMBER_STATUS_COPY,
+  PROGRAM_STATUS_COPY,
+  resolveRewardsMemberStatus,
+  resolveRewardsProgramStatus,
+  type RewardsClaimPhase,
+} from '@/lib/rewards/onboarding';
 
 type Progress = {
   approvedOffers: number;
@@ -59,6 +67,7 @@ type BetaStatus = {
 type StatusPayload = {
   programActive: boolean;
   moneyPathFrozen: boolean;
+  claimPhase: RewardsClaimPhase;
   progress: Progress;
   welcome: {
     needsSelection: boolean;
@@ -170,9 +179,14 @@ function parseStatus(body: unknown): StatusPayload | null {
     ? (welcome.welcomeOffer as Record<string, unknown>)
     : null;
   const audience = beta.audience === 'beta' || beta.audience === 'program' ? beta.audience : 'closed';
+  const claimPhase: RewardsClaimPhase =
+    raw.claimPhase === 'unlocked' || raw.claimPhase === 'pending_selection' || raw.claimPhase === 'complete'
+      ? raw.claimPhase
+      : 'locked';
   return {
     programActive: Boolean(raw.programActive),
     moneyPathFrozen: Boolean(raw.moneyPathFrozen),
+    claimPhase,
     progress: {
       approvedOffers: num(progress.approvedOffers),
       requiredOffers: num(progress.requiredOffers),
@@ -246,6 +260,19 @@ function formatDay(iso: string | null): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+}
+
+function RuleBlock({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="min-w-0 rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
+      <p className="text-[14px] font-semibold">{title}</p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((item) => (
+          <li key={item} className="text-[13px] leading-relaxed text-[var(--me-muted)]">{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function statusTone(row: RewardRow): string {
@@ -325,10 +352,17 @@ export default function RecompensasPage() {
   const policy = status?.policy;
   const balances = status?.balances;
   const sharePct = policy ? Math.round(policy.creatorShareBps / 100) : 0;
+  const firstLevelPct = Math.round(rewardsLevelShareBps(1) / 100);
+  const rewardLevels = Array.from({ length: REWARDS_LEVEL_COUNT }, (_, index) => ({
+    level: index + 1,
+    percent: Math.round(rewardsLevelShareBps(index + 1) / 100),
+  }));
   const minLabel = policy ? money(policy.minPayoutCents) : '—';
   const programStatus = status
     ? resolveRewardsProgramStatus({ programActive: status.programActive, moneyPathFrozen: status.moneyPathFrozen })
     : null;
+  const guide = programStatus ? buildRewardsOnboarding(programStatus) : null;
+  const member = status ? MEMBER_STATUS_COPY[resolveRewardsMemberStatus(status.claimPhase)] : null;
   const canPay = Boolean(status?.programActive && !status.moneyPathFrozen && status.beta.payoutEnabled);
   const showMoney = Boolean(status?.beta.canSeeEconomics);
   const offersPct = progress ? clampPct(progress.approvedOffers, progress.requiredOffers) : 0;
@@ -350,12 +384,12 @@ export default function RecompensasPage() {
     ? [
         { title: 'Caza', body: 'Encuentra ofertas realmente buenas.' },
         { title: 'Publica', body: 'Compártelas con la comunidad.' },
-        { title: 'Genera valor', body: 'Tu oferta recibe clics y puede generar compras.' },
-        { title: 'Aventa recibe comisión', body: 'La tienda paga una comisión de afiliado.' },
-        { title: 'Se atribuye la conversión', body: 'Verificamos que la comisión corresponde a tu oferta.' },
-        { title: 'Recibes tu parte', body: `El creador recibe el ${sharePct}% de la comisión atribuida.` },
-        { title: 'Período de validación', body: `Las recompensas se validan por ${policy.holdDays} días.` },
-        { title: 'Cobras', body: canPay ? `Cuando alcanzas el mínimo de ${minLabel} por SPEI.` : `El mínimo de la política es ${minLabel}. Hoy no se puede pagar.` },
+        { title: 'Genera valor', body: 'Tu oferta puede generar una compra. Un clic, una vista o un voto, por sí solos, no crean una recompensa.' },
+        { title: 'Aventa recibe comisión', body: 'La tienda paga una comisión de afiliado. Si no hay comisión, no hay recompensa.' },
+        { title: 'Se atribuye la conversión', body: 'Aventa verifica que esa comisión corresponde a tu oferta.' },
+        { title: 'Recibes tu porcentaje', body: `La Oferta de Bienvenida puede recibir hasta el ${sharePct}%. Las siguientes usan tu nivel de recompensa, desde ${firstLevelPct}% hasta ${sharePct}%, sobre la comisión atribuida.` },
+        { title: 'Período de validación', body: `Hay un periodo de ${policy.holdDays} días por devoluciones, cancelaciones o reversos. No todas tardan exactamente ${policy.holdDays} días.` },
+        { title: 'Cobras', body: canPay ? `Solo el saldo disponible, desde ${minLabel} por SPEI, si el programa puede pagar.` : `Solo el saldo disponible, desde ${minLabel} por SPEI. Hoy no se puede pagar.` },
       ]
     : [];
 
@@ -380,7 +414,7 @@ export default function RecompensasPage() {
                   Convierte tus descubrimientos en recompensas reales.
                 </h1>
                 <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/90">
-                  Cada oferta que compartes puede generar comisiones de afiliado. Tú recibes el {sharePct}% de la comisión atribuida.
+                  Cada oferta que compartes puede generar comisiones de afiliado. El máximo del programa es el {sharePct}% de esa comisión, no del precio. Tu Oferta de Bienvenida puede recibirlo; después tu nivel de recompensa empieza en {firstLevelPct}%.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <a href="#como-funcionan" className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700">
@@ -394,7 +428,7 @@ export default function RecompensasPage() {
               <GiftCluster />
               <ul className="space-y-2.5">
                 {[
-                  { icon: BadgePercent, title: `${sharePct}% para el creador`, body: 'sobre la comisión atribuida' },
+                  { icon: BadgePercent, title: `Hasta ${sharePct}%`, body: 'máximo sobre la comisión atribuida' },
                   { icon: Wallet, title: `Pagos a partir de ${minLabel}`, body: 'por SPEI' },
                   { icon: Clock, title: `Validación de ${policy?.holdDays ?? 0} días`, body: 'contra devoluciones' },
                   { icon: ShieldCheck, title: 'Solo compras reales', body: 'con atribución confiable' },
@@ -424,9 +458,9 @@ export default function RecompensasPage() {
                   Necesitas cumplir ambos requisitos para desbloquear el programa y elegir tu Oferta de Bienvenida.
                 </p>
               </div>
-              <Link href="/me/programa" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">
+              <a href="#requisitos" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">
                 Ver requisitos completos
-              </Link>
+              </a>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
@@ -442,7 +476,7 @@ export default function RecompensasPage() {
                   <p className="text-[14px] font-semibold">Votos positivos</p>
                   <p className="text-[14px] font-semibold tabular-nums">{progress?.positiveVotes ?? 0} / {progress?.requiredVotes ?? 0}</p>
                 </div>
-                <p className="mt-1 text-[13px] text-[var(--me-muted)]">Recibe votos positivos en tus ofertas.</p>
+                <p className="mt-1 text-[13px] text-[var(--me-muted)]">Personas distintas. Cada persona cuenta una vez.</p>
                 <Bar value={votesPct} label="Votos positivos" />
               </div>
             </div>
@@ -495,13 +529,13 @@ export default function RecompensasPage() {
                   )}
                 </div>
                 <p className="mt-2 text-[14px] leading-relaxed text-[var(--me-muted)]">
-                  Cuando cumplas los requisitos, podrás elegir 1 de tus primeras {progress?.requiredOffers ?? 0} ofertas aprobadas como tu Oferta de Bienvenida. Después, tus nuevas ofertas también podrán generar recompensas.
+                  Cuando cumplas los requisitos, podrás elegir 1 de tus primeras {progress?.requiredOffers ?? 0} ofertas aprobadas como tu Oferta de Bienvenida. Las ofertas que publiques después usan tu nivel de recompensa.
                 </p>
               </div>
               <div className="max-w-xs rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
                 <p className="text-[14px] font-semibold">¿Por qué elegir una?</p>
                 <p className="mt-1 text-[13px] leading-relaxed text-[var(--me-muted)]">
-                  Tu Oferta de Bienvenida es el inicio de tu trayectoria en el programa de recompensas. Marca el punto de partida de tus primeras ofertas aprobadas.
+                  Tu primera oferta dentro del programa puede recibir hasta el {sharePct}% de la comisión atribuida. Solo si hay compra real, comisión real y atribución válida. Si no hay comisión, no hay recompensa.
                 </p>
               </div>
             </div>
@@ -560,7 +594,7 @@ export default function RecompensasPage() {
                 <h2 className="text-[18px] font-semibold">Tus recompensas</h2>
                 <a href="#actividad" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver historial</a>
               </div>
-              <p className="mt-1 text-[13px] text-[var(--me-muted)]">Recompensas generadas por compras reales atribuidas a tus ofertas. Tu parte es el {sharePct}% de la comisión atribuida.</p>
+              <p className="mt-1 text-[13px] text-[var(--me-muted)]">Salen de compras reales con comisión atribuida. La Oferta de Bienvenida puede llegar al {sharePct}%. Después, tu nivel de recompensa empieza en {firstLevelPct}%.</p>
               {showMoney ? (
                 <>
                   <p className="mt-4 text-[40px] font-semibold tabular-nums leading-none">{money(available)}</p>
@@ -578,7 +612,8 @@ export default function RecompensasPage() {
                   {PROGRAM_STATUS_COPY[programStatus].label}. {PROGRAM_STATUS_COPY[programStatus].description}
                 </p>
               ) : null}
-              {canPay ? null : <p className="mt-2 text-[13px] font-medium text-[var(--me-ink)]">Esto todavía no puede pagarse.</p>}
+              {programStatus === 'PAUSED' ? <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">No hay saldo disponible para nadie.</p> : null}
+              {canPay ? null : <p className="mt-2 text-[13px] font-medium text-[var(--me-ink)]">Esto todavía no puede pagarse. Solo el saldo disponible podría pagarse, y hoy no está habilitado.</p>}
             </section>
 
             <section className={`${meCardClass} p-5 sm:p-6`}>
@@ -600,6 +635,7 @@ export default function RecompensasPage() {
                   <span className="font-semibold tabular-nums">{progress?.positiveVotes ?? 0} / {progress?.requiredVotes ?? 0}</span>
                 </div>
               </div>
+              {member ? <p className="mt-3 text-[13px] leading-relaxed text-[var(--me-muted)]">{member.label}. {member.description} Tu Nivel Aventa no cambia este estado.</p> : null}
               <Link href="/me/nivel" className="mt-4 inline-flex text-[13px] font-semibold text-violet-700 dark:text-violet-300">
                 Ver mi actividad
               </Link>
@@ -608,11 +644,11 @@ export default function RecompensasPage() {
 
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {[
-              { label: 'Disponibles', value: counts.available, hint: canPay ? 'Listas para pago' : 'Aún no se pueden pagar' },
-              { label: 'En validación', value: counts.validating, hint: `Revisión (hasta ${policy?.holdDays ?? 0} días)` },
-              { label: 'Pendientes', value: counts.pending, hint: 'Detectadas recientemente' },
-              { label: 'Pagadas', value: counts.paid, hint: 'Historial de pagos' },
-              { label: 'Revertidas', value: counts.reversed, hint: 'Canceladas o no válidas' },
+              { label: 'Disponibles', value: counts.available, hint: canPay ? 'Ya superó la validación y puede entrar a pago.' : 'Ya superó la validación. Hoy no se puede pagar.' },
+              { label: 'En validación', value: counts.validating, hint: `Aventa verifica la conversión. El periodo es de ${policy?.holdDays ?? 0} días.` },
+              { label: 'Pendientes', value: counts.pending, hint: 'Detectada, todavía no está lista para liberarse.' },
+              { label: 'Pagadas', value: counts.paid, hint: 'La recompensa ya fue pagada.' },
+              { label: 'Revertidas', value: counts.reversed, hint: 'Cancelada o revertida por un reverso o una regla del programa.' },
             ].map((item) => (
               <article key={item.label} className={`${meCardClass} min-w-0 p-4`}>
                 <p className="text-[28px] font-semibold tabular-nums leading-none">{item.value}</p>
@@ -666,7 +702,7 @@ export default function RecompensasPage() {
           <section id="como-funcionan" className={`${meCardClass} scroll-mt-24 p-5 sm:p-6`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-[18px] font-semibold">Cómo funcionan las recompensas</h2>
-              <Link href="/me/programa" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver guía completa</Link>
+              <a href="#nivel-recompensa" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver guía completa</a>
             </div>
             <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {howSteps.map((step, index) => (
@@ -678,6 +714,79 @@ export default function RecompensasPage() {
               ))}
             </ol>
           </section>
+
+          {guide ? (
+            <>
+              <section id="nivel-recompensa" className={`${meCardClass} scroll-mt-24 p-5 sm:p-6`}>
+                <h2 className="text-[18px] font-semibold">Tu nivel de recompensa</h2>
+                <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-[var(--me-muted)]">
+                  Después de la Oferta de Bienvenida, tus nuevas ofertas elegibles reciben un porcentaje de la comisión atribuida según este nivel. Empiezas en {firstLevelPct}% y el máximo del programa es {sharePct}%. No es tu Nivel Aventa, ni tu XP, ni tu reputación.
+                </p>
+                <ol className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-8">
+                  {rewardLevels.map((level) => (
+                    <li key={level.level} className="rounded-2xl bg-[#f6f4fb] px-2 py-3 text-center dark:bg-white/5">
+                      <p className="text-[11px] text-[var(--me-muted)]">Nivel {level.level}</p>
+                      <p className="mt-1 text-[16px] font-semibold tabular-nums">{level.percent}%</p>
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+                  Ejemplo, sobre una comisión atribuida de $100 MXN: el {firstLevelPct}% deja ${Math.round(100 * firstLevelPct / 100)} MXN, el {rewardLevels[3]?.percent ?? firstLevelPct}% deja ${Math.round(100 * (rewardLevels[3]?.percent ?? firstLevelPct) / 100)} MXN y el {sharePct}% deja ${Math.round(100 * sharePct / 100)} MXN. El porcentaje se calcula sobre la comisión, no sobre el precio del producto. Sin compra, comisión y atribución válidas, no hay recompensa.
+                </p>
+              </section>
+
+              <section id="requisitos" className={`${meCardClass} scroll-mt-24 p-5 sm:p-6`}>
+                <h2 className="text-[18px] font-semibold">Requisitos completos</h2>
+                <p className="mt-2 text-[14px] leading-relaxed text-[var(--me-muted)]">
+                  Tu nivel de comunidad no cambia estas reglas. Arriba ves tu progreso de ofertas y votos. También cuentan la antigüedad y la tasa de aprobación.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <RuleBlock title="Cuenta para desbloquear" items={guide.counts} />
+                  <RuleBlock title="Lo que no cuenta" items={guide.doesNotCount} />
+                </div>
+              </section>
+
+              <section className={`${meCardClass} p-5 sm:p-6`}>
+                <h2 className="text-[18px] font-semibold">Qué no es dinero</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <RuleBlock
+                    title="Nivel Aventa"
+                    items={['Mide tu progresión en la comunidad. No es saldo y no fija el porcentaje de una recompensa.']}
+                  />
+                  {guide.layers.filter((layer) => !layer.money).map((layer) => (
+                    <RuleBlock key={layer.id} title={layer.label} items={[layer.summary, ...layer.points]} />
+                  ))}
+                  <RuleBlock
+                    title="Nivel de recompensa"
+                    items={[`Determina el porcentaje de la comisión atribuida después de la Oferta de Bienvenida. Empieza en ${firstLevelPct}% y llega hasta ${sharePct}%.`]}
+                  />
+                </div>
+              </section>
+
+              <section className={`${meCardClass} p-5 sm:p-6`}>
+                <h2 className="text-[18px] font-semibold">Protección del programa</h2>
+                <p className="mt-2 text-[14px] leading-relaxed text-[var(--me-muted)]">{guide.whenReceive}</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <RuleBlock title="Por qué queda pendiente" items={guide.pending} />
+                  <RuleBlock title="Para cobrar" items={[...guide.withdrawal, 'El pago, cuando exista, sería por SPEI y solo con saldo disponible.']} />
+                  <RuleBlock title="Abuso" items={[...guide.abuse, 'Un clic propio no sustituye una compra atribuida.']} />
+                  <RuleBlock title="Qué no se garantiza" items={guide.guarantees} />
+                </div>
+                {programStatus === 'PAUSED' ? (
+                  <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+                    Cuando el programa vuelva a abrir, Aventa lo anunciará y pedirá aceptar los términos vigentes. Hoy no se piden datos de identidad ni fiscales.
+                  </p>
+                ) : (
+                  <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+                    Los datos de identidad y fiscales se piden solo cuando haya un pago que hacer, nunca antes.
+                  </p>
+                )}
+                <a href="/terms#comisiones" className="mt-3 inline-flex text-[13px] font-semibold text-violet-700 dark:text-violet-300">
+                  Ver términos del programa
+                </a>
+              </section>
+            </>
+          ) : null}
         </div>
       ) : null}
     </MeSpaceShell>
