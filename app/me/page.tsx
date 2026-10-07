@@ -380,6 +380,7 @@ function MePageInner() {
                 originalPrice: offer.originalPrice,
                 image: offer.image ?? null,
                 store: offer.brand || null,
+                sourceCurrency: offer.sourceCurrency ?? null,
                 createdAt: offer.createdAt ?? null,
                 upvotes: offer.upvotes,
               }))}

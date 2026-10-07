@@ -42,6 +42,8 @@ describe('moneda de retailers mexicanos', () => {
     const mine = readFileSync(join(process.cwd(), 'app/me/ofertas/page.tsx'), 'utf8');
     expect(preview).toContain('presentOfferPrice(price, offer.sourceCurrency)');
     expect(mine).toContain('resolveOfferSourceCurrency');
+    const me = readFileSync(join(process.cwd(), 'app/me/page.tsx'), 'utf8');
+    expect(me).toContain('sourceCurrency: offer.sourceCurrency');
   });
 });
 
