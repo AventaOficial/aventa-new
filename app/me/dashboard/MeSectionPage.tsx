@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import ClientLayout from '@/app/ClientLayout';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
-const SPACE_LINKS = [
+export const SPACE_LINKS = [
   { href: '/me', label: 'Inicio' },
   { href: '/me/favorites', label: 'Favoritos' },
   { href: '/me/ofertas', label: 'Mis ofertas' },
