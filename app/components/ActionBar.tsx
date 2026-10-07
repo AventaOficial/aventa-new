@@ -864,34 +864,23 @@ export default function ActionBar() {
             <Plus className="h-6 w-6 max-[400px]:h-5 max-[400px]:w-5 text-white" />
             <span className="text-[10px] max-[400px]:text-[9px] font-semibold text-white">Subir</span>
           </button>
+          <Link
+            href="/plaza"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/plaza') ? activeClasses : inactiveClasses}`}
+          >
+            <MessagesSquare className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
+            <span className="text-[10px] max-[400px]:text-[9px] font-medium">Plaza</span>
+          </Link>
           {session ? (
-            <>
-              <Link
-                href="/me/favorites"
-                className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${isActive('/me/favorites') ? activeClasses : inactiveClasses}`}
-              >
-                <Heart className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
-                <span className="text-[10px] max-[400px]:text-[9px] font-medium">Favoritos</span>
-              </Link>
-              <Link
-                href="/me"
-                className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${pathname === '/me' ? activeClasses : inactiveClasses}`}
-              >
-                <User className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
-                <span className="text-[10px] max-[400px]:text-[9px] font-medium">Perfil</span>
-              </Link>
-            </>
+            <Link
+              href="/me"
+              className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-300 ease-out active:scale-95 ${pathname === '/me' || pathname.startsWith('/me/') ? activeClasses : inactiveClasses}`}
+            >
+              <User className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
+              <span className="text-[10px] max-[400px]:text-[9px] font-medium">Perfil</span>
+            </Link>
           ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => requestGuestSignIn(showToast, openRegisterModal, 'favorites')}
-                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
-              >
-                <Heart className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
-                <span className="text-[10px] max-[400px]:text-[9px] font-medium">Favoritos</span>
-              </button>
-              <button
+            <button
                 type="button"
                 onClick={() => requestGuestSignIn(showToast, openRegisterModal, 'profile')}
                 className="flex flex-col items-center justify-center gap-0.5 rounded-2xl max-[400px]:rounded-xl min-h-[52px] max-[400px]:min-h-[48px] min-w-[64px] max-[400px]:min-w-[56px] px-2 max-[400px]:px-1 py-2 transition-colors duration-200 active:scale-95 text-[#6e6e73] dark:text-[#a3a3a3]"
@@ -899,7 +888,6 @@ export default function ActionBar() {
                 <User className="h-5 w-5 max-[400px]:h-4 max-[400px]:w-4" />
                 <span className="text-[10px] max-[400px]:text-[9px] font-medium">Perfil</span>
               </button>
-            </>
           )}
         </div>
       </div>

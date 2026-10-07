@@ -7,10 +7,13 @@ import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
 const SPACE_LINKS = [
   { href: '/me', label: 'Inicio' },
+  { href: '/me/favorites', label: 'Favoritos' },
+  { href: '/me/ofertas', label: 'Mis ofertas' },
   { href: '/me/estadisticas', label: 'Actividad' },
   { href: '/me/nivel', label: 'Nivel' },
+  { href: '/me?panel=logros', label: 'Logros' },
   { href: '/me/recompensas', label: 'Recompensas' },
-  { href: '/me/ofertas', label: 'Ofertas' },
+  { href: '/settings', label: 'Configuración' },
 ] as const;
 
 export const meCardClass =

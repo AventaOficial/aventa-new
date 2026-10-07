@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { classifyOfferModerationLevel } from './classifyOfferModerationLevel';
 import { getClaimLatencyStats } from './claimLatencyTracker';
 import {
@@ -24,7 +25,7 @@ function computeIsBot(
   },
   botIds: Set<string>
 ): boolean {
-  if (row.created_by && botIds.has(row.created_by)) return true;
+  if (row.created_by && (botIds.has(row.created_by) || isBotUserId(row.created_by))) return true;
   if ((row.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]')) return true;
   if ((row.description ?? '').toLowerCase().includes('ingesta automática (bot)')) return true;
   return false;

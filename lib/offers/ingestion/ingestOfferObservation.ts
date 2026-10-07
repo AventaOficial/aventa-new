@@ -17,6 +17,7 @@ import { normalizeCategoryForStorage } from '@/lib/categories';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
 import { isUniqueViolation, releaseExpiredFingerprintSlot } from '@/lib/offers/findDuplicateOffer';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
+import { mexicanRetailerCurrency } from '@/lib/offers/sourceCurrency';
 import {
   mergePendingOfferFields,
   type PendingOfferSnapshot,
@@ -114,6 +115,7 @@ const OPTIONAL_OFFER_COLUMNS = [
   'conditions',
   'expires_at',
   'msi_months',
+  'source_currency',
 ] as const;
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
@@ -444,6 +446,8 @@ export async function ingestOfferObservation(
     ...(bankCoupon ? { bank_coupon: bankCoupon } : {}),
     ...(tags.length > 0 ? { tags } : {}),
   };
+  const sourceCurrency = mexicanRetailerCurrency(offerUrlNormalized || originalOfferUrl);
+  if (sourceCurrency) insertPayload.source_currency = sourceCurrency;
   applyExtras(insertPayload, input.offerExtras, bodyConditions);
 
   let schemaDegraded = false;

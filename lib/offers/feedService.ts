@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin } from '@/lib/offers/homeFeedFilters';
 import { presentAuthor } from '@/lib/product/hunters/identity';
+import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -17,6 +18,8 @@ export type FeedOffer = {
   title: string;
   price: number;
   original_price: number | null;
+  source_currency: string | null;
+  offer_url: string | null;
   created_at: string;
   score: number;
   up_votes: number;
@@ -77,7 +80,7 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
+        'id, title, price, original_price, offer_url, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
       )
       .not('created_at', 'is', null)
       .or('status.eq.approved,status.eq.published')
@@ -161,6 +164,11 @@ export async function getHomeFeed({
         title: String(row.title ?? ''),
         price: Number(row.price ?? 0),
         original_price: row.original_price != null ? Number(row.original_price) : null,
+        offer_url: row.offer_url != null ? String(row.offer_url) : null,
+        source_currency: resolveOfferSourceCurrency(
+          row.source_currency != null ? String(row.source_currency) : null,
+          row.offer_url != null ? String(row.offer_url) : null,
+        ),
         created_at: row.created_at != null ? new Date(row.created_at as string).toISOString() : '',
         score: Number(row.score ?? 0),
         up_votes: Number(row.up_votes ?? 0),

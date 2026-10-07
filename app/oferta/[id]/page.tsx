@@ -13,6 +13,7 @@ import { presentOfferFreshness } from '@/lib/offers/freshness/present';
 import { isConfirmedGoneDiagnostic } from '@/lib/offers/evaluateOfferHealth';
 import { loadPrimaryAchievement } from '@/lib/achievements/showcase';
 import { publicOfferDescription } from '@/lib/offers/publicDescription';
+import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import OfferPageContent from './OfferPageContent';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 import { stringifyJsonLd } from '@/lib/seo/jsonLd';
@@ -199,8 +200,7 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     author.featuredAchievement = await loadPrimaryAchievement(createServerClient(), offer.created_by);
   }
 
-  const sourceCurrency = offer.source_currency?.trim().toUpperCase() ?? '';
-  const confirmedCurrency = /^[A-Z]{3}$/.test(sourceCurrency) ? sourceCurrency : null;
+  const confirmedCurrency = resolveOfferSourceCurrency(offer.source_currency, offer.offer_url);
   const originalPrice = Number(offer.original_price) || 0;
   const discountPrice = Number(offer.price) || 0;
   const discount =

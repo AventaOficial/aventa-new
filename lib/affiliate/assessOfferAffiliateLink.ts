@@ -1,5 +1,5 @@
 import { applyPlatformAffiliateTags } from './applyPlatformAffiliateTags';
-import { offerUrlFingerprint } from '@/lib/offers/offerUrlFingerprint';
+import { isSupportedRetailerProductUrl } from '@/lib/offers/retailerProductUrl';
 
 function getEnv(...keys: string[]): string | null {
   for (const k of keys) {
@@ -46,10 +46,9 @@ export function storeHasAffiliateProgram(url: string): boolean {
   return false;
 }
 
-/** URL que apunta a un producto concreto (MLM-/ASIN), no a home ni captcha. */
+/** URL de producto de un retailer soportado. Home, búsqueda y captcha no pasan. */
 export function isResolvedProductOfferUrl(url: string): boolean {
-  const fp = offerUrlFingerprint(url.trim());
-  return Boolean(fp && (fp.startsWith('amz:') || fp.startsWith('ml:')));
+  return isSupportedRetailerProductUrl(url.trim());
 }
 
 /**

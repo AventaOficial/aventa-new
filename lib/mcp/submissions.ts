@@ -13,6 +13,7 @@ import {
   type SubmissionCandidateState,
 } from '@/lib/mcp/contract';
 import { isMcpIngestEnabled } from '@/lib/mcp/flags';
+import { enqueueHunterOffer } from '@/lib/offers/ingestion/enqueueHunterOffer';
 
 export type McpQuota = { dailyCap: number; usedToday: number; remainingToday: number };
 
@@ -138,8 +139,9 @@ export type SubmitInput = {
 };
 
 /**
- * submit_deal_candidates: valida, aplica idempotencia y cuota, y crea un lote MCP.
- * No toca `offers`: el lote sigue el pipeline existente y la moderación humana.
+ * submit_deal_candidates: valida, aplica idempotencia y cuota, y registra el lote.
+ * Cada candidato aceptado nace como oferta pending en la cola de moderación.
+ * El lote queda como historial de la importación, no como sala de espera.
  */
 export async function submitDealCandidates(
   supabase: SupabaseClient,
@@ -213,7 +215,16 @@ export async function submitDealCandidates(
   if (!created.batch) return fail('INTERNAL_ERROR', 'No se pudo registrar el envío.');
 
   const conflicted = new Set(created.conflictIdentityKeys);
-  const accepted = validation.valid.filter((c) => !conflicted.has(c.identityKey)).map((c) => ({ index: c.index }));
+  const acceptedCandidates = validation.valid.filter((c) => !conflicted.has(c.identityKey));
+  for (const candidate of acceptedCandidates) {
+    await enqueueHunterOffer(supabase, {
+      batchId: created.batch.id,
+      createdBy: client.authorProfileId,
+      machineClientId: client.id,
+      candidate,
+    });
+  }
+  const accepted = acceptedCandidates.map((c) => ({ index: c.index }));
   const rejected: CandidateRejection[] = [
     ...validation.rejected,
     ...validation.valid
