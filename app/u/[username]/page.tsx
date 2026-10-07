@@ -34,6 +34,7 @@ type ProfileOffer = {
   createdAt?: string | null;
   expiresAt?: string | null;
   dealStatus?: DealStatus;
+  category?: string | null;
   msiMonths?: number | null;
   bankCoupon?: string | null;
   coupons?: string | null;
@@ -56,6 +57,8 @@ type ProfileData = {
     cover_url?: string | null;
     is_private?: boolean;
     activity_visible?: boolean;
+    created_at?: string | null;
+    is_trusted?: boolean;
   };
   offersCount: number;
   activeCount?: number;
@@ -249,7 +252,7 @@ export default function ProfilePage() {
 
   return (
     <ClientLayout>
-      <div className="min-h-screen bg-[#F5F5F7] text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100">
+      <div className="min-h-screen bg-[#07040f] text-white">
         <section className="mx-auto max-w-6xl px-4 pb-28 pt-24 md:px-8 md:pb-12 md:pt-12">
           <p className="sr-only">Así me ve Aventa.</p>
           <PublicProfileView
@@ -262,6 +265,8 @@ export default function ProfilePage() {
             activityVisible={profile.activity_visible !== false && !profile.is_private}
             level={profile.reputation_level ?? 1}
             score={profile.reputation_score ?? 0}
+            joinedAt={profile.created_at}
+            trusted={profile.is_trusted === true}
             showcase={data.featuredAchievements ?? []}
             votesReceived={votesReceived}
             comments={null}
@@ -277,6 +282,7 @@ export default function ProfilePage() {
               dealStatus: offer.dealStatus ?? 'approved',
               upvotes: offer.upvotes,
               isFavorite: Boolean(favoriteMap[offer.id]),
+              category: offer.category ?? null,
             }))}
             onFavoriteChange={(offerId, isFavorite) => {
               setFavoriteMap((prev) => ({ ...prev, [offerId]: isFavorite }));

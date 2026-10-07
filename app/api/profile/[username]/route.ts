@@ -29,6 +29,7 @@ type OfferRow = {
   upvotes_count?: number | null;
   downvotes_count?: number | null;
   ranking_momentum?: number | null;
+  category?: string | null;
 };
 
 type ProfileRpcRow = {
@@ -121,15 +122,19 @@ export async function GET(
 
   let reputation_level = 1;
   let reputation_score = 0;
+  let joined_at: string | null = null;
+  let is_trusted = false;
   try {
     const { data: rep } = await supabase
       .from('profiles')
-      .select('reputation_level, reputation_score')
+      .select('reputation_level, reputation_score, created_at, is_trusted')
       .eq('id', profileId)
       .maybeSingle();
     if (rep) {
       reputation_level = Math.max(1, (rep as { reputation_level?: number }).reputation_level ?? 1);
       reputation_score = Math.max(0, (rep as { reputation_score?: number }).reputation_score ?? 0);
+      joined_at = (rep as { created_at?: string | null }).created_at ?? null;
+      is_trusted = (rep as { is_trusted?: boolean }).is_trusted === true;
     }
   } catch {
     // columnas pueden no existir aún
@@ -139,7 +144,7 @@ export async function GET(
     ? await supabase
         .from('offers')
         .select(
-          'id, title, price, original_price, image_url, image_urls, store, offer_url, description, hunter_comment, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum'
+          'id, title, price, original_price, image_url, image_urls, store, offer_url, description, hunter_comment, steps, conditions, msi_months, bank_coupon, coupons, created_at, expires_at, upvotes_count, downvotes_count, ranking_momentum, category'
         )
         .eq('created_by', profileId)
         .is('deleted_at', null)
@@ -216,6 +221,7 @@ export async function GET(
       bankCoupon: row.bank_coupon?.trim() || undefined,
       coupons: row.coupons?.trim() || undefined,
       votes: { up, down, score },
+      category: row.category?.trim() || null,
       author,
     };
   });
@@ -233,6 +239,8 @@ export async function GET(
       cover_url: publicIdentity.coverUrl,
       is_private: publicIdentity.isPrivate,
       activity_visible: publicIdentity.showActivity,
+      created_at: joined_at,
+      is_trusted,
     },
     offersCount: offers.length,
     activeCount,

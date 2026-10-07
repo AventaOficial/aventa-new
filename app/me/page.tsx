@@ -27,7 +27,7 @@ type MeView = 'public' | 'hunter';
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 type DealStatusFilter = 'all' | DealStatus;
 
-type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
+type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null; category?: string | null };
 
 type OfferOwnerMetrics = { storeClicks?: number; cazarClicks: number; views: number; shares: number };
 
@@ -165,7 +165,7 @@ function MePageInner() {
 
       const { data: rows } = await supabase
         .from('offers')
-        .select('id, title, price, original_price, source_currency, image_url, store, offer_url, description, hunter_comment, msi_months, bank_coupon, coupons, conditions, created_at, upvotes_count, downvotes_count, ranking_momentum, status, rejection_reason, expires_at')
+        .select('id, title, price, original_price, source_currency, image_url, store, offer_url, description, hunter_comment, msi_months, bank_coupon, coupons, conditions, created_at, upvotes_count, downvotes_count, ranking_momentum, status, rejection_reason, expires_at, category')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -181,6 +181,7 @@ function MePageInner() {
           status?: string | null;
           rejection_reason?: string | null;
           expires_at?: string | null;
+          category?: string | null;
         };
         const card = mapOfferToCard({
           ...r,
@@ -200,6 +201,7 @@ function MePageInner() {
           ...card,
           dealStatus,
           rejectionReason: r.rejection_reason?.trim() || null,
+          category: r.category?.trim() || null,
         };
       });
 
@@ -322,8 +324,9 @@ function MePageInner() {
 
   return (
     <MeSpaceShell
-      tone={isHunter ? 'night' : 'day'}
-      wide={isHunter}
+      plain={!isHunter}
+      tone="night"
+      wide
       asideBare={isHunter}
       title={isHunter ? 'Hola,' : spaceTitle}
       accent={isHunter ? displayName : spaceAccent}
@@ -342,7 +345,7 @@ function MePageInner() {
           />
           <div className="mb-3 flex justify-end sm:mb-4">
             <div
-              className={`inline-flex max-w-full shrink-0 gap-1 rounded-full p-1 ${isHunter ? 'border border-white/10 bg-[#120a22]' : 'bg-white shadow-sm dark:bg-[#141414]'}`}
+              className="inline-flex max-w-full shrink-0 gap-1 rounded-full border border-white/10 bg-[#120a22] p-1"
               role="tablist"
               aria-label="Vista de perfil"
             >
@@ -363,9 +366,7 @@ function MePageInner() {
                     className={`inline-flex min-h-11 items-center rounded-full px-4 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-0 sm:py-2 ${
                       selected
                         ? 'bg-violet-600 text-white'
-                        : isHunter
-                          ? 'text-white/70 hover:bg-white/10 hover:text-white'
-                          : 'text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] dark:text-[#a3a3a3] dark:hover:bg-white/[0.06] dark:hover:text-[#fafafa]'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     {tab.label}
@@ -423,6 +424,8 @@ function MePageInner() {
               avatarUrl={profile?.avatar_url ?? null}
               level={repLevel}
               score={profile?.reputation_score ?? 0}
+              joinedAt={profile?.created_at}
+              trusted={profile?.is_trusted}
               sharePath={publicHref}
               comments={metrics.commentsCount}
               offers={offers}
