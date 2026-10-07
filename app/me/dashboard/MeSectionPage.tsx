@@ -78,6 +78,9 @@ export function MeSpaceShell({
   accentClassName,
   asideColumns,
   plain = false,
+  eyebrow = 'Tu espacio',
+  mark,
+  integrated = false,
   children,
 }: {
   title: string;
@@ -91,58 +94,74 @@ export function MeSpaceShell({
   accentClassName?: string;
   asideColumns?: string;
   plain?: boolean;
+  eyebrow?: string;
+  mark?: ReactNode;
+  integrated?: boolean;
   children: ReactNode;
 }) {
   void tone;
   const width = wide ? 'max-w-7xl' : 'max-w-6xl';
   const canvas = 'me-canvas min-h-screen';
+  const bottom = 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]';
   if (plain) {
     return (
       <ClientLayout>
         <div className={canvas}>
-          <div className={`mx-auto px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS} ${width}`}>
+          <div className={`mx-auto px-4 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS} ${bottom} ${width}`}>
             {children}
           </div>
         </div>
       </ClientLayout>
     );
   }
+  const heading = (
+    <div className="min-w-0">
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        {title}
+        {accent ? (
+          <span className={accentClassName ? `inline-block ${accentClassName}` : 'text-violet-600 dark:text-violet-400'}> {accent}</span>
+        ) : null}
+      </h1>
+      {lede ? <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-[var(--me-muted)] sm:text-[15px]">{lede}</p> : null}
+      {note ? <div className="mt-3">{note}</div> : null}
+    </div>
+  );
   return (
     <ClientLayout>
       <div className={canvas}>
         <section className={`relative overflow-hidden border-b border-[var(--me-line)] bg-[var(--me-hero)] text-[var(--me-ink)] dark:border-transparent ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
           <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute -right-16 top-8 h-56 w-56 rotate-12 rounded-4xl bg-violet-200/80 dark:bg-violet-600/40" />
-            <div className="absolute right-24 top-24 h-40 w-72 -rotate-6 rounded-4xl bg-fuchsia-200/70 dark:bg-fuchsia-700/30" />
-            <div className="absolute -left-10 bottom-0 h-24 w-40 rotate-6 bg-violet-100 dark:bg-violet-900/50" />
+            <div className="absolute -right-10 top-6 h-28 w-28 rotate-12 rounded-3xl bg-violet-200/70 dark:bg-violet-600/30" />
+            <div className="absolute right-16 top-12 h-20 w-36 -rotate-6 rounded-3xl bg-fuchsia-200/60 dark:bg-fuchsia-700/25" />
           </div>
-          <div className={`relative mx-auto px-4 pb-28 md:px-8 ${width}`}>
-            <p className="text-[13px] text-[var(--me-muted)]">Tu espacio</p>
+          <div className={`relative mx-auto px-4 pb-5 md:px-8 ${width}`}>
+            <div className="flex items-center gap-2">
+              {mark ? <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200">{mark}</span> : null}
+              <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--me-muted)]">{eyebrow}</p>
+            </div>
             <Suspense fallback={<SpaceNav panel={null} />}>
               <SpaceNavLive />
             </Suspense>
-            <div className={`mt-8 grid items-end gap-6 ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_340px]') : ''}`}>
-              <div>
-                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                  {title}
-                  {accent ? (
-                    <span className={accentClassName ? `inline-block ${accentClassName}` : 'text-violet-600 dark:text-violet-400'}> {accent}</span>
-                  ) : null}
-                </h1>
-                {lede ? <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--me-muted)]">{lede}</p> : null}
-                {note ? <div className="mt-4">{note}</div> : null}
+            {integrated ? (
+              <div className={`mt-4 rounded-3xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 shadow-sm dark:shadow-none sm:p-5 ${aside ? 'lg:grid lg:items-center lg:gap-6' : ''} ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]') : ''}`}>
+                {heading}
+                {aside ? <div className="mt-4 min-w-0 lg:mt-0">{aside}</div> : null}
               </div>
-              {aside ? (
-                asideBare ? (
-                  <div>{aside}</div>
-                ) : (
-                  <aside className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 text-[var(--me-ink)] shadow-sm dark:border-white/15 dark:bg-[#24143f]/80 dark:shadow-none">{aside}</aside>
-                )
-              ) : null}
-            </div>
+            ) : (
+              <div className={`mt-4 grid items-center gap-4 ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_340px]') : ''}`}>
+                {heading}
+                {aside ? (
+                  asideBare ? (
+                    <div>{aside}</div>
+                  ) : (
+                    <aside className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 text-[var(--me-ink)] shadow-sm dark:border-white/15 dark:bg-[#24143f]/80 dark:shadow-none">{aside}</aside>
+                  )
+                ) : null}
+              </div>
+            )}
           </div>
         </section>
-        <div className={`relative z-10 mx-auto -mt-16 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8 ${width}`}>
+        <div className={`relative z-10 mx-auto px-4 pt-4 md:px-8 ${bottom} ${width}`}>
           {children}
         </div>
       </div>
@@ -156,6 +175,8 @@ export default function MeSectionPage({
   lede,
   note,
   aside,
+  eyebrow,
+  mark,
   children,
 }: {
   title: string;
@@ -163,10 +184,12 @@ export default function MeSectionPage({
   lede?: ReactNode;
   note?: ReactNode;
   aside?: ReactNode;
+  eyebrow?: string;
+  mark?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <MeSpaceShell title={title} accent={accent} lede={lede} note={note} aside={aside}>
+    <MeSpaceShell title={title} accent={accent} lede={lede} note={note} aside={aside} eyebrow={eyebrow} mark={mark}>
       {children}
     </MeSpaceShell>
   );

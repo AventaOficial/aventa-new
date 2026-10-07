@@ -92,7 +92,7 @@ function OfertasHeroAside({ onPublish }: { onPublish: () => void }) {
       <div className="relative hidden h-36 w-52 shrink-0 lg:block" aria-hidden>
         <div className="absolute left-0 top-8 h-24 w-24 -rotate-12 rounded-3xl border border-[var(--me-line)] bg-violet-200 dark:bg-violet-800/50" />
         <div className="absolute left-8 top-1 flex h-28 w-28 rotate-6 items-center justify-center rounded-3xl border border-violet-200/30 bg-violet-600/55 shadow-[0_0_36px_rgba(139,92,246,0.45)]">
-          <Tag className="h-10 w-10 text-violet-700 dark:text-violet-50" />
+          <Tag className="h-10 w-10 text-white" />
         </div>
         <div className="absolute right-0 top-10 flex h-20 w-20 rotate-12 items-center justify-center rounded-3xl border border-[var(--me-line)] bg-fuchsia-200 dark:bg-fuchsia-700/50">
           <BarChart3 className="h-8 w-8 text-fuchsia-700 dark:text-fuchsia-100" />
@@ -255,9 +255,9 @@ function OfertasInner() {
     };
   }, [router]);
 
+  const [weekAgo] = useState(() => Date.now() - 7 * 86_400_000);
   const counts = useMemo(() => {
     const list = rows ?? [];
-    const weekAgo = Date.now() - 7 * 86_400_000;
     const tally = { all: list.length, approved: 0, pending: 0, rejected: 0, expired: 0, week: 0 };
     for (const row of list) {
       tally[row.dealStatus] += 1;
@@ -265,7 +265,7 @@ function OfertasInner() {
       if (!Number.isNaN(created) && created >= weekAgo) tally.week += 1;
     }
     return tally;
-  }, [rows]);
+  }, [rows, weekAgo]);
 
   const categories = useMemo(() => {
     const seen = new Set<string>();
@@ -301,35 +301,36 @@ function OfertasInner() {
       wide
       asideBare
       asideColumns="lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
-      title="Mis"
-      accent="ofertas"
-      accentClassName="bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent"
-      lede="Gestiona todas las ofertas que has publicado, revisa su estado y sigue su rendimiento."
+      eyebrow="Mis ofertas"
+      mark={<Tag className="h-3.5 w-3.5" aria-hidden />}
+      title="Tus ofertas,"
+      accent="tu impacto"
+      lede="Aquí viven los descubrimientos que publicaste."
       note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
       aside={<OfertasHeroAside onPublish={publish} />}
     >
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           icon={<Send className="h-4 w-4" aria-hidden />}
-          iconClass="bg-violet-500/20 text-violet-200"
+          iconClass="bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200"
           value={counts.all}
           label="Total publicadas"
           detail={`+${counts.week} esta semana`}
-          detailClass="text-emerald-400"
+          detailClass="text-emerald-700 dark:text-emerald-400"
           spark="#22c55e"
         />
         <StatCard
           icon={<Check className="h-4 w-4" aria-hidden />}
-          iconClass="bg-emerald-500/20 text-emerald-300"
+          iconClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
           value={counts.approved}
           label="Aprobadas"
           detail={`${percent(counts.approved)}% del total`}
-          detailClass="text-emerald-400"
+          detailClass="text-emerald-700 dark:text-emerald-400"
           spark="#22c55e"
         />
         <StatCard
           icon={<Clock className="h-4 w-4" aria-hidden />}
-          iconClass="bg-amber-400/20 text-amber-300"
+          iconClass="bg-amber-100 text-amber-800 dark:bg-amber-400/20 dark:text-amber-300"
           value={counts.pending}
           label="En revisión"
           detail={`${percent(counts.pending)}% del total`}
@@ -338,11 +339,11 @@ function OfertasInner() {
         />
         <StatCard
           icon={<X className="h-4 w-4" aria-hidden />}
-          iconClass="bg-rose-500/20 text-rose-300"
+          iconClass="bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300"
           value={counts.rejected}
           label="Rechazadas"
           detail={`${percent(counts.rejected)}% del total`}
-          detailClass="text-rose-400"
+          detailClass="text-rose-700 dark:text-rose-400"
           spark="#fb7185"
         />
         <button
@@ -496,7 +497,7 @@ function OfertasInner() {
                       {row.store ? <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] text-violet-700 dark:text-violet-200">{row.store}</span> : null}
                     </div>
                   ) : null}
-                  {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-300">{row.rejectionReason}</p> : null}
+                  {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-700 dark:text-rose-300">{row.rejectionReason}</p> : null}
                 </div>
               </div>
               <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone}`}>
@@ -546,8 +547,8 @@ function StatCard({
     <article className="flex items-center gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-4 py-4">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${iconClass}`}>{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[22px] font-semibold leading-none tabular-nums text-[var(--me-ink)]">{value}</span>
-        <span className="mt-1 block text-[12px] text-[var(--me-muted)]">{label}</span>
+        <span className="block text-[28px] font-semibold leading-none tabular-nums tracking-tight text-[var(--me-ink)]">{value}</span>
+        <span className="mt-1 block text-[13px] font-medium text-[var(--me-ink)]">{label}</span>
         <span className={`mt-0.5 block text-[11px] font-medium ${detailClass}`}>{detail}</span>
       </span>
       <Spark color={spark} />

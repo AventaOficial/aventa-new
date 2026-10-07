@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Heart } from 'lucide-react'
 import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/app/providers/ThemeProvider'
@@ -133,10 +134,11 @@ function FavoritesPageInner() {
     <MeSpaceShell
       tone="night"
       wide
-      title="Tus"
-      accent="favoritos"
-      accentClassName="bg-linear-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-fuchsia-200 dark:to-violet-300"
-      lede="Ofertas que guardaste para no perderlas de vista."
+      eyebrow="Favoritos"
+      mark={<Heart className="h-3.5 w-3.5" aria-hidden />}
+      title="Tu radar"
+      accent="personal"
+      lede="Guarda las ofertas que no quieres perder."
     >
 
           {status === 'loading' ? (

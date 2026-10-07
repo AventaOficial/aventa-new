@@ -120,22 +120,12 @@ export default function NivelPage() {
 
   return (
     <MeSpaceShell
-      title="Nivel"
-      accent="Aventa"
-      lede="Tu progreso dentro de la comunidad. Sube de nivel publicando, comentando y ayudando a otros cazadores."
+      eyebrow="Nivel Aventa"
+      mark={<Crown className="h-3.5 w-3.5" aria-hidden />}
+      title="Sube de nivel."
+      accent="Deja huella."
+      lede="Cada aporte construye tu trayectoria dentro de Aventa."
       note="No es el programa de recompensas."
-      aside={
-        <>
-          <div className="flex items-start justify-between gap-3">
-            <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
-            <Sparkles className="h-4 w-4 text-violet-700 dark:text-violet-200" aria-hidden />
-          </div>
-          <p className="mt-3 text-[15px] font-semibold leading-snug">Entre más aportas, más beneficios desbloqueas.</p>
-          <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">
-            Publica ofertas, participa en la comunidad y sube de nivel para acceder a recompensas exclusivas.
-          </p>
-        </>
-      }
     >
           {error ? <p className="text-sm text-[#6e6e73]">No se pudo cargar tu nivel.</p> : null}
           {level == null && !error ? <p className="text-sm text-[#6e6e73]">Cargando nivel…</p> : null}
