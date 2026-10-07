@@ -36,6 +36,13 @@ describe('moneda de retailers mexicanos', () => {
   it('una moneda ya guardada no se pisa con el host', () => {
     expect(resolveOfferSourceCurrency('USD', AMAZON_MX)).toBe('USD');
   });
+
+  it('Mis ofertas usa la moneda de la oferta', () => {
+    const preview = readFileSync(join(process.cwd(), 'app/me/dashboard/HunterOffersPreview.tsx'), 'utf8');
+    const mine = readFileSync(join(process.cwd(), 'app/me/ofertas/page.tsx'), 'utf8');
+    expect(preview).toContain('presentOfferPrice(price, offer.sourceCurrency)');
+    expect(mine).toContain('resolveOfferSourceCurrency');
+  });
 });
 
 describe('URL de producto Soriana y Costco', () => {

@@ -19,6 +19,7 @@ export type OfferDrawerModel = {
   originalPrice: number | null;
   image: string | null;
   offerUrl: string | null;
+  sourceCurrency?: string | null;
   category: string | null;
   hunterComment: string | null;
   upvotes: number | null;
@@ -107,8 +108,8 @@ export default function OfferDetailDrawer({
             {offer.title}
           </h2>
           <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            {offer.price != null ? <p className="text-[20px] font-semibold tabular-nums">{presentOfferPrice(offer.price)}</p> : null}
-            {previous != null ? <p className="text-[14px] tabular-nums text-[#6e6e73] line-through dark:text-[#a3a3a3]">{presentOfferPrice(previous)}</p> : null}
+            {offer.price != null ? <p className="text-[20px] font-semibold tabular-nums">{presentOfferPrice(offer.price, offer.sourceCurrency)}</p> : null}
+            {previous != null ? <p className="text-[14px] tabular-nums text-[#6e6e73] line-through dark:text-[#a3a3a3]">{presentOfferPrice(previous, offer.sourceCurrency)}</p> : null}
             {discount != null ? <p className="text-[14px] font-medium text-violet-700 dark:text-violet-300">−{discount}%</p> : null}
           </div>
           {offer.hunterComment ? (
