@@ -37,7 +37,7 @@ export default function SidebarProgressCard({
 
   return (
     <Link
-      href="/me/estadisticas"
+      href="/me/nivel"
       className="mt-auto block rounded-2xl border border-violet-100 bg-white p-3 dark:border-violet-900/40 dark:bg-[#141414]"
     >
       <div className="flex items-center gap-2.5">
@@ -51,7 +51,7 @@ export default function SidebarProgressCard({
         <div className="h-full rounded-full bg-violet-600" style={{ width: `${progress}%` }} />
       </div>
       <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400">
-        Ver estadísticas
+        Ver nivel
         <ArrowRight className="h-3.5 w-3.5" aria-hidden />
       </span>
     </Link>

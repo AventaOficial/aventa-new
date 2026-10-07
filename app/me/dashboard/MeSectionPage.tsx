@@ -9,7 +9,6 @@ export const SPACE_LINKS = [
   { href: '/me', label: 'Inicio' },
   { href: '/me/favorites', label: 'Favoritos' },
   { href: '/me/ofertas', label: 'Mis ofertas' },
-  { href: '/me/estadisticas', label: 'Actividad' },
   { href: '/me/nivel', label: 'Nivel' },
   { href: '/me?panel=logros', label: 'Logros' },
   { href: '/me/recompensas', label: 'Recompensas' },
