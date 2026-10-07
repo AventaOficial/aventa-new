@@ -128,15 +128,14 @@ export function presentOfferFreshness(input: {
   const awaiting = !input.healthStatus || input.healthStatus === 'unknown' || stale;
 
   if (awaiting) {
-    const instrumented = Boolean(input.healthStatus) || Boolean(lastCheckedAt);
     return {
       state: 'unknown',
       indexable: true,
       ctaEnabled: true,
-      ctaLabel: 'Comprobar oferta',
-      announce: instrumented,
-      label: 'Sin verificación reciente',
-      detail: 'Aún no tenemos una verificación reciente de precio y disponibilidad.',
+      ctaLabel: 'Cazar oferta',
+      announce: false,
+      label: '',
+      detail: '',
       schemaAvailability: 'https://schema.org/LimitedAvailability',
       lastCheckedAt,
     };

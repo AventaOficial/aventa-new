@@ -69,6 +69,8 @@ describe('public freshness', () => {
     });
     expect(view.state).toBe('unknown');
     expect(view.ctaEnabled).toBe(true);
+    expect(view.announce).toBe(false);
+    expect(view.label).toBe('');
   });
 
   it('blocks outbound only when the store page is confirmed gone', () => {
