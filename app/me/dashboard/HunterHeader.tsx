@@ -39,14 +39,14 @@ export default function HunterHeader({
   const joinedYear = joined && !Number.isNaN(joined.getTime()) ? joined.getFullYear() : null;
 
   return (
-    <header className="flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-[#140c24] px-4 py-4 text-white sm:flex-row sm:items-center sm:px-5">
+    <header className="flex h-full flex-col gap-4 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-4 py-4 text-[var(--me-ink)] sm:flex-row sm:items-center sm:px-5">
       <div className="relative shrink-0">
         <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-950 ring-2 ring-violet-400/40 sm:h-20 sm:w-20">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <User className="h-8 w-8 text-white" aria-hidden />
+            <User className="h-8 w-8 text-[var(--me-ink)]" aria-hidden />
           )}
         </div>
         <button
@@ -64,13 +64,13 @@ export default function HunterHeader({
           <h2 className="truncate text-[22px] font-semibold leading-none">{displayName}</h2>
           {trusted ? <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-[10px]" aria-label="Cuenta de confianza">✓</span> : null}
         </div>
-        {handle ? <p className="mt-1 truncate text-[13px] text-white/55">@{handle}</p> : null}
+        {handle ? <p className="mt-1 truncate text-[13px] text-[var(--me-muted)]">@{handle}</p> : null}
         <p className="mt-2 text-[13px]">
           Cazador · Nivel {level} · {levelLabel}
         </p>
-        {bio ? <p className="mt-2 text-[13px] text-white/70">{bio}</p> : null}
+        {bio ? <p className="mt-2 text-[13px] text-[var(--me-muted)]">{bio}</p> : null}
         {place || joinedYear || publicHref ? (
-          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-white/55">
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--me-muted)]">
             {place ? (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" aria-hidden />
@@ -79,7 +79,7 @@ export default function HunterHeader({
             ) : null}
             {joinedYear ? <span>Se unió en {joinedYear}</span> : null}
             {publicHref ? (
-              <a href={publicHref} className="text-violet-300 hover:text-violet-200">
+              <a href={publicHref} className="text-violet-600 dark:text-violet-300 hover:text-violet-800 dark:hover:text-violet-200">
                 {publicHref}
               </a>
             ) : null}
@@ -88,7 +88,7 @@ export default function HunterHeader({
       </div>
       <Link
         href="/settings"
-        className="inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-full border border-white/15 px-3 text-[13px] font-medium text-white hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:self-center"
+        className="inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-full border border-[var(--me-line)] px-3 text-[13px] font-medium text-[var(--me-ink)] hover:bg-[var(--me-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:self-center"
       >
         <Camera className="h-3.5 w-3.5" aria-hidden />
         Editar perfil

@@ -65,27 +65,27 @@ function SavedCardsArt() {
 
 export default function FavoritesEmptyState() {
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#160c2c] px-6 py-10 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:px-10 lg:px-12 lg:py-14">
+    <section className="relative overflow-hidden rounded-[28px] border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-6 py-10 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:px-10 lg:px-12 lg:py-14">
       <div className="pointer-events-none absolute -right-10 bottom-0 h-40 w-56 rotate-12 rounded-4xl bg-violet-700/25" aria-hidden />
       <div className="relative grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)] lg:gap-6">
         <SavedCardsArt />
         <div className="max-w-md">
-          <p className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/25 bg-violet-500/15 px-3 py-1 text-[13px] font-medium text-violet-100">
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/25 bg-violet-100 dark:bg-violet-500/15 px-3 py-1 text-[13px] font-medium text-violet-100">
             <Heart className="h-3.5 w-3.5" aria-hidden />
             Aún no tienes favoritos
           </p>
-          <h2 className="mt-5 text-[32px] font-semibold leading-[1.15] tracking-tight text-white sm:text-4xl">
+          <h2 className="mt-5 text-[32px] font-semibold leading-[1.15] tracking-tight text-[var(--me-ink)] sm:text-4xl">
             Guarda las mejores ofertas
             <span className="mt-1 block bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent">
               para verlas después
             </span>
           </h2>
-          <p className="mt-4 text-[15px] leading-relaxed text-white/70">
+          <p className="mt-4 text-[15px] leading-relaxed text-[var(--me-muted)]">
             Usa el corazón en cualquier oferta para guardarla aquí. Así podrás encontrarlas rápido cuando las necesites.
           </p>
           <Link
             href="/"
-            className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white shadow-[0_10px_30px_rgba(124,58,237,0.35)] transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#160c2c]"
+            className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white shadow-[0_10px_30px_rgba(124,58,237,0.35)] transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--me-page)]"
           >
             <Heart className="h-4 w-4" aria-hidden />
             Explorar ofertas

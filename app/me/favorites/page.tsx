@@ -135,22 +135,22 @@ function FavoritesPageInner() {
       wide
       title="Tus"
       accent="favoritos"
-      accentClassName="bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent"
+      accentClassName="bg-linear-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-fuchsia-200 dark:to-violet-300"
       lede="Ofertas que guardaste para no perderlas de vista."
     >
 
           {status === 'loading' ? (
-            <div className="h-80 animate-pulse rounded-[28px] border border-white/10 bg-[#160c2c]" aria-busy="true" aria-label="Cargando tus favoritos" />
+            <div className="h-80 animate-pulse rounded-[28px] border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none" aria-busy="true" aria-label="Cargando tus favoritos" />
           ) : status === 'error' ? (
-            <div role="alert" className="rounded-[28px] border border-white/10 bg-[#160c2c] px-6 py-12 text-center">
-              <p className="text-[17px] font-semibold text-white">No pudimos cargar tus favoritos</p>
-              <p className="mx-auto mt-2 max-w-sm text-[14px] text-white/70">
+            <div role="alert" className="rounded-[28px] border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-6 py-12 text-center">
+              <p className="text-[17px] font-semibold text-[var(--me-ink)]">No pudimos cargar tus favoritos</p>
+              <p className="mx-auto mt-2 max-w-sm text-[14px] text-[var(--me-muted)]">
                 Tus ofertas guardadas siguen ahí. Revisa tu conexión e inténtalo de nuevo.
               </p>
               <button
                 type="button"
                 onClick={retry}
-                className="mt-6 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-[14px] font-semibold text-white transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#160c2c]"
+                className="mt-6 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-[14px] font-semibold text-white transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--me-page)]"
               >
                 Reintentar
               </button>
@@ -190,8 +190,8 @@ export default function FavoritesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#07040f]">
-          <div className="text-white/70">Cargando favoritos…</div>
+        <div className="me-canvas flex min-h-screen items-center justify-center">
+          <div className="text-[var(--me-muted)]">Cargando favoritos…</div>
         </div>
       }
     >

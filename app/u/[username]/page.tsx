@@ -252,7 +252,7 @@ export default function ProfilePage() {
 
   return (
     <ClientLayout>
-      <div className="min-h-screen bg-[#07040f] text-white">
+      <div className="me-canvas min-h-screen">
         <section className="mx-auto max-w-6xl px-4 pb-28 pt-24 md:px-8 md:pb-12 md:pt-12">
           <p className="sr-only">Así me ve Aventa.</p>
           <PublicProfileView

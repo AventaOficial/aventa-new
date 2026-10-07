@@ -56,15 +56,15 @@ function LogroCard({
       ? 'bg-linear-to-r from-fuchsia-500 to-violet-400'
       : state === 'progress'
         ? 'bg-linear-to-r from-sky-400 to-blue-500'
-        : 'bg-white/25';
+        : 'bg-[var(--me-chip)]';
   const shell =
     state === 'done'
       ? 'border-fuchsia-400/40 shadow-[0_0_24px_rgba(192,38,211,0.18)]'
       : state === 'progress'
         ? 'border-sky-400/25'
-        : 'border-white/10';
+        : 'border-[var(--me-line)]';
   return (
-    <article id={`logro-${card.code}`} className={`relative rounded-2xl border bg-[#120a22] p-4 ${shell}`}>
+    <article id={`logro-${card.code}`} className={`relative rounded-2xl border bg-[var(--me-card)] p-4 ${shell}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="relative">
           <AchievementSigil code={card.code} rarity={card.rarityKey} state={sigilState(card)} percent={card.percent} size="md" />
@@ -74,18 +74,18 @@ function LogroCard({
             </span>
           ) : null}
           {state === 'locked' ? (
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#2a2438] text-white/70">
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--me-chip)] text-[var(--me-muted)]">
               <Lock className="h-3 w-3" aria-hidden />
             </span>
           ) : null}
         </div>
       </div>
       <h3 className="mt-3 text-[15px] font-semibold leading-tight">{card.name}</h3>
-      <p className="mt-1 min-h-10 text-[12px] leading-snug text-white/55">{card.description}</p>
+      <p className="mt-1 min-h-10 text-[12px] leading-snug text-[var(--me-muted)]">{card.description}</p>
       {card.concealed ? null : (
         <>
           <div
-            className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"
+            className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--me-chip)]"
             role="progressbar"
             aria-valuenow={card.percent}
             aria-valuemin={0}
@@ -94,12 +94,12 @@ function LogroCard({
           >
             <div className={`h-full rounded-full ${bar}`} style={{ width: `${card.percent}%` }} />
           </div>
-          <p className="mt-1.5 text-[12px] tabular-nums text-white/45">
+          <p className="mt-1.5 text-[12px] tabular-nums text-[var(--me-muted)]">
             {card.progress}/{card.target}
           </p>
         </>
       )}
-      <p className={`mt-2 text-[12px] font-medium ${state === 'done' ? 'text-fuchsia-300' : state === 'progress' ? 'text-sky-300' : 'text-white/40'}`}>
+      <p className={`mt-2 text-[12px] font-medium ${state === 'done' ? 'text-fuchsia-700 dark:text-fuchsia-300' : state === 'progress' ? 'text-sky-700 dark:text-sky-300' : 'text-[var(--me-faint)]'}`}>
         {STATE_LABEL[state]}
       </p>
       {card.unlocked ? (
@@ -108,7 +108,7 @@ function LogroCard({
           disabled={saving}
           aria-pressed={featured}
           onClick={() => onToggleFeatured(card.code)}
-          className="mt-2 text-[12px] font-medium text-violet-300 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
+          className="mt-2 text-[12px] font-medium text-violet-600 dark:text-violet-300 hover:text-violet-800 dark:hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
         >
           {featured ? 'Quitar del perfil' : 'Mostrar en mi perfil'}
         </button>
@@ -131,9 +131,9 @@ function Donut({ completed, active, locked }: { completed: number; active: numbe
       role="img"
       aria-label={`${remaining} de ${completed + active + locked} logros por completar`}
     >
-      <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-[#120a22] text-center">
+      <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-[var(--me-card)] text-center">
         <span className="text-[28px] font-semibold leading-none tabular-nums">{remaining}</span>
-        <span className="mt-1 text-[11px] text-white/55">de {completed + active + locked} logros</span>
+        <span className="mt-1 text-[11px] text-[var(--me-muted)]">de {completed + active + locked} logros</span>
       </div>
     </div>
   );
@@ -208,8 +208,8 @@ export default function LogrosBoard({
   const collectionProgress = payload.total === 0 ? 0 : Math.round((payload.unlockedCount / payload.total) * 100);
 
   return (
-    <div className="space-y-4 text-white">
-      <section className="grid gap-3 rounded-[28px] border border-white/10 bg-[#140c24] p-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-5">
+    <div className="space-y-4 text-[var(--me-ink)]">
+      <section className="grid gap-3 rounded-[28px] border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-5">
         <div className="flex gap-4">
           <div
             className="flex h-20 w-20 shrink-0 items-center justify-center bg-linear-to-br from-violet-400 to-fuchsia-600 text-white shadow-[0_0_24px_rgba(168,85,247,0.45)]"
@@ -219,32 +219,32 @@ export default function LogrosBoard({
             <Crown className="h-7 w-7" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] text-white/50">Nivel actual</p>
+            <p className="text-[12px] text-[var(--me-muted)]">Nivel actual</p>
             <p className="text-[28px] font-semibold leading-none tracking-tight">Nivel {level ?? '—'}</p>
-            <p className="mt-1 text-[14px] text-fuchsia-300">{level == null ? 'Cargando nivel…' : getReputationLabel(currentLevel)}</p>
+            <p className="mt-1 text-[14px] text-fuchsia-700 dark:text-fuchsia-300">{level == null ? 'Cargando nivel…' : getReputationLabel(currentLevel)}</p>
             <div className="mt-3 flex items-center gap-3">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={levelProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de nivel">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--me-chip)]" role="progressbar" aria-valuenow={levelProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de nivel">
                 <div className="h-full rounded-full bg-linear-to-r from-violet-500 to-fuchsia-500" style={{ width: `${levelProgress}%` }} />
               </div>
-              <span className="text-[13px] font-medium tabular-nums text-white/70">{levelProgress}%</span>
+              <span className="text-[13px] font-medium tabular-nums text-[var(--me-muted)]">{levelProgress}%</span>
             </div>
-            <p className="mt-2 text-[13px] text-white/70">
-              <span className="font-semibold tabular-nums text-white">{score}</span>
+            <p className="mt-2 text-[13px] text-[var(--me-muted)]">
+              <span className="font-semibold tabular-nums text-[var(--me-ink)]">{score}</span>
               {nextLevel ? ` / ${nextLevel.minScore} puntos` : ' puntos'}
             </p>
-            <p className="mt-1 text-[13px] text-white/55">
+            <p className="mt-1 text-[13px] text-[var(--me-muted)]">
               {nextLevel ? `Te faltan ${remainingPoints} puntos para el siguiente nivel` : 'Este es el nivel más alto de Aventa.'}
             </p>
           </div>
         </div>
-        <aside className="rounded-2xl border border-white/10 bg-[#1a102c] p-4">
+        <aside className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card-2)] p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[13px] font-medium">Tu progreso de logros</p>
-            <span className="text-[13px] tabular-nums text-white/70">
+            <span className="text-[13px] tabular-nums text-[var(--me-muted)]">
               {payload.unlockedCount} / {payload.total}
             </span>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={collectionProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de logros">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--me-chip)]" role="progressbar" aria-valuenow={collectionProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de logros">
             <div className="h-full rounded-full bg-linear-to-r from-violet-500 to-fuchsia-500" style={{ width: `${collectionProgress}%` }} />
           </div>
           <p className="sr-only">
@@ -252,19 +252,19 @@ export default function LogrosBoard({
           </p>
           <ul className="mt-4 grid grid-cols-3 gap-2 text-center">
             <li>
-              <Trophy className="mx-auto h-4 w-4 text-fuchsia-300" aria-hidden />
+              <Trophy className="mx-auto h-4 w-4 text-fuchsia-700 dark:text-fuchsia-300" aria-hidden />
               <p className="mt-1 text-[18px] font-semibold tabular-nums">{payload.unlockedCount}</p>
-              <p className="text-[11px] text-white/50">Logros</p>
+              <p className="text-[11px] text-[var(--me-muted)]">Logros</p>
             </li>
             <li>
               <span className="mx-auto block h-4 w-4 rounded-full border-2 border-sky-400" aria-hidden />
               <p className="mt-1 text-[18px] font-semibold tabular-nums">{counts.inProgress}</p>
-              <p className="text-[11px] text-white/50">En progreso</p>
+              <p className="text-[11px] text-[var(--me-muted)]">En progreso</p>
             </li>
             <li>
-              <Lock className="mx-auto h-4 w-4 text-white/40" aria-hidden />
+              <Lock className="mx-auto h-4 w-4 text-[var(--me-faint)]" aria-hidden />
               <p className="mt-1 text-[18px] font-semibold tabular-nums">{counts.blocked}</p>
-              <p className="text-[11px] text-white/50">Bloqueados</p>
+              <p className="text-[11px] text-[var(--me-muted)]">Bloqueados</p>
             </li>
           </ul>
         </aside>
@@ -285,12 +285,12 @@ export default function LogrosBoard({
               ))}
               <FilterPill active={filter === 'secrets'} onClick={() => onFilter('secrets')} label={`Secretos (${counts.secrets})`} />
             </div>
-            <label className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#140c24] px-3 py-2 text-[12px] text-white/70">
+            <label className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-3 py-2 text-[12px] text-[var(--me-muted)]">
               Orden
               <select
                 value={order}
                 onChange={(event) => setOrder(event.target.value as Order)}
-                className="bg-transparent font-medium text-white focus:outline-none"
+                className="bg-transparent font-medium text-[var(--me-ink)] focus:outline-none"
                 aria-label="Orden"
               >
                 <option value="progress">Progreso</option>
@@ -299,7 +299,7 @@ export default function LogrosBoard({
             </label>
           </div>
           {visible.length === 0 ? (
-            <p className="mt-4 rounded-2xl border border-white/10 p-5 text-center text-[13px] text-white/55">No hay logros en esta vista.</p>
+            <p className="mt-4 rounded-2xl border border-[var(--me-line)] p-5 text-center text-[13px] text-[var(--me-muted)]">No hay logros en esta vista.</p>
           ) : (
             <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visible.map((card) => (
@@ -317,7 +317,7 @@ export default function LogrosBoard({
         </div>
 
         <aside className="space-y-3">
-          <section className="rounded-2xl border border-white/10 bg-[#140c24] p-4">
+          <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4">
             <h2 className="text-[14px] font-semibold">Tu siguiente logro</h2>
             {next ? (
               <div className="mt-3">
@@ -325,11 +325,11 @@ export default function LogrosBoard({
                   <AchievementSigil code={next.code} rarity={next.rarityKey} state={sigilState(next)} percent={next.percent} size="sm" />
                   <div>
                     <p className="text-[14px] font-semibold">{next.name}</p>
-                    <p className="text-[12px] text-white/55">{next.description}</p>
+                    <p className="text-[12px] text-[var(--me-muted)]">{next.description}</p>
                   </div>
                 </div>
                 {next.concealed ? null : (
-                  <p className="mt-3 text-[12px] tabular-nums text-white/50">
+                  <p className="mt-3 text-[12px] tabular-nums text-[var(--me-muted)]">
                     {next.progress}/{next.target}
                   </p>
                 )}
@@ -341,22 +341,22 @@ export default function LogrosBoard({
                       document.getElementById(`logro-${next.code}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }, 0);
                   }}
-                  className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-white/15 px-3 py-2 text-[13px] font-medium hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[var(--me-line)] px-3 py-2 text-[13px] font-medium hover:bg-[var(--me-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                 >
                   Ver detalles
                 </button>
               </div>
             ) : (
-              <p className="mt-3 text-[13px] text-white/55">Ya completaste los logros visibles.</p>
+              <p className="mt-3 text-[13px] text-[var(--me-muted)]">Ya completaste los logros visibles.</p>
             )}
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-[#140c24] p-4">
+          <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4">
             <h2 className="text-[14px] font-semibold">Logros por completar</h2>
             <div className="mt-4">
               <Donut completed={payload.unlockedCount} active={counts.inProgress} locked={counts.blocked} />
             </div>
-            <ul className="mt-4 space-y-1.5 text-[12px] text-white/70">
+            <ul className="mt-4 space-y-1.5 text-[12px] text-[var(--me-muted)]">
               <li className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-fuchsia-500" aria-hidden /> Completados</span>
                 <span className="tabular-nums">{payload.unlockedCount}</span>
@@ -366,7 +366,7 @@ export default function LogrosBoard({
                 <span className="tabular-nums">{counts.inProgress}</span>
               </li>
               <li className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2a2438]" aria-hidden /> Bloqueados</span>
+                <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--me-chip)]" aria-hidden /> Bloqueados</span>
                 <span className="tabular-nums">{counts.blocked}</span>
               </li>
             </ul>
@@ -374,7 +374,7 @@ export default function LogrosBoard({
 
           <Link
             href="/me/recompensas"
-            className="flex items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+            className="flex items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 p-4 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
           >
             <Gift className="h-5 w-5 shrink-0" aria-hidden />
             <span>
@@ -395,7 +395,7 @@ function FilterPill({ active, onClick, label }: { active: boolean; onClick: () =
       aria-pressed={active}
       onClick={onClick}
       className={`inline-flex shrink-0 items-center rounded-full px-3 py-2 text-[12px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-        active ? 'bg-violet-600 text-white' : 'bg-white/10 text-white/70 hover:bg-white/15'
+        active ? 'bg-violet-600 text-white' : 'bg-[var(--me-chip)] text-[var(--me-muted)] hover:bg-[var(--me-soft)]'
       }`}
     >
       {label}
@@ -407,17 +407,17 @@ export function LogrosHeroAside() {
   return (
     <div className="flex items-center gap-3">
       <div className="relative hidden h-28 w-28 sm:block" aria-hidden>
-        <div className="absolute left-2 top-2 flex h-16 w-16 rotate-6 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-600/30">
-          <Trophy className="h-7 w-7 text-violet-100" />
+        <div className="absolute left-2 top-2 flex h-16 w-16 rotate-6 items-center justify-center rounded-2xl border border-violet-200 bg-violet-100 dark:border-violet-300/30 dark:bg-violet-600/30">
+          <Trophy className="h-7 w-7 text-violet-700 dark:text-violet-100" />
         </div>
-        <div className="absolute bottom-0 right-0 flex h-14 w-14 -rotate-6 items-center justify-center rounded-2xl border border-fuchsia-300/30 bg-fuchsia-700/40">
-          <Trophy className="h-6 w-6 text-fuchsia-100" />
+        <div className="absolute bottom-0 right-0 flex h-14 w-14 -rotate-6 items-center justify-center rounded-2xl border border-fuchsia-200 bg-fuchsia-100 dark:border-fuchsia-300/30 dark:bg-fuchsia-700/40">
+          <Trophy className="h-6 w-6 text-fuchsia-700 dark:text-fuchsia-100" />
         </div>
       </div>
-      <aside className="rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">
-        <BarChart3 className="h-4 w-4 text-violet-300" aria-hidden />
+      <aside className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] shadow-sm dark:border-[var(--me-line)] dark:bg-[#24143f]/80 dark:shadow-none p-4 backdrop-blur-sm">
+        <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
         <p className="mt-3 text-[15px] font-semibold leading-snug">Pequeñas acciones, grandes recompensas.</p>
-        <p className="mt-2 text-[13px] leading-relaxed text-white/70">
+        <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">
           Cada logro te acerca a más niveles, recompensas y beneficios exclusivos en la comunidad.
         </p>
       </aside>

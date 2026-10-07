@@ -33,10 +33,10 @@ const POINT_RULES = [
 ] as const;
 
 const LEVEL_VISUAL = {
-  1: { icon: Check, shell: 'bg-linear-to-br from-emerald-400 to-emerald-700 text-white', card: 'from-[#12352a] to-[#0c241c] text-white' },
-  2: { icon: Crown, shell: 'bg-linear-to-br from-violet-400 to-fuchsia-700 text-white', card: 'from-[#3a1d78] to-[#241048] text-white' },
-  3: { icon: Rocket, shell: 'bg-white/10 text-white', card: 'from-[#1a1c2e] to-[#12131c] text-white' },
-  4: { icon: Crown, shell: 'bg-linear-to-br from-amber-300 to-amber-600 text-white', card: 'from-[#241c10] to-[#14110c] text-white' },
+  1: { icon: Check, shell: 'bg-linear-to-br from-emerald-400 to-emerald-700 text-white', card: 'border border-emerald-100 from-emerald-50 to-white text-[#12352a] dark:border-transparent dark:from-[#12352a] dark:to-[#0c241c] dark:text-white' },
+  2: { icon: Crown, shell: 'bg-linear-to-br from-violet-400 to-fuchsia-700 text-white', card: 'border border-violet-100 from-violet-50 to-white text-[#241048] dark:border-transparent dark:from-[#3a1d78] dark:to-[#241048] dark:text-white' },
+  3: { icon: Rocket, shell: 'bg-violet-100 text-violet-700 dark:bg-white/10 dark:text-white', card: 'border border-black/6 from-[#f7f5fb] to-white text-[#1d1d1f] dark:border-transparent dark:from-[#1a1c2e] dark:to-[#12131c] dark:text-white' },
+  4: { icon: Crown, shell: 'bg-linear-to-br from-amber-300 to-amber-600 text-white', card: 'border border-amber-100 from-amber-50 to-white text-[#241c10] dark:border-transparent dark:from-[#241c10] dark:to-[#14110c] dark:text-white' },
 } as const;
 
 type ActivityStats = {
@@ -127,11 +127,11 @@ export default function NivelPage() {
       aside={
         <>
           <div className="flex items-start justify-between gap-3">
-            <BarChart3 className="h-4 w-4 text-violet-300" aria-hidden />
-            <Sparkles className="h-4 w-4 text-violet-200" aria-hidden />
+            <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+            <Sparkles className="h-4 w-4 text-violet-700 dark:text-violet-200" aria-hidden />
           </div>
           <p className="mt-3 text-[15px] font-semibold leading-snug">Entre más aportas, más beneficios desbloqueas.</p>
-          <p className="mt-2 text-[13px] leading-relaxed text-white/70">
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">
             Publica ofertas, participa en la comunidad y sube de nivel para acceder a recompensas exclusivas.
           </p>
         </>
@@ -165,7 +165,7 @@ export default function NivelPage() {
                       </span>
                     </div>
                     <div className="mt-3 flex items-center gap-3">
-                      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#ece8f6] dark:bg-white/10" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de nivel">
+                      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#ece8f6] dark:bg-[var(--me-chip)]" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de nivel">
                         <div className="h-full rounded-full bg-linear-to-r from-violet-500 to-fuchsia-500" style={{ width: `${progress}%` }} />
                       </div>
                       <span className="text-[13px] font-medium tabular-nums text-[#6e6e73] dark:text-[#a3a3a3]">{progress}%</span>
@@ -173,7 +173,7 @@ export default function NivelPage() {
                     {next ? (
                       <p className="mt-3 flex flex-wrap items-center gap-2 text-[14px]">
                         <ArrowRight className="h-4 w-4 text-violet-500" aria-hidden />
-                        <span className="font-medium text-violet-700 dark:text-violet-300">Siguiente: {next.label}</span>
+                        <span className="font-medium text-violet-700 dark:text-violet-600 dark:text-violet-300">Siguiente: {next.label}</span>
                         <span className="text-[#6e6e73] dark:text-[#a3a3a3]">Te faltan {remaining} puntos.</span>
                       </p>
                     ) : (
@@ -251,16 +251,16 @@ export default function NivelPage() {
                             <Icon className="h-5 w-5" aria-hidden />
                           </span>
                           <div>
-                            <p className="text-[12px] text-white/60">Nivel {step.level}</p>
+                            <p className="text-[12px] text-[var(--me-muted)]">Nivel {step.level}</p>
                             <p className="text-[16px] font-semibold leading-tight">{step.label}</p>
-                            <p className="mt-1 text-[12px] text-white/55">{rangeLabel(step.minScore, step.maxScore)}</p>
+                            <p className="mt-1 text-[12px] text-[var(--me-muted)]">{rangeLabel(step.minScore, step.maxScore)}</p>
                           </div>
                         </div>
                         <div className="mt-4 flex items-center justify-between">
-                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${state === 'Actual' ? 'bg-white text-[#241048]' : 'bg-white/10 text-white'}`}>
+                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${state === 'Actual' ? 'bg-white text-[#241048]' : 'bg-[var(--me-chip)] text-[var(--me-ink)]'}`}>
                             {state}
                           </span>
-                          {state === 'Futuro' ? <Lock className="h-3.5 w-3.5 text-white/50" aria-hidden /> : null}
+                          {state === 'Futuro' ? <Lock className="h-3.5 w-3.5 text-[var(--me-muted)]" aria-hidden /> : null}
                         </div>
                       </li>
                     );

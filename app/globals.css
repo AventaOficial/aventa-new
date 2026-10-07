@@ -39,6 +39,34 @@ html {
   min-height: 100%;
   min-height: 100dvh;
 }
+/* /me sigue el modo claro u oscuro de la cuenta. */
+.me-canvas {
+  --me-page: #f6f4fb;
+  --me-hero: #ffffff;
+  --me-card: #ffffff;
+  --me-card-2: #f4f2fb;
+  --me-line: rgba(29, 29, 31, 0.08);
+  --me-ink: #1d1d1f;
+  --me-muted: #6e6e73;
+  --me-faint: #8a8a8e;
+  --me-soft: rgba(29, 29, 31, 0.05);
+  --me-chip: rgba(29, 29, 31, 0.06);
+  background: var(--me-page);
+  color: var(--me-ink);
+}
+.dark .me-canvas {
+  --me-page: #07040f;
+  --me-hero: #140826;
+  --me-card: #120a22;
+  --me-card-2: #0d0818;
+  --me-line: rgba(255, 255, 255, 0.1);
+  --me-ink: #ffffff;
+  --me-muted: rgba(255, 255, 255, 0.55);
+  --me-faint: rgba(255, 255, 255, 0.4);
+  --me-soft: rgba(255, 255, 255, 0.08);
+  --me-chip: rgba(255, 255, 255, 0.1);
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100%;

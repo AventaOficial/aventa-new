@@ -77,7 +77,8 @@ describe('navegación y publicidad de V1', () => {
     expect(desktop).toContain('href="/me/favorites"');
     expect(meNav).toContain("href: '/me/favorites'");
     expect(meNav).toContain("href: '/me/ofertas'");
-    expect(meNav).toContain("href: '/settings'");
+    expect(meNav).not.toContain("href: '/settings'");
+    expect(meNav).not.toContain('Configuración');
   });
 
   it('la publicidad se inserta cada 3 ofertas desde la política del feed', () => {
