@@ -20,7 +20,7 @@ function rarityRank(rarity: AchievementRarity | undefined): number {
 }
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
-type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null };
+type MappedOffer = CardOffer & { dealStatus: DealStatus; rejectionReason: string | null; category?: string | null };
 
 type PublicHallazgosSectionProps = {
   displayName: string;
@@ -28,6 +28,8 @@ type PublicHallazgosSectionProps = {
   avatarUrl: string | null;
   level: number;
   score: number;
+  joinedAt?: string | null;
+  trusted?: boolean;
   sharePath: string | null;
   comments: number | null;
   offers: MappedOffer[];
@@ -54,6 +56,8 @@ export default function PublicHallazgosSection({
   avatarUrl,
   level,
   score,
+  joinedAt = null,
+  trusted = false,
   sharePath,
   comments,
   offers,
@@ -159,6 +163,7 @@ export default function PublicHallazgosSection({
     dealStatus: offer.dealStatus,
     upvotes: offer.upvotes,
     isFavorite: Boolean(favoriteMap[offer.id]),
+    category: offer.category ?? null,
   }));
 
   async function uploadCover(file: File) {
@@ -201,6 +206,8 @@ export default function PublicHallazgosSection({
       coverUrl={ownIdentity.coverUrl}
       level={level}
       score={score}
+      joinedAt={joinedAt}
+      trusted={trusted}
       offers={publicOffers}
       votesReceived={positiveVotesTotal}
       comments={comments}

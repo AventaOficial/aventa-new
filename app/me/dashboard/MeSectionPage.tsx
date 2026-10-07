@@ -77,6 +77,7 @@ export function MeSpaceShell({
   wide = false,
   accentClassName,
   asideColumns,
+  plain = false,
   children,
 }: {
   title: string;
@@ -89,10 +90,22 @@ export function MeSpaceShell({
   wide?: boolean;
   accentClassName?: string;
   asideColumns?: string;
+  plain?: boolean;
   children: ReactNode;
 }) {
   const night = tone === 'night';
   const width = wide ? 'max-w-7xl' : 'max-w-6xl';
+  if (plain) {
+    return (
+      <ClientLayout>
+        <div className={night ? 'min-h-screen bg-[#07040f] text-white' : 'min-h-screen bg-[#f4f2fb] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]'}>
+          <div className={`mx-auto px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS} ${width}`}>
+            {children}
+          </div>
+        </div>
+      </ClientLayout>
+    );
+  }
   return (
     <ClientLayout>
       <div className={night ? 'min-h-screen bg-[#07040f] text-white' : 'min-h-screen bg-[#f4f2fb] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]'}>
