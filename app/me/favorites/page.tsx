@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Heart } from 'lucide-react'
-import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage'
+import { MeSpaceShell, meHeroAccentClass } from '@/app/me/dashboard/MeSectionPage'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/app/providers/ThemeProvider'
 import { useUI } from '@/app/providers/UIProvider'
@@ -134,11 +134,21 @@ function FavoritesPageInner() {
     <MeSpaceShell
       tone="night"
       wide
-      eyebrow="Favoritos"
-      mark={<Heart className="h-3.5 w-3.5" aria-hidden />}
+      integrated
+      accentClassName={meHeroAccentClass}
       title="Tu radar"
       accent="personal"
       lede="Guarda las ofertas que no quieres perder."
+      aside={
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-[15px] font-semibold">
+            <Heart className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+            Guardadas
+          </p>
+          <p className="mt-2 text-[28px] font-semibold tabular-nums leading-none">{status === 'ready' ? offers.length : '—'}</p>
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">Las ofertas que decidiste no perder de vista.</p>
+        </div>
+      }
     >
 
           {status === 'loading' ? (

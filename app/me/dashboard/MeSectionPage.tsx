@@ -28,6 +28,12 @@ const NAV_ICONS = {
 export const meCardClass =
   'rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]';
 
+export const meHeroAccentClass =
+  'bg-linear-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-fuchsia-200 dark:to-violet-300';
+
+export const meHeroActionClass =
+  'inline-flex min-h-10 items-center rounded-full bg-violet-600 px-4 text-[13px] font-semibold text-white hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300';
+
 function isCurrentLink(href: string, pathname: string, panel: string | null): boolean {
   if (href === '/me') return pathname === '/me' && panel !== 'logros';
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -145,7 +151,7 @@ export function MeSpaceShell({
             {integrated ? (
               <div className={`mt-4 rounded-3xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 shadow-sm dark:shadow-none sm:p-5 ${aside ? 'lg:grid lg:items-center lg:gap-6' : ''} ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]') : ''}`}>
                 {heading}
-                {aside ? <div className="mt-4 min-w-0 lg:mt-0">{aside}</div> : null}
+                {aside ? <div className="mt-4 min-w-0 border-t border-[var(--me-line)] pt-4 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">{aside}</div> : null}
               </div>
             ) : (
               <div className={`mt-4 grid items-center gap-4 ${aside ? (asideColumns ?? 'lg:grid-cols-[minmax(0,1fr)_340px]') : ''}`}>

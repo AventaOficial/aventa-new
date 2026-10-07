@@ -8,17 +8,18 @@ type HunterProgressProps = {
   level: number;
   score: number;
   embedded?: boolean;
+  showDisclaimer?: boolean;
 };
 
 /** Progresión de identidad. No lee recompensas ni saldos. */
-export default function HunterProgress({ level, score, embedded = false }: HunterProgressProps) {
+export default function HunterProgress({ level, score, embedded = false, showDisclaimer = true }: HunterProgressProps) {
   const label = getReputationLabel(level);
   const next = REPUTATION_LEVELS.find((item) => item.level === level + 1);
   const pct = next ? Math.min(100, Math.floor((score / next.minScore) * 100)) : 100;
   const remaining = next ? Math.max(0, next.minScore - score) : 0;
 
   return (
-    <section aria-label="Nivel base de Aventa" className={embedded ? 'min-w-0 text-[var(--me-ink)] lg:border-l lg:border-[var(--me-line)] lg:pl-5' : 'h-full rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 text-[var(--me-ink)] shadow-sm dark:shadow-none sm:p-5'}>
+    <section aria-label="Nivel base de Aventa" className={embedded ? 'min-w-0 text-[var(--me-ink)]' : 'h-full rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-4 text-[var(--me-ink)] shadow-sm dark:shadow-none sm:p-5'}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[15px] font-semibold">Nivel Aventa</h2>
         <Link href="/me/nivel" className="inline-flex items-center gap-1 text-[13px] text-violet-600 dark:text-violet-300 hover:text-violet-800 dark:hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400">
@@ -26,7 +27,7 @@ export default function HunterProgress({ level, score, embedded = false }: Hunte
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </div>
-      <p className="mt-1 text-[12px] text-[var(--me-muted)]">No es el programa de recompensas.</p>
+      {showDisclaimer ? <p className="mt-1 text-[12px] text-[var(--me-muted)]">No es el programa de recompensas.</p> : null}
       <div className="mt-4 flex items-center gap-3">
         <div
           className="flex h-14 w-14 shrink-0 items-center justify-center bg-linear-to-br from-violet-400 to-fuchsia-600 text-white shadow-[0_0_18px_rgba(168,85,247,0.45)]"

@@ -19,7 +19,8 @@ import {
   Zap,
 } from 'lucide-react';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
-import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
+import HunterProgress from '@/app/me/dashboard/HunterProgress';
+import { MeSpaceShell, meHeroAccentClass } from '@/app/me/dashboard/MeSectionPage';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { REPUTATION_LEVELS, getReputationLabel } from '@/lib/reputation';
@@ -120,12 +121,14 @@ export default function NivelPage() {
 
   return (
     <MeSpaceShell
-      eyebrow="Nivel Aventa"
-      mark={<Crown className="h-3.5 w-3.5" aria-hidden />}
+      wide
+      integrated
+      accentClassName={meHeroAccentClass}
       title="Sube de nivel."
       accent="Deja huella."
       lede="Cada aporte construye tu trayectoria dentro de Aventa."
       note="No es el programa de recompensas."
+      aside={level != null ? <HunterProgress embedded showDisclaimer={false} level={level} score={score} /> : <p className="text-[13px] text-[var(--me-muted)]">Cargando nivel…</p>}
     >
           {error ? <p className="text-sm text-[#6e6e73]">No se pudo cargar tu nivel.</p> : null}
           {level == null && !error ? <p className="text-sm text-[#6e6e73]">Cargando nivel…</p> : null}

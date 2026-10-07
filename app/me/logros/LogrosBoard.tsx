@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BarChart3, Check, Crown, Gift, Lock, Trophy } from 'lucide-react';
+import { Check, Crown, Gift, Lock, Trophy } from 'lucide-react';
 import AchievementSigil, { type AchievementSigilState } from '@/app/components/achievements/AchievementSigil';
 import { achievementDefinition } from '@/app/components/achievements/achievementVisuals';
 import type { AchievementCard } from '@/lib/achievements/present';
@@ -64,7 +64,7 @@ function LogroCard({
         ? 'border-sky-400/25'
         : 'border-[var(--me-line)]';
   return (
-    <article id={`logro-${card.code}`} className={`relative rounded-2xl border bg-[var(--me-card)] p-4 ${shell}`}>
+    <article id={`logro-${card.code}`} className={`relative min-w-0 rounded-2xl border bg-[var(--me-card)] p-4 ${shell}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="relative">
           <AchievementSigil code={card.code} rarity={card.rarityKey} state={sigilState(card)} percent={card.percent} size="md" />
@@ -208,7 +208,7 @@ export default function LogrosBoard({
   const collectionProgress = payload.total === 0 ? 0 : Math.round((payload.unlockedCount / payload.total) * 100);
 
   return (
-    <div className="space-y-4 text-[var(--me-ink)]">
+    <div className="min-w-0 space-y-4 overflow-x-clip text-[var(--me-ink)]">
       <section className="grid gap-3 rounded-[28px] border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-5">
         <div className="flex gap-4">
           <div
@@ -270,10 +270,10 @@ export default function LogrosBoard({
         </aside>
       </section>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div>
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrar logros">
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrar logros">
               <FilterPill active={filter === 'all'} onClick={() => onFilter('all')} label={`Todos (${payload.cards.length})`} />
               {(Object.keys(CATEGORY_LABEL) as AchievementCategory[]).map((category) => (
                 <FilterPill
@@ -405,22 +405,15 @@ function FilterPill({ active, onClick, label }: { active: boolean; onClick: () =
 
 export function LogrosHeroAside() {
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative hidden h-28 w-28 sm:block" aria-hidden>
-        <div className="absolute left-2 top-2 flex h-16 w-16 rotate-6 items-center justify-center rounded-2xl border border-violet-200 bg-violet-100 dark:border-violet-300/30 dark:bg-violet-600/30">
-          <Trophy className="h-7 w-7 text-violet-700 dark:text-violet-100" />
-        </div>
-        <div className="absolute bottom-0 right-0 flex h-14 w-14 -rotate-6 items-center justify-center rounded-2xl border border-fuchsia-200 bg-fuchsia-100 dark:border-fuchsia-300/30 dark:bg-fuchsia-700/40">
-          <Trophy className="h-6 w-6 text-fuchsia-700 dark:text-fuchsia-100" />
-        </div>
-      </div>
-      <aside className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] shadow-sm dark:border-[var(--me-line)] dark:bg-[#24143f]/80 dark:shadow-none p-4 backdrop-blur-sm">
-        <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
-        <p className="mt-3 text-[15px] font-semibold leading-snug">Pequeñas acciones, grandes recompensas.</p>
-        <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">
-          Cada logro te acerca a más niveles, recompensas y beneficios exclusivos en la comunidad.
-        </p>
-      </aside>
+    <div className="min-w-0">
+      <p className="flex items-center gap-2 text-[15px] font-semibold">
+        <Trophy className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+        Reconocimiento
+      </p>
+      <p className="mt-2 text-[15px] font-semibold leading-snug">Pequeñas acciones, grandes recompensas.</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">
+        Cada logro te acerca a más niveles y beneficios dentro de la comunidad.
+      </p>
     </div>
   );
 }
