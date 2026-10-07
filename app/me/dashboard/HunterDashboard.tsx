@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Award, Bookmark, CalendarDays, MessageCircle, Send, ThumbsUp } from 'lucide-react';
 import HunterProgress from '@/app/me/dashboard/HunterProgress';
 import HunterHeader from '@/app/me/dashboard/HunterHeader';
@@ -74,7 +74,7 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="flex h-full min-h-11 items-center gap-2.5 rounded-2xl border border-black/[0.04] bg-white p-3 shadow-sm transition-colors duration-150 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/10 dark:bg-[#141414] dark:hover:bg-white/[0.03] sm:min-h-[4.5rem] sm:gap-3 sm:p-4"
+      className="flex h-full min-h-11 items-center gap-2.5 rounded-2xl bg-white p-3 shadow-sm transition-colors duration-150 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:bg-[#141414] dark:hover:bg-white/[0.03] sm:min-h-[4.5rem] sm:gap-3 sm:p-4"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300 sm:h-10 sm:w-10">
         {icon}
@@ -91,14 +91,20 @@ function StatCard({
 export default function HunterDashboard(props: HunterDashboardProps) {
   const rewards = useMyRewards();
   const rewardGoal = useRewardGoal();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedPanel = panelFromParam(searchParams.get('panel'));
   const [panel, setPanel] = useState<MePanel>(requestedPanel ?? 'resumen');
   const [lastRequestedPanel, setLastRequestedPanel] = useState(requestedPanel);
   if (requestedPanel !== lastRequestedPanel) {
     setLastRequestedPanel(requestedPanel);
-    if (requestedPanel) setPanel(requestedPanel);
+    setPanel(requestedPanel ?? 'resumen');
   }
+
+  const openPanel = (id: MePanel) => {
+    setPanel(id);
+    router.replace(id === 'logros' ? '/me?panel=logros' : '/me', { scroll: false });
+  };
   const dates = props.offers.map((offer) => offer.createdAt);
 
   return (
@@ -132,7 +138,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
               type="button"
               role="tab"
               aria-selected={selected}
-              onClick={() => setPanel(item.id)}
+              onClick={() => openPanel(item.id)}
               className={`inline-flex min-h-11 shrink-0 items-center border-b-2 px-3.5 text-[14px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:inline sm:min-h-0 sm:px-3 sm:py-2.5 sm:text-[13px] ${
                 selected
                   ? 'border-violet-600 text-violet-600 dark:text-violet-400'
@@ -162,7 +168,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setPanel(item.id)}
+                    onClick={() => openPanel(item.id)}
                     className="flex min-h-11 items-center gap-2 rounded-2xl border border-black/[0.04] bg-white px-3 py-2.5 text-left shadow-sm transition-colors duration-150 hover:bg-black/[0.02] active:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/10 dark:bg-[#141414] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.06]"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300">
@@ -178,12 +184,12 @@ export default function HunterDashboard(props: HunterDashboardProps) {
           </div>
           <div className="order-2 min-w-0 space-y-3 sm:space-y-4">
             <div className="sm:hidden">
-              <HunterActivityBoard dates={dates} variant="summary" onOpen={() => setPanel('actividad')} />
+              <HunterActivityBoard dates={dates} variant="summary" onOpen={() => openPanel('actividad')} />
             </div>
             <div className="hidden sm:block">
               <HunterActivityBoard dates={dates} />
             </div>
-            <AchievementCollection variant="compact" onViewAll={() => setPanel('logros')} />
+            <AchievementCollection variant="compact" onViewAll={() => openPanel('logros')} />
           </div>
         </div>
       ) : null}

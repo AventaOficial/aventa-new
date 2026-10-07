@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import ClientLayout from '@/app/ClientLayout'
+import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/app/providers/ThemeProvider'
 import { useUI } from '@/app/providers/UIProvider'
@@ -10,7 +10,6 @@ import { useOffersRealtime } from '@/lib/hooks/useOffersRealtime'
 import { mapOfferToCard, type CardOffer, type RankedOfferSource } from '@/lib/offers/transform'
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle'
 import { notifyUserError } from '@/lib/utils/handleError'
-import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset'
 import FavoriteOfferTile from './FavoriteOfferTile'
 import FavoritesEmptyState from './FavoritesEmptyState'
 import CommunityTopCarousel from './CommunityTopCarousel'
@@ -130,21 +129,17 @@ function FavoritesPageInner() {
     }
   }
 
+  const savedLabel =
+    status === 'ready' && offers.length > 0
+      ? ` ${offers.length} ${offers.length === 1 ? 'guardada' : 'guardadas'}.`
+      : ''
+
   return (
-    <ClientLayout>
-      <div className="min-h-screen bg-transparent text-[#1d1d1f] dark:text-[#fafafa]">
-        <section className={`mx-auto max-w-6xl px-4 pb-16 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
-          <header className="mb-6 md:mb-8">
-            <h1 className="text-[30px] font-bold leading-tight tracking-tight md:text-[40px]">Tus favoritos</h1>
-            <p className="mt-1 text-[15px] text-[#6e6e73] dark:text-[#a3a3a3]">
-              Ofertas que guardaste para no perderlas de vista.
-              {status === 'ready' && offers.length > 0 ? (
-                <span className="ml-2 inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 align-middle text-[12px] font-semibold tabular-nums text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                  {offers.length} {offers.length === 1 ? 'guardada' : 'guardadas'}
-                </span>
-              ) : null}
-            </p>
-          </header>
+    <MeSpaceShell
+      title="Tus"
+      accent="favoritos"
+      lede={`Ofertas que guardaste para no perderlas de vista.${savedLabel}`}
+    >
 
           {status === 'loading' ? (
             <div className={GRID} aria-busy="true" aria-label="Cargando tus favoritos">
@@ -193,10 +188,7 @@ function FavoritesPageInner() {
               />
             </div>
           ) : null}
-        </section>
-        <div className="h-24 md:h-0" />
-      </div>
-    </ClientLayout>
+    </MeSpaceShell>
   )
 }
 

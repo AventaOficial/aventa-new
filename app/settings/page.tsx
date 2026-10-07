@@ -4,8 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { User, Check, Lock, Smartphone, Bell, Tag, Search, AlertTriangle } from 'lucide-react';
-import ClientLayout from '@/app/ClientLayout';
-import LegalBackLink from '@/app/components/LegalBackLink';
+import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
@@ -296,29 +295,19 @@ function SettingsPageInner() {
 
   if (loading) {
     return (
-      <ClientLayout>
-        <div className="mx-auto max-w-xl px-4 py-12">
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] p-8 shadow-sm animate-pulse">
-            <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg mb-4" />
-            <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-6" />
-            <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl" />
-          </div>
+      <MeSpaceShell title="Tu" accent="cuenta" lede="Nombre, cuenta y preferencias. Los cambios se aplican a tu perfil en AVENTA.">
+        <div className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow-sm animate-pulse dark:bg-[#141414]">
+          <div className="mb-4 h-8 w-48 rounded-lg bg-gray-200 dark:bg-gray-700" />
+          <div className="mb-6 h-4 w-32 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="h-12 rounded-xl bg-gray-200 dark:bg-gray-700" />
         </div>
-      </ClientLayout>
+      </MeSpaceShell>
     );
   }
 
   return (
-    <ClientLayout>
-      <div className="min-h-screen bg-transparent">
-        <div className="mx-auto max-w-xl px-4 py-8 md:py-12">
-          <LegalBackLink />
-          <h1 className="mt-6 text-2xl md:text-3xl font-bold text-[#1d1d1f] dark:text-gray-100 mb-1">
-            Configuración
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-            Nombre, cuenta y preferencias. Los cambios se aplican a tu perfil en AVENTA.
-          </p>
+    <MeSpaceShell title="Tu" accent="cuenta" lede="Nombre, cuenta y preferencias. Los cambios se aplican a tu perfil en AVENTA.">
+        <div className="mx-auto max-w-xl">
 
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#1a1a1a]/50">
@@ -638,8 +627,7 @@ function SettingsPageInner() {
             </div>
           </section>
         </div>
-      </div>
-    </ClientLayout>
+    </MeSpaceShell>
   );
 }
 

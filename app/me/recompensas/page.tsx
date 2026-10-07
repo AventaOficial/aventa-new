@@ -146,7 +146,8 @@ function RewardsSpace() {
 export default function RecompensasPage() {
   return (
     <MeSectionPage
-      title="Recompensas"
+      title="Tus"
+      accent="recompensas"
       lede="Gana una parte de las comisiones generadas por tus ofertas elegibles."
     >
       <RewardsSpace />

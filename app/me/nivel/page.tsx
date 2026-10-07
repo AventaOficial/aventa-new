@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
   ArrowRight,
@@ -10,37 +9,20 @@ import {
   Check,
   Crown,
   FileText,
-  Gift,
   Heart,
-  Home,
   Lock,
   MessageCircle,
   MessageCircleOff,
   Rocket,
-  Settings,
   Sparkles,
-  Tag,
-  Trophy,
   X,
   Zap,
 } from 'lucide-react';
-import ClientLayout from '@/app/ClientLayout';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
-import { SPACE_LINKS } from '@/app/me/dashboard/MeSectionPage';
+import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
-import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { REPUTATION_LEVELS, getReputationLabel } from '@/lib/reputation';
-
-const NAV_ICONS = {
-  '/me': Home,
-  '/me/favorites': Heart,
-  '/me/ofertas': Tag,
-  '/me/nivel': Crown,
-  '/me?panel=logros': Trophy,
-  '/me/recompensas': Gift,
-  '/settings': Settings,
-} as const;
 
 const POINT_RULES = [
   { title: 'Oferta aprobada', detail: '+10 puntos', icon: FileText, tone: 'bg-violet-100 text-violet-600' },
@@ -79,7 +61,6 @@ function stateLabel(level: number, current: number): 'Completado' | 'Actual' | '
 
 export default function NivelPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { session, isLoading: authLoading } = useAuth();
   const [level, setLevel] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -138,60 +119,24 @@ export default function NivelPage() {
   ];
 
   return (
-    <ClientLayout>
-      <div className="min-h-screen bg-[#f4f2fb] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]">
-        <section className={`relative overflow-hidden bg-[#140826] text-white ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
-          <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute -right-16 top-8 h-56 w-56 rotate-12 rounded-4xl bg-violet-600/40" />
-            <div className="absolute right-24 top-24 h-40 w-72 -rotate-6 rounded-4xl bg-fuchsia-700/30" />
-            <div className="absolute -left-10 bottom-0 h-24 w-40 rotate-6 bg-violet-900/50" />
+    <MeSpaceShell
+      title="Nivel"
+      accent="Aventa"
+      lede="Tu progreso dentro de la comunidad. Sube de nivel publicando, comentando y ayudando a otros cazadores."
+      note="No es el programa de recompensas."
+      aside={
+        <>
+          <div className="flex items-start justify-between gap-3">
+            <BarChart3 className="h-4 w-4 text-violet-300" aria-hidden />
+            <Sparkles className="h-4 w-4 text-violet-200" aria-hidden />
           </div>
-          <div className="relative mx-auto max-w-6xl px-4 pb-28 md:px-8">
-            <p className="text-[13px] text-white/70">Tu espacio</p>
-            <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Espacio personal">
-              {SPACE_LINKS.map((item) => {
-                const Icon = NAV_ICONS[item.href];
-                const current = item.href === '/me' ? pathname === '/me' : pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={current ? 'page' : undefined}
-                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${
-                      current ? 'bg-violet-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/15'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" aria-hidden />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-            <div className="mt-8 grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div>
-                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                  Nivel <span className="text-violet-400">Aventa</span>
-                </h1>
-                <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/75">
-                  Tu progreso dentro de la comunidad. Sube de nivel publicando, comentando y ayudando a otros cazadores.
-                </p>
-                <p className="mt-2 text-[13px] text-white/55">No es el programa de recompensas.</p>
-              </div>
-              <aside className="rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <BarChart3 className="h-4 w-4 text-violet-300" aria-hidden />
-                  <Sparkles className="h-4 w-4 text-violet-200" aria-hidden />
-                </div>
-                <p className="mt-3 text-[15px] font-semibold leading-snug">Entre más aportas, más beneficios desbloqueas.</p>
-                <p className="mt-2 text-[13px] leading-relaxed text-white/70">
-                  Publica ofertas, participa en la comunidad y sube de nivel para acceder a recompensas exclusivas.
-                </p>
-              </aside>
-            </div>
-          </div>
-        </section>
-
-        <div className="relative z-10 mx-auto -mt-16 max-w-6xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8">
+          <p className="mt-3 text-[15px] font-semibold leading-snug">Entre más aportas, más beneficios desbloqueas.</p>
+          <p className="mt-2 text-[13px] leading-relaxed text-white/70">
+            Publica ofertas, participa en la comunidad y sube de nivel para acceder a recompensas exclusivas.
+          </p>
+        </>
+      }
+    >
           {error ? <p className="text-sm text-[#6e6e73]">No se pudo cargar tu nivel.</p> : null}
           {level == null && !error ? <p className="text-sm text-[#6e6e73]">Cargando nivel…</p> : null}
           {level != null ? (
@@ -324,8 +269,6 @@ export default function NivelPage() {
               </section>
             </div>
           ) : null}
-        </div>
-      </div>
-    </ClientLayout>
+    </MeSpaceShell>
   );
 }
