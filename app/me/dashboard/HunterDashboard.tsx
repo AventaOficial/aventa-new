@@ -102,15 +102,15 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="flex h-full min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-[#120a22] px-4 py-4 text-white hover:bg-[#1a1030] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+      className="flex h-full min-h-11 items-center gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-4 py-4 text-[var(--me-ink)] hover:bg-[#f4f1fb] dark:hover:bg-[#1a1030] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-200">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-200">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[22px] font-semibold tabular-nums leading-none">{value}</span>
-        <span className="mt-1 block text-[12px] text-white/60">{label}</span>
-        {detail ? <span className="mt-1 block text-[11px] font-medium text-emerald-400">{detail}</span> : null}
+        <span className="mt-1 block text-[12px] text-[var(--me-muted)]">{label}</span>
+        {detail ? <span className="mt-1 block text-[11px] font-medium text-emerald-600 dark:text-emerald-400">{detail}</span> : null}
       </span>
       <Spark color={spark} />
     </Link>
@@ -119,10 +119,10 @@ function StatCard({
 
 function ImpactStat({ icon, value, label }: { icon: ReactNode; value: string; label: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0d0818] p-3">
-      <span className="text-violet-300">{icon}</span>
-      <p className="mt-2 text-[22px] font-semibold tabular-nums leading-none text-white">{value}</p>
-      <p className="mt-1 text-[12px] text-white/55">{label}</p>
+    <div className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card-2)] text-[var(--me-ink)] p-3">
+      <span className="text-violet-600 dark:text-violet-300">{icon}</span>
+      <p className="mt-2 text-[22px] font-semibold tabular-nums leading-none text-[var(--me-ink)]">{value}</p>
+      <p className="mt-1 text-[12px] text-[var(--me-muted)]">{label}</p>
     </div>
   );
 }
@@ -130,18 +130,18 @@ function ImpactStat({ icon, value, label }: { icon: ReactNode; value: string; la
 function RecentOffers({ offers }: { offers: HunterOffer[] }) {
   const recent = offers.slice(0, 4);
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#120a22] p-4 text-white">
+    <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 text-[var(--me-ink)]">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[15px] font-semibold">Ofertas recientes</h2>
-        <Link href="/me/ofertas" className="inline-flex items-center gap-1 text-[13px] text-violet-300 hover:text-violet-200">
+        <Link href="/me/ofertas" className="inline-flex items-center gap-1 text-[13px] text-violet-600 dark:text-violet-300 hover:text-violet-800 dark:hover:text-violet-200">
           Ver todas
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </div>
       {recent.length === 0 ? (
-        <p className="mt-4 text-[13px] text-white/55">Todavía no has publicado ofertas.</p>
+        <p className="mt-4 text-[13px] text-[var(--me-muted)]">Todavía no has publicado ofertas.</p>
       ) : (
-        <ul className="mt-3 divide-y divide-white/10">
+        <ul className="mt-3 divide-y divide-[var(--me-line)]">
           {recent.map((offer) => {
             const tone =
               offer.dealStatus === 'approved'
@@ -150,23 +150,23 @@ function RecentOffers({ offers }: { offers: HunterOffer[] }) {
                   ? 'bg-amber-400 text-[#1a1204]'
                   : offer.dealStatus === 'rejected'
                     ? 'bg-rose-500 text-white'
-                    : 'bg-white/15 text-white';
+                    : 'bg-[var(--me-chip)] text-[var(--me-ink)]';
             return (
               <li key={offer.id} className="flex items-center gap-3 py-3">
                 <Link href={buildOfferPublicPath(offer.id, offer.title)} className="flex min-w-0 flex-1 items-center gap-3">
-                  <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
+                  <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[var(--me-soft)]">
                     {offer.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={offer.image} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <span className="flex h-full items-center justify-center text-white/35">
+                      <span className="flex h-full items-center justify-center text-[var(--me-faint)]">
                         <Tag className="h-4 w-4" aria-hidden />
                       </span>
                     )}
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14px] font-semibold">{offer.title}</span>
-                    <span className="mt-0.5 block truncate text-[12px] text-white/50">
+                    <span className="mt-0.5 block truncate text-[12px] text-[var(--me-muted)]">
                       {offer.store ?? 'Tienda'}
                       {ago(offer.createdAt) ? ` · ${ago(offer.createdAt)}` : ''}
                     </span>
@@ -175,9 +175,9 @@ function RecentOffers({ offers }: { offers: HunterOffer[] }) {
                 <span className={`hidden shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold sm:inline-flex ${tone}`}>
                   {STATUS_LABEL[offer.dealStatus]}
                 </span>
-                <span className="hidden items-center gap-3 text-[12px] text-white/70 lg:flex">
-                  <span className="inline-flex items-center gap-1"><Eye className="h-3.5 w-3.5 text-violet-300" aria-hidden />{countText(offer.views)}</span>
-                  <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5 text-violet-300" aria-hidden />{countText(offer.upvotes)}</span>
+                <span className="hidden items-center gap-3 text-[12px] text-[var(--me-muted)] lg:flex">
+                  <span className="inline-flex items-center gap-1"><Eye className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" aria-hidden />{countText(offer.views)}</span>
+                  <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" aria-hidden />{countText(offer.upvotes)}</span>
                 </span>
               </li>
             );
@@ -236,7 +236,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
             onClick={props.onPublish}
             className="flex w-full items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 p-4 text-left text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--me-chip)]">
               <Gift className="h-5 w-5" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
@@ -258,10 +258,10 @@ export default function HunterDashboard(props: HunterDashboardProps) {
         </div>
 
         <div className="space-y-3">
-          <section className="rounded-2xl border border-white/10 bg-[#120a22] p-4 text-white">
+          <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 text-[var(--me-ink)]">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[15px] font-semibold">Tu impacto</h2>
-              <p className="text-[12px] text-white/45">En total</p>
+              <p className="text-[12px] text-[var(--me-muted)]">En total</p>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <ImpactStat icon={<Send className="h-4 w-4" aria-hidden />} value={String(props.published)} label="Ofertas publicadas" />
@@ -270,7 +270,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
               <ImpactStat icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={countText(props.comments)} label="Comentarios" />
             </div>
           </section>
-          <section className="rounded-2xl border border-white/10 bg-[#120a22] p-4 text-white">
+          <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 text-[var(--me-ink)]">
             <h2 className="text-[15px] font-semibold">Acciones rápidas</h2>
             <div className="mt-3 space-y-2">
               <button
@@ -284,7 +284,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
               </button>
               <Link
                 href="/"
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-4 py-3 text-[14px] font-medium text-white hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--me-line)] px-4 py-3 text-[14px] font-medium text-[var(--me-ink)] hover:bg-[var(--me-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
               >
                 <Search className="h-4 w-4" aria-hidden />
                 Explorar ofertas

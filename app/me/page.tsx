@@ -275,7 +275,7 @@ function MePageInner() {
   if (loading) {
     return (
       <MeSpaceShell title={spaceTitle} accent={spaceAccent} lede={spaceLede}>
-        <div className="h-16 max-w-sm animate-pulse rounded-2xl bg-white/80 dark:bg-white/10" />
+        <div className="h-16 max-w-sm animate-pulse rounded-2xl bg-[var(--me-soft)]0 dark:bg-[var(--me-chip)]" />
         <div className="mt-4 h-40 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
       </MeSpaceShell>
     );
@@ -330,7 +330,7 @@ function MePageInner() {
       asideBare={isHunter}
       title={isHunter ? 'Hola,' : spaceTitle}
       accent={isHunter ? displayName : spaceAccent}
-      accentClassName={isHunter ? 'bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent' : undefined}
+      accentClassName={isHunter ? 'bg-linear-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-fuchsia-200 dark:to-violet-300' : undefined}
       lede={isHunter ? 'Sigue cazando ofertas. Cada publicación ayuda a miles de personas a ahorrar.' : spaceLede}
       note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
       aside={isHunter ? <HunterProgress level={repLevel} score={profile?.reputation_score ?? 0} /> : <p className="text-[15px] font-semibold leading-snug">Más ofertas, más gente ahorrando, una comunidad más fuerte.</p>}
@@ -345,7 +345,7 @@ function MePageInner() {
           />
           <div className="mb-3 flex justify-end sm:mb-4">
             <div
-              className="inline-flex max-w-full shrink-0 gap-1 rounded-full border border-white/10 bg-[#120a22] p-1"
+              className="inline-flex max-w-full shrink-0 gap-1 rounded-full border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-1"
               role="tablist"
               aria-label="Vista de perfil"
             >
@@ -366,7 +366,7 @@ function MePageInner() {
                     className={`inline-flex min-h-11 items-center rounded-full px-4 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-0 sm:py-2 ${
                       selected
                         ? 'bg-violet-600 text-white'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        : 'text-[var(--me-muted)] hover:bg-[var(--me-soft)] hover:text-[var(--me-ink)]'
                     }`}
                   >
                     {tab.label}

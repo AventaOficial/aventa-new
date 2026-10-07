@@ -74,8 +74,8 @@ function nextDay(key: string, delta = 1): string {
   return dayKey(date);
 }
 
-function heatClass(count: number, night = false): string {
-  if (count <= 0) return night ? 'bg-white/10' : 'bg-black/5 dark:bg-white/10';
+function heatClass(count: number): string {
+  if (count <= 0) return 'bg-black/5 dark:bg-white/10';
   if (count === 1) return 'bg-violet-300 dark:bg-violet-800';
   if (count === 2) return 'bg-violet-500';
   return 'bg-violet-700';
@@ -115,9 +115,7 @@ export default function HunterActivityBoard({
   const [tip, setTip] = useState<{ key: string; count: number } | null>(null);
   const selected = year != null && years.includes(year) ? year : years[0];
   const night = tone === 'night';
-  const card = night
-    ? 'min-w-0 rounded-2xl border border-white/10 bg-[#120a22] p-5 text-white'
-    : 'min-w-0 rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]';
+  const card = 'min-w-0 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] p-5 text-[var(--me-ink)] shadow-sm dark:shadow-none';
 
   if (!stats.hasActivity || selected == null) {
     if (variant === 'summary') {
@@ -137,9 +135,9 @@ export default function HunterActivityBoard({
     }
     return (
       <section className={card}>
-        <h2 className={`text-[15px] font-semibold ${night ? 'text-white' : 'text-[#1d1d1f] dark:text-[#fafafa]'}`}>{night ? 'Tu actividad' : 'Actividad'}</h2>
-        {night ? <p className="mt-1 text-[13px] text-white/55">Mantén tu racha y sigue cazando ofertas.</p> : null}
-        <p className={`mt-3 text-[13px] ${night ? 'text-white/55' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`}>Todavía no hay fechas de actividad.</p>
+        <h2 className={`text-[15px] font-semibold ${night ? 'text-[var(--me-ink)]' : 'text-[#1d1d1f] dark:text-[#fafafa]'}`}>{night ? 'Tu actividad' : 'Actividad'}</h2>
+        {night ? <p className="mt-1 text-[13px] text-[var(--me-muted)]">Mantén tu racha y sigue cazando ofertas.</p> : null}
+        <p className={`mt-3 text-[13px] ${night ? 'text-[var(--me-muted)]' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`}>Todavía no hay fechas de actividad.</p>
       </section>
     );
   }
@@ -232,10 +230,10 @@ export default function HunterActivityBoard({
     <section className={card}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className={`text-[15px] font-semibold ${night ? 'text-white' : 'text-[#1d1d1f] dark:text-[#fafafa]'}`}>
+          <h2 className={`text-[15px] font-semibold ${night ? 'text-[var(--me-ink)]' : 'text-[#1d1d1f] dark:text-[#fafafa]'}`}>
             {night ? 'Tu actividad' : 'Actividad'}
           </h2>
-          {night ? <p className="mt-1 text-[13px] text-white/55">Mantén tu racha y sigue cazando ofertas.</p> : null}
+          {night ? <p className="mt-1 text-[13px] text-[var(--me-muted)]">Mantén tu racha y sigue cazando ofertas.</p> : null}
         </div>
         <label>
           <span className="sr-only">Año</span>
@@ -243,7 +241,7 @@ export default function HunterActivityBoard({
             value={selected}
             onChange={(event) => setYear(Number(event.target.value))}
             className={night
-              ? 'rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[13px] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400'
+              ? 'rounded-full border border-[var(--me-line)] bg-[var(--me-soft)] px-3 py-1 text-[13px] text-[var(--me-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400'
               : 'rounded-full border border-black/10 bg-white px-3 py-1 text-[13px] text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15 dark:bg-[#141414] dark:text-[#fafafa]'}
           >
             {years.map((item) => (
@@ -260,7 +258,7 @@ export default function HunterActivityBoard({
               const previous = column > 0 ? weeks[column - 1].find((day) => day)?.month : undefined;
               const show = month != null && month !== previous;
               return (
-                <span key={column} className={`truncate text-[9px] leading-none tracking-wide ${night ? 'text-white/40' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`}>
+                <span key={column} className={`truncate text-[9px] leading-none tracking-wide ${night ? 'text-[var(--me-faint)]' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`}>
                   {show && month != null ? MONTHS[month] : ''}
                 </span>
               );
@@ -277,7 +275,6 @@ export default function HunterActivityBoard({
                     key={day.key}
                     dayKeyValue={day.key}
                     count={day.count}
-                    night={night}
                     onShow={() => setTip({ key: day.key, count: day.count })}
                     onHide={() => setTip((current) => (current?.key === day.key ? null : current))}
                   />
@@ -289,17 +286,17 @@ export default function HunterActivityBoard({
           </div>
         </div>
       </div>
-      <p className={`mt-3 min-h-8 text-[12px] ${night ? 'text-white/55' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`} aria-live="polite">
+      <p className={`mt-3 min-h-8 text-[12px] ${night ? 'text-[var(--me-muted)]' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`} aria-live="polite">
         {tip ? (
           <>
-            <span className={`block font-medium ${night ? 'text-white' : 'text-[#1d1d1f] dark:text-[#fafafa]'}`}>{friendlyDay(tip.key)}</span>
+            <span className={`block font-medium ${night ? 'text-[var(--me-ink)]' : 'text-[#1d1d1f] dark:text-[#fafafa]'}`}>{friendlyDay(tip.key)}</span>
             <span>{activityLabel(tip.count)}</span>
           </>
         ) : null}
       </p>
-      <div className={`mt-2 flex items-center justify-end gap-1 text-[11px] ${night ? 'text-white/45' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`}>
+      <div className={`mt-2 flex items-center justify-end gap-1 text-[11px] ${night ? 'text-[var(--me-muted)]' : 'text-[#6e6e73] dark:text-[#a3a3a3]'}`}>
         <span>Menos</span>
-        <span className={`h-2.5 w-2.5 rounded-[2px] ${night ? 'bg-white/10' : 'bg-black/5 dark:bg-white/10'}`} />
+        <span className="h-2.5 w-2.5 rounded-[2px] bg-black/5 dark:bg-white/10" />
         <span className="h-2.5 w-2.5 rounded-[2px] bg-violet-300 dark:bg-violet-800" />
         <span className="h-2.5 w-2.5 rounded-[2px] bg-violet-500" />
         <span className="h-2.5 w-2.5 rounded-[2px] bg-violet-700" />
@@ -307,26 +304,26 @@ export default function HunterActivityBoard({
       </div>
       {night ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <p className="rounded-xl bg-white/5 px-3 py-2">
-            <span className="flex items-center gap-1 text-[13px] font-semibold text-white">
-              <Flame className="h-3.5 w-3.5 text-orange-300" aria-hidden />
+          <p className="rounded-xl bg-[var(--me-soft)] px-3 py-2">
+            <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--me-ink)]">
+              <Flame className="h-3.5 w-3.5 text-orange-500 dark:text-orange-300" aria-hidden />
               {stats.current} días
             </span>
-            <span className="mt-0.5 block text-[11px] text-white/50">Racha actual</span>
+            <span className="mt-0.5 block text-[11px] text-[var(--me-muted)]">Racha actual</span>
           </p>
-          <p className="rounded-xl bg-white/5 px-3 py-2">
-            <span className="flex items-center gap-1 text-[13px] font-semibold text-white">
-              <Zap className="h-3.5 w-3.5 text-violet-300" aria-hidden />
+          <p className="rounded-xl bg-[var(--me-soft)] px-3 py-2">
+            <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--me-ink)]">
+              <Zap className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" aria-hidden />
               {dayLabel}
             </span>
-            <span className="mt-0.5 block text-[11px] text-white/50">Día más activo</span>
+            <span className="mt-0.5 block text-[11px] text-[var(--me-muted)]">Día más activo</span>
           </p>
-          <p className="rounded-xl bg-white/5 px-3 py-2">
-            <span className="flex items-center gap-1 text-[13px] font-semibold text-white">
-              <Crown className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+          <p className="rounded-xl bg-[var(--me-soft)] px-3 py-2">
+            <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--me-ink)]">
+              <Crown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" aria-hidden />
               {stats.longest} días
             </span>
-            <span className="mt-0.5 block text-[11px] text-white/50">Racha más larga</span>
+            <span className="mt-0.5 block text-[11px] text-[var(--me-muted)]">Racha más larga</span>
           </p>
         </div>
       ) : (
@@ -356,13 +353,11 @@ export default function HunterActivityBoard({
 function ActivityCell({
   dayKeyValue,
   count,
-  night = false,
   onShow,
   onHide,
 }: {
   dayKeyValue: string;
   count: number;
-  night?: boolean;
   onShow: () => void;
   onHide: () => void;
 }) {
@@ -375,7 +370,7 @@ function ActivityCell({
       onMouseLeave={onHide}
       onFocus={onShow}
       onBlur={onHide}
-      className={`aspect-square rounded-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${heatClass(count, night)}`}
+      className={`aspect-square rounded-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${heatClass(count)}`}
     />
   );
 }

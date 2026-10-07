@@ -90,21 +90,21 @@ function OfertasHeroAside({ onPublish }: { onPublish: () => void }) {
   return (
     <div className="flex items-center justify-end gap-4">
       <div className="relative hidden h-36 w-52 shrink-0 lg:block" aria-hidden>
-        <div className="absolute left-0 top-8 h-24 w-24 -rotate-12 rounded-3xl border border-white/10 bg-violet-800/50" />
+        <div className="absolute left-0 top-8 h-24 w-24 -rotate-12 rounded-3xl border border-[var(--me-line)] bg-violet-200 dark:bg-violet-800/50" />
         <div className="absolute left-8 top-1 flex h-28 w-28 rotate-6 items-center justify-center rounded-3xl border border-violet-200/30 bg-violet-600/55 shadow-[0_0_36px_rgba(139,92,246,0.45)]">
-          <Tag className="h-10 w-10 text-violet-50" />
+          <Tag className="h-10 w-10 text-violet-700 dark:text-violet-50" />
         </div>
-        <div className="absolute right-0 top-10 flex h-20 w-20 rotate-12 items-center justify-center rounded-3xl border border-white/10 bg-fuchsia-700/50">
-          <BarChart3 className="h-8 w-8 text-fuchsia-100" />
+        <div className="absolute right-0 top-10 flex h-20 w-20 rotate-12 items-center justify-center rounded-3xl border border-[var(--me-line)] bg-fuchsia-200 dark:bg-fuchsia-700/50">
+          <BarChart3 className="h-8 w-8 text-fuchsia-700 dark:text-fuchsia-100" />
         </div>
       </div>
-      <aside className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-[#1b1034]/85 p-4 backdrop-blur-sm">
+      <aside className="flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm p-4 backdrop-blur-sm">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[15px] font-semibold leading-snug">
-            <Tag className="h-4 w-4 shrink-0 text-violet-300" aria-hidden />
+            <Tag className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" aria-hidden />
             Comparte buenas ofertas
           </p>
-          <p className="mt-1 text-[13px] leading-relaxed text-white/70">Tus publicaciones ayudan a miles de personas a ahorrar.</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-[var(--me-muted)]">Tus publicaciones ayudan a miles de personas a ahorrar.</p>
         </div>
         <button
           type="button"
@@ -333,7 +333,7 @@ function OfertasInner() {
           value={counts.pending}
           label="En revisión"
           detail={`${percent(counts.pending)}% del total`}
-          detailClass="text-white/55"
+          detailClass="text-[var(--me-muted)]"
           spark="#f59e0b"
         />
         <StatCard
@@ -359,7 +359,7 @@ function OfertasInner() {
         </button>
       </section>
 
-      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#120a22] p-3 lg:flex-row lg:items-center">
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-3 lg:flex-row lg:items-center">
         <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
           {FILTERS.map((item) => {
             const selected = filter === item.value;
@@ -372,27 +372,27 @@ function OfertasInner() {
                 aria-selected={selected}
                 onClick={() => setFilter(item.value)}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-                  selected ? 'bg-violet-600 text-white' : 'text-white/75 hover:bg-white/10'
+                  selected ? 'bg-violet-600 text-white' : 'text-[var(--me-muted)] hover:bg-[var(--me-soft)]'
                 }`}
               >
                 {item.value === 'all' ? null : <span className={`h-2 w-2 rounded-full ${selected ? 'bg-white' : item.dot}`} aria-hidden />}
                 {item.label}
-                <span className={`tabular-nums ${selected ? 'text-white/80' : 'text-white/45'}`}>{count}</span>
+                <span className={`tabular-nums ${selected ? 'text-white/80' : 'text-[var(--me-muted)]'}`}>{count}</span>
               </button>
             );
           })}
         </div>
-        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/8 px-3 py-2 text-white/55">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[var(--me-soft)] px-3 py-2 text-[var(--me-muted)]">
           <Search className="h-4 w-4 shrink-0" aria-hidden />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar en tus ofertas..."
-            className="w-full bg-transparent text-[13px] text-white outline-none placeholder:text-white/40"
+            className="w-full bg-transparent text-[13px] text-[var(--me-ink)] outline-none placeholder:text-[var(--me-faint)]"
             aria-label="Buscar en tus ofertas"
           />
         </label>
-        <label className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 text-[13px] text-white/80">
+        <label className="inline-flex items-center gap-2 rounded-full bg-[var(--me-soft)] px-3 py-2 text-[13px] text-[var(--me-ink)]">
           <span className="sr-only">Orden</span>
           <select
             value={sort}
@@ -405,7 +405,7 @@ function OfertasInner() {
             <option value="votes">Más votos</option>
           </select>
         </label>
-        <label className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 text-[13px] text-white/80">
+        <label className="inline-flex items-center gap-2 rounded-full bg-[var(--me-soft)] px-3 py-2 text-[13px] text-[var(--me-ink)]">
           <span className="sr-only">Categoría</span>
           <select
             value={category}
@@ -425,25 +425,25 @@ function OfertasInner() {
 
       {rows == null && !error ? (
         <div className="mt-3 space-y-2" aria-hidden>
-          <div className="h-20 animate-pulse rounded-2xl bg-[#120a22]" />
-          <div className="h-20 animate-pulse rounded-2xl bg-[#120a22]" />
+          <div className="h-20 animate-pulse rounded-2xl bg-[var(--me-card)]" />
+          <div className="h-20 animate-pulse rounded-2xl bg-[var(--me-card)]" />
         </div>
       ) : null}
       {error ? (
-        <div className="mt-3 rounded-2xl border border-white/10 bg-[#120a22] p-5">
-          <p className="text-sm text-white">No se pudieron cargar tus ofertas.</p>
+        <div className="mt-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5">
+          <p className="text-sm text-[var(--me-ink)]">No se pudieron cargar tus ofertas.</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-3 inline-flex items-center justify-center rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="mt-3 inline-flex items-center justify-center rounded-full border border-[var(--me-line)] px-4 py-2 text-xs font-semibold text-[var(--me-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
           >
             Reintentar
           </button>
         </div>
       ) : null}
       {rows != null && visible.length === 0 && !error ? (
-        <div className="mt-3 rounded-2xl border border-white/10 bg-[#120a22] p-5">
-          <p className="text-sm text-white/70">
+        <div className="mt-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5">
+          <p className="text-sm text-[var(--me-muted)]">
             {rows.length === 0 ? 'Nada publicado. ¿Cazamos una oferta?' : 'No tienes ofertas en esta vista.'}
           </p>
           {rows.length === 0 ? (
@@ -468,32 +468,32 @@ function OfertasInner() {
                 ? 'bg-amber-400 text-[#1a1204]'
                 : row.dealStatus === 'rejected'
                   ? 'bg-rose-500 text-white'
-                  : 'bg-white/15 text-white';
+                  : 'bg-[var(--me-chip)] text-[var(--me-ink)]';
           const StatusIcon = row.dealStatus === 'approved' ? Check : row.dealStatus === 'pending' ? Clock : X;
           return (
-            <li key={row.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#120a22] px-3 py-3 lg:flex-row lg:items-center">
+            <li key={row.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-3 py-3 lg:flex-row lg:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/5">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[var(--me-soft)]">
                   {row.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={row.image} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="flex h-full items-center justify-center text-white/40">
+                    <span className="flex h-full items-center justify-center text-[var(--me-faint)]">
                       <Tag className="h-5 w-5" aria-hidden />
                     </span>
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold text-white">{row.title}</p>
-                  <p className="mt-0.5 truncate text-[12px] text-white/55">
+                  <p className="truncate text-[15px] font-semibold text-[var(--me-ink)]">{row.title}</p>
+                  <p className="mt-0.5 truncate text-[12px] text-[var(--me-muted)]">
                     {row.store ?? 'Tienda'}
                     {label ? ` · ${label}` : ''}
                   </p>
-                  {ago(row.createdAt) ? <p className="mt-0.5 text-[12px] text-white/40">{ago(row.createdAt)}</p> : null}
+                  {ago(row.createdAt) ? <p className="mt-0.5 text-[12px] text-[var(--me-faint)]">{ago(row.createdAt)}</p> : null}
                   {label || row.store ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {label ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{label}</span> : null}
-                      {row.store ? <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] text-violet-200">{row.store}</span> : null}
+                      {label ? <span className="rounded-full bg-[var(--me-chip)] px-2 py-0.5 text-[11px] text-[var(--me-muted)]">{label}</span> : null}
+                      {row.store ? <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] text-violet-700 dark:text-violet-200">{row.store}</span> : null}
                     </div>
                   ) : null}
                   {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-300">{row.rejectionReason}</p> : null}
@@ -503,7 +503,7 @@ function OfertasInner() {
                 <StatusIcon className="h-3.5 w-3.5" aria-hidden />
                 {STATUS_LABEL[row.dealStatus]}
               </span>
-              <div className="flex flex-wrap items-center gap-4 text-[13px] text-white lg:w-70 lg:justify-between">
+              <div className="flex flex-wrap items-center gap-4 text-[13px] text-[var(--me-ink)] lg:w-70 lg:justify-between">
                 <Metric icon={<MousePointer2 className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.views)} label={countWord(row.views, 'Vista', 'Vistas')} />
                 <Metric icon={<ThumbsUp className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.upvotes)} label={countWord(row.upvotes, 'Voto', 'Votos')} />
                 <Metric icon={<MessageCircle className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.comments)} label={countWord(row.comments, 'Comentario', 'Comentarios')} />
@@ -511,7 +511,7 @@ function OfertasInner() {
               <button
                 type="button"
                 onClick={() => setMetricsOffer(row)}
-                className="inline-flex items-center justify-center gap-1 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-medium text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                className="inline-flex items-center justify-center gap-1 rounded-full border border-[var(--me-line)] bg-[var(--me-soft)] px-3 py-2 text-[13px] font-medium text-[var(--me-ink)] hover:bg-[var(--me-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 Ver detalles
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
@@ -543,11 +543,11 @@ function StatCard({
   spark: string;
 }) {
   return (
-    <article className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#120a22] px-4 py-4">
+    <article className="flex items-center gap-3 rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none px-4 py-4">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${iconClass}`}>{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[22px] font-semibold leading-none tabular-nums text-white">{value}</span>
-        <span className="mt-1 block text-[12px] text-white/55">{label}</span>
+        <span className="block text-[22px] font-semibold leading-none tabular-nums text-[var(--me-ink)]">{value}</span>
+        <span className="mt-1 block text-[12px] text-[var(--me-muted)]">{label}</span>
         <span className={`mt-0.5 block text-[11px] font-medium ${detailClass}`}>{detail}</span>
       </span>
       <Spark color={spark} />
@@ -561,7 +561,7 @@ function Metric({ icon, value, label }: { icon: ReactNode; value: string; label:
       <span className="text-violet-500">{icon}</span>
       <span>
         <span className="block font-semibold tabular-nums leading-none">{value}</span>
-        <span className="mt-0.5 block text-[11px] text-white/45">{label}</span>
+        <span className="mt-0.5 block text-[11px] text-[var(--me-muted)]">{label}</span>
       </span>
     </span>
   );
@@ -571,8 +571,8 @@ export default function OfertasPage() {
   return (
     <Suspense
       fallback={
-        <div className={`min-h-screen bg-[#07040f] px-4 ${PUBLIC_NAVBAR_OFFSET_CLASS}`} aria-hidden>
-          <div className="h-20 animate-pulse rounded-2xl bg-[#120a22]" />
+        <div className={`min-h-screen bg-[var(--me-page)] px-4 ${PUBLIC_NAVBAR_OFFSET_CLASS}`} aria-hidden>
+          <div className="h-20 animate-pulse rounded-2xl bg-[var(--me-card)]" />
         </div>
       }
     >

@@ -114,7 +114,7 @@ function relativeTime(iso: string | null | undefined): string | null {
 function statusMeta(status: DealStatus): { label: string; className: string } {
   if (status === 'approved') return { label: 'Aprobada', className: 'bg-emerald-500 text-white' };
   if (status === 'pending') return { label: 'En revisión', className: 'bg-amber-400 text-[#1a1204]' };
-  if (status === 'expired') return { label: 'Expirada', className: 'bg-white/15 text-white' };
+  if (status === 'expired') return { label: 'Expirada', className: 'bg-[var(--me-chip)] text-[var(--me-ink)]' };
   return { label: 'Rechazada', className: 'bg-rose-500 text-white' };
 }
 
@@ -124,11 +124,11 @@ function categoryName(value: string): string {
 
 function BannerStat({ icon, value, label }: { icon: ReactNode; value: string; label: string }) {
   return (
-    <div className="flex min-w-[7.5rem] items-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-3 py-3">
-      <span className="text-violet-200">{icon}</span>
+    <div className="flex min-w-[7.5rem] items-center gap-2 rounded-2xl border border-[var(--me-line)] bg-black/25 px-3 py-3">
+      <span className="text-violet-700 dark:text-violet-200">{icon}</span>
       <span className="min-w-0">
         <span className="block text-[18px] font-semibold tabular-nums leading-none">{value}</span>
-        <span className="mt-1 block text-[11px] leading-tight text-white/60">{label}</span>
+        <span className="mt-1 block text-[11px] leading-tight text-[var(--me-muted)]">{label}</span>
       </span>
     </div>
   );
@@ -274,7 +274,7 @@ export default function PublicProfileView({
 
   return (
     <div className="space-y-4">
-      <section aria-label={`Perfil de ${displayName}`} className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#160c2c] text-white">
+      <section aria-label={`Perfil de ${displayName}`} className="relative overflow-hidden rounded-[28px] border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none text-[var(--me-ink)]">
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />
@@ -282,7 +282,7 @@ export default function PublicProfileView({
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div className="absolute -right-8 top-6 h-40 w-56 rotate-12 rounded-4xl bg-violet-600/30" />
           <div className="absolute right-24 top-16 h-28 w-40 -rotate-6 rounded-4xl bg-fuchsia-700/25" />
-          <p className="absolute right-8 top-8 hidden text-right text-[22px] font-medium italic leading-tight text-violet-200/80 sm:block">
+          <p className="absolute right-8 top-8 hidden text-right text-[22px] font-medium italic leading-tight text-violet-700 dark:text-violet-200/80 sm:block">
             Cazar
             <span className="block">Comparar</span>
             <span className="block">Ahorrar</span>
@@ -301,7 +301,7 @@ export default function PublicProfileView({
                 type="button"
                 onClick={owner.onPickCover}
                 disabled={owner.coverUploading}
-                className="inline-flex min-h-10 items-center rounded-full border border-white/15 bg-black/30 px-3 text-[13px] font-medium disabled:opacity-50"
+                className="inline-flex min-h-10 items-center rounded-full border border-[var(--me-line)] bg-white px-3 text-[13px] font-medium text-[var(--me-ink)] shadow-sm disabled:opacity-50 dark:bg-black/30 dark:shadow-none"
               >
                 {owner.coverUploading ? 'Subiendo portada…' : 'Cambiar portada'}
               </button>
@@ -310,7 +310,7 @@ export default function PublicProfileView({
               type="button"
               onClick={() => void copyLink()}
               disabled={!sharePath}
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3 text-[13px] font-medium hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[var(--me-line)] bg-white px-3 text-[13px] font-medium text-[var(--me-ink)] shadow-sm hover:bg-[var(--me-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:opacity-50 dark:bg-black/30 dark:shadow-none"
             >
               {copied ? <Check className="h-4 w-4" aria-hidden /> : <Share2 className="h-4 w-4" aria-hidden />}
               {copied ? 'Copiado' : 'Compartir perfil'}
@@ -345,21 +345,21 @@ export default function PublicProfileView({
                   {displayName}
                   {trusted ? <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-[11px]" aria-label="Cuenta de confianza">✓</span> : null}
                 </h1>
-                {handle ? <p className="mt-1 break-all text-[14px] text-white/60">@{handle}</p> : null}
-                <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-white/75">
+                {handle ? <p className="mt-1 break-all text-[14px] text-[var(--me-muted)]">@{handle}</p> : null}
+                <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--me-muted)]">
                   <span>Nivel {level} · {label}</span>
                   {joinedYear ? <span>Se unió en {joinedYear}</span> : null}
                 </p>
-                {bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap text-[14px] leading-relaxed text-white/80">{bio}</p> : null}
+                {bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--me-ink)]">{bio}</p> : null}
                 {shownCategories.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {shownCategories.map((value) => (
-                      <span key={value} className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[12px] text-white/80">
+                      <span key={value} className="rounded-full border border-[var(--me-line)] bg-[var(--me-chip)] px-3 py-1 text-[12px] text-[var(--me-ink)]">
                         {categoryName(value)}
                       </span>
                     ))}
                     {categoryValues.length > shownCategories.length ? (
-                      <span className="rounded-full border border-white/10 px-3 py-1 text-[12px] text-white/55">Más categorías</span>
+                      <span className="rounded-full border border-[var(--me-line)] px-3 py-1 text-[12px] text-[var(--me-muted)]">Más categorías</span>
                     ) : null}
                   </div>
                 ) : null}
@@ -380,7 +380,7 @@ export default function PublicProfileView({
       {activityVisible ? (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.8fr)]">
           <div className="min-w-0 space-y-4">
-            <div className="flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-[#120a22] p-2 [scrollbar-width:none]" role="tablist" aria-label="Secciones del perfil">
+            <div className="flex gap-1 overflow-x-auto rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-2 [scrollbar-width:none]" role="tablist" aria-label="Secciones del perfil">
               {(
                 [
                   { id: 'ofertas' as const, label: 'Ofertas', icon: Send },
@@ -400,7 +400,7 @@ export default function PublicProfileView({
                     aria-selected={selected}
                     onClick={() => setPanel(item.id)}
                     className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-                      selected ? 'bg-white/10 text-white' : 'text-white/55 hover:bg-white/5 hover:text-white'
+                      selected ? 'bg-[var(--me-chip)] text-[var(--me-ink)]' : 'text-[var(--me-muted)] hover:bg-[var(--me-soft)] hover:text-[var(--me-ink)]'
                     }`}
                   >
                     <Icon className="h-4 w-4" aria-hidden />
@@ -411,21 +411,21 @@ export default function PublicProfileView({
             </div>
 
             {panel === 'ofertas' ? (
-              <section className="rounded-2xl border border-white/10 bg-[#120a22] p-4 text-white sm:p-5">
+              <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 text-[var(--me-ink)] sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="flex items-center gap-2 text-[17px] font-semibold">
-                      <Send className="h-4 w-4 text-violet-300" aria-hidden />
+                      <Send className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
                       Últimas ofertas
                     </h2>
-                    <p className="mt-0.5 text-[13px] text-white/55">Todas las ofertas que ha compartido con la comunidad.</p>
+                    <p className="mt-0.5 text-[13px] text-[var(--me-muted)]">Todas las ofertas que ha compartido con la comunidad.</p>
                   </div>
-                  <label className="shrink-0 text-[13px] text-white/70">
+                  <label className="shrink-0 text-[13px] text-[var(--me-muted)]">
                     <span className="sr-only">Ordenar ofertas</span>
                     <select
                       value={sort}
                       onChange={(event) => setSort(event.target.value as Sort)}
-                      className="min-h-11 rounded-full border border-white/15 bg-white/5 px-3 text-[13px] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-9"
+                      className="min-h-11 rounded-full border border-[var(--me-line)] bg-[var(--me-soft)] px-3 text-[13px] text-[var(--me-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-9"
                     >
                       <option value="recent">Más recientes</option>
                       <option value="votes">Más votadas</option>
@@ -433,9 +433,9 @@ export default function PublicProfileView({
                   </label>
                 </div>
                 {visible.length === 0 ? (
-                  <p className="mt-6 text-[14px] text-white/60">Todavía no hay hallazgos públicos. Cuando una oferta de {displayName} se apruebe, aparecerá aquí.</p>
+                  <p className="mt-6 text-[14px] text-[var(--me-muted)]">Todavía no hay hallazgos públicos. Cuando una oferta de {displayName} se apruebe, aparecerá aquí.</p>
                 ) : (
-                  <ul className="mt-3 divide-y divide-white/10">
+                  <ul className="mt-3 divide-y divide-[var(--me-line)]">
                     {visible.map((offer) => {
                       const discount = offerDiscountPercent(offer.discountPrice ?? null, offer.originalPrice ?? null);
                       const status = statusMeta(offer.dealStatus);
@@ -452,18 +452,18 @@ export default function PublicProfileView({
                             <OfferMedia src={offer.image} alt="" sizes="56px" ratioClass="aspect-square" compact className="h-14 w-14 shrink-0 rounded-xl" />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[15px] font-medium">{offer.title}</span>
-                              <span className="mt-0.5 block truncate text-[12px] text-white/50">
+                              <span className="mt-0.5 block truncate text-[12px] text-[var(--me-muted)]">
                                 {offer.store || 'Tienda'}
                                 {offer.category ? ` · ${categoryName(offer.category)}` : ''}
                               </span>
-                              {when ? <span className="mt-0.5 block text-[12px] text-white/40">{when}</span> : null}
+                              {when ? <span className="mt-0.5 block text-[12px] text-[var(--me-faint)]">{when}</span> : null}
                             </span>
                             <span className="hidden shrink-0 items-center gap-2 sm:flex">
                               {discount != null ? <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[11px] font-semibold">-{discount}%</span> : null}
                               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>{status.label}</span>
                             </span>
-                            <span className="hidden items-center gap-1 text-[13px] text-white/70 md:inline-flex">
-                              <ThumbsUp className="h-3.5 w-3.5 text-violet-300" aria-hidden />
+                            <span className="hidden items-center gap-1 text-[13px] text-[var(--me-muted)] md:inline-flex">
+                              <ThumbsUp className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" aria-hidden />
                               {offer.upvotes == null ? '—' : offer.upvotes}
                             </span>
                           </button>
@@ -474,9 +474,9 @@ export default function PublicProfileView({
                             aria-busy={savingId === offer.id}
                             disabled={savingId === offer.id}
                             onClick={() => void toggleFavorite(offer)}
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/60 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-60"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--me-muted)] hover:bg-[var(--me-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-60"
                           >
-                            <Bookmark className={`h-4 w-4 ${offer.isFavorite ? 'fill-violet-400 text-violet-300' : ''}`} aria-hidden />
+                            <Bookmark className={`h-4 w-4 ${offer.isFavorite ? 'fill-violet-400 text-violet-600 dark:text-violet-300' : ''}`} aria-hidden />
                           </button>
                         </li>
                       );
@@ -484,7 +484,7 @@ export default function PublicProfileView({
                   </ul>
                 )}
                 {sorted.length > 5 && !showAll ? (
-                  <button type="button" onClick={() => setShowAll(true)} className="mt-3 min-h-11 w-full rounded-xl bg-white/5 text-[13px] font-medium text-violet-200 hover:bg-white/10">
+                  <button type="button" onClick={() => setShowAll(true)} className="mt-3 min-h-11 w-full rounded-xl bg-[var(--me-soft)] text-[13px] font-medium text-violet-700 dark:text-violet-200 hover:bg-[var(--me-soft)]">
                     Ver todas sus ofertas →
                   </button>
                 ) : null}
@@ -494,15 +494,15 @@ export default function PublicProfileView({
             {panel === 'actividad' ? <HunterActivityBoard dates={activitySource.map((offer) => offer.createdAt)} tone="night" /> : null}
 
             {panel === 'logros' ? (
-              <section className="rounded-2xl border border-white/10 bg-[#120a22] p-5 text-white">
+              <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5 text-[var(--me-ink)]">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-[17px] font-semibold">Logros</h2>
                   {owner && onSaveShowcase ? (
-                    <button type="button" onClick={openPicker} className="text-[13px] font-medium text-violet-300">Elegir logros</button>
+                    <button type="button" onClick={openPicker} className="text-[13px] font-medium text-violet-600 dark:text-violet-300">Elegir logros</button>
                   ) : null}
                 </div>
                 {sigils.length === 0 ? (
-                  <p className="mt-3 text-[14px] text-white/60">
+                  <p className="mt-3 text-[14px] text-[var(--me-muted)]">
                     {owner ? 'Cuando consigas logros podrás elegir cuáles mostrar aquí.' : 'Todavía no hay logros visibles.'}
                   </p>
                 ) : (
@@ -510,7 +510,7 @@ export default function PublicProfileView({
                     {sigils.map((logro) => (
                       <li key={logro.code ?? logro.name} className="text-center">
                         <div className="flex justify-center"><AchievementSigil code={logro.code} size="md" /></div>
-                        <p className="mt-2 line-clamp-2 text-[12px] text-white/75">{logro.name}</p>
+                        <p className="mt-2 line-clamp-2 text-[12px] text-[var(--me-muted)]">{logro.name}</p>
                       </li>
                     ))}
                   </ul>
@@ -519,29 +519,29 @@ export default function PublicProfileView({
             ) : null}
 
             {panel === 'listas' ? (
-              <section className="rounded-2xl border border-white/10 bg-[#120a22] p-5 text-white">
+              <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5 text-[var(--me-ink)]">
                 <h2 className="text-[17px] font-semibold">Listas</h2>
-                <p className="mt-2 text-[14px] text-white/60">Aún no hay listas públicas.</p>
+                <p className="mt-2 text-[14px] text-[var(--me-muted)]">Aún no hay listas públicas.</p>
               </section>
             ) : null}
 
             {panel === 'sobre' ? (
-              <section className="rounded-2xl border border-white/10 bg-[#120a22] p-5 text-white">
+              <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5 text-[var(--me-ink)]">
                 <h2 className="text-[17px] font-semibold">Sobre mí</h2>
-                {bio ? <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-white/80">{bio}</p> : <p className="mt-3 text-[14px] text-white/60">Todavía no hay una presentación.</p>}
-                {location ? <p className="mt-3 text-[14px] text-white/55">{location}</p> : null}
-                {joinedYear ? <p className="mt-2 text-[13px] text-white/45">Se unió en {joinedYear}</p> : null}
+                {bio ? <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-[var(--me-ink)]">{bio}</p> : <p className="mt-3 text-[14px] text-[var(--me-muted)]">Todavía no hay una presentación.</p>}
+                {location ? <p className="mt-3 text-[14px] text-[var(--me-muted)]">{location}</p> : null}
+                {joinedYear ? <p className="mt-2 text-[13px] text-[var(--me-muted)]">Se unió en {joinedYear}</p> : null}
               </section>
             ) : null}
           </div>
 
           <div className="space-y-4">
-            <section aria-label="Nivel base de Aventa" className="rounded-2xl border border-white/10 bg-[#120a22] p-5 text-white">
+            <section aria-label="Nivel base de Aventa" className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5 text-[var(--me-ink)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[15px] font-semibold">Nivel Aventa</h2>
-                {levelHref ? <Link href={levelHref} className="text-[13px] text-violet-300">Ver todos</Link> : null}
+                {levelHref ? <Link href={levelHref} className="text-[13px] text-violet-600 dark:text-violet-300">Ver todos</Link> : null}
               </div>
-              <p className="mt-1 text-[12px] text-white/45">No es el programa de recompensas.</p>
+              <p className="mt-1 text-[12px] text-[var(--me-muted)]">No es el programa de recompensas.</p>
               <div className="mt-4 flex items-center gap-3">
                 <div
                   className="flex h-14 w-14 shrink-0 items-center justify-center bg-linear-to-br from-violet-400 to-fuchsia-600 shadow-[0_0_18px_rgba(168,85,247,0.45)]"
@@ -552,40 +552,40 @@ export default function PublicProfileView({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[16px] font-semibold">Nivel {level} · {label}</p>
-                  <p className="mt-1 text-[13px] tabular-nums text-white/70">{progressLine}</p>
+                  <p className="mt-1 text-[13px] tabular-nums text-[var(--me-muted)]">{progressLine}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--me-chip)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
                       <div className="h-full rounded-full bg-linear-to-r from-violet-500 to-fuchsia-500" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-[12px] tabular-nums text-white/70">{pct}%</span>
+                    <span className="text-[12px] tabular-nums text-[var(--me-muted)]">{pct}%</span>
                   </div>
                 </div>
               </div>
               {next ? (
-                <p className="mt-3 text-[13px] text-white/70">
-                  <span className="block text-white">Siguiente: {next.label}</span>
-                  <span className="block text-[12px] text-white/50">Te faltan {remaining} puntos.</span>
+                <p className="mt-3 text-[13px] text-[var(--me-muted)]">
+                  <span className="block text-[var(--me-ink)]">Siguiente: {next.label}</span>
+                  <span className="block text-[12px] text-[var(--me-muted)]">Te faltan {remaining} puntos.</span>
                 </p>
               ) : (
-                <p className="mt-3 text-[13px] text-white/70">Este es el nivel más alto de Aventa.</p>
+                <p className="mt-3 text-[13px] text-[var(--me-muted)]">Este es el nivel más alto de Aventa.</p>
               )}
             </section>
 
-            <section className="rounded-2xl border border-white/10 bg-[#120a22] p-5 text-white">
+            <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-5 text-[var(--me-ink)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[15px] font-semibold">Logros</h2>
                 {owner ? (
-                  <Link href={owner.achievementsHref} onClick={owner.onOpenAchievements} className="text-[13px] text-violet-300">Ver todos</Link>
+                  <Link href={owner.achievementsHref} onClick={owner.onOpenAchievements} className="text-[13px] text-violet-600 dark:text-violet-300">Ver todos</Link>
                 ) : null}
               </div>
               {sigils.length === 0 ? (
-                <p className="mt-3 text-[13px] text-white/55">Todavía no hay logros visibles.</p>
+                <p className="mt-3 text-[13px] text-[var(--me-muted)]">Todavía no hay logros visibles.</p>
               ) : (
                 <ul className="mt-4 grid grid-cols-4 gap-2">
                   {sigils.map((logro) => (
                     <li key={`side-${logro.code ?? logro.name}`} className="min-w-0 text-center">
                       <div className="flex justify-center"><AchievementSigil code={logro.code} size="sm" /></div>
-                      <p className="mt-2 line-clamp-2 text-[11px] leading-tight text-white/65">{logro.name}</p>
+                      <p className="mt-2 line-clamp-2 text-[11px] leading-tight text-[var(--me-muted)]">{logro.name}</p>
                     </li>
                   ))}
                 </ul>
@@ -622,7 +622,7 @@ export default function PublicProfileView({
                         disabled={blocked}
                         aria-pressed={on}
                         onClick={() => togglePicked(logro.code)}
-                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${on ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40' : 'border-black/10 dark:border-white/10'} disabled:opacity-40`}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${on ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40' : 'border-black/10 dark:border-[var(--me-line)]'} disabled:opacity-40`}
                       >
                         <AchievementSigil code={logro.code} size="sm" />
                         <span className="min-w-0 flex-1 text-[14px] font-medium text-[#1d1d1f] dark:text-[#fafafa]">{logro.name}</span>
