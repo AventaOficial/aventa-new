@@ -129,34 +129,28 @@ function FavoritesPageInner() {
     }
   }
 
-  const savedLabel =
-    status === 'ready' && offers.length > 0
-      ? ` ${offers.length} ${offers.length === 1 ? 'guardada' : 'guardadas'}.`
-      : ''
-
   return (
     <MeSpaceShell
+      tone="night"
+      wide
       title="Tus"
       accent="favoritos"
-      lede={`Ofertas que guardaste para no perderlas de vista.${savedLabel}`}
+      accentClassName="bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent"
+      lede="Ofertas que guardaste para no perderlas de vista."
     >
 
           {status === 'loading' ? (
-            <div className={GRID} aria-busy="true" aria-label="Cargando tus favoritos">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-72 animate-pulse rounded-2xl bg-black/[0.04] dark:bg-white/[0.05]" />
-              ))}
-            </div>
+            <div className="h-80 animate-pulse rounded-[28px] border border-white/10 bg-[#160c2c]" aria-busy="true" aria-label="Cargando tus favoritos" />
           ) : status === 'error' ? (
-            <div role="alert" className="rounded-2xl border border-black/[0.06] bg-white px-6 py-12 text-center dark:border-white/10 dark:bg-[#141414]">
-              <p className="text-[17px] font-semibold">No pudimos cargar tus favoritos</p>
-              <p className="mx-auto mt-2 max-w-sm text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">
+            <div role="alert" className="rounded-[28px] border border-white/10 bg-[#160c2c] px-6 py-12 text-center">
+              <p className="text-[17px] font-semibold text-white">No pudimos cargar tus favoritos</p>
+              <p className="mx-auto mt-2 max-w-sm text-[14px] text-white/70">
                 Tus ofertas guardadas siguen ahí. Revisa tu conexión e inténtalo de nuevo.
               </p>
               <button
                 type="button"
                 onClick={retry}
-                className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-violet-600 px-5 text-[14px] font-semibold text-white transition-colors hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                className="mt-6 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-[14px] font-semibold text-white transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#160c2c]"
               >
                 Reintentar
               </button>
@@ -179,7 +173,7 @@ function FavoritesPageInner() {
             </ul>
           )}
 
-          {status !== 'error' ? (
+          {status === 'ready' && offers.length > 0 ? (
             <div className="mt-10">
               <CommunityTopCarousel
                 favoriteIds={favoriteIds}
@@ -196,8 +190,8 @@ export default function FavoritesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] dark:bg-[#0a0a0a]">
-          <div className="text-[#6e6e73] dark:text-[#a3a3a3]">Cargando favoritos…</div>
+        <div className="flex min-h-screen items-center justify-center bg-[#07040f]">
+          <div className="text-white/70">Cargando favoritos…</div>
         </div>
       }
     >
