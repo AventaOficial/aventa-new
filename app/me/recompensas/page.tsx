@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Compass, Gift, Share2, Sparkles, Unlock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import MeSectionPage, { meCardClass } from '@/app/me/dashboard/MeSectionPage';
 import MyRewardsHistory from '@/app/me/MyRewardsHistory';
@@ -24,6 +25,61 @@ type BetaStatus = {
   steps: { id: string; title: string; body: string[] }[];
   progression: Progression | null;
 };
+
+const HOW_STEPS = [
+  { title: 'Caza', body: 'Encuentra ofertas que valgan la pena.', icon: Compass },
+  { title: 'Comparte', body: 'Ayuda a otros cazadores a encontrarlas.', icon: Share2 },
+  { title: 'Contribuye', body: 'Tus aportes construyen tu trayectoria.', icon: Sparkles },
+  { title: 'Desbloquea', body: 'Tu progreso puede abrir nuevas posibilidades.', icon: Unlock },
+] as const;
+
+function HowItWorks() {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={`${meCardClass} p-5 sm:p-6`} aria-labelledby="how-rewards">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 id="how-rewards" className="text-[18px] font-semibold">Cómo funciona</h2>
+          {open ? null : (
+            <p className="mt-1 text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
+              Tu actividad en Aventa puede abrir nuevas posibilidades.
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="how-rewards-panel"
+          onClick={() => setOpen((value) => !value)}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-violet-600 px-4 text-[13px] font-semibold text-white hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        >
+          {open ? 'Ocultar' : 'Descubrir cómo funciona'}
+        </button>
+      </div>
+      <div
+        id="how-rewards-panel"
+        className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
+        <div className="overflow-hidden">
+          <ol className="grid gap-3 pt-4 sm:grid-cols-2">
+            {HOW_STEPS.map((step) => {
+              const Icon = step.icon;
+              return (
+                <li key={step.title} className="rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200">
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  <p className="mt-3 text-[15px] font-semibold">{step.title}</p>
+                  <p className="mt-1 text-[14px] leading-relaxed text-[#5c5670] dark:text-[#c4b8de]">{step.body}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function percent(bps: number): number {
   return Math.round(bps / 100);
@@ -146,11 +202,16 @@ function RewardsSpace() {
 export default function RecompensasPage() {
   return (
     <MeSectionPage
-      title="Tus"
-      accent="recompensas"
-      lede="Gana una parte de las comisiones generadas por tus ofertas elegibles."
+      eyebrow="Recompensas"
+      mark={<Gift className="h-3.5 w-3.5" aria-hidden />}
+      title="Hay algo"
+      accent="esperándote."
+      lede="Tu actividad en Aventa puede abrir nuevas posibilidades."
     >
-      <RewardsSpace />
+      <div className="space-y-6">
+        <HowItWorks />
+        <RewardsSpace />
+      </div>
     </MeSectionPage>
   );
 }

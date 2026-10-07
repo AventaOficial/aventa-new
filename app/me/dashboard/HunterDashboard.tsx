@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Bookmark, Eye, Gift, MessageCircle, Search, Send, Tag, ThumbsUp } from 'lucide-react';
@@ -108,8 +108,8 @@ function StatCard({
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[22px] font-semibold tabular-nums leading-none">{value}</span>
-        <span className="mt-1 block text-[12px] text-[var(--me-muted)]">{label}</span>
+        <span className="block text-[28px] font-semibold tabular-nums leading-none tracking-tight">{value}</span>
+        <span className="mt-1 block text-[13px] font-medium text-[var(--me-ink)]">{label}</span>
         {detail ? <span className="mt-1 block text-[11px] font-medium text-emerald-600 dark:text-emerald-400">{detail}</span> : null}
       </span>
       <Spark color={spark} />
@@ -191,7 +191,7 @@ function RecentOffers({ offers }: { offers: HunterOffer[] }) {
 export default function HunterDashboard(props: HunterDashboardProps) {
   const router = useRouter();
   const dates = props.offers.map((offer) => offer.createdAt);
-  const weekAgo = Date.now() - 7 * 86_400_000;
+  const [weekAgo] = useState(() => Date.now() - 7 * 86_400_000);
   const publishedThisWeek = props.offers.filter((offer) => {
     const created = offer.createdAt ? new Date(offer.createdAt).getTime() : NaN;
     return !Number.isNaN(created) && created >= weekAgo;
@@ -236,7 +236,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
             onClick={props.onPublish}
             className="flex w-full items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 p-4 text-left text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--me-chip)]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
               <Gift className="h-5 w-5" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
