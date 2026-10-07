@@ -84,7 +84,7 @@ const FALLBACK: KindPresentation = {
   cta: 'Ver contenido',
 };
 
-export const ACHIEVEMENTS_HREF = '/me?panel=logros';
+export const ACHIEVEMENTS_HREF = '/me/logros';
 
 export function notificationKind(type: string): KindPresentation {
   return KINDS[type] ?? FALLBACK;

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { REPUTATION_LEVELS, getReputationLabel, getReputationProgress } from '@/lib/reputation';
+import { ArrowRight, Crown } from 'lucide-react';
+import { REPUTATION_LEVELS, getReputationLabel } from '@/lib/reputation';
 
 type HunterProgressProps = {
   level: number;
@@ -12,39 +13,51 @@ type HunterProgressProps = {
 export default function HunterProgress({ level, score }: HunterProgressProps) {
   const label = getReputationLabel(level);
   const next = REPUTATION_LEVELS.find((item) => item.level === level + 1);
-  const band = REPUTATION_LEVELS.find((item) => item.level === level);
-  const pct = Math.round(getReputationProgress(score, level) * 100);
-  const progressLine =
-    band && band.maxScore !== Infinity ? `${score} / ${band.maxScore + 1} puntos` : `${score} puntos`;
+  const pct = next ? Math.min(100, Math.floor((score / next.minScore) * 100)) : 100;
+  const remaining = next ? Math.max(0, next.minScore - score) : 0;
 
   return (
-    <section aria-label="Nivel base de Aventa" className="h-full rounded-2xl border border-black/[0.04] bg-white p-3.5 shadow-sm dark:border-white/10 dark:bg-[#141414] sm:p-5">
+    <section aria-label="Nivel base de Aventa" className="h-full rounded-2xl border border-white/10 bg-[#140c24] p-4 text-white sm:p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#fafafa]">Nivel Aventa</h2>
-        <Link href="/me/nivel" className="inline-flex min-h-11 items-center rounded-md text-[13px] text-violet-600 transition-colors duration-150 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-violet-400 sm:inline sm:min-h-0">
-          Ver niveles
+        <h2 className="text-[15px] font-semibold">Nivel Aventa</h2>
+        <Link href="/me/nivel" className="inline-flex items-center gap-1 text-[13px] text-violet-300 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400">
+          Ver todos
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </div>
-      <p className="mt-0.5 text-[12px] text-[#6e6e73] dark:text-[#a3a3a3] sm:mt-1 sm:text-[13px]">No es el programa de recompensas.</p>
-      <div className="mt-3 flex items-center gap-3 sm:mt-4 sm:gap-4">
+      <p className="mt-1 text-[12px] text-white/45">No es el programa de recompensas.</p>
+      <div className="mt-4 flex items-center gap-3">
         <div
-          className="flex h-12 w-11 shrink-0 items-center justify-center bg-violet-600 text-lg font-semibold text-white sm:h-16 sm:w-14 sm:text-xl"
-          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+          className="flex h-14 w-14 shrink-0 items-center justify-center bg-linear-to-br from-violet-400 to-fuchsia-600 text-white shadow-[0_0_18px_rgba(168,85,247,0.45)]"
+          style={{ clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)' }}
           aria-hidden
         >
-          {level}
+          <Crown className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-none text-[#1d1d1f] dark:text-[#fafafa] sm:text-[17px]">{label}</p>
-          <p className="mt-1.5 text-[13px] tabular-nums leading-none text-[#6e6e73] dark:text-[#a3a3a3] sm:mt-2">{progressLine}</p>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-violet-100 dark:bg-violet-950 sm:mt-3 sm:h-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progreso de nivel ${pct}%`}>
-            <div className="h-full rounded-full bg-violet-600" style={{ width: `${pct}%` }} />
+          <p className="truncate text-[16px] font-semibold leading-none">Nivel {level} · {label}</p>
+          <p className="mt-2 text-[13px] tabular-nums text-white/70">
+            {score} puntos{next ? ` · ${next.minScore} para el siguiente` : ''}
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progreso de nivel ${pct}%`}>
+              <div className="h-full rounded-full bg-linear-to-r from-violet-500 to-fuchsia-500" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-[12px] tabular-nums text-white/70">{pct}%</span>
           </div>
-          {next ? (
-            <p className="mt-1.5 text-[13px] text-[#6e6e73] dark:text-[#a3a3a3] sm:mt-2">Siguiente nivel: {next.label}</p>
-          ) : null}
         </div>
       </div>
+      {next ? (
+        <p className="mt-3 flex items-start gap-2 text-[13px] text-white/70">
+          <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-300" aria-hidden />
+          <span>
+            <span className="block text-white">Siguiente: {next.label}</span>
+            <span className="block text-[12px] text-white/50">Te faltan {remaining} puntos.</span>
+          </span>
+        </p>
+      ) : (
+        <p className="mt-3 text-[13px] text-white/70">Este es el nivel más alto de Aventa.</p>
+      )}
     </section>
   );
 }

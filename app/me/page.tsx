@@ -34,12 +34,16 @@ function MePageInner() {
   useTheme();
   const { showToast, openUploadModal } = useUI();
   const router = useRouter();
-  const viewingLogros = useSearchParams().get('panel') === 'logros';
-  const spaceTitle = viewingLogros ? 'Tus' : 'Tu';
-  const spaceAccent = viewingLogros ? 'logros' : 'inicio';
-  const spaceLede = viewingLogros
-    ? 'Reconocimientos de tu camino como cazador.'
-    : 'Tu perfil de cazador: publicaciones, guardados y logros.';
+  const panel = useSearchParams().get('panel');
+  useEffect(() => {
+    if (panel === 'logros') router.replace('/me/logros');
+    else if (panel === 'ofertas') router.replace('/me/ofertas');
+    else if (panel === 'guardados') router.replace('/me/favorites');
+    else if (panel === 'actividad') router.replace('/me/nivel#actividad');
+  }, [panel, router]);
+  const spaceTitle = 'Tu';
+  const spaceAccent = 'inicio';
+  const spaceLede = 'Tu perfil de cazador: publicaciones, guardados y logros.';
   const [loading, setLoading] = useState(true);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
@@ -51,6 +55,11 @@ function MePageInner() {
     slug?: string | null;
     reputation_level?: number;
     reputation_score?: number;
+    bio?: string | null;
+    city?: string | null;
+    state?: string | null;
+    created_at?: string | null;
+    is_trusted?: boolean;
   } | null>(null);
   const [offers, setOffers] = useState<MappedOffer[]>([]);
   const [meView, setMeView] = useState<MeView>('hunter');
@@ -129,7 +138,7 @@ function MePageInner() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, reputation_level, reputation_score, slug')
+        .select('id, display_name, avatar_url, reputation_level, reputation_score, slug, bio, city, state, created_at, is_trusted')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -146,6 +155,11 @@ function MePageInner() {
         slug: (profileData as { slug?: string | null }).slug ?? null,
         reputation_level: (profileData as { reputation_level?: number }).reputation_level ?? 1,
         reputation_score: (profileData as { reputation_score?: number }).reputation_score ?? 0,
+        bio: (profileData as { bio?: string | null }).bio ?? null,
+        city: (profileData as { city?: string | null }).city ?? null,
+        state: (profileData as { state?: string | null }).state ?? null,
+        created_at: (profileData as { created_at?: string | null }).created_at ?? null,
+        is_trusted: (profileData as { is_trusted?: boolean }).is_trusted === true,
       });
 
       const { data: rows } = await supabase
@@ -306,7 +320,13 @@ function MePageInner() {
   const isHunter = meView === 'hunter';
 
   return (
-    <MeSpaceShell title={spaceTitle} accent={spaceAccent} lede={spaceLede}>
+    <MeSpaceShell
+      title={spaceTitle}
+      accent={spaceAccent}
+      lede={spaceLede}
+      note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
+      aside={<p className="text-[15px] font-semibold leading-snug">Más ofertas, más gente ahorrando, una comunidad más fuerte.</p>}
+    >
           <input
             ref={fileInputRef}
             type="file"
@@ -355,6 +375,11 @@ function MePageInner() {
               level={repLevel}
               score={profile?.reputation_score ?? 0}
               publicHref={publicHref}
+              bio={profile?.bio}
+              city={profile?.city}
+              state={profile?.state}
+              joinedAt={profile?.created_at}
+              trusted={profile?.is_trusted}
               avatarUploading={avatarUploading}
               onPickAvatar={() => fileInputRef.current?.click()}
               onPublish={() => openUploadModal()}

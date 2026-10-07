@@ -118,9 +118,11 @@ describe('catálogo de 75 logros', () => {
     expect(route).toContain('raw.length > MAX_FEATURED_ACHIEVEMENTS');
     expect(route).toContain('.slice(0, MAX_FEATURED_ACHIEVEMENTS)');
     const ui = readFileSync('app/components/achievements/AchievementCollection.tsx', 'utf8');
+    const board = readFileSync('app/me/logros/LogrosBoard.tsx', 'utf8');
     expect(ui).toContain('/ {payload.total} desbloqueados');
-    expect(ui).toContain('Secretos');
-    expect(ui).toContain('CATEGORY_LABEL');
+    expect(board).toContain('desbloqueados');
+    expect(board).toContain('Secretos');
+    expect(board).toContain('CATEGORY_LABEL');
   });
 
   it('muestra progreso parcial, desbloquea al llegar y no duplica el mismo evento', () => {

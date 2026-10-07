@@ -1,64 +1,123 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import MeSectionPage from '@/app/me/dashboard/MeSectionPage';
+import {
+  ArrowRight,
+  Check,
+  Clock,
+  MessageCircle,
+  MousePointer2,
+  Search,
+  Send,
+  Tag,
+  ThumbsUp,
+  X,
+} from 'lucide-react';
+import { MeSpaceShell } from '@/app/me/dashboard/MeSectionPage';
 import OfferDetailDrawer, { type OfferDrawerModel } from '@/app/me/ofertas/OfferDetailDrawer';
+import { useUI } from '@/app/providers/UIProvider';
+import { ALL_CATEGORIES } from '@/lib/categories';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
-import { presentOfferPrice } from '@/lib/formatPrice';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
-import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+type StatusFilter = 'all' | DealStatus;
+type SortKey = 'recent' | 'oldest' | 'votes';
 
 type Row = OfferDrawerModel & {
   rejectionReason: string | null;
   views: number | null;
 };
 
-const FILTERS: Array<{ value: 'all' | DealStatus; label: string }> = [
-  { value: 'all', label: 'Todas' },
-  { value: 'approved', label: 'Activas' },
-  { value: 'pending', label: 'En revisión' },
-  { value: 'rejected', label: 'Rechazadas' },
-  { value: 'expired', label: 'Expiradas' },
+const FILTERS: Array<{ value: StatusFilter; label: string; dot: string }> = [
+  { value: 'all', label: 'Todas', dot: 'bg-violet-500' },
+  { value: 'approved', label: 'Aprobadas', dot: 'bg-emerald-500' },
+  { value: 'pending', label: 'En revisión', dot: 'bg-amber-400' },
+  { value: 'rejected', label: 'Rechazadas', dot: 'bg-rose-500' },
+  { value: 'expired', label: 'Expiradas', dot: 'bg-zinc-400' },
 ];
 
 const STATUS_LABEL: Record<DealStatus, string> = {
-  approved: 'Activa',
+  approved: 'Aprobada',
   pending: 'En revisión',
   rejected: 'Rechazada',
   expired: 'Expirada',
 };
 
-const STATUS_CLASS: Record<DealStatus, string> = {
-  approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
-  rejected: 'bg-black/5 text-[#6e6e73] dark:bg-white/10 dark:text-[#a3a3a3]',
-  expired: 'bg-black/5 text-[#6e6e73] dark:bg-white/10 dark:text-[#a3a3a3]',
-};
-
-function money(value: number | null, currency: string | null): string | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  return presentOfferPrice(value, currency);
+function categoryLabel(value: string | null): string | null {
+  if (!value) return null;
+  return ALL_CATEGORIES.find((item) => item.value === value)?.label ?? value;
 }
 
-function when(iso: string | null): string | null {
+function compactCount(value: number | null): string {
+  if (value == null) return '—';
+  if (value < 1000) return String(value);
+  const scaled = value / 1000;
+  const digits = scaled >= 10 ? 0 : 1;
+  return `${scaled.toFixed(digits).replace(/\.0$/, '')}K`;
+}
+
+function ago(iso: string | null): string | null {
   if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const days = Math.floor((Date.now() - then) / 86_400_000);
+  if (days < 1) return 'Hoy';
+  if (days === 1) return 'Hace 1 día';
+  if (days < 7) return `Hace ${days} días`;
+  const weeks = Math.floor(days / 7);
+  if (weeks === 1) return 'Hace 1 semana';
+  if (weeks < 5) return `Hace ${weeks} semanas`;
+  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function Spark({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 72 28" className="h-7 w-16" aria-hidden>
+      <path d="M2 20 C12 18 16 8 26 12 C36 16 40 6 50 8 C58 10 62 4 70 6" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function OfertasHeroAside({ onPublish }: { onPublish: () => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative hidden h-24 w-28 sm:block" aria-hidden>
+        <div className="absolute right-2 top-1 flex h-16 w-14 rotate-12 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-500/30">
+          <Tag className="h-7 w-7 text-violet-100" />
+        </div>
+      </div>
+      <aside className="flex items-center gap-3 rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">
+        <div>
+          <p className="text-[15px] font-semibold leading-snug">Comparte buenas ofertas</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-white/70">Tus publicaciones ayudan a miles de personas a ahorrar.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onPublish}
+          aria-label="Publicar nueva oferta"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        >
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </button>
+      </aside>
+    </div>
+  );
 }
 
 function OfertasInner() {
   const router = useRouter();
+  const { openUploadModal } = useUI();
   const params = useSearchParams();
   const initial = params.get('estado');
-  const [filter, setFilter] = useState<'all' | DealStatus>(
+  const [filter, setFilter] = useState<StatusFilter>(
     initial === 'approved' || initial === 'pending' || initial === 'rejected' || initial === 'expired' ? initial : 'all',
   );
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortKey>('recent');
+  const [category, setCategory] = useState('all');
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   const [metricsOffer, setMetricsOffer] = useState<Row | null>(null);
@@ -184,106 +243,304 @@ function OfertasInner() {
     };
   }, [router]);
 
-  const visible = useMemo(
-    () => (rows ?? []).filter((row) => filter === 'all' || row.dealStatus === filter),
-    [rows, filter],
-  );
+  const counts = useMemo(() => {
+    const list = rows ?? [];
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    const tally = { all: list.length, approved: 0, pending: 0, rejected: 0, expired: 0, week: 0 };
+    for (const row of list) {
+      tally[row.dealStatus] += 1;
+      const created = row.createdAt ? new Date(row.createdAt).getTime() : NaN;
+      if (!Number.isNaN(created) && created >= weekAgo) tally.week += 1;
+    }
+    return tally;
+  }, [rows]);
+
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of rows ?? []) {
+      if (row.category) seen.add(row.category);
+    }
+    return [...seen];
+  }, [rows]);
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const list = (rows ?? []).filter((row) => {
+      if (filter !== 'all' && row.dealStatus !== filter) return false;
+      if (category !== 'all' && row.category !== category) return false;
+      if (!needle) return true;
+      const haystack = `${row.title} ${row.store ?? ''} ${categoryLabel(row.category) ?? ''}`.toLowerCase();
+      return haystack.includes(needle);
+    });
+    return list.sort((a, b) => {
+      if (sort === 'votes') return (b.upvotes ?? 0) - (a.upvotes ?? 0);
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return sort === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+  }, [category, filter, query, rows, sort]);
+
+  const percent = (count: number) => (counts.all === 0 ? 0 : Math.round((count / counts.all) * 100));
+  const publish = () => openUploadModal();
 
   return (
-    <MeSectionPage
+    <MeSpaceShell
+      wide
+      asideBare
       title="Mis"
       accent="ofertas"
-      lede="Tu centro de trabajo. El estado de cada hallazgo, sin datos de afiliación."
+      lede="Gestiona todas las ofertas que has publicado, revisa su estado y sigue su rendimiento."
+      note={<span className="block h-1 w-16 rounded-full bg-violet-500" aria-hidden />}
+      aside={<OfertasHeroAside onPublish={publish} />}
     >
-      <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
-        {FILTERS.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            role="tab"
-            aria-selected={filter === item.value}
-            onClick={() => setFilter(item.value)}
-            className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-              filter === item.value
-                ? 'bg-violet-600 text-white'
-                : 'bg-white text-[#1d1d1f] shadow-sm hover:bg-violet-50 hover:text-violet-700 dark:bg-[#141414] dark:text-[#a3a3a3] dark:hover:bg-violet-950/40 dark:hover:text-violet-300'
-            }`}
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          icon={<Send className="h-4 w-4" aria-hidden />}
+          iconClass="bg-violet-100 text-violet-600"
+          value={counts.all}
+          label="Total publicadas"
+          detail={`+${counts.week} esta semana`}
+          detailClass="text-emerald-600"
+          spark="#22c55e"
+        />
+        <StatCard
+          icon={<Check className="h-4 w-4" aria-hidden />}
+          iconClass="bg-emerald-100 text-emerald-600"
+          value={counts.approved}
+          label="Aprobadas"
+          detail={`${percent(counts.approved)}% del total`}
+          detailClass="text-[#6e6e73]"
+          spark="#22c55e"
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4" aria-hidden />}
+          iconClass="bg-amber-100 text-amber-600"
+          value={counts.pending}
+          label="En revisión"
+          detail={`${percent(counts.pending)}% del total`}
+          detailClass="text-[#6e6e73]"
+          spark="#f59e0b"
+        />
+        <StatCard
+          icon={<X className="h-4 w-4" aria-hidden />}
+          iconClass="bg-rose-100 text-rose-500"
+          value={counts.rejected}
+          label="Rechazadas"
+          detail={`${percent(counts.rejected)}% del total`}
+          detailClass="text-[#6e6e73]"
+          spark="#f43f5e"
+        />
+        <button
+          type="button"
+          onClick={publish}
+          className="flex items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 px-4 py-4 text-left text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        >
+          <Send className="h-5 w-5 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold">Publicar nueva oferta</span>
+            <span className="mt-0.5 block text-[12px] text-white/80">Comparte una oferta con la comunidad.</span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+        </button>
+      </section>
+
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-white p-3 shadow-sm dark:bg-[#141414] lg:flex-row lg:items-center">
+        <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
+          {FILTERS.map((item) => {
+            const selected = filter === item.value;
+            const count = counts[item.value];
+            return (
+              <button
+                key={item.value}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setFilter(item.value)}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+                  selected ? 'bg-violet-600 text-white' : 'text-[#3a3a3c] hover:bg-black/4 dark:text-[#d1d1d6] dark:hover:bg-white/10'
+                }`}
+              >
+                {item.value === 'all' ? null : <span className={`h-2 w-2 rounded-full ${selected ? 'bg-white' : item.dot}`} aria-hidden />}
+                {item.label}
+                <span className={`tabular-nums ${selected ? 'text-white/80' : 'text-[#8e8e93]'}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f4f2fb] px-3 py-2 text-[#6e6e73] dark:bg-white/5">
+          <Search className="h-4 w-4 shrink-0" aria-hidden />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar en tus ofertas..."
+            className="w-full bg-transparent text-[13px] text-[#1d1d1f] outline-none placeholder:text-[#8e8e93] dark:text-[#fafafa]"
+            aria-label="Buscar en tus ofertas"
+          />
+        </label>
+        <label className="inline-flex items-center gap-2 rounded-full bg-[#f4f2fb] px-3 py-2 text-[13px] text-[#3a3a3c] dark:bg-white/5 dark:text-[#d1d1d6]">
+          <span className="sr-only">Orden</span>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SortKey)}
+            className="bg-transparent font-medium focus:outline-none"
+            aria-label="Orden"
           >
-            {item.label}
-          </button>
-        ))}
+            <option value="recent">Más recientes</option>
+            <option value="oldest">Más antiguas</option>
+            <option value="votes">Más votos</option>
+          </select>
+        </label>
+        <label className="inline-flex items-center gap-2 rounded-full bg-[#f4f2fb] px-3 py-2 text-[13px] text-[#3a3a3c] dark:bg-white/5 dark:text-[#d1d1d6]">
+          <span className="sr-only">Categoría</span>
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="max-w-40 bg-transparent font-medium focus:outline-none"
+            aria-label="Categoría"
+          >
+            <option value="all">Todas las categorías</option>
+            {categories.map((value) => (
+              <option key={value} value={value}>
+                {categoryLabel(value)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+
       {rows == null && !error ? (
-        <div className="space-y-2" aria-hidden>
-          <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-900" />
-          <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-900" />
+        <div className="mt-3 space-y-2" aria-hidden>
+          <div className="h-20 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
+          <div className="h-20 animate-pulse rounded-2xl bg-white dark:bg-[#141414]" />
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
-          <p className="text-sm text-[#1d1d1f] dark:text-[#fafafa]">No se pudieron cargar tus ofertas.</p>
+        <div className="mt-3 rounded-2xl bg-white p-5 shadow-sm dark:bg-[#141414]">
+          <p className="text-sm">No se pudieron cargar tus ofertas.</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-3 inline-flex items-center justify-center rounded-full border border-black/10 px-4 py-2 text-xs font-semibold text-[#1d1d1f] transition-colors duration-150 hover:bg-black/[0.03] active:bg-black/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15 dark:text-[#fafafa] dark:hover:bg-white/5"
+            className="mt-3 inline-flex items-center justify-center rounded-full border border-black/10 px-4 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15"
           >
             Reintentar
           </button>
         </div>
       ) : null}
       {rows != null && visible.length === 0 && !error ? (
-        <div className="rounded-2xl border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#141414]">
+        <div className="mt-3 rounded-2xl bg-white p-5 shadow-sm dark:bg-[#141414]">
           <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
-            {rows.length === 0 ? 'Nada publicado. ¿Cazamos una oferta?' : 'No tienes ofertas en este estado.'}
+            {rows.length === 0 ? 'Nada publicado. ¿Cazamos una oferta?' : 'No tienes ofertas en esta vista.'}
           </p>
           {rows.length === 0 ? (
-            <Link
-              href="/subir"
-              className="mt-3 inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white transition-colors duration-150 hover:bg-violet-700 active:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#141414]"
+            <button
+              type="button"
+              onClick={publish}
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
               Subir oferta
-            </Link>
+            </button>
           ) : null}
         </div>
       ) : null}
-      <ul className="space-y-3">
+
+      <ul className="mt-3 space-y-2">
         {visible.map((row) => {
-          const price = money(row.price, row.sourceCurrency ?? null);
-          const discount = offerDiscountPercent(row.price, row.originalPrice);
-          const date = when(row.createdAt);
+          const tone =
+            row.dealStatus === 'approved'
+              ? 'bg-emerald-50 text-emerald-700'
+              : row.dealStatus === 'pending'
+                ? 'bg-amber-50 text-amber-700'
+                : row.dealStatus === 'rejected'
+                  ? 'bg-rose-50 text-rose-600'
+                  : 'bg-zinc-100 text-zinc-600';
+          const StatusIcon = row.dealStatus === 'approved' ? Check : row.dealStatus === 'pending' ? Clock : X;
           return (
-            <li key={row.id}>
+            <li key={row.id} className="flex flex-col gap-3 rounded-2xl bg-white px-3 py-3 shadow-sm dark:bg-[#141414] lg:flex-row lg:items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#f4f2fb] dark:bg-white/5">
+                  {row.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.image} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-[#8e8e93]">
+                      <Tag className="h-5 w-5" aria-hidden />
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold">{row.title}</p>
+                  <p className="mt-0.5 truncate text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                    {row.store ?? 'Tienda'}
+                    {categoryLabel(row.category) ? ` · ${categoryLabel(row.category)}` : ''}
+                  </p>
+                  {ago(row.createdAt) ? <p className="mt-0.5 text-[12px] text-[#8e8e93]">{ago(row.createdAt)}</p> : null}
+                  {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-600">{row.rejectionReason}</p> : null}
+                </div>
+              </div>
+              <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone}`}>
+                <StatusIcon className="h-3.5 w-3.5" aria-hidden />
+                {STATUS_LABEL[row.dealStatus]}
+              </span>
+              <div className="flex flex-wrap items-center gap-4 text-[13px] text-[#3a3a3c] dark:text-[#d1d1d6] lg:w-70 lg:justify-between">
+                <Metric icon={<MousePointer2 className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.views)} label="Vistas" />
+                <Metric icon={<ThumbsUp className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.upvotes)} label="Votos" />
+                <Metric icon={<MessageCircle className="h-3.5 w-3.5" aria-hidden />} value={compactCount(row.comments)} label="Comentarios" />
+              </div>
               <button
                 type="button"
                 onClick={() => setMetricsOffer(row)}
-                className="flex w-full items-stretch overflow-hidden rounded-2xl border border-black/[0.04] bg-white text-left shadow-sm transition-colors duration-150 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/10 dark:bg-[#141414] dark:hover:bg-white/[0.03]"
+                className="inline-flex items-center justify-center rounded-xl border border-black/10 px-3 py-2 text-[13px] font-medium hover:bg-black/3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-white/15 dark:hover:bg-white/5"
               >
-                <span className="min-w-0 flex-1 px-4 py-3">
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="min-w-0">
-                      {row.store ? <span className="block truncate text-xs text-[#6e6e73] dark:text-[#a3a3a3]">{row.store}</span> : null}
-                      <span className="block text-sm font-medium leading-snug text-[#1d1d1f] line-clamp-2 dark:text-[#fafafa]">{row.title}</span>
-                    </span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASS[row.dealStatus]}`}>
-                      {STATUS_LABEL[row.dealStatus]}
-                    </span>
-                  </span>
-                  <span className="mt-2 block text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
-                    {price ? <span>Precio {price}</span> : <span>Precio no indicado</span>}
-                    {discount != null ? <span> · Descuento {discount}%</span> : null}
-                    {date ? <span> · {date}</span> : null}
-                  </span>
-                  {row.rejectionReason ? (
-                    <span className="mt-1 block text-xs text-[#1d1d1f] dark:text-[#fafafa]">{row.rejectionReason}</span>
-                  ) : null}
-                </span>
+                Ver detalles
               </button>
             </li>
           );
         })}
       </ul>
       {metricsOffer ? <OfferDetailDrawer offer={metricsOffer} onClose={() => setMetricsOffer(null)} /> : null}
-    </MeSectionPage>
+    </MeSpaceShell>
+  );
+}
+
+function StatCard({
+  icon,
+  iconClass,
+  value,
+  label,
+  detail,
+  detailClass,
+  spark,
+}: {
+  icon: ReactNode;
+  iconClass: string;
+  value: number;
+  label: string;
+  detail: string;
+  detailClass: string;
+  spark: string;
+}) {
+  return (
+    <article className="flex items-center gap-3 rounded-2xl bg-white px-4 py-4 shadow-sm dark:bg-[#141414]">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[22px] font-semibold leading-none tabular-nums">{value}</span>
+        <span className="mt-1 block text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">{label}</span>
+        <span className={`mt-0.5 block text-[11px] font-medium ${detailClass}`}>{detail}</span>
+      </span>
+      <Spark color={spark} />
+    </article>
+  );
+}
+
+function Metric({ icon, value, label }: { icon: ReactNode; value: string; label: string }) {
+  return (
+    <span className="inline-flex min-w-16 items-center gap-1.5">
+      <span className="text-violet-500">{icon}</span>
+      <span>
+        <span className="block font-semibold tabular-nums leading-none">{value}</span>
+        <span className="mt-0.5 block text-[11px] text-[#8e8e93]">{label}</span>
+      </span>
+    </span>
   );
 }
 
