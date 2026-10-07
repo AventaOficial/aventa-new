@@ -147,7 +147,7 @@ export default function MyRewardsHistory() {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    router.push('/me/programa');
+    router.push('/me/recompensas');
   };
 
   if (loading) {
