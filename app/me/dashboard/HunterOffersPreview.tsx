@@ -17,6 +17,7 @@ type PreviewOffer = {
   originalPrice?: number | null;
   image?: string | null;
   store?: string | null;
+  sourceCurrency?: string | null;
   createdAt?: string | null;
   upvotes?: number | null;
 };
@@ -42,7 +43,7 @@ function offerMeta(offer: PreviewOffer): { price: string | null; discount: numbe
   const price = offer.discountPrice;
   if (price == null || !Number.isFinite(price) || price <= 0) return { price: null, discount: null };
   return {
-    price: presentOfferPrice(price),
+    price: presentOfferPrice(price, offer.sourceCurrency),
     discount: offerDiscountPercent(price, offer.originalPrice ?? null),
   };
 }

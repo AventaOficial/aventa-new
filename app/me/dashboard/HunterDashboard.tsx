@@ -42,6 +42,7 @@ type HunterDashboardProps = {
     originalPrice?: number | null;
     image?: string | null;
     store?: string | null;
+    sourceCurrency?: string | null;
     createdAt?: string | null;
     upvotes?: number | null;
   }>;

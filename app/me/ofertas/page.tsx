@@ -8,6 +8,7 @@ import OfferDetailDrawer, { type OfferDrawerModel } from '@/app/me/ofertas/Offer
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
 import { presentOfferPrice } from '@/lib/formatPrice';
+import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
@@ -39,9 +40,9 @@ const STATUS_CLASS: Record<DealStatus, string> = {
   expired: 'bg-black/5 text-[#6e6e73] dark:bg-white/10 dark:text-[#a3a3a3]',
 };
 
-function money(value: number | null): string | null {
+function money(value: number | null, currency: string | null): string | null {
   if (value == null || !Number.isFinite(value)) return null;
-  return presentOfferPrice(value);
+  return presentOfferPrice(value, currency);
 }
 
 function when(iso: string | null): string | null {
@@ -73,7 +74,7 @@ function OfertasInner() {
       }
       const { data, error: loadError } = await supabase
         .from('offers')
-        .select('id, title, store, price, original_price, image_url, offer_url, category, hunter_comment, upvotes_count, created_at, status, rejection_reason, expires_at')
+        .select('id, title, store, price, original_price, source_currency, image_url, offer_url, category, hunter_comment, upvotes_count, created_at, status, rejection_reason, expires_at')
         .eq('created_by', auth.user.id)
         .order('created_at', { ascending: false });
       if (!active) return;
@@ -99,6 +100,7 @@ function OfertasInner() {
           original_price?: number | null;
           image_url?: string | null;
           offer_url?: string | null;
+          source_currency?: string | null;
           category?: string | null;
           hunter_comment?: string | null;
           upvotes_count?: number | null;
@@ -113,6 +115,7 @@ function OfertasInner() {
           originalPrice: typeof raw.original_price === 'number' ? raw.original_price : null,
           image: raw.image_url?.trim() || null,
           offerUrl: raw.offer_url?.trim() || null,
+          sourceCurrency: resolveOfferSourceCurrency(raw.source_currency, raw.offer_url),
           category: raw.category?.trim() || null,
           hunterComment: raw.hunter_comment?.trim() || null,
           upvotes: typeof raw.upvotes_count === 'number' ? raw.upvotes_count : null,
@@ -241,7 +244,7 @@ function OfertasInner() {
       ) : null}
       <ul className="space-y-3">
         {visible.map((row) => {
-          const price = money(row.price);
+          const price = money(row.price, row.sourceCurrency ?? null);
           const discount = offerDiscountPercent(row.price, row.originalPrice);
           const date = when(row.createdAt);
           return (
