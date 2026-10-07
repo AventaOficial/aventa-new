@@ -1,7 +1,9 @@
 'use client';
 
+import { Suspense, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Crown, Gift, Heart, Home, Settings, Tag, Trophy } from 'lucide-react';
 import ClientLayout from '@/app/ClientLayout';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
@@ -15,54 +17,126 @@ export const SPACE_LINKS = [
   { href: '/settings', label: 'Configuración' },
 ] as const;
 
+const NAV_ICONS = {
+  '/me': Home,
+  '/me/favorites': Heart,
+  '/me/ofertas': Tag,
+  '/me/nivel': Crown,
+  '/me?panel=logros': Trophy,
+  '/me/recompensas': Gift,
+  '/settings': Settings,
+} as const;
+
 export const meCardClass =
   'rounded-2xl border border-black/[0.04] bg-white shadow-sm dark:border-white/10 dark:bg-[#141414]';
 
-export default function MeSectionPage({
-  title,
-  lede,
-  children,
-}: {
-  title: string;
-  lede?: string;
-  children: React.ReactNode;
-}) {
+function isCurrentLink(href: string, pathname: string, panel: string | null): boolean {
+  if (href === '/me?panel=logros') return pathname === '/me' && panel === 'logros';
+  if (href === '/me') return pathname === '/me' && panel !== 'logros';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SpaceNav({ panel }: { panel: string | null }) {
   const pathname = usePathname();
 
   return (
-    <ClientLayout>
-      <div className="min-h-screen bg-[#F5F5F7] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]">
-        <section className={`mx-auto max-w-3xl px-4 pb-16 md:px-8 ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
+    <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Espacio personal">
+      {SPACE_LINKS.map((item) => {
+        const Icon = NAV_ICONS[item.href];
+        const current = isCurrentLink(item.href, pathname, panel);
+        return (
           <Link
-            href="/me"
-            className="inline-flex min-h-11 items-center rounded-md text-[13px] font-medium text-[#1d1d1f] hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:text-[#fafafa] dark:hover:text-violet-300 sm:min-h-0"
+            key={item.href}
+            href={item.href}
+            aria-current={current ? 'page' : undefined}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${
+              current ? 'bg-violet-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/15'
+            }`}
           >
-            Tu espacio
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+            {item.label}
           </Link>
-          <nav className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Espacio personal">
-            {SPACE_LINKS.map((item) => {
-              const current = item.href === '/me' ? pathname === '/me' : pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={current ? 'page' : undefined}
-                  className={`shrink-0 rounded-full px-3 py-2 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-                    current
-                      ? 'bg-[#1d1d1f] text-white dark:bg-[#fafafa] dark:text-[#1d1d1f]'
-                      : 'bg-white text-[#6e6e73] hover:text-[#1d1d1f] dark:bg-[#141414] dark:text-[#a3a3a3] dark:hover:text-[#fafafa]'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <h1 className="mt-6 text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">{title}</h1>
-          {lede ? <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">{lede}</p> : null}
-          <div className="mt-8">{children}</div>
+        );
+      })}
+    </nav>
+  );
+}
+
+function SpaceNavLive() {
+  const panel = useSearchParams().get('panel');
+  return <SpaceNav panel={panel} />;
+}
+
+export function MeSpaceShell({
+  title,
+  accent,
+  lede,
+  note,
+  aside,
+  children,
+}: {
+  title: string;
+  accent?: string;
+  lede?: ReactNode;
+  note?: ReactNode;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <ClientLayout>
+      <div className="min-h-screen bg-[#f4f2fb] text-[#1d1d1f] dark:bg-[#0a0a0a] dark:text-[#fafafa]">
+        <section className={`relative overflow-hidden bg-[#140826] text-white ${PUBLIC_NAVBAR_OFFSET_CLASS}`}>
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="absolute -right-16 top-8 h-56 w-56 rotate-12 rounded-4xl bg-violet-600/40" />
+            <div className="absolute right-24 top-24 h-40 w-72 -rotate-6 rounded-4xl bg-fuchsia-700/30" />
+            <div className="absolute -left-10 bottom-0 h-24 w-40 rotate-6 bg-violet-900/50" />
+          </div>
+          <div className="relative mx-auto max-w-6xl px-4 pb-28 md:px-8">
+            <p className="text-[13px] text-white/70">Tu espacio</p>
+            <Suspense fallback={<SpaceNav panel={null} />}>
+              <SpaceNavLive />
+            </Suspense>
+            <div className={`mt-8 grid items-end gap-6 ${aside ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : ''}`}>
+              <div>
+                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                  {title}
+                  {accent ? <span className="text-violet-400"> {accent}</span> : null}
+                </h1>
+                {lede ? <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/75">{lede}</p> : null}
+                {note ? <p className="mt-2 text-[13px] text-white/55">{note}</p> : null}
+              </div>
+              {aside ? (
+                <aside className="rounded-2xl border border-white/15 bg-[#24143f]/80 p-4 backdrop-blur-sm">{aside}</aside>
+              ) : null}
+            </div>
+          </div>
         </section>
+        <div className="relative z-10 mx-auto -mt-16 max-w-6xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-8">
+          {children}
+        </div>
       </div>
     </ClientLayout>
+  );
+}
+
+export default function MeSectionPage({
+  title,
+  accent,
+  lede,
+  note,
+  aside,
+  children,
+}: {
+  title: string;
+  accent?: string;
+  lede?: ReactNode;
+  note?: ReactNode;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <MeSpaceShell title={title} accent={accent} lede={lede} note={note} aside={aside}>
+      {children}
+    </MeSpaceShell>
   );
 }

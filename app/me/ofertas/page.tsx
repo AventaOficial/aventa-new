@@ -190,7 +190,11 @@ function OfertasInner() {
   );
 
   return (
-    <MeSectionPage title="Ofertas" lede="Tu centro de trabajo. El estado de cada hallazgo, sin datos de afiliación.">
+    <MeSectionPage
+      title="Mis"
+      accent="ofertas"
+      lede="Tu centro de trabajo. El estado de cada hallazgo, sin datos de afiliación."
+    >
       <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Filtrar ofertas por estado">
         {FILTERS.map((item) => (
           <button
