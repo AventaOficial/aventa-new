@@ -107,7 +107,7 @@ function Celebration({
         <button
           type="button"
           onClick={onView}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#1d1d1f] px-5 text-[13px] font-semibold text-[var(--me-ink)] transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 dark:bg-white dark:text-[#1d1d1f] dark:hover:bg-[#f5f5f7] sm:min-h-10"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#1d1d1f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 dark:bg-white dark:text-[#1d1d1f] dark:hover:bg-[#f5f5f7] sm:min-h-10"
         >
           Ver en mi colección
         </button>

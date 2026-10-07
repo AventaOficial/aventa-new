@@ -70,13 +70,13 @@ export default function FavoritesEmptyState() {
       <div className="relative grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)] lg:gap-6">
         <SavedCardsArt />
         <div className="max-w-md">
-          <p className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/25 bg-violet-100 dark:bg-violet-500/15 px-3 py-1 text-[13px] font-medium text-violet-100">
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-[13px] font-medium text-violet-800 dark:border-violet-300/25 dark:bg-violet-500/15 dark:text-violet-100">
             <Heart className="h-3.5 w-3.5" aria-hidden />
             Aún no tienes favoritos
           </p>
           <h2 className="mt-5 text-[32px] font-semibold leading-[1.15] tracking-tight text-[var(--me-ink)] sm:text-4xl">
             Guarda las mejores ofertas
-            <span className="mt-1 block bg-linear-to-r from-fuchsia-200 to-violet-300 bg-clip-text text-transparent">
+            <span className="mt-1 block bg-linear-to-r from-fuchsia-600 to-violet-700 bg-clip-text text-transparent dark:from-fuchsia-200 dark:to-violet-300">
               para verlas después
             </span>
           </h2>
