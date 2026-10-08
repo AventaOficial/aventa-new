@@ -7,6 +7,7 @@ import {
   setCachedHomeFeed,
   type HomeFeedCacheParams,
 } from '@/lib/server/feedCache';
+import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -44,6 +45,16 @@ export async function GET(request: NextRequest) {
     if (cacheableFirstPage) {
       const cached = await getCachedHomeFeed(cacheParams);
       if (cached) {
+        await observeFeedRequest(request, {
+          feedType: 'home',
+          cursor,
+          view,
+          period,
+          category,
+          store,
+          payload: cached,
+          source: 'api/feed/home',
+        });
         return NextResponse.json(cached, {
           headers: {
             'Cache-Control': 'private, no-store',
@@ -69,6 +80,19 @@ export async function GET(request: NextRequest) {
 
     if (cacheableFirstPage && result.success) {
       void setCachedHomeFeed(cacheParams, result);
+    }
+
+    if (result.success) {
+      await observeFeedRequest(request, {
+        feedType: 'home',
+        cursor,
+        view,
+        period,
+        category,
+        store,
+        payload: result,
+        source: 'api/feed/home',
+      });
     }
 
     return NextResponse.json(result, {

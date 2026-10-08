@@ -3,6 +3,7 @@ import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit';
 import { homeSearchCategoryInList } from '@/lib/offers/homeFeedFilters';
 import { searchPublicOffers } from '@/lib/offers/searchPublicOffers';
 import { sanitizeSearchQuery } from '@/lib/offers/searchQuery';
+import { observeSearchRequest } from '@/lib/analytics/observeProductBehavior';
 
 export async function GET(request: Request) {
   const ip = getClientIp(request);
@@ -26,6 +27,8 @@ export async function GET(request: Request) {
     categories,
     store,
   });
+
+  await observeSearchRequest(request, q, result.hits.length);
 
   return NextResponse.json({
     offers: result.hits,

@@ -10,6 +10,7 @@ import {
 } from '@/lib/preferences/affinity';
 import { feedForYouQuerySchema } from '@/lib/contracts/feed';
 import { computeOfferScore } from '@/lib/offers/scoring';
+import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = 60;
@@ -167,5 +168,15 @@ export async function GET(request: Request) {
     : list;
 
   const result = sorted.slice(0, limit);
+  await observeFeedRequest(request, {
+    feedType: 'for_you',
+    userId: user.id,
+    view: null,
+    period: null,
+    category: categoryFilter,
+    store: storeFilter,
+    resultCount: result.length,
+    source: 'api/feed/for-you',
+  });
   return NextResponse.json({ offers: result });
 }

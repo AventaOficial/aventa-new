@@ -37,6 +37,16 @@ async function countProductEvents(eventName: string, sinceIso: string): Promise<
   return count ?? 0;
 }
 
+async function countRows(table: string, column: string, sinceIso: string): Promise<number | null> {
+  const supabase = createServerClient();
+  const { count, error } = await supabase
+    .from(table)
+    .select(column, { count: 'exact', head: true })
+    .gte(column, sinceIso);
+  if (error) return null;
+  return count ?? 0;
+}
+
 /** Bounded window counts. Not a full-table scan of all history. */
 export async function getFunnelSnapshot(windowHours = 24): Promise<FunnelSnapshot> {
   const hours = Math.min(24 * 30, Math.max(1, Math.floor(windowHours)));
@@ -44,11 +54,11 @@ export async function getFunnelSnapshot(windowHours = 24): Promise<FunnelSnapsho
   const [offerViews, outboundClicks, signups, logins, votes, saves, comments, submissions] = await Promise.all([
     countOfferEvents('view', since),
     countOfferEvents('outbound', since),
-    countProductEvents('signup', since),
+    countRows('profiles', 'created_at', since),
     countProductEvents('login', since),
-    countProductEvents('vote', since),
-    countProductEvents('save', since),
-    countProductEvents('comment', since),
+    countRows('offer_votes', 'created_at', since),
+    countRows('offer_favorites', 'created_at', since),
+    countRows('comments', 'created_at', since),
     countProductEvents('submission', since),
   ]);
 
@@ -63,6 +73,6 @@ export async function getFunnelSnapshot(windowHours = 24): Promise<FunnelSnapsho
     saves,
     comments,
     submissions,
-    note: `offer_view maps from offer_events.view (${OFFER_EVENT_TO_CANONICAL.view}). Counts are exact head counts on the window, not estimated.`,
+    note: `offer_view maps from offer_events.view (${OFFER_EVENT_TO_CANONICAL.view}). outbound maps from offer_events.outbound. signup maps from profiles.created_at. votes, saves and comments map from offer_votes, offer_favorites and comments. This window is not D1/D7/D30 retention and last_seen_at is not a historical cohort.`,
   };
 }

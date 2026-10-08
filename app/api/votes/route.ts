@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit'
-import { recordProductEvent } from '@/lib/analytics/recordProductEvent'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { voteInputSchema } from '@/lib/contracts/votes'
@@ -247,7 +246,6 @@ export async function POST(request: Request) {
       )
     }
 
-    void recordProductEvent({ event: 'vote', userId, offerId, source: 'api/votes' })
     syncAchievementsLater(supabase, [userId, ownerId ?? offerOwnerId], {
       eventType: 'OFFER_RECEIVED_VOTE',
       eventId: `${offerId}:${userId}`,
