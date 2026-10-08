@@ -7,6 +7,7 @@ import { shouldSkipDuplicateOfferEvent } from '@/lib/server/offerEventDedupe';
 import { isOfferTrackable } from '@/lib/server/trackableOffer';
 import { recordAttributedClick } from '@/lib/attribution/recordAttributedClick';
 import { OUTBOUND_EVENT_TYPE } from '@/lib/analytics/outboundClickContract';
+import { readCampaignFromCookieHeader } from '@/lib/growth/campaignContext';
 
 /**
  * Outbound = clic real a tienda.
@@ -65,15 +66,19 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServerClient();
+    const cookieCampaign = readCampaignFromCookieHeader(request.headers.get('cookie'));
     const click = await recordAttributedClick(supabase, {
       offerId,
       clickerUserId: userId,
       ip,
       userAgent: request.headers.get('user-agent'),
       hints: {
-        utmSource: typeof body?.utmSource === 'string' ? body.utmSource : null,
-        campaign: typeof body?.campaign === 'string' ? body.campaign : null,
+        utmSource: typeof body?.utmSource === 'string' ? body.utmSource : cookieCampaign?.source ?? null,
+        campaign: typeof body?.campaign === 'string' ? body.campaign : cookieCampaign?.campaign ?? null,
         channel: typeof body?.channel === 'string' ? body.channel : null,
+        medium: typeof body?.medium === 'string' ? body.medium : cookieCampaign?.medium ?? null,
+        content: typeof body?.content === 'string' ? body.content : cookieCampaign?.content ?? null,
+        term: typeof body?.term === 'string' ? body.term : cookieCampaign?.term ?? null,
         referer: request.headers.get('referer'),
       },
     });

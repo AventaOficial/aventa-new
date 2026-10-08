@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { presentOfferPrice } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
+import { buildShareUrl, facebookShareHref, telegramShareHref, whatsAppShareHref } from '@/lib/growth/shareLink';
 import { buildOfferUrl } from '@/lib/offerUrl';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
@@ -594,11 +595,15 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 {showShareMenu ? (
                   <div className="absolute right-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] shadow-lg py-2">
                     {(() => {
-                      const dealUrl = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
-                      const shareText = generateDealShareText(
-                        { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice, sourceCurrency: offer.sourceCurrency },
-                        dealUrl
-                      );
+                      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                      const dealUrl = buildShareUrl(origin, publicPath, 'copy');
+                      const waUrl = buildShareUrl(origin, publicPath, 'whatsapp');
+                      const tgUrl = buildShareUrl(origin, publicPath, 'telegram');
+                      const fbUrl = buildShareUrl(origin, publicPath, 'facebook');
+                      const igUrl = buildShareUrl(origin, publicPath, 'instagram');
+                      const shareInput = { title: offer.title, discountPrice: offer.discountPrice, originalPrice: offer.originalPrice, sourceCurrency: offer.sourceCurrency };
+                      const shareText = generateDealShareText(shareInput, dealUrl);
+                      const waText = generateDealShareText(shareInput, waUrl);
                       const trackShare = () => {
                         fetch('/api/events', {
                           method: 'POST',
@@ -638,7 +643,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                             </button>
                           ) : null}
                           <a
-                            href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+                            href={whatsAppShareHref(waText)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -647,7 +652,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                             WhatsApp
                           </a>
                           <a
-                            href={`https://t.me/share/url?url=${encodeURIComponent(dealUrl)}&text=${encodeURIComponent(shareText)}`}
+                            href={`${telegramShareHref(tgUrl)}&text=${encodeURIComponent(shareText)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -655,20 +660,33 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                           >
                             Telegram
                           </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(igUrl).then(() => {
+                                setShareCopied(true);
+                                setTimeout(() => setShareCopied(false), 2000);
+                              }).catch(() => null);
+                              trackShare();
+                              setShowShareMenu(false);
+                            }}
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            Instagram
+                          </button>
                           <a
-                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
+                            href={facebookShareHref(fbUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                             onClick={() => { trackShare(); setShowShareMenu(false); }}
                           >
-                            X
+                            Facebook
                           </a>
                           <button
                             type="button"
                             onClick={() => {
-                              const url = typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : '';
-                              navigator.clipboard.writeText(url).then(() => {
+                              navigator.clipboard.writeText(dealUrl).then(() => {
                                 setShareCopied(true);
                                 setTimeout(() => setShareCopied(false), 2000);
                                 showToast?.('Enlace copiado.');

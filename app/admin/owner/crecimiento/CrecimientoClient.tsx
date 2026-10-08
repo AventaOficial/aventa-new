@@ -146,6 +146,9 @@ export default function CrecimientoClient() {
             Cuántos usuarios tienes, en qué etapa vas, cuándo pagar más en Supabase/Upstash/Vercel y qué toca
             evolucionar en código. Meta: {aspiration.targetLabel}.
           </p>
+          <Link href="/admin/owner/crecimiento/war-room" className="mt-3 inline-flex text-sm font-semibold text-violet-600 dark:text-violet-400">
+            Growth War Room
+          </Link>
         </div>
         <button
           type="button"

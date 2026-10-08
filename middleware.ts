@@ -8,6 +8,13 @@ import {
 } from '@/lib/server/protectedNavigation';
 import { applyPendingAuthCookies, type PendingAuthCookie } from '@/lib/server/sessionCookies';
 import { ensureAnonymousCookie, PRODUCT_PATH_HEADER } from '@/lib/analytics/anonymousIdentity';
+import {
+  CAMPAIGN_COOKIE,
+  CAMPAIGN_COOKIE_MAX_AGE_SECONDS,
+  CAMPAIGN_QUERY_HEADER,
+  resolveRequestCampaign,
+  serializeCampaignCookie,
+} from '@/lib/growth/campaignContext';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
@@ -48,12 +55,27 @@ function redirectWithSession(
 function forwardPathname(request: NextRequest): Headers {
   const headers = new Headers(request.headers);
   headers.set(PRODUCT_PATH_HEADER, request.nextUrl.pathname);
+  const campaign = resolveRequestCampaign(request.nextUrl.search, request.nextUrl.pathname);
+  if (campaign) headers.set(CAMPAIGN_QUERY_HEADER, serializeCampaignCookie(campaign));
   return headers;
+}
+
+function stampCampaignCookie(request: NextRequest, response: NextResponse) {
+  const campaign = resolveRequestCampaign(request.nextUrl.search, request.nextUrl.pathname);
+  if (!campaign) return;
+  response.cookies.set(CAMPAIGN_COOKIE, serializeCampaignCookie(campaign), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: CAMPAIGN_COOKIE_MAX_AGE_SECONDS,
+  });
 }
 
 function continueWithPath(request: NextRequest): NextResponse {
   const response = NextResponse.next({ request: { headers: forwardPathname(request) } });
   ensureAnonymousCookie(request, response);
+  stampCampaignCookie(request, response);
   return response;
 }
 
@@ -200,6 +222,7 @@ export const config = {
     '/cazadores/:path*',
     '/u/:path*',
     '/guias/:path*',
+    '/go/:path*',
     '/privacy',
     '/terms',
     '/subir/:path*',
