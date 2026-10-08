@@ -14,6 +14,7 @@ export const LAUNCH_METRIC_NAMES = [
   'rate_limit_memory_fallback',
   'rate_limit_backend_denied',
   'analytics_events',
+  'analytics_write_failed',
   'critical_errors',
 ] as const;
 

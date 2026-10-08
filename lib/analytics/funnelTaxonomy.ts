@@ -1,12 +1,17 @@
 /**
  * Canonical product-funnel names.
  * offer_events keeps historical values (view, outbound, share, cazar_cta).
- * product_events stores the canonical names for events that are not offer-scoped
- * and for explicit funnel mirrors.
+ * Names already written in production stay in the allowlist so a CHECK
+ * does not reject persisted rows. New behavior events are feed_view, search
+ * and load_more. vote, save, comment, signup, offer_view and outbound_click
+ * remain names, not write targets: those facts stay in their business tables.
  */
 
 export const CANONICAL_FUNNEL_EVENTS = [
   'page_view',
+  'feed_view',
+  'search',
+  'load_more',
   'offer_view',
   'offer_click',
   'outbound_click',
@@ -18,6 +23,24 @@ export const CANONICAL_FUNNEL_EVENTS = [
   'login',
 ] as const;
 
+/** Events this phase may insert. Mirrors of business tables are not writable. */
+export const WRITABLE_PRODUCT_EVENTS = [
+  'page_view',
+  'feed_view',
+  'search',
+  'load_more',
+  'submission',
+  'login',
+] as const;
+
+export type WritableProductEvent = (typeof WRITABLE_PRODUCT_EVENTS)[number];
+
+export const PRODUCT_EVENT_VERSION = 1 as const;
+
+export const PRODUCT_ACTOR_CLASSES = ['HUMAN', 'MACHINE_HUNTER', 'SYSTEM', 'ANONYMOUS'] as const;
+
+export type ProductActorClass = (typeof PRODUCT_ACTOR_CLASSES)[number];
+
 export type CanonicalFunnelEvent = (typeof CANONICAL_FUNNEL_EVENTS)[number];
 
 /** Historical offer_events.event_type → canonical funnel name. */
@@ -28,9 +51,19 @@ export const OFFER_EVENT_TO_CANONICAL: Record<string, CanonicalFunnelEvent | und
 };
 
 const CANONICAL_SET = new Set<string>(CANONICAL_FUNNEL_EVENTS);
+const WRITABLE_SET = new Set<string>(WRITABLE_PRODUCT_EVENTS);
+const ACTOR_SET = new Set<string>(PRODUCT_ACTOR_CLASSES);
 
 export function isCanonicalFunnelEvent(value: string): value is CanonicalFunnelEvent {
   return CANONICAL_SET.has(value);
+}
+
+export function isWritableProductEvent(value: string): value is WritableProductEvent {
+  return WRITABLE_SET.has(value);
+}
+
+export function isProductActorClass(value: string): value is ProductActorClass {
+  return ACTOR_SET.has(value);
 }
 
 /** Strip keys that must never land in analytics metadata. */
@@ -39,9 +72,15 @@ const BLOCKED_METADATA_KEYS = new Set([
   'phone',
   'password',
   'token',
+  'access_token',
+  'refresh_token',
   'authorization',
+  'bearer',
   'cookie',
+  'cookies',
   'ip',
+  'ip_hash',
+  'secret',
   'clabe',
   'rfc',
 ]);

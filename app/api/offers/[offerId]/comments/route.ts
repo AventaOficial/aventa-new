@@ -11,7 +11,6 @@ import {
 } from '@/lib/server/requireCommunityUser';
 import { getCommentableOffer, validateCommentParent } from '@/lib/server/commentOfferGuard';
 import { evaluateAbusePolicy } from '@/lib/abuse/risk';
-import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 import { syncAchievementsLater } from '@/lib/achievements/sync';
 
 type CommentRow = {
@@ -263,7 +262,6 @@ export async function POST(
         console.error('[comments] POST insert:', retry.error.message);
         return NextResponse.json({ error: 'Error al publicar comentario' }, { status: 500 });
       }
-      void recordProductEvent({ event: 'comment', userId, offerId, source: 'api/comments' });
       const retryStatus = (retry.data as { status?: string })?.status ?? commentStatus;
       if (retryStatus === 'approved') {
         syncAchievementsLater(supabase, [userId], {
@@ -306,7 +304,6 @@ export async function POST(
     like_count: 0,
     liked_by_me: false,
   };
-  void recordProductEvent({ event: 'comment', userId, offerId, source: 'api/comments' });
   if (commentStatus === 'approved') {
     syncAchievementsLater(supabase, [userId], {
       eventType: 'USER_COMMENTED',

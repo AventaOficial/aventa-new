@@ -7,6 +7,7 @@ import {
   sessionObservationFromAuthResult,
 } from '@/lib/server/protectedNavigation';
 import { applyPendingAuthCookies, type PendingAuthCookie } from '@/lib/server/sessionCookies';
+import { ensureAnonymousCookie, PRODUCT_PATH_HEADER } from '@/lib/analytics/anonymousIdentity';
 
 const PROTECTED_PATHS = ['/me', '/settings', '/mi-panel', '/contexto', '/operaciones'];
 const ADMIN_PREFIX = '/admin';
@@ -42,6 +43,18 @@ function redirectWithSession(
   const redirect = NextResponse.redirect(url);
   applyPendingAuthCookies(redirect, pending);
   return redirect;
+}
+
+function forwardPathname(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  headers.set(PRODUCT_PATH_HEADER, request.nextUrl.pathname);
+  return headers;
+}
+
+function continueWithPath(request: NextRequest): NextResponse {
+  const response = NextResponse.next({ request: { headers: forwardPathname(request) } });
+  ensureAnonymousCookie(request, response);
+  return response;
 }
 
 function sessionUnavailable(pending: readonly PendingAuthCookie[]) {
@@ -86,7 +99,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!isProtectedPath(pathname)) return NextResponse.next();
+  if (!isProtectedPath(pathname)) return continueWithPath(request);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -97,7 +110,7 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  const response = NextResponse.next();
+  const response = continueWithPath(request);
   const pendingCookies: PendingAuthCookie[] = [];
 
   const supabase = createServerClient(url, anonKey, {
@@ -178,5 +191,20 @@ export const config = {
     '/equipo/:path*',
     '/team',
     '/team/:path*',
+    '/oferta/:path*',
+    '/categoria/:path*',
+    '/tienda/:path*',
+    '/tag/:path*',
+    '/descubre/:path*',
+    '/plaza/:path*',
+    '/cazadores/:path*',
+    '/u/:path*',
+    '/guias/:path*',
+    '/privacy',
+    '/terms',
+    '/subir/:path*',
+    '/comisiones',
+    '/extension/:path*',
+    '/configuracion/:path*',
   ],
 };

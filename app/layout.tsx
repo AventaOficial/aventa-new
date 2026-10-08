@@ -10,6 +10,7 @@ import {
   AFFILIATE_DISCLOSURE_ES,
   AMAZON_ASSOCIATES_DISCLOSURE,
 } from "@/lib/commissions/programStatus";
+import { ProductPageView } from "@/app/components/analytics/ProductPageView";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -108,6 +109,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-clip pb-[calc(5.5rem+0.65rem+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >
+        <ProductPageView />
         <Providers>
           {children}
           <CookieNotice />
