@@ -10,6 +10,7 @@
  */
 import type { ActorType } from '@/lib/actors/actorType';
 import { supplyWindows, type SupplyWindowId } from '@/lib/owner/supplyDomain';
+import type { HumanSupplyReport } from '@/lib/owner/humanSupply';
 import {
   DEFAULT_SUPPLY_THRESHOLDS,
   type SupplyThresholds,
@@ -121,6 +122,8 @@ export type SupplyIntelligence = {
   retailers: SupplyMixRow[] | null;
   categories: SupplyMixRow[] | null;
   source: SourceQuality | null;
+  /** Cazadores humanos. null si no hay directorio o la lectura se truncó. */
+  humanSupply: HumanSupplyReport | null;
   health: { level: SupplyHealthLevel; conditions: SupplyHealthCondition[] };
   truncated: boolean;
 };
@@ -477,6 +480,7 @@ export function buildSupplyIntelligence(input: {
   thresholds?: SupplyThresholds;
   /** Conteos SQL. Si vienen, no se recalculan desde las filas. */
   volume?: Record<SupplyWindowId, SupplyVolume>;
+  humanSupply?: HumanSupplyReport | null;
 }): SupplyIntelligence {
   const windows = supplyWindows(input.now);
   const truncated = input.truncated === true;
@@ -514,6 +518,7 @@ export function buildSupplyIntelligence(input: {
     retailers,
     categories,
     source,
+    humanSupply: input.humanSupply ?? null,
     truncated,
     health: evaluateSupplyHealth({
       volume: volume.d30,

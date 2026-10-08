@@ -41,10 +41,11 @@ export function deriveHunterNextAction(input: {
   if (input.published <= 0) {
     return {
       id: 'publish',
-      title: 'Publica tu primera oferta',
-      detail: 'Todavía no hay hallazgos tuyos. Cuando veas un precio que valga la pena, súbelo.',
+      title: 'Conviértete en cazador',
+      detail:
+        'Un cazador publica un precio que vale la pena: enlace, precio real y datos claros. Después hay moderación. Si se rechaza, el motivo dice qué corregir. La calidad importa más que la cantidad.',
       href: null,
-      cta: 'Subir oferta',
+      cta: 'Subir mi primera oferta',
     };
   }
   if (input.rejected > 0) {

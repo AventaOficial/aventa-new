@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Eye, Heart, MessageCircle, ThumbsUp, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
+import { explainRejection } from '@/lib/me/rejectionFeedback';
 import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { presentOfferPrice } from '@/lib/formatPrice';
@@ -193,7 +194,7 @@ export default function OfferDetailDrawer({
   offer: OfferDrawerModel;
   onClose: () => void;
 }) {
-  const { setOfferOpen } = useUI();
+  const { setOfferOpen, openUploadModal } = useUI();
   useBodyScrollLock(true);
 
   useEffect(() => {
@@ -214,7 +215,7 @@ export default function OfferDetailDrawer({
   const category = categoryLabel(offer.category);
   const date = when(offer.createdAt);
   const publicPage = offer.dealStatus === 'approved' || offer.dealStatus === 'expired';
-  const reason = offer.rejectionReason?.trim() || null;
+  const reason = offer.dealStatus === 'rejected' ? explainRejection(offer.rejectionReason) : null;
   const statusNote =
     offer.dealStatus === 'approved'
       ? 'Ya está publicada. Esto es lo que ha generado.'
@@ -222,7 +223,9 @@ export default function OfferDetailDrawer({
         ? 'Tu oferta está en proceso de revisión.'
         : offer.dealStatus === 'expired'
           ? 'Esta oferta ya no está vigente.'
-          : reason;
+          : reason
+            ? `${reason.detail} ${reason.retry}`
+            : null;
   const metrics = [
     ...(typeof offer.views === 'number' ? [{ icon: Eye, label: 'Vistas', value: offer.views as number | null }] : []),
     { icon: ThumbsUp, label: 'Votos', value: offer.upvotes },
@@ -312,6 +315,18 @@ export default function OfferDetailDrawer({
               >
                 Ver oferta
               </Link>
+            ) : null}
+            {offer.dealStatus === 'rejected' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openUploadModal({ kind: 'offer' });
+                }}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-4 text-[14px] font-semibold text-white hover:bg-violet-500"
+              >
+                Corregir y enviar otra
+              </button>
             ) : null}
             {offer.offerUrl ? (
               <a

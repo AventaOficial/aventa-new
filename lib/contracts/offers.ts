@@ -233,3 +233,21 @@ export function describeOfferIssue(issue: {
       : raw;
   return label ? `${label}: ${message}` : message;
 }
+
+/** Misma validación que el POST. No envía la oferta ni sustituye a la moderación. */
+export function previewOfferDraft(input: unknown): { ready: true } | { ready: false; messages: string[] } {
+  const parsed = createOfferInputSchema.safeParse(input);
+  if (parsed.success) return { ready: true };
+  const messages: string[] = [];
+  for (const issue of parsed.error.issues) {
+    const text = describeOfferIssue({
+      path: issue.path.map((part) => String(part)).join('.'),
+      message: issue.message,
+    });
+    if (text && !messages.includes(text)) messages.push(text);
+  }
+  return {
+    ready: false,
+    messages: messages.length > 0 ? messages : ['Hay algo que corregir antes de enviarla'],
+  };
+}

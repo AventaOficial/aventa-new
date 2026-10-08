@@ -7,9 +7,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ActorDirectory } from '@/lib/actors/actorType';
 import { supplyDecisionCount, supplyWindows, SUPPLY_APPROVED_ACTION, SUPPLY_REJECTED_ACTION } from '@/lib/owner/supplyDomain';
+import { buildHumanSupply, type HumanSupplyOffer } from '@/lib/owner/humanSupply';
 import { supplyThresholdsFromEnv } from '@/lib/owner/supplyThresholds';
 import {
   buildSupplyIntelligence,
+  classifySupplyAuthor,
   type SupplyIntelligence,
   type SupplyVolume,
   type SupplyWindowId,
@@ -92,7 +94,7 @@ export async function loadSupplyIntelligence(
     readPages(async (from, to) => {
       const result = await supabase
         .from('offers')
-        .select('id, created_at, created_by, status, store, category')
+        .select('id, created_at, created_by, status, store, category, product_fingerprint, offer_url, rejection_reason, deleted_at')
         .gte('created_at', since)
         .lt('created_at', end)
         .order('created_at', { ascending: true })
@@ -105,6 +107,10 @@ export async function loadSupplyIntelligence(
           status: row.status ?? null,
           store: row.store ?? null,
           category: row.category ?? null,
+          productFingerprint: row.product_fingerprint ?? null,
+          offerUrl: row.offer_url ?? null,
+          rejectionReason: row.rejection_reason ?? null,
+          deletedAt: row.deleted_at ?? null,
         })),
         error: result.error,
       };
@@ -130,9 +136,11 @@ export async function loadSupplyIntelligence(
 
   if (!today || !d7 || !d30 || !offerPage || !decisionPage) return null;
   const truncated = offerPage.truncated || decisionPage.truncated;
+  const rows = truncated ? [] : offerPage.rows;
+  const humanSupply = truncated ? null : await loadHumanSupply(supabase, now, directory, rows);
   return buildSupplyIntelligence({
     now,
-    offers: truncated ? [] : offerPage.rows,
+    offers: rows,
     decisions: [],
     lanes: truncated ? [] : decisionPage.rows,
     pendingNow,
@@ -140,5 +148,110 @@ export async function loadSupplyIntelligence(
     truncated,
     thresholds: supplyThresholdsFromEnv(),
     volume: { today, d7, d30 },
+    humanSupply,
   });
+}
+
+async function loadHumanSupply(
+  supabase: SupabaseClient,
+  now: Date,
+  directory: ActorDirectory | null,
+  rows: HumanSupplyOffer[],
+) {
+  if (!directory) return null;
+  const ids = [...new Set(
+    rows.flatMap((row) => {
+      const id = row.createdBy?.trim() ?? '';
+      if (!id || row.deletedAt) return [];
+      return classifySupplyAuthor(id, directory) === 'HUMAN' ? [id] : [];
+    }),
+  )];
+  const history = await readAuthorHistory(supabase, ids);
+  if (!history) return buildHumanSupply({ now, windowOffers: rows, history: [], directory, historyTruncated: true });
+  const firstIds = firstOfferIds(history.rows);
+  const approveAtByOfferId = await readApproveTimes(supabase, firstIds);
+  return buildHumanSupply({
+    now,
+    windowOffers: rows,
+    history: history.rows,
+    directory,
+    historyTruncated: history.truncated,
+    approveAtByOfferId: approveAtByOfferId ?? undefined,
+  });
+}
+
+function firstOfferIds(rows: HumanSupplyOffer[]): string[] {
+  const first = new Map<string, HumanSupplyOffer>();
+  for (const row of rows) {
+    if (row.deletedAt) continue;
+    const id = row.createdBy?.trim() ?? '';
+    if (!id) continue;
+    const current = first.get(id);
+    if (!current || Date.parse(row.createdAt) < Date.parse(current.createdAt)) first.set(id, row);
+  }
+  return [...first.values()].filter((row) => row.status === 'approved').map((row) => row.id);
+}
+
+async function readAuthorHistory(
+  supabase: SupabaseClient,
+  ids: string[],
+): Promise<{ rows: HumanSupplyOffer[]; truncated: boolean } | null> {
+  if (ids.length === 0) return { rows: [], truncated: false };
+  const rows: HumanSupplyOffer[] = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    const chunk = ids.slice(index, index + 100);
+    const page = await readPages(async (from, to) => {
+      const result = await supabase
+        .from('offers')
+        .select('id, created_at, created_by, status, product_fingerprint, offer_url, rejection_reason, deleted_at')
+        .in('created_by', chunk)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+        .range(from, to);
+      return {
+        data: (result.data ?? []).map((row) => ({
+          id: String(row.id),
+          createdAt: String(row.created_at),
+          createdBy: row.created_by ?? null,
+          status: row.status ?? null,
+          productFingerprint: row.product_fingerprint ?? null,
+          offerUrl: row.offer_url ?? null,
+          rejectionReason: row.rejection_reason ?? null,
+          deletedAt: row.deleted_at ?? null,
+        })),
+        error: result.error,
+      };
+    });
+    if (!page) return null;
+    rows.push(...page.rows);
+    if (page.truncated) return { rows, truncated: true };
+  }
+  return { rows, truncated: false };
+}
+
+async function readApproveTimes(
+  supabase: SupabaseClient,
+  offerIds: string[],
+): Promise<Record<string, string> | null> {
+  const times: Record<string, string> = {};
+  for (let index = 0; index < offerIds.length; index += 100) {
+    const chunk = offerIds.slice(index, index + 100);
+    if (chunk.length === 0) continue;
+    try {
+      const result = await supabase
+        .from('moderation_logs')
+        .select('offer_id, created_at')
+        .eq('action', 'approved')
+        .in('offer_id', chunk);
+      if (result.error) return null;
+      for (const row of result.data ?? []) {
+        const id = String(row.offer_id);
+        const at = String(row.created_at);
+        if (!times[id] || Date.parse(at) < Date.parse(times[id])) times[id] = at;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return times;
 }
