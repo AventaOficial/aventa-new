@@ -101,7 +101,17 @@ describe('product event allowlist', () => {
     for (const name of ['page_view', 'feed_view', 'search', 'load_more', 'offer_view', 'offer_click', 'outbound_click', 'vote', 'save', 'comment', 'submission', 'signup', 'login']) {
       expect(CANONICAL_FUNNEL_EVENTS).toContain(name);
     }
-    expect(WRITABLE_PRODUCT_EVENTS).toEqual(['page_view', 'feed_view', 'search', 'load_more', 'submission', 'login']);
+    expect(WRITABLE_PRODUCT_EVENTS).toEqual([
+      'page_view',
+      'feed_view',
+      'search',
+      'load_more',
+      'submission',
+      'login',
+      'hunter_intent',
+    ]);
+    expect(src('docs/supabase-migrations/20261008_hunter_intent_event.sql')).toMatch(/'hunter_intent'/);
+    expect(src('docs/supabase-migrations/20261008_hunter_intent_event.sql')).not.toMatch(/creator_rewards|payout_intents|affiliate_ledger/i);
     expect(PRODUCT_EVENT_VERSION).toBe(1);
     expect(PRODUCT_ACTOR_CLASSES).toEqual(['HUMAN', 'MACHINE_HUNTER', 'SYSTEM', 'ANONYMOUS']);
   });

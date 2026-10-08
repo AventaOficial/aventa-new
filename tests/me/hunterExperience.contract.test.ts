@@ -134,6 +134,23 @@ describe('experiencia del cazador', () => {
     expect(deriveHunterNextAction({ ...base, rewards: { validating: 0, ready: 1, any: 1 } }).cta).toBe('Ver recompensas');
     expect(deriveHunterNextAction({ ...base, published: 0, rewards: { validating: 1, ready: 0, any: 1 } }).id).toBe('publish');
     expect(deriveHunterNextAction(base).id).toBe('review-pending');
+    expect(deriveHunterNextAction({
+      published: 1,
+      approved: 1,
+      pending: 0,
+      rejected: 0,
+      expired: 0,
+      publicHref: '/u/ana',
+      rewards: { validating: 1, ready: 0, any: 1 },
+    }).id).toBe('hunt-again');
+    expect(deriveHunterNextAction({
+      published: 2,
+      approved: 2,
+      pending: 0,
+      rejected: 0,
+      expired: 0,
+      publicHref: '/u/ana',
+    }).id).toBe('see-public-profile');
   });
 
   it('explica el estado humano y no inventa monto ni descuento', () => {

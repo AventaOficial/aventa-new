@@ -187,6 +187,14 @@ export default function ActionBar() {
     setShowSubmitThanksModal(false);
     resetUploadModalState();
     setShowUploadModal(true);
+    void (async () => {
+      const token = session?.access_token ?? (await createClient().auth.getSession()).data.session?.access_token;
+      if (!token) return;
+      await fetch('/api/me/hunter-intent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => undefined);
+    })();
   };
 
   const openUploadChooser = () => {

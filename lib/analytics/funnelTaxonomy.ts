@@ -2,8 +2,9 @@
  * Canonical product-funnel names.
  * offer_events keeps historical values (view, outbound, share, cazar_cta).
  * Names already written in production stay in the allowlist so a CHECK
- * does not reject persisted rows. New behavior events are feed_view, search
- * and load_more. vote, save, comment, signup, offer_view and outbound_click
+ * does not reject persisted rows. hunter_intent records opening the
+ * canonical composer before any offer exists. It is not a submission.
+ * vote, save, comment, signup, offer_view and outbound_click
  * remain names, not write targets: those facts stay in their business tables.
  */
 
@@ -31,6 +32,7 @@ export const WRITABLE_PRODUCT_EVENTS = [
   'load_more',
   'submission',
   'login',
+  'hunter_intent',
 ] as const;
 
 export type WritableProductEvent = (typeof WRITABLE_PRODUCT_EVENTS)[number];

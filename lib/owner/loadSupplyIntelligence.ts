@@ -9,6 +9,8 @@ import { declaredMachineHunterIds, ingestSystemUserIds, type ActorDirectory } fr
 import { auditActors } from '@/lib/owner/actorAudit';
 import { supplyDecisionCount, supplyWindows, SUPPLY_APPROVED_ACTION, SUPPLY_REJECTED_ACTION } from '@/lib/owner/supplyDomain';
 import { buildHumanSupply, type HumanSupplyOffer } from '@/lib/owner/humanSupply';
+import { buildHunterGrowth } from '@/lib/owner/hunterGrowth';
+import { loadHunterAudience } from '@/lib/owner/loadHunterGrowth';
 import { supplyThresholdsFromEnv } from '@/lib/owner/supplyThresholds';
 import {
   buildSupplyIntelligence,
@@ -139,7 +141,17 @@ export async function loadSupplyIntelligence(
   if (!today || !d7 || !d30 || !offerPage || !decisionPage) return null;
   const truncated = offerPage.truncated || decisionPage.truncated;
   const rows = truncated ? [] : offerPage.rows;
-  const humanSupply = truncated ? null : await loadHumanSupply(supabase, now, directory, rows);
+  const [humanSupply, audience] = await Promise.all([
+    truncated ? Promise.resolve(null) : loadHumanSupply(supabase, now, directory, rows),
+    loadHunterAudience(supabase, windows),
+  ]);
+  const hunterGrowth = buildHunterGrowth({
+    human: humanSupply,
+    d7: audience.d7,
+    d30: audience.d30,
+    d7StartMs: windows.d7.startMs,
+    d30StartMs: windows.d30.startMs,
+  });
   return buildSupplyIntelligence({
     now,
     offers: rows,
@@ -151,6 +163,7 @@ export async function loadSupplyIntelligence(
     thresholds: supplyThresholdsFromEnv(),
     volume: { today, d7, d30 },
     humanSupply,
+    hunterGrowth,
   });
 }
 

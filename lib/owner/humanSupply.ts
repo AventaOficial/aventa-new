@@ -52,6 +52,10 @@ export type HumanFunnelWindow = {
   firstHuntSuccessRate: number | null;
   firstHuntRejectionRate: number | null;
   secondAttemptRate: number | null;
+  /** Primeras ofertas de la ventana que ya están aprobadas. */
+  firstApprovals: number | null;
+  /** De esas primeras aprobadas, cuántas tienen otra contribución distinta. */
+  secondContributions: number | null;
   medianContributionDays: number | null;
   firstAcceptLatencyHours: number | null;
 };
@@ -162,6 +166,8 @@ function funnelFor(
     firstHuntSuccessRate: null,
     firstHuntRejectionRate: null,
     secondAttemptRate: null,
+    firstApprovals: null,
+    secondContributions: null,
     medianContributionDays: median(contributionDays),
     firstAcceptLatencyHours: null,
   };
@@ -174,6 +180,8 @@ function funnelFor(
   let firstAccepted = 0;
   let firstRejected = 0;
   let secondAttempts = 0;
+  let firstApprovals = 0;
+  let secondContributions = 0;
   let firstRejectedAuthors = 0;
   const latencies: number[] = [];
   let latencyMissing = false;
@@ -190,6 +198,8 @@ function funnelFor(
     if (first.status === 'pending') continue;
     if (first.status === 'approved') {
       firstAccepted += 1;
+      firstApprovals += 1;
+      if (identities.size >= 2) secondContributions += 1;
       const approvedAt = approveAtByOfferId.get(first.id);
       const createdMs = Date.parse(first.createdAt);
       const approvedMs = approvedAt ? Date.parse(approvedAt) : NaN;
@@ -214,6 +224,8 @@ function funnelFor(
     firstHuntSuccessRate: rate(firstAccepted, firstDecided),
     firstHuntRejectionRate: rate(firstRejected, firstDecided),
     secondAttemptRate: rate(secondAttempts, firstRejectedAuthors),
+    firstApprovals,
+    secondContributions,
     firstAcceptLatencyHours: latencyMissing ? null : median(latencies),
   };
 }

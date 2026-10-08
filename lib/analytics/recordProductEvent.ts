@@ -59,7 +59,9 @@ export async function recordProductEvent(input: {
 
     let dedupeKey: string | null = null;
     if (input.dedupe !== false) {
-      if (isPhase1BehaviorEvent(input.event)) {
+      if (input.event === 'hunter_intent') {
+        dedupeKey = `hunter_intent:${actor}:${new Date(nowMs).toISOString().slice(0, 10)}`.slice(0, 200);
+      } else if (isPhase1BehaviorEvent(input.event)) {
         dedupeKey = phase1DedupeKey({ event: input.event, actor, metadata, nowMs });
         if (!dedupeKey) {
           observeFailure('missing_dedupe');

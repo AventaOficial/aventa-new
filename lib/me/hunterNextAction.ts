@@ -5,6 +5,7 @@
 
 export type HunterNextActionId =
   | 'publish'
+  | 'hunt-again'
   | 'review-rejected'
   | 'reward-validating'
   | 'reward-ready'
@@ -52,9 +53,19 @@ export function deriveHunterNextAction(input: {
     return {
       id: 'review-rejected',
       title: 'Revisa tus ofertas',
-      detail: `${input.rejected} ${input.rejected === 1 ? 'publicación fue rechazada' : 'publicaciones fueron rechazadas'}.`,
+      detail: `${input.rejected} ${input.rejected === 1 ? 'publicación fue rechazada' : 'publicaciones fueron rechazadas'}. El motivo de cada una explica qué corregir. Corregir y enviar otra usa el mismo envío.`,
       href: '/me/ofertas?estado=rejected',
       cta: 'Ver ofertas rechazadas',
+    };
+  }
+  if (input.approved === 1 && input.pending === 0) {
+    return {
+      id: 'hunt-again',
+      title: 'Caza otra',
+      detail:
+        'Tu primera oferta aprobada ya cuenta. Una segunda oferta distinta, con el mismo cuidado, construye tu perfil. Publicar varias veces el mismo producto no suma.',
+      href: null,
+      cta: 'Cazar otra oferta',
     };
   }
   if (rewards && rewards.validating > 0) {
