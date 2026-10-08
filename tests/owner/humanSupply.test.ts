@@ -4,7 +4,8 @@ import type { ActorType } from '@/lib/actors/actorType';
 import { previewOfferDraft } from '@/lib/contracts/offers';
 import { explainRejection } from '@/lib/me/rejectionFeedback';
 import { FOCUS_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
-import { buildHumanSupply, supplyIdentity, type HumanSupplyOffer } from '@/lib/owner/humanSupply';
+import { sameContribution } from '@/lib/owner/contributionIdentity';
+import { buildHumanSupply, type HumanSupplyOffer } from '@/lib/owner/humanSupply';
 
 const NOW = new Date('2026-10-08T18:00:00.000Z');
 
@@ -63,7 +64,7 @@ describe('human supply', () => {
       offer({ id: 'a', createdAt: '2026-10-01T16:00:00.000Z', productFingerprint: 'same', status: 'rejected' }),
       offer({ id: 'b', createdAt: '2026-10-08T16:00:00.000Z', productFingerprint: 'same', status: 'pending' }),
     ];
-    expect(supplyIdentity(rows[0]!)).toBe(supplyIdentity(rows[1]!));
+    expect(sameContribution(rows[0]!, rows[1]!)).toBe(true);
     const report = buildHumanSupply({ now: NOW, windowOffers: rows, history: rows, directory });
     expect(report?.d30.repeatContributors).toBe(0);
     expect(report?.d30.offers).toBe(2);
@@ -155,6 +156,41 @@ describe('human supply', () => {
     expect(report?.d30.contributors).toBe(2);
   });
 
+  it('no publica nuevos ni recurrentes si el historial se cortó', () => {
+    const rows = [
+      offer({ id: 'a', createdAt: '2026-10-01T16:00:00.000Z', offerUrl: 'https://tienda.example/p/uno' }),
+      offer({ id: 'b', createdAt: '2026-10-08T16:00:00.000Z', offerUrl: 'https://tienda.example/p/dos' }),
+    ];
+    const report = buildHumanSupply({ now: NOW, windowOffers: rows, history: rows, directory, historyTruncated: true });
+    expect(report?.historyStatus).toBe('unavailable');
+    expect(report?.d30.repeatContributors).toBeNull();
+    expect(report?.d30.newContributors).toBeNull();
+    expect(report?.d30.firstHuntSuccessRate).toBeNull();
+    expect(report?.d30.contributors).toBe(1);
+  });
+
+  it('fingerprint y URL del mismo producto no cuentan como dos contribuciones', () => {
+    const rows = [
+      offer({
+        id: 'a',
+        createdAt: '2026-10-01T16:00:00.000Z',
+        productFingerprint: 'amz:B00TEST123',
+        offerUrl: 'https://www.amazon.com.mx/dp/B00TEST123',
+        status: 'rejected',
+      }),
+      offer({
+        id: 'b',
+        createdAt: '2026-10-08T16:00:00.000Z',
+        productFingerprint: null,
+        offerUrl: 'https://www.amazon.com.mx/dp/B00TEST123?tag=aventa-20',
+        status: 'approved',
+      }),
+    ];
+    const report = buildHumanSupply({ now: NOW, windowOffers: rows, history: rows, directory });
+    expect(report?.d30.repeatContributors).toBe(0);
+    expect(report?.d30.offers).toBe(2);
+  });
+
   it('el preflight usa el schema canónico y el rechazo no inventa un motivo', () => {
     expect(previewOfferDraft({ title: '', store: 'Amazon', description: 'Una oferta clara', price: 10 }).ready).toBe(false);
     const ready = previewOfferDraft({
@@ -182,6 +218,8 @@ describe('human supply', () => {
       expect(source).not.toMatch(/\.(insert|update|upsert|delete)\(/);
     }
     expect(read('lib/owner/humanSupply.ts')).not.toMatch(/source_lane|sourceLane/);
+    expect(read('lib/owner/contributionIdentity.ts')).not.toMatch(/source_lane|sourceLane/);
+    expect(read('lib/owner/actorAudit.ts')).not.toMatch(/source_lane|sourceLane/);
     expect(read('lib/me/rejectionFeedback.ts')).not.toMatch(/source_lane|sourceLane/);
   });
 });

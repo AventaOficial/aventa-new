@@ -5,7 +5,8 @@
  * Si la lectura se trunca, la mezcla queda vacía en lugar de inventar proporciones.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ActorDirectory } from '@/lib/actors/actorType';
+import { declaredMachineHunterIds, ingestSystemUserIds, type ActorDirectory } from '@/lib/actors/actorType';
+import { auditActors } from '@/lib/owner/actorAudit';
 import { supplyDecisionCount, supplyWindows, SUPPLY_APPROVED_ACTION, SUPPLY_REJECTED_ACTION } from '@/lib/owner/supplyDomain';
 import { buildHumanSupply, type HumanSupplyOffer } from '@/lib/owner/humanSupply';
 import { supplyThresholdsFromEnv } from '@/lib/owner/supplyThresholds';
@@ -94,7 +95,7 @@ export async function loadSupplyIntelligence(
     readPages(async (from, to) => {
       const result = await supabase
         .from('offers')
-        .select('id, created_at, created_by, status, store, category, product_fingerprint, offer_url, rejection_reason, deleted_at')
+        .select('id, created_at, created_by, status, store, category, product_fingerprint, offer_url, ingestion_identity_key, rejection_reason, deleted_at')
         .gte('created_at', since)
         .lt('created_at', end)
         .order('created_at', { ascending: true })
@@ -109,6 +110,7 @@ export async function loadSupplyIntelligence(
           category: row.category ?? null,
           productFingerprint: row.product_fingerprint ?? null,
           offerUrl: row.offer_url ?? null,
+          ingestionIdentityKey: row.ingestion_identity_key ?? null,
           rejectionReason: row.rejection_reason ?? null,
           deletedAt: row.deleted_at ?? null,
         })),
@@ -159,6 +161,23 @@ async function loadHumanSupply(
   rows: HumanSupplyOffer[],
 ) {
   if (!directory) return null;
+  const authorIds = [...new Set(
+    rows.flatMap((row) => {
+      const id = row.createdBy?.trim() ?? '';
+      if (!id || row.deletedAt) return [];
+      return [id];
+    }),
+  )];
+  const machineClientIds = await readMachineClientIds(supabase, authorIds);
+  if (!machineClientIds) return null;
+  const actorAudit = auditActors({
+    authorIds,
+    directory,
+    machineClientIds,
+    declaredMachineHunterIds: declaredMachineHunterIds(),
+    configuredSystemIds: ingestSystemUserIds(),
+  });
+  if (!actorAudit) return null;
   const ids = [...new Set(
     rows.flatMap((row) => {
       const id = row.createdBy?.trim() ?? '';
@@ -167,7 +186,16 @@ async function loadHumanSupply(
     }),
   )];
   const history = await readAuthorHistory(supabase, ids);
-  if (!history) return buildHumanSupply({ now, windowOffers: rows, history: [], directory, historyTruncated: true });
+  if (!history) {
+    return buildHumanSupply({
+      now,
+      windowOffers: rows,
+      history: [],
+      directory,
+      historyTruncated: true,
+      actorAudit,
+    });
+  }
   const firstIds = firstOfferIds(history.rows);
   const approveAtByOfferId = await readApproveTimes(supabase, firstIds);
   return buildHumanSupply({
@@ -177,7 +205,27 @@ async function loadHumanSupply(
     directory,
     historyTruncated: history.truncated,
     approveAtByOfferId: approveAtByOfferId ?? undefined,
+    actorAudit,
   });
+}
+
+async function readMachineClientIds(supabase: SupabaseClient, ids: string[]): Promise<Set<string> | null> {
+  const found = new Set<string>();
+  if (ids.length === 0) return found;
+  for (let index = 0; index < ids.length; index += 100) {
+    const chunk = ids.slice(index, index + 100);
+    try {
+      const result = await supabase.from('machine_clients').select('author_profile_id').in('author_profile_id', chunk);
+      if (result.error) return null;
+      for (const row of result.data ?? []) {
+        const id = String(row.author_profile_id ?? '').trim();
+        if (id) found.add(id);
+      }
+    } catch {
+      return null;
+    }
+  }
+  return found;
 }
 
 function firstOfferIds(rows: HumanSupplyOffer[]): string[] {
@@ -203,7 +251,7 @@ async function readAuthorHistory(
     const page = await readPages(async (from, to) => {
       const result = await supabase
         .from('offers')
-        .select('id, created_at, created_by, status, product_fingerprint, offer_url, rejection_reason, deleted_at')
+        .select('id, created_at, created_by, status, product_fingerprint, offer_url, ingestion_identity_key, rejection_reason, deleted_at')
         .in('created_by', chunk)
         .is('deleted_at', null)
         .order('created_at', { ascending: true })
@@ -216,6 +264,7 @@ async function readAuthorHistory(
           status: row.status ?? null,
           productFingerprint: row.product_fingerprint ?? null,
           offerUrl: row.offer_url ?? null,
+          ingestionIdentityKey: row.ingestion_identity_key ?? null,
           rejectionReason: row.rejection_reason ?? null,
           deletedAt: row.deleted_at ?? null,
         })),

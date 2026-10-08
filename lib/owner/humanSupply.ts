@@ -5,16 +5,18 @@
  *
  * ACTIVE HUMAN HUNTER: autor HUMAN con al menos una oferta no borrada creada en la ventana.
  * NEW HUNTER: su primera oferta histórica cae dentro de la ventana.
- * REPEAT HUNTER: tiene al menos dos identidades de oferta y publicó dentro de la ventana.
- * La identidad es product_fingerprint, si no la huella de la URL, si no el id.
+ * REPEAT HUNTER: tiene al menos dos contribuciones distintas y publicó dentro de la ventana.
+ * Una contribución agrupa las señales de product_fingerprint, URL normalizada e ingestion_identity_key.
  * Reintentar el mismo producto no cuenta como otra contribución.
+ * Si el historial se corta, nuevos, recurrentes y primer éxito quedan vacíos.
  *
  * FIRST HUNT SUCCESS: de las primeras ofertas de la ventana ya decididas, cuántas están aprobadas.
  * La latencia solo se publica si cada primera oferta aprobada tiene moderation_logs.approved.
  */
 import type { ActorType } from '@/lib/actors/actorType';
 import { classifyRejectionSignal } from '@/lib/discovery/negativeMemory/classifyRejection';
-import { offerUrlFingerprint } from '@/lib/offers/offerUrlFingerprint';
+import type { ActorAuditEntry } from '@/lib/owner/actorAudit';
+import { contributionComponents } from '@/lib/owner/contributionIdentity';
 import { getYmdInTz } from '@/lib/owner/mxTime';
 import { supplyWindows, type SupplyWindowId } from '@/lib/owner/supplyDomain';
 import { classifySupplyAuthor, type SupplyDirectory } from '@/lib/owner/supplyIntelligence';
@@ -26,6 +28,7 @@ export type HumanSupplyOffer = {
   status: string | null;
   productFingerprint?: string | null;
   offerUrl?: string | null;
+  ingestionIdentityKey?: string | null;
   rejectionReason?: string | null;
   deletedAt?: string | null;
 };
@@ -73,6 +76,10 @@ export type HumanSupplyReport = {
     unspecified: number;
     groups: { key: string; label: string; count: number }[];
   } | null;
+  /** ok cuando el historial del autor alcanza para nuevos, recurrentes y primer éxito. */
+  historyStatus: 'ok' | 'unavailable';
+  /** Clases resueltas por el directorio canónico. null si no se pidió el diagnóstico. */
+  actorAudit: ActorAuditEntry[] | null;
 };
 
 const REJECTION_LABEL: Record<string, string> = {
@@ -94,15 +101,6 @@ function rate(part: number, whole: number): number | null {
 function inWindow(iso: string, startMs: number, endMs: number): boolean {
   const time = Date.parse(iso);
   return Number.isFinite(time) && time >= startMs && time < endMs;
-}
-
-export function supplyIdentity(offer: Pick<HumanSupplyOffer, 'id' | 'productFingerprint' | 'offerUrl'>): string {
-  const fingerprint = offer.productFingerprint?.trim() ?? '';
-  if (fingerprint) return `fp:${fingerprint}`;
-  const url = offer.offerUrl?.trim() ?? '';
-  const urlFingerprint = url ? offerUrlFingerprint(url) : null;
-  if (urlFingerprint) return `url:${urlFingerprint}`;
-  return `id:${offer.id}`;
 }
 
 function median(values: number[]): number | null {
@@ -160,14 +158,16 @@ function funnelFor(
     approvalRate: rate(approvedOffers, decided),
     rejectionRate: rate(rejectedOffers, decided),
     offersPerContributor: rate(offersInWindow.length, byAuthor.size),
-    firstSubmissions: historyTruncated ? null : 0,
+    firstSubmissions: null,
     firstHuntSuccessRate: null,
     firstHuntRejectionRate: null,
     secondAttemptRate: null,
     medianContributionDays: median(contributionDays),
     firstAcceptLatencyHours: null,
   };
-  if (historyTruncated || [...byAuthor.keys()].some((authorId) => !history.has(authorId))) return base;
+  if (historyTruncated || [...byAuthor.keys()].some((authorId) => !history.has(authorId))) {
+    return { ...base, newContributors: null, repeatContributors: null };
+  }
 
   let newContributors = 0;
   let repeatContributors = 0;
@@ -182,7 +182,8 @@ function funnelFor(
     const ordered = [...life].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
     const first = ordered[0];
     if (!first) continue;
-    const identities = new Set(ordered.map((offer) => supplyIdentity(offer)));
+    const components = contributionComponents(ordered);
+    const identities = new Set(ordered.map((offer) => components.get(offer.id)));
     if (identities.size >= 2) repeatContributors += 1;
     if (!inWindow(first.createdAt, window.startMs, window.endMs)) continue;
     newContributors += 1;
@@ -197,9 +198,9 @@ function funnelFor(
     } else if (first.status === 'rejected') {
       firstRejected += 1;
       firstRejectedAuthors += 1;
-      const firstIdentity = supplyIdentity(first);
+      const firstIdentity = components.get(first.id);
       const retried = ordered.some(
-        (offer) => offer.id !== first.id && Date.parse(offer.createdAt) > Date.parse(first.createdAt) && supplyIdentity(offer) !== firstIdentity,
+        (offer) => offer.id !== first.id && Date.parse(offer.createdAt) > Date.parse(first.createdAt) && components.get(offer.id) !== firstIdentity,
       );
       if (retried) secondAttempts += 1;
     }
@@ -226,6 +227,7 @@ export function buildHumanSupply(input: {
   truncated?: boolean;
   historyTruncated?: boolean;
   minCoverage?: number;
+  actorAudit?: ActorAuditEntry[] | null;
 }): HumanSupplyReport | null {
   if (input.truncated || !input.directory) return null;
   const directory: SupplyDirectory = input.directory;
@@ -265,8 +267,9 @@ export function buildHumanSupply(input: {
   const topHuman = ranked[0] ?? 0;
   const approveAt = new Map(Object.entries(input.approveAtByOfferId ?? {}));
   const historyTruncated = input.historyTruncated === true;
+  const historyUnavailable = historyTruncated || authored.some((offer) => !history.has(offer.authorId));
   const windowOf = (id: Exclude<SupplyWindowId, 'today'>) =>
-    funnelFor(authored, history, windows[id], approveAt, historyTruncated);
+    funnelFor(authored, history, windows[id], approveAt, historyUnavailable);
 
   const reasonCounts = new Map<string, number>();
   let unspecified = 0;
@@ -305,5 +308,7 @@ export function buildHumanSupply(input: {
       unspecified,
       groups,
     },
+    historyStatus: historyUnavailable ? 'unavailable' : 'ok',
+    actorAudit: input.actorAudit ?? null,
   };
 }

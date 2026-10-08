@@ -31,9 +31,13 @@ function Report({ report }: { report: HumanSupplyReport }) {
     <div className="space-y-2 text-[13px] text-white/75">
       <WindowLine label="7 días" window={report.d7} />
       <WindowLine label="30 días" window={report.d30} />
+      {report.historyStatus === 'unavailable' ? (
+        <p>Historial de cazadores incompleto: nuevos, recurrentes y primer éxito no se publican.</p>
+      ) : null}
+      <p className="tabular-nums">Ofertas humanas pendientes en 30 días: {num(report.d30.pendingOffers)}</p>
       {report.diversity ? (
         <p className="tabular-nums">
-          Diversidad 30 días: humano {pct(report.diversity.humanShare)} · cazador {pct(report.diversity.machineShare)} · sistema{' '}
+          Diversidad 30 días: humano {pct(report.diversity.humanShare)} · máquina {pct(report.diversity.machineShare)} · sistema{' '}
           {pct(report.diversity.systemShare)} · sin atribución {pct(report.diversity.unattributedShare)}
           {report.diversity.status === 'INSUFFICIENT_DATA'
             ? ' · concentración humana INSUFFICIENT_DATA'

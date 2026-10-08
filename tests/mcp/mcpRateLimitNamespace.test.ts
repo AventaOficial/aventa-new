@@ -290,6 +290,24 @@ describe('Aventa Production sin AVENTA_REDIS_ENVIRONMENT (modo histórico)', () 
   });
 });
 
+describe('el envío de ofertas en el proyecto staging', () => {
+  it('sin superficie ni declaración de Redis, el deploy production de staging niega ofertas antes de insertar', async () => {
+    setEnv({ VERCEL_ENV: 'production', AVENTA_SUPABASE_TARGET: 'staging' });
+    const { enforceRateLimitCustom } = await load();
+    expect(await enforceRateLimitCustom('203.0.113.8', 'offers')).toEqual(UNAVAILABLE);
+    expect(shared.touched).toEqual([]);
+    expect(shared.limiterOptions).toHaveLength(0);
+  });
+
+  it('con superficie, declaración y marcador de staging, una oferta autenticada puede pasar el límite', async () => {
+    setEnv(RUNTIMES.stagingProject);
+    const { enforceRateLimitCustom } = await load();
+    expect(await enforceRateLimitCustom('203.0.113.8', 'offers')).toEqual({ success: true });
+    expect(shared.limiterOptions.at(-1)?.prefix).toBe('aventa:staging:ratelimit');
+    for (const key of shared.touched) expect(key.startsWith('aventa:staging:')).toBe(true);
+  });
+});
+
 describe('MCP nunca cae a memoria', () => {
   it.each([
     ['production', RUNTIMES.production],
