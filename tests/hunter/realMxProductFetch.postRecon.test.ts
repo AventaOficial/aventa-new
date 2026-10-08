@@ -1,130 +1,260 @@
 /**
- * Live MX marketplace fetch (no auth) — Amazon + Liverpool.
- * Retail CDNs intermittently return bot-walls; we soft-skip those with NETWORK_BLOCKED
- * after proving identity + Liverpool DOM path (authoritative for this hardening pass).
+ * Post-recon MX product fetch — capa determinista de CI.
+ *
+ * Cubre el contrato de identidad, extracción y diagnósticos con fixtures
+ * del extractor actual. No llama a Liverpool, Amazon ni Mercado Libre.
+ *
+ * La sonda contra retailers vivos vive en tests/probes/ y se ejecuta con
+ * `npm run test:probes`. No forma parte de `npm run ci:verify`.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchParsedOfferMetadataDetailed } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
+import { parseJsonLdProducts } from '@/lib/hunter/dayToDay/parsePublicProductHtml';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
 import { extractLiverpoolDomPrices } from '@/lib/offers/productExtraction/liverpoolExtract';
-import { PRODUCT_PAGE_BROWSER_UA } from '@/lib/bots/ingest/ingestHttp';
-import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
+import { extractLiverpoolProductId } from '@/lib/offers/urlResolution/liverpoolResolver';
 
 const AMAZON_URL = 'https://www.amazon.com.mx/dp/B09V3KXJPB';
 const LIVERPOOL_URL =
   'https://www.liverpool.com.mx/tienda/pdp/airpods-3-pro-inalambricos/1186100481';
-const ML_URL =
-  'https://articulo.mercadolibre.com.mx/MLM-3536548700-audifonos-_JM';
+const ML_URL = 'https://articulo.mercadolibre.com.mx/MLM-3536548700-audifonos-_JM';
 const LIVERPOOL_HOME = 'https://www.liverpool.com.mx/tienda/home';
 
-async function fetchWithRetries(url: string, attempts = 3) {
-  let last = await fetchParsedOfferMetadataDetailed(url);
-  for (let i = 1; i < attempts && !last.meta; i++) {
-    await new Promise((r) => setTimeout(r, 800 * i));
-    last = await fetchParsedOfferMetadataDetailed(url);
-  }
-  return last;
+const LV_IMAGE_A = 'https://sscdn.liverpool.com.mx/xl/a.jpg';
+const LV_IMAGE_B = 'https://sscdn.liverpool.com.mx/xl/b.jpg';
+const AMZ_IMAGE = 'https://m.media-amazon.com/images/I/71TESTIMG1.jpg';
+const ML_IMAGE = 'https://http2.mlstatic.com/D_NQ_NP_2X_AAA111-MLA123-O.jpg';
+
+/** Mismo JSON-LD Product que tests/offers/liverpoolExtract.test.ts (ListPrice / SalePrice). */
+function liverpoolJsonLdProductHtml(): string {
+  return `<script type="application/ld+json">${JSON.stringify({
+    '@type': 'Product',
+    name: 'Audífonos Sony',
+    image: [LV_IMAGE_A, LV_IMAGE_B],
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'MXN',
+      priceSpecification: [
+        {
+          '@type': 'UnitPriceSpecification',
+          priceType: 'https://schema.org/ListPrice',
+          price: 2499,
+        },
+        {
+          '@type': 'UnitPriceSpecification',
+          priceType: 'https://schema.org/SalePrice',
+          price: 1799,
+        },
+      ],
+    },
+  })}</script>`;
 }
 
-describe('post-recon — live MX product fetch', () => {
-  it(
-    'Amazon MX: title, store, price, ASIN identity (soft NETWORK_BLOCKED)',
-    async () => {
-      // Identity must never depend on HTML success.
-      expect(resolveIngestionIdentity(AMAZON_URL)).toEqual(
-        expect.objectContaining({ key: 'amz:B09V3KXJPB', strategy: 'amazon_asin' }),
-      );
+/** Mismo bloque SSR data-testid que tests/offers/liverpoolExtract.test.ts. */
+function liverpoolDomPriceHtml(): string {
+  return `
+    <title>Audífonos Over-Ear Jbl LIVE 780NC inalámbricos | Liverpool</title>
+    <div data-testid="1199845185-configurator-price">
+      <span data-testid="discounted"><span>$<!-- -->2,969</span><span class="invisible">.</span>10</span>
+      <span data-testid="original"><span class="line-through">$<!-- -->3,299</span><span class="invisible">.</span>00</span>
+    </div>
+    <p>Y/o hasta 13 meses sin intereses de $253.77</p>
+  `;
+}
 
-      const attempt = await fetchWithRetries(AMAZON_URL);
-      if (!attempt.meta) {
-        console.info('[post-recon] Amazon NETWORK_BLOCKED diagnostic=', attempt.diagnostic);
-        expect([
-          'missing_title',
-          'missing_discount_price',
-          'http_error',
-          'network_error',
-          'timeout',
-        ]).toContain(attempt.diagnostic);
-        return;
-      }
-      expect(
-        attempt.diagnostic === 'ok' || attempt.diagnostic === 'missing_original_price',
-      ).toBe(true);
-      const meta = attempt.meta;
-      expect(meta.store.toLowerCase()).toContain('amazon');
-      expect(meta.title.length).toBeGreaterThan(8);
-      expect(meta.discountPrice).toBeGreaterThan(0);
-      expect(resolveIngestionIdentity(meta.canonicalUrl).key).toBe('amz:B09V3KXJPB');
-    },
-    60_000,
-  );
+function htmlResponse(body: string, status = 200) {
+  return new Response(body, { status, headers: { 'content-type': 'text/html' } });
+}
 
-  it(
-    'Liverpool MX: DOM/JSON-LD prices + SKU identity (not homepage)',
-    async () => {
-      const homeId = resolveIngestionIdentity(LIVERPOOL_HOME);
-      expect(homeId.key).toBeNull();
-      expect(homeId.strategy).toBe('none');
+function stubHtml(body: string, status = 200) {
+  const fetchMock = vi.fn(async () => htmlResponse(body, status));
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
 
-      const attempt = await fetchWithRetries(LIVERPOOL_URL, 2);
-      expect(attempt.meta, `liverpool diagnostic=${attempt.diagnostic}`).not.toBeNull();
-      const meta = attempt.meta!;
-      expect(meta.store).toBe('Liverpool');
-      expect(meta.title.toLowerCase()).toMatch(/airpods|apple/i);
-      expect(meta.discountPrice).toBeGreaterThan(0);
-      expect(resolveIngestionIdentity(meta.canonicalUrl)).toEqual(
-        expect.objectContaining({ key: 'liv:1186100481', strategy: 'liverpool_sku' }),
-      );
-
-      const res = await fetchWithTimeout(LIVERPOOL_URL, {
-        timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
-        headers: {
-          'User-Agent': PRODUCT_PAGE_BROWSER_UA,
-          Accept: 'text/html',
-          'Accept-Language': 'es-MX,es;q=0.9',
-        },
-        redirect: 'follow',
-      });
-      expect(res.ok).toBe(true);
-      const html = await res.text();
-      const dom = extractLiverpoolDomPrices(html);
-      // Prefer DOM when present; JSON-LD may be the only source on some renders.
-      if (dom.discount != null) {
-        expect(dom.discount).toBeGreaterThan(0);
-      } else {
-        expect(meta.discountPrice).toBeGreaterThan(0);
-      }
-    },
-    60_000,
-  );
-
-  it(
-    'Mercado Libre: identity from URL; HTML parse may be NETWORK_BLOCKED',
-    async () => {
-      const id = resolveIngestionIdentity(ML_URL);
-      expect(id.key).toBe('ml:MLM3536548700');
-      expect(id.strategy).toBe('ml_item');
-
-      const attempt = await fetchParsedOfferMetadataDetailed(ML_URL);
-      if (!attempt.meta) {
-        expect([
-          'missing_title',
-          'missing_discount_price',
-          'http_error',
-          'network_error',
-          'timeout',
-        ]).toContain(attempt.diagnostic);
-        console.info('[post-recon] ML HTML NETWORK_BLOCKED diagnostic=', attempt.diagnostic);
-        return;
-      }
-      expect(metaStore(attempt.meta.store)).toMatch(/mercado/);
-      expect(attempt.meta.discountPrice).toBeGreaterThan(0);
-      expect(resolveIngestionIdentity(attempt.meta.canonicalUrl).key).toBe('ml:MLM3536548700');
-    },
-    45_000,
-  );
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
-function metaStore(s: string) {
-  return s.toLowerCase();
-}
+describe('post-recon — identidad MX sin red', () => {
+  it('Amazon MX es PDP por ASIN', () => {
+    expect(resolveIngestionIdentity(AMAZON_URL)).toEqual(
+      expect.objectContaining({ key: 'amz:B09V3KXJPB', strategy: 'amazon_asin' }),
+    );
+  });
+
+  it('Mercado Libre es ítem de producto', () => {
+    expect(resolveIngestionIdentity(ML_URL)).toEqual(
+      expect.objectContaining({ key: 'ml:MLM3536548700', strategy: 'ml_item' }),
+    );
+  });
+
+  it('Liverpool PDP conserva SKU y el home no inventa producto', () => {
+    expect(extractLiverpoolProductId(LIVERPOOL_URL)).toBe('1186100481');
+    expect(resolveIngestionIdentity(LIVERPOOL_URL)).toEqual(
+      expect.objectContaining({ key: 'liv:1186100481', strategy: 'liverpool_sku' }),
+    );
+    expect(extractLiverpoolProductId(LIVERPOOL_HOME)).toBeNull();
+    const homeId = resolveIngestionIdentity(LIVERPOOL_HOME);
+    expect(homeId.key).toBeNull();
+    expect(homeId.strategy).toBe('none');
+  });
+});
+
+describe('post-recon — Liverpool con fixture del extractor', () => {
+  it('JSON-LD @type Product clasifica producto; WebSite no', () => {
+    const products = parseJsonLdProducts(liverpoolJsonLdProductHtml(), LIVERPOOL_URL);
+    expect(products).toHaveLength(1);
+    expect(products[0]?.title).toBe('Audífonos Sony');
+    expect(products[0]?.price).toBe(1799);
+    expect(products[0]?.originalPrice).toBe(2499);
+
+    const website = `<script type="application/ld+json">${JSON.stringify({
+      '@type': 'WebSite',
+      name: 'Liverpool',
+    })}</script>`;
+    expect(parseJsonLdProducts(website, LIVERPOOL_HOME)).toEqual([]);
+  });
+
+  it('extrae tienda, título, precio, imagen e identidad desde el PDP fixture', async () => {
+    const html = liverpoolJsonLdProductHtml();
+    const fetchMock = stubHtml(html);
+
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(LIVERPOOL_URL);
+    expect(attempt.diagnostic).toBe('ok');
+    expect(attempt.meta).not.toBeNull();
+    const meta = attempt.meta!;
+    expect(meta.store).toBe('Liverpool');
+    expect(meta.title).toBe('Audífonos Sony');
+    expect(meta.discountPrice).toBe(1799);
+    expect(meta.originalPrice).toBe(2499);
+    expect(meta.imageUrl).toBe(LV_IMAGE_A);
+    expect(resolveIngestionIdentity(meta.canonicalUrl)).toEqual(
+      expect.objectContaining({ key: 'liv:1186100481', strategy: 'liverpool_sku' }),
+    );
+  });
+
+  it('lee el precio SSR data-testid y no el de meses sin intereses', async () => {
+    const html = liverpoolDomPriceHtml();
+    const dom = extractLiverpoolDomPrices(html);
+    expect(dom.discount).toBe(2969.1);
+    expect(dom.original).toBe(3299);
+
+    stubHtml(html);
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.diagnostic).toBe('ok');
+    expect(attempt.meta).not.toBeNull();
+    const meta = attempt.meta!;
+    expect(meta.discountPrice).toBe(dom.discount);
+    expect(meta.originalPrice).toBe(dom.original);
+    expect(meta.title).toMatch(/780NC/i);
+    expect(meta.store).toBe('Liverpool');
+    expect(meta.discountPrice).not.toBe(253.77);
+  });
+});
+
+describe('post-recon — diagnósticos sin inventar precio', () => {
+  it('HTML sin título ni precio devuelve missing_title', async () => {
+    stubHtml('<html><body>acceso restringido</body></html>');
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.meta).toBeNull();
+    expect(attempt.diagnostic).toBe('missing_title');
+    expect(resolveIngestionIdentity(LIVERPOOL_URL).key).toBe('liv:1186100481');
+  });
+
+  it('título sin precio de oferta devuelve missing_discount_price', async () => {
+    stubHtml('<title>Audífonos Over-Ear Jbl LIVE 780NC inalámbricos | Liverpool</title>');
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.meta).toBeNull();
+    expect(attempt.diagnostic).toBe('missing_discount_price');
+  });
+
+  it('precio de oferta sin original devuelve missing_original_price y conserva el precio', async () => {
+    const html = `
+      <title>Audífonos Over-Ear Jbl LIVE 780NC inalámbricos | Liverpool</title>
+      <span data-testid="discounted"><span>$<!-- -->2,969</span><span class="invisible">.</span>10</span>
+    `;
+    stubHtml(html);
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.diagnostic).toBe('missing_original_price');
+    expect(attempt.meta).not.toBeNull();
+    expect(attempt.meta?.discountPrice).toBe(2969.1);
+    expect(attempt.meta?.originalPrice).toBeNull();
+  });
+
+  it('HTTP no exitoso devuelve http_error', async () => {
+    stubHtml('<html>captcha</html>', 403);
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.meta).toBeNull();
+    expect(attempt.diagnostic).toBe('http_error');
+    expect(attempt.httpStatus).toBe(403);
+  });
+
+  it('fallo de red devuelve network_error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('fetch failed');
+      }),
+    );
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.meta).toBeNull();
+    expect(attempt.diagnostic).toBe('network_error');
+  });
+
+  it('abort de timeout devuelve timeout', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const error = new Error('The operation was aborted');
+        error.name = 'AbortError';
+        throw error;
+      }),
+    );
+    const attempt = await fetchParsedOfferMetadataDetailed(LIVERPOOL_URL);
+    expect(attempt.meta).toBeNull();
+    expect(attempt.diagnostic).toBe('timeout');
+  });
+});
+
+describe('post-recon — Amazon y Mercado Libre con fixture', () => {
+  it('Amazon MX extrae título, tienda, precio e imagen del HTML controlado', async () => {
+    stubHtml(`
+      <meta property="og:title" content="AirPods Pro fixture" />
+      <meta property="og:image" content="${AMZ_IMAGE}" />
+      <meta property="og:price:amount" content="4999.00" />
+      <meta property="product:original_price:amount" content="6999" />
+    `);
+    const attempt = await fetchParsedOfferMetadataDetailed(AMAZON_URL);
+    expect(attempt.diagnostic).toBe('ok');
+    expect(attempt.meta).not.toBeNull();
+    const meta = attempt.meta!;
+    expect(meta.store.toLowerCase()).toContain('amazon');
+    expect(meta.title).toBe('AirPods Pro fixture');
+    expect(meta.discountPrice).toBe(4999);
+    expect(meta.originalPrice).toBe(6999);
+    expect(meta.imageUrl).toBe(AMZ_IMAGE);
+    expect(resolveIngestionIdentity(meta.canonicalUrl).key).toBe('amz:B09V3KXJPB');
+  });
+
+  it('Mercado Libre extrae título, tienda, precio e identidad del HTML controlado', async () => {
+    stubHtml(`
+      <meta property="og:title" content="Audífonos Bluetooth fixture" />
+      <meta property="og:image" content="${ML_IMAGE}" />
+      <meta property="og:price:amount" content="899.00" />
+      <meta property="product:original_price:amount" content="1299" />
+    `);
+    const attempt = await fetchParsedOfferMetadataDetailed(ML_URL);
+    expect(attempt.diagnostic).toBe('ok');
+    expect(attempt.meta).not.toBeNull();
+    const meta = attempt.meta!;
+    expect(meta.store.toLowerCase()).toMatch(/mercado/);
+    expect(meta.title).toBe('Audífonos Bluetooth fixture');
+    expect(meta.discountPrice).toBe(899);
+    expect(meta.imageUrl).toBe(ML_IMAGE);
+    expect(resolveIngestionIdentity(meta.canonicalUrl).key).toBe('ml:MLM3536548700');
+  });
+});
