@@ -122,6 +122,8 @@ describe('human supply', () => {
     });
     expect(report?.d30.firstSubmissions).toBe(2);
     expect(report?.d30.firstHuntSuccessRate).toBe(0.5);
+    expect(report?.d30.firstApprovals).toBe(1);
+    expect(report?.d30.secondContributions).toBe(0);
     expect(report?.d30.firstHuntRejectionRate).toBe(0.5);
     expect(report?.d30.secondAttemptRate).toBe(1);
     expect(report?.d30.firstAcceptLatencyHours).toBe(2);

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, Bookmark, Eye, MessageCircle, Search, Send, Tag, ThumbsUp } from 'lucide-react';
 import HunterHeader from '@/app/me/dashboard/HunterHeader';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
+import HunterFirstHunt from '@/app/me/dashboard/HunterFirstHunt';
 import AchievementCollection from '@/app/components/achievements/AchievementCollection';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 
@@ -236,6 +237,7 @@ export default function HunterDashboard(props: HunterDashboardProps) {
       <div className="grid min-w-0 items-start gap-3 lg:grid-cols-3">
         <div className="min-w-0 space-y-3 overflow-hidden">
           <HunterActivityBoard dates={dates} tone="night" />
+          {props.published <= 0 ? <HunterFirstHunt /> : null}
           <button
             type="button"
             onClick={props.onPublish}

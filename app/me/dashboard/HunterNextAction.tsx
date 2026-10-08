@@ -25,7 +25,7 @@ export default function HunterNextAction(props: HunterNextActionProps) {
       <p className="text-[13px] text-[#6e6e73] dark:text-[#a3a3a3]">Tu siguiente movimiento</p>
       <h2 className="mt-3 text-[22px] font-semibold leading-snug text-[#1d1d1f] dark:text-[#fafafa] md:text-[26px]">{action.title}</h2>
       <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">{action.detail}</p>
-      {action.id === 'publish' ? (
+      {action.id === 'publish' || action.id === 'hunt-again' ? (
         <button type="button" onClick={props.onPublish} className={primaryCta}>
           {action.cta} →
         </button>
