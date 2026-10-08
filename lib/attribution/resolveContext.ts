@@ -18,6 +18,9 @@ export type ClientAttributionHints = {
   /** channel crudo — solo si es AttributionChannel válido. */
   channel?: string | null;
   referer?: string | null;
+  medium?: string | null;
+  content?: string | null;
+  term?: string | null;
 };
 
 export type ServerAttributionContext = {
@@ -30,6 +33,9 @@ export type ServerAttributionContext = {
     hasCampaign: boolean;
     channelTrusted: boolean;
   };
+  medium: string | null;
+  content: string | null;
+  term: string | null;
 };
 
 /**
@@ -63,5 +69,8 @@ export function resolveServerAttributionContext(
       hasCampaign: campaignKey != null,
       channelTrusted: isAttributionChannel(hintedChannel) || channel !== 'unknown',
     },
+    medium: resolveCampaignKey(hints.medium),
+    content: resolveCampaignKey(hints.content),
+    term: resolveCampaignKey(hints.term),
   };
 }

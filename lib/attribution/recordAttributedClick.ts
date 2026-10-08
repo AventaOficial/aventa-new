@@ -211,6 +211,9 @@ export async function recordAttributedClick(
       source: ctx.source,
       completeness: ctx.completeness,
       store: (offerRow as { store?: string | null } | null)?.store ?? null,
+      ...(ctx.medium ? { medium: ctx.medium } : {}),
+      ...(ctx.content ? { content: ctx.content } : {}),
+      ...(ctx.term ? { term: ctx.term } : {}),
     },
   };
 

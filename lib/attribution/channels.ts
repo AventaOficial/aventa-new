@@ -16,6 +16,9 @@ export const ATTRIBUTION_CHANNELS = [
   'discord',
   'email',
   'paid',
+  'youtube',
+  'creator',
+  'referral',
   'unknown',
 ] as const;
 
@@ -48,6 +51,11 @@ const UTM_TO_CHANNEL: Record<string, AttributionChannel> = {
   ads: 'paid',
   meta: 'paid',
   facebook: 'paid',
+  youtube: 'youtube',
+  yt: 'youtube',
+  creator: 'creator',
+  referral: 'referral',
+  share: 'social',
 };
 
 const HOST_TO_CHANNEL: Array<{ match: RegExp; channel: AttributionChannel }> = [
@@ -62,6 +70,8 @@ const HOST_TO_CHANNEL: Array<{ match: RegExp; channel: AttributionChannel }> = [
   { match: /facebook\.com$/i, channel: 'social' },
   { match: /twitter\.com$/i, channel: 'social' },
   { match: /x\.com$/i, channel: 'social' },
+  { match: /youtube\.com$/i, channel: 'youtube' },
+  { match: /youtu\.be$/i, channel: 'youtube' },
   { match: /google\./i, channel: 'seo' },
   { match: /bing\.com$/i, channel: 'seo' },
 ];

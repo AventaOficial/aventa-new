@@ -8,6 +8,12 @@ import { ANONYMOUS_ID_COOKIE, PRODUCT_PATH_HEADER, readAnonymousId } from '@/lib
 import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 import { userIdFromCapturedAuth } from '@/lib/analytics/requestUser';
 import { scheduleProductEvent } from '@/lib/analytics/scheduleProductEvent';
+import {
+  CAMPAIGN_COOKIE,
+  CAMPAIGN_QUERY_HEADER,
+  campaignMetadata,
+  parseCampaignCookie,
+} from '@/lib/growth/campaignContext';
 
 /**
  * page_view de superficies públicas. El middleware solo reenvía el path;
@@ -23,6 +29,9 @@ export async function ProductPageView() {
     const jar = await cookies();
     const anonymousId = readAnonymousId(jar.get(ANONYMOUS_ID_COOKIE)?.value);
     const cookieList = jar.getAll();
+    const campaign =
+      parseCampaignCookie(headerStore.get(CAMPAIGN_QUERY_HEADER)) ??
+      parseCampaignCookie(jar.get(CAMPAIGN_COOKIE)?.value);
 
     scheduleProductEvent(async () => {
       const userId = await userIdFromCapturedAuth({ bearer: null, cookies: cookieList });
@@ -31,7 +40,7 @@ export async function ProductPageView() {
         userId,
         anonymousId,
         source: 'document',
-        metadata: { path },
+        metadata: { path, ...campaignMetadata(campaign) },
       });
     });
   } catch (error) {

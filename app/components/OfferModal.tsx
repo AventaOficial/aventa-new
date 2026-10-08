@@ -14,6 +14,7 @@ import { presentOfferPrice } from '@/lib/formatPrice';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
+import { buildShareUrl } from '@/lib/growth/shareLink';
 import { assessOfferReportText, offerReportUsefulLength } from '@/lib/reports/offerReportContract';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
@@ -1092,7 +1093,11 @@ export default function OfferModal({
               {offerId && (
                 <button
                   onClick={() => {
-                    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${buildOfferPublicPath(offerId!, title)}`;
+                    const url = buildShareUrl(
+                      typeof window !== 'undefined' ? window.location.origin : '',
+                      buildOfferPublicPath(offerId!, title),
+                      'copy',
+                    );
                     navigator.clipboard.writeText(url).then(() => {
                       setShareCopied(true);
                       setTimeout(() => setShareCopied(false), 2000);
