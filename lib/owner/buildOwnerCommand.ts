@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadActorDirectory, type ActorDirectory } from '@/lib/actors/actorType';
 import { createServerClient } from '@/lib/supabase/server';
+import { evaluateEconomicActivationGate, type EconomicActivationGate } from '@/lib/economy/activation/economicActivationGate';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import { loadSupplyIntelligence } from '@/lib/owner/loadSupplyIntelligence';
 import { supplyDecisionCount } from '@/lib/owner/supplyDomain';
@@ -122,6 +123,7 @@ export type OwnerCommandPayload = {
     payoutIntentsByStatus: Record<string, number> | null;
     latestPayoutBatch: { periodKey: string | null; status: string | null; createdAt: string | null } | null;
     rewardAuditEventsInRange: number | null;
+    economicGate: EconomicActivationGate;
   };
   series: {
     bucket: 'hour' | 'day';
@@ -775,6 +777,7 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
           : { periodKey: null, status: null, createdAt: null }
         : null,
       rewardAuditEventsInRange: auditEvents,
+      economicGate: evaluateEconomicActivationGate(),
     },
     series,
     activity: activity.events,

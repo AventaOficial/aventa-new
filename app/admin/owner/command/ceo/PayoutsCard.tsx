@@ -60,9 +60,9 @@ export default function PayoutsCard({
               <Users className="h-3.5 w-3.5" aria-hidden />
               <NA why="No se agregan beneficiarios distintos en este panel." /> usuarios
             </span>
-            {frozen ? (
-              <Chip tone="sky" hint="Flujo de dinero congelado: no hay pagos en curso desde este panel.">
-                Congelado
+            {frozen || cmd.finance.economicGate?.payout !== 'ALLOWED' ? (
+              <Chip tone="sky" hint="PAYOUT: FROZEN. La política fiscal sigue sin confirmar y la compuerta de activación está incompleta.">
+                PAYOUT: FROZEN
               </Chip>
             ) : open ? (
               <Chip tone="red">Pendiente</Chip>

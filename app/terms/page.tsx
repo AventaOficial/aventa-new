@@ -391,7 +391,10 @@ export default function TermsPage() {
               <span className="font-medium">Fiscalidad:</span> cualquier liquidación está
               sujeta a la normativa fiscal aplicable. El tratamiento concreto puede requerir
               validación contable; el usuario es responsable de sus propias obligaciones
-              fiscales.
+              fiscales. Hoy la política fiscal no está confirmada y los pagos reales están
+              congelados. Una recompensa puede revertirse si la red confirma una devolución.
+              El momento de un pago futuro depende de confirmación, verificación y de la
+              compuerta de activación. Esto no es una opinión legal.
             </li>
             <li>
               <span className="font-medium">Naturaleza de la relación:</span> la participación

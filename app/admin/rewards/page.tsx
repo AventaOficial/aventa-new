@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { evaluateEconomicActivationGate } from '@/lib/economy/activation/economicActivationGate';
 import { ArrowLeft, Gift, RefreshCw, Link2, Undo2 } from 'lucide-react';
 
 type RewardRow = {
@@ -29,6 +30,7 @@ function shortId(id: string): string {
 }
 
 export default function AdminRewardsPage() {
+  const payoutFrozen = !evaluateEconomicActivationGate().payoutsAllowed;
   const [rewards, setRewards] = useState<RewardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
@@ -218,7 +220,9 @@ export default function AdminRewardsPage() {
         <button
           type="button"
           onClick={() => processHolds()}
-          className="rounded-lg bg-violet-600 text-white px-3 py-2 text-sm hover:bg-violet-700"
+          disabled={payoutFrozen}
+          title={payoutFrozen ? 'Payout congelado: la compuerta de activación está cerrada.' : undefined}
+          className="rounded-lg bg-violet-600 text-white px-3 py-2 text-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Procesar holds vencidos
         </button>
@@ -337,13 +341,16 @@ export default function AdminRewardsPage() {
 
         <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <h2 className="font-semibold mb-3">Pago SPEI manual</h2>
-          <p className="text-xs text-gray-500 mb-3">Mínimo $200 MXN. Operación atómica vía RPC.</p>
+          <p className="text-xs text-gray-500 mb-3">
+            {payoutFrozen ? 'Payout congelado. Registrar un SPEI no está disponible.' : 'Mínimo $200 MXN. Operación atómica vía RPC.'}
+          </p>
           <div className="space-y-2">
             <input
               placeholder="UUID del creador"
               value={payoutUserId}
               onChange={(e) => setPayoutUserId(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm dark:bg-[#141414]"
+              disabled={payoutFrozen}
+              className="w-full rounded-lg border px-3 py-2 text-sm dark:bg-[#141414] disabled:opacity-50"
             />
             {payoutUserId && availableTotalByCreator.has(payoutUserId) ? (
               <p className="text-xs text-emerald-600">
@@ -362,7 +369,7 @@ export default function AdminRewardsPage() {
               onChange={(e) => setPayoutSpei(e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm dark:bg-[#141414]"
             />
-            <button type="button" onClick={() => submitPayout()} className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700">
+            <button type="button" onClick={() => submitPayout()} disabled={payoutFrozen} title={payoutFrozen ? 'Payout congelado: la compuerta de activación está cerrada.' : undefined} className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
               Registrar pago
             </button>
           </div>

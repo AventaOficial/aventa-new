@@ -148,6 +148,7 @@ export type PayoutProviderMode =
   | 'manual_spei'
   | 'real'
   | 'forbidden_production'
+  | 'activation_gate_blocked'
   | 'invalid';
 
 export type PayoutOpsRuntime = {

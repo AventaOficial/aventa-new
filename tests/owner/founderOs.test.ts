@@ -35,13 +35,12 @@ function priority(over: Partial<CeoPriority> & Pick<CeoPriority, 'id' | 'severit
 describe('Founder OS · navegación por capacidad', () => {
   const allItems = OWNER_NAV_SECTIONS.flatMap((s) => [...s.items, ...(s.more ?? [])]);
 
-  it('CEO / Operations / Technical, con el Control Center como primera entrada', () => {
-    expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['ceo', 'operations', 'technical']);
-    expect(OWNER_NAV_SECTIONS.map((s) => s.items.map((i) => i.label))).toEqual([
-      ['Control Center', 'Moderation', 'Supply', 'Money', 'Users', 'Health'],
-      ['Live Metrics', 'Growth', 'Rewards Ops', 'Operaciones', 'Bot y trabajo', 'Activity'],
-      ['Infrastructure', 'Systems Map', 'Configuration', 'Technical', 'Roles y permisos'],
-    ]);
+  it('CEO OS en siete secciones, con el dashboard como primera entrada', () => {
+    expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['ceo', 'operar', 'crecer', 'dinero', 'sistema', 'administracion', 'herramientas']);
+    expect(OWNER_NAV_SECTIONS[0]!.items.map((i) => i.label)).toEqual(['Dashboard']);
+    expect(OWNER_NAV_SECTIONS[1]!.items.map((i) => i.label)).toEqual(['Moderación', 'Supply', 'Usuarios', 'Distribución']);
+    expect(OWNER_NAV_SECTIONS[3]!.items.map((i) => i.label)).toEqual(['Economía', 'Comisiones', 'Rewards', 'Contabilidad', 'Payouts']);
+    expect(OWNER_NAV_SECTIONS.flatMap((s) => s.items).some((i) => i.href === '/admin/contexto')).toBe(false);
     expect(OWNER_NAV_SECTIONS[0]!.items[0]!.href).toBe('/admin/owner');
   });
 

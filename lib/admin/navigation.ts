@@ -299,15 +299,6 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'submenu',
   },
   {
-    href: '/admin/contexto',
-    label: 'Contexto del sistema',
-    domain: 'hangar',
-    frequency: 'excepcional',
-    audiences: ['founder'],
-    visibility: 'submenu',
-    subtle: true,
-  },
-  {
     href: '/admin/mantenimiento',
     label: 'Mantenimiento',
     domain: 'hangar',

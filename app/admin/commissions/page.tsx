@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { evaluateEconomicActivationGate } from '@/lib/economy/activation/economicActivationGate';
 import { ArrowLeft, AlertTriangle, CheckCircle2, Coins, Play, RefreshCw, ShieldAlert } from 'lucide-react';
 
 type PoolRow = {
@@ -104,6 +105,7 @@ function defaultPeriodKey() {
 }
 
 export default function AdminCommissionsPage() {
+  const payoutFrozen = !evaluateEconomicActivationGate().payoutsAllowed;
   const [isAllowed, setIsAllowed] = useState<boolean | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -697,7 +699,8 @@ export default function AdminCommissionsPage() {
             <button
               type="button"
               onClick={runMonthly}
-              disabled={running}
+              disabled={running || payoutFrozen}
+              title={payoutFrozen ? 'Payout congelado: no se calculan pagos.' : undefined}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-violet-700 disabled:opacity-60"
             >
               <Play className="h-4 w-4" />
@@ -780,7 +783,9 @@ export default function AdminCommissionsPage() {
                 <button
                   type="button"
                   onClick={() => markPoolStatus(selectedPool.id, 'paid')}
-                  className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700"
+                  disabled={payoutFrozen}
+                  title={payoutFrozen ? 'Payout congelado: no se marca pagado.' : undefined}
+                  className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700 disabled:opacity-40"
                 >
                   Marcar cierre como pagado
                 </button>
@@ -820,7 +825,8 @@ export default function AdminCommissionsPage() {
                   <button
                     type="button"
                     onClick={() => patchAllocations('paid')}
-                    disabled={selectedAllocationIds.size === 0}
+                    disabled={selectedAllocationIds.size === 0 || payoutFrozen}
+                    title={payoutFrozen ? 'Payout congelado: no se marca pagado.' : undefined}
                     className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
                     Marcar como ya pagado
@@ -830,7 +836,8 @@ export default function AdminCommissionsPage() {
                       <button
                         type="button"
                         onClick={() => patchAllocations('paid', true)}
-                        disabled={selectedAllocationIds.size === 0}
+                        disabled={selectedAllocationIds.size === 0 || payoutFrozen}
+                        title={payoutFrozen ? 'Payout congelado: no se fuerza un pago.' : undefined}
                         className="rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 px-3 py-1.5 text-xs disabled:opacity-50"
                       >
                         Forzar pago

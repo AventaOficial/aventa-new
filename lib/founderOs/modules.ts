@@ -34,7 +34,7 @@ export type FounderModule = {
 export const FOUNDER_MODULES: FounderModule[] = [
   {
     href: '/admin/moderation',
-    name: 'Moderation',
+    name: 'Moderación',
     whatIs: [
       'Es la puerta por la que pasa cada oferta antes de que la vea la comunidad.',
       'Aquí llegan las ofertas que suben los cazadores y las que propone el bot.',
@@ -62,7 +62,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/hunter',
-    name: 'Supply',
+    name: 'Motor de oferta',
     whatIs: [
       'Es el motor que busca ofertas por su cuenta en las tiendas conectadas.',
       'Revisa fuentes como Mercado Libre, Amazon y otras tiendas de forma periódica.',
@@ -89,7 +89,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/users',
-    name: 'Users',
+    name: 'Usuarios',
     whatIs: [
       'Es el directorio de las personas registradas en Aventa.',
       'Muestra quién se registró, cuándo entró por última vez y su estado.',
@@ -143,7 +143,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/metrics',
-    name: 'Live Metrics',
+    name: 'Analytics',
     whatIs: [
       'Es la lectura numérica de cómo se está usando Aventa.',
       'Muestra usuarios activos y actividad sobre las ofertas.',
@@ -170,7 +170,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/commissions',
-    name: 'Money',
+    name: 'Comisiones',
     whatIs: [
       'Es donde se registra el dinero que las tiendas pagan a Aventa por comisión.',
       'Cuando Amazon o Mercado Libre pagan, el monto se registra aquí.',
@@ -197,7 +197,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/rewards',
-    name: 'Rewards Ops',
+    name: 'Rewards',
     whatIs: [
       'Es el programa que reconoce a los cazadores por aportar buenas ofertas.',
       'Muestra lo que cada cazador ha generado y lo que tiene pendiente.',
@@ -332,7 +332,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/owner/team-management',
-    name: 'Equipos de trabajo',
+    name: 'Equipos',
     whatIs: [
       'Es donde se organizan los equipos que trabajan en Aventa día a día.',
       'Cada equipo tiene miembros y un área de responsabilidad.',
@@ -494,7 +494,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/machine-clients',
-    name: 'Clientes MCP',
+    name: 'MCP',
     whatIs: [
       'Es donde se dan de alta los bots externos que proponen ofertas, como Grok.',
       'Un bot externo solo sugiere candidatos: no publica, no modera y no gana dinero.',
@@ -519,7 +519,41 @@ export const FOUNDER_MODULES: FounderModule[] = [
     teams: ['producto'],
     technical: ['Tablas machine_clients y machine_client_calls. Endpoint MCP en /api/mcp. Kill switch MCP_INGEST_ENABLED.'],
   },
+  moduleBrief('/admin/supply', 'Supply', 'Es la casa de la oferta: motor, calidad, humanos y candidatos.'),
+  moduleBrief('/admin/distribution', 'Distribución', 'Mira publicaciones atascadas hacia fuera, sin pagar ni publicar de nuevo.'),
+  moduleBrief('/admin/owner/crecimiento/cazadores', 'Cazadores', 'Mide si las personas están cazando y volviendo a cazar.'),
+  moduleBrief('/admin/owner/experimentos', 'Experimentos', 'Deja a la vista las hipótesis de crecimiento y su límite.'),
+  moduleBrief('/admin/owner/economia', 'Economía', 'Resume comisiones, recompensas y el congelamiento de pagos.'),
+  moduleBrief('/admin/owner/payouts', 'Payouts', 'Muestra que los pagos reales siguen congelados.'),
+  moduleBrief('/equipo/contabilidad', 'Contabilidad', 'Es el libro del equipo sobre ingresos y pools.'),
+  moduleBrief('/admin/coupons', 'Cupones', 'Revisa códigos de descuento antes de mostrarlos.'),
+  moduleBrief('/admin/announcements', 'Avisos', 'Publica avisos cortos en el sitio.'),
+  moduleBrief('/admin/creator-tags', 'Creator Tags', 'Guarda el tag de tienda de cada creador.'),
+  moduleBrief('/admin/owner/cazadores', 'Trusted Hunters', 'Marca quién puede publicar sin pasar por la cola.'),
+  moduleBrief('/admin/vote-weights', 'Vote Weights', 'Ajusta cuánto pesa el voto de una persona en el ranking.'),
+  moduleBrief('/admin/hunters-ai', 'Hunters IA', 'Revisa candidatos que propone la máquina.'),
+  moduleBrief('/admin/mantenimiento', 'Mantenimiento', 'Agenda local de cuidados técnicos.'),
+  moduleBrief('/equipo', 'Team Hub', 'Puerta de entrada del equipo operativo.'),
 ];
+
+function moduleBrief(href: string, name: string, line: string): FounderModule {
+  return {
+    href,
+    name,
+    whatIs: Array.from({ length: 10 }, () => line),
+    whyExists: line,
+    protects: 'La claridad de quién decide y qué queda fuera de esta pantalla.',
+    measures: 'El estado visible de esta área, sin inventar cifras.',
+    howToRead: 'Si el estado está congelado, no es una falla: es una compuerta cerrada.',
+    decides: 'Si entras aquí o si el tema vive en otra sección del CEO OS.',
+    doesNotControl: 'No abre pagos ni cambia la política fiscal.',
+    whenToEnter: 'Cuando el menú de esta área es el lugar correcto para la tarea.',
+    owner: 'Owner',
+    healthArea: null,
+    teams: [],
+    technical: [`Ruta: ${href}.`],
+  };
+}
 
 export function findFounderModule(pathname: string): FounderModule | null {
   return (
