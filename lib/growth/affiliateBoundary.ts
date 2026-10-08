@@ -3,7 +3,7 @@
  * Growth lee el estado. No fabrica conversiones ni mueve dinero.
  */
 
-export type AffiliateIngest = 'API' | 'MANUAL_IMPORT' | 'NOT_CONNECTED';
+export type AffiliateIngest = 'API' | 'OFFICIAL_REPORT_IMPORT' | 'MANUAL_IMPORT' | 'NOT_CONNECTED';
 
 export type AffiliateNetworkBoundary = {
   id: string;
@@ -14,7 +14,7 @@ export type AffiliateNetworkBoundary = {
 export const AFFILIATE_NETWORK_BOUNDARIES: readonly AffiliateNetworkBoundary[] = [
   {
     id: 'mercadolibre',
-    ingest: 'MANUAL_IMPORT',
+    ingest: 'OFFICIAL_REPORT_IMPORT',
     capabilities: ['click'],
   },
   {

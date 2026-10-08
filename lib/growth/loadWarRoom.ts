@@ -1,3 +1,4 @@
+import { loadAffiliateCoverage } from '@/lib/affiliate/conversionBridge/loadCoverage';
 import { buildAttributionTruth } from '@/lib/attribution/buildAttributionTruth';
 import { getFunnelSnapshot } from '@/lib/analytics/funnelSnapshot';
 import { createServerClient } from '@/lib/supabase/server';
@@ -34,6 +35,7 @@ export async function loadGrowthWarRoom(now = new Date()): Promise<GrowthWarRoom
   const sinceVisitors = sinceStart
     ? await pageViewsSince(new Date(SALES_WINDOW_START_MS).toISOString())
     : null;
+  const provider = await loadAffiliateCoverage(now);
 
   return buildGrowthWarRoomView({
     nowMs: now.getTime(),
@@ -53,5 +55,6 @@ export async function loadGrowthWarRoom(now = new Date()): Promise<GrowthWarRoom
     byCampaign: truth.byCampaign,
     byNetwork: truth.byNetwork,
     topOffers: truth.topOffers,
+    provider,
   });
 }

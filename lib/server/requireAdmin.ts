@@ -81,6 +81,12 @@ export async function requireTeamManagement(request: Request): Promise<AuthResul
   return requireRole(request, TEAM_MANAGEMENT_ROLES)
 }
 
+/** Solo owner o contabilidad pueden importar evidencia de afiliados. */
+export const AFFILIATE_IMPORT_ROLES: Role[] = ['owner', 'finance']
+export async function requireAffiliateImport(request: Request): Promise<AuthResult> {
+  return requireRole(request, AFFILIATE_IMPORT_ROLES)
+}
+
 /** Solo owner (gestionar avisos del sitio) */
 export async function requireAnnouncements(request: Request): Promise<AuthResult> {
   return requireRole(request, OWNER_ROLES)
