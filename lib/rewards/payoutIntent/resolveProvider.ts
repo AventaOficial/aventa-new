@@ -5,6 +5,7 @@
  * Production: always blocked in M4.6 (activation gate not opened).
  */
 
+import { evaluateEconomicActivationGate } from '@/lib/economy/activation/economicActivationGate';
 import type { PayoutProvider } from './types';
 import {
   createSandboxPayoutProvider,
@@ -39,7 +40,8 @@ export type PayoutProviderResolveFail = {
     | 'credentials_missing'
     | 'api_url_missing'
     | 'invalid_provider'
-    | 'invalid_config';
+    | 'invalid_config'
+    | 'activation_gate_blocked';
   message: string;
 };
 
@@ -115,6 +117,14 @@ export function resolvePayoutProvider(
               ? 'invalid_config'
               : 'credentials_missing',
         message: cfg.message,
+      };
+    }
+    const gate = evaluateEconomicActivationGate();
+    if (!gate.payoutsAllowed) {
+      return {
+        ok: false,
+        reason: 'activation_gate_blocked',
+        message: 'Compuerta de activación incompleta. El proveedor real no envía dinero.',
       };
     }
     return {

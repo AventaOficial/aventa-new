@@ -296,7 +296,7 @@ describe('describePayoutProvider', () => {
         { PAYOUT_PROVIDER: 'real', PAYOUT_PROVIDER_API_URL: 'https://x', PAYOUT_PROVIDER_API_KEY: 'k' } as NodeJS.ProcessEnv,
         false,
       ).mode,
-    ).toBe('real');
+    ).toBe('activation_gate_blocked');
     expect(describePayoutProvider({ PAYOUT_PROVIDER: 'nope' } as NodeJS.ProcessEnv, false).mode).toBe('invalid');
   });
 });

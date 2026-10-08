@@ -156,3 +156,29 @@ export {
   assertSellerOauthIsNotAffiliateAuthority,
   ML_AFFILIATE_ERROR_CODES,
 } from './providers/mercadolibre';
+export {
+  ECONOMIC_ACTIVATION_REQUIREMENTS,
+  CURRENT_ECONOMIC_ACTIVATION,
+  evaluateEconomicActivationGate,
+  type EconomicActivationGate,
+  type EconomicActivationApprovals,
+} from './activation/economicActivationGate';
+export {
+  CURRENT_FISCAL_POLICY,
+  FISCAL_SCENARIOS,
+  selectFiscalPolicy,
+  type FiscalPolicyVersion,
+} from './fiscal/fiscalPolicy';
+export { executeFiscalPolicy, compareFiscalScenarios } from './fiscal/fiscalEngine';
+export {
+  canTransitionPaymentIdentity,
+  paymentDataMayBeCollected,
+  identityAllowsPayout,
+} from './identity/paymentIdentity';
+export { creatorRewardActorDecision, evaluateEconomicRisk } from './risk/economicRisk';
+export { projectRewardHold } from './rewards/rewardHoldLifecycle';
+export {
+  projectCommissionLifecycle,
+  commissionMayFundReward,
+  economicIdempotencyKey,
+} from './commission/confirmedCommissionGate';

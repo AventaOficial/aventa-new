@@ -2,6 +2,7 @@
  * Runtime flags del money path — lectura pura de env (sin efectos).
  */
 
+import { evaluateEconomicActivationGate } from '@/lib/economy/activation/economicActivationGate';
 import { evaluateControlledActivationReadiness } from '@/lib/economy/controlledActivationReadiness';
 import type { PayoutOpsRuntime, PayoutProviderMode } from './types';
 
@@ -46,7 +47,14 @@ export function describePayoutProvider(
         detail: 'PAYOUT_PROVIDER=real sin PAYOUT_PROVIDER_API_URL / API_KEY (fail-closed, sin fallback).',
       };
     }
-    return { configured, mode, detail: 'Proveedor real configurado con credenciales.' };
+    if (!evaluateEconomicActivationGate().payoutsAllowed) {
+      return {
+        configured,
+        mode: 'activation_gate_blocked',
+        detail: 'Credenciales presentes, pero la compuerta de activación mantiene el payout bloqueado.',
+      };
+    }
+    return { configured, mode, detail: 'Proveedor real configurado con credenciales y compuerta abierta.' };
   }
   return {
     configured,

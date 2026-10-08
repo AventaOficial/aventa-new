@@ -1,5 +1,6 @@
-import ContextoContent from './ContextoContent';
+import { redirect } from 'next/navigation';
 
+/** Compatibilidad. El mapa de enlaces dejó de ser un segundo menú. */
 export default function AdminContextoPage() {
-  return <ContextoContent />;
+  redirect('/admin/sistemas/mapa');
 }
