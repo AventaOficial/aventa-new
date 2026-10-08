@@ -2,6 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadActorDirectory, type ActorDirectory } from '@/lib/actors/actorType';
 import { createServerClient } from '@/lib/supabase/server';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
+import { loadSupplyIntelligence } from '@/lib/owner/loadSupplyIntelligence';
+import { supplyDecisionCount } from '@/lib/owner/supplyDomain';
+import type { SupplyIntelligence } from '@/lib/owner/supplyIntelligence';
 import {
   bucketIndex,
   bucketLabel,
@@ -131,6 +134,8 @@ export type OwnerCommandPayload = {
   };
   activity: ActivityEvent[];
   sources: Record<string, 'ok' | 'error'>;
+  /** Inteligencia de oferta a 30 días. null si la lectura falló. */
+  supply: SupplyIntelligence | null;
 };
 
 const SERIES_ROW_CAP = 5000;
@@ -496,8 +501,8 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
       : Promise.resolve({ value: null, previous: null }),
     rangeMetric((s, e) => between(supabase, 'offer_events', 'created_at', s, e).eq('event_type', 'view'), r),
     rangeMetric((s, e) => between(supabase, 'offer_events', 'created_at', s, e).eq('event_type', 'outbound'), r),
-    rangeMetric((s, e) => between(supabase, 'moderation_logs', 'created_at', s, e).eq('action', 'approved'), r),
-    rangeMetric((s, e) => between(supabase, 'moderation_logs', 'created_at', s, e).eq('action', 'rejected'), r),
+    rangeMetric((s, e) => supplyDecisionCount(supabase, 'approved', s, e), r),
+    rangeMetric((s, e) => supplyDecisionCount(supabase, 'rejected', s, e), r),
     distinctHumanAuthors(supabase, r.start, r.end, directory),
     distinctHumanAuthors(supabase, r.prevStart, r.prevEnd, directory),
     directory
@@ -717,6 +722,8 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
     activity: activity.ok ? 'ok' : 'error',
   };
 
+  const supply = await loadSupplyIntelligence(supabase, now, directory);
+
   return {
     generatedAt: nowIso,
     range: {
@@ -772,5 +779,6 @@ export async function buildOwnerCommand(rangeKey: OwnerRangeKey, now: Date = new
     series,
     activity: activity.events,
     sources,
+    supply,
   };
 }
