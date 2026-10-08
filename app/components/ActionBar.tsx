@@ -13,7 +13,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
-import { describeOfferIssue, OFFER_COUPON_MAX, OFFER_DESCRIPTION_MAX, OFFER_HUNTER_COMMENT_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { describeOfferIssue, previewOfferDraft, OFFER_COUPON_MAX, OFFER_DESCRIPTION_MAX, OFFER_HUNTER_COMMENT_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
 import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
@@ -687,18 +687,13 @@ export default function ActionBar() {
     resetUploadModalState();
   };
 
-  const handleSubmit = async () => {
-    if (!isFormValid() || isSubmitting) return;
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    setIsSubmitting(true);
+  const currentOfferPayload = () => {
     let originalPriceNum = parseDecimalPrice(formData.originalPrice);
     let price = hasDiscount ? parseDecimalPrice(formData.discountPrice) : originalPriceNum;
     if (hasDiscount && originalPriceNum > 0 && price > 0 && price > originalPriceNum) {
-      const t = originalPriceNum;
+      const swapped = originalPriceNum;
       originalPriceNum = price;
-      price = t;
+      price = swapped;
     }
     const dedupImages = selectOfferImages(
       [imageUrl, ...imageUrls].filter((u): u is string => Boolean(u)),
@@ -717,7 +712,8 @@ export default function ActionBar() {
       const line = 'Alcance: en línea y en tienda física.';
       conditionsOut = conditionsOut ? `${line}\n\n${conditionsOut}` : line;
     }
-    const payload = {
+    return {
+      body: {
       title: formData.title.trim(),
       price,
       original_price: hasDiscount && formData.originalPrice.trim() ? originalPriceNum : null,
@@ -744,7 +740,30 @@ export default function ActionBar() {
         tags: [...new Set(formData.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))],
       }),
       ...(formData.moderator_comment.trim() && { moderator_comment: formData.moderator_comment.trim().slice(0, 500) }),
+      },
+      price,
+      originalPriceNum,
+      firstImage,
+      extraImages,
     };
+  };
+
+  const draftReadiness = uploadLinkGatePassed && uploadStep === 3 ? previewOfferDraft(currentOfferPayload().body) : null;
+
+  const handleSubmit = async () => {
+    if (!isFormValid() || isSubmitting) return;
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const draft = currentOfferPayload();
+    const payload = draft.body;
+    const { price, originalPriceNum, firstImage, extraImages } = draft;
+    const readiness = previewOfferDraft(payload);
+    if (!readiness.ready) {
+      showToast(readiness.messages[0] ?? 'Hay algo que corregir antes de enviarla');
+      return;
+    }
+    setIsSubmitting(true);
     const token = session?.access_token ?? (await supabase.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/offers', {
       method: 'POST',
@@ -2031,6 +2050,13 @@ export default function ActionBar() {
               )}
 
               <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-[#141414] px-5 sm:px-6 md:px-8 py-4 sm:py-5">
+                {draftReadiness ? (
+                  <p className={`mb-3 text-[13px] leading-relaxed ${draftReadiness.ready ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-200'}`}>
+                    {draftReadiness.ready
+                      ? 'Tu oferta está lista. La moderación sigue decidiendo si se publica.'
+                      : `Hay algo que corregir antes de enviarla. ${draftReadiness.messages[0]}`}
+                  </p>
+                ) : null}
                 <div className="flex gap-3 sm:gap-4">
                   {uploadLinkGatePassed ? (
                     uploadStep === 1 ? (

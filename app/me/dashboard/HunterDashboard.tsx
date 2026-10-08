@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Bookmark, Eye, Gift, MessageCircle, Search, Send, Tag, ThumbsUp } from 'lucide-react';
+import { ArrowRight, Bookmark, Eye, MessageCircle, Search, Send, Tag, ThumbsUp } from 'lucide-react';
 import HunterHeader from '@/app/me/dashboard/HunterHeader';
 import HunterActivityBoard from '@/app/me/dashboard/HunterActivityBoard';
 import AchievementCollection from '@/app/components/achievements/AchievementCollection';
@@ -227,6 +227,11 @@ export default function HunterDashboard(props: HunterDashboardProps) {
         <StatCard icon={<ThumbsUp className="h-4 w-4" aria-hidden />} value={countText(props.positiveVotes)} label="Votos recibidos" href="/me/nivel#actividad" spark="#fb7185" />
         <StatCard icon={<MessageCircle className="h-4 w-4" aria-hidden />} value={countText(props.comments)} label="Comentarios" href="/me/nivel#actividad" spark="#c4b5fd" />
       </div>
+      <p className="text-[13px] leading-relaxed text-[var(--me-muted)]">
+        {props.approved + props.rejected > 0
+          ? `${props.approved} aprobadas y ${props.rejected} rechazadas. ${Math.round((props.approved / (props.approved + props.rejected)) * 100)}% de las ya decididas se aprobaron. Publicar más no sube esa tasa.`
+          : 'Cuando una oferta se apruebe o se rechace, aquí verás la tasa. Publicar más no sustituye una oferta aceptada.'}
+      </p>
 
       <div className="grid min-w-0 items-start gap-3 lg:grid-cols-3">
         <div className="min-w-0 space-y-3 overflow-hidden">
@@ -237,11 +242,24 @@ export default function HunterDashboard(props: HunterDashboardProps) {
             className="flex w-full items-center gap-3 rounded-2xl bg-linear-to-r from-violet-600 to-fuchsia-600 p-4 text-left text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
-              <Gift className="h-5 w-5" aria-hidden />
+              <Send className="h-5 w-5" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-semibold">Sigue contribuyendo</span>
-              <span className="mt-0.5 block text-[12px] text-white/80">Tus publicaciones ayudan a que más personas encuentren grandes ofertas.</span>
+              {props.published <= 0 ? (
+                <>
+                  <span className="block text-[14px] font-semibold">Conviértete en cazador</span>
+                  <span className="mt-0.5 block text-[12px] text-white/80">
+                    Publica un precio real, con enlace y datos claros. Si se rechaza, el motivo te dice qué corregir.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="block text-[14px] font-semibold">Publica otra oferta que valga la pena</span>
+                  <span className="mt-0.5 block text-[12px] text-white/80">
+                    Una oferta aprobada ayuda más que varios envíos rechazados.
+                  </span>
+                </>
+              )}
             </span>
             <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
           </button>

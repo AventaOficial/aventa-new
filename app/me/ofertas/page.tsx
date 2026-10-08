@@ -20,6 +20,7 @@ import { useUI } from '@/app/providers/UIProvider';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { createClient } from '@/lib/supabase/client';
+import { explainRejection } from '@/lib/me/rejectionFeedback';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 
 type DealStatus = 'pending' | 'approved' | 'rejected' | 'expired';
@@ -466,7 +467,9 @@ function OfertasInner() {
                       {row.store ? <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] text-violet-700 dark:text-violet-200">{row.store}</span> : null}
                     </div>
                   ) : null}
-                  {row.rejectionReason ? <p className="mt-1 text-[12px] text-rose-700 dark:text-rose-300">{row.rejectionReason}</p> : null}
+                  {row.dealStatus === 'rejected' ? (
+                    <p className="mt-1 text-[12px] text-rose-700 dark:text-rose-300">{explainRejection(row.rejectionReason).detail}</p>
+                  ) : null}
                 </div>
               </div>
               <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone}`}>
