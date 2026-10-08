@@ -237,6 +237,15 @@ describe('affiliate conversion bridge', () => {
     expect(memory.state.payouts).toHaveLength(0);
   });
 
+  it('con el money path congelado no escribe ledger ni payout aunque el settlement esté abierto', async () => {
+    const memory = createMemoryEconomicPort({ settlementEnabled: true });
+    const created = runBatch(csv([line({})]));
+    await executeImport(created.batch!, memory.port, { allowTestProviderData: true });
+    expect(memory.state.commissions).toHaveLength(1);
+    expect(memory.state.ledger).toHaveLength(0);
+    expect(memory.state.payouts).toHaveLength(0);
+  });
+
   it('sin puente de settlement no escribe ledger ni payout', async () => {
     const memory = createMemoryEconomicPort();
     const created = runBatch(csv([line({})]));

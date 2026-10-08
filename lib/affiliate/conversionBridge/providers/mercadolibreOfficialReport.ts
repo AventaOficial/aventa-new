@@ -9,6 +9,7 @@
  * SOURCE_MODE = OFFICIAL_REPORT_IMPORT
  */
 
+import { MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA } from '@/lib/economy/providers/mercadolibre/capabilityMatrix';
 import type { AffiliateProviderAdapter, ProviderParseResult } from '../contract';
 import { sameHeaders } from '../csv';
 import { containsSensitiveMaterial } from '../quality';
@@ -29,9 +30,9 @@ export function parseMercadoLibreOfficialReport(report: string, _importedAt: str
   const headers = headerLine.split(',').map((cell) => cell.trim().replace(/^"|"$/g, ''));
   const attested = MERCADOLIBRE_ATTESTED_REPORT_HEADERS.some((expected) => sameHeaders(headers, expected));
   if (!attested || !MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA_ATTESTED) {
-    return { ok: false, code: 'OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED' };
+    return { ok: false, code: MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA };
   }
-  return { ok: false, code: 'OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED' };
+  return { ok: false, code: MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA };
 }
 
 export const mercadoLibreOfficialReportAdapter: AffiliateProviderAdapter = {

@@ -6,6 +6,9 @@ import {
   summarizeMercadoLibreAffiliateCapabilities,
   MERCADOLIBRE_AFFILIATE_CAPABILITY_MATRIX,
   MERCADOLIBRE_AFFILIATE_ECONOMIC_INGEST_SUPPORTED,
+  MERCADOLIBRE_DISCOVERY_CLASSIFICATION,
+  MERCADOLIBRE_AUTOMATION_STATUS,
+  MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA,
   ML_AFFILIATE_ERROR_CODES,
   resetMercadoLibreAffiliateMetricsForTests,
   assertSellerOauthIsNotAffiliateAuthority,
@@ -131,6 +134,13 @@ describe('MercadoLibreAffiliateAdapter fail-closed', () => {
     expect(h.connected).toBe(false);
     expect(h.settlementEnabled).toBe(false);
     expect(h.economicIngestSupported).toBe(false);
+    expect(h.automationStatus).toBe('BLOCKED_FOR_AUTOMATION');
+    expect(h.classification).toBe('NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND');
+    expect(h.officialReportSchema).toBe('OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED');
+    expect(MERCADOLIBRE_AUTOMATION_STATUS).toBe('BLOCKED_FOR_AUTOMATION');
+    expect(MERCADOLIBRE_DISCOVERY_CLASSIFICATION).toBe('NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND');
+    expect(MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA).toBe('OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED');
+    expect(MERCADOLIBRE_AFFILIATE_ECONOMIC_INGEST_SUPPORTED).toBe(false);
     expect(ECONOMIC_LEDGER_BOUNDARY.settlementEnabled).toBe(false);
   });
 });
@@ -154,6 +164,9 @@ describe('CEO Truth includes ML provider status', () => {
     const snap = await buildConversionCommissionTruth(sb as never);
     expect(snap.providers.mercadolibre.connected).toBe(false);
     expect(snap.providers.mercadolibre.economicIngestSupported).toBe(false);
+    expect(snap.providers.mercadolibre.automationStatus).toBe('BLOCKED_FOR_AUTOMATION');
+    expect(snap.providers.mercadolibre.classification).toBe('NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND');
+    expect(snap.providers.mercadolibre.officialReportSchema).toBe('OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED');
     expect(snap.providers.mercadolibre.settlementEnabled).toBe(false);
     expect(snap.revenue.label).toBe('not connected');
     expect(snap.networkConnectionStatus).toBe('not_connected');

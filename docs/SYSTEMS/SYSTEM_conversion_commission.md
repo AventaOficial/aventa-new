@@ -24,7 +24,11 @@ click_id → conversion → commission
 
 **Aventa no inventa commission = sale × %** sin confirmación de red.
 
-Estado actual de ingest live: **not connected** (foundation only).
+Estado actual de ingest live: **not connected**.
+
+El puente `lib/affiliate/conversionBridge` ya normaliza evidencia de proveedor hacia estas tablas. Mercado Libre está `BLOCKED_FOR_AUTOMATION` (`NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND`, `OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED`). Un clic no crea una conversión. Growth lee economía y no la escribe. Fuente de proveedor: `docs/SYSTEMS/SYSTEM_mercadolibre_affiliate.md`.
+
+Auditoría de lotes (no es un segundo ledger): `docs/supabase-migrations/20261008_affiliate_conversion_bridge.sql` (`affiliate_import_batches`, RLS on, solo `service_role`).
 
 **PROD (2026-09-16):** migración aplicada en `mkgsrpsuvedwwlzmzmzh` — tablas vacías (0/0/0). Ver `docs/SYSTEMS/SYSTEM_economy.md` y `MIGRATION_20260916_conversion_commission_foundation.md`.
 

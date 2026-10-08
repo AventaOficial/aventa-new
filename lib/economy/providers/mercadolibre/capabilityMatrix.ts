@@ -23,7 +23,7 @@ export type MercadoLibreCapabilityRow = {
 };
 
 /**
- * Evidence base (MX / program pages + Developers catalog search, 2026-09-16):
+ * Evidence base (MX / program pages + Developers catalog search, rechecked 2026-10-08):
  * - https://www.mercadolibre.com.mx/l/como-se-calculan-tus-ganancias
  * - https://www.mercadolibre.com.mx/l/primerospasos-recorre-la-central-de-afiliados
  * - https://www.mercadolibre.com.mx/l/primerospasos-organiza-tus-links
@@ -239,12 +239,14 @@ export const MERCADOLIBRE_AFFILIATE_CAPABILITY_MATRIX: readonly MercadoLibreCapa
   {
     capability: 'CSV/export',
     support: 'UNKNOWN',
-    officialSource: 'Central UI may allow human export; not confirmed as official API contract',
-    exactEndpointOrMechanism: 'UNKNOWN — do not scrape Central',
+    officialSource:
+      '2026-10-08 review of Central de Afiliados pages and Developers catalog: UI metrics exist; no published export schema or download API',
+    exactEndpointOrMechanism: 'OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED — do not scrape Central',
     authMethod: 'UI session if any',
     dataShape: 'UNKNOWN',
-    limitations: 'Scraping / session cookies forbidden by mission rules',
-    aventaImplication: 'No automated CSV import from ML Central',
+    limitations:
+      'A logged-in dashboard is not an automation contract. Scraping and session cookies are forbidden.',
+    aventaImplication: 'Import stays refused until an official schema is published',
   },
   {
     capability: 'metrics API',
@@ -311,6 +313,20 @@ export const MERCADOLIBRE_AFFILIATE_CAPABILITY_MATRIX: readonly MercadoLibreCapa
 export const MERCADOLIBRE_ATTRIBUTION_WINDOW_HOURS = 24 as const;
 
 export const MERCADOLIBRE_AFFILIATE_ECONOMIC_INGEST_SUPPORTED = false as const;
+
+/**
+ * Closeout 2026-10-08.
+ * An external application cannot pull affiliate conversions through a documented API,
+ * published report, or partner mechanism. Seller orders, billing and Display Ads are
+ * different products and are not affiliate authority.
+ */
+export const MERCADOLIBRE_DISCOVERY_CLASSIFICATION =
+  'NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND' as const;
+
+export const MERCADOLIBRE_AUTOMATION_STATUS = 'BLOCKED_FOR_AUTOMATION' as const;
+
+export const MERCADOLIBRE_OFFICIAL_REPORT_SCHEMA =
+  'OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED' as const;
 
 export function summarizeMercadoLibreAffiliateCapabilities(): {
   supported: string[];
