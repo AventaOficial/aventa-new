@@ -1,4 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/offers/offerExtraction/extractOfferFromUrl', () => ({
+  extractOfferFromUrl: vi.fn(async () => ({
+    httpStatus: 200,
+    body: {
+      title: 'Audífonos inalámbricos',
+      image: 'https://m.media-amazon.com/images/I/test.jpg',
+      images: ['https://m.media-amazon.com/images/I/test.jpg'],
+      store: 'Amazon',
+      suggested_discount_price: 499,
+      suggested_original_price: 899,
+      suggested_category: 'Audio',
+      reason: null,
+      extraction_status: 'success',
+      missing: [],
+      diagnostics: { accessFailure: null, extractionErrorCode: null },
+    },
+    adapter: { provider: 'amazon', blockedByHostPolicy: false },
+    core: { provider: 'amazon' },
+  })),
+}));
 import { authenticateMachineClient, type MachineClientContext } from '@/lib/mcp/auth';
 import { canonicalSubmissionHash, normalizeCandidateUrl, validateCandidates } from '@/lib/mcp/candidates';
 import { checkOfferExists } from '@/lib/mcp/catalog';

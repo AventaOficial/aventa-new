@@ -16,6 +16,35 @@ export function rewardsLevelShareBps(level: number): number {
   return Math.round((REWARDS_CREATOR_SHARE_BPS * clamped) / REWARDS_LEVEL_COUNT);
 }
 
+/** Welcome Offer o un nivel posterior. No existe un tercer porcentaje. */
+export type RewardRateContext =
+  | { kind: 'welcome' }
+  | { kind: 'level'; level: number };
+
+/** Única conversión de contexto a tasa. Welcome es el máximo. Un nivel usa el catálogo. */
+export function rewardShareBps(context: RewardRateContext): number {
+  if (context.kind === 'welcome') return REWARDS_CREATOR_SHARE_BPS;
+  return rewardsLevelShareBps(context.level);
+}
+
+/**
+ * La Oferta de Bienvenida es la oferta seleccionada, no cualquier comisión.
+ * Una oferta posterior usa el nivel que ya define rewardsLevelShareBps.
+ * Sin Oferta de Bienvenida no se asume el máximo.
+ */
+export function resolveSettlementRewardContext(input: {
+  offerId: string;
+  welcomeOfferId: string | null;
+  validRewardCount: number;
+}): RewardRateContext {
+  if (input.welcomeOfferId && input.offerId === input.welcomeOfferId) {
+    return { kind: 'welcome' };
+  }
+  const count = Number.isFinite(input.validRewardCount) ? Math.max(0, Math.trunc(input.validRewardCount)) : 0;
+  const level = Math.min(REWARDS_LEVEL_COUNT, Math.max(1, count));
+  return { kind: 'level', level };
+}
+
 export type RewardsProgression = {
   phase: 'welcome' | 'level';
   shareBps: number;

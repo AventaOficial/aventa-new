@@ -14,16 +14,18 @@ describe('Focus layout — fixed action bar', () => {
     'utf8'
   );
 
-  it('barra de acciones fija con safe-area', () => {
+  it('la barra de decisión vive en el flujo de la oferta y no tapa la pantalla', () => {
     expect(ws).toMatch(/data-focus-actions-bar/);
-    expect(ws).toMatch(/fixed inset-x-0 bottom-0/);
-    expect(ws).toMatch(/safe-area-inset-bottom/);
+    expect(ws).toMatch(/<FocusActionsBar/);
+    expect(ws).toMatch(/onApprove=\{\(\) => void queue\.approve\(\)\}/);
+    expect(ws).toMatch(/onReject=\{\(\) => setRejectOpen\(true\)\}/);
+    expect(ws).not.toMatch(/fixed inset-x-0 bottom-0/);
     expect(ws).not.toMatch(/md:static/);
   });
 
-  it('padding inferior suficiente para no tapar contenido', () => {
-    expect(ws).toMatch(/pb-\[calc\(11rem\+env\(safe-area-inset-bottom/);
-    expect(ws).toMatch(/pb-\[calc\(16\.5rem\+env\(safe-area-inset-bottom/);
+  it('el contenido no reserva hueco para una barra fija superpuesta', () => {
+    expect(ws).not.toMatch(/pb-\[calc\(11rem\+env\(safe-area-inset-bottom/);
+    expect(ws).not.toMatch(/pb-\[calc\(16\.5rem\+env\(safe-area-inset-bottom/);
   });
 
   it('Abrir y cambiar enlace viven en la barra de decisión', () => {

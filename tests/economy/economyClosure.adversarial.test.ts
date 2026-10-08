@@ -20,6 +20,7 @@ function chain(row: unknown) {
   const api = {
     select: () => api,
     eq: () => api,
+    in: async () => ({ data: null, count: 0, error: null }),
     maybeSingle: async () => ({ data: row, error: null }),
     update: () => api,
     insert: async () => ({ error: null }),

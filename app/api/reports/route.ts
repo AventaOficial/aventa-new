@@ -1,31 +1,55 @@
 import { NextResponse } from 'next/server'
-import { getClientIp, enforceRateLimitCustom } from '@/lib/server/rateLimit'
+import { enforceRateLimitCustom } from '@/lib/server/rateLimit'
 import { isValidUuid } from '@/lib/server/validateUuid'
 import { evaluateAbusePolicy } from '@/lib/abuse/risk'
+import { requireBearerCommunityUser } from '@/lib/server/requireCommunityUser'
 import {
-  requireBearerCommunityUser,
-  communityAuthFailureResponse,
-} from '@/lib/server/requireCommunityUser'
+  OFFER_REPORT_TYPES,
+  assessOfferReportText,
+  offerReportRateIdentity,
+  type OfferReportType,
+} from '@/lib/reports/offerReportContract'
+import { recordOfferReportMetric } from '@/lib/reports/reportMetrics'
 
-const REPORT_TYPES = ['precio_falso', 'no_es_oferta', 'expirada', 'spam', 'afiliado_oculto', 'otro'] as const
+function fail(status: number, code: string, error: string) {
+  return NextResponse.json({ error, code }, { status })
+}
 
 export async function POST(request: Request) {
+  recordOfferReportMetric('report_attempt')
   try {
-    const ip = getClientIp(request)
-    const rl = await enforceRateLimitCustom(ip, 'reports')
-    if (!rl.success) {
-      return NextResponse.json(
-        { error: 'Demasiados reportes. Espera un momento.', code: rl.code },
-        { status: rl.status },
-      )
-    }
-
     const authResult = await requireBearerCommunityUser(request)
     if ('error' in authResult) {
-      return communityAuthFailureResponse(authResult)
+      return NextResponse.json(
+        { error: authResult.error, code: authResult.code ?? 'REPORT_UNAUTHORIZED' },
+        { status: authResult.status },
+      )
     }
     const { user, supabase } = authResult
     const reporterId = user.id
+
+    const body = await request.json().catch(() => ({}))
+    const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null
+    const reportType =
+      typeof body?.reportType === 'string' && OFFER_REPORT_TYPES.includes(body.reportType as OfferReportType)
+        ? (body.reportType as OfferReportType)
+        : null
+    const rawComment = typeof body?.comment === 'string' ? body.comment : ''
+
+    if (!offerId || !isValidUuid(offerId)) {
+      recordOfferReportMetric('report_validation_failed')
+      return fail(400, 'REPORT_OFFER_NOT_FOUND', 'La oferta no es válida.')
+    }
+    if (!reportType) {
+      recordOfferReportMetric('report_validation_failed')
+      return fail(400, 'REPORT_INVALID_REASON', 'Elige un motivo de reporte.')
+    }
+    const text = assessOfferReportText(rawComment)
+    if (!text.ok) {
+      recordOfferReportMetric('report_validation_failed')
+      return fail(400, text.code, text.message)
+    }
+
     const abuse = evaluateAbusePolicy({
       action: 'report',
       accountCreatedAt: user.created_at,
@@ -34,25 +58,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: abuse.message, code: abuse.code }, { status: 403 })
     }
 
-    const body = await request.json().catch(() => ({}))
-    const offerId = typeof body?.offerId === 'string' ? body.offerId.trim() : null
-    const reportType = typeof body?.reportType === 'string' && REPORT_TYPES.includes(body.reportType as typeof REPORT_TYPES[number])
-      ? body.reportType
-      : null
-    const comment = typeof body?.comment === 'string' ? body.comment.trim().slice(0, 500) || null : null
-
-    if (!offerId || !reportType || !isValidUuid(offerId)) {
-      return NextResponse.json({ error: 'offerId y reportType son obligatorios' }, { status: 400 })
-    }
-    if (!comment || comment.length < 100) {
-      return NextResponse.json({ error: 'Escribe al menos 100 caracteres describiendo el problema para evitar spam.' }, { status: 400 })
-    }
-
     const { data: targetOffer } = await supabase
       .from('offers')
-      .select('created_by')
+      .select('id, created_by')
       .eq('id', offerId)
       .maybeSingle()
+    if (!targetOffer) {
+      recordOfferReportMetric('report_validation_failed')
+      return fail(404, 'REPORT_OFFER_NOT_FOUND', 'No encontramos esa oferta.')
+    }
+
     const selfReport = evaluateAbusePolicy({
       action: 'report',
       isSelfTarget: (targetOffer as { created_by?: string } | null)?.created_by === reporterId,
@@ -68,20 +83,41 @@ export async function POST(request: Request) {
       .eq('reporter_id', reporterId)
       .maybeSingle()
     if (existing) {
-      return NextResponse.json({ error: 'Ya reportaste esta oferta.' }, { status: 409 })
+      recordOfferReportMetric('report_duplicate')
+      return fail(409, 'REPORT_DUPLICATE', 'Ya reportaste esta oferta.')
+    }
+
+    const rl = await enforceRateLimitCustom(offerReportRateIdentity(reporterId), 'reports')
+    if (!rl.success) {
+      if (rl.code === 'rate_limit_backend_unavailable') {
+        recordOfferReportMetric('report_rate_limit_error')
+        return fail(
+          503,
+          'REPORT_RATE_LIMIT_UNAVAILABLE',
+          'No pudimos comprobar el límite de reportes. Intenta de nuevo en un momento.',
+        )
+      }
+      recordOfferReportMetric('report_rate_limited')
+      return fail(
+        429,
+        'REPORT_RATE_LIMITED',
+        'Has alcanzado el límite temporal de reportes. Intenta nuevamente más tarde.',
+      )
     }
 
     const { error } = await supabase.from('offer_reports').insert({
       offer_id: offerId,
       reporter_id: reporterId,
       report_type: reportType,
-      comment,
+      comment: text.comment,
     })
 
     if (error) {
       console.error('[reports] insert failed:', error.message)
       return NextResponse.json({ error: 'Error al enviar el reporte' }, { status: 500 })
     }
+
+    recordOfferReportMetric('report_accepted')
 
     const { error: notifErr } = await supabase.from('notifications').insert({
       user_id: reporterId,

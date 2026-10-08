@@ -1,10 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  REWARDS_CREATOR_SHARE_BPS,
   REWARDS_HOLD_DAYS,
   splitCommissionCents,
   type RewardStatus,
 } from '@/lib/rewards/config';
+import {
+  REWARDS_VALID_STATUSES,
+  resolveSettlementRewardContext,
+  rewardShareBps,
+  type RewardRateContext,
+} from '@/lib/rewards/levels';
 import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
 import { isRewardsPayoutEnabled, resolveRewardsAccess } from '@/lib/rewards/betaCohort';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
@@ -170,6 +175,33 @@ async function certifyRewardCreationAudit(
  * NO salta: MONEY_PATH_FROZEN, settlement único (P0-4), self_click, anonymous_click,
  * participación de oferta, ni montos/void. No es ruta normal de eligibility (P0-1).
  */
+async function loadSettlementRewardRate(
+  supabase: SupabaseClient,
+  creatorId: string,
+  offerId: string,
+): Promise<{ context: RewardRateContext; shareBps: number } | null> {
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('welcome_offer_id')
+    .eq('id', creatorId)
+    .maybeSingle();
+  if (profileError) return null;
+
+  const { count, error: countError } = await supabase
+    .from('creator_rewards')
+    .select('id', { count: 'exact', head: true })
+    .eq('creator_id', creatorId)
+    .in('status', [...REWARDS_VALID_STATUSES]);
+  if (countError) return null;
+
+  const context = resolveSettlementRewardContext({
+    offerId,
+    welcomeOfferId: (profile as { welcome_offer_id?: string | null } | null)?.welcome_offer_id ?? null,
+    validRewardCount: typeof count === 'number' ? count : 0,
+  });
+  return { context, shareBps: rewardShareBps(context) };
+}
+
 export async function createRewardFromLedgerEntry(
   supabase: SupabaseClient,
   ledger: LedgerAttributionInput,
@@ -292,9 +324,12 @@ export async function createRewardFromLedgerEntry(
     return { created: false, reason: 'anonymous_click_not_auto_rewardable' };
   }
 
+  const rewardRate = await loadSettlementRewardRate(supabase, match.creatorId, match.offerId);
+  if (!rewardRate) return { created: false, reason: 'reward_rate_unresolved' };
+
   const { creatorCents, platformCents } = splitCommissionCents(
     ledger.amount_cents,
-    REWARDS_CREATOR_SHARE_BPS,
+    rewardRate.shareBps,
   );
   if (creatorCents <= 0) {
     return { created: false, reason: 'zero_creator_share' };
@@ -346,7 +381,7 @@ export async function createRewardFromLedgerEntry(
         gross_commission_cents: ledger.amount_cents,
         creator_share_cents: creatorCents,
         platform_share_cents: platformCents,
-        creator_share_bps: REWARDS_CREATOR_SHARE_BPS,
+        creator_share_bps: rewardRate.shareBps,
         currency: 'MXN',
         attribution_method: match.method,
         attribution_confidence: match.confidence,
@@ -365,6 +400,10 @@ export async function createRewardFromLedgerEntry(
           manual_actor_id: options?.actorId ?? null,
           manual_reason: manualAttributionReason(ledger),
           confirmed_at: options?.manualStaffConfirmed ? now : null,
+          reward_context: rewardRate.context.kind,
+          reward_level: rewardRate.context.kind === 'level' ? rewardRate.context.level : null,
+          reward_rate_bps: rewardRate.shareBps,
+          reward_rate_source: 'rewardShareBps',
         },
       },
     },

@@ -14,6 +14,7 @@ import { presentOfferPrice } from '@/lib/formatPrice';
 import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { buildOfferPublicPath, mergeOfferImageUrls } from '@/lib/offerPath';
+import { assessOfferReportText, offerReportUsefulLength } from '@/lib/reports/offerReportContract';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
@@ -475,9 +476,9 @@ export default function OfferModal({
       showToast?.('Inicia sesión para reportar');
       return;
     }
-    const commentTrim = reportComment.trim();
-    if (commentTrim.length < 100) {
-      showToast?.('Escribe al menos 100 caracteres describiendo el problema.');
+    const text = assessOfferReportText(reportComment);
+    if (!text.ok) {
+      showToast?.(text.message);
       return;
     }
     setReportSubmitting(true);
@@ -485,7 +486,7 @@ export default function OfferModal({
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ offerId, reportType, comment: commentTrim }),
+        body: JSON.stringify({ offerId, reportType, comment: text.comment }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
@@ -1145,7 +1146,7 @@ export default function OfferModal({
                     >
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Reportar oferta</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        ¿Qué problema tiene esta oferta?
+                        ¿Qué está mal con esta oferta? Describe brevemente qué está mal con esta oferta.
                       </p>
                       <div className="space-y-3 mb-4">
                         {REPORT_OPTIONS.map((opt) => (
@@ -1165,13 +1166,16 @@ export default function OfferModal({
                       <textarea
                         value={reportComment}
                         onChange={(e) => setReportComment(e.target.value)}
-                        placeholder="Describe el problema (mín. 100 caracteres, máx. 500)"
+                        placeholder="Describe brevemente el problema..."
                         maxLength={500}
                         rows={4}
                         className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 resize-none mb-2"
                       />
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                        {reportComment.trim().length}/100 caracteres mínimos
+                        <span>{offerReportUsefulLength(reportComment)}/500</span>
+                        {offerReportUsefulLength(reportComment) < 30 ? (
+                          <span className="mt-1 block">Escribe al menos 30 caracteres.</span>
+                        ) : null}
                       </p>
                       <div className="flex gap-3">
                         <button
@@ -1182,7 +1186,7 @@ export default function OfferModal({
                         </button>
                         <button
                           onClick={handleSubmitReport}
-                          disabled={!reportType || reportSubmitting || reportComment.trim().length < 100}
+                          disabled={!reportType || reportSubmitting || !assessOfferReportText(reportComment).ok}
                           className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {reportSubmitting ? 'Enviando…' : 'Enviar reporte'}

@@ -25,7 +25,6 @@ import {
 import {
   REWARDS_LEVEL_COUNT,
   REWARDS_VALID_STATUSES,
-  REWARDS_WELCOME_DAYS,
   rewardsLevelShareBps,
 } from '@/lib/rewards/levels';
 import { isRewardsPayoutEnabled } from '@/lib/rewards/betaCohort';
@@ -364,7 +363,7 @@ export const GUIDES: GuideMeta[] = [
         body: [
           'Rewards es un programa de participación sobre comisiones de afiliado de Aventa. No es tu Nivel Aventa y no son los logros.',
           'No está disponible para todas las cuentas. Solo participa quien recibe invitación y queda inscrito. Una cuenta sin esa inscripción no tiene Rewards activo.',
-          'Esta guía no promete dinero ni un pago.',
+          'Hoy el programa económico sigue pausado: no se acumula ni se paga una recompensa real. Esta guía no promete dinero ni un pago.',
         ],
         cta: { label: 'Ver mi Rewards', href: '/me/recompensas' },
       },
@@ -382,12 +381,13 @@ export const GUIDES: GuideMeta[] = [
       {
         id: 'bienvenida-rewards',
         icon: Sparkles,
-        title: 'Bienvenida',
-        subtitle: `${welcomeShare} durante ${REWARDS_WELCOME_DAYS} días`,
+        title: 'Oferta de Bienvenida',
+        subtitle: `${welcomeShare} de la comisión atribuida`,
         illustration: 'commissions',
         body: [
-          `Si tu cuenta queda inscrita, la bienvenida usa el máximo, ${welcomeShare}, durante ${REWARDS_WELCOME_DAYS} días desde esa inscripción.`,
-          'Si ese plazo cierra sin una recompensa válida, quedas en el primer nivel. La bienvenida no abre el programa a quien no está inscrito.',
+          'Cuando tu cuenta queda inscrita, eliges una oferta elegible. Esa oferta elegida es tu Oferta de Bienvenida.',
+          `Su reward share es ${welcomeShare} de la comisión afiliada atribuida. El porcentaje se aplica sobre esa comisión, no sobre el precio del producto.`,
+          'Elegirla no abre el programa a quien no está inscrito. La recompensa sigue sujeta a validación y a una atribución real.',
         ],
       },
       {
@@ -397,8 +397,8 @@ export const GUIDES: GuideMeta[] = [
         subtitle: `Hasta ${maxShare}`,
         illustration: 'reputation',
         body: [
-          `Después de la bienvenida, cada recompensa válida sube un nivel: ${levelPath()}.`,
-          `El tope es ${maxShare}. Cancelada y revertida no suben de nivel. Estos niveles no mueven el Nivel Aventa.`,
+          `Las ofertas posteriores usan tu nivel de recompensa. Cada recompensa válida sube un nivel: ${levelPath()}.`,
+          `La progresión va de ${pct(rewardsLevelShareBps(1))} a ${maxShare}, siempre sobre la comisión afiliada atribuida y no sobre el precio del producto. Cancelada y revertida no suben de nivel. Estos niveles no mueven el Nivel Aventa.`,
         ],
       },
       {

@@ -435,6 +435,9 @@ function MePageInner() {
               level={repLevel}
               score={profile?.reputation_score ?? 0}
               joinedAt={profile?.created_at}
+              bio={profile?.bio}
+              city={profile?.city}
+              state={profile?.state}
               trusted={profile?.is_trusted}
               sharePath={publicHref}
               comments={metrics.commentsCount}

@@ -40,6 +40,7 @@ import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import type { OfferScopeUi } from '@/lib/offerScope';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import StoreBrandMark from './StoreBrandMark';
+import FeedModerationAction from './moderation/FeedModerationAction';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
 import { presentOfferPrice } from '@/lib/formatPrice';
 
@@ -191,6 +192,8 @@ interface OfferCardProps {
   dailyNeed?: boolean;
   /** Alcance en línea vs tienda (desde `conditions`). */
   offerScope?: OfferScopeUi | null;
+  canModerate?: boolean;
+  onModerated?: (offerId: string) => void;
 }
 
 export default function OfferCard({
@@ -227,6 +230,8 @@ export default function OfferCard({
   ownerMetrics,
   dailyNeed = false,
   offerScope = null,
+  canModerate = false,
+  onModerated,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -586,6 +591,9 @@ export default function OfferCard({
           />
         </button>
       </div>
+      {canModerate && offerId && !isTesterOffer ? (
+        <FeedModerationAction offerId={offerId} onRemoved={() => onModerated?.(offerId)} />
+      ) : null}
 
       <div className="flex flex-row items-stretch min-h-0">
         <div className="w-[36%] min-w-[88px] max-[400px]:min-w-[80px] md:w-[200px] md:min-w-[200px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">

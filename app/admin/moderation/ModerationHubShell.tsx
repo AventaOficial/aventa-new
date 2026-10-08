@@ -50,25 +50,24 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
       };
 
   return (
-    <div className="space-y-3 pb-4 md:space-y-4 md:pb-6">
-      <header className={cn('rounded-2xl border px-3 py-3 md:px-5 md:py-4', accent.border)}>
+    <div className="space-y-4 pb-6">
+      <header className="flex flex-col gap-3">
         {!focusPending ? (
-          <div className="mb-3">
+          <div>
             <h1
               className={cn(
-                'text-lg font-semibold tracking-tight md:text-xl',
-                isWorkspace ? 'text-gray-900 dark:text-gray-100' : 'text-white/90'
+                'text-2xl font-semibold tracking-tight',
+                isWorkspace ? 'text-gray-900 dark:text-white' : 'text-white'
               )}
             >
               Moderación
             </h1>
+            <p className={cn('mt-0.5 text-sm', isWorkspace ? 'text-gray-500 dark:text-white/45' : 'text-white/45')}>
+              Revisa ofertas, comentarios y reportes.
+            </p>
           </div>
         ) : null}
-
-        <nav
-          className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide -mx-1 px-1"
-          aria-label="Secciones de moderación"
-        >
+        <nav className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide" aria-label="Secciones de moderación">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -77,19 +76,18 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
                 key={tab.id}
                 href={tab.href}
                 className={cn(
-                  'inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-semibold transition-all md:gap-2 md:px-3 md:text-xs',
-                  active ? accent.tabActive + ' shadow-sm' : accent.tabIdle
+                  'inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition',
+                  active ? accent.tabActive : accent.tabIdle
                 )}
                 aria-current={active ? 'page' : undefined}
               >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {tab.label}
               </Link>
             );
           })}
         </nav>
       </header>
-
       <div>{children}</div>
     </div>
   );
