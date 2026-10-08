@@ -10,6 +10,7 @@
     "test": "npm run test:contracts",
     "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase tests/cazaOfertas tests/intelligence tests/team tests/mcp",
     "test:launch": "vitest run tests/launch",
+    "test:probes": "vitest run --config vitest.probes.config.ts",
     "test:cazaofertas": "vitest run tests/cazaOfertas",
     "typecheck": "tsc --noEmit",
     "build:extension": "tsc -p browser-extension/tsconfig.json",

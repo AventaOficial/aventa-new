@@ -1,6 +1,7 @@
 import path from 'path';
-import { configDefaults, defineConfig } from 'vitest/config';
+import { defineConfig } from 'vitest/config';
 
+/** Sondas de retailers vivos. No las incluye `npm run ci:verify`. */
 export default defineConfig({
   resolve: {
     alias: {
@@ -9,6 +10,6 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    exclude: [...configDefaults.exclude, 'tests/probes/**'],
+    include: ['tests/probes/**/*.test.ts'],
   },
 });
