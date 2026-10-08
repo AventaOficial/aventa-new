@@ -57,6 +57,9 @@ export type ConversionCommissionTruth = {
       lastError: string | null;
       eventsReceived: number;
       economicIngestSupported: false;
+      automationStatus: 'BLOCKED_FOR_AUTOMATION';
+      classification: 'NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND';
+      officialReportSchema: 'OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED';
       settlementEnabled: false;
       note: string;
     };
@@ -125,6 +128,9 @@ function emptyTruth(
         lastError: ml.lastError,
         eventsReceived: ml.metrics.eventsReceived,
         economicIngestSupported: false,
+        automationStatus: ml.automationStatus,
+        classification: ml.classification,
+        officialReportSchema: ml.officialReportSchema,
         settlementEnabled: false,
         note: ml.note,
       },
@@ -287,6 +293,9 @@ export async function buildConversionCommissionTruth(
         lastError: ml.lastError,
         eventsReceived: ml.metrics.eventsReceived,
         economicIngestSupported: false,
+        automationStatus: ml.automationStatus,
+        classification: ml.classification,
+        officialReportSchema: ml.officialReportSchema,
         settlementEnabled: false,
         note: ml.note,
       },

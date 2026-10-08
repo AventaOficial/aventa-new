@@ -1,4 +1,5 @@
 import { SALES_TARGET, SALES_WINDOW_START_MS } from './campaignContext';
+import type { GrowthProviderSnapshot, ProviderDatasetState } from '@/lib/affiliate/conversionBridge/growthRead';
 import {
   conversionRate,
   growthAlerts,
@@ -23,9 +24,12 @@ export type GrowthWindowView = {
   outboundClicks: MeasuredCount;
   confirmedSales: MeasuredCount;
   confirmedCommissionCents: MeasuredCount;
-  salesLabel: 'DATA_INCOMPLETE' | 'DATA_NOT_AVAILABLE' | 'MEASURED';
+  salesLabel: 'DATA_INCOMPLETE' | 'DATA_NOT_AVAILABLE' | 'MEASURED' | 'PARTIAL_DATA' | 'DATA_DELAYED' | 'PROVIDER_IMPORT_FAILED';
   conversionRate: number | null;
   revenuePerClickCents: number | null;
+  pendingConversions: number | null;
+  reversedConversions: number | null;
+  unmatchedConversions: number | null;
 };
 
 export type GrowthWarRoomView = {
@@ -42,32 +46,70 @@ export type GrowthWarRoomView = {
   projectedFinish: string | null;
   bottleneck: { from: string; to: string; rate: number } | null;
   tracking: TrackingHealth;
-  affiliateConfirmation: 'DATA_INCOMPLETE' | 'CONNECTED';
-  channels: Array<{ channel: string; clicks: number; confirmedSales: null }>;
-  campaigns: Array<{ campaignKey: string; clicks: number; confirmedSales: null }>;
-  offers: Array<{ offerId: string; clicks: number; confirmedSales: null; confirmedCommissionCents: null }>;
-  retailers: { best: null; worst: null; insufficient: string[] };
-  contentSales: 'DATA_NOT_AVAILABLE';
+  affiliateConfirmation: ProviderDatasetState;
+  providerDetail: string;
+  lastSuccessfulImportAt: string | null;
+  lastProviderDataAt: string | null;
+  channels: Array<{ channel: string; clicks: number; confirmedSales: number | null; confirmedCommissionCents: number | null }>;
+  campaigns: Array<{ campaignKey: string; source: string | null; content: string | null; clicks: number; confirmedSales: number | null; confirmedCommissionCents: number | null }>;
+  offers: Array<{
+    offerId: string;
+    clicks: number;
+    pendingConversions: number | null;
+    confirmedSales: number | null;
+    reversedConversions: number | null;
+    confirmedCommissionCents: number | null;
+  }>;
+  retailers: { best: string | null; worst: string | null; insufficient: string[] };
+  content: Array<{ contentId: string; confirmedSales: number; confirmedCommissionCents: number }>;
+  contentSales: 'DATA_NOT_AVAILABLE' | 'MEASURED';
   spend: 'DATA_NOT_AVAILABLE';
   roas: null;
   alerts: GrowthAlert[];
 };
 
+function currentDailySales(confirmedSales: number | null, nowMs: number): number | null {
+  if (confirmedSales == null || nowMs < SALES_WINDOW_START_MS) return null;
+  const elapsed = Math.max(1, Math.floor((nowMs - SALES_WINDOW_START_MS) / 86_400_000) + 1);
+  return confirmedSales / elapsed;
+}
+
 function windowView(
   label: string,
   input: { visitors: MeasuredCount; offerViews: MeasuredCount; outboundClicks: MeasuredCount },
   conversionConnected: boolean,
+  measured?: GrowthProviderSnapshot['today'],
+  state?: ProviderDatasetState,
 ): GrowthWindowView {
+  const show = measured != null && (state === 'CONNECTED' || state === 'PARTIAL_DATA');
+  const confirmedSales = show ? measured.confirmedSales : null;
+  const confirmedCommissionCents = show ? measured.confirmedCommissionCents : null;
+  const salesLabel = !show
+    ? state === 'DATA_DELAYED'
+      ? 'DATA_DELAYED'
+      : state === 'PROVIDER_IMPORT_FAILED'
+        ? 'PROVIDER_IMPORT_FAILED'
+        : state === 'PARTIAL_DATA'
+          ? 'PARTIAL_DATA'
+          : conversionConnected
+            ? 'DATA_NOT_AVAILABLE'
+            : 'DATA_INCOMPLETE'
+    : state === 'PARTIAL_DATA'
+      ? 'PARTIAL_DATA'
+      : 'MEASURED';
   return {
     label,
     visitors: input.visitors,
     offerViews: input.offerViews,
     outboundClicks: input.outboundClicks,
-    confirmedSales: null,
-    confirmedCommissionCents: null,
-    salesLabel: conversionConnected ? 'DATA_NOT_AVAILABLE' : 'DATA_INCOMPLETE',
-    conversionRate: null,
-    revenuePerClickCents: null,
+    confirmedSales,
+    confirmedCommissionCents,
+    salesLabel,
+    conversionRate: conversionRate(confirmedSales, input.outboundClicks),
+    revenuePerClickCents: revenuePerClick(confirmedCommissionCents, input.outboundClicks),
+    pendingConversions: show ? measured.pendingConversions : null,
+    reversedConversions: show ? measured.reversedConversions : null,
+    unmatchedConversions: show ? measured.unmatchedConversions : null,
   };
 }
 
@@ -85,14 +127,17 @@ export function buildGrowthWarRoomView(input: {
   byCampaign: Array<{ campaignKey: string; clicks: number }>;
   byNetwork: Array<{ network: string; clicks: number }>;
   topOffers: Array<{ offerId: string; clicks: number }>;
+  provider?: GrowthProviderSnapshot;
 }): GrowthWarRoomView {
   const started = input.nowMs >= SALES_WINDOW_START_MS;
-  const today = windowView('TODAY', input.today, input.conversionConnected);
-  const d7 = windowView('7D', input.d7, input.conversionConnected);
-  const d30 = windowView('30D', input.d30, input.conversionConnected);
+  const provider = input.provider;
+  const state = provider?.state;
+  const today = windowView('TODAY', input.today, input.conversionConnected, provider?.today, state);
+  const d7 = windowView('7D', input.d7, input.conversionConnected, provider?.d7, state);
+  const d30 = windowView('30D', input.d30, input.conversionConnected, provider?.d30, state);
   const sinceLaunch = started
-    ? windowView('SINCE_LAUNCH', input.sinceLaunch, input.conversionConnected)
-    : windowView('SINCE_LAUNCH', { visitors: null, offerViews: null, outboundClicks: null }, input.conversionConnected);
+    ? windowView('SINCE_LAUNCH', input.sinceLaunch, input.conversionConnected, provider?.sinceLaunch, state)
+    : windowView('SINCE_LAUNCH', { visitors: null, offerViews: null, outboundClicks: null }, input.conversionConnected, null, state);
 
   const steps: FunnelStep[] = [
     { id: 'visitors', count: today.visitors },
@@ -110,8 +155,12 @@ export function buildGrowthWarRoomView(input: {
     d30,
     sinceLaunch,
     requiredDaily: started ? requiredDailyRunRate(sinceLaunch.confirmedSales, input.nowMs) : null,
-    currentDaily: null,
-    pace: 'DATA_INSUFFICIENT',
+    currentDaily: currentDailySales(sinceLaunch.confirmedSales, input.nowMs),
+    pace: paceStatus({
+      confirmedSales: sinceLaunch.confirmedSales,
+      currentDaily: currentDailySales(sinceLaunch.confirmedSales, input.nowMs),
+      nowMs: input.nowMs,
+    }),
     projectedFinish: null,
     bottleneck: largestBottleneck(steps),
     tracking: trackingHealth({
@@ -120,26 +169,55 @@ export function buildGrowthWarRoomView(input: {
       completenessPct: input.completenessPct,
       conversionConnected: input.conversionConnected,
     }),
-    affiliateConfirmation: input.conversionConnected ? 'CONNECTED' : 'DATA_INCOMPLETE',
-    channels: input.byChannel.map((row) => ({ ...row, confirmedSales: null })),
-    campaigns: input.byCampaign.map((row) => ({ ...row, confirmedSales: null })),
-    offers: input.topOffers.map((row) => ({
-      ...row,
-      confirmedSales: null,
-      confirmedCommissionCents: null,
-    })),
-    retailers: {
-      ...rankRetailers(input.byNetwork.map((row) => ({ id: row.network, clicks: row.clicks, conversions: null }))),
-      best: null,
-      worst: null,
-    },
-    contentSales: 'DATA_NOT_AVAILABLE',
+    affiliateConfirmation: provider?.state ?? (input.conversionConnected ? 'CONNECTED' : 'DATA_INCOMPLETE'),
+    providerDetail: provider?.detail ?? (input.conversionConnected ? 'connected' : 'affiliate_confirmation_not_connected'),
+    lastSuccessfulImportAt: provider?.lastSuccessfulImportAt ?? null,
+    lastProviderDataAt: provider?.lastProviderDataAt ?? null,
+    channels: input.byChannel.map((row) => {
+      const confirmed = provider?.channels.find((item) => item.channel === row.channel);
+      return {
+        ...row,
+        confirmedSales: confirmed?.confirmedSales ?? null,
+        confirmedCommissionCents: confirmed?.confirmedCommissionCents ?? null,
+      };
+    }),
+    campaigns: input.byCampaign.map((row) => {
+      const confirmed = provider?.campaigns.find((item) => item.campaignKey === row.campaignKey);
+      return {
+        campaignKey: row.campaignKey,
+        source: confirmed?.source ?? null,
+        content: confirmed?.content ?? null,
+        clicks: row.clicks,
+        confirmedSales: confirmed?.confirmedSales ?? null,
+        confirmedCommissionCents: confirmed?.confirmedCommissionCents ?? null,
+      };
+    }),
+    offers: input.topOffers.map((row) => {
+      const confirmed = provider?.offers.find((item) => item.offerId === row.offerId);
+      return {
+        offerId: row.offerId,
+        clicks: row.clicks,
+        pendingConversions: confirmed?.pendingConversions ?? null,
+        confirmedSales: confirmed?.confirmedSales ?? null,
+        reversedConversions: confirmed?.reversedConversions ?? null,
+        confirmedCommissionCents: confirmed?.confirmedCommissionCents ?? null,
+      };
+    }),
+    retailers: rankRetailers(
+      input.byNetwork.map((row) => ({
+        id: row.network,
+        clicks: row.clicks,
+        conversions: provider?.retailers.find((item) => item.id === row.network)?.confirmedSales ?? null,
+      })),
+    ),
+    content: provider?.content ?? [],
+    contentSales: provider?.content.length ? 'MEASURED' : 'DATA_NOT_AVAILABLE',
     spend: 'DATA_NOT_AVAILABLE',
     roas: null,
     alerts: growthAlerts({
       outboundClicks: today.outboundClicks,
       previousOutbound: null,
-      confirmedSales: null,
+      confirmedSales: today.confirmedSales,
       previousSales: null,
       conversionConnected: input.conversionConnected,
     }),

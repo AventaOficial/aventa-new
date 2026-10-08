@@ -47,7 +47,8 @@ export function getMercadoLibreAffiliateConfig(): MercadoLibreAffiliateConfig {
     settlementEnabled: false,
     attributionWindowHours: 24,
     note:
-      'Mercado Libre affiliate economic ingest is NOT_SUPPORTED_BY_OFFICIAL_API. ' +
+      'Mercado Libre affiliate automation is BLOCKED_FOR_AUTOMATION ' +
+      '(NO_OFFICIAL_AUTOMATION_INTERFACE_FOUND, OFFICIAL_REPORT_SCHEMA_NOT_PUBLISHED). ' +
       'Seller OAuth must not be used as affiliate commission authority. ' +
       'Defaults: AFFILIATE_MERCADOLIBRE_ENABLED=false, MODE=disabled.',
   };
