@@ -15,6 +15,26 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/server/rateLimit', () => ({
   enforceRateLimitCustom: vi.fn(async () => ({ success: true })),
 }));
+vi.mock('@/lib/offers/offerExtraction/extractOfferFromUrl', () => ({
+  extractOfferFromUrl: vi.fn(async () => ({
+    httpStatus: 200,
+    body: {
+      title: 'Audífonos inalámbricos',
+      image: 'https://m.media-amazon.com/images/I/test.jpg',
+      images: ['https://m.media-amazon.com/images/I/test.jpg'],
+      store: 'Amazon',
+      suggested_discount_price: 499,
+      suggested_original_price: 899,
+      suggested_category: 'Audio',
+      reason: null,
+      extraction_status: 'success',
+      missing: [],
+      diagnostics: { accessFailure: null, extractionErrorCode: null },
+    },
+    adapter: { provider: 'amazon', blockedByHostPolicy: false },
+    core: { provider: 'amazon' },
+  })),
+}));
 
 const { POST } = await import('@/app/api/mcp/route');
 

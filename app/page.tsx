@@ -36,6 +36,7 @@ import {
   fetchHomeFeedFromAPI,
   type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
+import { appendOffersById, refreshFeedWithoutDroppingPages } from '@/lib/offers/feedList';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { testersForTab } from '@/lib/offers/testerOffers';
 import { DEFAULT_FEED_POLICY, planFeedPlacements, type SponsoredCampaign } from '@/lib/sponsored/placements';
@@ -107,6 +108,11 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState(false);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [canModerate, setCanModerate] = useState(false);
+  const offersCountRef = useRef(0);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
@@ -194,6 +200,29 @@ function HomeContent() {
     }
   }, [pathname, searchParams, openUploadModal]);
 
+  useEffect(() => {
+    offersCountRef.current = offers.length;
+  }, [offers.length]);
+
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!token) return;
+    let cancelled = false;
+    fetch('/api/me/moderation-access', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (!cancelled) setCanModerate(body?.canModerate === true);
+      })
+      .catch(() => {
+        if (!cancelled) setCanModerate(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.access_token]);
+
   const fetchOffers = useCallback((overrideLimit?: number, opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setFeedError(null);
@@ -245,11 +274,15 @@ function HomeContent() {
           homeView,
           effectiveLimit,
         );
-        setOffers(list);
+        const keepPages = Boolean(opts?.silent) && offersCountRef.current > list.length;
+        setOffers((prev) => (keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list));
         setJustPublished((prev) => prev.filter((p) => !list.some((o) => o.id === p.id)));
         setLoading(false);
         setFeedError(null);
-        setHasMoreCursor(homeView === 'latest' ? nextCursor != null : homeView !== 'vitales' && items.length >= effectiveLimit);
+        if (!keepPages) {
+          setFeedCursor(nextCursor);
+          setHasMoreCursor(homeView === 'latest' ? nextCursor != null : homeView !== 'vitales' && items.length >= effectiveLimit);
+        }
         recordFeedLoadSuccess();
         logEvent({
           type: 'view',
@@ -357,32 +390,31 @@ function HomeContent() {
   }, [viewMode, debouncedQuery, scheduleFeedRefetch]);
 
   const fetchNextPage = useCallback(() => {
-    if (viewMode !== 'latest') return;
-    if (offers.length === 0) return;
-    const lastCreatedAt = offers[offers.length - 1]?.createdAt;
-    if (!lastCreatedAt) return;
-    setLoading(true);
+    if (viewMode !== 'latest' || loadingMore || !feedCursor) return;
+    setLoadingMore(true);
+    setMoreError(false);
     void fetchHomeFeedFromAPI({
-      limit: 13,
+      limit: 12,
       viewMode: 'latest',
       timeFilter,
       categoryFilter,
       storeFilter,
-      cursor: lastCreatedAt,
+      cursor: feedCursor,
     })
       .then(({ items, nextCursor }) => {
-        setLoading(false);
         const rows = items.map((item) => mapOfferToCard(item as FeedApiItemShape));
+        setOffers((prev) => appendOffersById(prev, rows));
+        setFeedCursor(nextCursor);
         setHasMoreCursor(nextCursor != null);
-        setOffers((prev) => [...prev, ...rows.slice(0, 12)]);
         recordFeedLoadSuccess();
       })
       .catch((err) => {
-        setLoading(false);
+        setMoreError(true);
         recordFeedLoadFailure({ branch: 'next-page' });
         notifyUserError(showToast, 'No pudimos cargar más ofertas.', 'feed:next-page', err);
-      });
-  }, [viewMode, timeFilter, storeFilter, categoryFilter, offers, showToast]);
+      })
+      .finally(() => setLoadingMore(false));
+  }, [viewMode, timeFilter, storeFilter, categoryFilter, feedCursor, loadingMore, showToast]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -405,7 +437,7 @@ function HomeContent() {
       setHasMoreCursor(true);
     }
 
-    setLoading(true);
+    if (filtersChanged || offersCountRef.current === 0) setLoading(true);
     if (debouncedQuery.trim()) {
       const params = new URLSearchParams({
         q: debouncedQuery.trim(),
@@ -842,6 +874,8 @@ function HomeContent() {
                     dailyNeed={offer.dailyNeed}
                     isTesterOffer={offer.id.startsWith('tester-')}
                     offerScope={offer.offerScope ?? null}
+                    canModerate={Boolean(session?.access_token) && canModerate && !offer.id.startsWith('tester-')}
+                    onModerated={(id) => setOffers((prev) => prev.filter((row) => row.id !== id))}
                   />
                 </motion.div>
                 {sponsoredAfter.has(index) ? (
@@ -861,16 +895,17 @@ function HomeContent() {
                 <div className="flex justify-center pt-4 md:pt-6">
                   <button
                     type="button"
+                    disabled={loadingMore}
                     onClick={() => {
-                      if ((viewMode === 'latest' || viewMode === 'personalized') && !debouncedQuery.trim()) {
+                      if (viewMode === 'latest' && !debouncedQuery.trim()) {
                         fetchNextPage();
                       } else {
                         setLimit((prev) => prev + 12);
                       }
                     }}
-                    className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                    className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-60"
                   >
-                    Cargar más
+                    {loadingMore ? 'Cargando…' : moreError ? 'Reintentar' : 'Cargar más'}
                   </button>
                 </div>
               )}

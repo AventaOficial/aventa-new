@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ExternalLink, ImageOff } from 'lucide-react';
+import { ImageOff } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
@@ -12,6 +12,7 @@ import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
+import StoreBrandMark from '@/app/components/StoreBrandMark';
 import ModerationPriorityHints from './ModerationPriorityHints';
 
 type Props = {
@@ -61,14 +62,13 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
         ? 'bg-amber-400'
         : 'bg-gray-400';
 
-  const offerHref = offer.offer_url?.trim() || '';
-
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
+    <div className="flex w-full flex-col gap-4 text-left sm:flex-row sm:items-start">
+      <div className="w-full shrink-0 sm:w-44">
       <div
         className={cn(
           'relative w-full overflow-hidden rounded-2xl',
-          'aspect-[4/3] max-h-[min(28vh,220px)] sm:max-h-[min(32vh,260px)]',
+          'aspect-square',
           ui.heroBg
         )}
       >
@@ -123,17 +123,19 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
           ))}
         </div>
       ) : null}
+      </div>
 
+      <div className="min-w-0 flex-1">
       <h2
         className={cn(
-          'mt-3 line-clamp-2 text-balance text-lg font-semibold leading-snug md:text-xl',
+          'line-clamp-3 text-balance text-xl font-semibold leading-snug md:text-2xl',
           ui.title
         )}
       >
         {offer.title}
       </h2>
 
-      <div className="mt-2 flex flex-wrap items-baseline justify-center gap-x-2.5 gap-y-0.5">
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
         <span className={cn('text-xl font-semibold tabular-nums md:text-2xl', ui.title)}>
           ${Number(offer.price).toLocaleString('es-MX', { maximumFractionDigits: 2 })}
         </span>
@@ -152,19 +154,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
             {pct}% OFF
           </span>
         ) : null}
-        {offer.store?.trim() && offerHref ? (
-          <a
-            href={offerHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn('inline-flex items-center gap-1 text-sm font-medium', ui.soft)}
-          >
-            · {offer.store.trim()}
-            <ExternalLink className="h-3 w-3" aria-hidden />
-          </a>
-        ) : offer.store?.trim() ? (
-          <span className={cn('text-sm', ui.soft)}>· {offer.store.trim()}</span>
-        ) : null}
+        {offer.store?.trim() ? <StoreBrandMark store={offer.store} className="text-sm" /> : null}
       </div>
 
       {(() => {
@@ -173,7 +163,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
         const personalCoupon = offer.coupons?.trim() || null;
         if (!msiLabel && !bankLabel && !personalCoupon) return null;
         return (
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             {msiLabel ? <span className={cn('font-medium', ui.soft)}>{msiLabel}</span> : null}
             {bankLabel ? (
               <span
@@ -206,7 +196,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
         <p className={cn('inline-flex items-center gap-1.5 text-sm font-medium', ui.body)}>
           <span className={cn('inline-block h-2 w-2 rounded-full', toneDot)} aria-hidden />
           {verdict.headline}
@@ -228,6 +218,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
         >
           Ver por qué
         </button>
+      </div>
       </div>
     </div>
   );

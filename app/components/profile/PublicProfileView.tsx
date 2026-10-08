@@ -148,7 +148,6 @@ export default function PublicProfileView({
   location = null,
   coverUrl = null,
   joinedAt = null,
-  trusted = false,
   activityVisible = true,
   levelHref,
   showcase = [],
@@ -341,16 +340,22 @@ export default function PublicProfileView({
                 ) : null}
               </div>
               <div className="min-w-0">
-                <h1 className="flex items-center gap-2 break-words text-[28px] font-semibold leading-none sm:text-[34px]">
+                <h1 className="break-words text-[28px] font-semibold leading-none sm:text-[34px]">
                   {displayName}
-                  {trusted ? <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-[11px]" aria-label="Cuenta de confianza">✓</span> : null}
                 </h1>
-                {handle ? <p className="mt-1 break-all text-[14px] text-[var(--me-muted)]">@{handle}</p> : null}
+                {bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap text-[15px] leading-relaxed text-[var(--me-ink)]">{bio}</p> : null}
+                {location ? <p className="mt-2 text-[14px] text-[var(--me-muted)]">{location}</p> : null}
                 <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--me-muted)]">
-                  <span>Nivel {level} · {label}</span>
                   {joinedYear ? <span>Se unió en {joinedYear}</span> : null}
+                  {sharePath ? (
+                    <Link href={sharePath} className="break-all text-violet-700 hover:underline dark:text-violet-300">
+                      {sharePath}
+                    </Link>
+                  ) : handle ? (
+                    <span className="break-all">@{handle}</span>
+                  ) : null}
+                  <span>Nivel {level} · {label}</span>
                 </p>
-                {bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--me-ink)]">{bio}</p> : null}
                 {shownCategories.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {shownCategories.map((value) => (

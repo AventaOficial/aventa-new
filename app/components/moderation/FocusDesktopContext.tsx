@@ -1,6 +1,7 @@
 'use client';
 
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ImageOff } from 'lucide-react';
+import { mergeOfferImageUrls } from '@/lib/offerPath';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
@@ -9,6 +10,7 @@ import { getOfferDiscountPercent } from '@/lib/moderation/relativeTime';
 import { parseBotMeta } from '@/lib/moderation/botFacts';
 import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
+import StoreBrandMark from '@/app/components/StoreBrandMark';
 
 type Props = {
   offer: FocusModerationOffer;
@@ -41,15 +43,67 @@ export default function FocusDesktopContext({
   const age = formatModerationRelativeTime(offer.created_at);
   const desc = offer.description?.trim() || null;
 
+  const gallery = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null);
+  const preview = gallery[0] ?? null;
+
   return (
     <aside
       className={cn(
-        'hidden md:flex md:w-[280px] lg:w-[320px] shrink-0 flex-col gap-4 rounded-2xl border p-4 text-left',
+        'flex w-full shrink-0 flex-col gap-4 rounded-2xl border p-4 text-left',
         ui.border,
         ui.ws ? 'bg-white/70 dark:bg-white/[0.03]' : 'bg-white/[0.04]'
       )}
       data-focus-desktop-context
     >
+      <section className={cn('rounded-xl border p-3', ui.border)}>
+        <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>
+          Vista previa del enlace
+        </p>
+        <div className="mt-2 flex gap-3">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt="" className="h-16 w-16 rounded-lg object-cover" />
+          ) : (
+            <div className={cn('flex h-16 w-16 items-center justify-center rounded-lg', ui.thumbBg)}>
+              <ImageOff className={cn('h-4 w-4', ui.iconMuted)} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className={cn('line-clamp-2 text-sm font-semibold', ui.title)}>{offer.title}</p>
+            <p className={cn('mt-1 text-sm tabular-nums font-semibold', ui.title)}>
+              ${Number(offer.price).toLocaleString('es-MX')}
+            </p>
+          </div>
+        </div>
+      </section>
+      <section>
+        <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>
+          Información adicional
+        </p>
+        <dl className="mt-2 space-y-1.5 text-sm">
+          <div className="flex justify-between gap-2">
+            <dt className={ui.muted}>Tienda</dt>
+            <dd className={ui.body}>{offer.store?.trim() ? <StoreBrandMark store={offer.store} /> : '—'}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className={ui.muted}>Fuente</dt>
+            <dd className={ui.body}>{offer.is_bot ? 'Bot' : 'Cazador'}</dd>
+          </div>
+        </dl>
+      </section>
+      {gallery.length > 0 ? (
+        <section>
+          <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>
+            Imágenes ({gallery.length})
+          </p>
+          <div className="mt-2 flex gap-2 overflow-x-auto">
+            {gallery.slice(0, 6).map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={`${src}-${i}`} src={src} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section>
         <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>
           Decisión
@@ -99,7 +153,11 @@ export default function FocusDesktopContext({
         </p>
         <ul className={cn('mt-2 space-y-1 text-xs leading-relaxed', ui.muted)}>
           <li>Fuente: {offer.is_bot ? 'Bot' : 'Cazador'}</li>
-          {offer.store?.trim() ? <li>Tienda: {offer.store.trim()}</li> : null}
+          {offer.store?.trim() ? (
+            <li>
+              <StoreBrandMark store={offer.store} className="text-xs" />
+            </li>
+          ) : null}
           {offer.coupons?.trim() ? <li>Cupón: {offer.coupons.trim()}</li> : null}
           {meta?.decision ? <li>Decisión bot: {meta.decision}</li> : null}
           {meta?.signals?.effectiveDiscountPercent != null ? (

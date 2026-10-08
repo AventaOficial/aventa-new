@@ -30,7 +30,6 @@ export default function HunterHeader({
   city,
   state,
   joinedAt,
-  trusted = false,
 }: HunterHeaderProps) {
   const levelLabel = getReputationLabel(level);
   const handle = publicHref?.startsWith('/u/') ? publicHref.slice(3) : null;
@@ -62,7 +61,6 @@ export default function HunterHeader({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <h2 className="truncate text-[22px] font-semibold leading-none">{displayName}</h2>
-          {trusted ? <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-[10px]" aria-label="Cuenta de confianza">✓</span> : null}
         </div>
         {handle ? <p className="mt-1 truncate text-[13px] text-[var(--me-muted)]">@{handle}</p> : null}
         <p className="mt-2 text-[13px]">

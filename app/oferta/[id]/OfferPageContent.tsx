@@ -24,6 +24,7 @@ import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import type { OfferFreshnessPresentation } from '@/lib/offers/freshness/present';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
+import { assessOfferReportText, offerReportUsefulLength } from '@/lib/reports/offerReportContract';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
@@ -440,9 +441,9 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
   const handleReportOffer = async () => {
     if (!reportType || !offer.id || reportSubmitting || !session?.access_token) return;
-    const commentTrim = reportComment.trim();
-    if (commentTrim.length < 100) {
-      showToast?.('Escribe al menos 100 caracteres describiendo el problema.');
+    const text = assessOfferReportText(reportComment);
+    if (!text.ok) {
+      showToast?.(text.message);
       return;
     }
     setReportSubmitting(true);
@@ -450,7 +451,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ offerId: offer.id, reportType, comment: commentTrim }),
+        body: JSON.stringify({ offerId: offer.id, reportType, comment: text.comment }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && !data.error) {
@@ -1299,7 +1300,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               Reportar oferta
             </h3>
             <p id="report-desc" className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              ¿Precio falso, link roto u otra cosa? Cuéntalo (mín. 100 caracteres).
+              ¿Qué está mal con esta oferta? Describe brevemente qué está mal con esta oferta.
             </p>
             <div className="space-y-2 mb-4" role="radiogroup" aria-labelledby="report-title">
               {REPORT_OPTIONS.map((opt) => (
@@ -1326,19 +1327,16 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               id="report-comment"
               value={reportComment}
               onChange={(e) => setReportComment(e.target.value)}
-              placeholder="Ej: El precio mostrado ya no aplica, el enlace lleva a otro producto..."
+              placeholder="Describe brevemente el problema..."
               maxLength={500}
               rows={4}
               className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:focus:ring-amber-400 dark:focus:border-amber-400"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-              {reportComment.trim().length < 100 ? (
-                <span className={reportComment.trim().length > 0 ? 'text-amber-600 dark:text-amber-400' : ''}>
-                  {reportComment.trim().length}/100 caracteres mínimos
-                </span>
-              ) : (
-                <span className="text-emerald-600 dark:text-emerald-400">{reportComment.trim().length}/500</span>
-              )}
+              <span>{offerReportUsefulLength(reportComment)}/500</span>
+              {offerReportUsefulLength(reportComment) < 30 ? (
+                <span className="mt-1 block text-amber-600 dark:text-amber-400">Escribe al menos 30 caracteres.</span>
+              ) : null}
             </p>
             <div className="flex gap-3">
               <button
@@ -1352,7 +1350,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <button
                 type="button"
                 onClick={handleReportOffer}
-                disabled={reportSubmitting || reportComment.trim().length < 100 || !reportType}
+                disabled={reportSubmitting || !assessOfferReportText(reportComment).ok || !reportType}
                 className="flex-1 rounded-xl bg-amber-600 text-white py-2.5 text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               >
                 {reportSubmitting ? 'Enviando…' : 'Enviar reporte'}

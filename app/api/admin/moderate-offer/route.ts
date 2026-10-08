@@ -78,11 +78,15 @@ export async function POST(request: Request) {
     if (previousStatus === status) {
       return NextResponse.json({ ok: true, idempotent: true })
     }
-    if (previousStatus !== 'pending') {
+    const feedTakedown = body?.surface === 'feed' && status === 'rejected' && previousStatus === 'approved'
+    if (body?.surface === 'feed' && !feedTakedown) {
+      return NextResponse.json({ error: 'Desde el feed solo se retira una oferta publicada.' }, { status: 409 })
+    }
+    if (!feedTakedown && previousStatus !== 'pending') {
       return NextResponse.json({ error: 'La oferta ya fue moderada' }, { status: 409 })
     }
 
-    if (!bulkAction) {
+    if (!feedTakedown && !bulkAction) {
       const lockCheck = assertModeratorOwnsLock(
         {
           locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
@@ -217,11 +221,12 @@ export async function POST(request: Request) {
         snoozed_until?: null
       } = { status: 'rejected', ...LOCK_CLEAR }
       if (reason !== undefined) payload.rejection_reason = reason
+      const expectedStatus = feedTakedown ? 'approved' : 'pending'
       let { data: updatedRow, error } = await supabase
         .from('offers')
         .update(payload)
         .eq('id', id)
-        .eq('status', 'pending')
+        .eq('status', expectedStatus)
         .select('id')
         .maybeSingle()
       if (error && hasMissingColumn(error, 'locked_by')) {
@@ -232,7 +237,7 @@ export async function POST(request: Request) {
           .from('offers')
           .update(payload)
           .eq('id', id)
-          .eq('status', 'pending')
+          .eq('status', expectedStatus)
           .select('id')
           .maybeSingle())
       }

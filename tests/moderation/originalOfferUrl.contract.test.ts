@@ -41,15 +41,15 @@ describe('FocusOfferStage monetization UI contract', () => {
 });
 
 describe('FocusAffiliatePrepare + workspace contract', () => {
-  it('workspace usa prepare + barra fija de acciones', () => {
+  it('workspace usa prepare y la barra de acciones en el flujo', () => {
     const ws = readFileSync(
       join(process.cwd(), 'app/components/moderation/ModerationFocusWorkspace.tsx'),
       'utf8'
     );
     expect(ws).toMatch(/FocusAffiliatePrepare/);
     expect(ws).toMatch(/prepareAffiliateLink/);
-    expect(ws).toMatch(/fixed inset-x-0 bottom-0/);
-    // Evitar md:static que empuja acciones fuera del primer viewport
+    expect(ws).toMatch(/data-focus-actions-bar/);
+    expect(ws).not.toMatch(/fixed inset-x-0 bottom-0/);
     expect(ws).not.toMatch(/md:static/);
   });
 

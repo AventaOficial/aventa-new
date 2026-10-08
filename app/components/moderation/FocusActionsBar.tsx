@@ -81,9 +81,7 @@ export default function FocusActionsBar({
           onClick={onReject}
           className={cn(
             'flex-1 rounded-2xl border px-4 py-3.5 text-base font-semibold transition disabled:opacity-50',
-            ui.ws
-              ? 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:bg-transparent dark:text-rose-300 dark:hover:bg-rose-500/10'
-              : 'border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20'
+            'border-rose-400/40 bg-transparent text-rose-300 hover:bg-rose-500/10'
           )}
         >
           Rechazar
@@ -94,9 +92,7 @@ export default function FocusActionsBar({
           onClick={onApprove}
           className={cn(
             'flex-[1.35] rounded-2xl px-4 py-3.5 text-base font-semibold text-white transition disabled:opacity-50',
-            ui.ws
-              ? 'bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400'
-              : 'bg-violet-500 hover:bg-violet-400'
+            ui.ws ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-violet-500 hover:bg-violet-400'
           )}
         >
           Aprobar

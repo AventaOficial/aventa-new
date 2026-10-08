@@ -18,6 +18,7 @@ import FocusAffiliatePrepare from './FocusAffiliatePrepare';
 import FocusDesktopContext from './FocusDesktopContext';
 import ModerationWorkspaceStats from '@/app/admin/moderation/ModerationWorkspaceStats';
 import ModerationFixSheet from '@/app/admin/components/ModerationFixSheet';
+import StoreBrandMark from '@/app/components/StoreBrandMark';
 
 export type ModerationFocusWorkspaceProps = {
   mode?: ModerationHubMode;
@@ -130,36 +131,21 @@ export default function ModerationFocusWorkspace({
   // Historial = snapshot de navegación; no es oferta editable. Lease/ownership siguen en servidor.
   const canEdit = !queue.viewingHistory;
 
-  useEffect(() => {
-    if (queue.viewingHistory) setEditOpen(false);
-  }, [queue.viewingHistory]);
+  if (queue.viewingHistory && editOpen) {
+    setEditOpen(false);
+  }
 
   return (
     <div
-      className={cn(
-        'relative mx-auto flex w-full max-w-2xl flex-col px-4 pt-1 md:max-w-5xl',
-        // Espacio fijo para la action bar + safe-area (también en desktop: la barra es fixed).
-        prepareOpen
-          ? 'pb-[calc(16.5rem+env(safe-area-inset-bottom,0px))]'
-          : 'pb-[calc(11rem+env(safe-area-inset-bottom,0px))]'
-      )}
+      className="relative mx-auto flex w-full max-w-[1400px] flex-col px-1 pt-1 pb-8"
       data-focus-workspace
     >
       <header className="mb-2 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className={cn('text-lg font-semibold tracking-tight md:text-xl', ui.title)}>
+          <h1 className={cn('text-2xl font-semibold tracking-tight', ui.title)}>
             Moderación
           </h1>
-          <p className={cn('mt-0.5 text-xs md:text-sm', ui.soft)}>
-            {queue.stats.globalPending > 0
-              ? `${queue.stats.globalPending} por revisar`
-              : queue.loading
-                ? 'Cargando…'
-                : 'Nada pendiente'}
-            {oldestLabel ? (
-              <span className={cn('ml-2', ui.faint)}>· más antigua: {oldestLabel}</span>
-            ) : null}
-          </p>
+          <p className={cn('mt-0.5 text-sm', ui.soft)}>Revisa ofertas, comentarios y reportes.</p>
         </div>
         <FocusShortcutsHint mode={mode} />
       </header>
@@ -178,8 +164,8 @@ export default function ModerationFocusWorkspace({
             key={f.id}
             href={f.href}
             className={cn(
-              'rounded-lg px-3.5 py-2 text-xs font-bold tracking-wide uppercase transition',
-              sourceTab === f.id ? ui.chipActive : cn(ui.btnGhost, 'border opacity-80')
+              'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+              sourceTab === f.id ? ui.chipActive : cn(ui.btnGhost, 'border')
             )}
           >
             {f.label}
@@ -258,14 +244,63 @@ export default function ModerationFocusWorkspace({
               ) : null}
               {monetization ? ` · ${monetization.label}` : ''}
             </p>
-            <div className="flex flex-col gap-4 md:flex-row md:items-start">
-              <div className="min-w-0 flex-1">
+            <div className="grid items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
+              <aside
+                className={cn('hidden rounded-2xl border p-2 xl:block', ui.border, ui.heroBg)}
+                aria-label="Oferta en revisión"
+              >
+                <div className={cn('rounded-xl border p-2', ui.rowActive)}>
+                  <p className={cn('line-clamp-2 text-sm font-semibold', ui.title)}>{queue.offer.title}</p>
+                  <p className={cn('mt-1 text-sm tabular-nums', ui.soft)}>
+                    ${Number(queue.offer.price).toLocaleString('es-MX')}
+                  </p>
+                  {queue.offer.store?.trim() ? <StoreBrandMark store={queue.offer.store} className="mt-1 text-xs" /> : null}
+                  <p className={cn('mt-1 text-[11px]', ui.faint)}>
+                    {queue.offer.is_bot ? 'Bot' : 'Usuario'}
+                    {oldestLabel ? ` · más antigua ${oldestLabel}` : ''}
+                  </p>
+                </div>
+              </aside>
+              <div className={cn('min-w-0 rounded-2xl border p-4', ui.border, ui.heroBg)}>
                 <FocusOfferStage
                   key={queue.offer.id}
                   offer={queue.offer}
                   mode={mode}
                   onOpenWhy={() => setWhyOpen(true)}
                 />
+                <div className="mt-4" data-focus-actions-bar>
+                  <FocusActionsBar
+                    mode={mode}
+                    acting={queue.acting}
+                    disabled={queue.viewingHistory}
+                    offerHref={queue.offer.offer_url}
+                    changeLabel={
+                      monetization?.status === 'needs_attention' ? 'Preparar enlace' : 'Cambiar enlace'
+                    }
+                    onChangeLink={() => setUserPrepare(true)}
+                    onReject={() => setRejectOpen(true)}
+                    onApprove={() => void queue.approve()}
+                    onSnooze={(m) => void queue.snooze(m)}
+                  />
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={queue.goPrev}
+                      disabled={queue.acting}
+                      className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Anterior
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void queue.goNext()}
+                      disabled={queue.acting}
+                      className={cn('inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold text-white disabled:opacity-40', ui.ws ? 'bg-emerald-600' : 'bg-violet-500')}
+                    >
+                      Siguiente <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
               <FocusDesktopContext
                 offer={queue.offer}
@@ -278,53 +313,6 @@ export default function ModerationFocusWorkspace({
           </>
         )}
       </div>
-
-      {queue.offer ? (
-        <div
-          className={cn(
-            'fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 backdrop-blur-md',
-            'pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]',
-            ui.ws
-              ? 'border-black/[0.06] bg-white/90 dark:border-white/10 dark:bg-[#0a0f0c]/90'
-              : 'border-white/10 bg-[#0c0a12]/92'
-          )}
-          data-focus-actions-bar
-        >
-          <div className="mx-auto w-full max-w-lg">
-            <FocusActionsBar
-              mode={mode}
-              acting={queue.acting}
-              disabled={queue.viewingHistory}
-              offerHref={queue.offer.offer_url}
-              changeLabel={
-                monetization?.status === 'needs_attention' ? 'Preparar enlace' : 'Cambiar enlace'
-              }
-              onChangeLink={() => setUserPrepare(true)}
-              onReject={() => setRejectOpen(true)}
-              onApprove={() => void queue.approve()}
-              onSnooze={(m) => void queue.snooze(m)}
-            />
-            <div className="mt-2 flex items-center justify-center gap-6">
-              <button
-                type="button"
-                onClick={queue.goPrev}
-                disabled={queue.acting}
-                className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
-              >
-                <ChevronLeft className="h-4 w-4" /> anterior
-              </button>
-              <button
-                type="button"
-                onClick={() => void queue.goNext()}
-                disabled={queue.acting}
-                className={cn('inline-flex items-center gap-1 text-sm disabled:opacity-40', ui.soft)}
-              >
-                siguiente <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <FocusRejectSheet
         open={rejectOpen}

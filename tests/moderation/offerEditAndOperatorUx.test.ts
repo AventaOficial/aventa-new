@@ -68,7 +68,7 @@ describe('update-offer edit surface', () => {
 });
 
 describe('Focus edit + desktop context + mobile intact', () => {
-  it('desktop context hidden on mobile; action bar unchanged contract', () => {
+  it('el contexto de escritorio vive en la columna del workspace y la barra sigue en el flujo', () => {
     const ws = readFileSync(
       join(process.cwd(), 'app/components/moderation/ModerationFocusWorkspace.tsx'),
       'utf8'
@@ -77,11 +77,12 @@ describe('Focus edit + desktop context + mobile intact', () => {
     expect(ws).toContain('ModerationFixSheet');
     expect(ws).toContain('data-focus-actions-bar');
     expect(ws).toContain('onApprove={() => void queue.approve()}');
+    expect(ws).toContain('xl:grid-cols-');
     const desk = readFileSync(
       join(process.cwd(), 'app/components/moderation/FocusDesktopContext.tsx'),
       'utf8'
     );
-    expect(desk).toMatch(/hidden md:flex/);
+    expect(desk).toMatch(/<aside/);
     expect(desk).toContain('data-focus-desktop-context');
   });
 

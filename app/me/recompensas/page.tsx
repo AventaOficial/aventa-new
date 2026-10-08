@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   BadgePercent,
+  ChevronRight,
   Clock,
   Gift,
   Lock,
@@ -13,12 +14,14 @@ import {
   ThumbsUp,
   Unlock,
   Wallet,
+  X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { MeSpaceShell, meCardClass } from '@/app/me/dashboard/MeSectionPage';
 import RewardsBetaOnboarding from '@/app/me/RewardsBetaOnboarding';
 import RewardsOfferSelection, { type WelcomeChoiceCard } from '@/app/me/RewardsOfferSelection';
 import { formatRewardShare } from '@/lib/me/rewardStatusCopy';
+import { illustrativePhoneEstimate } from '@/lib/rewards/estimation/estimateReward';
 import { REWARDS_LEVEL_COUNT, rewardsLevelShareBps } from '@/lib/rewards/levels';
 import {
   buildRewardsOnboarding,
@@ -107,6 +110,8 @@ function num(value: unknown, fallback = 0): number {
 function money(cents: number, currency = 'MXN'): string {
   return formatRewardShare(cents, currency) ?? '—';
 }
+
+const PHONE_ESTIMATE = illustrativePhoneEstimate();
 
 function clampPct(current: number, total: number): number {
   if (total <= 0) return 0;
@@ -275,6 +280,75 @@ function RuleBlock({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function RewardTable({ rows, showMoney }: { rows: RewardRow[]; showMoney: boolean }) {
+  if (rows.length === 0) {
+    return <p className="mt-4 text-[14px] text-[var(--me-muted)]">Cuando el programa registre una recompensa, aparecerá aquí.</p>;
+  }
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <table className="w-full min-w-[640px] text-left text-[13px]">
+        <thead className="text-[var(--me-muted)]">
+          <tr>
+            <th className="pb-2 font-medium">Fecha</th>
+            <th className="pb-2 font-medium">Oferta</th>
+            <th className="pb-2 font-medium">Tienda</th>
+            <th className="pb-2 font-medium">Tu parte</th>
+            <th className="pb-2 font-medium">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-t border-[var(--me-line)]">
+              <td className="py-3 pr-3 whitespace-nowrap">{formatDay(row.paidAt ?? row.createdAt)}</td>
+              <td className="py-3 pr-3">
+                <span className="line-clamp-2 font-medium">{row.offer?.title ?? 'Oferta'}</span>
+              </td>
+              <td className="py-3 pr-3">{row.offer?.store?.trim() || '—'}</td>
+              <td className="py-3 pr-3 tabular-nums">{showMoney ? formatRewardShare(row.shareCents, row.currency) ?? '—' : '—'}</td>
+              <td className="py-3">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold ${statusTone(row)}`}>{row.statusLabel || 'En validación'}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SheetFrame({
+  title,
+  eyebrow,
+  onClose,
+  children,
+  footer,
+}: {
+  title: string;
+  eyebrow?: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="rewards-sheet-title">
+      <button type="button" className="absolute inset-0 bg-black/45" aria-label="Cerrar" onClick={onClose} />
+      <div className="relative flex max-h-[min(92vh,820px)] w-full flex-col overflow-hidden rounded-t-3xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-2xl sm:max-w-2xl sm:rounded-3xl">
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 sm:px-6">
+          <div className="min-w-0">
+            {eyebrow ? <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">{eyebrow}</p> : null}
+            <h2 id="rewards-sheet-title" className="mt-1 text-[20px] font-semibold">{title}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f6f4fb] text-[var(--me-ink)] dark:bg-white/10">
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">{children}</div>
+        {footer ? <div className="border-t border-[var(--me-line)] px-5 py-4 sm:px-6">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 function statusTone(row: RewardRow): string {
   if (row.uiStatus === 'available') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
   if (row.uiStatus === 'delivered') return 'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300';
@@ -291,6 +365,8 @@ export default function RecompensasPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [selecting, setSelecting] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [guideStep, setGuideStep] = useState<number | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -320,6 +396,18 @@ export default function RecompensasPage() {
       active = false;
     };
   }, [reloadKey]);
+
+  useEffect(() => {
+    if (guideStep == null && !historyOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setGuideStep(null);
+        setHistoryOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [guideStep, historyOpen]);
 
   const confirmWelcomeOffer = async (offerId: string) => {
     setSelecting(true);
@@ -414,12 +502,12 @@ export default function RecompensasPage() {
                   Convierte tus descubrimientos en recompensas reales.
                 </h1>
                 <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/90">
-                  Cada oferta que compartes puede generar comisiones de afiliado. El máximo del programa es el {sharePct}% de esa comisión, no del precio. Tu Oferta de Bienvenida puede recibirlo; después tu nivel de recompensa empieza en {firstLevelPct}%.
+                  Tu Oferta de Bienvenida puede recibir el {sharePct}% de la comisión atribuida. Después, tus nuevas ofertas avanzan por niveles de recompensa, desde {firstLevelPct}% hasta un máximo de {sharePct}%.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <a href="#como-funcionan" className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700">
+                  <button type="button" onClick={() => setGuideStep(0)} className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700">
                     Conoce cómo funciona
-                  </a>
+                  </button>
                   <Link href="/me/ofertas" className="inline-flex min-h-11 items-center rounded-full border border-white/40 px-4 text-[14px] font-semibold text-white">
                     Ver mis ofertas
                   </Link>
@@ -428,7 +516,7 @@ export default function RecompensasPage() {
               <GiftCluster />
               <ul className="space-y-2.5">
                 {[
-                  { icon: BadgePercent, title: `Hasta ${sharePct}%`, body: 'máximo sobre la comisión atribuida' },
+                  { icon: BadgePercent, title: `${sharePct}% · Bienvenida`, body: `después, desde ${firstLevelPct}% hasta ${sharePct}%` },
                   { icon: Wallet, title: `Pagos a partir de ${minLabel}`, body: 'por SPEI' },
                   { icon: Clock, title: `Validación de ${policy?.holdDays ?? 0} días`, body: 'contra devoluciones' },
                   { icon: ShieldCheck, title: 'Solo compras reales', body: 'con atribución confiable' },
@@ -458,9 +546,9 @@ export default function RecompensasPage() {
                   Necesitas cumplir ambos requisitos para desbloquear el programa y elegir tu Oferta de Bienvenida.
                 </p>
               </div>
-              <a href="#requisitos" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">
+              <button type="button" onClick={() => setGuideStep(2)} className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">
                 Ver requisitos completos
-              </a>
+              </button>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
@@ -512,6 +600,50 @@ export default function RecompensasPage() {
                 );
               })}
             </ol>
+          </section>
+
+          <section className={`${meCardClass} p-5 sm:p-6`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 max-w-2xl">
+                <h2 className="text-[18px] font-semibold">¿Cuánto puedo generar con una oferta?</h2>
+                <p className="mt-1 text-[14px] leading-relaxed text-[var(--me-muted)]">
+                  Las recompensas se calculan sobre la comisión que Aventa recibe del retailer, no sobre el precio del producto.
+                </p>
+              </div>
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">Estimación, no garantía</span>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full bg-[#f6f4fb] px-3 py-1 text-[12px] font-semibold text-[var(--me-ink)] dark:bg-white/5">{sharePct}% · Oferta de Bienvenida</span>
+              <span className="rounded-full bg-[#f6f4fb] px-3 py-1 text-[12px] font-semibold text-[var(--me-ink)] dark:bg-white/5">Desde {firstLevelPct}% · Niveles de recompensa</span>
+              <span className="rounded-full bg-[#f6f4fb] px-3 py-1 text-[12px] font-semibold text-[var(--me-ink)] dark:bg-white/5">Máximo {sharePct}%</span>
+            </div>
+            {PHONE_ESTIMATE.ok && PHONE_ESTIMATE.snapshot.canonicalPriceCents != null && PHONE_ESTIMATE.estimatedAffiliateCommissionCents != null && PHONE_ESTIMATE.estimatedCreatorRewardCents != null ? (
+              <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
+                  <dt className="text-[12px] text-[var(--me-muted)]">Precio</dt>
+                  <dd className="mt-1 text-[16px] font-semibold tabular-nums">{money(PHONE_ESTIMATE.snapshot.canonicalPriceCents)}</dd>
+                </div>
+                <div className="rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
+                  <dt className="text-[12px] text-[var(--me-muted)]">Comisión afiliada estimada</dt>
+                  <dd className="mt-1 text-[16px] font-semibold tabular-nums">≈ {money(PHONE_ESTIMATE.estimatedAffiliateCommissionCents)}</dd>
+                </div>
+                <div className="rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
+                  <dt className="text-[12px] text-[var(--me-muted)]">Tu recompensa estimada</dt>
+                  <dd className="mt-1 text-[16px] font-semibold tabular-nums">≈ {money(PHONE_ESTIMATE.estimatedCreatorRewardCents)}</dd>
+                  <dd className="mt-1 text-[12px] text-[var(--me-muted)]">{Math.round((PHONE_ESTIMATE.rewardRateBps ?? 0) / 100)}% de la comisión afiliada estimada</dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="mt-4 text-[14px] text-[var(--me-muted)]">Estimación no disponible</p>
+            )}
+            {PHONE_ESTIMATE.snapshot.capped && PHONE_ESTIMATE.snapshot.uncappedAffiliateCommissionCents != null && PHONE_ESTIMATE.snapshot.maximumCommissionCents != null ? (
+              <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+                Amazon limita esta categoría a {money(PHONE_ESTIMATE.snapshot.maximumCommissionCents)} por compra. Sin ese tope, {Math.round((PHONE_ESTIMATE.estimatedAffiliateRateBps ?? 0) / 100)}% de este precio sería ≈ {money(PHONE_ESTIMATE.snapshot.uncappedAffiliateCommissionCents)}.
+              </p>
+            ) : null}
+            <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+              Las cifras mostradas antes de una compra son estimaciones. La recompensa final depende de la comisión realmente registrada y validada por el retailer. Esto no es saldo.
+            </p>
           </section>
 
           <section className={`${meCardClass} p-5 sm:p-6`}>
@@ -592,7 +724,7 @@ export default function RecompensasPage() {
             <section className={`${meCardClass} p-5 sm:p-6`}>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[18px] font-semibold">Tus recompensas</h2>
-                <a href="#actividad" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver historial</a>
+                <button type="button" onClick={() => setHistoryOpen(true)} className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver historial</button>
               </div>
               <p className="mt-1 text-[13px] text-[var(--me-muted)]">Salen de compras reales con comisión atribuida. La Oferta de Bienvenida puede llegar al {sharePct}%. Después, tu nivel de recompensa empieza en {firstLevelPct}%.</p>
               {showMoney ? (
@@ -658,134 +790,123 @@ export default function RecompensasPage() {
             ))}
           </section>
 
-          <section id="actividad" className={`${meCardClass} min-w-0 scroll-mt-24 p-5 sm:p-6`}>
+          <section className={`${meCardClass} min-w-0 p-5 sm:p-6`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-[18px] font-semibold">Actividad reciente</h2>
-                <p className="mt-1 text-[13px] text-[var(--me-muted)]">Recompensas generadas por tus ofertas.</p>
+                <p className="mt-1 text-[13px] text-[var(--me-muted)]">Las últimas recompensas de tus ofertas.</p>
               </div>
+              <button type="button" onClick={() => setHistoryOpen(true)} className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver historial</button>
             </div>
-            {realRewards.length === 0 ? (
-              <p className="mt-4 text-[14px] text-[var(--me-muted)]">Cuando el programa registre una recompensa, aparecerá aquí.</p>
-            ) : (
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-[13px]">
-                  <thead className="text-[var(--me-muted)]">
-                    <tr>
-                      <th className="pb-2 font-medium">Fecha</th>
-                      <th className="pb-2 font-medium">Oferta</th>
-                      <th className="pb-2 font-medium">Tienda</th>
-                      <th className="pb-2 font-medium">Tu parte</th>
-                      <th className="pb-2 font-medium">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {realRewards.map((row) => (
-                      <tr key={row.id} className="border-t border-[var(--me-line)]">
-                        <td className="py-3 pr-3 whitespace-nowrap">{formatDay(row.paidAt ?? row.createdAt)}</td>
-                        <td className="py-3 pr-3">
-                          <span className="line-clamp-2 font-medium">{row.offer?.title ?? 'Oferta'}</span>
-                        </td>
-                        <td className="py-3 pr-3">{row.offer?.store?.trim() || '—'}</td>
-                        <td className="py-3 pr-3 tabular-nums">{showMoney ? formatRewardShare(row.shareCents, row.currency) ?? '—' : '—'}</td>
-                        <td className="py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold ${statusTone(row)}`}>{row.statusLabel || 'En validación'}</span>
-                        </td>
-                      </tr>
+            <RewardTable rows={realRewards.slice(0, 3)} showMoney={showMoney} />
+          </section>
+
+          {guideStep != null && guide ? (
+            <SheetFrame
+              title={['Cómo funcionan las recompensas', 'Tu nivel de recompensa', 'Requisitos completos', 'Qué no es dinero', 'Protección del programa'][guideStep] ?? 'Cómo funciona'}
+              eyebrow={`Paso ${guideStep + 1} de 5`}
+              onClose={() => setGuideStep(null)}
+              footer={
+                <div className="flex flex-col gap-2">
+                  <div className="mb-2 flex gap-1" aria-hidden>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <span key={index} className={`h-1.5 flex-1 rounded-full ${index <= guideStep ? 'bg-violet-600' : 'bg-[#ece8f6] dark:bg-white/10'}`} />
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section id="como-funcionan" className={`${meCardClass} scroll-mt-24 p-5 sm:p-6`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-[18px] font-semibold">Cómo funcionan las recompensas</h2>
-              <a href="#nivel-recompensa" className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver guía completa</a>
-            </div>
-            <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {howSteps.map((step, index) => (
-                <li key={step.title} className="min-w-0">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 text-[13px] font-semibold text-white">{index + 1}</span>
-                  <p className="mt-3 text-[14px] font-semibold">{step.title}</p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-[var(--me-muted)]">{step.body}</p>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          {guide ? (
-            <>
-              <section id="nivel-recompensa" className={`${meCardClass} scroll-mt-24 p-5 sm:p-6`}>
-                <h2 className="text-[18px] font-semibold">Tu nivel de recompensa</h2>
-                <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-[var(--me-muted)]">
-                  Después de la Oferta de Bienvenida, tus nuevas ofertas elegibles reciben un porcentaje de la comisión atribuida según este nivel. Empiezas en {firstLevelPct}% y el máximo del programa es {sharePct}%. No es tu Nivel Aventa, ni tu XP, ni tu reputación.
-                </p>
-                <ol className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-8">
-                  {rewardLevels.map((level) => (
-                    <li key={level.level} className="rounded-2xl bg-[#f6f4fb] px-2 py-3 text-center dark:bg-white/5">
-                      <p className="text-[11px] text-[var(--me-muted)]">Nivel {level.level}</p>
-                      <p className="mt-1 text-[16px] font-semibold tabular-nums">{level.percent}%</p>
+                  </div>
+                  {guideStep < 4 ? (
+                    <button type="button" onClick={() => setGuideStep(guideStep + 1)} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-2xl bg-violet-600 text-[14px] font-semibold text-white">
+                      Siguiente
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setGuideStep(null)} className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-violet-600 text-[14px] font-semibold text-white">
+                      Listo
+                    </button>
+                  )}
+                  {guideStep > 0 ? (
+                    <button type="button" onClick={() => setGuideStep(guideStep - 1)} className="min-h-10 text-[13px] font-medium text-[var(--me-muted)]">
+                      Anterior
+                    </button>
+                  ) : null}
+                </div>
+              }
+            >
+              {guideStep === 0 ? (
+                <ol className="grid gap-4 sm:grid-cols-2">
+                  {howSteps.map((step, index) => (
+                    <li key={step.title} className="min-w-0">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 text-[13px] font-semibold text-white">{index + 1}</span>
+                      <p className="mt-3 text-[14px] font-semibold">{step.title}</p>
+                      <p className="mt-1 text-[13px] leading-relaxed text-[var(--me-muted)]">{step.body}</p>
                     </li>
                   ))}
                 </ol>
-                <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
-                  Ejemplo, sobre una comisión atribuida de $100 MXN: el {firstLevelPct}% deja ${Math.round(100 * firstLevelPct / 100)} MXN, el {rewardLevels[3]?.percent ?? firstLevelPct}% deja ${Math.round(100 * (rewardLevels[3]?.percent ?? firstLevelPct) / 100)} MXN y el {sharePct}% deja ${Math.round(100 * sharePct / 100)} MXN. El porcentaje se calcula sobre la comisión, no sobre el precio del producto. Sin compra, comisión y atribución válidas, no hay recompensa.
-                </p>
-              </section>
-
-              <section id="requisitos" className={`${meCardClass} scroll-mt-24 p-5 sm:p-6`}>
-                <h2 className="text-[18px] font-semibold">Requisitos completos</h2>
-                <p className="mt-2 text-[14px] leading-relaxed text-[var(--me-muted)]">
-                  Tu nivel de comunidad no cambia estas reglas. Arriba ves tu progreso de ofertas y votos. También cuentan la antigüedad y la tasa de aprobación.
-                </p>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <RuleBlock title="Cuenta para desbloquear" items={guide.counts} />
-                  <RuleBlock title="Lo que no cuenta" items={guide.doesNotCount} />
+              ) : null}
+              {guideStep === 1 ? (
+                <div>
+                  <p className="text-[14px] leading-relaxed text-[var(--me-muted)]">
+                    Después de la Oferta de Bienvenida, tus nuevas ofertas elegibles reciben un porcentaje de la comisión atribuida según este nivel. Empiezas en {firstLevelPct}% y el máximo del programa es {sharePct}%. No es tu Nivel Aventa, ni tu XP, ni tu reputación.
+                  </p>
+                  <ol className="mt-4 grid grid-cols-4 gap-2">
+                    {rewardLevels.map((level) => (
+                      <li key={level.level} className="rounded-2xl bg-[#f6f4fb] px-2 py-3 text-center dark:bg-white/5">
+                        <p className="text-[11px] text-[var(--me-muted)]">Nivel {level.level}</p>
+                        <p className="mt-1 text-[16px] font-semibold tabular-nums">{level.percent}%</p>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+                    Ejemplo, sobre una comisión atribuida de $100 MXN: el {firstLevelPct}% deja ${Math.round((100 * firstLevelPct) / 100)} MXN, el {rewardLevels[3]?.percent ?? firstLevelPct}% deja ${Math.round((100 * (rewardLevels[3]?.percent ?? firstLevelPct)) / 100)} MXN y el {sharePct}% deja ${Math.round((100 * sharePct) / 100)} MXN. El porcentaje se calcula sobre la comisión, no sobre el precio del producto. Sin compra, comisión y atribución válidas, no hay recompensa.
+                  </p>
                 </div>
-              </section>
-
-              <section className={`${meCardClass} p-5 sm:p-6`}>
-                <h2 className="text-[18px] font-semibold">Qué no es dinero</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <RuleBlock
-                    title="Nivel Aventa"
-                    items={['Mide tu progresión en la comunidad. No es saldo y no fija el porcentaje de una recompensa.']}
-                  />
+              ) : null}
+              {guideStep === 2 ? (
+                <div>
+                  <p className="text-[14px] leading-relaxed text-[var(--me-muted)]">
+                    Tu nivel de comunidad no cambia estas reglas. Arriba ves tu progreso de ofertas y votos. También cuentan la antigüedad y la tasa de aprobación.
+                  </p>
+                  <div className="mt-4 grid gap-3">
+                    <RuleBlock title="Cuenta para desbloquear" items={guide.counts} />
+                    <RuleBlock title="Lo que no cuenta" items={guide.doesNotCount} />
+                  </div>
+                </div>
+              ) : null}
+              {guideStep === 3 ? (
+                <div className="grid gap-3">
+                  <RuleBlock title="Nivel Aventa" items={['Mide tu progresión en la comunidad. No es saldo y no fija el porcentaje de una recompensa.']} />
                   {guide.layers.filter((layer) => !layer.money).map((layer) => (
                     <RuleBlock key={layer.id} title={layer.label} items={[layer.summary, ...layer.points]} />
                   ))}
-                  <RuleBlock
-                    title="Nivel de recompensa"
-                    items={[`Determina el porcentaje de la comisión atribuida después de la Oferta de Bienvenida. Empieza en ${firstLevelPct}% y llega hasta ${sharePct}%.`]}
-                  />
+                  <RuleBlock title="Nivel de recompensa" items={[`Determina el porcentaje de la comisión atribuida después de la Oferta de Bienvenida. Empieza en ${firstLevelPct}% y llega hasta ${sharePct}%.`]} />
                 </div>
-              </section>
+              ) : null}
+              {guideStep === 4 ? (
+                <div>
+                  <p className="text-[14px] leading-relaxed text-[var(--me-muted)]">{guide.whenReceive}</p>
+                  <div className="mt-4 grid gap-3">
+                    <RuleBlock title="Por qué queda pendiente" items={guide.pending} />
+                    <RuleBlock title="Para cobrar" items={[...guide.withdrawal, 'El pago, cuando exista, sería por SPEI y solo con saldo disponible.']} />
+                    <RuleBlock title="Abuso" items={[...guide.abuse, 'Un clic propio no sustituye una compra atribuida.']} />
+                    <RuleBlock title="Qué no se garantiza" items={guide.guarantees} />
+                  </div>
+                  <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
+                    {programStatus === 'PAUSED'
+                      ? 'Cuando el programa vuelva a abrir, Aventa lo anunciará y pedirá aceptar los términos vigentes. Hoy no se piden datos de identidad ni fiscales.'
+                      : 'Los datos de identidad y fiscales se piden solo cuando haya un pago que hacer, nunca antes.'}
+                  </p>
+                  <a href="/terms#comisiones" className="mt-3 inline-flex text-[13px] font-semibold text-violet-700 dark:text-violet-300">
+                    Ver términos del programa
+                  </a>
+                </div>
+              ) : null}
+            </SheetFrame>
+          ) : null}
 
-              <section className={`${meCardClass} p-5 sm:p-6`}>
-                <h2 className="text-[18px] font-semibold">Protección del programa</h2>
-                <p className="mt-2 text-[14px] leading-relaxed text-[var(--me-muted)]">{guide.whenReceive}</p>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <RuleBlock title="Por qué queda pendiente" items={guide.pending} />
-                  <RuleBlock title="Para cobrar" items={[...guide.withdrawal, 'El pago, cuando exista, sería por SPEI y solo con saldo disponible.']} />
-                  <RuleBlock title="Abuso" items={[...guide.abuse, 'Un clic propio no sustituye una compra atribuida.']} />
-                  <RuleBlock title="Qué no se garantiza" items={guide.guarantees} />
-                </div>
-                {programStatus === 'PAUSED' ? (
-                  <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
-                    Cuando el programa vuelva a abrir, Aventa lo anunciará y pedirá aceptar los términos vigentes. Hoy no se piden datos de identidad ni fiscales.
-                  </p>
-                ) : (
-                  <p className="mt-4 text-[13px] leading-relaxed text-[var(--me-muted)]">
-                    Los datos de identidad y fiscales se piden solo cuando haya un pago que hacer, nunca antes.
-                  </p>
-                )}
-                <a href="/terms#comisiones" className="mt-3 inline-flex text-[13px] font-semibold text-violet-700 dark:text-violet-300">
-                  Ver términos del programa
-                </a>
-              </section>
-            </>
+          {historyOpen ? (
+            <SheetFrame title="Historial de recompensas" eyebrow="Tus ofertas" onClose={() => setHistoryOpen(false)}>
+              <p className="text-[13px] text-[var(--me-muted)]">Todas las recompensas que el programa ya registró en tus ofertas.</p>
+              <RewardTable rows={realRewards} showMoney={showMoney} />
+            </SheetFrame>
           ) : null}
         </div>
       ) : null}

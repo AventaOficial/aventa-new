@@ -13,10 +13,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  REWARDS_CREATOR_SHARE_BPS,
-  splitCommissionCents,
-} from '@/lib/rewards/config';
+import { splitCommissionCents } from '@/lib/rewards/config';
+import { rewardShareBps } from '@/lib/rewards/levels';
 import { recordConversion, transitionConversionStatus } from '../recordConversion';
 import {
   recordCommission,
@@ -219,14 +217,15 @@ export async function runMoneyShadowPipeline(
   // Explicit: SETTLED is never reached in shadow.
   void ('COMMISSION_SETTLED' satisfies MoneyEventKind);
 
+  const welcomeShareBps = rewardShareBps({ kind: 'welcome' });
   const split = splitCommissionCents(
     commission.grossCommissionCents,
-    input.creatorShareBps ?? REWARDS_CREATOR_SHARE_BPS,
+    input.creatorShareBps ?? welcomeShareBps,
   );
   const allocation: MoneyShadowAllocationProjection = {
     grossCommissionCents: commission.grossCommissionCents,
     currency: commission.currency,
-    creatorShareBps: input.creatorShareBps ?? REWARDS_CREATOR_SHARE_BPS,
+    creatorShareBps: input.creatorShareBps ?? welcomeShareBps,
     creatorCents: split.creatorCents,
     platformCents: split.platformCents,
     withdrawable: false,
@@ -285,14 +284,15 @@ export function projectShadowAllocations(input: {
   ) {
     throw new Error('invalid_gross_commission_cents');
   }
+  const welcomeShareBps = rewardShareBps({ kind: 'welcome' });
   const split = splitCommissionCents(
     input.grossCommissionCents,
-    input.creatorShareBps ?? REWARDS_CREATOR_SHARE_BPS,
+    input.creatorShareBps ?? welcomeShareBps,
   );
   return {
     grossCommissionCents: input.grossCommissionCents,
     currency: (input.currency ?? 'MXN').toUpperCase(),
-    creatorShareBps: input.creatorShareBps ?? REWARDS_CREATOR_SHARE_BPS,
+    creatorShareBps: input.creatorShareBps ?? welcomeShareBps,
     creatorCents: split.creatorCents,
     platformCents: split.platformCents,
     withdrawable: false,

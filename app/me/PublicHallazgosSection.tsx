@@ -29,6 +29,9 @@ type PublicHallazgosSectionProps = {
   level: number;
   score: number;
   joinedAt?: string | null;
+  bio?: string | null;
+  city?: string | null;
+  state?: string | null;
   trusted?: boolean;
   sharePath: string | null;
   comments: number | null;
@@ -57,6 +60,9 @@ export default function PublicHallazgosSection({
   level,
   score,
   joinedAt = null,
+  bio = null,
+  city = null,
+  state = null,
   trusted = false,
   sharePath,
   comments,
@@ -74,10 +80,12 @@ export default function PublicHallazgosSection({
   const { session } = useAuth();
   const coverInput = useRef<HTMLInputElement>(null);
   const [coverUploading, setCoverUploading] = useState(false);
-  const [ownIdentity, setOwnIdentity] = useState<{ bio: string | null; location: string | null; coverUrl: string | null }>({
-    bio: null,
-    location: null,
-    coverUrl: null,
+  const [remoteIdentity, setRemoteIdentity] = useState<{ bio: string | null; city: string | null; state: string | null; coverUrl: string | null } | null>(null);
+  const ownIdentity = presentOwnProfile({
+    bio: remoteIdentity?.bio ?? bio,
+    city: remoteIdentity?.city ?? city,
+    state: remoteIdentity?.state ?? state,
+    coverUrl: remoteIdentity?.coverUrl,
   });
   useEffect(() => {
     const userId = session?.user?.id;
@@ -91,7 +99,12 @@ export default function PublicHallazgosSection({
       .then(({ data }) => {
         if (cancel || !data) return;
         const row = data as { bio?: string | null; city?: string | null; state?: string | null; cover_url?: string | null };
-        setOwnIdentity(presentOwnProfile({ bio: row.bio, city: row.city, state: row.state, coverUrl: row.cover_url }));
+        setRemoteIdentity({
+          bio: row.bio ?? null,
+          city: row.city ?? null,
+          state: row.state ?? null,
+          coverUrl: row.cover_url ?? null,
+        });
       });
     return () => {
       cancel = true;
