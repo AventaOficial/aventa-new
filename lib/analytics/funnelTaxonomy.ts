@@ -33,6 +33,15 @@ export const WRITABLE_PRODUCT_EVENTS = [
   'submission',
   'login',
   'hunter_intent',
+  'interest_saved',
+  'interest_removed',
+  'interest_section_opened',
+  'interest_offer_shown',
+  'interest_offer_clicked',
+  'interest_discovery_clicked',
+  'interest_mail_sent',
+  'interest_mail_skipped',
+  'interest_mail_failed',
 ] as const;
 
 export type WritableProductEvent = (typeof WRITABLE_PRODUCT_EVENTS)[number];

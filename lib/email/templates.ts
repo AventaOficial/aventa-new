@@ -93,7 +93,7 @@ export function emailLayout(innerBody: string, opts: EmailLayoutOptions): string
 </html>`;
 }
 
-type OfferRow = {
+export type OfferRow = {
   id: string;
   title: string;
   price?: number;
@@ -101,6 +101,7 @@ type OfferRow = {
   store?: string | null;
   offer_url?: string | null;
   image_url?: string | null;
+  created_by?: string | null;
 };
 
 /** Tarjeta de oferta para email, estilo similar al OfferCard del home */
@@ -141,12 +142,21 @@ export function buildDailyHtml(
   offers: OfferRow[],
   baseUrl: string,
   yourOffersInTop?: { id: string; title: string }[],
-  opts?: { title?: string; preheader?: string; dayLabel?: string }
+  opts?: { title?: string; preheader?: string; dayLabel?: string; personalOffers?: OfferRow[] }
 ): string {
   const cardsHtml =
     offers.length > 0
       ? offers.map((o, i) => offerCardHtml(o, i, baseUrl)).join('')
       : `<p style="margin:0; padding:16px 0; color:${TEXT_MUTED}; font-size:14px;">No hay ofertas publicadas en este día.</p>`;
+
+  const personalOffers = opts?.personalOffers ?? [];
+  const personalBlock =
+    personalOffers.length > 0
+      ? `
+    <h2 style="margin:0 0 8px; font-size:16px; font-weight:600; color:${TEXT_DARK};">Por tus intereses</h2>
+    <p style="margin:0 0 12px; font-size:13px; color:${TEXT_MUTED};">Ofertas públicas que encajan con lo que guardaste. No reemplazan el resumen general.</p>
+    ${personalOffers.map((offer, index) => offerCardHtml(offer, index, baseUrl)).join('')}`
+      : '';
 
   const yourBlock =
     yourOffersInTop && yourOffersInTop.length > 0
@@ -171,6 +181,7 @@ export function buildDailyHtml(
     ${eyebrow}
     ${headline}
     <p style="margin:0 0 22px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">Lo más apoyado del día, en orden de apoyo.</p>
+    ${personalBlock}
     ${yourBlock}
     ${cardsHtml}
   `;
@@ -191,7 +202,8 @@ export function buildWeeklyHtml(
   dayBlocks: WeeklyDayBlock[],
   topCommented: { id: string; title: string; price?: number; store?: string | null }[],
   baseUrl: string,
-  topHunters?: { display_name: string; slug?: string | null }[]
+  topHunters?: { display_name: string; slug?: string | null }[],
+  personalOffers?: OfferRow[],
 ): string {
   const offerLi = (o: { id: string; title: string; store?: string | null }) => {
     const link = `${baseUrl.replace(/\/$/, '')}/oferta/${o.id}`;
@@ -234,6 +246,13 @@ export function buildWeeklyHtml(
   const inner = `
     <h1 style="margin:0 0 8px; font-size:22px; font-weight:600; color:${TEXT_DARK}; letter-spacing:-0.02em;">Tu semana en AVENTA</h1>
     <p style="margin:0 0 22px; font-size:15px; color:${TEXT_MUTED}; line-height:1.5;">Siete días en un vistazo: cada día, hasta tres ofertas con más apoyo. Al final, las que más conversación tuvieron.</p>
+    ${
+      personalOffers && personalOffers.length > 0
+        ? `<h2 style="margin:0 0 8px; font-size:16px; font-weight:600; color:${TEXT_DARK};">Por tus intereses</h2>
+    <p style="margin:0 0 12px; font-size:13px; color:${TEXT_MUTED};">Una selección corta de lo que guardaste. El resto del correo sigue siendo el resumen general.</p>
+    ${personalOffers.map((offer, index) => offerCardHtml(offer, index, baseUrl)).join('')}`
+        : ''
+    }
     ${huntersBlock}
     ${daySectionsHtml}
 

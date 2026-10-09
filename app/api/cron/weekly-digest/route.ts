@@ -4,6 +4,8 @@ import { buildWeeklyHtml, type WeeklyDayBlock } from '@/lib/email/templates';
 import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
 import { formatZonedDayLabel, getZonedDayRange, zonedCalendarKey } from '@/lib/server/digestDay';
 import { requireCronSecret } from '@/lib/server/cronAuth';
+import { finishDigestDelivery, reserveDigestBatch } from '@/lib/interests/store';
+import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 
 const RESEND_CONCURRENCY = 12;
 const TZ = process.env.DIGEST_TIMEZONE || 'America/Mexico_City';
@@ -163,7 +165,26 @@ export async function GET(request: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
   const subject = `AVENTA · Tu semana`;
-  const html = buildWeeklyHtml(dayBlocks, topCommented, baseUrl, topHunters);
+  const weekKey = rangeMeta[0]?.key ?? zonedCalendarKey(now, TZ);
+  const weekOffers = (offersInWeek ?? []) as OfferDigestRow[];
+  let plans = new Map<string, { personal: OfferDigestRow[]; general: OfferDigestRow[]; reservedKeys: string[]; skipped: number }>();
+  try {
+    plans = await reserveDigestBatch({
+      supabase,
+      users: recipients.map((recipient) => ({ userId: recipient.user_id, digestEnabled: true })),
+      offers: weekOffers.map((offer) => ({
+        ...offer,
+        status: 'approved',
+        expiresAt: null,
+        upvotes: offer.upvotes_count ?? 0,
+      })),
+      kind: 'weekly',
+      windowKey: weekKey,
+      now,
+    });
+  } catch (error) {
+    console.error('[weekly-digest] interests', error instanceof Error ? error.message : 'failed');
+  }
 
   let sent = 0;
   const key = process.env.RESEND_API_KEY;
@@ -174,21 +195,40 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0 });
   }
 
-  const tasks = emails.map(
-    (email) => async () => {
+  const tasks = recipients
+    .filter((recipient) => Boolean(recipient.email?.trim()))
+    .map((recipient) => async () => {
+      const plan = plans.get(recipient.user_id);
+      const hidden = new Set((plan?.personal ?? []).map((offer) => offer.id));
+      const blocks = dayBlocks.map((block) => ({
+        ...block,
+        offers: block.offers.filter((offer) => !hidden.has(offer.id)),
+      }));
+      const html = buildWeeklyHtml(blocks, topCommented, baseUrl, topHunters, plan?.personal);
+      let sentOk = false;
       try {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from, to: email, subject, html }),
+          body: JSON.stringify({ from, to: recipient.email.trim(), subject, html }),
         });
-        return res.ok;
+        sentOk = res.ok;
       } catch (e) {
-        console.error('[weekly-digest] send error', email, e);
-        return false;
+        console.error('[weekly-digest] send error', recipient.email, e);
       }
-    }
-  );
+      try {
+        await finishDigestDelivery({ supabase, reservedKeys: plan?.reservedKeys ?? [], sent: sentOk });
+        await recordProductEvent({
+          event: sentOk ? 'interest_mail_sent' : 'interest_mail_failed',
+          userId: recipient.user_id,
+          source: 'weekly-digest',
+          metadata: { skipped: plan?.skipped ?? 0, personal: plan?.personal.length ?? 0 },
+        });
+      } catch (error) {
+        console.error('[weekly-digest] delivery', error instanceof Error ? error.message : 'failed');
+      }
+      return sentOk;
+    });
 
   const results = await runWithConcurrency(tasks, RESEND_CONCURRENCY);
   sent = results.filter(Boolean).length;
