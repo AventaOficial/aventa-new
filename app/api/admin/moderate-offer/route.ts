@@ -26,6 +26,7 @@ import { enqueueDistributionForApprovedOfferFireAndForget } from '@/lib/distribu
 import { syncAchievementsLater } from '@/lib/achievements/sync'
 import { recordModerationDecisionTeamXp } from '@/lib/team/xp/rules/moderation'
 import { buildModerationTeamXpSnapshot, MODERATION_LOG_EVENT_COLUMNS } from '@/lib/team/xp/rules/moderationSource'
+import { planPublicFeedTakedown } from '@/lib/moderation/feedTakedown'
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase()
@@ -68,20 +69,50 @@ export async function POST(request: Request) {
 
     const supabase = createServerClient()
 
-    const { data: offer } = await supabase
+    type LoadedOffer = {
+      status?: string | null
+      created_by?: string | null
+      title?: string | null
+      locked_by?: string | null
+      locked_at?: string | null
+    }
+    const firstRead = await supabase
       .from('offers')
       .select('status, created_by, title, locked_by, locked_at')
       .eq('id', id)
-      .single()
-    const previousStatus = offer?.status ?? 'pending'
+      .maybeSingle()
+    let offer = (firstRead.data ?? null) as LoadedOffer | null
+    let offerReadError = firstRead.error
+    if (offerReadError && hasMissingColumn(offerReadError, 'locked_by')) {
+      const retry = await supabase
+        .from('offers')
+        .select('status, created_by, title')
+        .eq('id', id)
+        .maybeSingle()
+      offer = (retry.data ?? null) as LoadedOffer | null
+      offerReadError = retry.error
+    }
+    if (offerReadError || !offer) {
+      return NextResponse.json({ error: 'Oferta no encontrada' }, { status: 404 })
+    }
+    const previousStatus =
+      typeof offer.status === 'string' && offer.status.length > 0 ? offer.status : 'pending'
 
     if (previousStatus === status) {
+      if (body?.surface === 'feed' && status === 'rejected') {
+        await invalidateHomeFeedCache().catch(() => {})
+      }
       return NextResponse.json({ ok: true, idempotent: true })
     }
-    const feedTakedown = body?.surface === 'feed' && status === 'rejected' && previousStatus === 'approved'
-    if (body?.surface === 'feed' && !feedTakedown) {
-      return NextResponse.json({ error: 'Desde el feed solo se retira una oferta publicada.' }, { status: 409 })
+    const feedPlan = planPublicFeedTakedown({
+      surface: body?.surface,
+      nextStatus: status,
+      previousStatus,
+    })
+    if (feedPlan.action === 'reject') {
+      return NextResponse.json({ error: feedPlan.error }, { status: feedPlan.httpStatus })
     }
+    const feedTakedown = feedPlan.action === 'takedown'
     if (!feedTakedown && previousStatus !== 'pending') {
       return NextResponse.json({ error: 'La oferta ya fue moderada' }, { status: 409 })
     }
@@ -216,33 +247,37 @@ export async function POST(request: Request) {
       const payload: {
         status: string
         rejection_reason?: string | null
+        expires_at?: string
         locked_by?: null
         locked_at?: null
         snoozed_until?: null
       } = { status: 'rejected', ...LOCK_CLEAR }
       if (reason !== undefined) payload.rejection_reason = reason
-      const expectedStatus = feedTakedown ? 'approved' : 'pending'
-      let { data: updatedRow, error } = await supabase
-        .from('offers')
-        .update(payload)
-        .eq('id', id)
-        .eq('status', expectedStatus)
-        .select('id')
-        .maybeSingle()
+      if (feedTakedown) payload.expires_at = new Date().toISOString()
+      const runRejectUpdate = (body: typeof payload) => {
+        const query = supabase.from('offers').update(body).eq('id', id)
+        const guarded = feedTakedown
+          ? query.in('status', ['approved', 'published'])
+          : query.eq('status', 'pending')
+        return guarded.select('id').maybeSingle()
+      }
+      let { data: updatedRow, error } = await runRejectUpdate(payload)
       if (error && hasMissingColumn(error, 'locked_by')) {
         delete payload.locked_by
         delete payload.locked_at
         delete payload.snoozed_until
-        ;({ data: updatedRow, error } = await supabase
-          .from('offers')
-          .update(payload)
-          .eq('id', id)
-          .eq('status', expectedStatus)
-          .select('id')
-          .maybeSingle())
+        ;({ data: updatedRow, error } = await runRejectUpdate(payload))
       }
       if (!updatedRow && !error) {
-        return NextResponse.json({ ok: true, idempotent: true })
+        if (!feedTakedown) {
+          return NextResponse.json({ ok: true, idempotent: true })
+        }
+        const { data: again } = await supabase.from('offers').select('status').eq('id', id).maybeSingle()
+        if ((again as { status?: string } | null)?.status === 'rejected') {
+          await invalidateHomeFeedCache().catch(() => {})
+          return NextResponse.json({ ok: true, idempotent: true })
+        }
+        return NextResponse.json({ error: 'No se pudo retirar la oferta del feed.' }, { status: 409 })
       }
       if (error) {
         console.error('[moderate-offer] update failed:', error.message)
@@ -366,8 +401,10 @@ export async function POST(request: Request) {
 
     try {
       revalidatePath('/')
+      if (feedTakedown || (status === 'approved' && previousStatus !== 'approved')) {
+        await invalidateHomeFeedCache()
+      }
       if (status === 'approved' && previousStatus !== 'approved') {
-        void invalidateHomeFeedCache()
         enqueueDistributionForApprovedOfferFireAndForget(id, { supabase })
       }
     } catch (err) {

@@ -15,7 +15,7 @@ type ReputationBarProps = {
 const LEVEL_EXPLANATIONS: Record<number, string> = {
   1: 'Todo lo que publicas pasa por moderación. Es la etapa para ganar confianza.',
   2: 'Tus comentarios se publican al instante. Las ofertas siguen en revisión.',
-  3: 'Tus ofertas también se publican al instante en Recientes. Más influencia en el ranking.',
+  3: 'Tus ofertas siguen en revisión hasta que moderación las aprueba. Tu voto pesa más en el orden del feed.',
   4: 'Máxima confianza: tu voto cuenta más en el orden del feed (solo backend).',
 };
 

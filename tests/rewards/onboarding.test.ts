@@ -7,6 +7,7 @@ import {
   buildRewardsOnboarding,
   resolveRewardsMemberStatus,
   resolveRewardsProgramStatus,
+  rewardsHeroCopy,
   type RewardsOnboarding,
 } from '@/lib/rewards/onboarding';
 import {
@@ -88,6 +89,25 @@ describe('Rewards apagado o congelado no promete dinero', () => {
       expect(g.guarantees.join(' ')).toMatch(/no garantiza/);
       expect(g.guarantees.join(' ')).toMatch(/puede pausarse/);
     }
+  });
+
+  it('la primera pantalla pausada o congelada no ofrece pagos actuales', () => {
+    for (const status of ['PAUSED', 'FROZEN'] as const) {
+      const hero = rewardsHeroCopy(status, { sharePct: 80, firstLevelPct: 40, minLabel: '$200', holdDays: 60 });
+      expect(hero.paymentsAvailable).toBe(false);
+      expect(hero.title).toMatch(/no están disponibles/);
+      expect(hero.title).not.toMatch(/recompensas reales/);
+      expect(hero.facts.map((fact) => fact.body).join(' ')).not.toMatch(/^por SPEI$/);
+      expect(hero.facts.some((fact) => fact.title === 'Pagos' && fact.body === 'No disponibles')).toBe(true);
+      expect(hero.body).toMatch(/Hoy no se puede cobrar/);
+      expect(hero.body).toMatch(/Cuando el programa esté activo/);
+    }
+  });
+
+  it('la primera pantalla activa sí explica el pago condicionado al programa', () => {
+    const hero = rewardsHeroCopy('ACTIVE', { sharePct: 80, firstLevelPct: 40, minLabel: '$200', holdDays: 60 });
+    expect(hero.paymentsAvailable).toBe(true);
+    expect(hero.facts.some((fact) => fact.body === 'por SPEI')).toBe(true);
   });
 
   it('activo: explica tasa, validación y que sin comisión no hay recompensa', () => {

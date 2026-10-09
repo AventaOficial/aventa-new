@@ -96,6 +96,49 @@ export type RewardsOnboarding = {
   locked: string | null;
 };
 
+export type RewardsHeroCopy = {
+  kicker: string;
+  title: string;
+  body: string;
+  facts: { title: string; body: string }[];
+  /** Solo el programa activo presenta pagos como prestación actual. */
+  paymentsAvailable: boolean;
+};
+
+/** Primera pantalla de /me/recompensas. Pausado y congelado no ofrecen cobrar. */
+export function rewardsHeroCopy(
+  programStatus: RewardsProgramStatus,
+  amounts: { sharePct: number; firstLevelPct: number; minLabel: string; holdDays: number },
+): RewardsHeroCopy {
+  if (programStatus !== 'ACTIVE') {
+    const copy = PROGRAM_STATUS_COPY[programStatus];
+    return {
+      kicker: copy.label,
+      title: 'Las recompensas monetarias y los pagos no están disponibles.',
+      body: `${copy.description} Cuando el programa esté activo, un pago sería por SPEI y solo con saldo disponible. Hoy no se puede cobrar.`,
+      paymentsAvailable: false,
+      facts: [
+        { title: 'Recompensas monetarias', body: 'No disponibles' },
+        { title: 'Pagos', body: 'No disponibles' },
+        { title: 'SPEI', body: 'Solo si el programa abre' },
+        { title: 'Tu progreso', body: 'Se sigue contando' },
+      ],
+    };
+  }
+  return {
+    kicker: 'Tu actividad genera oportunidades',
+    title: 'Convierte tus descubrimientos en recompensas reales.',
+    body: `Tu Oferta de Bienvenida puede recibir el ${amounts.sharePct}% de la comisión atribuida. Después, tus nuevas ofertas avanzan por niveles de recompensa, desde ${amounts.firstLevelPct}% hasta un máximo de ${amounts.sharePct}%.`,
+    paymentsAvailable: true,
+    facts: [
+      { title: `${amounts.sharePct}% · Bienvenida`, body: `después, desde ${amounts.firstLevelPct}% hasta ${amounts.sharePct}%` },
+      { title: `Pagos a partir de ${amounts.minLabel}`, body: 'por SPEI' },
+      { title: `Validación de ${amounts.holdDays} días`, body: 'contra devoluciones' },
+      { title: 'Solo compras reales', body: 'con atribución confiable' },
+    ],
+  };
+}
+
 function mxn(cents: number): string {
   return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 }
@@ -127,7 +170,7 @@ export function buildRewardsOnboarding(programStatus: RewardsProgramStatus): Rew
       summary: 'Mide qué tan confiable es lo que compartes. Da autoridad, no dinero.',
       points: [
         'Sube con ofertas y comentarios aprobados y con likes en tus comentarios; baja con rechazos.',
-        'Tu nivel (1 a 4) desbloquea publicación directa: comentarios desde nivel 2 y ofertas desde nivel 3. Tu voto pesa más a mayor nivel.',
+        'Tu nivel (1 a 4) cambia el peso de tu voto. Desde el nivel 2, un comentario claro puede publicarse sin espera. Las ofertas siempre quedan en revisión hasta que moderación las aprueba.',
       ],
       money: false,
       status: 'active',

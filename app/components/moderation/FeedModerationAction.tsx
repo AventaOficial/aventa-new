@@ -18,7 +18,11 @@ export default function FeedModerationAction({ offerId, onRemoved }: Props) {
   const [sending, setSending] = useState(false);
 
   const submit = async () => {
-    if (!session?.access_token || sending) return;
+    if (sending) return;
+    if (!session?.access_token) {
+      showToast?.('Inicia sesión de nuevo para retirar la oferta.');
+      return;
+    }
     setSending(true);
     try {
       const res = await fetch('/api/admin/moderate-offer', {
@@ -40,6 +44,7 @@ export default function FeedModerationAction({ offerId, onRemoved }: Props) {
         return;
       }
       setOpen(false);
+      showToast?.('Oferta retirada del feed.');
       onRemoved();
     } finally {
       setSending(false);
@@ -47,7 +52,11 @@ export default function FeedModerationAction({ offerId, onRemoved }: Props) {
   };
 
   return (
-    <div className="mt-1" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="mt-1"
+      onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
         onClick={() => setOpen(true)}

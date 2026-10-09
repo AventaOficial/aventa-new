@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { requireModeration } from '@/lib/server/requireAdmin';
+import { requireModerationActor } from '@/lib/team/moderation/access';
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess';
 import { isValidUuid } from '@/lib/server/validateUuid';
 import { captureHumanModerationOutcome } from '@/lib/autonomous';
+import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
 
 /** POST: marca una oferta como expirada (expires_at = ahora). Solo mods. */
 export async function POST(request: Request) {
-  const auth = await requireModeration(request);
+  const auth = await requireModerationActor(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
   }
 
   void captureHumanModerationOutcome(offerId, 'expired');
+  await invalidateHomeFeedCache().catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

@@ -875,7 +875,11 @@ function HomeContent() {
                     isTesterOffer={offer.id.startsWith('tester-')}
                     offerScope={offer.offerScope ?? null}
                     canModerate={Boolean(session?.access_token) && canModerate && !offer.id.startsWith('tester-')}
-                    onModerated={(id) => setOffers((prev) => prev.filter((row) => row.id !== id))}
+                    onModerated={(id) => {
+                      setOffers((prev) => prev.filter((row) => row.id !== id));
+                      setJustPublished((prev) => prev.filter((row) => row.id !== id));
+                      setHighlightOffers((prev) => prev.filter((row) => row.id !== id));
+                    }}
                   />
                 </motion.div>
                 {sponsoredAfter.has(index) ? (
