@@ -11,6 +11,7 @@ import {
 import { feedForYouQuerySchema } from '@/lib/contracts/feed';
 import { computeOfferScore } from '@/lib/offers/scoring';
 import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
+import { buildInterestView, listInterests } from '@/lib/interests/store';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = 60;
@@ -167,7 +168,36 @@ export async function GET(request: Request) {
     ? sortOffersByAffinity(list, affinity)
     : list;
 
-  const result = sorted.slice(0, limit);
+  let interestMatches: Array<OfferRow & { matchKind: string; matchLabel: string; interestLabel: string }> = [];
+  let feed = sorted;
+  try {
+    const interests = await listInterests(supabase, user.id);
+    if (interests.length > 0) {
+      const candidates = sorted.map((row) => ({
+        id: row.id,
+        title: row.title,
+        category: row.category,
+        status: 'approved',
+        expiresAt: null,
+        upvotes: row.up_votes,
+        rankingBlend: row.ranking_blend,
+      }));
+      const view = buildInterestView(interests, candidates, now);
+      const byId = new Map(sorted.map((row) => [row.id, row]));
+      interestMatches = view.matches.flatMap((match) => {
+        const row = byId.get(match.id);
+        return row
+          ? [{ ...row, matchKind: match.matchKind, matchLabel: match.matchLabel, interestLabel: match.interestLabel }]
+          : [];
+      });
+      const personalIds = new Set(interestMatches.map((row) => row.id));
+      feed = sorted.filter((row) => !personalIds.has(row.id));
+    }
+  } catch (error) {
+    console.error('[for-you] interests', error instanceof Error ? error.message : 'failed');
+  }
+
+  const result = feed.slice(0, limit);
   await observeFeedRequest(request, {
     feedType: 'for_you',
     userId: user.id,
@@ -178,5 +208,5 @@ export async function GET(request: Request) {
     resultCount: result.length,
     source: 'api/feed/for-you',
   });
-  return NextResponse.json({ offers: result });
+  return NextResponse.json({ offers: result, interestMatches });
 }

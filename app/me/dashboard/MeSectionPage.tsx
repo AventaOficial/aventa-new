@@ -3,13 +3,15 @@
 import { Suspense, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Crown, Gift, Heart, Home, Tag, Trophy } from 'lucide-react';
+import { Bookmark, Crown, Gift, Heart, Home, Tag, Trophy } from 'lucide-react';
+import { INTERESTS_SECTION } from '@/lib/interests/copy';
 import ClientLayout from '@/app/ClientLayout';
 import { PUBLIC_NAVBAR_OFFSET_CLASS } from '@/lib/ui/publicNavbarOffset';
 
 export const SPACE_LINKS = [
   { href: '/me', label: 'Inicio' },
   { href: '/me/favorites', label: 'Favoritos' },
+  { href: INTERESTS_SECTION.path, label: INTERESTS_SECTION.navLabel },
   { href: '/me/ofertas', label: 'Mis ofertas' },
   { href: '/me/nivel', label: 'Nivel' },
   { href: '/me/logros', label: 'Logros' },
@@ -19,6 +21,7 @@ export const SPACE_LINKS = [
 const NAV_ICONS = {
   '/me': Home,
   '/me/favorites': Heart,
+  [INTERESTS_SECTION.path]: Bookmark,
   '/me/ofertas': Tag,
   '/me/nivel': Crown,
   '/me/logros': Trophy,

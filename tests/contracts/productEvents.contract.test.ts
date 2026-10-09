@@ -109,6 +109,15 @@ describe('product event allowlist', () => {
       'submission',
       'login',
       'hunter_intent',
+      'interest_saved',
+      'interest_removed',
+      'interest_section_opened',
+      'interest_offer_shown',
+      'interest_offer_clicked',
+      'interest_discovery_clicked',
+      'interest_mail_sent',
+      'interest_mail_skipped',
+      'interest_mail_failed',
     ]);
     expect(src('docs/supabase-migrations/20261008_hunter_intent_event.sql')).toMatch(/'hunter_intent'/);
     expect(src('docs/supabase-migrations/20261008_hunter_intent_event.sql')).not.toMatch(/creator_rewards|payout_intents|affiliate_ledger/i);

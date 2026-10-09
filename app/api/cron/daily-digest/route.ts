@@ -4,6 +4,10 @@ import { buildDailyHtml } from '@/lib/email/templates';
 import { runWithConcurrency } from '@/lib/server/runWithConcurrency';
 import { formatZonedDayLabelLong, getZonedDayRange } from '@/lib/server/digestDay';
 import { requireCronSecret } from '@/lib/server/cronAuth';
+import { zonedCalendarKey } from '@/lib/server/digestDay';
+import { finishDigestDelivery, reserveDigestBatch } from '@/lib/interests/store';
+import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
+import type { OfferRow } from '@/lib/email/templates';
 
 const RESEND_CONCURRENCY = 12;
 const TZ = process.env.DIGEST_TIMEZONE || 'America/Mexico_City';
@@ -61,32 +65,66 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0 });
   }
 
-  const offerList = (offers ?? []) as { id: string; title: string; created_by?: string | null }[];
+  const offerList = (offers ?? []) as OfferRow[];
+  const windowKey = zonedCalendarKey(start, TZ);
+  let plans = new Map<string, { personal: OfferRow[]; general: OfferRow[]; reservedKeys: string[]; skipped: number }>();
+  try {
+    plans = await reserveDigestBatch({
+      supabase,
+      users: recipients.map((recipient) => ({ userId: recipient.user_id, digestEnabled: true })),
+      offers: offerList.map((offer) => ({
+        ...offer,
+        status: 'approved',
+        expiresAt: null,
+        upvotes: (offer as OfferRow & { upvotes_count?: number }).upvotes_count ?? 0,
+      })),
+      kind: 'daily',
+      windowKey,
+      now,
+    });
+  } catch (error) {
+    console.error('[daily-digest] interests', error instanceof Error ? error.message : 'failed');
+  }
 
   const tasks = recipients
     .filter((r): r is { user_id: string; email: string } => Boolean(r.email?.trim()))
     .map((r) => async () => {
       const email = r.email.trim();
-      const yourOffersInTop = offerList
+      const plan = plans.get(r.user_id);
+      const general = plan?.general ?? offerList;
+      const yourOffersInTop = general
         .filter((o) => o.created_by === r.user_id)
         .map((o) => ({ id: o.id, title: o.title }));
-      const html = buildDailyHtml(offerList as Parameters<typeof buildDailyHtml>[0], baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined, {
+      const html = buildDailyHtml(general, baseUrl, yourOffersInTop.length > 0 ? yourOffersInTop : undefined, {
         title: 'Hoy en AVENTA',
         preheader: `${dayLabelLong}. Las ofertas del día con más apoyo.`,
         dayLabel: dayLabelLong,
+        personalOffers: plan?.personal,
       });
+      let sentOk = false;
       try {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
           body: JSON.stringify({ from, to: email, subject, html }),
         });
-        if (res.ok) return true;
-        console.error('[daily-digest] Resend', email, await res.text());
+        sentOk = res.ok;
+        if (!res.ok) console.error('[daily-digest] Resend', email, await res.text());
       } catch (e) {
         console.error('[daily-digest] send', email, e);
       }
-      return false;
+      try {
+        await finishDigestDelivery({ supabase, reservedKeys: plan?.reservedKeys ?? [], sent: sentOk });
+        await recordProductEvent({
+          event: sentOk ? 'interest_mail_sent' : 'interest_mail_failed',
+          userId: r.user_id,
+          source: 'daily-digest',
+          metadata: { skipped: plan?.skipped ?? 0, personal: plan?.personal.length ?? 0 },
+        });
+      } catch (error) {
+        console.error('[daily-digest] delivery', error instanceof Error ? error.message : 'failed');
+      }
+      return sentOk;
     });
 
   const results = await runWithConcurrency(tasks, RESEND_CONCURRENCY);

@@ -44,6 +44,7 @@ import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
 import { activeHuntersFromFeed } from '@/lib/community/feedHunters';
 import { resolveActiveSeason, type SeasonDefinition } from '@/lib/seasons/resolve';
 import SeasonLayer from './components/SeasonLayer';
+import { PersonalInterestRail, type InterestRailOffer } from './components/feed/PersonalInterestRail';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = HomeFeedViewMode | 'personalized';
@@ -134,6 +135,7 @@ function HomeContent() {
   const [showTesterOffers, setShowTesterOffers] = useState(false);
   const [justPublished, setJustPublished] = useState<Offer[]>([]);
   const [feedError, setFeedError] = useState<string | null>(null);
+  const [interestRail, setInterestRail] = useState<InterestRailOffer[]>([]);
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
   const fetchOffersRef = useRef<((overrideLimit?: number, opts?: { silent?: boolean }) => void) | null>(null);
   const debouncedQueryRef = useRef(debouncedQuery);
@@ -226,6 +228,7 @@ function HomeContent() {
   const fetchOffers = useCallback((overrideLimit?: number, opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setFeedError(null);
+    if (viewMode !== 'personalized') setInterestRail([]);
     const effectiveLimit = overrideLimit ?? limit;
 
     // "Para ti": feed por afinidad (favoritos y votos) — API dedicada
@@ -239,6 +242,14 @@ function HomeContent() {
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Error'))))
         .then((data) => {
           const rows = (data?.offers ?? []) as OfferRow[];
+          const matches = Array.isArray(data?.interestMatches) ? (data.interestMatches as InterestRailOffer[]) : [];
+          setInterestRail(matches.slice(0, 6).map((offer) => ({
+            id: offer.id,
+            title: offer.title,
+            store: offer.store,
+            price: offer.price,
+            matchLabel: offer.matchLabel,
+          })));
           setOffers(rows.map((r) => mapOfferToCard(r as RankedOfferSource)));
           setHasMoreCursor(false);
           recordFeedLoadSuccess();
@@ -726,6 +737,9 @@ function HomeContent() {
 
         <div className="xl:flex xl:gap-6 xl:items-start">
         <div className="min-w-0 flex-1">
+        {viewMode === 'personalized' ? (
+          <PersonalInterestRail offers={interestRail} token={session?.access_token ?? null} />
+        ) : null}
         {viewMode === 'top' && !loading && !feedError && featuredOffers.length > 0 ? (
           <div className="mb-5">
             <h2 className="mb-3 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
