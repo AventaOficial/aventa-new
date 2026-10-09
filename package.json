@@ -10,6 +10,7 @@
     "test": "npm run test:contracts",
     "test:contracts": "vitest run tests/contracts tests/bots tests/offers tests/votes tests/commissions tests/rewards tests/staff tests/moderation tests/server tests/seo tests/extension tests/integrity tests/hunter tests/autonomous tests/attribution tests/growth tests/owner tests/economy tests/dealIntelligence tests/distribution tests/observability tests/supabase tests/cazaOfertas tests/intelligence tests/team tests/mcp",
     "test:launch": "vitest run tests/launch",
+    "test:e2e": "playwright test",
     "test:probes": "vitest run --config vitest.probes.config.ts",
     "test:cazaofertas": "vitest run tests/cazaOfertas",
     "typecheck": "tsc --noEmit",
@@ -30,6 +31,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
