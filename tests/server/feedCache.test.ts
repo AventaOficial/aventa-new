@@ -54,6 +54,23 @@ describe('feedCache', () => {
     expect(hit?.data).toHaveLength(1);
   });
 
+  it('getCachedHomeFeed acepta el objeto que Upstash ya deserializó', async () => {
+    store.set('aventa:staging:feed:home:ver', '40');
+    store.set('aventa:staging:feed:home:v40:l2:ttrending:vlatest:pmonth:call:sall', {
+      success: true,
+      data: [{ id: 'oferta-1' }],
+      nextCursor: 'cursor',
+    });
+    const hit = await getCachedHomeFeed({
+      limit: 2,
+      type: 'trending',
+      view: 'latest',
+      period: 'month',
+    });
+    expect(hit?.data).toHaveLength(1);
+    expect(hit?.nextCursor).toBe('cursor');
+  });
+
   it('setCachedHomeFeed guarda con TTL bajo el namespace del entorno', async () => {
     store.set('aventa:staging:feed:home:ver', 2);
     await setCachedHomeFeed(
