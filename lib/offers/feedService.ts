@@ -83,7 +83,7 @@ export async function getHomeFeed({
         'id, title, price, original_price, offer_url, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
       )
       .not('created_at', 'is', null)
-      .or('status.eq.approved,status.eq.published')
+      .in('status', ['approved', 'published'])
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
 
     const useHomePipeline = view != null;

@@ -1,0 +1,38 @@
+name: E2E
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - community-launch-closure
+
+jobs:
+  community:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Flujos comunitarios
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_MOD_EMAIL: ${{ secrets.E2E_MOD_EMAIL }}
+          E2E_MOD_PASSWORD: ${{ secrets.E2E_MOD_PASSWORD }}
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_APPROVED_OFFER_ID: ${{ secrets.E2E_APPROVED_OFFER_ID }}
+          E2E_PUBLISHED_OFFER_ID: ${{ secrets.E2E_PUBLISHED_OFFER_ID }}
+        run: |
+          if [ -n "$E2E_SUPABASE_SERVICE_ROLE_KEY" ]; then node scripts/e2e-provision.mjs; fi
+          npx playwright test
+      - name: Resumen
+        if: always()
+        run: node scripts/e2e-summary.mjs

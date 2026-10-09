@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { appendOffersById, refreshFeedWithoutDroppingPages } from '@/lib/offers/feedList';
 import { getRetailerPresentation } from '@/lib/stores/storeBrand';
 import { assessOfferReportText, offerReportRateIdentity } from '@/lib/reports/offerReportContract';
+import { isPublicFeedStatus } from '@/lib/moderation/feedTakedown';
 
 describe('retailer presentation', () => {
   it('resuelve las tiendas prioritarias y un fallback', () => {
@@ -29,6 +30,12 @@ describe('feed append', () => {
     );
     expect(refreshed.map((row) => row.id)).toEqual(['a', 'b', 'c']);
     expect(refreshed[0]).toMatchObject({ title: 'nuevo' });
+    const withoutRemoved = refreshFeedWithoutDroppingPages(
+      [{ id: 'gone' }, { id: 'b' }, { id: 'c' }],
+      [{ id: 'b' }, { id: 'next' }],
+    );
+    expect(withoutRemoved.map((row) => row.id)).toEqual(['b', 'next', 'c']);
+    expect(refreshFeedWithoutDroppingPages([{ id: 'a' }, { id: 'b' }], [])).toEqual([]);
   });
 
   it('cargar más no sustituye el feed por el skeleton', () => {
@@ -45,8 +52,15 @@ describe('moderación desde el feed', () => {
     const route = readFileSync('app/api/admin/moderate-offer/route.ts', 'utf8');
     expect(route).toContain("body?.surface === 'feed'");
     expect(route).toContain("status: 'rejected'");
+    expect(route).toContain('planPublicFeedTakedown');
+    expect(route).toContain("['approved', 'published']");
+    expect(route).toContain('invalidateHomeFeedCache()');
     expect(route).toContain('moderation_logs');
     expect(route).not.toContain('.delete(');
+    expect(isPublicFeedStatus('approved')).toBe(true);
+    expect(isPublicFeedStatus('published')).toBe(true);
+    expect(isPublicFeedStatus('pending')).toBe(false);
+    expect(isPublicFeedStatus('rejected')).toBe(false);
     const access = readFileSync('app/api/me/moderation-access/route.ts', 'utf8');
     expect(access).toContain('requireModerationActor');
     expect(access).not.toContain('body.role');

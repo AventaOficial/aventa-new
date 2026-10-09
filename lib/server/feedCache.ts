@@ -43,9 +43,35 @@ function buildParamsKey(params: HomeFeedCacheParams): string {
 
 type AppRedis = NonNullable<Awaited<ReturnType<typeof getAppRedis>>>;
 
+function readCacheVersion(raw: unknown): number {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) return Number(raw);
+  return 0;
+}
+
+/** Upstash deserializa JSON solo. Acepta el objeto ya parseado y el string crudo. */
+function readCachedFeed(raw: unknown): GetHomeFeedSuccess | null {
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    (parsed as GetHomeFeedSuccess).success !== true ||
+    !Array.isArray((parsed as GetHomeFeedSuccess).data)
+  ) {
+    return null;
+  }
+  return parsed as GetHomeFeedSuccess;
+}
+
 async function getCacheVersion(redis: AppRedis): Promise<number> {
-  const v = await redis.get<number>(VERSION_KEY);
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  return readCacheVersion(await redis.get<unknown>(VERSION_KEY));
 }
 
 export async function getCachedHomeFeed(
@@ -55,15 +81,9 @@ export async function getCachedHomeFeed(
   const redis = await getAppRedis();
   if (!redis) return null;
   const version = await getCacheVersion(redis);
-  const raw = await redis.get<string>(`feed:home:v${version}:${buildParamsKey(params)}`);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as GetHomeFeedSuccess;
-    if (parsed?.success === true && Array.isArray(parsed.data)) return parsed;
-  } catch {
-    return null;
-  }
-  return null;
+  const raw = await redis.get<unknown>(`feed:home:v${version}:${buildParamsKey(params)}`);
+  if (raw == null) return null;
+  return readCachedFeed(raw);
 }
 
 export async function setCachedHomeFeed(

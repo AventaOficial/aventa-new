@@ -244,7 +244,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'upload-flow',
         body: [
           'Pulsa + en la barra inferior (móvil) o lateral (escritorio). Pega el enlace de la tienda: intentamos rellenar título, imagen y tienda.',
-          'Completa precio, categoría y, si quieres, descripción, pasos, cupones o MSI. Envía y espera moderación, salvo auto-aprobación.',
+          'Completa precio, categoría y, si quieres, descripción, pasos, cupones o MSI. Envía y espera moderación: la oferta queda en revisión hasta que el equipo la apruebe.',
         ],
         tips: ['Título claro: producto + tienda + beneficio.', 'Precio real y enlace que funcione.', 'Buena foto = más votos.'],
         cta: { label: 'Abrir subir oferta', href: '/subir' },
@@ -257,7 +257,7 @@ export const GUIDES: GuideMeta[] = [
         illustration: 'moderation',
         body: [
           'Las ofertas nuevas pasan por moderación para evitar spam y precios falsos.',
-          'Con Nivel Aventa 3 tus ofertas pueden publicarse al instante, con vigencia de 7 días. Eso es reputación, no una recompensa.',
+          'El Nivel Aventa no publica ofertas por ti. Siempre pasan por moderación antes de salir al feed. Eso es reputación, no una recompensa.',
         ],
       },
       {

@@ -29,6 +29,7 @@ import {
   PROGRAM_STATUS_COPY,
   resolveRewardsMemberStatus,
   resolveRewardsProgramStatus,
+  rewardsHeroCopy,
   type RewardsClaimPhase,
 } from '@/lib/rewards/onboarding';
 
@@ -450,6 +451,14 @@ export default function RecompensasPage() {
     ? resolveRewardsProgramStatus({ programActive: status.programActive, moneyPathFrozen: status.moneyPathFrozen })
     : null;
   const guide = programStatus ? buildRewardsOnboarding(programStatus) : null;
+  const hero = programStatus
+    ? rewardsHeroCopy(programStatus, {
+        sharePct,
+        firstLevelPct,
+        minLabel,
+        holdDays: policy?.holdDays ?? 0,
+      })
+    : null;
   const member = status ? MEMBER_STATUS_COPY[resolveRewardsMemberStatus(status.claimPhase)] : null;
   const canPay = Boolean(status?.programActive && !status.moneyPathFrozen && status.beta.payoutEnabled);
   const showMoney = Boolean(status?.beta.canSeeEconomics);
@@ -497,12 +506,12 @@ export default function RecompensasPage() {
           <section className="overflow-hidden rounded-[28px] bg-linear-to-br from-[#6d4aff] via-[#8b5cf6] to-[#c084fc] p-5 text-white shadow-[0_18px_50px_rgba(109,74,255,0.28)] sm:p-7">
             <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,1.1fr)_220px_minmax(220px,280px)]">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">Tu actividad genera oportunidades</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{hero?.kicker}</p>
                 <h1 className="mt-3 max-w-xl text-[32px] font-semibold leading-[1.12] tracking-tight sm:text-[40px]">
-                  Convierte tus descubrimientos en recompensas reales.
+                  {hero?.title}
                 </h1>
                 <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/90">
-                  Tu Oferta de Bienvenida puede recibir el {sharePct}% de la comisión atribuida. Después, tus nuevas ofertas avanzan por niveles de recompensa, desde {firstLevelPct}% hasta un máximo de {sharePct}%.
+                  {hero?.body}
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button type="button" onClick={() => setGuideStep(0)} className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700">
@@ -515,13 +524,8 @@ export default function RecompensasPage() {
               </div>
               <GiftCluster />
               <ul className="space-y-2.5">
-                {[
-                  { icon: BadgePercent, title: `${sharePct}% · Bienvenida`, body: `después, desde ${firstLevelPct}% hasta ${sharePct}%` },
-                  { icon: Wallet, title: `Pagos a partir de ${minLabel}`, body: 'por SPEI' },
-                  { icon: Clock, title: `Validación de ${policy?.holdDays ?? 0} días`, body: 'contra devoluciones' },
-                  { icon: ShieldCheck, title: 'Solo compras reales', body: 'con atribución confiable' },
-                ].map((fact) => {
-                  const Icon = fact.icon;
+                {(hero?.facts ?? []).map((fact, index) => {
+                  const Icon = [BadgePercent, Wallet, Clock, ShieldCheck][index] ?? ShieldCheck;
                   return (
                     <li key={fact.title} className="flex items-center gap-3 rounded-2xl bg-white/15 px-3 py-2.5 backdrop-blur-sm">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20">
@@ -726,7 +730,11 @@ export default function RecompensasPage() {
                 <h2 className="text-[18px] font-semibold">Tus recompensas</h2>
                 <button type="button" onClick={() => setHistoryOpen(true)} className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">Ver historial</button>
               </div>
-              <p className="mt-1 text-[13px] text-[var(--me-muted)]">Salen de compras reales con comisión atribuida. La Oferta de Bienvenida puede llegar al {sharePct}%. Después, tu nivel de recompensa empieza en {firstLevelPct}%.</p>
+              <p className="mt-1 text-[13px] text-[var(--me-muted)]">
+                {hero?.paymentsAvailable
+                  ? `Salen de compras reales con comisión atribuida. La Oferta de Bienvenida puede llegar al ${sharePct}%. Después, tu nivel de recompensa empieza en ${firstLevelPct}%.`
+                  : 'No hay recompensas monetarias ni pagos disponibles. Tu progreso de cazador se sigue contando.'}
+              </p>
               {showMoney ? (
                 <>
                   <p className="mt-4 text-[40px] font-semibold tabular-nums leading-none">{money(available)}</p>
