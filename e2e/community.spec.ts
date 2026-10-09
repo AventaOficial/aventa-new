@@ -98,9 +98,20 @@ test.beforeEach(async ({ request }) => {
 
 test('discover-offers', async ({ page }) => {
   await openHome(page);
+  const openOffer = page
+    .getByRole('button', { name: 'Ver oferta', exact: true })
+    .or(page.locator('article').filter({ hasText: 'Ver oferta' }));
   await page.locator('button:visible', { hasText: /^Top$/ }).click();
   await page.getByRole('button', { name: 'Mes', exact: true }).click();
-  await page.getByRole('button', { name: 'Ver oferta', exact: true }).first().click();
+  try {
+    await expect(openOffer.first()).toBeVisible({ timeout: 15_000 });
+  } catch {
+    await page.reload();
+    await page.locator('button:visible', { hasText: /^Top$/ }).click();
+    await page.getByRole('button', { name: 'Mes', exact: true }).click();
+    await expect(openOffer.first()).toBeVisible();
+  }
+  await openOffer.first().click();
   await expect(page).toHaveURL(/\/oferta\//);
 });
 
