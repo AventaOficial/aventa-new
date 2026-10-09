@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { meAuthFailureResponse, requireBearerMeUser } from '@/lib/server/requireMeUser';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
-import { interestBodySchema } from '@/lib/interests/schema';
+import { bodyClaimsForeignUser, interestBodySchema } from '@/lib/interests/schema';
 import { deleteInterest, updateInterest } from '@/lib/interests/store';
 
 type Context = { params: Promise<{ id: string }> };
@@ -20,7 +20,11 @@ export async function PATCH(request: Request, context: Context) {
   if ('response' in opened) return opened.response;
   const { id } = await context.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'No encontramos ese interés.' }, { status: 404 });
-  const body = interestBodySchema.safeParse(await request.json().catch(() => null));
+  const raw = await request.json().catch(() => null);
+  if (bodyClaimsForeignUser(raw)) {
+    return NextResponse.json({ error: 'Revisa el interés e inténtalo de nuevo.' }, { status: 400 });
+  }
+  const body = interestBodySchema.safeParse(raw);
   if (!body.success) return NextResponse.json({ error: 'Revisa el interés e inténtalo de nuevo.' }, { status: 400 });
   try {
     const saved = await updateInterest(opened.auth.supabase, opened.auth.user.id, id, body.data);

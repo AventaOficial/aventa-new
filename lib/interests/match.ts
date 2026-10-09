@@ -148,6 +148,10 @@ export function hasDiscoveryQuality(offer: MatchableOffer): boolean {
   return (offer.upvotes ?? 0) >= INTEREST_LIMITS.discoveryMinUpvotes || (offer.rankingBlend ?? 0) >= 10;
 }
 
+export function omitMatchedOffers<T extends { id: string }>(offers: readonly T[], matchedIds: ReadonlySet<string>): T[] {
+  return offers.filter((offer) => !matchedIds.has(offer.id));
+}
+
 export function pickDiscoveryOffers<T extends MatchableOffer>(
   offers: readonly T[],
   excludedIds: ReadonlySet<string>,

@@ -11,6 +11,7 @@ import {
 import { feedForYouQuerySchema } from '@/lib/contracts/feed';
 import { computeOfferScore } from '@/lib/offers/scoring';
 import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
+import { omitMatchedOffers } from '@/lib/interests/match';
 import { buildInterestView, listInterests } from '@/lib/interests/store';
 
 const DEFAULT_LIMIT = 12;
@@ -191,7 +192,7 @@ export async function GET(request: Request) {
           : [];
       });
       const personalIds = new Set(interestMatches.map((row) => row.id));
-      feed = sorted.filter((row) => !personalIds.has(row.id));
+      feed = omitMatchedOffers(sorted, personalIds);
     }
   } catch (error) {
     console.error('[for-you] interests', error instanceof Error ? error.message : 'failed');

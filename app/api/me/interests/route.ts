@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { meAuthFailureResponse, requireBearerMeUser } from '@/lib/server/requireMeUser';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
-import { interestBodySchema } from '@/lib/interests/schema';
+import { bodyClaimsForeignUser, interestBodySchema } from '@/lib/interests/schema';
 import { buildInterestView, insertInterest, listInterests, loadMatchCandidates } from '@/lib/interests/store';
 
 export async function GET(request: Request) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   if (!rl.success) return NextResponse.json({ error: 'Demasiados intentos. Espera un momento.' }, { status: 429 });
   const { user, supabase } = auth;
   const raw = await request.json().catch(() => null);
-  if (raw && typeof raw === 'object' && 'user_id' in raw) {
+  if (bodyClaimsForeignUser(raw)) {
     return NextResponse.json({ error: 'Revisa el interés e inténtalo de nuevo.' }, { status: 400 });
   }
   const body = interestBodySchema.safeParse(raw);

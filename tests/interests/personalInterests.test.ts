@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { interestBodySchema } from '@/lib/interests/schema';
 import { interestIdentity, normalizeInterestDraft } from '@/lib/interests/normalize';
-import { matchInterestToOffer, pickDiscoveryOffers, type MatchableOffer } from '@/lib/interests/match';
+import { matchInterestToOffer, omitMatchedOffers, pickDiscoveryOffers, type MatchableOffer } from '@/lib/interests/match';
 import {
   canIncludeInterestInDigest,
   claimDeliveryKeys,
@@ -36,9 +36,10 @@ describe('intereses personales', () => {
     expect(sql).toMatch(/REVOKE ALL ON public\.user_product_interests FROM PUBLIC, anon, authenticated/);
     const route = read('app/api/me/interests/route.ts');
     expect(route).toContain('requireBearerMeUser');
-    expect(route).toContain("'user_id' in raw");
+    expect(route).toContain('bodyClaimsForeignUser');
     expect(route).toContain('insertInterest(supabase, user.id');
     const update = read('app/api/me/interests/[id]/route.ts');
+    expect(update).toContain('bodyClaimsForeignUser');
     expect(update).toContain('opened.auth.user.id');
     const store = read('lib/interests/store.ts');
     expect(store).toContain(".eq('user_id', userId)");
@@ -110,6 +111,14 @@ describe('intereses personales', () => {
     expect(categoryOnly?.kind).not.toBe('exact');
   });
 
+  it('no repite una coincidencia personal en el feed general', () => {
+    const feed = omitMatchedOffers(
+      [{ id: 'personal' }, { id: 'general' }],
+      new Set(['personal']),
+    );
+    expect(feed.map((item) => item.id)).toEqual(['general']);
+  });
+
   it('descubre ofertas de calidad aunque no haya intereses', () => {
     const found = pickDiscoveryOffers(
       [
@@ -169,6 +178,11 @@ describe('intereses personales', () => {
     }
     expect(sql).toContain('interest_saved');
     expect(sql).not.toMatch(/REWARDS_PROGRAM_ACTIVE|payout_intents|creator_rewards/i);
+    const integrity = read('docs/supabase-migrations/20261009_personal_product_interests_integrity.sql');
+    expect(integrity).toContain('pg_advisory_xact_lock');
+    expect(integrity).toContain('interest_mail_deliveries_offer_id_fkey');
+    expect(integrity).toContain('REFERENCES public.offers(id) ON DELETE CASCADE');
+    expect(integrity).not.toMatch(/DROP TABLE|DELETE FROM public\.offers/i);
   });
 
   it('la sección declara estados de carga, error y vacío en móvil y escritorio', () => {

@@ -18,6 +18,11 @@ export const interestBodySchema = z.object({
   notify: z.boolean().optional(),
 });
 
+/** El cliente no elige el dueño. El servidor usa solo la sesión. */
+export function bodyClaimsForeignUser(raw: unknown): boolean {
+  return Boolean(raw && typeof raw === 'object' && !Array.isArray(raw) && 'user_id' in raw);
+}
+
 export const interestEventSchema = z.object({
   name: z.enum([
     'interest_section_opened',
