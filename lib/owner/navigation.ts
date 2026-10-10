@@ -12,6 +12,7 @@ import {
   Gift,
   Heart,
   LayoutDashboard,
+  Database,
   Map,
   Megaphone,
   Network,
@@ -20,6 +21,7 @@ import {
   Server,
   Share2,
   Shield,
+  SlidersHorizontal,
   Tags,
   Ticket,
   UserCog,
@@ -104,6 +106,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
     audience: 'SISTEMA',
     items: [
       { href: '/admin/sistemas/mapa', label: 'Systems Map', icon: Map },
+      { href: '/admin/sistemas/atlas', label: 'Database Atlas', icon: Database },
       { href: '/admin/health', label: 'Health', icon: Heart },
       { href: '/admin/infraestructura', label: 'Infrastructure', icon: Server },
       { href: '/admin/technical', label: 'Technical', icon: Network },
@@ -116,6 +119,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
     question: '¿Quién puede hacer qué?',
     audience: 'ADMINISTRACION',
     items: [
+      { href: '/admin/owner/control', label: 'Centro de control', icon: SlidersHorizontal },
       { href: '/admin/owner/team-management', label: 'Equipos', icon: UsersRound },
       { href: '/admin/team', label: 'Roles y permisos', icon: UserCog },
     ],

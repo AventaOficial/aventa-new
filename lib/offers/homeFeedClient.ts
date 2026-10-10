@@ -1,4 +1,5 @@
 import type { CardOffer, FeedApiItemShape } from '@/lib/offers/transform';
+import { deferDuplicateProducts } from '@/lib/offers/feedDiversity';
 
 /** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
 export const DIA_A_DIA_SCORE_CAP = 90;
@@ -38,9 +39,10 @@ export function resolveHomeFeedPeriod(
 }
 
 /** Mezcla Día a día: filtra score alto y entrelaza mitad alta/baja por votos. */
-export function applyVitalesFeedTransform<T extends Pick<CardOffer, 'votes'>>(
+export function applyVitalesFeedTransform<T extends Pick<CardOffer, 'votes'> & { title?: string | null; brand?: string | null }>(
   list: T[],
   effectiveLimit: number,
+  maxSameProduct?: number,
 ): T[] {
   const filtered = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
   filtered.sort((a, b) => (b.votes?.score ?? 0) - (a.votes?.score ?? 0));
@@ -52,7 +54,7 @@ export function applyVitalesFeedTransform<T extends Pick<CardOffer, 'votes'>>(
     if (high[i]) interleaved.push(high[i]);
     if (low[i]) interleaved.push(low[i]);
   }
-  return interleaved.slice(0, effectiveLimit);
+  return deferDuplicateProducts(interleaved, maxSameProduct).slice(0, effectiveLimit);
 }
 
 export async function fetchHomeFeedFromAPI(params: HomeFeedFetchParams): Promise<HomeFeedFetchResult> {

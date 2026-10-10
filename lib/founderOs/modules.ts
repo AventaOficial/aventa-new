@@ -523,6 +523,8 @@ export const FOUNDER_MODULES: FounderModule[] = [
   moduleBrief('/admin/distribution', 'Distribución', 'Mira publicaciones atascadas hacia fuera, sin pagar ni publicar de nuevo.'),
   moduleBrief('/admin/owner/crecimiento/cazadores', 'Cazadores', 'Mide si las personas están cazando y volviendo a cazar.'),
   moduleBrief('/admin/owner/experimentos', 'Experimentos', 'Deja a la vista las hipótesis de crecimiento y su límite.'),
+  moduleBrief('/admin/sistemas/atlas', 'Database Atlas', 'Muestra tablas, vistas y relaciones sin filas de personas.'),
+  moduleBrief('/admin/owner/control', 'Centro de control', 'Ajusta cuántas veces puede repetirse un producto en Día a día.'),
   moduleBrief('/admin/owner/economia', 'Economía', 'Resume comisiones, recompensas y el congelamiento de pagos.'),
   moduleBrief('/admin/owner/payouts', 'Payouts', 'Muestra que los pagos reales siguen congelados.'),
   moduleBrief('/equipo/contabilidad', 'Contabilidad', 'Es el libro del equipo sobre ingresos y pools.'),
