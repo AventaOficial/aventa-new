@@ -185,7 +185,7 @@ export default function AdminLayout({
     const isMantenimientoPath = pathname === '/admin/mantenimiento';
     const isTechnicalPath = pathname === '/admin/technical';
     const isHunterPath = pathname === '/admin/hunter';
-    const isSistemasMapaPath = pathname === '/admin/sistemas/mapa';
+    const isSistemasMapaPath = pathname === '/admin/sistemas/mapa' || pathname.startsWith('/admin/sistemas/atlas');
     const isInfraestructuraPath = pathname === '/admin/infraestructura';
     const isContextoPath = pathname === '/admin/contexto';
     if (isOwnerPanelPath && !canOwnerOpsPanel) {
