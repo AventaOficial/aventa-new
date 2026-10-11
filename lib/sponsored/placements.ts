@@ -37,7 +37,7 @@ export const DEFAULT_FEED_POLICY: FeedPlacementPolicy = { firstAfter: 3, every: 
 
 /** Etiqueta visible del espacio: solo una campaña pagada se presenta como publicidad. */
 export function sponsoredDisclosure(kind: SponsoredCampaign['kind']): string {
-  return kind === 'paid' ? 'Patrocinado' : 'Destacado por AVENTA';
+  return kind === 'paid' ? 'Patrocinado' : 'Selección de Aventa';
 }
 
 function inWindow(c: SponsoredCampaign, now: number): boolean {
@@ -46,6 +46,21 @@ function inWindow(c: SponsoredCampaign, now: number): boolean {
   if (Number.isFinite(start) && now < start) return false;
   if (Number.isFinite(end) && now >= end) return false;
   return true;
+}
+
+/** Campaña editorial de la tienda, vigente en `now`. El inicio incluye; el fin excluye. */
+export function houseEditorialForStore(
+  campaigns: readonly SponsoredCampaign[],
+  storeName: string,
+  now: number,
+): SponsoredCampaign | null {
+  const store = storeName.trim().toLowerCase();
+  if (!store || !Number.isFinite(now)) return null;
+  return (
+    eligibleCampaigns(campaigns, 'feed', now).find(
+      (campaign) => campaign.kind === 'house' && campaign.store.toLowerCase() === store,
+    ) ?? null
+  );
 }
 
 /** Campañas activas, vigentes y para esta superficie; pagadas antes que house, luego por prioridad. */

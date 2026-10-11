@@ -1,4 +1,16 @@
-export type RetailerKey = 'amazon' | 'mercado_libre' | 'costco' | 'soriana' | 'chedraui' | 'unknown';
+export type RetailerKey =
+  | 'amazon'
+  | 'mercado_libre'
+  | 'walmart'
+  | 'liverpool'
+  | 'coppel'
+  | 'elektra'
+  | 'bodega_aurrera'
+  | 'sams'
+  | 'costco'
+  | 'soriana'
+  | 'chedraui'
+  | 'unknown';
 
 export type StoreBrand = {
   key: RetailerKey;
@@ -62,6 +74,60 @@ const KNOWN: Array<{
     bg: '#E30613',
     markShape: 'circle',
     domains: ['soriana.com'],
+  },
+  {
+    key: 'walmart',
+    match: /\bwalmart\b/i,
+    name: 'Walmart',
+    logoSrc: '/stores/walmart.svg',
+    bg: '#0071CE',
+    markShape: 'circle',
+    domains: ['walmart.com.mx'],
+  },
+  {
+    key: 'liverpool',
+    match: /\bliverpool\b/i,
+    name: 'Liverpool',
+    logoSrc: '/stores/liverpool.svg',
+    bg: '#111111',
+    markShape: 'circle',
+    domains: ['liverpool.com.mx'],
+  },
+  {
+    key: 'coppel',
+    match: /\bcoppel\b/i,
+    name: 'Coppel',
+    logoSrc: '/stores/coppel.svg',
+    bg: '#0057B8',
+    markShape: 'circle',
+    domains: ['coppel.com'],
+  },
+  {
+    key: 'elektra',
+    match: /\belektra\b/i,
+    name: 'Elektra',
+    logoSrc: '/stores/elektra.svg',
+    bg: '#E30613',
+    markShape: 'circle',
+    domains: ['elektra.mx'],
+  },
+  {
+    key: 'bodega_aurrera',
+    match: /bodega\s*aurrera/i,
+    name: 'Bodega Aurrera',
+    logoSrc: '/stores/bodega-aurrera.svg',
+    bg: '#007A33',
+    markShape: 'circle',
+    domains: ['bodegaaurrera.com.mx'],
+  },
+  {
+    key: 'sams',
+    match: /sam'?s(\s*club)?/i,
+    name: "Sam's Club",
+    logoSrc: '/stores/sams.svg',
+    bg: '#0060A9',
+    markShape: 'circle',
+    domains: ['sams.com.mx'],
   },
   {
     key: 'chedraui',

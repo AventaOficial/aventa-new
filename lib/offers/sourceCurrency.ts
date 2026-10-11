@@ -12,6 +12,11 @@ const MEXICAN_RETAILER_HOSTS = [
   'costco.com.mx',
   'chedraui.com.mx',
   'cityclub.com.mx',
+  'walmart.com.mx',
+  'liverpool.com.mx',
+  'elektra.mx',
+  'bodegaaurrera.com.mx',
+  'sams.com.mx',
 ] as const;
 
 function hostOf(rawUrl: string): string | null {
@@ -38,11 +43,27 @@ export function mexicanRetailerCurrency(rawUrl: string | null | undefined): 'MXN
  * La columna gana si ya es un ISO de 3 letras.
  * Si está vacía, se deriva del host del enlace.
  */
+/** ISO 4217 de tres letras. Un símbolo o un texto libre no cuenta como moneda. */
+export function isoCurrencyCode(raw: string | null | undefined): string | null {
+  const explicit = raw?.trim().toUpperCase() ?? '';
+  return /^[A-Z]{3}$/.test(explicit) ? explicit : null;
+}
+
+/**
+ * Moneda que se puede mostrar y guardar.
+ * La divisa explícita de una API gana. Si no hay, solo el host inequívoco.
+ * El nombre de la tienda no confirma MXN.
+ */
+export function confirmedExtractionCurrency(input: {
+  apiCurrency?: string | null;
+  pageUrl?: string | null;
+}): string | null {
+  return isoCurrencyCode(input.apiCurrency) ?? mexicanRetailerCurrency(input.pageUrl);
+}
+
 export function resolveOfferSourceCurrency(
   stored: string | null | undefined,
   offerUrl?: string | null,
 ): string | null {
-  const explicit = stored?.trim().toUpperCase() ?? '';
-  if (/^[A-Z]{3}$/.test(explicit)) return explicit;
-  return mexicanRetailerCurrency(offerUrl);
+  return confirmedExtractionCurrency({ apiCurrency: stored, pageUrl: offerUrl });
 }

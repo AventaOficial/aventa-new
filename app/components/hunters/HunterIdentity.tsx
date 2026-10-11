@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
+import { AVENTA_PUBLIC_FOUND_LABEL } from '@/lib/product/presentation/publicCardAttribution';
 
 export function HunterMark({
   name,
@@ -31,6 +32,21 @@ export function HunterMark({
       style={{ width: size, height: size, background: accent }}
     >
       {name.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+/** Línea de tarjeta pública. No enlaza al hunter ni marca la oferta como verificada. */
+export function AventaFoundLine() {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] text-violet-700 dark:text-violet-300 md:text-xs">
+      <span
+        aria-hidden
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white"
+      >
+        A
+      </span>
+      <span className="truncate">{AVENTA_PUBLIC_FOUND_LABEL}</span>
     </span>
   );
 }

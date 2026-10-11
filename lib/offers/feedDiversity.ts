@@ -1,6 +1,14 @@
 /** Tope de la misma oportunidad en Día a día. El ranking no cambia; los extras pasan al final. */
 export const DEFAULT_MAX_SAME_PRODUCT = 2;
 
+/** Entero 1–4. Cualquier otro valor vuelve al tope en código. */
+export function resolveMaxSameProduct(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 4) {
+    return DEFAULT_MAX_SAME_PRODUCT;
+  }
+  return value;
+}
+
 const STOP = new Set(['con', 'para', 'del', 'las', 'los', 'una', 'uno', 'the', 'and', 'pack', 'pieza', 'piezas']);
 
 export function productClusterKey(title: string | null | undefined, store: string | null | undefined): string {

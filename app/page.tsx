@@ -36,6 +36,7 @@ import {
   fetchHomeFeedFromAPI,
   type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
+import { DEFAULT_MAX_SAME_PRODUCT, resolveMaxSameProduct } from '@/lib/offers/feedDiversity';
 import { appendOffersById, refreshFeedWithoutDroppingPages } from '@/lib/offers/feedList';
 import { buildOfferPublicPath } from '@/lib/offerPath';
 import { testersForTab } from '@/lib/offers/testerOffers';
@@ -90,15 +91,33 @@ function processHomeFeedList(
   raw: ReturnType<typeof mapOfferToCard>[],
   viewMode: ViewMode,
   effectiveLimit: number,
+  maxSameProduct: number = DEFAULT_MAX_SAME_PRODUCT,
 ): ReturnType<typeof mapOfferToCard>[] {
   let list = raw;
   if (viewMode === 'top') {
     list = list.filter((o) => (o.upvotes ?? 0) >= 1);
   }
   if (viewMode === 'vitales') {
-    list = applyVitalesFeedTransform(list, effectiveLimit);
+    list = applyVitalesFeedTransform(list, effectiveLimit, maxSameProduct);
   }
   return list;
+}
+
+let vitalesCapRequest: Promise<number> | null = null;
+
+function readVitalesCap(): Promise<number> {
+  if (vitalesCapRequest) return vitalesCapRequest;
+  vitalesCapRequest = (async () => {
+    try {
+      const res = await fetch('/api/feed/presentation', { cache: 'no-store' });
+      if (!res.ok) return DEFAULT_MAX_SAME_PRODUCT;
+      const body = (await res.json()) as { maxSameProduct?: unknown };
+      return resolveMaxSameProduct(body.maxSameProduct);
+    } catch {
+      return DEFAULT_MAX_SAME_PRODUCT;
+    }
+  })();
+  return vitalesCapRequest;
 }
 
 function HomeContent() {
@@ -272,18 +291,22 @@ function HomeContent() {
     const homeView = viewMode === 'personalized' ? 'latest' : viewMode;
     const apiLimit = homeView === 'vitales' ? Math.max(effectiveLimit, 60) : effectiveLimit;
 
-    void fetchHomeFeedFromAPI({
-      limit: apiLimit,
-      viewMode: homeView,
-      timeFilter,
-      categoryFilter,
-      storeFilter,
-    })
-      .then(({ items, nextCursor }) => {
+    void Promise.all([
+      fetchHomeFeedFromAPI({
+        limit: apiLimit,
+        viewMode: homeView,
+        timeFilter,
+        categoryFilter,
+        storeFilter,
+      }),
+      homeView === 'vitales' ? readVitalesCap() : Promise.resolve(DEFAULT_MAX_SAME_PRODUCT),
+    ])
+      .then(([{ items, nextCursor }, maxSameProduct]) => {
         const list = processHomeFeedList(
           items.map((item) => mapOfferToCard(item as FeedApiItemShape)),
           homeView,
           effectiveLimit,
+          maxSameProduct,
         );
         const keepPages = Boolean(opts?.silent) && offersCountRef.current > list.length;
         setOffers((prev) => (keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list));
