@@ -281,8 +281,8 @@ function OfertasInner() {
       wide
       integrated
       accentClassName={meHeroAccentClass}
-      title="Tus ofertas,"
-      accent="tu impacto"
+      title="Tus ofertas"
+      accent="tu actividad"
       lede="Aquí viven los descubrimientos que publicaste."
       note={
         <button type="button" onClick={publish} className={meHeroActionClass}>

@@ -40,6 +40,8 @@ type MlItemBody = {
   original_price?: number;
   permalink?: string;
   category_id?: string;
+  thumbnail?: string;
+  secure_thumbnail?: string;
   pictures?: Array<{ id?: string; secure_url?: string; url?: string }>;
   variations?: Array<{ picture_ids?: string[] }>;
 };
@@ -68,6 +70,42 @@ async function fetchJson(path: string): Promise<{ data: unknown | null; authenti
 
 function isUsableItem(item: MlItemBody | null): item is MlItemBody {
   return Boolean(item && !item.error && (item.title || item.pictures?.length));
+}
+
+function upgradeMlImageUrl(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^http:\/\//i, 'https://')
+    .replace(/-I\.(jpg|webp|jpeg|png)/i, '-O.$1')
+    .replace(/D_Q_NP_/i, 'D_NQ_NP_2X_');
+}
+
+/**
+ * Cuando el listing no trae galería, recupera una foto real:
+ * 1. thumbnail del mismo item
+ * 2. portada del producto de catálogo de esta ficha (una sola, no la familia de SKUs)
+ */
+export function recoverMissingMercadoLibrePictures(params: {
+  existing: MlImageCandidate[];
+  item: Pick<MlItemBody, 'thumbnail' | 'secure_thumbnail'> | null;
+  productPictures: Array<{ id?: string; url?: string }> | null | undefined;
+  itemId: string;
+}): MlImageCandidate[] {
+  if (params.existing.length > 0) return params.existing;
+  const thumb = upgradeMlImageUrl(params.item?.secure_thumbnail || params.item?.thumbnail || '');
+  if (/^https?:\/\//i.test(thumb)) {
+    const fromThumb = picturesFromMlApiBody(
+      { pictures: [{ secure_url: thumb, url: thumb }] },
+      params.itemId,
+    );
+    if (fromThumb.length > 0) return fromThumb.slice(0, 1);
+  }
+  const cover = (params.productPictures ?? []).find((p) => p.url || p.id);
+  if (!cover) return [];
+  return picturesFromMlApiBody(
+    { pictures: [{ id: cover.id, secure_url: cover.url, url: cover.url }] },
+    params.itemId,
+  ).slice(0, 1);
 }
 
 /** Combina dos respuestas ML (API + HTML) sin perder fotos únicas del mismo item. */
@@ -199,6 +237,24 @@ export async function fetchMercadoLibrePublicOffer(
         ),
       );
     }
+    const recovered = recoverMissingMercadoLibrePictures({
+      existing: pictureCandidates,
+      item,
+      productPictures: product.pictures,
+      itemId: id,
+    });
+    if (recovered !== pictureCandidates) {
+      pictureCandidates.length = 0;
+      pictureCandidates.push(...recovered);
+    }
+  } else if (pictureCandidates.length === 0) {
+    const recovered = recoverMissingMercadoLibrePictures({
+      existing: pictureCandidates,
+      item: isUsableItem(item) ? item : null,
+      productPictures: null,
+      itemId: id,
+    });
+    if (recovered.length > 0) pictureCandidates.push(...recovered);
   }
 
   // Precio: resolver oficial único (prices → sale_price → products/items exact match).

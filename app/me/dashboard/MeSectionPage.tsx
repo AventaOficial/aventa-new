@@ -128,13 +128,13 @@ export function MeSpaceShell({
   const heading = (
     <div className="min-w-0">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        {title}
+        <span className="block">{title}</span>
         {accent ? (
-          <span className={accentClassName ? `inline-block ${accentClassName}` : 'text-violet-600 dark:text-violet-400'}> {accent}</span>
+          <span className={`mt-1 block text-[1.65rem] leading-tight sm:text-3xl ${accentClassName ?? 'text-violet-600 dark:text-violet-400'}`}>{accent}</span>
         ) : null}
       </h1>
-      {lede ? <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-[var(--me-muted)] sm:text-[15px]">{lede}</p> : null}
-      {note ? <div className="mt-3">{note}</div> : null}
+      {lede ? <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-[var(--me-muted)] sm:text-[15px]">{lede}</p> : null}
+      {note ? <div className="mt-4">{note}</div> : null}
     </div>
   );
   return (

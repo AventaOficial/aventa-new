@@ -25,6 +25,9 @@ function SponsoredInner({ surface, campaign, store }: { surface: SponsoredSurfac
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600/80 dark:text-violet-400/80">
           {disclosure}
         </p>
+        {campaign.kind === 'house' ? (
+          <p className="mt-1 text-[11px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">Espacio editorial. No es un anuncio pagado.</p>
+        ) : null}
         <div className="mt-2">
           <StoreBrandMark store={store} />
         </div>
@@ -43,6 +46,9 @@ function SponsoredInner({ surface, campaign, store }: { surface: SponsoredSurfac
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
           {disclosure}
         </p>
+        {campaign.kind === 'house' ? (
+          <p className="mt-0.5 text-[11px] leading-snug text-[#6e6e73] dark:text-[#a3a3a3]">Espacio editorial. No es un anuncio pagado.</p>
+        ) : null}
         <div className="mt-1.5">
           <StoreBrandMark store={store} />
         </div>

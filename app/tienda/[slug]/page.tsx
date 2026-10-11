@@ -7,6 +7,9 @@ import AppShell from '@/app/AppShell';
 import TiendaOfferList from './TiendaOfferList';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
+import StoreBrandMark from '@/app/components/StoreBrandMark';
+import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
+import { houseEditorialForStore, sponsoredDisclosure } from '@/lib/sponsored/placements';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
@@ -68,6 +71,7 @@ export default async function TiendaPage({ params }: { params: Promise<{ slug: s
 
   if (error) notFound();
   const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
+  const editorial = houseEditorialForStore(SPONSORED_CAMPAIGNS, storeName, Date.parse(now));
 
   return (
     <AppShell>
@@ -84,6 +88,18 @@ export default async function TiendaPage({ params }: { params: Promise<{ slug: s
           <p className="text-gray-600 dark:text-gray-400 mb-8">
             Ofertas y descuentos en {storeName}, publicadas por usuarios.
           </p>
+          {editorial ? (
+            <aside className="mb-8 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 dark:border-violet-900/40 dark:bg-violet-950/25">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                {sponsoredDisclosure(editorial.kind)}
+              </p>
+              <p className="mt-1 text-[12px] text-gray-500 dark:text-gray-400">Espacio editorial. No es un anuncio pagado.</p>
+              <div className="mt-2">
+                <StoreBrandMark store={storeName} />
+              </div>
+              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{editorial.creative.title}</p>
+            </aside>
+          ) : null}
 
           {offers.length === 0 ? (
             <p className="py-12 text-center text-gray-500 dark:text-gray-400">

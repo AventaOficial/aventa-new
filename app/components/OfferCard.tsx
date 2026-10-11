@@ -35,7 +35,8 @@ import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { publicProfilePath } from '@/lib/profileSlug';
-import { HunterFoundLine } from '@/app/components/hunters/HunterIdentity';
+import { AventaFoundLine } from '@/app/components/hunters/HunterIdentity';
+import { publicCardAttribution } from '@/lib/product/presentation/publicCardAttribution';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import type { OfferScopeUi } from '@/lib/offerScope';
 import OfferMedia from '@/app/components/offers/OfferMedia';
@@ -529,6 +530,8 @@ export default function OfferCard({
     </div>
   );
 
+  const cardAttribution = publicCardAttribution(author);
+
   return (
     <>
     <div
@@ -628,9 +631,9 @@ export default function OfferCard({
               <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Uso diario</p>
             ) : null}
 
-            {author?.hunter ? (
-              <HunterFoundLine hunter={author.hunter} />
-            ) : author?.username ? (
+            {cardAttribution?.kind === 'brand' ? (
+              <AventaFoundLine />
+            ) : cardAttribution?.kind === 'person' && author ? (
               <span className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
                 {authorProfileHref ? (
                   <Link
@@ -653,7 +656,7 @@ export default function OfferCard({
                     ) : (
                       <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
                     )}
-                    <span className="truncate">{author.username} lo encontró</span>
+                    <span className="truncate">{cardAttribution.label}</span>
                   </Link>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-[11px] md:text-xs text-gray-600 dark:text-gray-400">
@@ -672,7 +675,7 @@ export default function OfferCard({
                     ) : (
                       <User className="h-4 w-4 md:h-5 md:w-5 shrink-0 text-gray-500 dark:text-gray-400" />
                     )}
-                    <span className="truncate">{author.username} lo encontró</span>
+                    <span className="truncate">{cardAttribution.label}</span>
                   </span>
                 )}
                 {author.leaderBadge === 'cazador_estrella' ? (

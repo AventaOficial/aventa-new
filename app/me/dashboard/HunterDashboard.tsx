@@ -280,8 +280,12 @@ export default function HunterDashboard(props: HunterDashboardProps) {
         <div className="min-w-0 space-y-3 overflow-hidden">
           <section className="rounded-2xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-sm dark:shadow-none p-4 text-[var(--me-ink)]">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[15px] font-semibold">Tu impacto</h2>
-              <p className="text-[12px] text-[var(--me-muted)]">En total</p>
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-semibold">Tu actividad</h2>
+                <p className="mt-1 text-[12px] leading-relaxed text-[var(--me-muted)]">
+                  Ofertas publicadas, vistas, votos y comentarios. No es tu reputación ni tu nivel.
+                </p>
+              </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <ImpactStat icon={<Send className="h-4 w-4" aria-hidden />} value={String(props.published)} label="Ofertas publicadas" />

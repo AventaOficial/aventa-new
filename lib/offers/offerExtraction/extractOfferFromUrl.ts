@@ -37,6 +37,10 @@ import { extractLiverpoolProduct } from '@/lib/offers/productExtraction/liverpoo
 import { extractCoppelProduct } from '@/lib/offers/productExtraction/coppelExtract';
 import { extractElektraProduct } from '@/lib/offers/productExtraction/elektraExtract';
 import {
+  EMPTY_COMMERCIAL_FACTS,
+  verifiedCommercialFactsFromHtml,
+} from '@/lib/offers/offerExtraction/verifiedCommercialFacts';
+import {
   classifyOfferExtraction,
   type OfferExtractionErrorCode,
   type OfferExtractionStatus,
@@ -68,6 +72,7 @@ import {
 } from '@/lib/offers/walmartProductScrapeUrl';
 import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 import { extractLiverpoolProductId } from '@/lib/offers/urlResolution/liverpoolResolver';
+import { confirmedExtractionCurrency } from '@/lib/offers/sourceCurrency';
 
 /**
  * Extracción de producto desde una URL de tienda.
@@ -117,6 +122,8 @@ export type ParseOfferPayload = {
   suggested_discount_price: number | null;
   suggested_original_price: number | null;
   suggested_category: string | null;
+  /** ISO 4217 confirmada por API o por host inequívoco. Null si no se pudo confirmar. */
+  suggested_currency: string | null;
   reason: ParseOfferReason;
   extraction_status: OfferExtractionStatus;
   missing: string[];
@@ -180,6 +187,10 @@ export type OfferExtractionCore = {
     seller: string | null;
     sellerType: string | null;
   };
+  reputation: {
+    rating: number | null;
+    reviewCount: number | null;
+  };
   availability: {
     status: string | null;
   };
@@ -232,6 +243,7 @@ export function emptyOfferExtractionCore(sourceUrl = ''): OfferExtractionCore {
     },
     media: { primaryImage: null, images: [] },
     merchant: { seller: null, sellerType: null },
+    reputation: { rating: null, reviewCount: null },
     availability: { status: null },
     fulfillment: { shipping: null, installments: null },
     extraction: { status: 'failed', missing: [], warnings: [] },
@@ -283,6 +295,7 @@ export function emptyParseOfferPayload(reason: ParseOfferReason = null): ParseOf
     suggested_discount_price: null,
     suggested_original_price: null,
     suggested_category: null,
+    suggested_currency: null,
     reason,
     extraction_status: 'failed',
     missing: [],
@@ -430,63 +443,6 @@ function imageNoteFor(params: {
     return 'La tienda bloqueó la lectura de la página desde el servidor. Reintenta más tarde.';
   }
   return 'La página no expuso fotos de producto confiables.';
-}
-
-/**
- * Marca y disponibilidad solo del Product JSON-LD cuyo sku es el id ya resuelto.
- * No usa el primer Product de la página: ese puede ser otro SKU.
- */
-function jsonLdFactsForProductId(
-  html: string,
-  productId: string,
-): { brand: string | null; availability: string | null } {
-  const wanted = productId.trim().toUpperCase();
-  if (!wanted) return { brand: null, availability: null };
-  const blocks = html.matchAll(
-    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
-  );
-  for (const block of blocks) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(block[1] ?? '');
-    } catch {
-      continue;
-    }
-    const stack: unknown[] = [parsed];
-    while (stack.length > 0) {
-      const node = stack.pop();
-      if (!node || typeof node !== 'object') continue;
-      if (Array.isArray(node)) {
-        stack.push(...node);
-        continue;
-      }
-      const record = node as Record<string, unknown>;
-      if (record['@graph']) stack.push(record['@graph']);
-      const typeValue = record['@type'];
-      const typeName = Array.isArray(typeValue) ? typeValue.map(String).join(',') : String(typeValue ?? '');
-      const sku = typeof record.sku === 'string' ? record.sku.trim().toUpperCase() : '';
-      if (!typeName.includes('Product') || sku !== wanted) continue;
-      const brandValue = record.brand;
-      const brand =
-        typeof brandValue === 'string'
-          ? brandValue.trim()
-          : brandValue &&
-              typeof brandValue === 'object' &&
-              typeof (brandValue as { name?: unknown }).name === 'string'
-            ? String((brandValue as { name: string }).name).trim()
-            : '';
-      const offers = Array.isArray(record.offers) ? record.offers[0] : record.offers;
-      const rawAvailability =
-        offers && typeof offers === 'object' && typeof (offers as { availability?: unknown }).availability === 'string'
-          ? (offers as { availability: string }).availability
-          : '';
-      return {
-        brand: brand || null,
-        availability: rawAvailability ? rawAvailability.split('/').pop()?.trim() || null : null,
-      };
-    }
-  }
-  return { brand: null, availability: null };
 }
 
 /**
@@ -746,9 +702,6 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
     let retailExtractHandled = false;
     let priceSource: RetailerAdapterResult['priceSource'] = 'none';
     let originalPriceSource: RetailerAdapterResult['originalPriceSource'] = 'none';
-    let verifiedBrand: string | null = null;
-    let verifiedAvailability: string | null = null;
-
     if (html) {
       htmlImages = extractOfferImages(html, base);
       trustedHtmlImages = extractOfferMetaImages(html, base);
@@ -803,17 +756,6 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
       suggestedOriginal = amazonPrices.original;
       priceSource = suggestedDiscount != null ? 'amazon_html' : 'none';
       originalPriceSource = suggestedOriginal != null ? 'amazon_html' : 'none';
-    }
-
-    const identityForFacts = isAmazon
-      ? amazonAsinHint
-      : isLiverpool
-        ? extractLiverpoolProductId(pageUrl.href)
-        : null;
-    if (html && identityForFacts && !isMercadoLibre) {
-      const facts = jsonLdFactsForProductId(html, identityForFacts);
-      verifiedBrand = facts.brand;
-      verifiedAvailability = facts.availability;
     }
 
     let ml = mlFirst;
@@ -1055,6 +997,11 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
       (fingerprint?.startsWith('amz:') ? fingerprint.slice(4) : null) ||
       (fingerprint?.startsWith('lvp:') ? fingerprint.slice(4) : null) ||
       (fingerprint?.startsWith('ml:') ? fingerprint.slice(3) : null);
+    const factId =
+      productId ||
+      (isAmazon ? amazonAsinHint : null) ||
+      (isLiverpool ? extractLiverpoolProductId(pageUrl.href) : null);
+    const facts = html && factId ? verifiedCommercialFactsFromHtml(html, factId) : EMPTY_COMMERCIAL_FACTS;
     const core: OfferExtractionCore = {
       provider: offerResolved.provider,
       sourceUrl: rawUrl,
@@ -1069,22 +1016,26 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
       },
       product: {
         title,
-        brand: isMercadoLibre ? null : verifiedBrand,
-        category: suggestedCategory,
+        brand: facts.brand,
+        category: suggestedCategory || facts.category,
         subcategory: null,
       },
       pricing: {
         currentPrice: suggestedDiscount,
         originalPrice: suggestedOriginal,
         discount: computeDiscountPercent(suggestedDiscount, suggestedOriginal),
-        currency: ml?.currency ?? null,
+        currency: confirmedExtractionCurrency({
+          apiCurrency: ml?.currency,
+          pageUrl: adapter.canonicalUrl || workingHref || rawUrl,
+        }),
         priceSource: priceSource === 'none' ? null : priceSource,
         originalPriceSource: originalPriceSource === 'none' ? null : originalPriceSource,
       },
       media: { primaryImage: images[0] ?? null, images },
-      merchant: { seller: null, sellerType: null },
+      merchant: { seller: facts.seller, sellerType: null },
+      reputation: { rating: facts.rating, reviewCount: facts.reviewCount },
       availability: {
-        status: isMercadoLibre ? null : verifiedAvailability,
+        status: isMercadoLibre ? null : facts.availability,
       },
       fulfillment: { shipping: null, installments: null },
       extraction: {
@@ -1133,6 +1084,7 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
         suggested_discount_price: core.pricing.currentPrice,
         suggested_original_price: core.pricing.originalPrice,
         suggested_category: core.product.category,
+        suggested_currency: core.pricing.currency,
         reason: classification.status === 'failed' ? 'extract_failed' : null,
         extraction_status: classification.status,
         missing: classification.missing,

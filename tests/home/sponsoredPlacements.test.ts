@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FEED_POLICY,
   eligibleCampaigns,
+  houseEditorialForStore,
   planFeedPlacements,
   sponsoredDisclosure,
   type SponsoredCampaign,
@@ -74,6 +75,34 @@ describe('eligibleCampaigns', () => {
     ];
     expect(eligibleCampaigns(list, 'feed', NOW).map((c) => c.id)).toEqual(['now']);
     expect(eligibleCampaigns(list, 'rail', NOW).map((c) => c.id)).toEqual(['rail']);
+  });
+
+  it('el inicio de la ventana incluye y el fin excluye', () => {
+    const start = '2026-10-04T12:00:00.000Z';
+    const end = '2026-10-05T12:00:00.000Z';
+    const item = campaign({ id: 'ventana', kind: 'house', store: 'Amazon', startsAt: start, endsAt: end });
+    const startMs = Date.parse(start);
+    const endMs = Date.parse(end);
+    expect(eligibleCampaigns([item], 'feed', startMs - 1).map((c) => c.id)).toEqual([]);
+    expect(eligibleCampaigns([item], 'feed', startMs).map((c) => c.id)).toEqual(['ventana']);
+    expect(eligibleCampaigns([item], 'feed', endMs - 1).map((c) => c.id)).toEqual(['ventana']);
+    expect(eligibleCampaigns([item], 'feed', endMs).map((c) => c.id)).toEqual([]);
+  });
+});
+
+describe('houseEditorialForStore', () => {
+  const start = '2026-10-04T12:00:00.000Z';
+  const end = '2026-10-05T12:00:00.000Z';
+
+  it('toma la campaña editorial vigente de esa tienda', () => {
+    const list = [
+      campaign({ id: 'paid', kind: 'paid', store: 'Amazon', startsAt: start, endsAt: end }),
+      campaign({ id: 'house', kind: 'house', store: 'Amazon', startsAt: start, endsAt: end }),
+      campaign({ id: 'otra', kind: 'house', store: 'Liverpool', startsAt: start, endsAt: end }),
+    ];
+    expect(houseEditorialForStore(list, ' amazon ', Date.parse(start))?.id).toBe('house');
+    expect(houseEditorialForStore(list, 'Amazon', Date.parse(end))).toBeNull();
+    expect(houseEditorialForStore(list, 'Amazon', Date.parse(start) - 1)).toBeNull();
   });
 });
 

@@ -16,7 +16,8 @@ import { BANK_COUPON_OPTIONS, formatCupónBancarioDisplay, getBankCouponLabel } 
 import { describeOfferIssue, previewOfferDraft, OFFER_COUPON_MAX, OFFER_DESCRIPTION_MAX, OFFER_HUNTER_COMMENT_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
-import { formatOfferMoneyInput, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
+import { formatOfferMoneyInput, presentOfferPrice, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
+import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { logClientError } from '@/lib/utils/handleError';
 import {
   normalizePastedOfferUrl,
@@ -1859,7 +1860,16 @@ export default function ActionBar() {
                     </p>
                     <p className="text-xs text-gray-400 mb-5">Vista previa en tiempo real</p>
                     <AnimatePresence mode="wait">
-                      {(formData.title.trim() || formData.store.trim() || formData.originalPrice || formData.discountPrice) ? (
+                      {(formData.title.trim() || formData.store.trim() || formData.originalPrice || formData.discountPrice) ? (() => {
+                        const previewCurrency = resolveOfferSourceCurrency(
+                          null,
+                          normalizePastedOfferUrl(formData.offer_url),
+                        );
+                        const previewCurrent = hasDiscount
+                          ? parseDecimalPrice(formData.discountPrice) || parseDecimalPrice(formData.originalPrice)
+                          : parseDecimalPrice(formData.originalPrice);
+                        const previewOriginal = parseDecimalPrice(formData.originalPrice);
+                        return (
                         <motion.div
                           key="preview"
                           initial={{ opacity: 0 }}
@@ -1918,6 +1928,7 @@ export default function ActionBar() {
                                 offerScope={
                                   offerScope === 'in_store' ? 'in_store' : offerScope ? 'online' : null
                                 }
+                                sourceCurrency={previewCurrency}
                               />
                             </motion.div>
                           </div>
@@ -1957,15 +1968,11 @@ export default function ActionBar() {
                                 </h3>
                                 <div className="flex flex-wrap items-baseline gap-2">
                                   <span className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
-                                    {formatPreviewPrice(
-                                      hasDiscount
-                                        ? formData.discountPrice || formData.originalPrice || '0'
-                                        : formData.originalPrice || '0',
-                                    )}
+                                    {presentOfferPrice(previewCurrent, previewCurrency)}
                                   </span>
                                   {hasDiscount && formData.originalPrice ? (
                                     <span className="text-base text-gray-500 line-through dark:text-gray-400">
-                                      {formatPreviewPrice(formData.originalPrice)}
+                                      {presentOfferPrice(previewOriginal, previewCurrency)}
                                     </span>
                                   ) : null}
                                   {hasDiscount &&
@@ -1980,12 +1987,12 @@ export default function ActionBar() {
                                 parseDecimalPrice(formData.originalPrice) > parseDecimalPrice(formData.discountPrice) &&
                                 parseDecimalPrice(formData.discountPrice) > 0 ? (
                                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Ahorras {formatPreviewPrice(String(parseDecimalPrice(formData.originalPrice) - parseDecimalPrice(formData.discountPrice)))}
+                                    Ahorras {presentOfferPrice(previewOriginal - previewCurrent, previewCurrency)}
                                   </p>
                                 ) : null}
                                 {msiMonths != null && msiMonths >= 1 && parseDecimalPrice(formData.discountPrice) > 0 ? (
                                   <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                    {msiMonths} MSI: {formatPreviewPrice(String(parseDecimalPrice(formData.discountPrice) / msiMonths))}/mes
+                                    {msiMonths} MSI: {presentOfferPrice(parseDecimalPrice(formData.discountPrice) / msiMonths, previewCurrency)}/mes
                                   </p>
                                 ) : null}
                                 {getBankCouponLabel(formData.bank_coupon) ? (
@@ -2023,7 +2030,8 @@ export default function ActionBar() {
                             </motion.div>
                           </div>
                         </motion.div>
-                      ) : (
+                      );
+                      })() : (
                         <motion.div
                           key="empty"
                           initial={{ opacity: 0 }}
