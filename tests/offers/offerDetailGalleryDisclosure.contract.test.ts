@@ -14,22 +14,26 @@ describe('Offer detail gallery + affiliate disclosure', () => {
   const thumbs = readFileSync(join(process.cwd(), 'app/components/OfferImageThumbs.tsx'), 'utf8');
   const gallery = readFileSync(join(process.cwd(), 'app/components/OfferImageGallery.tsx'), 'utf8');
 
-  it('OfferPageContent wires lightbox (+N / hero)', () => {
+  it('el detalle amplía solo con el control explícito', () => {
     expect(page).toContain('OfferImageGallery');
-    expect(page).toContain('onOpenGallery');
-    expect(page).toContain('setGalleryOpen(true)');
+    expect(page).toContain('Ampliar imagen');
+    expect(page).toContain('selectGalleryImage');
+    expect(page).not.toContain('onOpenGallery');
     expect(page).not.toMatch(/AffiliateDisclosure\s+variant=["']badge["']/);
   });
 
-  it('OfferModal also wires gallery (no decorative +N)', () => {
+  it('el modal también separa miniatura y visor', () => {
     expect(modal).toContain('OfferImageGallery');
-    expect(modal).toContain('onOpenGallery');
+    expect(modal).toContain('Ampliar imagen');
+    expect(modal).toContain('selectGalleryImage');
+    expect(modal).not.toContain('onOpenGallery');
     expect(modal).not.toMatch(/AffiliateDisclosure\s+variant=["']badge["']/);
   });
 
-  it('thumbs overflow opens gallery at first hidden index', () => {
+  it('las miniaturas no abren la galería', () => {
     expect(thumbs).toContain('THUMB_CLEAR_SLOTS');
-    expect(thumbs).toContain('onOpenGallery');
+    expect(thumbs).not.toContain('onOpenGallery');
+    expect(thumbs).toContain('aria-pressed');
   });
 
   it('gallery supports keyboard escape/arrows and image error fallback', () => {

@@ -14,8 +14,8 @@ import {
   Globe,
   Store,
   Clock,
-  Sparkles,
   Archive,
+  Expand,
 } from 'lucide-react';
 import { presentOfferPrice } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
@@ -30,7 +30,8 @@ import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
-import { HunterFoundSection, HunterMark } from '@/app/components/hunters/HunterIdentity';
+import { communityAuthorCard, teamAuthorCard } from '@/lib/product/presentation/teamAuthor';
+import OfferAuthorCard from '@/app/components/offers/OfferAuthorCard';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import ClientLayout from '@/app/ClientLayout';
@@ -38,6 +39,7 @@ import VoteArrowButton from '@/app/components/VoteArrowButton';
 import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
+import { selectGalleryImage, expandGallery } from '@/lib/offers/galleryView';
 import OfferImageThumbs from '@/app/components/OfferImageThumbs';
 import OfferImageGallery from '@/app/components/OfferImageGallery';
 import AchievementSigil from '@/app/components/achievements/AchievementSigil';
@@ -131,6 +133,8 @@ type OfferPayload = {
     isBot?: boolean;
     hunter?: HunterPublicIdentity | null;
     featuredAchievement?: { code?: string; name: string; icon: string } | null;
+    bio?: string | null;
+    location?: string | null;
   };
   createdAt: string | null;
   expiresAt?: string | null;
@@ -720,29 +724,31 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
           <div className="flex flex-col md:flex-row">
             <div className="md:w-[45%] bg-gray-50 dark:bg-[#141414] p-4">
+              <OfferMedia
+                src={currentImage}
+                alt={offer.title}
+                sizes="(max-width: 768px) 100vw, 45vw"
+                ratioClass="aspect-square"
+                priority
+                unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
+                className="rounded-xl"
+              />
               <button
                 type="button"
-                className="w-full text-left"
-                onClick={() => setGalleryOpen(true)}
+                onClick={() => setGalleryOpen(expandGallery({ index: imageIndex, open: galleryOpen }).open)}
+                className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 shadow-sm hover:bg-gray-50 dark:border-white/10 dark:bg-[#1a1a1a] dark:text-gray-100 dark:hover:bg-[#222]"
                 aria-label="Ampliar imagen"
               >
-                <OfferMedia
-                  src={currentImage}
-                  alt={offer.title}
-                  sizes="(max-width: 768px) 100vw, 45vw"
-                  ratioClass="aspect-square"
-                  priority
-                  unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
-                  className="rounded-xl"
-                />
+                <Expand className="h-3.5 w-3.5" aria-hidden />
+                Ampliar imagen
               </button>
               <OfferImageThumbs
                 images={allImages}
                 activeIndex={imageIndex}
-                onSelect={setImageIndex}
-                onOpenGallery={(idx) => {
-                  setImageIndex(idx);
-                  setGalleryOpen(true);
+                onSelect={(index) => {
+                  const next = selectGalleryImage(index);
+                  setImageIndex(next.index);
+                  setGalleryOpen(next.open);
                 }}
               />
               <OfferImageGallery
@@ -759,81 +765,42 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 {offer.title}
               </h1>
               {offer.author?.username && (
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  {offerAuthorProfileHref && !offer.author.isBot ? (
-                    <Link
-                      href={offerAuthorProfileHref}
-                      className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
-                    >
-                      {offer.author.avatar_url ? (
-                        <img
-                          src={offer.author.avatar_url}
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
-                        />
-                      ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#262626] shrink-0">
-                          <User className="h-5 w-5 text-gray-400" />
+                <div className="mt-4">
+                  <OfferAuthorCard
+                    author={
+                      offer.author.hunter
+                        ? teamAuthorCard(offer.author.hunter)
+                        : communityAuthorCard({
+                            name: offer.author.username,
+                            profileHref: offer.author.isBot ? null : offerAuthorProfileHref,
+                            avatarUrl: offer.author.avatar_url,
+                            bio: offer.author.bio,
+                            location: offer.author.location,
+                          })
+                    }
+                  />
+                  {offer.createdAt ? (
+                    <p className="mt-2 text-xs text-gray-400">{formatRelativeDate(offer.createdAt)}</p>
+                  ) : null}
+                  {!offer.author.hunter ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {offer.author.leaderBadge === 'cazador_estrella' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                          <BadgeCheck className="h-3.5 w-3.5" /> Top
                         </span>
                       )}
-                      <span className="flex flex-col leading-tight">
-                        <span className="font-medium text-gray-800 dark:text-gray-200">
-                          {offer.author.username}
-                        </span>
-                        {offer.createdAt ? (
-                          <span className="text-xs text-gray-400">
-                            {formatRelativeDate(offer.createdAt)}
-                          </span>
-                        ) : null}
-                      </span>
-                    </Link>
-                  ) : (
-                    <span className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                      {offer.author.hunter ? (
-                        <HunterMark name={offer.author.hunter.name} accent={offer.author.hunter.accent} avatarUrl={offer.author.hunter.avatarUrl} size={40} />
-                      ) : offer.author.avatar_url ? (
-                        <img
-                          src={offer.author.avatar_url}
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
-                        />
-                      ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950/40 shrink-0">
-                          <Sparkles className="h-5 w-5 text-violet-500" aria-hidden />
+                      {offer.author.leaderBadge === 'cazador_aventa' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
+                          <BadgeCheck className="h-3.5 w-3.5" /> Destacado
                         </span>
                       )}
-                      <span className="flex flex-col leading-tight">
-                        <span className="font-medium text-gray-800 dark:text-gray-200">
-                          {offer.author.hunter ? offer.author.hunter.foundLabel : offer.author.username}
-                          {offer.author.isBot && !offer.author.hunter ? (
-                            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                              sistema
-                            </span>
-                          ) : null}
+                      {offer.author.featuredAchievement ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+                          <AchievementSigil code={offer.author.featuredAchievement.code} size="xs" />
+                          {offer.author.featuredAchievement.name}
                         </span>
-                        {offer.createdAt ? (
-                          <span className="text-xs text-gray-400">
-                            {formatRelativeDate(offer.createdAt)}
-                          </span>
-                        ) : null}
-                      </span>
-                    </span>
-                  )}
-                  {offer.author.leaderBadge === 'cazador_estrella' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
-                      <BadgeCheck className="h-3.5 w-3.5" /> Top
-                    </span>
-                  )}
-                  {offer.author.leaderBadge === 'cazador_aventa' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
-                      <BadgeCheck className="h-3.5 w-3.5" /> Destacado
-                    </span>
-                  )}
-                  {offer.author.featuredAchievement ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
-                      <AchievementSigil code={offer.author.featuredAchievement.code} size="xs" />
-                      {offer.author.featuredAchievement.name}
-                    </span>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               )}
@@ -1074,11 +1041,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                       {descExpanded ? 'Ver menos' : 'Ver más'}
                     </button>
                   ) : null}
-                </section>
-              ) : null}
-              {offer.author.hunter ? (
-                <section className="px-6 md:px-8 py-5">
-                  <HunterFoundSection hunter={offer.author.hunter} />
                 </section>
               ) : null}
               {offer.steps?.trim() ? (
