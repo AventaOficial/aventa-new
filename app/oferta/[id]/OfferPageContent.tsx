@@ -39,6 +39,7 @@ import VoteArrowButton from '@/app/components/VoteArrowButton';
 import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
+import { OFFER_COMMENT_MAX_CHARS } from '@/lib/contracts/offerComments';
 import { selectGalleryImage, expandGallery } from '@/lib/offers/galleryView';
 import OfferImageThumbs from '@/app/components/OfferImageThumbs';
 import OfferImageGallery from '@/app/components/OfferImageGallery';
@@ -373,7 +374,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const handleSubmitComment = async () => {
     const text = commentText.trim();
     if (!text || !offer.id || !session?.access_token || commentSubmitting) return;
-    if (text.length > 280) return;
+    if (text.length > OFFER_COMMENT_MAX_CHARS) return;
     setCommentSubmitting(true);
     try {
       const res = await fetch(`/api/offers/${encodeURIComponent(offer.id)}/comments`, {
@@ -764,47 +765,6 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
                 {offer.title}
               </h1>
-              {offer.author?.username && (
-                <div className="mt-4">
-                  <OfferAuthorCard
-                    author={
-                      offer.author.hunter
-                        ? teamAuthorCard(offer.author.hunter)
-                        : communityAuthorCard({
-                            name: offer.author.username,
-                            profileHref: offer.author.isBot ? null : offerAuthorProfileHref,
-                            avatarUrl: offer.author.avatar_url,
-                            bio: offer.author.bio,
-                            location: offer.author.location,
-                          })
-                    }
-                  />
-                  {offer.createdAt ? (
-                    <p className="mt-2 text-xs text-gray-400">{formatRelativeDate(offer.createdAt)}</p>
-                  ) : null}
-                  {!offer.author.hunter ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {offer.author.leaderBadge === 'cazador_estrella' && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
-                          <BadgeCheck className="h-3.5 w-3.5" /> Top
-                        </span>
-                      )}
-                      {offer.author.leaderBadge === 'cazador_aventa' && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
-                          <BadgeCheck className="h-3.5 w-3.5" /> Destacado
-                        </span>
-                      )}
-                      {offer.author.featuredAchievement ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
-                          <AchievementSigil code={offer.author.featuredAchievement.code} size="xs" />
-                          {offer.author.featuredAchievement.name}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
               <div className="flex flex-wrap items-baseline gap-3 mt-4">
                 <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">
                   {presentOfferPrice(offer.discountPrice, offer.sourceCurrency)}
@@ -1188,8 +1148,14 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder={session ? (replyingToId ? 'Escribe tu respuesta (máx. 280 caracteres)...' : 'Escribe un comentario (máx. 280 caracteres)...') : 'Inicia sesión para comentar.'}
-                maxLength={280}
+                placeholder={
+                  session
+                    ? replyingToId
+                      ? `Escribe tu respuesta (máx. ${OFFER_COMMENT_MAX_CHARS} caracteres)...`
+                      : `Escribe un comentario (máx. ${OFFER_COMMENT_MAX_CHARS} caracteres)...`
+                    : 'Inicia sesión para comentar.'
+                }
+                maxLength={OFFER_COMMENT_MAX_CHARS}
                 disabled={!session}
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-purple-500 focus:outline-none resize-none disabled:opacity-60"
                 rows={2}
@@ -1257,6 +1223,49 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 <AffiliateDisclosure variant="block" includeAmazonEn />
               </div>
             </details>
+          ) : null}
+          {offer.author?.username ? (
+            <section
+              className="border-t border-gray-100 px-6 py-6 dark:border-gray-800 md:px-8"
+              aria-label="Ficha del autor"
+            >
+              <OfferAuthorCard
+                author={
+                  offer.author.hunter
+                    ? teamAuthorCard(offer.author.hunter)
+                    : communityAuthorCard({
+                        name: offer.author.username,
+                        profileHref: offer.author.isBot ? null : offerAuthorProfileHref,
+                        avatarUrl: offer.author.avatar_url,
+                        bio: offer.author.bio,
+                        location: offer.author.location,
+                      })
+                }
+              />
+              {offer.createdAt ? (
+                <p className="mt-2 text-xs text-gray-400">{formatRelativeDate(offer.createdAt)}</p>
+              ) : null}
+              {!offer.author.hunter ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {offer.author.leaderBadge === 'cazador_estrella' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Top
+                    </span>
+                  )}
+                  {offer.author.leaderBadge === 'cazador_aventa' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Destacado
+                    </span>
+                  )}
+                  {offer.author.featuredAchievement ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+                      <AchievementSigil code={offer.author.featuredAchievement.code} size="xs" />
+                      {offer.author.featuredAchievement.name}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
           ) : null}
           </div>
         </div>

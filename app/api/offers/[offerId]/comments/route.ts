@@ -9,6 +9,7 @@ import {
   requireBearerCommunityUser,
   communityAuthFailureResponse,
 } from '@/lib/server/requireCommunityUser';
+import { assessOfferCommentText } from '@/lib/contracts/offerComments';
 import { getCommentableOffer, validateCommentParent } from '@/lib/server/commentOfferGuard';
 import { evaluateAbusePolicy } from '@/lib/abuse/risk';
 import { syncAchievementsLater } from '@/lib/achievements/sync';
@@ -87,8 +88,8 @@ export async function GET(
     list = (rows ?? []) as CommentRow[];
   }
   const commentIds = list.map((c) => c.id);
-  let likeCounts: Record<string, number> = {};
-  let likedByMe: Record<string, boolean> = {};
+  const likeCounts: Record<string, number> = {};
+  const likedByMe: Record<string, boolean> = {};
   let viewerUserId: string | null = null;
   if (commentIds.length > 0) {
     try {
@@ -178,10 +179,12 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => ({}));
-  const raw = typeof body?.content === 'string' ? body.content.trim() : '';
-  if (raw.length === 0 || raw.length > 280) {
-    return NextResponse.json({ error: 'Contenido entre 1 y 280 caracteres' }, { status: 400 });
+  const raw = typeof body?.content === 'string' ? body.content : '';
+  const contentCheck = assessOfferCommentText(raw);
+  if (!contentCheck.ok) {
+    return NextResponse.json({ error: contentCheck.message }, { status: 400 });
   }
+  const trimmedContent = contentCheck.text;
   const parentId = typeof body?.parent_id === 'string' && isValidUuid(body.parent_id.trim()) ? body.parent_id.trim() : null;
 
   if (parentId) {
@@ -199,7 +202,7 @@ export async function POST(
     return NextResponse.json({ error: 'La foto del comentario no es válida' }, { status: 400 });
   }
 
-  const textMod = moderateCommentText(raw);
+  const textMod = moderateCommentText(trimmedContent);
   if (textMod.verdict === 'block') {
     return NextResponse.json(
       { error: 'Tu comentario no se puede publicar. Evita insultos u ofensas.' },
@@ -237,7 +240,7 @@ export async function POST(
   } = {
     offer_id: offerId,
     user_id: userId,
-    content: raw,
+    content: trimmedContent,
     status: commentStatus,
   };
   if (parentId) insertPayload.parent_id = parentId;

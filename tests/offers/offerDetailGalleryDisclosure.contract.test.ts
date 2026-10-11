@@ -30,8 +30,11 @@ describe('Offer detail gallery + affiliate disclosure', () => {
     expect(modal).not.toMatch(/AffiliateDisclosure\s+variant=["']badge["']/);
   });
 
-  it('las miniaturas no abren la galería', () => {
+  it('las miniaturas no abren la galería y +N revela el resto', () => {
     expect(thumbs).toContain('THUMB_CLEAR_SLOTS');
+    expect(thumbs).toContain('revealOverflow');
+    expect(thumbs).toContain('galleryOverflowExtra');
+    expect(thumbs).toContain('hiddenThumbsAfterViewport');
     expect(thumbs).not.toContain('onOpenGallery');
     expect(thumbs).toContain('aria-pressed');
   });
