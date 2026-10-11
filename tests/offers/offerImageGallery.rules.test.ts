@@ -2,17 +2,19 @@
  * Gallery UX rules — +N must open remaining images, not decorate.
  */
 import { describe, expect, it } from 'vitest';
-import { THUMB_CLEAR_SLOTS } from '@/app/components/OfferImageThumbs';
+import {
+  THUMB_CLEAR_SLOTS,
+  galleryFirstOverflowIndex,
+  galleryOverflowExtra,
+} from '@/app/components/OfferImageThumbs';
 
 function overflowLabel(total: number, clearSlots = THUMB_CLEAR_SLOTS): string | null {
-  if (total <= 1) return null;
-  if (total <= clearSlots) return null;
-  return `+${total - clearSlots}`;
+  const extra = galleryOverflowExtra(total, clearSlots);
+  return extra == null ? null : `+${extra}`;
 }
 
 function openGalleryIndex(total: number, clearSlots = THUMB_CLEAR_SLOTS): number | null {
-  if (total <= clearSlots) return null;
-  return clearSlots;
+  return galleryFirstOverflowIndex(total, clearSlots);
 }
 
 describe('OfferImageGallery UX rules', () => {

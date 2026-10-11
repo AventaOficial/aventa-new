@@ -20,6 +20,10 @@ describe('galería del detalle', () => {
     const page = readFileSync('app/oferta/[id]/OfferPageContent.tsx', 'utf8');
     const gallery = readFileSync('app/components/OfferImageGallery.tsx', 'utf8');
     expect(thumbs).toContain('onSelect(i)');
+    expect(thumbs).toContain('revealOverflow');
+    expect(thumbs).toContain('touch-pan-x touch-pan-y');
+    expect(thumbs).toContain('overscroll-x-contain');
+    expect(thumbs).not.toContain('scrollIntoView');
     expect(thumbs).not.toContain('onOpenGallery');
     expect(thumbs).toContain('aria-pressed');
     expect(page).toContain('selectGalleryImage');

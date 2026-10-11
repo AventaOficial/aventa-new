@@ -598,9 +598,9 @@ export default function OfferCard({
         <FeedModerationAction offerId={offerId} onRemoved={() => onModerated?.(offerId)} />
       ) : null}
 
-      <div className="flex flex-row items-stretch min-h-0">
-        <div className="w-[36%] min-w-[88px] max-[400px]:min-w-[80px] md:w-[200px] md:min-w-[200px] shrink-0 flex flex-col gap-1 max-[400px]:gap-0.5 self-stretch min-h-0">
-          <div className="relative shrink-0">
+      <div className="flex flex-row items-start min-h-0">
+        <div className="w-[36%] min-w-[88px] max-[400px]:min-w-[80px] md:w-[200px] md:min-w-[200px] shrink-0">
+          <div className="relative">
             <OfferMedia
               src={image}
               alt={title}
@@ -616,14 +616,10 @@ export default function OfferCard({
               </span>
             ) : null}
           </div>
-          <div className="flex-1 min-h-[6px] min-w-0" aria-hidden />
-          <div className="flex justify-center w-full shrink-0 pb-0.5">
-            <VotesBlock />
-          </div>
         </div>
 
-        <div className="flex flex-col flex-1 min-w-0 min-h-0 pl-3 max-[400px]:pl-2 md:pl-4">
-          <div className="min-w-0 flex-1 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
+        <div className="flex-1 min-w-0 pl-3 max-[400px]:pl-2 md:pl-4">
+          <div className="min-w-0 flex flex-col gap-1 max-[400px]:gap-0.5 md:gap-1.5">
             <h3 className="text-sm max-[400px]:text-[13px] md:text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 md:line-clamp-3 leading-snug wrap-anywhere">
               {title}
             </h3>
@@ -766,78 +762,6 @@ export default function OfferCard({
               </div>
             ) : null}
           </div>
-
-          <div className="mt-2 max-[400px]:mt-1.5 shrink-0 pt-2 border-t border-gray-100/80 dark:border-gray-800/60 flex items-center gap-2">
-            {timeLabel ? (
-              <span className="inline-flex items-center gap-1 text-[11px] md:text-xs text-gray-400 dark:text-gray-500 shrink-0">
-                <Clock className="h-3 w-3" aria-hidden />
-                {timeLabel}
-              </span>
-            ) : null}
-            <div className="min-w-0 flex-1">
-              {(!statusConfig ||
-                statusConfig.behavior === 'public' ||
-                statusConfig.behavior === 'archive') ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isTesterOffer) {
-                      showToast('Oferta de prueba');
-                      return;
-                    }
-                    void (async () => {
-                      await copyCouponsToClipboard();
-                      if (offerId) {
-                        fetch('/api/events', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-                          },
-                          body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
-                        }).catch((err) => logClientError('offer-card:cazar-cta', err));
-                      }
-                      onCardClick?.();
-                    })();
-                  }}
-                  className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
-                >
-                  {statusConfig?.ctaLabel ?? 'Ver oferta'}
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                </button>
-              ) : null}
-
-              {statusConfig?.behavior === 'informational' ? (
-                <div className="rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
-                  <p className="text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                    {statusConfig.message}
-                  </p>
-                </div>
-              ) : null}
-
-              {statusConfig?.behavior === 'management' ? (
-                <div>
-                  {statusConfig.message ? (
-                    <p className="mb-2.5 text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                      {statusConfig.message}
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (statusConfig.action) onManagementAction?.(statusConfig.action);
-                    }}
-                    className="w-full min-w-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity hover:opacity-90"
-                  >
-                    {statusConfig.ctaLabel}
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
         </div>
 
         {shortHunterComment ? (
@@ -847,7 +771,7 @@ export default function OfferCard({
               aria-hidden
             />
             <aside
-              className="hidden md:flex w-[30%] max-w-[200px] min-w-[132px] shrink-0 flex-col gap-1.5 self-stretch pt-0.5"
+              className="hidden md:flex w-[30%] max-w-[200px] min-w-[132px] shrink-0 flex-col gap-1.5 self-start pt-0.5"
               aria-label="Comentario del cazador"
             >
               <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
@@ -878,6 +802,80 @@ export default function OfferCard({
           </p>
         </aside>
       ) : null}
+      <div className="pt-2 border-t border-gray-100/80 dark:border-gray-800/60 flex items-center gap-2 max-[400px]:gap-1.5 min-w-0">
+        <div className="shrink-0">
+          <VotesBlock />
+        </div>
+        {timeLabel ? (
+          <span className="inline-flex items-center gap-1 text-[11px] md:text-xs text-gray-400 dark:text-gray-500 shrink-0">
+            <Clock className="h-3 w-3" aria-hidden />
+            {timeLabel}
+          </span>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {(!statusConfig ||
+            statusConfig.behavior === 'public' ||
+            statusConfig.behavior === 'archive') ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isTesterOffer) {
+                  showToast('Oferta de prueba');
+                  return;
+                }
+                void (async () => {
+                  await copyCouponsToClipboard();
+                  if (offerId) {
+                    fetch('/api/events', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                      },
+                      body: JSON.stringify({ offer_id: offerId, event_type: 'cazar_cta' }),
+                    }).catch((err) => logClientError('offer-card:cazar-cta', err));
+                  }
+                  onCardClick?.();
+                })();
+              }}
+              className="w-full min-w-0 inline-flex items-center justify-center gap-1 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity duration-200 hover:opacity-90"
+            >
+              {statusConfig?.ctaLabel ?? 'Ver oferta'}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          ) : null}
+
+          {statusConfig?.behavior === 'informational' ? (
+            <div className="rounded-xl bg-[#f7f7f8] dark:bg-[#1a1a1a] px-3 py-2.5">
+              <p className="text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                {statusConfig.message}
+              </p>
+            </div>
+          ) : null}
+
+          {statusConfig?.behavior === 'management' ? (
+            <div>
+              {statusConfig.message ? (
+                <p className="mb-2.5 text-[11px] md:text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                  {statusConfig.message}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (statusConfig.action) onManagementAction?.(statusConfig.action);
+                }}
+                className="w-full min-w-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] dark:bg-white px-4 py-2.5 max-[400px]:py-2 text-xs md:text-sm font-semibold text-white dark:text-[#1d1d1f] transition-opacity hover:opacity-90"
+              >
+                {statusConfig.ctaLabel}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
     {showAdvancedMetrics && offerId ? (
       <OfferAdvancedMetricsModal

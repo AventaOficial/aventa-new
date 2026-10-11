@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import { AVENTA_EDITORIAL_LINE, AVENTA_EDITORIAL_NAME } from '@/lib/product/presentation/publicCardAttribution';
 import { teamAuthorCard } from '@/lib/product/presentation/teamAuthor';
@@ -42,12 +43,15 @@ export function HunterMark({
 export function AventaFoundLine() {
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
-      <span
+      <Image
+        src="/icon.svg"
+        alt=""
+        width={20}
+        height={20}
+        unoptimized
+        className="h-5 w-5 shrink-0 rounded-md ring-1 ring-black/5 dark:ring-white/15"
         aria-hidden
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold tracking-tight text-white"
-      >
-        A
-      </span>
+      />
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-[10px] font-semibold tracking-[0.12em] text-violet-700 dark:text-violet-300 md:text-[11px]">
           {AVENTA_EDITORIAL_NAME}

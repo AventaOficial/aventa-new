@@ -37,6 +37,7 @@ describe('atribución pública de tarjetas', () => {
     expect(source).not.toContain('HunterFoundLine');
     expect(line).toContain('AVENTA_EDITORIAL_NAME');
     expect(line).toContain('AVENTA_EDITORIAL_LINE');
+    expect(line).toContain('/icon.svg');
     expect(editorial).toContain("AVENTA DIARIAS");
     expect(editorial).toContain('Selección diaria de Aventa');
     expect(line).not.toContain('Verificado');

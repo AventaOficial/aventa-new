@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { X, Heart, ExternalLink, MessageCircle, Share2, Flag, BadgeCheck, Expand } from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
 import AffiliateDisclosure from './AffiliateDisclosure';
@@ -22,9 +21,10 @@ import { publicProfilePath } from '@/lib/profileSlug';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import { communityAuthorCard, teamAuthorCard } from '@/lib/product/presentation/teamAuthor';
 import OfferAuthorCard from '@/app/components/offers/OfferAuthorCard';
+import { OFFER_COMMENT_MAX_CHARS } from '@/lib/contracts/offerComments';
 import { expandGallery, selectGalleryImage } from '@/lib/offers/galleryView';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
-import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
+import OfferMedia from '@/app/components/offers/OfferMedia';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { useRouter } from 'next/navigation';
@@ -171,8 +171,7 @@ export default function OfferModal({
   const allImages = mergeOfferImageUrls(image, imageUrls);
   const [imageIndex, setImageIndex] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const rawCurrentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
-  const currentImage = isNextImageAllowedSrc(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
+  const currentImage = allImages[imageIndex] || allImages[0] || image || '';
   const openGalleryAt = () => {
     setGalleryOpen(expandGallery({ index: imageIndex, open: galleryOpen }).open);
   };
@@ -410,7 +409,7 @@ export default function OfferModal({
   const handleSubmitComment = async () => {
     const text = commentText.trim();
     if (!text || !offerId || !session?.access_token || commentSubmitting) return;
-    if (text.length > 280) return;
+    if (text.length > OFFER_COMMENT_MAX_CHARS) return;
     setCommentSubmitting(true);
     try {
       const res = await fetch(`/api/offers/${encodeURIComponent(offerId)}/comments`, {
@@ -626,9 +625,14 @@ export default function OfferModal({
           <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
           {/* Desktop: imagen izquierda */}
           <div className="hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] flex-col p-4">
-            <div className="relative min-h-[240px] flex-1">
-              <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
-            </div>
+            <OfferMedia
+              src={currentImage}
+              alt=""
+              sizes="44vw"
+              ratioClass="min-h-[240px] flex-1"
+              unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
+              className="rounded-xl"
+            />
             <button
               type="button"
               onClick={openGalleryAt}
@@ -649,9 +653,14 @@ export default function OfferModal({
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col md:min-w-0">
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
             <div className="md:hidden shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] p-3">
-              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl">
-                <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
-              </div>
+              <OfferMedia
+                src={currentImage}
+                alt=""
+                sizes="100vw"
+                ratioClass="aspect-[4/5]"
+                unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
+                className="w-full rounded-xl"
+              />
               <button
                 type="button"
                 onClick={openGalleryAt}
@@ -681,23 +690,6 @@ export default function OfferModal({
                 <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight break-words">
                   {title}
                 </h2>
-                {authorCard ? (
-                  <div className="space-y-2">
-                    <OfferAuthorCard author={authorCard} />
-                    {!author?.hunter && author?.leaderBadge === 'cazador_estrella' ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
-                        <BadgeCheck className="h-3.5 w-3.5" />
-                        Top
-                      </span>
-                    ) : null}
-                    {!author?.hunter && author?.leaderBadge === 'cazador_aventa' ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
-                        <BadgeCheck className="h-3.5 w-3.5" />
-                        Destacado
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
                 <div className="flex flex-wrap items-baseline gap-3 pt-1">
                   <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
                     {presentOfferPrice(discountPrice)}
@@ -987,8 +979,14 @@ export default function OfferModal({
                         <textarea
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          placeholder={session ? (replyingToId ? 'Escribe tu respuesta (máx. 280 caracteres)...' : 'Escribe un comentario (máx. 280 caracteres)...') : 'Inicia sesión para comentar.'}
-                          maxLength={280}
+                          placeholder={
+                            session
+                              ? replyingToId
+                                ? `Escribe tu respuesta (máx. ${OFFER_COMMENT_MAX_CHARS} caracteres)...`
+                                : `Escribe un comentario (máx. ${OFFER_COMMENT_MAX_CHARS} caracteres)...`
+                              : 'Inicia sesión para comentar.'
+                          }
+                          maxLength={OFFER_COMMENT_MAX_CHARS}
                           disabled={!session}
                           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-purple-500 focus:outline-none resize-none disabled:opacity-60"
                           rows={2}
@@ -1058,6 +1056,27 @@ export default function OfferModal({
                 )}
 
               </div>
+
+              {authorCard ? (
+                <section
+                  className="space-y-2 border-t border-gray-200 pt-5 dark:border-gray-700"
+                  aria-label="Ficha del autor"
+                >
+                  <OfferAuthorCard author={authorCard} />
+                  {!author?.hunter && author?.leaderBadge === 'cazador_estrella' ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      Top
+                    </span>
+                  ) : null}
+                  {!author?.hunter && author?.leaderBadge === 'cazador_aventa' ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      Destacado
+                    </span>
+                  ) : null}
+                </section>
+              ) : null}
             </div>
           </div>
           </div>
