@@ -8,6 +8,7 @@ import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
+import { loadPublicAuthorCard } from '@/lib/profile/publicAuthorCard';
 import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import { presentOfferFreshness } from '@/lib/offers/freshness/present';
 import { isConfirmedGoneDiagnostic } from '@/lib/offers/evaluateOfferHealth';
@@ -194,10 +195,15 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
     isBot: botAuthor,
     hunter: hunterAuthor,
     featuredAchievement: null as { code?: string; name: string; icon: string } | null,
+    bio: null as string | null,
+    location: null as string | null,
   };
 
   if (!botAuthor && offer.created_by) {
     author.featuredAchievement = await loadPrimaryAchievement(createServerClient(), offer.created_by);
+    const card = await loadPublicAuthorCard(createServerClient(), offer.created_by);
+    author.bio = card.bio;
+    author.location = card.location;
   }
 
   const confirmedCurrency = resolveOfferSourceCurrency(offer.source_currency, offer.offer_url);

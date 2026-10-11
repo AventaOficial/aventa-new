@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { X, Heart, ExternalLink, User, MessageCircle, Share2, Flag, BadgeCheck } from 'lucide-react';
+import { X, Heart, ExternalLink, MessageCircle, Share2, Flag, BadgeCheck, Expand } from 'lucide-react';
 import VoteArrowButton from './VoteArrowButton';
 import AffiliateDisclosure from './AffiliateDisclosure';
 import StoreBrandMark from './StoreBrandMark';
@@ -20,13 +20,14 @@ import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { publicProfilePath } from '@/lib/profileSlug';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
-import { HunterFoundLine, HunterFoundSection } from '@/app/components/hunters/HunterIdentity';
+import { communityAuthorCard, teamAuthorCard } from '@/lib/product/presentation/teamAuthor';
+import OfferAuthorCard from '@/app/components/offers/OfferAuthorCard';
+import { expandGallery, selectGalleryImage } from '@/lib/offers/galleryView';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import OfferPriceInsightBlock from './OfferPriceInsightBlock';
 import OfferImageThumbs from './OfferImageThumbs';
@@ -59,6 +60,8 @@ interface OfferModalProps {
     userId?: string | null;
     slug?: string | null;
     hunter?: HunterPublicIdentity | null;
+    bio?: string | null;
+    location?: string | null;
   };
   image?: string;
   imageUrls?: string[];
@@ -170,14 +173,29 @@ export default function OfferModal({
   const [galleryOpen, setGalleryOpen] = useState(false);
   const rawCurrentImage = allImages[imageIndex] || allImages[0] || image || '/placeholder.png';
   const currentImage = isNextImageAllowedSrc(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
-  const openGalleryAt = (idx: number) => {
-    setImageIndex(idx);
-    setGalleryOpen(true);
+  const openGalleryAt = () => {
+    setGalleryOpen(expandGallery({ index: imageIndex, open: galleryOpen }).open);
+  };
+  const selectImage = (index: number) => {
+    const next = selectGalleryImage(index);
+    setImageIndex(next.index);
+    setGalleryOpen(next.open);
   };
   const authorProfileHref = author?.hunter
     ? author.hunter.profilePath
     : author?.username
       ? publicProfilePath(author.username, author.userId, author.slug)
+      : null;
+  const authorCard = author?.hunter
+    ? teamAuthorCard(author.hunter)
+    : author?.username
+      ? communityAuthorCard({
+          name: author.username,
+          profileHref: authorProfileHref,
+          avatarUrl: author.avatar_url,
+          bio: author.bio,
+          location: author.location,
+        })
       : null;
   const baseWeightedScore =
     votesScore != null && !Number.isNaN(Number(votesScore))
@@ -608,19 +626,22 @@ export default function OfferModal({
           <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
           {/* Desktop: imagen izquierda */}
           <div className="hidden md:flex md:w-[44%] md:shrink-0 md:min-h-0 md:self-stretch bg-gray-50 dark:bg-[#1d1d1f] flex-col p-4">
+            <div className="relative min-h-[240px] flex-1">
+              <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
+            </div>
             <button
               type="button"
-              className="relative flex-1 min-h-[240px] text-left"
-              onClick={() => openGalleryAt(imageIndex)}
+              onClick={openGalleryAt}
+              className="mt-2 inline-flex min-h-11 items-center gap-1.5 self-start rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 dark:border-white/10 dark:bg-[#141414] dark:text-gray-100"
               aria-label="Ampliar imagen"
             >
-              <Image src={currentImage} alt="" fill sizes="44vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
+              <Expand className="h-3.5 w-3.5" aria-hidden />
+              Ampliar imagen
             </button>
             <OfferImageThumbs
               images={allImages}
               activeIndex={imageIndex}
-              onSelect={setImageIndex}
-              onOpenGallery={openGalleryAt}
+              onSelect={selectImage}
             />
           </div>
 
@@ -628,19 +649,22 @@ export default function OfferModal({
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col md:min-w-0">
             {/* Mobile: imagen como hero, aspect-ratio, object-contain, se desplaza al hacer scroll */}
             <div className="md:hidden shrink-0 bg-[#F5F5F7] dark:bg-[#1d1d1f] p-3">
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl">
+                <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
+              </div>
               <button
                 type="button"
-                className="relative w-full aspect-[4/5] overflow-hidden rounded-xl text-left"
-                onClick={() => openGalleryAt(imageIndex)}
+                onClick={openGalleryAt}
+                className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 dark:border-white/10 dark:bg-[#141414] dark:text-gray-100"
                 aria-label="Ampliar imagen"
               >
-                <Image src={currentImage} alt="" fill sizes="100vw" className="object-contain object-center" unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')} />
+                <Expand className="h-3.5 w-3.5" aria-hidden />
+                Ampliar imagen
               </button>
               <OfferImageThumbs
                 images={allImages}
                 activeIndex={imageIndex}
-                onSelect={setImageIndex}
-                onOpenGallery={openGalleryAt}
+                onSelect={selectImage}
               />
             </div>
             <OfferImageGallery
@@ -657,49 +681,23 @@ export default function OfferModal({
                 <h2 className="text-xl md:text-3xl lg:text-4xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight break-words">
                   {title}
                 </h2>
-                {author?.hunter ? (
-                  <div className="space-y-3">
-                    <HunterFoundLine hunter={author.hunter} />
-                    <HunterFoundSection hunter={author.hunter} />
-                  </div>
-                ) : author?.username && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {authorProfileHref ? (
-                      <Link
-                        href={authorProfileHref}
-                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                      >
-                        {author.avatar_url ? (
-                          <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <User className="h-4 w-4 shrink-0" />
-                        )}
-                        <span>{author.username} lo encontró</span>
-                      </Link>
-                    ) : (
-                      <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        {author.avatar_url ? (
-                          <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <User className="h-4 w-4 shrink-0" />
-                        )}
-                        <span>{author.username} lo encontró</span>
-                      </span>
-                    )}
-                    {author.leaderBadge === 'cazador_estrella' && (
+                {authorCard ? (
+                  <div className="space-y-2">
+                    <OfferAuthorCard author={authorCard} />
+                    {!author?.hunter && author?.leaderBadge === 'cazador_estrella' ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
                         <BadgeCheck className="h-3.5 w-3.5" />
                         Top
                       </span>
-                    )}
-                    {author.leaderBadge === 'cazador_aventa' && (
+                    ) : null}
+                    {!author?.hunter && author?.leaderBadge === 'cazador_aventa' ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400" title="Perfil destacado">
                         <BadgeCheck className="h-3.5 w-3.5" />
                         Destacado
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                )}
+                ) : null}
                 <div className="flex flex-wrap items-baseline gap-3 pt-1">
                   <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
                     {presentOfferPrice(discountPrice)}

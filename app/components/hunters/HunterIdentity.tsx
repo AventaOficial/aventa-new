@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
-import { AVENTA_PUBLIC_FOUND_LABEL } from '@/lib/product/presentation/publicCardAttribution';
+import { AVENTA_EDITORIAL_LINE, AVENTA_EDITORIAL_NAME } from '@/lib/product/presentation/publicCardAttribution';
+import { teamAuthorCard } from '@/lib/product/presentation/teamAuthor';
+import OfferAuthorCard from '@/app/components/offers/OfferAuthorCard';
 
 export function HunterMark({
   name,
@@ -36,17 +38,22 @@ export function HunterMark({
   );
 }
 
-/** Línea de tarjeta pública. No enlaza al hunter ni marca la oferta como verificada. */
+/** Identidad editorial de la tarjeta. No enlaza al hunter ni marca el precio como verificado. */
 export function AventaFoundLine() {
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] text-violet-700 dark:text-violet-300 md:text-xs">
+    <span className="inline-flex min-w-0 items-center gap-2">
       <span
         aria-hidden
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold tracking-tight text-white"
       >
         A
       </span>
-      <span className="truncate">{AVENTA_PUBLIC_FOUND_LABEL}</span>
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate text-[10px] font-semibold tracking-[0.12em] text-violet-700 dark:text-violet-300 md:text-[11px]">
+          {AVENTA_EDITORIAL_NAME}
+        </span>
+        <span className="block truncate text-[10px] text-gray-500 dark:text-zinc-400">{AVENTA_EDITORIAL_LINE}</span>
+      </span>
     </span>
   );
 }
@@ -65,19 +72,5 @@ export function HunterFoundLine({ hunter }: { hunter: HunterPublicIdentity }) {
 }
 
 export function HunterFoundSection({ hunter }: { hunter: HunterPublicIdentity }) {
-  return (
-    <section className="mt-5 rounded-2xl border border-black/[0.06] bg-[#fafafa] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-500">Encontrada por {hunter.name}</p>
-      <div className="mt-3 flex items-center gap-3">
-        <HunterMark name={hunter.name} accent={hunter.accent} avatarUrl={hunter.avatarUrl} size={40} />
-        <div className="min-w-0">
-          <Link href={hunter.profilePath} className="text-sm font-semibold text-gray-900 hover:text-violet-600 dark:text-white dark:hover:text-violet-300">
-            {hunter.displayName}
-          </Link>
-          <p className="text-xs text-gray-500 dark:text-zinc-400">{hunter.role}</p>
-        </div>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-gray-700 dark:text-zinc-300">{hunter.voice}</p>
-    </section>
-  );
+  return <OfferAuthorCard author={teamAuthorCard(hunter)} />;
 }

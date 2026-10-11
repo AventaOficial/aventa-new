@@ -36,8 +36,9 @@ describe('menú de perfil por membresía', () => {
     expect(hrefs).toContain('/team/growth');
   });
 
-  it('sin membresía solo queda Mi equipo', () => {
-    expect(labels({ isOwner: false, teamIds: [] })).toEqual(['Mi equipo']);
+  it('sin membresía no aparece Mi equipo', () => {
+    expect(labels({ isOwner: false, teamIds: [] })).toEqual([]);
+    expect(labels({ isOwner: true, teamIds: [] })).toEqual(['CEO Dashboard']);
   });
 
   it('el navbar ya no ofrece el hub, la extensión ni los lotes', () => {

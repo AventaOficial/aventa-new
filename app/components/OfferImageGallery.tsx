@@ -27,6 +27,8 @@ export default function OfferImageGallery({
   alt = '',
 }: OfferImageGalleryProps) {
   const touchStartX = useRef<number | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const [broken, setBroken] = useState<Record<number, boolean>>({});
 
   const safeIndex =
@@ -43,6 +45,19 @@ export default function OfferImageGallery({
 
   useEffect(() => {
     if (!open) return;
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() => closeRef.current?.focus());
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = prevOverflow;
+      openerRef.current?.focus();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -55,11 +70,8 @@ export default function OfferImageGallery({
         goTo(safeIndex + 1);
       }
     };
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
     };
   }, [open, onClose, goTo, safeIndex]);
@@ -103,6 +115,7 @@ export default function OfferImageGallery({
             {safeIndex + 1} / {images.length}
           </span>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 p-2 hover:bg-white/20"
