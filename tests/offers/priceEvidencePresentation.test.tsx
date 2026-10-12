@@ -30,6 +30,7 @@ import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
 import OfferCard from '@/app/components/OfferCard';
 import FeaturedOfferCard from '@/app/components/FeaturedOfferCard';
 import RewardsOfferSelection from '@/app/me/RewardsOfferSelection';
+import FavoriteOfferTile from '@/app/me/favorites/FavoriteOfferTile';
 import { renderTelegramOfferMessage } from '@/lib/distribution/render/telegramMessage';
 import { buildDailyHtml } from '@/lib/email/templates';
 import { generateDealShareText } from '@/lib/shareText';
@@ -203,6 +204,27 @@ describe('canales sin veredicto: el porcentaje nunca aparece como descuento conf
         );
         expect(plain(html)).not.toMatch(/[-−]\d+%/);
       }
+    }
+  });
+
+  it('favoritos y carrusel de comunidad: misma insignia y misma regla que el feed', () => {
+    const tile = (originalPrice: number, discountPrice: number, discount: number) =>
+      plain(
+        renderToStaticMarkup(
+          createElement(FavoriteOfferTile, {
+            offer: { id: 'o1', title: 'Arroz', brand: 'Walmart', originalPrice, discountPrice, discount, sourceCurrency: 'MXN', upvotes: 0 } as never,
+            isFavorite: false,
+            saving: false,
+            onToggleFavorite: () => undefined,
+          }),
+        ),
+      );
+    const valid = tile(100, 60, 40);
+    expect(barePercents(valid)).toEqual(['-40%']);
+    expect(valid).not.toContain('vs. lista');
+    expect(valid).not.toMatch(/descuento|ahorr/i);
+    for (const [originalPrice, discountPrice, discount] of [[100, 0, 100], [60, 60, 0], [50, 60, -20], [0, 60, 40]]) {
+      expect(tile(originalPrice, discountPrice, discount)).not.toMatch(/[-−]\d+%/);
     }
   });
 

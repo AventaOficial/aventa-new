@@ -44,6 +44,8 @@ Remote habilitado si `NEXT_PUBLIC_CLIENT_EVENTS_ENABLED=true` **o** alerta `feed
 
 Usos: feed loaded, vote success/fail, `notifyUserError` / `logClientError`.
 
+Fallos de carga de fotos de oferta (`lib/offers/media/imageFailureTelemetry.ts`): `type: 'error'`, `source: 'offer_image:load_failed'`, metadata solo `host`, `surface`, `offerId` (nunca la URL). Muestreo 20 %, una vez por superficie+host+oferta y sesión. Sin la variable solo sale por consola en desarrollo. Para activarlo: `NEXT_PUBLIC_CLIENT_EVENTS_ENABLED=true` en el entorno deseado (es `NEXT_PUBLIC_*`: requiere redeploy) y leer el buffer en memoria de `/api/log-client-event` (por instancia, se pierde al reciclar; no escribe en BD).
+
 ---
 
 ## 4. Domain writes (no “analytics” terceros)

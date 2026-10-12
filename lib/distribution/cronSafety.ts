@@ -131,9 +131,6 @@ export function assertStagingTelegramCredentialRef(
 }
 
 /**
- * Safe diagnostic snapshot — never includes secret values.
- */
-/**
  * Vista pública de `/api/health/distribution-env`: solo el ref de Supabase que resolvió el despliegue.
  * Las sondas de aislamiento (e2e/community.spec.ts, scripts/ops-smoke.mjs, scripts/load-read-profile.mjs)
  * solo leen `health.resolved_supabase_ref`; ese ref ya viaja al navegador en NEXT_PUBLIC_SUPABASE_URL.
@@ -145,6 +142,9 @@ export function buildPublicDistributionEnvHealth(
   return { resolved_supabase_ref: extractSupabaseProjectRef(env.NEXT_PUBLIC_SUPABASE_URL ?? '') };
 }
 
+/**
+ * Safe diagnostic snapshot — never includes secret values.
+ */
 export function buildDistributionEnvHealth(
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, unknown> {
