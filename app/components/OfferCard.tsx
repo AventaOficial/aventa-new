@@ -31,8 +31,8 @@ import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
 import {
+  cardPercentText,
   compareWithListPrice,
-  listPercentText,
   listPriceBadgePercent,
   listPriceDifferenceText,
 } from '@/lib/offers/listPriceComparison';
@@ -613,7 +613,7 @@ export default function OfferCard({
             {discountPct >= 1 ? (
               <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 <Flame className="h-3 w-3" aria-hidden />
-                {listPercentText(discountPct)}
+                {cardPercentText(discountPct)}
               </span>
             ) : null}
           </div>

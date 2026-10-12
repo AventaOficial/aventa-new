@@ -178,7 +178,7 @@ describe('modal y detalle según el estado del historial', () => {
   });
 });
 
-/** Todo «−N%» visible debe ir calificado contra la lista; los anchos CSS (`36%`) no cuentan. */
+/** «−N%» sin calificar contra la lista (solo permitido en la insignia de tarjetas); los anchos CSS (`36%`) no cuentan. */
 function barePercents(text: string): string[] {
   return [...plain(text).matchAll(/[-−]\d+%(?! vs\.)/g)].map((m) => m[0]);
 }
@@ -186,11 +186,23 @@ function barePercents(text: string): string[] {
 describe('canales sin veredicto: el porcentaje nunca aparece como descuento confirmado', () => {
   const cardProps = { offerId: 'o1', title: 'Arroz', brand: 'Walmart', originalPrice: 100, discountPrice: 60, sourceCurrency: 'MXN', upvotes: 0, downvotes: 0, votes: { up: 0, down: 0, score: 0 } };
 
-  it('tarjetas del feed y destacada', () => {
+  it('tarjetas del feed y destacada: insignia compacta «-N%», sin «vs. lista» ni ahorro', () => {
     for (const Card of [OfferCard, FeaturedOfferCard]) {
       const html = renderToStaticMarkup(createElement(Card as never, cardProps as never));
-      expect(plain(html)).toContain('-40% vs. lista');
-      expect(barePercents(html)).toEqual([]);
+      expect(barePercents(html)).toEqual(['-40%']);
+      expect(plain(html)).not.toContain('vs. lista');
+      expect(html).not.toMatch(/ahorr/i);
+    }
+  });
+
+  it('tarjetas: sin precio de lista válido no hay insignia de porcentaje', () => {
+    for (const Card of [OfferCard, FeaturedOfferCard]) {
+      for (const [originalPrice, discountPrice] of [[60, 60], [50, 60], [0, 60], [100, 0]]) {
+        const html = renderToStaticMarkup(
+          createElement(Card as never, { ...cardProps, originalPrice, discountPrice, discount: 40 } as never),
+        );
+        expect(plain(html)).not.toMatch(/[-−]\d+%/);
+      }
     }
   });
 
