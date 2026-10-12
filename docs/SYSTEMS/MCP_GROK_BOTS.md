@@ -27,13 +27,25 @@ Grok (xAI remote MCP, Streamable HTTP)
     → submit_deal_candidates
       → offer_batches (machine_client_id, mcp_idempotency_key, mcp_payload_hash, mcp_run_id)
       → offer_batch_items (INGESTED, hint_*)
-  → pipeline de lotes existente             proceso, extracción, validación y dedupe (lo dispara staff)
-  → moderación humana                       aprobar ítem → createCommunityOfferPending
-  → ingestOfferObservation                  único writer de `offers` (pending)
+      → enqueueHunterOffer                  extracción; sin título, precio e imagen el ítem queda NEEDS_REVIEW/ERROR
+        → ingestOfferObservation            único writer de `offers` (siempre pending)
   → /api/admin/moderate-offer               publicar / rechazar (humano)
 ```
 
-No hay tablas ni writers paralelos: no existen `mcp_offers`, `grok_offers`, `bot_offers`, `mcp_writer` ni `grok_writer`. El endpoint no toca `offers`, no salta `machineWriteAuth`, no salta la moderación y no altera los freezes de producción.
+Desde #61 (2026-10-06) cada candidato completo nace como oferta `pending` en la cola de moderación; el lote queda como registro. No hay tablas ni writers paralelos: no existen `mcp_offers`, `grok_offers`, `bot_offers`, `mcp_writer` ni `grok_writer`. Ninguna oferta se publica sin moderación humana.
+
+Diferencias con la ruta de bots (`insertIngestedOffer`), verificadas el 2026-10-11:
+
+| Control | Bots (`insertIngestedOffer`) | MCP (`enqueueHunterOffer`) |
+|---|---|---|
+| Kill switch | `BOT_INGEST_MACHINE_PENDING_WRITES` | `MCP_INGEST_ENABLED` |
+| Bloqueo en producción (`assertMachineOfferWriteAuthorized`) | sí | no: producción es un destino previsto (§15) |
+| Elegibilidad S6.1 (evidencia de precio) | sí | no: los candidatos MCP no traen señales de precio |
+| Memoria negativa | sí | no |
+| Cliente, scopes, cuota e idempotencia | no aplica | sí |
+| Estado al insertar | `pending` | `pending` |
+
+Antes de encender `MCP_INGEST_ENABLED` en producción hay que decidir si MCP debe pasar memoria negativa y un equivalente de S6.1. Mientras el flag siga apagado, la ruta no escribe.
 
 Código:
 

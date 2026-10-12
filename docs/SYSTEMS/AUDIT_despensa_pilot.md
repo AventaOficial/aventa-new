@@ -11,7 +11,7 @@ Fecha: 2026-10-11 · Rama: `feat/despensa-pilot` · Estado: implementado y proba
 | Top | `view=top`, `up_votes >= 1`, orden `score_final` | Sin cambios en este piloto. |
 | Recientes | `view=latest`, `created_at desc`, cursor | Sin regla de origen antes del piloto. |
 | Para ti | `/api/feed/for-you` (afinidad por `preferred_categories`) y carril `user_product_interests` | Sin cambios en este piloto. |
-| Intereses | `/me/intereses` → `user_product_interests` (label, alias, categoría, cadencia) | Única fuente de preferencias de producto. Las migraciones del módulo dicen no estar aplicadas: no se asume que la tabla existe en producción. |
+| Intereses | `/me/intereses` → `user_product_interests` (label, alias, categoría, cadencia) | Única fuente de preferencias de producto. La tabla existe en producción con RLS activo (snapshot del Database Atlas, `lib/databaseAtlas/production.snapshot.json`, 2026-10-10). |
 | Pipeline de ofertas | `ingestOfferObservation` es el único escritor; toda inserción máquina o comunidad nace `pending`; solo `app/api/admin/moderate-offer` aprueba | Ningún bot publica. |
 | Fuentes | `HUNTER_SOURCES` (`lib/hunter/sources`) y `SUPPLY_SOURCES` (`canPublish:false`) | Walmart, Bodega y Chedraui tienen adaptador sitemap/JSON-LD con flags apagados. Soriana: solo metadatos. Tiendas 3B: no existe en el código. |
 | Evidencia de precio | `offer_observations`, `offer_price_snapshots`, `product_price_snapshots`, `offer_health_state`, `offers.bot_meta` | Ninguna de estas tablas llega al feed. El feed no puede probar historial. |
@@ -21,7 +21,7 @@ Fecha: 2026-10-11 · Rama: `feat/despensa-pilot` · Estado: implementado y proba
 
 1. **Insignia «Uso diario» rota.** `isDailyCategory` compara etiquetas en español contra ids de categoría; en el feed solo se activaba para `hogar`. Corregido: ahora sale del catálogo de necesidades.
 2. **Origen manipulable.** `presentAuthor` decide «Hunter» también por una expresión regular sobre `display_name`, que el usuario puede editar. Para presentación es aceptable; para reglas de ranking no. El piloto usa solo ids de autor configurados en entorno (`isBotUserId`).
-3. **Ruta MCP sin la compuerta S6.1.** `lib/mcp/submissions.ts` → `enqueueHunterOffer` → `ingestOfferObservation` no pasa por `machineWriteGate`/S6.1, que solo protege `insertIngestedOffer`. Hoy lo contiene `MCP_INGEST_ENABLED` apagado y el estado `pending`. **No se tocó** (fuera de alcance); requiere decisión antes de encender MCP.
+3. **Ruta MCP sin la compuerta S6.1.** `lib/mcp/submissions.ts` → `enqueueHunterOffer` → `ingestOfferObservation` no pasa por `machineWriteGate`/S6.1, que solo protege `insertIngestedOffer`. Es diseño desde #61 («llevar Hunter a moderación», cubierto por `tests/v1/productClosure.test.ts`): `MCP_INGEST_ENABLED` apagado por defecto, cliente activo, idempotencia, cuota, validación de candidato y estado `pending` con moderación humana. Le faltan, frente a la ruta de bots, el bloqueo de producción, la memoria negativa y S6.1. **No se tocó**; requiere decisión antes de encender MCP (ver `MCP_GROK_BOTS.md`).
 4. **Clasificación de origen incompleta.** Un autor registrado solo en `machine_clients`, sin id en entorno, se clasifica como comunidad. Cerrarlo requiere leer `machine_clients` en el feed (consulta adicional) y queda pendiente.
 
 ## 2. Qué se construyó
@@ -49,7 +49,7 @@ Todo en `lib/despensa/`, sin dependencias nuevas, sin tablas nuevas y sin escrit
 ## 3. Decisiones que requieren autorización
 
 1. **Renombrar «Día a día» a «Despensa»: no se hizo.** Las categorías vitales incluyen moda, viajes, servicios y jardín; la etiqueta «Despensa» sería engañosa. Camino compatible: mantener id `vitales` y `view=vitales`, cambiar solo la etiqueta y restringir `homeFeedCategoryInList('vitales')` a supermercado, hogar, bebés y belleza. Es una decisión de producto.
-2. **Preferencias en Día a día.** El ranking ya acepta `preferredNeedIds` (solo desempata). Conectarlo requiere leer `user_product_interests` en el cliente autenticado; el home es público y la tabla no está confirmada en producción.
+2. **Preferencias en Día a día: conectadas** (ver sección 7).
 3. **Compuerta S6.1 en la ruta MCP** (fallo 3).
 4. **Historial de precio en el feed.** Exponer un resumen de `product_price_snapshots` en la vista sería necesario para `history_confirmed` y para hablar de ahorro. Requiere migración; no se preparó porque el piloto no la necesita para funcionar.
 
@@ -90,3 +90,47 @@ Observaciones:
 - Investigación de Tiendas 3B (términos de uso, acuerdo o API) antes de cualquier adaptador.
 - Medir la proporción de origen máquina en Recientes después de desplegar `origin`.
 - Clasificar autores de `machine_clients` sin id en entorno.
+
+## 7. Cierre del producto (2026-10-11)
+
+### Preferencias reales
+
+- `GET /api/me/interests?scope=despensa` (misma ruta, misma autenticación bearer, mismo rate limit `interests:<user>`, cliente con RLS del usuario) devuelve solo `needIds` ordenados y `catalogVersion`. No ejecuta el matching de ofertas. Error → 503 sin detalle interno.
+- `app/page.tsx` las pide solo en «Día a día» y con sesión; caché de módulo de 60 s por token. Sin sesión o con error, el ranking corre sin preferencias.
+- Las preferencias solo desempatan después de necesidad, evidencia, precio unitario y frescura. Top, Para ti y Recientes no las reciben (`tests/despensa/preferences.test.ts`).
+
+### Inventario de bloqueos
+
+| Prioridad | Hallazgo | Estado |
+| --- | --- | --- |
+| P0 | Ninguno encontrado. | — |
+| P1 | Ninguno abierto en el alcance del release. Condicional: encender `MCP_INGEST_ENABLED` en producción sin memoria negativa ni equivalente de S6.1. | Cerrado por defecto; no se activa. |
+| P2 | 7 hallazgos de ESLint en `app/page.tsx` heredados de `master`; lint no corre en CI. | Sin cambio. |
+| P2 | `tests/discovery` y `tests/despensa` no están en `test:contracts`. | Se corren a mano; decidir si entran a CI. |
+| P2 | El ahorro «Ahorras X» sale de precio de lista menos precio; no hay historial que lo confirme. | Previo al piloto; decisión de producto. |
+| P2 | En producción todas las ofertas de Día a día son de la marca AVENTA DIARIAS, que oculta la insignia «Uso diario» (`cardAttribution.kind === 'brand'`). | Comportamiento de `master`; decisión de producto. |
+| P3 | Varias pruebas exceden 5 s solo bajo carga paralela completa en Windows. | Pasan aisladas y en corrida limpia. |
+| P3 | `/admin/owner/crecimiento/war-room` se prerenderiza en build y falla sin variables de Supabase. | Configuración local; CI tiene placeholders. |
+| P3 | `/api/feed/home` devuelve el texto del error interno (`TypeError: fetch failed`). | Heredado. |
+| P3 | La pestaña Día a día muestra el encabezado «Últimas ofertas». | Heredado; copy. |
+
+### Pruebas corregidas (sin cambiar lo que verifican)
+
+- `writerBoundaryS61.test.ts`: precarga de módulos en `beforeAll`. La importación en frío excedía el timeout y la promesa sobrante llamaba al mock de la prueba siguiente.
+- `moderationQualityHardening.test.ts`: el avatar vive en `OfferAuthorCard` desde #91; la prueba ahora lee ese componente.
+- `vitest.config.ts`: excluye `e2e/**` (Playwright), que vitest recogía por el patrón `*.spec.ts`.
+
+### Checklist de release
+
+1. Push de la rama y CI verde (`ci:verify`).
+2. Preview de Vercel: home en las tres pestañas, detalle de oferta, `/me/intereses` con sesión.
+3. Con un usuario de prueba que tenga intereses: Día a día cambia solo desempates; Top y Recientes no cambian.
+4. Confirmar en Vercel que `MCP_INGEST_ENABLED` y `BOT_INGEST_MACHINE_PENDING_WRITES` siguen apagados en producción.
+5. Merge y despliegue solo con autorización explícita.
+
+### Solo verificable en staging o producción
+
+- Valores reales de flags en Vercel (no hay CLI ni proyecto vinculado en local).
+- Feed con datos reales sobre esta rama (en local no hay base de datos; se verificó el estado de error).
+- Latencia de la lectura de intereses y su rate limit con tráfico real.
+- Vista móvil de la rama.

@@ -9,6 +9,6 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    exclude: [...configDefaults.exclude, 'tests/probes/**'],
+    exclude: [...configDefaults.exclude, 'tests/probes/**', 'e2e/**'],
   },
 });

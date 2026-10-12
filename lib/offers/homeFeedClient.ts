@@ -1,5 +1,5 @@
 import type { CardOffer, FeedApiItemShape } from '@/lib/offers/transform';
-import { deferDuplicateProducts } from '@/lib/offers/feedDiversity';
+import { DEFAULT_MAX_SAME_PRODUCT, deferDuplicateProducts } from '@/lib/offers/feedDiversity';
 import { rankDespensa, type DespensaRankable } from '@/lib/despensa/rank';
 
 /** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
@@ -94,6 +94,44 @@ export function limitConsecutiveMachineOffers<T extends { origin?: 'community' |
     }
   }
   return [...out, ...queue];
+}
+
+/**
+ * Necesidades de Despensa del usuario, leídas de `/me/intereses`.
+ * Cualquier fallo devuelve un conjunto vacío: el ranking sigue igual, sin preferencias.
+ */
+export async function fetchDespensaPreferredNeeds(accessToken: string | null | undefined): Promise<Set<string>> {
+  if (!accessToken) return new Set();
+  try {
+    const res = await fetch('/api/me/interests?scope=despensa', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return new Set();
+    const body = (await res.json()) as { needIds?: unknown };
+    return new Set(Array.isArray(body.needIds) ? body.needIds.filter((id): id is string => typeof id === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Reglas de cliente por pestaña del home. Despensa solo aplica en Día a día;
+ * Recientes solo limita rachas automáticas; Top solo exige un voto; Para ti no pasa por aquí.
+ */
+export function processHomeFeedList<T extends VitalesItem & { upvotes?: number; origin?: 'community' | 'machine' | null }>(
+  raw: T[],
+  viewMode: HomeFeedViewMode | 'personalized',
+  effectiveLimit: number,
+  maxSameProduct: number = DEFAULT_MAX_SAME_PRODUCT,
+  preferredNeedIds?: ReadonlySet<string>,
+): T[] {
+  if (viewMode === 'top') return raw.filter((o) => (o.upvotes ?? 0) >= 1);
+  if (viewMode === 'vitales') {
+    return applyVitalesFeedTransform(raw, effectiveLimit, maxSameProduct, { preferredNeedIds });
+  }
+  if (viewMode === 'latest') return limitConsecutiveMachineOffers(raw);
+  return raw;
 }
 
 export async function fetchHomeFeedFromAPI(params: HomeFeedFetchParams): Promise<HomeFeedFetchResult> {

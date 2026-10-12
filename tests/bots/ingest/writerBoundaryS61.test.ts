@@ -4,7 +4,7 @@
  * Persistence is via ingestOfferObservation (mocked); S6.1 runs before that call.
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import type { BotIngestConfig } from '@/lib/bots/ingest/config';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
 import { withMachinePendingWritesEnabled } from '@/lib/bots/ingest/machineInsertCanary';
@@ -214,6 +214,13 @@ function insufficientHistoryMeta(): ParsedOfferMetadata {
 
 describe('P0 writer boundary — insertIngestedOffer S6.1 fail-closed', () => {
   const prevEnv = { ...process.env };
+
+  // The cold import takes ~1.5 s alone and can exceed the 5 s test timeout under a full parallel run.
+  // A timed-out test keeps running and would then call the persist mock during the next test.
+  beforeAll(async () => {
+    await import('@/lib/bots/ingest/insertIngestedOffer');
+    await import('@/lib/supply/s7Bridge');
+  }, 60_000);
 
   beforeEach(() => {
     persistState.calls = 0;
