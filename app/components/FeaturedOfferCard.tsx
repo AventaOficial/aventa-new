@@ -49,6 +49,7 @@ export default function FeaturedOfferCard({
   const isLiked = localLiked !== null ? localLiked : isLikedProp;
   const listComparison = compareWithListPrice(discountPrice, originalPrice);
   const discountPct = listPriceBadgePercent(listComparison) ?? 0;
+  const listDifferenceText = listComparison ? listPriceDifferenceText(listComparison, sourceCurrency) : null;
   const imageUnoptimized = Boolean(image) && (image!.startsWith('/') || image!.includes('placehold.co'));
 
   return (
@@ -117,10 +118,8 @@ export default function FeaturedOfferCard({
               </span>
             ) : null}
           </div>
-          {listComparison ? (
-            <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-              {listPriceDifferenceText(listComparison, sourceCurrency)}
-            </p>
+          {listDifferenceText ? (
+            <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">{listDifferenceText}</p>
           ) : null}
         </div>
         <span className="inline-flex items-center justify-center gap-1 rounded-xl border border-violet-600 px-3 py-2 text-xs font-semibold text-violet-600 transition-colors group-hover:bg-violet-600 group-hover:text-white dark:border-violet-500 dark:text-violet-400">

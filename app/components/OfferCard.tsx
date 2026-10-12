@@ -428,6 +428,7 @@ export default function OfferCard({
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
   const listComparison = compareWithListPrice(discountPrice, originalPrice);
   const discountPct = listPriceBadgePercent(listComparison) ?? 0;
+  const listDifferenceText = listComparison ? listPriceDifferenceText(listComparison, sourceCurrency) : null;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const msiLabel = formatMsiCardLabel(msiMonths);
   const personalCouponTrim = coupons?.trim() ?? '';
@@ -699,9 +700,9 @@ export default function OfferCard({
                   </span>
                 ) : null}
               </div>
-              {listComparison ? (
+              {listDifferenceText ? (
                 <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
-                  {listPriceDifferenceText(listComparison, sourceCurrency)}
+                  {listDifferenceText}
                 </p>
               ) : null}
               {isTesterOffer ? (

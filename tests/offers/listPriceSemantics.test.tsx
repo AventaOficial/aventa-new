@@ -64,6 +64,11 @@ describe('comparación contra el precio de lista', () => {
     expect(text).toMatch(/menos que el precio de lista$/);
     expect(text).not.toMatch(/ahorr/i);
   });
+
+  it('sin moneda confirmada no hay frase de diferencia', () => {
+    expect(listPriceDifferenceText(compareWithListPrice(80, 100)!, null)).toBeNull();
+    expect(listPriceDifferenceText(compareWithListPrice(80, 100)!, 'XYZ')).toBeNull();
+  });
 });
 
 describe('«−N%» frente al historial de Aventa', () => {
@@ -162,6 +167,13 @@ describe('superficies públicas usan la misma regla', () => {
       });
     });
   }
+
+  it('sin moneda confirmada la tarjeta no arma «Precio sin moneda confirmada menos que…»', () => {
+    for (const Card of [OfferCard, FeaturedOfferCard]) {
+      const html = renderToStaticMarkup(createElement(Card, { ...cardProps(100, 80), sourceCurrency: null }));
+      expect(html).not.toContain('menos que el precio de lista');
+    }
+  });
 
   it('el modal, el detalle y la vista previa usan la regla compartida y no dicen «Ahorras»', () => {
     for (const file of [

@@ -42,10 +42,11 @@ export function OfferListPriceNotes({
   currency?: string | null;
   className: string;
 }) {
-  if (!view.comparison && view.observedDropPercent == null) return null;
+  const differenceText = view.comparison ? listPriceDifferenceText(view.comparison, currency) : null;
+  if (!differenceText && !view.labelContradicted && view.observedDropPercent == null) return null;
   return (
     <div className={className}>
-      {view.comparison ? <p>{listPriceDifferenceText(view.comparison, currency)}</p> : null}
+      {differenceText ? <p>{differenceText}</p> : null}
       {view.labelContradicted ? (
         <p className="text-xs text-amber-700 dark:text-amber-400">{LABEL_CONTRADICTED_NOTE}</p>
       ) : null}

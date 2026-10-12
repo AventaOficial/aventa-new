@@ -1880,6 +1880,9 @@ export default function ActionBar() {
                           ? compareWithListPrice(parseDecimalPrice(formData.discountPrice), previewOriginal)
                           : null;
                         const previewBadgePercent = listPriceBadgePercent(previewComparison);
+                        const previewDifferenceText = previewComparison
+                          ? listPriceDifferenceText(previewComparison, previewCurrency)
+                          : null;
                         return (
                         <motion.div
                           key="preview"
@@ -1992,10 +1995,8 @@ export default function ActionBar() {
                                     </span>
                                   ) : null}
                                 </div>
-                                {previewComparison ? (
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {listPriceDifferenceText(previewComparison, previewCurrency)}
-                                  </p>
+                                {previewDifferenceText ? (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">{previewDifferenceText}</p>
                                 ) : null}
                                 <p className="text-xs text-amber-700 dark:text-amber-400">{DECLARED_PRICES_NOTE}</p>
                                 {msiMonths != null && msiMonths >= 1 && parseDecimalPrice(formData.discountPrice) > 0 ? (

@@ -1,4 +1,5 @@
 import { presentOfferPrice } from '@/lib/formatPrice';
+import { UNNORMALIZED_PRICE_LABEL } from '@/lib/money/types';
 import type { PriceInsight } from '@/lib/offers/priceHistory';
 
 /**
@@ -44,8 +45,11 @@ export const DECLARED_PRICES_NOTE = 'Precio y precio de lista declarados por ti.
 
 export const LABEL_CONTRADICTED_NOTE = 'El historial de Aventa no respalda el descuento de la etiqueta.';
 
-export function listPriceDifferenceText(comparison: ListPriceComparison, currency?: string | null): string {
-  return `${presentOfferPrice(comparison.difference, currency)} menos que el precio de lista`;
+/** `null` sin moneda confirmada: la etiqueta de precio no normalizado no es una cantidad. */
+export function listPriceDifferenceText(comparison: ListPriceComparison, currency?: string | null): string | null {
+  const amount = presentOfferPrice(comparison.difference, currency);
+  if (amount === UNNORMALIZED_PRICE_LABEL) return null;
+  return `${amount} menos que el precio de lista`;
 }
 
 /** Porcentaje contra la etiqueta, nunca presentado como descuento confirmado. */
