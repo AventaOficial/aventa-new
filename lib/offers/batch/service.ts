@@ -45,6 +45,8 @@ export type OfferBatchRow = {
   processing_started_at: string | null;
   processing_completed_at: string | null;
   source_text_hash: string | null;
+  /** Presente si el lote entró por MCP. */
+  machine_client_id?: string | null;
   meta: Record<string, unknown>;
 } & BatchCounters;
 

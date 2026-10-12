@@ -95,7 +95,7 @@ export type SubmissionCandidateState = (typeof SUBMISSION_CANDIDATE_STATES)[numb
 /**
  * INGESTED→received, PROCESSING→processing, READY/NEEDS_REVIEW→in_review,
  * APPROVED→accepted, PUBLISHED→published, REJECTED→rejected, ERROR→invalid,
- * duplicado detectado→duplicate.
+ * duplicado detectado→duplicate (también si el ítem quedó REJECTED por duplicado).
  */
 export function mapBatchItemToCandidateState(item: {
   status: string;
@@ -103,8 +103,8 @@ export function mapBatchItemToCandidateState(item: {
 }): SubmissionCandidateState {
   if (item.status === 'PUBLISHED') return 'published';
   if (item.status === 'APPROVED') return 'accepted';
-  if (item.status === 'REJECTED') return 'rejected';
   if (item.duplicate_status === 'duplicate' || item.duplicate_status === 'in_batch') return 'duplicate';
+  if (item.status === 'REJECTED') return 'rejected';
   switch (item.status) {
     case 'INGESTED':
       return 'received';

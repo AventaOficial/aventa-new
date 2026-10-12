@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HUNTER_CATEGORIES, HUNTER_RETAILERS, HUNTER_SORTS, REJECTION_REASONS } from '@/lib/huntersAi/contract';
 import type { HunterCard } from '@/lib/huntersAi/present';
 import { HunterMark } from '@/app/components/hunters/HunterIdentity';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 type Metrics = {
   pending: number;
@@ -17,18 +18,18 @@ type Metrics = {
 type StatusFilter = HunterCard['queueStatus'];
 
 const STATUS_LABEL: Record<StatusFilter, string> = {
-  PENDING: 'Pendientes',
-  NEEDS_REVIEW: 'Necesitan revisión',
+  PENDING: 'En proceso',
+  NEEDS_REVIEW: 'Retenidas',
   IN_MODERATION: 'En moderación',
-  APPROVED: 'Aprobadas',
+  APPROVED: 'Aprobadas en moderación',
   REJECTED: 'Rechazadas',
 };
 
 const QUEUE_LABEL: Record<HunterCard['queueStatus'], string> = {
-  PENDING: 'Pendiente',
-  NEEDS_REVIEW: 'Necesita revisión',
-  IN_MODERATION: 'En cola de moderación',
-  APPROVED: 'Aprobada',
+  PENDING: 'Procesando',
+  NEEDS_REVIEW: 'Retenida: revisión técnica',
+  IN_MODERATION: 'En moderación',
+  APPROVED: 'Aprobada en moderación',
   REJECTED: 'Rechazada',
 };
 
@@ -36,13 +37,14 @@ const QUEUE_LABEL: Record<HunterCard['queueStatus'], string> = {
 const REVIEW_LABEL: Record<string, string> = {
   NEGATIVE_MEMORY: 'Memoria negativa: producto suprimido',
   LOW_QUALITY_TITLE: 'Título de baja calidad',
-  NO_STRONG_IDENTITY: 'Sin identidad fuerte de producto',
+  NO_STRONG_IDENTITY: 'Sin identidad de producto (ni id ni URL canónica)',
   PRICE_SOURCE_UNKNOWN: 'Precio sin fuente en la página',
   NOT_PRODUCT_URL: 'La URL no es un producto',
   EXTRACTION_FAILED: 'Extracción incompleta',
   DUPLICATE_OFFER: 'Ya existe en Aventa',
   WRITER_DUPLICATE: 'Ya existe en Aventa',
   WRITER_REJECTED: 'El writer rechazó los datos',
+  WRITER_FAILED: 'Fallo técnico al crear la oferta',
   MACHINE_AUTHOR_UNAVAILABLE: 'Autor bot no disponible',
 };
 
@@ -94,6 +96,8 @@ function typingTarget(target: EventTarget | null): boolean {
 }
 
 export default function HuntersAiClient() {
+  const { session } = useAuth();
+  const token = session?.access_token ?? null;
   const [status, setStatus] = useState<StatusFilter>('PENDING');
   const [category, setCategory] = useState('');
   const [retailer, setRetailer] = useState('');
@@ -125,10 +129,14 @@ export default function HuntersAiClient() {
   }, [status, sort, page, category, retailer, hunter]);
 
   const load = useCallback(async () => {
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/hunters-ai?${query}`, { cache: 'no-store' });
+      const res = await fetch(`/api/admin/hunters-ai?${query}`, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'No se pudo cargar la cola.');
       setItems(body.items ?? []);
@@ -142,7 +150,7 @@ export default function HuntersAiClient() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, token]);
 
   useEffect(() => {
     void load();
@@ -155,7 +163,7 @@ export default function HuntersAiClient() {
       try {
         const res = await fetch('/api/admin/hunters-ai', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
           body: JSON.stringify(payload),
         });
         const body = await res.json().catch(() => ({}));
@@ -168,7 +176,7 @@ export default function HuntersAiClient() {
         setBusy(false);
       }
     },
-    [load],
+    [load, token],
   );
 
   const actBulk = useCallback(
@@ -181,7 +189,7 @@ export default function HuntersAiClient() {
       try {
         const res = await fetch('/api/admin/hunters-ai', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
           body: JSON.stringify({ action, items: targets, ...extra }),
         });
         const body = await res.json().catch(() => ({}));
@@ -194,7 +202,7 @@ export default function HuntersAiClient() {
         setBusy(false);
       }
     },
-    [items, load, selected],
+    [items, load, selected, token],
   );
 
   const toggle = useCallback((id: string) => {
@@ -246,9 +254,11 @@ export default function HuntersAiClient() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Hunters IA</h1>
-            <p className="mt-1 text-sm text-white/60">Un candidato a la vez. El producto sigue siendo lo que se publica.</p>
+            <p className="mt-1 text-sm text-white/60">
+              Los candidatos que pasan las reglas llegan solos a la cola de moderación. Aquí solo se deciden los retenidos.
+            </p>
           </div>
-          <p className="text-xs text-white/40">A aprobar · E editar · R rechazar · X seleccionar · J/K moverse</p>
+          <p className="text-xs text-white/40">A enviar a moderación · E editar · R rechazar · X seleccionar · J/K moverse</p>
         </header>
 
         <section className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-7">
@@ -421,7 +431,7 @@ export default function HuntersAiClient() {
                   </div>
                   {card.description ? <p className="mt-3 text-sm text-white/55">{card.description}</p> : null}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button type="button" disabled={busy || !card.canApprove || card.duplicate} className={btnPrimary} onClick={() => void act({ action: 'approve', batchId: card.batchId, itemId: card.id })}>Aprobar</button>
+                    <button type="button" disabled={busy || !card.canApprove || card.duplicate} className={btnPrimary} onClick={() => void act({ action: 'approve', batchId: card.batchId, itemId: card.id })} title="Crea la oferta pendiente. Publicar sigue en la cola de moderación.">Enviar a moderación</button>
                     <button type="button" disabled={busy || !card.canEdit} className={btn} onClick={() => setEditing(card)}>Editar</button>
                     <button type="button" disabled={busy || !card.canReject} className={btnDanger} onClick={() => setRejecting(card)}>Rechazar</button>
                     {card.moderationHref ? (

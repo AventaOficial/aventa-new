@@ -135,6 +135,17 @@ export function presentAuthor(input: {
   return { kind: 'person' };
 }
 
+/** Autor de un lote. Si entró por MCP: hunter editorial + procedencia; nunca el perfil técnico. */
+export function batchAuthorLabel(input: {
+  createdBy?: string | null;
+  authorName?: string | null;
+  machineClientId?: string | null;
+}): string {
+  const author = presentAuthor({ userId: input.createdBy, displayName: input.authorName });
+  const name = author.kind === 'hunter' ? author.hunter.displayName : input.authorName?.trim() || 'Usuario';
+  return input.machineClientId ? `${name} · vía MCP` : name;
+}
+
 /** Etiqueta de cola. Un code de canon gana; un nombre técnico nunca se muestra. */
 export function hunterForLane(label: string | null | undefined): HunterPublicIdentity {
   const trimmed = label?.trim() ?? '';

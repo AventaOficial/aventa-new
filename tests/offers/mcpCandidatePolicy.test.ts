@@ -16,6 +16,7 @@ const { enqueueHunterOffer } = await import('@/lib/offers/ingestion/enqueueHunte
 
 const AMAZON = 'https://www.amazon.com.mx/dp/B0TESTASI1';
 const SORIANA = 'https://www.soriana.com/cereal-kelloggs-zucaritas-600-g/11669769.html';
+const SHORTLINK = 'https://meli.la/2AbCdEf';
 
 function prepared(over: Partial<PreparedMachineCandidate> = {}): PreparedMachineCandidate {
   return {
@@ -93,8 +94,18 @@ describe('precio anterior de candidatos MCP', () => {
     expect(admit({ price: 0 })).toEqual({ outcome: 'hold', code: 'PRICE_SOURCE_UNKNOWN' });
   });
 
-  it('sin identidad fuerte no hay memoria negativa posible: queda en revisión', () => {
-    expect(admit({}, null, SORIANA)).toEqual({ outcome: 'hold', code: 'NO_STRONG_IDENTITY' });
+  it('identidad fuerte: admite con su fingerprint', () => {
+    expect(admit({})).toMatchObject({ outcome: 'admit', identity: 'strong', identityKey: 'amz:B0TESTASI1' });
+  });
+
+  it('URL canónica sin id fuerte (Soriana): admite con dedupe por URL, marcada como tal', () => {
+    const a = admit({ priceSource: 'retail_html' }, null, SORIANA);
+    expect(a).toMatchObject({ outcome: 'admit', identity: 'url_fingerprint' });
+    expect(a.outcome === 'admit' && a.identityKey.startsWith('url:')).toBe(true);
+  });
+
+  it('sin ninguna identidad (shortlink débil): queda retenida', () => {
+    expect(admit({}, null, SHORTLINK)).toEqual({ outcome: 'hold', code: 'NO_STRONG_IDENTITY' });
   });
 
   it('título de baja calidad se rechaza con la regla de bots', () => {
@@ -165,16 +176,111 @@ describe('enqueueHunterOffer', () => {
     expect(updates.at(-1)?.values).toMatchObject({ status: 'APPROVED', offer_id: 'o1', original_price: null });
   });
 
-  it('sin identidad fuerte: queda en revisión humana y no crea oferta', async () => {
+  const clean = async () => ({ suppressed: false, reason: null, fingerprint: null });
+  type IngestCall = [unknown, { body: Record<string, unknown>; source: string; onDuplicate: string; offerExtras: { bot_meta: Record<string, unknown> } }];
+
+  it('elegible sin id fuerte (piloto Soriana): oferta pending directa, sin aprobación intermedia', async () => {
+    const { supabase, updates } = fakeSupabase();
+    const ingest = vi.fn(async () => ({ ok: true as const, offerId: 'o2' }));
+    const r = await enqueueHunterOffer(supabase, params(candidate({ url: SORIANA, identityKey: 'soriana' })), {
+      negativeMemory: clean,
+      prepare: async () => prepared({ priceSource: 'retail_html', store: 'Soriana', retailer: 'soriana' }),
+      ingest: ingest as never,
+      lowQualityTitle: ok,
+    });
+    expect(r.offerId).toBe('o2');
+    const call = (ingest.mock.calls[0] as unknown as IngestCall)[1];
+    expect(call.source).toBe('mcp:hunter');
+    expect(call.onDuplicate).toBe('reject');
+    expect(call.body).not.toHaveProperty('status');
+    expect(call.offerExtras.bot_meta.price_policy).toMatchObject({ identity: 'url_fingerprint' });
+    expect(updates.at(-1)?.values).toMatchObject({ status: 'APPROVED', offer_id: 'o2' });
+    expect(updates.some((u) => u.values.status === 'PUBLISHED')).toBe(false);
+    expect(events.at(-1)).toMatchObject({ action: 'queued_for_moderation', toStatus: 'APPROVED' });
+  });
+
+  it('sin ninguna identidad: queda retenida con motivo y no crea oferta', async () => {
     const { supabase, updates } = fakeSupabase();
     const ingest = vi.fn();
-    await enqueueHunterOffer(supabase, params(candidate({ url: SORIANA, identityKey: 'soriana' })), {
-      negativeMemory: async () => ({ suppressed: false, reason: null, fingerprint: null }),
+    await enqueueHunterOffer(supabase, params(candidate({ url: SHORTLINK, identityKey: 'meli' })), {
+      negativeMemory: clean,
       prepare: async () => prepared({ priceSource: 'retail_html' }),
       ingest,
       lowQualityTitle: ok,
     });
     expect(ingest).not.toHaveBeenCalled();
     expect(updates[0].values).toMatchObject({ status: 'NEEDS_REVIEW', error_code: 'NO_STRONG_IDENTITY' });
+  });
+
+  it('precio sin fuente: retenida, no salta la revisión técnica', async () => {
+    const { supabase, updates } = fakeSupabase();
+    const ingest = vi.fn();
+    await enqueueHunterOffer(supabase, params(), {
+      negativeMemory: clean,
+      prepare: async () => prepared({ priceSource: null }),
+      ingest,
+      lowQualityTitle: ok,
+    });
+    expect(ingest).not.toHaveBeenCalled();
+    expect(updates[0].values).toMatchObject({ status: 'NEEDS_REVIEW', error_code: 'PRICE_SOURCE_UNKNOWN' });
+  });
+
+  it('título de baja calidad: rechazo terminal, nunca llega a moderación', async () => {
+    const { supabase, updates } = fakeSupabase();
+    const ingest = vi.fn();
+    await enqueueHunterOffer(supabase, params(), {
+      negativeMemory: clean,
+      prepare: async () => prepared(),
+      ingest,
+      lowQualityTitle: () => true,
+    });
+    expect(ingest).not.toHaveBeenCalled();
+    expect(updates[0].values).toMatchObject({ status: 'REJECTED', error_code: 'LOW_QUALITY_TITLE' });
+  });
+
+  it('duplicado en el writer (409): queda vinculado a la oferta existente y no crea otra', async () => {
+    const { supabase, updates } = fakeSupabase();
+    const ingest = vi.fn(async () => ({
+      ok: false as const,
+      httpStatus: 409,
+      error: 'duplicate',
+      duplicate_offer_id: 'o-existente',
+      duplicate_status: 'pending',
+    }));
+    const r = await enqueueHunterOffer(supabase, params(), {
+      negativeMemory: clean,
+      prepare: async () => prepared(),
+      ingest: ingest as never,
+      lowQualityTitle: ok,
+    });
+    expect(r.offerId).toBeNull();
+    expect(ingest).toHaveBeenCalledTimes(1);
+    expect(updates.at(-1)?.values).toMatchObject({
+      status: 'REJECTED',
+      error_code: 'DUPLICATE_OFFER',
+      duplicate_status: 'duplicate',
+      duplicate_offer_id: 'o-existente',
+      rejection_reason: 'duplicate:pending',
+    });
+    expect(updates.at(-1)?.values).not.toHaveProperty('offer_id');
+    expect(events.at(-1)).toMatchObject({ action: 'duplicate_linked', toStatus: 'REJECTED' });
+  });
+
+  it('el writer rechaza los datos (400): retenida; un fallo técnico (500) queda en error', async () => {
+    for (const [httpStatus, status, code] of [
+      [400, 'NEEDS_REVIEW', 'WRITER_REJECTED'],
+      [500, 'ERROR', 'WRITER_FAILED'],
+    ] as const) {
+      events.length = 0;
+      const { supabase, updates } = fakeSupabase();
+      await enqueueHunterOffer(supabase, params(), {
+        negativeMemory: clean,
+        prepare: async () => prepared(),
+        ingest: (async () => ({ ok: false as const, httpStatus, error: 'x' })) as never,
+        lowQualityTitle: ok,
+      });
+      expect(updates.at(-1)?.values).toMatchObject({ status, error_code: code });
+      expect(events.at(-1)).toMatchObject({ action: 'writer_failed', toStatus: status });
+    }
   });
 });

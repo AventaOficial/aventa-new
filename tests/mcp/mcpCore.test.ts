@@ -558,6 +558,8 @@ describe('get_submission_status', () => {
     expect(m('REJECTED')).toBe('rejected');
     expect(m('ERROR')).toBe('invalid');
     expect(m('NEEDS_REVIEW', 'duplicate')).toBe('duplicate');
+    expect(m('REJECTED', 'duplicate')).toBe('duplicate');
+    expect(m('APPROVED', 'duplicate')).toBe('accepted');
   });
 });
 

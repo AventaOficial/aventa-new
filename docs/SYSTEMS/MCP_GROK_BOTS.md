@@ -40,7 +40,7 @@ Diferencias con la ruta de bots (`insertIngestedOffer`), verificadas el 2026-10-
 |---|---|---|
 | Kill switch | `BOT_INGEST_MACHINE_PENDING_WRITES` | `MCP_INGEST_ENABLED` |
 | Bloqueo en producción (`assertMachineOfferWriteAuthorized`) | sí | no: producción es un destino previsto (§15) |
-| Elegibilidad S6.1 (evidencia de precio) | sí | parcial: `mcp-candidate-policy-v1` (§19) reutiliza identidad, título y procedencia del precio de lista; no exige descuento |
+| Elegibilidad S6.1 (evidencia de precio) | sí | parcial: `mcp-candidate-policy-v2` (§19) reutiliza identidad, título y procedencia del precio de lista; no exige descuento |
 | Memoria negativa | sí | sí (`isSuppressedByNegativeMemory`, §19) |
 | Cliente, scopes, cuota e idempotencia | no aplica | sí |
 | Estado al insertar | `pending` | `pending` |
@@ -565,14 +565,15 @@ order by created_at desc limit 20;
 - `POST https://staging.aventaofertas.com/api/mcp` sin token responde 401 y `GET` responde 405: la ruta está desplegada en staging (la tabla del inicio y §14 dicen 404; quedó desactualizado). No se sabe qué commit corre; esta rama no está desplegada.
 - Flujo real: `app/api/mcp/route.ts` → `lib/mcp/server.ts` → `submitDealCandidates` (`lib/mcp/submissions.ts`: flag, estado del cliente, idempotencia, `validateCandidates`, cuota) → `createOfferBatch` → `enqueueHunterOffer` (`lib/offers/ingestion/enqueueHunterOffer.ts`: `prepareMachineCandidateOffer` extrae la página; sin título, precio e imagen el ítem queda `ERROR`/`NEEDS_REVIEW`) → `ingestOfferObservation` (oferta `pending`, `onDuplicate: 'reject'`) → `/api/admin/moderate-offer` (humano).
 
-Política de calidad MCP (`mcp-candidate-policy-v1`, `lib/offers/ingestion/machineCandidatePolicy.ts`), aplicada en `enqueueHunterOffer` antes de crear la oferta:
+Política de calidad MCP (`mcp-candidate-policy-v2`, `lib/offers/ingestion/machineCandidatePolicy.ts`), aplicada en `enqueueHunterOffer` antes de crear la oferta. Un candidato que la pasa crea la oferta `pending` directamente: el ítem del lote queda `APPROVED` («En moderación») con `offer_id`, y la única aprobación es la de la cola de moderación. Hunters IA y la consola de lotes solo deciden los retenidos (`NEEDS_REVIEW`).
 
 1. **Memoria negativa** (`isSuppressedByNegativeMemory`, la misma de bots), antes de extraer la página. Si suprime: ítem `REJECTED` (terminal, no reprocesable como fallo), `error_code: 'NEGATIVE_MEMORY'`, evento `negative_memory_suppressed`, sin oferta. Público: `rejected`.
 2. **Extracción completa** (título, precio, imagen) como antes.
-3. **Identidad fuerte** (`strongProductFingerprintForUrl`): sin ella la memoria negativa no puede evaluar; el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`) para la consola de lotes, sin oferta.
+3. **Identidad**: fuerte (`strongProductFingerprintForUrl`: `amz:`/`ml:`/`liv:`) o, en otras tiendas (Soriana, Walmart…), la URL canónica `url:` de `resolveIngestionIdentity`, que deduplica por el índice único `idx_offers_active_ingestion_identity`. Queda marcada en `bot_meta.price_policy.identity` (`strong` | `url_fingerprint`). La memoria negativa solo evalúa identidades fuertes: con `url:` un producto rechazado antes puede volver a la cola de moderación, donde decide un humano. Sin ninguna identidad (p. ej. shortlinks `meli.la`) el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`), sin oferta. Hasta `v1` toda identidad no fuerte quedaba retenida; eso obligaba a aprobar en Hunters IA/lotes antes de la moderación (piloto Grok del 2026-10-12, lote `432879fd`).
 4. **Precio actual** con fuente de página (`priceSource` del extractor); si falta, `NEEDS_REVIEW` (`PRICE_SOURCE_UNKNOWN`).
 5. **Título de baja calidad** (`isLowQualityTitle` con `loadBotIngestConfig`): `REJECTED` (`LOW_QUALITY_TITLE`).
-6. **Precio de lista** solo si la página lo muestra con fuente (`source_explicit`) y es mayor que el actual (`compareWithListPrice`). El que declara el bot nunca llega a `offers.original_price`; queda en `hint_original_price` y en `bot_meta.price_policy.bot_declared`. Sin precio de lista la oferta es `price_opportunity` (sin porcentaje).
+6. **Writer** (`ingestOfferObservation`): si ya existe una oferta activa con la misma identidad (409), el ítem queda `REJECTED` con `duplicate_status: 'duplicate'`, `duplicate_offer_id` y evento `duplicate_linked`; no se crea otra oferta y el contrato lo informa como `duplicate`. Datos rechazados (400): `NEEDS_REVIEW` (`WRITER_REJECTED`). Fallo técnico: `ERROR` (`WRITER_FAILED`).
+7. **Precio de lista** solo si la página lo muestra con fuente (`source_explicit`) y es mayor que el actual (`compareWithListPrice`). El que declara el bot nunca llega a `offers.original_price`; queda en `hint_original_price` y en `bot_meta.price_policy.bot_declared`. Sin precio de lista la oferta es `price_opportunity` (sin porcentaje).
 
 De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):

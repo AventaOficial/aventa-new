@@ -166,7 +166,7 @@ describe('adversarial MCP: secretos ajenos no autentican', () => {
 });
 
 describe('adversarial MCP: el envío no controla autoría, origen ni estado', () => {
-  it('campos inyectados se ignoran; autor = bot del cliente autenticado, ítem en INGESTED, sin ofertas', async () => {
+  it('campos inyectados se ignoran; autor = bot del cliente autenticado, duplicado vinculado, sin ofertas nuevas', async () => {
     const before = snapshot(PROTECTED);
     const { payload } = await call('submit_deal_candidates', {
       runId: 'adv-run', idempotencyKey: 'adv-inject-0001',
@@ -185,7 +185,12 @@ describe('adversarial MCP: el envío no controla autoría, origen ni estado', ()
     expect(batch.machine_client_id).toBe(CLIENT_ID);
     const items = state.db.tables.offer_batch_items;
     expect(items).toHaveLength(1);
-    expect(items[0].status).toBe('INGESTED');
+    expect(items[0]).toMatchObject({
+      status: 'REJECTED',
+      error_code: 'DUPLICATE_OFFER',
+      duplicate_status: 'duplicate',
+      duplicate_offer_id: 'pending-offer',
+    });
     expect(items[0].offer_id ?? null).toBeNull();
   });
 });
