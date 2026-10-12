@@ -5,7 +5,7 @@ Estado: implementado y apagado. La escritura sólo se enciende con `MCP_INGEST_E
 | Entorno | Migración | Autor bot | Redis (namespace) | Cliente máquina | Código desplegado | `MCP_INGEST_ENABLED` |
 |---|---|---|---|---|---|---|
 | Staging (`oojshofrpbfwsiypcecr`) | aplicada 2026-10-05 | pendiente (operador) | sin configurar (MCP respondería 503); usará `aventa:staging:*` en el Redis compartido | ninguno | no | apagado |
-| Producción (`mkgsrpsuvedwwlzmzmzh`) | no aplicada | no | Redis físico actual; `aventa:production:*` cuando se declare | ninguno | no | apagado |
+| Producción (`mkgsrpsuvedwwlzmzmzh`) | aplicada (`20261005161927_machine_clients_mcp`; verificado con `list_migrations` el 2026-10-12) | no | Redis físico actual; `aventa:production:*` cuando se declare | ninguno | no | apagado |
 
 > **Redis compartido (riesgo aceptado).** Staging y Production comparten temporalmente el mismo backend físico de Upstash por restricción presupuestaria. El aislamiento se realiza mediante namespaces y marcadores de entorno independientes. Esto NO equivale a aislamiento físico y deberá migrarse a Redis separado antes de que staging maneje datos sensibles, volumen significativo o pruebas de producción. La migración a Redis separado es una tarea posterior de infraestructura, no un requisito para activar controladamente MCP ahora (ver §14).
 
@@ -40,12 +40,12 @@ Diferencias con la ruta de bots (`insertIngestedOffer`), verificadas el 2026-10-
 |---|---|---|
 | Kill switch | `BOT_INGEST_MACHINE_PENDING_WRITES` | `MCP_INGEST_ENABLED` |
 | Bloqueo en producción (`assertMachineOfferWriteAuthorized`) | sí | no: producción es un destino previsto (§15) |
-| Elegibilidad S6.1 (evidencia de precio) | sí | no: los candidatos MCP no traen señales de precio |
-| Memoria negativa | sí | no |
+| Elegibilidad S6.1 (evidencia de precio) | sí | parcial: `mcp-candidate-policy-v1` (§19) reutiliza identidad, título y procedencia del precio de lista; no exige descuento |
+| Memoria negativa | sí | sí (`isSuppressedByNegativeMemory`, §19) |
 | Cliente, scopes, cuota e idempotencia | no aplica | sí |
 | Estado al insertar | `pending` | `pending` |
 
-Antes de encender `MCP_INGEST_ENABLED` en producción hay que decidir si MCP debe pasar memoria negativa y un equivalente de S6.1. Mientras el flag siga apagado, la ruta no escribe.
+Decidido el 2026-10-12: MCP pasa memoria negativa y la política de calidad de §19. Mientras el flag siga apagado, la ruta no escribe.
 
 Código:
 
@@ -440,7 +440,7 @@ Salida: `0` = `READY`, `1` = `NOT_READY` (se puede desplegar con MCP apagado; no
 
 Sólo después de completar staging.
 
-1. Aplicar la misma migración en producción (`mkgsrpsuvedwwlzmzmzh`), a mano.
+1. ~~Aplicar la misma migración en producción (`mkgsrpsuvedwwlzmzmzh`), a mano.~~ Hecho (`20261005161927`).
 2. Crear el usuario bot de producción y declararlo en `MCP_BOT_AUTHOR_USER_IDS` (Production).
 
    Usar `scripts/mcp-provision-production-bot-author.ts` (lógica en `lib/mcp/botAuthorProvisioning.ts`).
@@ -506,7 +506,7 @@ order by created_at desc limit 20;
 - Si el guardado de la respuesta falla tras crear el lote, el replay devuelve `INTERNAL_ERROR` en vez de la respuesta original. El lote existe y no se duplica.
 - El procesamiento del lote lo dispara staff. MCP no lo automatiza.
 - xAI no soporta `require_approval` en MCP remoto: todo el control vive en Aventa (auth, scopes, kill switch, cuota, moderación humana).
-- La migración está aplicada **sólo en staging** (2026-10-05). En producción no.
+- La migración está aplicada en staging (2026-10-05) y en producción (`20261005161927`, verificado el 2026-10-12).
 - Una llamada rechazada por rate limit (429/503) no deja fila en `machine_client_calls`: ocurre antes de resolver la herramienta.
 - Redis compartido entre staging y production: el aislamiento es lógico, no físico. Un token de Upstash compartido permite técnicamente a quien lo tenga leer o borrar keys del otro entorno; el código nunca lo hace, pero el riesgo existe fuera del código. También comparten cuota, memoria y latencia de Upstash: una ráfaga en staging puede afectar a production.
 - El marcador verificado se cachea 60 s por instancia: si alguien cambia el marcador, las instancias vivas tardan hasta 60 s en notarlo.
@@ -522,12 +522,16 @@ order by created_at desc limit 20;
 - `POST https://staging.aventaofertas.com/api/mcp` sin token responde 401 y `GET` responde 405: la ruta está desplegada en staging (la tabla del inicio y §14 dicen 404; quedó desactualizado). No se sabe qué commit corre; esta rama no está desplegada.
 - Flujo real: `app/api/mcp/route.ts` → `lib/mcp/server.ts` → `submitDealCandidates` (`lib/mcp/submissions.ts`: flag, estado del cliente, idempotencia, `validateCandidates`, cuota) → `createOfferBatch` → `enqueueHunterOffer` (`lib/offers/ingestion/enqueueHunterOffer.ts`: `prepareMachineCandidateOffer` extrae la página; sin título, precio e imagen el ítem queda `ERROR`/`NEEDS_REVIEW`) → `ingestOfferObservation` (oferta `pending`, `onDuplicate: 'reject'`) → `/api/admin/moderate-offer` (humano).
 
-Bloqueos de calidad (el piloto no se ejecuta hasta resolverlos):
+Política de calidad MCP (`mcp-candidate-policy-v1`, `lib/offers/ingestion/machineCandidatePolicy.ts`), aplicada en `enqueueHunterOffer` antes de crear la oferta:
 
-1. **Memoria negativa.** La ruta MCP no llama a `isSuppressedByNegativeMemory` (`lib/discovery/negativeMemory/gateInsert.ts`), que la ruta de bots sí usa. Un producto ya rechazado puede volver a la cola. Cambio mínimo: llamarla en `enqueueHunterOffer` antes de `prepareMachineCandidateOffer` y, si suprime, dejar el ítem en `ERROR` con `error_code: 'NEGATIVE_MEMORY'`, evento de lote y `recountBatch`, sin crear oferta.
-2. **Precio de lista declarado por el bot.** `enqueueHunterOffer` guarda `prepared.originalPrice ?? candidate.originalPrice`: si la página no muestra precio de lista, el que declara el bot llega a `offers.original_price` y, tras aprobar, al «-N% vs. lista». Cambio mínimo: usar solo `prepared.originalPrice`; la pista del bot sigue en `offer_batch_items.hint_*`.
-3. **S6.1 no aplica tal cual.** `evaluateMachineCandidateGate` exige descuento mínimo y procedencia confiable del precio original, y necesita `ParsedOfferMetadata` del extractor de bots, que MCP no produce. Aplicado a MCP rechazaría casi toda la despensa, que se publica por precio y no por descuento. Decisión del Owner: la política de calidad MCP es extracción completa + memoria negativa + sin precio de lista declarado + moderación humana, o se exige S6.1 completo y la despensa queda fuera de MCP.
+1. **Memoria negativa** (`isSuppressedByNegativeMemory`, la misma de bots), antes de extraer la página. Si suprime: ítem `REJECTED` (terminal, no reprocesable como fallo), `error_code: 'NEGATIVE_MEMORY'`, evento `negative_memory_suppressed`, sin oferta. Público: `rejected`.
+2. **Extracción completa** (título, precio, imagen) como antes.
+3. **Identidad fuerte** (`strongProductFingerprintForUrl`): sin ella la memoria negativa no puede evaluar; el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`) para la consola de lotes, sin oferta.
+4. **Precio actual** con fuente de página (`priceSource` del extractor); si falta, `NEEDS_REVIEW` (`PRICE_SOURCE_UNKNOWN`).
+5. **Título de baja calidad** (`isLowQualityTitle` con `loadBotIngestConfig`): `REJECTED` (`LOW_QUALITY_TITLE`).
+6. **Precio de lista** solo si la página lo muestra con fuente (`source_explicit`) y es mayor que el actual (`compareWithListPrice`). El que declara el bot nunca llega a `offers.original_price`; queda en `hint_original_price` y en `bot_meta.price_policy.bot_declared`. Sin precio de lista la oferta es `price_opportunity` (sin porcentaje).
 
+De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 
 1. Autor bot: `npx tsx scripts/mcp-provision-staging-bot-author.ts` con `.env.staging.local` (no versionado). Guardar el UUID.

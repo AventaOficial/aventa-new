@@ -16,7 +16,7 @@ vi.mock('@/lib/offers/offerExtraction/extractOfferFromUrl', () => ({
       missing: [],
       diagnostics: { accessFailure: null, extractionErrorCode: null },
     },
-    adapter: { provider: 'amazon', blockedByHostPolicy: false },
+    adapter: { provider: 'amazon', blockedByHostPolicy: false, priceSource: 'amazon_html', originalPriceSource: 'amazon_html' },
     core: { provider: 'amazon' },
   })),
 }));
