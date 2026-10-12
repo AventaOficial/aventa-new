@@ -1,6 +1,7 @@
 import type { CardOffer, FeedApiItemShape } from '@/lib/offers/transform';
 import { DEFAULT_MAX_SAME_PRODUCT, deferDuplicateProducts } from '@/lib/offers/feedDiversity';
 import { rankDespensa, type DespensaRankable } from '@/lib/despensa/rank';
+import type { DespensaBudget } from '@/lib/despensa/budget';
 
 /** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
 export const DIA_A_DIA_SCORE_CAP = 90;
@@ -71,12 +72,13 @@ export function applyVitalesFeedTransform<T extends VitalesItem>(
   list: T[],
   effectiveLimit: number,
   maxSameProduct?: number,
-  opts: { now?: Date; preferredNeedIds?: ReadonlySet<string> } = {},
+  opts: { now?: Date; preferredNeedIds?: ReadonlySet<string>; budget?: DespensaBudget | null } = {},
 ): T[] {
   const filtered = list.filter((o) => (o.votes?.score ?? 0) < DIA_A_DIA_SCORE_CAP);
   const { ranked, demoted } = rankDespensa(filtered, {
     now: opts.now ?? new Date(),
     preferredNeedIds: opts.preferredNeedIds,
+    budget: opts.budget,
   });
   return deferDuplicateProducts([...ranked, ...demoted], maxSameProduct).slice(0, effectiveLimit);
 }
@@ -146,10 +148,11 @@ export function processHomeFeedList<T extends VitalesItem & { upvotes?: number; 
   effectiveLimit: number,
   maxSameProduct: number = DEFAULT_MAX_SAME_PRODUCT,
   preferredNeedIds?: ReadonlySet<string>,
+  budget?: DespensaBudget | null,
 ): T[] {
   if (viewMode === 'top') return raw.filter((o) => (o.upvotes ?? 0) >= 1);
   if (viewMode === 'vitales') {
-    return applyVitalesFeedTransform(raw, effectiveLimit, maxSameProduct, { preferredNeedIds });
+    return applyVitalesFeedTransform(raw, effectiveLimit, maxSameProduct, { preferredNeedIds, budget });
   }
   if (viewMode === 'latest') return limitConsecutiveMachineOffers(raw);
   return raw;

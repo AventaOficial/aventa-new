@@ -50,6 +50,9 @@ import { activeHuntersFromFeed } from '@/lib/community/feedHunters';
 import { resolveActiveSeason, type SeasonDefinition } from '@/lib/seasons/resolve';
 import SeasonLayer from './components/SeasonLayer';
 import { PersonalInterestRail, type InterestRailOffer } from './components/feed/PersonalInterestRail';
+import { DespensaBudgetCard } from './components/feed/DespensaBudgetCard';
+import { useDespensaBudget } from './components/feed/useDespensaBudget';
+import type { DespensaBudget } from '@/lib/despensa/budget';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = HomeFeedViewMode | 'personalized';
@@ -156,6 +159,9 @@ function HomeContent() {
   const [justPublished, setJustPublished] = useState<Offer[]>([]);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [interestRail, setInterestRail] = useState<InterestRailOffer[]>([]);
+  const despensaBudget = useDespensaBudget('dia_a_dia');
+  /** Solo «Día a día» se vuelve a ordenar cuando cambia el presupuesto. */
+  const vitalesBudget: DespensaBudget | null = viewMode === 'vitales' ? despensaBudget.budget : null;
   const prevFiltersRef = useRef({ viewMode, timeFilter, debouncedQuery, storeFilter: null as string | null, categoryFilter: null as string | null });
   const fetchOffersRef = useRef<((overrideLimit?: number, opts?: { silent?: boolean }) => void) | null>(null);
   const debouncedQueryRef = useRef(debouncedQuery);
@@ -310,6 +316,7 @@ function HomeContent() {
           effectiveLimit,
           maxSameProduct,
           preferredNeedIds,
+          vitalesBudget,
         );
         const keepPages = Boolean(opts?.silent) && offersCountRef.current > list.length;
         setOffers((prev) => (keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list));
@@ -334,7 +341,7 @@ function HomeContent() {
         setFeedError('load');
         setOffers([]);
       });
-  }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token, showToast]);
+  }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token, showToast, vitalesBudget]);
 
   useEffect(() => {
     if (viewMode !== 'top' || debouncedQuery.trim()) {
@@ -736,6 +743,16 @@ function HomeContent() {
                   </button>
                 ))}
               </div>
+            )}
+            {viewMode === 'vitales' && despensaBudget.ready && (
+              <DespensaBudgetCard
+                budget={despensaBudget.budget}
+                dismissed={despensaBudget.dismissed}
+                saving={despensaBudget.saving}
+                onSave={despensaBudget.save}
+                onDismiss={despensaBudget.dismiss}
+                onReopen={despensaBudget.reopen}
+              />
             )}
           </div>
 

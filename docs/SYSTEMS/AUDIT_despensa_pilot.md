@@ -165,3 +165,35 @@ Cierre de integridad (segunda pasada):
 - Tarjeta de CazaOfertas: «Antes:» se sustituye por el nombre de la referencia real («Precio de lista de la tienda» o «Precio habitual observado»). El descuento ya exigía referencia autoritativa en `resolveDiscountClaim`. Los snapshots ya preparados conservan su texto, porque el envío nunca regenera la tarjeta.
 
 Estabilidad de pruebas: las guardas que leen todo `app/`+`lib/` (unos 2.500 archivos y 14,6 MB) tardan 1–2 s en reposo y llegaron a 10,6 s con la máquina cargada; no hay trabajo asíncrono que sobreviva al test. Usan `REPO_SCAN_TIMEOUT_MS` (`tests/helpers/repoScan.ts`). `sitemapIndexability` y `mlPublicOffer` pagaban la importación en frío dentro del cuerpo del test; ahora la cargan en `beforeAll`, como `writerBoundaryS61`. No cambió ninguna aserción.
+
+## 9. Cierre 48 h: presupuesto, catálogo v3 y lotes Grok (2026-10-12)
+
+### Presupuesto de despensa
+- Pregunta opcional en Día a día y en `/me/intereses`: «¿Cuánto presupuesto tienes para tu despensita?». Periodo mensual (por defecto) o semanal; niveles bajo, medio y alto (semanal 500/1 000/2 000, mensual 2 000/4 000/8 000) o monto propio de 100 a 200 000 MXN. Ningún texto presenta un monto como suficiente.
+- Se puede saltar, reabrir, cambiar y quitar. Saltar no bloquea el feed.
+- Persistencia sin migración: con sesión, `user_metadata.despensa_budget` de Supabase Auth (solo lo escribe el propio usuario con `updateUser`); sin sesión, `localStorage` (`aventa:despensa-budget:v1`). Al iniciar sesión manda el de la cuenta. `profiles` no tiene columna libre y no se tocó.
+- Métricas: se reutilizan `interest_saved` / `interest_removed` de `product_events` con `metadata.kind = 'despensa_budget'`, periodo y nivel. El monto nunca se registra.
+- El presupuesto no filtra: solo desempata (`budgetFit`: el precio cabe en el 25 % del presupuesto semanal equivalente). No se usa ninguna cifra de ahorro promedio.
+
+### Ranking `despensa-rank-v2` (solo Día a día)
+Orden lexicográfico: necesidad reconocida → evidencia vigente (≤ 7 días) → precio unitario frente a la mediana de su grupo comparable (misma necesidad, variante y dimensión) → bajada verificada (hoy siempre falsa: no hay historial en el feed) → encaje con el presupuesto → frescura → preferencias → votos. Después, máximo 3 por necesidad seguidas y 3 seguidas por tienda. Recientes, Para ti y Top no usan nada de esto.
+
+### Catálogo `2026-10-12.3`
+- Referencia oficial registrada: canasta PACIC de 24 productos de Profeco «Quién es Quién en los Precios» (PDF leído el 2026-10-12). Cada producto apunta a una necesidad y variante. No se usa su costo meta.
+- Nuevas necesidades activas: pollo, res, cerdo, frutas, verduras, pan. `alimentos.frescos` queda retirada.
+- Variantes por necesidad; solo se comparan precios unitarios dentro de la misma variante y dimensión. Las sustituciones aproximadas (por ejemplo, aceite vegetal ↔ canola) viven aparte y nunca se usan para comparar.
+- Sin marcas ni precios inventados.
+
+### Observaciones y lotes (`lib/despensa/observation.ts`, `lib/despensa/grokBatch.ts`)
+- Producto de catálogo, observación de precio, candidato MCP y oferta publicada son objetos distintos. Una observación lleva URL canónica, tienda, precio, moneda, precio unitario, fecha, región, disponibilidad, evidencia y agente.
+- Deduplicación por presentación, tienda y región en ventanas de 24 h; se conserva la procedencia de cada copia.
+- Historial: `none`, `single_observation`, `insufficient` o `longitudinal` (≥ 4 observaciones independientes en ≥ 14 días). Solo con historial longitudinal se puede hablar de bajada (≥ 5 % bajo la mediana propia). El precio de lista solo viaja si la tienda lo muestra.
+- Runbook: `scripts/despensa-grok-batch.ts`.
+  - Simulación (por defecto, sin red): `npx tsx scripts/despensa-grok-batch.ts --input <registros.json>`.
+  - Lote real pequeño: `--submit` con `AVENTA_MCP_URL` y `AVENTA_MCP_TOKEN` de un cliente máquina autorizado. Rechaza fixtures (por marca o por ruta de pruebas) y `--now`, exige `ingestEnabled`, consulta `check_offer_exists` y envía de 1 a 5 (`--max` fuera de ese rango aborta). Todo queda `pending` para moderación humana.
+  - Estado: `--status <submissionId>`.
+
+### Estado del lote real (2026-10-12)
+- `https://aventaofertas.com/api/mcp` responde 401 sin token y 405 a GET: el endpoint está desplegado y exige autenticación. Eso no demuestra que la migración de producción esté aplicada.
+- No hay token de cliente MCP en este entorno: no se envió ningún candidato real.
+- Fixture (`tests/fixtures/despensa/grok-batch-sample.json`, datos ficticios): 14 registros, 4 rechazos locales, 1 duplicado, 2 rechazos por reglas MCP, 7 listos.

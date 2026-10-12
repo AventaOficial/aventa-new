@@ -1,4 +1,4 @@
-import type { ComparableDimension } from '@/lib/despensa/catalog';
+import { despensaNeedById, type ComparableDimension } from '@/lib/despensa/catalog';
 
 /**
  * Presentación comparable leída del título.
@@ -152,15 +152,30 @@ function round2(n: number): number {
 
 export type UnitPriceComparison =
   | { comparable: true; cheaper: 'a' | 'b' | 'equal'; ratio: number }
-  | { comparable: false; reason: 'missing_unit_price' | 'different_need' | 'different_dimension' | 'different_count_unit' };
+  | {
+      comparable: false;
+      reason:
+        | 'missing_unit_price'
+        | 'different_need'
+        | 'unknown_variant'
+        | 'different_variant'
+        | 'different_dimension'
+        | 'different_count_unit';
+    };
 
-/** Solo compara misma necesidad, misma dimensión y, si se cuentan piezas, la misma pieza. */
-export function compareUnitPrices(
-  a: { needId: string | null; unitPrice: UnitPrice | null },
-  b: { needId: string | null; unitPrice: UnitPrice | null },
-): UnitPriceComparison {
+type Comparable = { needId: string | null; variantId?: string | null; unitPrice: UnitPrice | null };
+
+/**
+ * Solo compara misma necesidad, misma variante (si la necesidad las declara), misma dimensión
+ * y, si se cuentan piezas, la misma pieza. Una variante no identificada no se compara.
+ */
+export function compareUnitPrices(a: Comparable, b: Comparable): UnitPriceComparison {
   if (!a.unitPrice || !b.unitPrice) return { comparable: false, reason: 'missing_unit_price' };
   if (!a.needId || a.needId !== b.needId) return { comparable: false, reason: 'different_need' };
+  if (despensaNeedById(a.needId)?.variants?.length) {
+    if (!a.variantId || !b.variantId) return { comparable: false, reason: 'unknown_variant' };
+    if (a.variantId !== b.variantId) return { comparable: false, reason: 'different_variant' };
+  }
   if (a.unitPrice.dimension !== b.unitPrice.dimension) return { comparable: false, reason: 'different_dimension' };
   if (a.unitPrice.per !== b.unitPrice.per) return { comparable: false, reason: 'different_count_unit' };
   const ratio = round2(a.unitPrice.value / b.unitPrice.value);

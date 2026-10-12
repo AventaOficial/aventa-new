@@ -11,10 +11,20 @@ export async function POST(request: Request) {
   if (!rl.success) return NextResponse.json({ error: 'Demasiados intentos. Espera un momento.' }, { status: 429 });
   const body = interestEventSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: 'Evento inválido.' }, { status: 400 });
+  const data = body.data;
+  if ('kind' in data) {
+    await recordProductEvent({
+      event: data.name,
+      userId: auth.user.id,
+      source: data.surface === 'dia_a_dia' ? 'home/dia-a-dia' : 'me/intereses',
+      metadata: { kind: data.kind, horizon: data.horizon ?? null, tier: data.tier ?? null },
+    });
+    return NextResponse.json({ ok: true });
+  }
   await recordProductEvent({
-    event: body.data.name,
+    event: data.name,
     userId: auth.user.id,
-    offerId: body.data.offerId ?? null,
+    offerId: data.offerId ?? null,
     source: 'me/intereses',
   });
   return NextResponse.json({ ok: true });

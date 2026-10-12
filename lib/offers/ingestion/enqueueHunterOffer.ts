@@ -6,11 +6,56 @@ import { ingestOfferObservation } from '@/lib/offers/ingestion/ingestOfferObserv
 import {
   machineOfferReadyForModeration,
   prepareMachineCandidateOffer,
+  type PreparedMachineCandidate,
 } from '@/lib/offers/ingestion/prepareMachineCandidateOffer';
+import {
+  evaluateMachineCandidateAdmission,
+  MACHINE_CANDIDATE_POLICY_VERSION,
+} from '@/lib/offers/ingestion/machineCandidatePolicy';
+import { isSuppressedByNegativeMemory } from '@/lib/discovery/negativeMemory';
+import { isLowQualityTitle } from '@/lib/bots/ingest/isLowQualityTitle';
+import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+
+export type EnqueueHunterOfferDeps = {
+  prepare?: (url: string) => Promise<PreparedMachineCandidate>;
+  negativeMemory?: typeof isSuppressedByNegativeMemory;
+  ingest?: typeof ingestOfferObservation;
+  lowQualityTitle?: (title: string) => boolean;
+};
+
+async function settleItem(
+  supabase: SupabaseClient,
+  params: {
+    batchId: string;
+    identityKey: string;
+    actorId: string;
+    update: Record<string, unknown>;
+    action: string;
+    toStatus: string;
+    payload: Record<string, unknown>;
+  },
+): Promise<void> {
+  await supabase
+    .from('offer_batch_items')
+    .update({ ...params.update, updated_at: new Date().toISOString() })
+    .eq('batch_id', params.batchId)
+    .eq('identity_key', params.identityKey)
+    .eq('status', 'INGESTED');
+  await appendBatchEvent(supabase, {
+    batchId: params.batchId,
+    actorId: params.actorId,
+    action: params.action,
+    toStatus: params.toStatus,
+    payload: params.payload,
+  });
+  await recountBatch(supabase, params.batchId);
+}
 
 /**
  * El lote queda como registro de la importación.
- * La oferta pending solo nace si el extractor ya dejó título, precio e imagen.
+ * La oferta pending solo nace si el producto no está suprimido por memoria negativa, el
+ * extractor dejó título, precio e imagen, y pasa `evaluateMachineCandidateAdmission`.
+ * El precio de lista solo viene de la página; el que declara el bot queda como pista.
  * Un producto que ya existe no se reescribe ni se duplica.
  */
 export async function enqueueHunterOffer(
@@ -21,8 +66,31 @@ export async function enqueueHunterOffer(
     machineClientId: string;
     candidate: ValidCandidate;
   },
+  deps: EnqueueHunterOfferDeps = {},
 ): Promise<{ offerId: string | null }> {
   const { batchId, createdBy, machineClientId, candidate } = params;
+  const base = { batchId, identityKey: candidate.identityKey, actorId: createdBy };
+
+  const nm = await (deps.negativeMemory ?? isSuppressedByNegativeMemory)({ supabase, url: candidate.url });
+  if (nm.suppressed) {
+    const now = new Date().toISOString();
+    // REJECTED es terminal; ERROR se podría reprocesar como si fuera un fallo transitorio.
+    await settleItem(supabase, {
+      ...base,
+      update: {
+        status: 'REJECTED',
+        error_code: 'NEGATIVE_MEMORY',
+        rejection_reason: `negative_memory:${nm.reason ?? 'SUPPRESS'}`.slice(0, 300),
+        rejected_at: now,
+        evidence: { negative_memory: { reason: nm.reason, fingerprint: nm.fingerprint } },
+      },
+      action: 'negative_memory_suppressed',
+      toStatus: 'REJECTED',
+      payload: { reason: nm.reason, fingerprint: nm.fingerprint, machine_client_id: machineClientId },
+    });
+    return { offerId: null };
+  }
+
   let store = 'Tienda';
   try {
     store = inferStoreFromHostname(new URL(candidate.url).hostname) ?? store;
@@ -30,12 +98,11 @@ export async function enqueueHunterOffer(
     /* keep */
   }
   const description = (candidate.note?.trim() || candidate.title).slice(0, 4000);
-  const prepared = await prepareMachineCandidateOffer(candidate.url);
+  const prepared = await (deps.prepare ?? prepareMachineCandidateOffer)(candidate.url);
   if (!prepared.product) {
-    const now = new Date().toISOString();
-    await supabase
-      .from('offer_batch_items')
-      .update({
+    await settleItem(supabase, {
+      ...base,
+      update: {
         status: 'ERROR',
         error_code: 'NOT_PRODUCT_URL',
         warnings: prepared.imageFailure ? [prepared.imageFailure] : [],
@@ -44,59 +111,70 @@ export async function enqueueHunterOffer(
           image_failure: prepared.imageFailure,
           enrichment: 'skipped_non_product',
         },
-        updated_at: now,
-      })
-      .eq('batch_id', batchId)
-      .eq('identity_key', candidate.identityKey)
-      .eq('status', 'INGESTED');
-    await appendBatchEvent(supabase, {
-      batchId,
-      actorId: createdBy,
+      },
       action: 'enrichment_rejected',
       toStatus: 'ERROR',
       payload: { page_kind: prepared.pageKind, image_failure: prepared.imageFailure },
     });
-    await recountBatch(supabase, batchId);
     return { offerId: null };
   }
 
+  const extracted = {
+    title: prepared.title,
+    store: prepared.store || store,
+    price: prepared.price,
+    original_price: prepared.originalPrice,
+    images: prepared.imageUrl ? [prepared.imageUrl, ...prepared.imageUrls] : [],
+  };
+
   if (!machineOfferReadyForModeration(prepared)) {
-    const now = new Date().toISOString();
-    await supabase
-      .from('offer_batch_items')
-      .update({
+    await settleItem(supabase, {
+      ...base,
+      update: {
         status: 'NEEDS_REVIEW',
         error_code: prepared.imageFailure ?? 'EXTRACTION_FAILED',
         warnings: [prepared.imageFailure ?? 'NO_IMAGES'],
-        title: prepared.title,
-        store: prepared.store || store,
-        price: prepared.price,
-        original_price: prepared.originalPrice,
-        images: prepared.imageUrl ? [prepared.imageUrl, ...prepared.imageUrls] : [],
+        ...extracted,
         evidence: {
           page_kind: prepared.pageKind,
           image_failure: prepared.imageFailure,
           enrichment: 'withheld_until_complete',
         },
-        updated_at: now,
-      })
-      .eq('batch_id', batchId)
-      .eq('identity_key', candidate.identityKey)
-      .eq('status', 'INGESTED');
-    await appendBatchEvent(supabase, {
-      batchId,
-      actorId: createdBy,
+      },
       action: 'enrichment_withheld',
       toStatus: 'NEEDS_REVIEW',
       payload: { image_failure: prepared.imageFailure, page_kind: prepared.pageKind },
     });
-    await recountBatch(supabase, batchId);
     return { offerId: null };
   }
 
-  const price = prepared.price ?? candidate.price;
-  const originalPrice = prepared.originalPrice ?? candidate.originalPrice;
-  const result = await ingestOfferObservation(supabase, {
+  const admission = evaluateMachineCandidateAdmission({
+    url: candidate.url,
+    prepared,
+    botDeclared: { price: candidate.price, originalPrice: candidate.originalPrice },
+    isLowQualityTitle: deps.lowQualityTitle ?? ((title) => isLowQualityTitle(title, loadBotIngestConfig())),
+  });
+  if (admission.outcome !== 'admit') {
+    const rejected = admission.outcome === 'reject';
+    const now = new Date().toISOString();
+    await settleItem(supabase, {
+      ...base,
+      update: {
+        status: rejected ? 'REJECTED' : 'NEEDS_REVIEW',
+        error_code: admission.code,
+        ...(rejected ? { rejection_reason: `quality:${admission.code}`, rejected_at: now } : {}),
+        ...extracted,
+        evidence: { page_kind: prepared.pageKind, policy: MACHINE_CANDIDATE_POLICY_VERSION, admission: admission.code },
+      },
+      action: rejected ? 'quality_rejected' : 'quality_withheld',
+      toStatus: rejected ? 'REJECTED' : 'NEEDS_REVIEW',
+      payload: { code: admission.code, policy: MACHINE_CANDIDATE_POLICY_VERSION },
+    });
+    return { offerId: null };
+  }
+
+  const { price, originalPrice } = admission;
+  const result = await (deps.ingest ?? ingestOfferObservation)(supabase, {
     createdBy,
     source: 'mcp:hunter',
     onDuplicate: 'reject',
@@ -110,6 +188,15 @@ export async function enqueueHunterOffer(
           currency: prepared.currency,
           image_failure: prepared.imageFailure,
           fetched: prepared.fetched,
+        },
+        price_policy: {
+          version: MACHINE_CANDIDATE_POLICY_VERSION,
+          kind: admission.kind,
+          price_source: admission.priceSource,
+          original_price_provenance: admission.originalPriceProvenance,
+          reference_dropped: admission.referenceDropped,
+          bot_declared: admission.botDeclared,
+          negative_memory: nm.reason,
         },
       },
     },
@@ -141,7 +228,7 @@ export async function enqueueHunterOffer(
       title: prepared.title || candidate.title,
       price,
       original_price: originalPrice,
-      images: prepared.imageUrl ? [prepared.imageUrl, ...prepared.imageUrls] : [],
+      images: extracted.images,
       warnings: prepared.imageFailure ? [prepared.imageFailure] : [],
       approved_at: now,
       updated_at: now,
@@ -160,6 +247,7 @@ export async function enqueueHunterOffer(
       offer_id: result.offerId,
       machine_client_id: machineClientId,
       record_only: true,
+      price_kind: admission.kind,
     },
   });
   await recountBatch(supabase, batchId);

@@ -18,6 +18,12 @@ export type ImageFailureCode =
   | 'NO_PRODUCT_IMAGE_SOURCE'
   | 'RETAILER_UNSUPPORTED';
 
+export type ExtractedPriceSource = Exclude<OfferExtractionOutcome['adapter']['priceSource'], 'none'>;
+
+function pageSource(raw: OfferExtractionOutcome['adapter']['priceSource'] | undefined): ExtractedPriceSource | null {
+  return raw && raw !== 'none' ? raw : null;
+}
+
 export type PreparedMachineCandidate = {
   pageKind: OfferPageKind;
   product: boolean;
@@ -27,6 +33,9 @@ export type PreparedMachineCandidate = {
   store: string | null;
   price: number | null;
   originalPrice: number | null;
+  /** Fuente de la página que dio cada precio; null si el extractor no la identificó. */
+  priceSource: ExtractedPriceSource | null;
+  originalPriceSource: ExtractedPriceSource | null;
   category: string | null;
   currency: string | null;
   retailer: string | null;
@@ -102,6 +111,8 @@ export async function prepareMachineCandidateOffer(
       store: null,
       price: null,
       originalPrice: null,
+      priceSource: null,
+      originalPriceSource: null,
       category: null,
       currency,
       retailer: null,
@@ -133,6 +144,8 @@ export async function prepareMachineCandidateOffer(
     store: outcome.body.store,
     price,
     originalPrice: outcome.body.suggested_original_price,
+    priceSource: pageSource(outcome.adapter?.priceSource),
+    originalPriceSource: pageSource(outcome.adapter?.originalPriceSource),
     category: outcome.body.suggested_category,
     currency,
     retailer: outcome.adapter.provider ?? outcome.core?.provider ?? null,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { discountIsVerified, evidenceFreshness, evidenceLevel } from '@/lib/despensa/evidence';
-import { DESPENSA_RANK_RULES, rankDespensa } from '@/lib/despensa/rank';
+import { DESPENSA_RANK_RULES, despensaSignals, rankDespensa, spreadStores, unitPriceStandings } from '@/lib/despensa/rank';
 import { despensaFeedMetrics } from '@/lib/despensa/metrics';
 
 const NOW = new Date('2026-10-11T12:00:00.000Z');
@@ -143,5 +143,35 @@ describe('métricas del listado', () => {
       NOW,
     );
     expect(withOrigin.machineShare).toBeCloseTo(1 / 3);
+  });
+});
+
+describe('ranking v2: precio unitario comparable y diversidad', () => {
+  it('dentro de la misma variante, el precio por kilo más bajo va antes que el más alto', () => {
+    const list = [
+      offer({ id: 'caro', title: 'Arroz blanco 1 kg', discountPrice: 40, createdAt: hoursAgo(1) }),
+      offer({ id: 'barato', title: 'Arroz blanco 2 kg', discountPrice: 50, createdAt: hoursAgo(10) }),
+    ];
+    expect(ids(rankDespensa(list, { now: NOW }).ranked)).toEqual(['barato', 'caro']);
+  });
+
+  it('variantes distintas no se comparan entre sí', () => {
+    const list = [
+      offer({ id: 'tortilla', title: 'Tortillas de maíz 1 kg', discountPrice: 30, createdAt: hoursAgo(1) }),
+      offer({ id: 'harina', title: 'Harina de maíz 1 kg', discountPrice: 20, createdAt: hoursAgo(10) }),
+    ];
+    const signals = list.map((o) => despensaSignals(o, { now: NOW }));
+    expect(unitPriceStandings(signals)).toEqual(['no_peer', 'no_peer']);
+    expect(ids(rankDespensa(list, { now: NOW }).ranked)).toEqual(['tortilla', 'harina']);
+  });
+
+  it('una tienda no monopoliza el inicio y no se borra nada', () => {
+    const list = [
+      ...['a1', 'a2', 'a3', 'a4', 'a5'].map((id, i) => offer({ id, title: `Producto ${id}`, sourceHost: 'amazon.com.mx', createdAt: hoursAgo(1 + i) })),
+      offer({ id: 'w1', title: 'Producto w1', sourceHost: 'walmart.com.mx', createdAt: hoursAgo(20) }),
+    ];
+    const ranked = ids(rankDespensa(list, { now: NOW }).ranked);
+    expect(ranked).toEqual(['a1', 'a2', 'a3', 'w1', 'a4', 'a5']);
+    expect(spreadStores([{ sourceHost: 'x' }, { sourceHost: 'x' }], 1)).toHaveLength(2);
   });
 });
