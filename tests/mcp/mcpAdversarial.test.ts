@@ -169,7 +169,7 @@ describe('adversarial MCP: el envío no controla autoría, origen ni estado', ()
   it('campos inyectados se ignoran; autor = bot del cliente autenticado, ítem en INGESTED, sin ofertas', async () => {
     const before = snapshot(PROTECTED);
     const { payload } = await call('submit_deal_candidates', {
-      idempotencyKey: 'adv-inject-0001',
+      runId: 'adv-run', idempotencyKey: 'adv-inject-0001',
       authorProfileId: HUMAN,
       machine_client_id: OTHER_CLIENT_ID,
       created_by: HUMAN,
@@ -212,7 +212,7 @@ describe('adversarial MCP: lecturas acotadas', () => {
   it('ninguna respuesta expone token_hash, autor, otros clientes, usuarios ni CRON_SECRET', async () => {
     const outputs = [
       (await call('get_submission_rules')).raw,
-      (await call('submit_deal_candidates', { idempotencyKey: 'adv-leak-0001', candidates: [candidate] })).raw,
+      (await call('submit_deal_candidates', { runId: 'adv-run', idempotencyKey: 'adv-leak-0001', candidates: [candidate] })).raw,
       (await call('check_offer_exists', { url: candidate.url })).raw,
     ].join('\n');
     for (const secret of [mine.hash, other.hash, other.prefix, OTHER_CLIENT_ID, BOT_AUTHOR, HUMAN, 'cron-secret-value-123456', 'service-role-key-value-123456', 'token_hash', 'author_profile_id']) {

@@ -28,6 +28,11 @@ export const MACHINE_CLIENT_STATUSES = ['active', 'paused', 'revoked'] as const;
 export type MachineClientStatus = (typeof MACHINE_CLIENT_STATUSES)[number];
 
 export const MCP_MAX_CANDIDATES_PER_CALL = 20;
+/**
+ * Piloto: candidatos aceptados como máximo por `runId` y cliente, sumando todas sus llamadas.
+ * Siempre activo mientras dure el piloto; `runId` es obligatorio. Relajarlo exige un cambio de código.
+ */
+export const MCP_PILOT_MAX_ACCEPTED_PER_RUN = 5;
 export const MCP_TITLE_MAX = 200;
 export const MCP_NOTE_MAX = 280;
 export const MCP_URL_MAX = 2048;
@@ -70,6 +75,7 @@ export const CANDIDATE_REJECTION_CODES = [
   'INVALID_OBSERVED_AT',
   'DUPLICATE_IN_REQUEST',
   'ALREADY_IN_REVIEW',
+  'RUN_CAP_REACHED',
 ] as const;
 export type CandidateRejectionCode = (typeof CANDIDATE_REJECTION_CODES)[number];
 

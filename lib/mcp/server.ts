@@ -9,6 +9,7 @@ import {
   MCP_CURRENCY,
   MCP_MAX_CANDIDATES_PER_CALL,
   MCP_NOTE_MAX,
+  MCP_PILOT_MAX_ACCEPTED_PER_RUN,
   MCP_TITLE_MAX,
   MCP_TOOL_SCOPE,
   type McpErrorCode,
@@ -115,10 +116,14 @@ export function buildMcpServer(ctx: McpRequestContext): McpServer {
       title: 'Enviar candidatos de ofertas',
       description:
         `Propone hasta ${MCP_MAX_CANDIDATES_PER_CALL} candidatos de ofertas en México (MXN) para revisión humana. ` +
+        `Como máximo ${MCP_PILOT_MAX_ACCEPTED_PER_RUN} aceptados por runId; el resto vuelve como RUN_CAP_REACHED. ` +
         'No publica nada. Reusar idempotencyKey con el mismo payload devuelve el envío original.',
       inputSchema: {
         idempotencyKey: z.string().describe('8-128 caracteres [A-Za-z0-9._:-], único por envío.'),
-        runId: z.string().optional().describe('Identificador opcional de tu corrida, 1-128 caracteres.'),
+        runId: z
+          .string()
+          .optional()
+          .describe('Obligatorio durante el piloto. Identificador de tu corrida, 1-128 caracteres [A-Za-z0-9._:-].'),
         candidates: z
           .array(candidateItemSchema)
           .describe(`Lista de 1 a ${MCP_MAX_CANDIDATES_PER_CALL} candidatos.`),

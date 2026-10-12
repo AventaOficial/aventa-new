@@ -189,5 +189,6 @@ export function mcpUniqueIndexes(): MemoryDb['unique'] {
       { columns: ['identity_key'], where: (r) => OPEN_ITEM_STATUSES.has(String(r.status)) },
     ],
     offers: [{ columns: ['ingestion_identity_key'], where: (r) => r.ingestion_identity_key != null && r.deleted_at == null }],
+    ingest_cycle_locks: [{ columns: ['lock_key'] }],
   };
 }
