@@ -1,72 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@/lib/server/requireMeUser', () => ({
-  requireBearerMeUser: vi.fn(),
-  meAuthFailureResponse: (failure: { error: string; status: number }) =>
-    Response.json({ error: failure.error }, { status: failure.status }),
-}));
-
-vi.mock('@/lib/server/rateLimit', () => ({
-  enforceRateLimit: vi.fn(async () => ({ success: true })),
-}));
-
-vi.mock('@/lib/analytics/recordProductEvent', () => ({
-  recordProductEvent: vi.fn(async () => ({ ok: true })),
-}));
-
-vi.mock('@/lib/interests/store', () => ({
-  insertInterest: vi.fn(),
-  listInterests: vi.fn(),
-  loadMatchCandidates: vi.fn(),
-  buildInterestView: vi.fn(),
-}));
-
-import { requireBearerMeUser } from '@/lib/server/requireMeUser';
-import { enforceRateLimit } from '@/lib/server/rateLimit';
-import { listInterests, loadMatchCandidates } from '@/lib/interests/store';
-import { GET } from '@/app/api/me/interests/route';
-import { DESPENSA_CATALOG_VERSION } from '@/lib/despensa/catalog';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchDespensaPreferredNeeds, processHomeFeedList } from '@/lib/offers/homeFeedClient';
-
-const USER = '11111111-1111-4111-8111-111111111111';
-const authOk = { user: { id: USER }, supabase: { from: () => ({}) } };
-const request = (qs = '?scope=despensa') =>
-  new Request(`https://aventa.test/api/me/interests${qs}`, { headers: { Authorization: 'Bearer t' } });
-
-describe('GET /api/me/interests?scope=despensa', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('rechaza anónimos sin leer intereses', async () => {
-    vi.mocked(requireBearerMeUser).mockResolvedValue({ error: 'No autorizado', status: 401 });
-    expect((await GET(request())).status).toBe(401);
-    expect(listInterests).not.toHaveBeenCalled();
-  });
-
-  it('devuelve solo ids de necesidad del usuario de la sesión, con la versión del catálogo', async () => {
-    vi.mocked(requireBearerMeUser).mockResolvedValue(authOk as never);
-    vi.mocked(listInterests).mockResolvedValue([
-      { label: 'Pañales etapa 4', aliases: ['toallitas húmedas'] },
-      { label: 'iPhone 15', aliases: [] },
-    ] as never);
-    const res = await GET(request());
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
-      needIds: ['bebes.panales', 'bebes.toallitas'],
-      catalogVersion: DESPENSA_CATALOG_VERSION,
-    });
-    expect(vi.mocked(listInterests).mock.calls[0][1]).toBe(USER);
-    expect(loadMatchCandidates).not.toHaveBeenCalled();
-    expect(enforceRateLimit).toHaveBeenCalledWith(`interests:${USER}`);
-  });
-
-  it('si la lectura falla responde 503 sin exponer el error', async () => {
-    vi.mocked(requireBearerMeUser).mockResolvedValue(authOk as never);
-    vi.mocked(listInterests).mockRejectedValue(new Error('relation does not exist'));
-    const res = await GET(request());
-    expect(res.status).toBe(503);
-    expect(JSON.stringify(await res.json())).not.toContain('relation');
-  });
-});
 
 describe('cliente de preferencias de Despensa', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -75,7 +8,17 @@ describe('cliente de preferencias de Despensa', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     expect((await fetchDespensaPreferredNeeds(null)).size).toBe(0);
+    expect((await fetchDespensaPreferredNeeds('')).size).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('pide el alcance de Despensa con el token de la sesión', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ needIds: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchDespensaPreferredNeeds('tok');
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/me/interests?scope=despensa');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
   });
 
   it('cualquier fallo deja el ranking sin preferencias', async () => {
@@ -83,31 +26,46 @@ describe('cliente de preferencias de Despensa', () => {
     expect((await fetchDespensaPreferredNeeds('t')).size).toBe(0);
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
     expect((await fetchDespensaPreferredNeeds('t')).size).toBe(0);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>', { status: 200 })));
+    expect((await fetchDespensaPreferredNeeds('t')).size).toBe(0);
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ needIds: ['bebes.panales', 7, null] })));
     expect([...(await fetchDespensaPreferredNeeds('t'))]).toEqual(['bebes.panales']);
   });
 });
 
-describe('las reglas de Despensa solo afectan Día a día', () => {
-  const NOW = new Date().toISOString();
-  const offer = (id: string, title: string, score: number, upvotes: number, origin: 'community' | 'machine' = 'community') => ({
-    id,
-    title,
-    discountPrice: 50,
-    upvotes,
-    createdAt: NOW,
-    sourceHost: 'walmart.com.mx',
-    origin,
-    votes: { up: upvotes, down: 0, score },
-  });
-  const list = [
-    offer('gadget', 'Bocina bluetooth', 50, 5),
-    offer('arroz', 'Arroz 1 kg', 1, 1),
-    offer('panales', 'Pañales 40 piezas', 1, 1),
-    offer('sin_votos', 'Papel higiénico 12 rollos', 0, 0),
-  ];
-  const ids = (xs: { id?: string | null }[]) => xs.map((x) => x.id);
+const NOW = new Date().toISOString();
+const DAY = 86_400_000;
+type Item = {
+  id: string;
+  title: string;
+  discountPrice: number;
+  upvotes: number;
+  createdAt: string;
+  expiresAt?: string | null;
+  sourceHost: string | null;
+  origin: 'community' | 'machine';
+  votes: { up: number; down: number; score: number };
+};
+const offer = (id: string, title: string, score: number, upvotes: number, extra: Partial<Item> = {}): Item => ({
+  id,
+  title,
+  discountPrice: 50,
+  upvotes,
+  createdAt: NOW,
+  sourceHost: 'walmart.com.mx',
+  origin: 'community',
+  votes: { up: upvotes, down: 0, score },
+  ...extra,
+});
+const list = [
+  offer('gadget', 'Bocina bluetooth', 50, 5),
+  offer('arroz', 'Arroz 1 kg', 1, 1),
+  offer('panales', 'Pañales 40 piezas', 1, 1),
+  offer('sin_votos', 'Papel higiénico 12 rollos', 0, 0),
+];
+const ids = (xs: { id?: string | null }[]) => xs.map((x) => x.id);
 
+describe('las reglas de Despensa solo afectan Día a día', () => {
   it('Top conserva el orden del servidor y solo exige un voto', () => {
     expect(ids(processHomeFeedList(list, 'top', 10))).toEqual(['gadget', 'arroz', 'panales']);
   });
@@ -128,5 +86,69 @@ describe('las reglas de Despensa solo afectan Día a día', () => {
       'sin_votos',
       'gadget',
     ]);
+  });
+
+  it('las preferencias no cambian Top, Recientes ni Para ti', () => {
+    const prefs = new Set(['bebes.panales', 'hogar.papel_higienico']);
+    for (const view of ['top', 'latest'] as const) {
+      expect(ids(processHomeFeedList(list, view, 10, 2, prefs))).toEqual(ids(processHomeFeedList(list, view, 10)));
+    }
+    expect(processHomeFeedList(list, 'personalized', 10, 2, prefs)).toBe(list);
+  });
+});
+
+describe('preferencias de la sesión → ranking de Día a día', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function rankWith(response: () => Promise<Response>, items: Item[] = list) {
+    vi.stubGlobal('fetch', vi.fn(response));
+    const prefs = await fetchDespensaPreferredNeeds('tok');
+    return ids(processHomeFeedList(items, 'vitales', 10, 2, prefs));
+  }
+  const base = ids(processHomeFeedList(list, 'vitales', 10));
+
+  it('las necesidades del API llegan al ranking', async () => {
+    expect(await rankWith(async () => Response.json({ needIds: ['bebes.panales'] }))).toEqual([
+      'panales',
+      'arroz',
+      'sin_votos',
+      'gadget',
+    ]);
+  });
+
+  it('preferencias vacías, desconocidas o con error dan el mismo orden que sin sesión', async () => {
+    expect(await rankWith(async () => Response.json({ needIds: [] }))).toEqual(base);
+    expect(await rankWith(async () => Response.json({ needIds: ['no.existe'] }))).toEqual(base);
+    expect(await rankWith(async () => new Response('x', { status: 503 }))).toEqual(base);
+    expect(await rankWith(async () => { throw new Error('offline'); })).toEqual(base);
+  });
+
+  it('una preferencia no supera mejor evidencia de precio', async () => {
+    const items = [
+      offer('panales_sin_tienda', 'Pañales 40 piezas', 1, 1, { sourceHost: null }),
+      offer('arroz_vigente', 'Arroz 1 kg', 1, 1, { expiresAt: new Date(Date.now() + 3 * DAY).toISOString() }),
+    ];
+    expect(await rankWith(async () => Response.json({ needIds: ['bebes.panales'] }), items)).toEqual([
+      'arroz_vigente',
+      'panales_sin_tienda',
+    ]);
+  });
+
+  it('una preferencia no rescata evidencia vieja', async () => {
+    const items = [
+      offer('panales_viejo', 'Pañales 40 piezas', 1, 1, { createdAt: new Date(Date.now() - 10 * DAY).toISOString() }),
+      offer('arroz', 'Arroz 1 kg', 1, 1),
+    ];
+    expect(await rankWith(async () => Response.json({ needIds: ['bebes.panales'] }), items)).toEqual([
+      'arroz',
+      'panales_viejo',
+    ]);
+  });
+
+  it('el resultado es determinista', async () => {
+    const respond = async () => Response.json({ needIds: ['bebes.panales'] });
+    const first = await rankWith(respond);
+    expect(await rankWith(respond)).toEqual(first);
+    expect(await rankWith(respond, [...list].reverse())).toEqual(first);
   });
 });

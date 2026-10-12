@@ -134,3 +134,24 @@ Observaciones:
 - Feed con datos reales sobre esta rama (en local no hay base de datos; se verificó el estado de error).
 - Latencia de la lectura de intereses y su rate limit con tráfico real.
 - Vista móvil de la rama.
+
+## 8. Promesa de ahorro (auditoría, sin cambios de código)
+
+Todas las superficies calculan el ahorro como `original_price − price`, sin leer procedencia ni historial:
+
+| Superficie | Muestra | Fuente |
+| --- | --- | --- |
+| `OfferCard` (feed), `FeaturedOfferCard`, `OfferModal`, `OfferPageContent` (detalle) | «Ahorras X», precio tachado y «-N%» | `offers.original_price` |
+| `ActionBar` (vista previa al publicar) | «Ahorras X» | Lo que escribe el usuario |
+| `opengraph-image`, `lib/distribution/render/telegramMessage.ts`, `lib/email/templates.ts`, `RewardsOfferSelection` | «-N%» o precio tachado | `offers.original_price` |
+| `OfferPriceInsightBlock` (detalle, «Información adicional») | Veredicto `strong` / `fair` / `label_only` / `insufficient` | `offer_price_snapshots` (90 días), vía `lib/offers/priceHistory.ts` |
+
+Evidencia de `original_price`:
+- Comunidad: lo escribe quien publica; no hay procedencia.
+- Bots: `insertIngestedOffer` lo guarda siempre que sea mayor que el precio. La procedencia (`listing_card`, `source_explicit`, `api_quote` frente a `candidate_declared`) se calcula en ingesta (`lib/supply/intelligence/priceProvenance.ts`, `machinePriceProvenance.ts`), pero no llega a ninguna columna que lean el feed o el detalle.
+- El único juicio con historial es `OfferPriceInsightBlock`, y solo en el detalle.
+
+Corrección acotada propuesta (copy, sin datos nuevos ni migración), pendiente de decisión de producto:
+1. Cambiar «Ahorras X» por «X menos que el precio de lista» en las cuatro superficies públicas; el precio tachado y «-N%» se quedan, porque ya se leen como precio de lista.
+2. Cuando `OfferPriceInsightBlock` devuelva `label_only`, ocultar «-N%» en el detalle y dejar el veredicto.
+3. Para hablar de ahorro confirmado hace falta persistir la procedencia o exponer el historial al feed; eso sí requiere migración y no se propone aquí.
