@@ -8,7 +8,9 @@
  *   fuerte, la clave `url:` de `resolveIngestionIdentity`, que el índice único
  *   `idx_offers_active_ingestion_identity` deduplica. Con `url:` la memoria negativa no
  *   puede evaluar; la oferta llega a moderación marcada (`identity: 'url_fingerprint'`).
- *   Sin ninguna de las dos, el candidato queda retenido;
+ *   En Amazon y Mercado Libre no hay fallback: el writer resuelve sus enlaces cortos a un
+ *   ASIN / item id, así que la clave persistida no sería la evaluada aquí y la memoria
+ *   negativa quedaría sin aplicar. Sin identidad utilizable, el candidato queda retenido;
  * - precio actual positivo con fuente de página;
  * - título de baja calidad (`isLowQualityTitle`, con la misma configuración de bots);
  * - precio original solo con procedencia explícita de la página (`source_explicit`) y mayor
@@ -20,6 +22,12 @@
  * La memoria negativa y la extracción completa se aplican antes, en `enqueueHunterOffer`.
  * Ninguna clasificación (despensa u otra) relaja estos controles.
  */
+import {
+  isAmazonExpandableHost,
+  isOfferAmazonHost,
+  isOfferMeliLaHost,
+  isOfferMercadoLibreHost,
+} from '@/lib/offers/commerceHostAllowlist';
 import { strongProductFingerprintForUrl } from '@/lib/offers/findDuplicateOffer';
 import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
@@ -63,6 +71,17 @@ export type MachineCandidateAdmission =
   /** Terminal: el control equivale a una supresión de S6.1. */
   | { outcome: 'reject'; code: MachineCandidateRejectCode };
 
+/** Hosts cuyo enlace `resolveAndNormalizeAffiliateOfferUrl` puede convertir en `amz:` / `ml:`. */
+function writerMayResolveStrongIdentity(url: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return true;
+  }
+  return isOfferAmazonHost(host) || isAmazonExpandableHost(host) || isOfferMercadoLibreHost(host) || isOfferMeliLaHost(host);
+}
+
 export function evaluateMachineCandidateAdmission(input: {
   url: string;
   prepared: Pick<
@@ -74,7 +93,7 @@ export function evaluateMachineCandidateAdmission(input: {
 }): MachineCandidateAdmission {
   const { prepared } = input;
   const strong = strongProductFingerprintForUrl(input.url);
-  const fallback = strong ? null : resolveIngestionIdentity(input.url);
+  const fallback = strong || writerMayResolveStrongIdentity(input.url) ? null : resolveIngestionIdentity(input.url);
   const identityKey = strong ?? (fallback?.strategy === 'url_fingerprint' ? fallback.key : null);
   if (!identityKey) return { outcome: 'hold', code: 'NO_STRONG_IDENTITY' };
   const identity: MachineCandidateIdentity = strong ? 'strong' : 'url_fingerprint';
