@@ -4,6 +4,9 @@ import {
   DESPENSA_CATALOG_VERSION,
   DESPENSA_FAMILIES,
   DESPENSA_NEEDS,
+  DESPENSA_OFFICIAL_REFERENCES,
+  despensaNeedById,
+  despensaVariant,
 } from '@/lib/despensa/catalog';
 import { classifyDespensaText, despensaNeedIdsFromInterests } from '@/lib/despensa/classify';
 import { normalizeInterestText } from '@/lib/interests/normalize';
@@ -38,12 +41,55 @@ describe('catálogo de Despensa', () => {
     }
   });
 
-  it('solo usa categorías existentes y no declara listas oficiales que no tiene', () => {
+  it('solo usa categorías existentes y solo declara listas oficiales registradas', () => {
     const categoryIds = new Set(ALL_CATEGORIES.map((c) => c.value));
+    const refIds = new Set(DESPENSA_OFFICIAL_REFERENCES.map((r) => r.id));
     for (const need of DESPENSA_NEEDS) {
       for (const cat of need.expectedCategories) expect(categoryIds.has(cat)).toBe(true);
-      expect(need.basis).not.toBe('official_list');
-      if (need.status === 'hypothesis') expect(need.basis).toBe('hypothesis');
+      if (need.basis === 'official_list') {
+        expect(need.officialRefs?.length).toBeGreaterThan(0);
+        for (const ref of need.officialRefs ?? []) expect(refIds.has(ref), ref).toBe(true);
+      } else {
+        expect(need.officialRefs ?? []).toEqual([]);
+      }
+      if (need.status !== 'active') expect(need.basis).toBe('hypothesis');
+    }
+  });
+
+  it('cada referencia oficial cita fuente, fecha de lectura y apunta a necesidades y variantes activas', () => {
+    for (const ref of DESPENSA_OFFICIAL_REFERENCES) {
+      expect(ref.url).toMatch(/^https:\/\/[a-z0-9.-]+\.gob\.mx\//);
+      expect(ref.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(JSON.stringify(ref.items)).not.toMatch(/precio|\$|costo|mxn/i);
+      for (const item of ref.items) {
+        const need = despensaNeedById(item.needId);
+        expect(need?.status, item.label).toBe('active');
+        expect(need?.officialRefs).toContain(ref.id);
+        if (item.variantId) expect(despensaVariant(item.needId, item.variantId), item.label).not.toBeNull();
+      }
+    }
+    expect(DESPENSA_OFFICIAL_REFERENCES.find((r) => r.id === 'profeco_pacic_24')?.items).toHaveLength(24);
+  });
+
+  it('cada sinónimo de variante clasifica a su necesidad y a esa variante', () => {
+    for (const need of activeDespensaNeeds()) {
+      const ids = (need.variants ?? []).map((v) => v.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const variant of need.variants ?? []) {
+        for (const synonym of variant.synonyms) {
+          expect(normalizeInterestText(synonym)).toBe(synonym);
+          const hit = classifyDespensaText(synonym);
+          expect(hit?.needId, synonym).toBe(need.id);
+          expect(hit?.variantId, synonym).toBe(variant.id);
+        }
+      }
+    }
+  });
+
+  it('marca cada necesidad con tipo y subcategoría', () => {
+    for (const need of activeDespensaNeeds()) {
+      expect(['esencial', 'cotidiano', 'discrecional']).toContain(need.kind);
+      expect(need.subcategory.trim().length).toBeGreaterThan(0);
     }
   });
 });
@@ -70,10 +116,30 @@ describe('clasificación por texto', () => {
     ['Sofá café 3 plazas', null],
     ['Audífonos bluetooth', null],
     ['Cafetera de goteo', null],
-    ['Jitomate saladet 1 kg', null],
+    ['Jitomate saladet 1 kg', 'alimentos.verduras'],
+    ['Pechuga de pollo sin hueso 1 kg', 'alimentos.pollo'],
+    ['Croquetas para perro sabor pollo 4 kg', 'mascotas.alimento_perro'],
+    ['Consomé de pollo 400 g', 'alimentos.sal_condimentos'],
+    ['Carne molida de res 500 g', 'alimentos.res'],
+    ['Pan blanco de caja Bimbo 680 g', 'alimentos.pan'],
+    ['Manzana roja 1 kg', 'alimentos.frutas'],
+    ['Funda iPhone color naranja', null],
+    ['Shampoo aroma limón 750 ml', 'higiene.champu'],
+    ['Té de limón 25 sobres', 'alimentos.cafe_te'],
+    ['Papas fritas sabor cebolla 150 g', null],
+    ['Tortillas de maíz 1 kg', 'alimentos.maiz_harina'],
   ];
   it.each(cases)('«%s» → %s', (title, expected) => {
     expect(classifyDespensaText(title)?.needId ?? null).toBe(expected);
+  });
+
+  it('identifica la variante y deja ambigua la que nombra dos', () => {
+    expect(classifyDespensaText('Tortillas de maíz 1 kg')?.variantId).toBe('tortilla_maiz');
+    expect(classifyDespensaText('Harina de maíz Maseca 1 kg')?.variantId).toBe('harina_maiz');
+    expect(classifyDespensaText('Leche entera Lala 1 L')?.variantId).toBe('entera');
+    expect(classifyDespensaText('Leche Lala 1 L')?.variantId).toBeNull();
+    expect(classifyDespensaText('Kit leche entera 1 L y leche deslactosada 1 L')?.variantId).toBeNull();
+    expect(classifyDespensaText('Papel higiénico 4 rollos')?.variantId).toBeNull();
   });
 
   it('reporta la versión del catálogo usada', () => {

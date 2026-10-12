@@ -21,6 +21,7 @@ import {
   MCP_TOOLS,
 } from '@/lib/mcp/contract';
 import { isMcpIngestEnabled } from '@/lib/mcp/flags';
+import { buildDespensaMissionBrief } from '@/lib/despensa/missions';
 import type { McpQuota } from '@/lib/mcp/submissions';
 
 export function supportedStoreDomains(): string[] {
@@ -66,5 +67,6 @@ export function buildSubmissionRules(client: MachineClientContext, quota: McpQuo
     supportedStores: supportedStoreDomains(),
     tools: MCP_TOOLS.map((name) => ({ name, scope: MCP_TOOL_SCOPE[name] })),
     grantedScopes: [...client.scopes],
+    despensa: buildDespensaMissionBrief(),
   };
 }

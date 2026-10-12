@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Wallet } from 'lucide-react';
+import { DespensaBudgetEditor } from '@/app/components/feed/DespensaBudgetCard';
+import { useDespensaBudget } from '@/app/components/feed/useDespensaBudget';
+import { describeDespensaBudget } from '@/lib/despensa/budget';
+import { DESPENSA_BUDGET_COPY } from '@/lib/despensa/budgetCopy';
 import { MeSpaceShell, meCardClass, meHeroActionClass } from '@/app/me/dashboard/MeSectionPage';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { INTERESTS_SECTION } from '@/lib/interests/copy';
@@ -275,6 +279,8 @@ export default function InterestsPage() {
         </div>
       </div>
 
+      <DespensaBudgetSettings />
+
       <OfferGroup
         title={INTERESTS_SECTION.personalHeading}
         empty={INTERESTS_SECTION.personalEmpty}
@@ -288,6 +294,32 @@ export default function InterestsPage() {
         onOpen={(id) => track('interest_discovery_clicked', id)}
       />
     </MeSpaceShell>
+  );
+}
+
+function DespensaBudgetSettings() {
+  const { showToast } = useUI();
+  const { budget, ready, saving, save } = useDespensaBudget('me_intereses');
+  if (!ready) return null;
+  return (
+    <section className={`${meCardClass} mt-6 p-4 sm:p-5`} aria-labelledby="despensa-budget-settings">
+      <div className="flex items-center gap-2">
+        <Wallet className="h-4 w-4 text-violet-700 dark:text-violet-300" aria-hidden />
+        <h2 id="despensa-budget-settings" className="text-[18px] font-semibold">{DESPENSA_BUDGET_COPY.settingsTitle}</h2>
+      </div>
+      <p className="mt-1 text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
+        {budget ? `${DESPENSA_BUDGET_COPY.activePrefix} ${describeDespensaBudget(budget)}.` : DESPENSA_BUDGET_COPY.settingsEmpty}
+      </p>
+      <div className="mt-3">
+        <DespensaBudgetEditor
+          key={budget?.updatedAt ?? 'new'}
+          initial={budget}
+          saving={saving}
+          onSave={(next) => void save(next).then((ok) => showToast(ok ? 'Presupuesto guardado.' : DESPENSA_BUDGET_COPY.saveFailed))}
+          onClear={budget ? () => void save(null).then((ok) => showToast(ok ? 'Presupuesto eliminado.' : DESPENSA_BUDGET_COPY.saveFailed)) : undefined}
+        />
+      </div>
+    </section>
   );
 }
 

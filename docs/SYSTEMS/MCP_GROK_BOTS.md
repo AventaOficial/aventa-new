@@ -510,3 +510,9 @@ order by created_at desc limit 20;
 - Una llamada rechazada por rate limit (429/503) no deja fila en `machine_client_calls`: ocurre antes de resolver la herramienta.
 - Redis compartido entre staging y production: el aislamiento es lógico, no físico. Un token de Upstash compartido permite técnicamente a quien lo tenga leer o borrar keys del otro entorno; el código nunca lo hace, pero el riesgo existe fuera del código. También comparten cuota, memoria y latencia de Upstash: una ráfaga en staging puede afectar a production.
 - El marcador verificado se cachea 60 s por instancia: si alguien cambia el marcador, las instancias vivas tardan hasta 60 s en notarlo.
+
+## 19. Lotes de despensa
+
+- `get_submission_rules` incluye `despensa` (solo lectura): misiones priorizadas por la canasta oficial, variantes y reglas de evidencia. No hay herramienta nueva.
+- Los bots solo descubren: no escriben en la base, no publican, no tocan votos, favoritos ni economía, y no inventan observaciones ni reutilizan un precio como observación independiente.
+- Preparación y envío controlado: `scripts/despensa-grok-batch.ts` (ver `AUDIT_despensa_pilot.md` §9). El primer lote real no pasa de 5 candidatos y requiere `MCP_INGEST_ENABLED` y un token autorizado.

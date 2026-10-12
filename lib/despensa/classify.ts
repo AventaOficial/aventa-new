@@ -9,6 +9,8 @@ import {
 export type DespensaClassification = {
   needId: string;
   family: DespensaFamilyId;
+  /** Variante identificada; null si la necesidad no tiene variantes, no se nombra o el texto nombra varias. */
+  variantId: string | null;
   matchedSynonym: string;
   catalogVersion: string;
 };
@@ -16,6 +18,15 @@ export type DespensaClassification = {
 function phraseIndex(hay: string, phrase: string): number {
   const idx = ` ${hay} `.indexOf(` ${phrase} `);
   return idx;
+}
+
+function variantOf(need: DespensaNeed, normalized: string): string | null {
+  if (!need.variants?.length) return null;
+  const hits = new Set<string>();
+  for (const variant of need.variants) {
+    if (variant.synonyms.some((s) => phraseIndex(normalized, s) >= 0)) hits.add(variant.id);
+  }
+  return hits.size === 1 ? [...hits][0] : null;
 }
 
 /**
@@ -46,6 +57,7 @@ export function classifyDespensaText(text: string | null | undefined): DespensaC
   return {
     needId: best.need.id,
     family: best.need.family,
+    variantId: variantOf(best.need, normalized),
     matchedSynonym: best.synonym,
     catalogVersion: DESPENSA_CATALOG_VERSION,
   };
