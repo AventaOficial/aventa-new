@@ -68,6 +68,7 @@ export default function FeaturedOfferCard({
           ratioClass="aspect-[4/3]"
           unoptimized={imageUnoptimized}
           className="rounded-xl"
+          telemetry={{ surface: 'featured_card', offerId }}
         />
         {discountPct >= 1 ? (
           <span className="absolute left-5 top-4 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">

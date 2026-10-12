@@ -3,8 +3,9 @@
 import Image from 'next/image';
 import { useState, type SyntheticEvent } from 'react';
 import { Sparkles } from 'lucide-react';
-import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
 import { offerFrameMode, readEdgeTone, type EdgeTone } from '@/lib/offers/media/edgeTone';
+import { isImageElementBroken, resolveOfferImageSource } from '@/lib/offers/media/offerImageSource';
+import { reportOfferImageFailure, type OfferImageSurface } from '@/lib/offers/media/imageFailureTelemetry';
 
 type OfferMediaProps = {
   src?: string | null;
@@ -22,20 +23,12 @@ type OfferMediaProps = {
   /** Thumbnails (≤64px): tighter padding and an icon-only fallback. */
   compact?: boolean;
   className?: string;
+  /** Sampled load-failure signal (host + surface + offer only). */
+  telemetry?: { surface: OfferImageSurface; offerId?: string | null };
 };
 
 /** Same photo appears in feed, detail and favorites: measure its edge once per session. */
 const toneCache = new Map<string, EdgeTone>();
-
-type Source = { url: string; optimized: boolean } | null;
-
-/** next/image only for configured hosts; other https stores still render (CSP allows https images). */
-function resolveSource(src: string | null | undefined): Source {
-  const url = typeof src === 'string' ? src.trim() : '';
-  if (!url) return null;
-  if (isNextImageAllowedSrc(url)) return { url, optimized: true };
-  return /^https:\/\//i.test(url) ? { url, optimized: false } : null;
-}
 
 /**
  * One frame for offer photos, reused by every product surface.
@@ -54,8 +47,9 @@ export default function OfferMedia({
   priority = false,
   compact = false,
   className = '',
+  telemetry,
 }: OfferMediaProps) {
-  const source = resolveSource(src);
+  const source = resolveOfferImageSource(src);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [tone, setTone] = useState<{ src: string; tone: EdgeTone } | null>(null);
   const show = source != null && failedSrc !== source.url;
@@ -69,7 +63,18 @@ export default function OfferMedia({
     toneCache.set(source.url, measured);
     setTone({ src: source.url, tone: measured });
   };
-  const onError = () => setFailedSrc(source?.url ?? null);
+  const markFailed = () => {
+    if (!source) return;
+    setFailedSrc(source.url);
+    if (telemetry) {
+      reportOfferImageFailure({ src: source.url, surface: telemetry.surface, offerId: telemetry.offerId });
+    }
+  };
+  const onError = () => markFailed();
+  // Server-rendered photos can fail before hydration, when React has not attached onError yet.
+  const attachMain = (node: HTMLImageElement | null) => {
+    if (isImageElementBroken(node)) markFailed();
+  };
 
   const mode = offerFrameMode(edge, fit);
   const plated = show && (mode === 'plate' || mode === 'neutral');
@@ -94,6 +99,7 @@ export default function OfferMedia({
           priority={priority}
           unoptimized={unoptimized}
           aria-hidden={isBackdrop || undefined}
+          ref={isBackdrop ? undefined : attachMain}
           className={isBackdrop ? backdropClass : mainClass}
           onLoad={isBackdrop ? undefined : onLoad}
           onError={isBackdrop ? undefined : onError}
@@ -109,6 +115,7 @@ export default function OfferMedia({
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
         referrerPolicy="no-referrer"
+        ref={isBackdrop ? undefined : attachMain}
         className={`absolute inset-0 h-full w-full ${isBackdrop ? backdropClass : mainClass}`}
         onLoad={isBackdrop ? undefined : onLoad}
         onError={isBackdrop ? undefined : onError}

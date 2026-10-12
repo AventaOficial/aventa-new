@@ -50,7 +50,8 @@ import AchievementSigil from '@/app/components/achievements/AchievementSigil';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
-import { isNextImageAllowedSrc } from '@/lib/offers/isNextImageAllowedSrc';
+import { resolveOfferImageSource } from '@/lib/offers/media/offerImageSource';
+import { PUBLIC_NAVBAR_MOBILE_CLEARANCE_CLASS } from '@/lib/ui/publicNavbarOffset';
 import { fetchBatchUserData, type VoteValueMap, type FavoriteMap } from '@/lib/offers/batchUserData';
 import { logClientError, notifyUserError } from '@/lib/utils/handleError';
 import OfferMedia from '@/app/components/offers/OfferMedia';
@@ -249,7 +250,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const descriptionLong = descriptionText.length > 220 || descriptionText.split('\n').length > 4;
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
   const rawCurrentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';
-  const currentImage = isNextImageAllowedSrc(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
+  const currentImage = resolveOfferImageSource(rawCurrentImage) ? rawCurrentImage : '/placeholder.png';
   const publicPath = buildOfferPublicPath(offer.id, offer.title);
   const offerAuthorProfileHref =
     offer.author?.username ? publicProfilePath(offer.author.username, offer.author.userId, offer.author.slug) : null;
@@ -517,7 +518,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
   return (
     <ClientLayout>
-      <article className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+      <article className={`max-w-4xl mx-auto px-4 ${PUBLIC_NAVBAR_MOBILE_CLEARANCE_CLASS} pb-8 md:py-12`}>
         <nav className="flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
           <Link href="/" className="hover:text-violet-600 dark:hover:text-violet-400">Inicio</Link>
           <span aria-hidden>/</span>
@@ -738,6 +739,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 priority
                 unoptimized={currentImage.startsWith('/') || currentImage.includes('placehold.co')}
                 className="rounded-xl"
+                telemetry={{ surface: 'detail', offerId: offer.id }}
               />
               <button
                 type="button"
@@ -751,6 +753,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               <OfferImageThumbs
                 images={allImages}
                 activeIndex={imageIndex}
+                offerId={offer.id}
                 onSelect={(index) => {
                   const next = selectGalleryImage(index);
                   setImageIndex(next.index);
@@ -764,6 +767,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 onClose={() => setGalleryOpen(false)}
                 onIndexChange={setImageIndex}
                 alt={offer.title}
+                offerId={offer.id}
               />
             </div>
             <div className="p-6 md:p-8 flex-1">

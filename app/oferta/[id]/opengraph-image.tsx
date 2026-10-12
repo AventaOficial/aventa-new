@@ -3,6 +3,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { extractOfferIdFromPathSegment } from '@/lib/offerPath';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { compareWithListPrice, listPercentText } from '@/lib/offers/listPriceComparison';
+import { OFFER_SHARE_PREVIEW_STATUS, presentOfferSharePreview } from '@/lib/offers/offerSharePreview';
+import { normalizeOfferImageUrl } from '@/lib/offers/media/offerImageSource';
 
 export const alt = 'Oferta en AVENTA';
 export const size = { width: 1200, height: 630 };
@@ -39,22 +41,27 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   }
 
   const supabase = createServerClient();
-  const now = new Date().toISOString();
   const { data } = await supabase
     .from('offers')
-    .select('title, price, original_price, store, image_url')
+    .select('title, price, original_price, store, image_url, status, deleted_at, expires_at')
     .eq('id', id)
-    .eq('status', 'approved')
-    .or(`expires_at.is.null,expires_at.gte.${now}`)
+    .eq('status', OFFER_SHARE_PREVIEW_STATUS)
+    .is('deleted_at', null)
     .maybeSingle();
 
-  const offer = data as {
+  const row = data as {
     title?: string;
     price?: number;
     original_price?: number | null;
     store?: string | null;
     image_url?: string | null;
+    status?: string | null;
+    deleted_at?: string | null;
+    expires_at?: string | null;
   } | null;
+  const preview = presentOfferSharePreview(row);
+  const offer = preview.visible ? row : null;
+  const expired = preview.visible && preview.expired;
 
   const title = (offer?.title ?? 'Oferta').slice(0, 90);
   const price = typeof offer?.price === 'number' ? offer.price : null;
@@ -62,7 +69,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const original = listComparison?.listPrice ?? null;
   const discountPct = listComparison?.percent ?? null;
   const store = formatStoreDisplayName(offer?.store) || 'Tienda';
-  const img = offer?.image_url?.startsWith('http') ? offer.image_url : null;
+  const imageUrl = normalizeOfferImageUrl(offer?.image_url);
+  const img = imageUrl.startsWith('http') ? imageUrl : null;
 
   return new ImageResponse(
     (
@@ -144,6 +152,21 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               <span>AVENTA</span>
               <span style={{ color: '#52525b' }}>·</span>
               <span style={{ color: '#a1a1aa' }}>{store}</span>
+              {expired ? (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: '#fbbf24',
+                    border: '1px solid #92400e',
+                    borderRadius: 999,
+                    padding: '4px 12px',
+                  }}
+                >
+                  Expirada
+                </span>
+              ) : null}
             </div>
 
             <div

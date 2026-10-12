@@ -8,6 +8,7 @@ type OfferImageThumbsProps = {
   images: string[];
   activeIndex: number;
   onSelect: (index: number) => void;
+  offerId?: string | null;
 };
 
 /** Miniaturas que se asumen visibles antes de medir el carrusel (SSR / primer render). */
@@ -52,6 +53,7 @@ export default function OfferImageThumbs({
   images,
   activeIndex,
   onSelect,
+  offerId = null,
 }: OfferImageThumbsProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -162,7 +164,15 @@ export default function OfferImageThumbs({
               aria-label={`Foto ${i + 1} de ${images.length}`}
               aria-pressed={selected}
             >
-              <OfferMedia src={src} alt="" sizes="56px" ratioClass="h-full w-full" fit="cover" compact />
+              <OfferMedia
+                src={src}
+                alt=""
+                sizes="56px"
+                ratioClass="h-full w-full"
+                fit="cover"
+                compact
+                telemetry={{ surface: 'detail_thumb', offerId }}
+              />
             </button>
           );
         })}
