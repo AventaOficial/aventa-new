@@ -34,6 +34,7 @@ import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/f
 import {
   applyVitalesFeedTransform,
   fetchHomeFeedFromAPI,
+  limitConsecutiveMachineOffers,
   type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
 import { DEFAULT_MAX_SAME_PRODUCT, resolveMaxSameProduct } from '@/lib/offers/feedDiversity';
@@ -99,6 +100,9 @@ function processHomeFeedList(
   }
   if (viewMode === 'vitales') {
     list = applyVitalesFeedTransform(list, effectiveLimit, maxSameProduct);
+  }
+  if (viewMode === 'latest') {
+    list = limitConsecutiveMachineOffers(list);
   }
   return list;
 }
@@ -436,7 +440,7 @@ function HomeContent() {
       cursor: feedCursor,
     })
       .then(({ items, nextCursor }) => {
-        const rows = items.map((item) => mapOfferToCard(item as FeedApiItemShape));
+        const rows = limitConsecutiveMachineOffers(items.map((item) => mapOfferToCard(item as FeedApiItemShape)));
         setOffers((prev) => appendOffersById(prev, rows));
         setFeedCursor(nextCursor);
         setHasMoreCursor(nextCursor != null);

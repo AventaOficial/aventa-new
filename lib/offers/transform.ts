@@ -2,7 +2,8 @@ import { normalizeVoteCounts } from '@/lib/offers/scoring';
 import { parseOfferScopeFromConditions, type OfferScopeUi } from '@/lib/offerScope';
 import { publicOfferDescription } from '@/lib/offers/publicDescription';
 import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
-import { isDailyCategory } from '@/lib/huntersAi/contract';
+import { classifyDespensaText } from '@/lib/despensa/classify';
+import { despensaHostOf } from '@/lib/despensa/sources';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
@@ -50,8 +51,13 @@ export type CardOffer = {
   createdAt?: string | null;
   /** Derivado de `conditions` (Alcance: en línea / tienda). */
   offerScope?: OfferScopeUi | null;
-  /** Necesidad cotidiana. No cambia el ranking de la comunidad. */
+  /** Necesidad del catálogo de Despensa leída del título (`lib/despensa`). */
   dailyNeed?: boolean;
+  despensaNeedId?: string | null;
+  expiresAt?: string | null;
+  /** Dominio de la oferta, para identificar la tienda. La URL completa no se expone en la card. */
+  sourceHost?: string | null;
+  origin?: 'community' | 'machine' | null;
 };
 
 type ProfilesJoin =
@@ -137,7 +143,18 @@ export type FeedApiItemShape = {
   };
   category?: string | null;
   created_by?: string | null;
+  expires_at?: string | null;
+  origin?: 'community' | 'machine' | null;
 };
+
+function despensaFields(title: string | null | undefined, offerUrl: string | null | undefined) {
+  const need = classifyDespensaText(title);
+  return {
+    dailyNeed: need != null,
+    despensaNeedId: need?.needId ?? null,
+    sourceHost: despensaHostOf(offerUrl),
+  };
+}
 
 function asPublicAuthor(author: CardOfferAuthor, hunterCode?: string | null): CardOfferAuthor {
   const presented = presentAuthor({ userId: author.userId, displayName: author.username, hunterCode });
@@ -216,7 +233,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     ranking_momentum: Number(row.ranking_momentum) || 0,
     ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
     createdAt: row.created_at ?? null,
-    dailyNeed: isDailyCategory(row.category),
+    ...despensaFields(row.title, row.offer_url),
   };
 }
 
@@ -280,7 +297,9 @@ function mapFeedApiToCard(item: FeedApiItemShape): CardOffer {
     ranking_momentum: item.ranking_momentum != null ? Number(item.ranking_momentum) : score,
     ranking_blend: item.ranking_blend != null ? Number(item.ranking_blend) : score,
     createdAt: item.created_at ?? null,
-    dailyNeed: isDailyCategory(item.category),
+    ...despensaFields(item.title, item.offer_url),
+    expiresAt: item.expires_at ?? null,
+    origin: item.origin ?? null,
   };
 }
 
