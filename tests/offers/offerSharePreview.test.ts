@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { OFFER_SHARE_PREVIEW_STATUS, presentOfferSharePreview } from '@/lib/offers/offerSharePreview';
+import {
+  PUBLIC_OFFER_DETAIL_STATUSES,
+  isPublicOfferDetailStatus,
+  presentOfferSharePreview,
+} from '@/lib/offers/offerSharePreview';
+import { VOTABLE_OFFER_STATUSES } from '@/lib/votes/offerVoteEligibility';
 
 const NOW = Date.parse('2026-10-12T12:00:00.000Z');
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
@@ -40,9 +45,24 @@ describe('presentOfferSharePreview — misma visibilidad que el detalle', () => 
     expect(presentOfferSharePreview(null, NOW)).toEqual({ visible: false });
   });
 
-  it('el estado coincide con el que carga la página de detalle', () => {
-    expect(OFFER_SHARE_PREVIEW_STATUS).toBe('approved');
-    expect(read('app/oferta/[id]/page.tsx')).toContain(".eq('status', 'approved')");
+  it('published vigente ⇒ visible (lo que el feed muestra, el detalle lo abre)', () => {
+    expect(
+      presentOfferSharePreview({ status: 'published', deleted_at: null, expires_at: '2026-10-20T00:00:00Z' }, NOW),
+    ).toEqual({ visible: true, expired: false });
+  });
+
+  it('los estados públicos del detalle son los mismos que feed y votos', () => {
+    expect([...PUBLIC_OFFER_DETAIL_STATUSES].sort()).toEqual(['approved', 'published']);
+    expect(PUBLIC_OFFER_DETAIL_STATUSES).toEqual(VOTABLE_OFFER_STATUSES);
+    expect(isPublicOfferDetailStatus('published')).toBe(true);
+    expect(isPublicOfferDetailStatus('pending')).toBe(false);
+    expect(read('lib/offers/feedService.ts')).toMatch(/approved.*published|published.*approved/s);
+  });
+
+  it('la página de detalle filtra por los estados públicos, no solo approved', () => {
+    const page = read('app/oferta/[id]/page.tsx');
+    expect(page).toContain(".in('status', [...PUBLIC_OFFER_DETAIL_STATUSES])");
+    expect(page).not.toContain(".eq('status', 'approved')");
   });
 });
 
@@ -54,7 +74,7 @@ describe('opengraph-image de oferta', () => {
   });
 
   it('filtra por estado del detalle y excluye borradas en la consulta y en el helper', () => {
-    expect(og).toContain('.eq(\'status\', OFFER_SHARE_PREVIEW_STATUS)');
+    expect(og).toContain(".in('status', [...PUBLIC_OFFER_DETAIL_STATUSES])");
     expect(og).toContain(".is('deleted_at', null)");
     expect(og).toContain('presentOfferSharePreview(row)');
     expect(og).toContain('const offer = preview.visible ? row : null;');

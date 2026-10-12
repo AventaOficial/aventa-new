@@ -16,10 +16,19 @@ import {
   type WritableProductEvent,
 } from '@/lib/analytics/funnelTaxonomy';
 import { incrementLaunchMetric } from '@/lib/observability/launchMetrics';
+import { isSupabaseTimeout } from '@/lib/supabase/boundedFetch';
 
 function observeFailure(reason: string): void {
-  console.error('[product-event] write failed', reason);
+  console.error(`[product-event] write failed: ${reason}`);
   incrementLaunchMetric('analytics_write_failed');
+}
+
+/** postgrest-js deja `code: ''` cuando fetch lanzó; el nombre del error va al inicio del mensaje. */
+function insertFailureReason(error: { code?: string | null; message?: string | null }): string {
+  if (error.code) return error.code;
+  if (isSupabaseTimeout(error)) return 'timeout';
+  const name = (error.message ?? '').split(':')[0]?.trim();
+  return name ? `fetch:${name.slice(0, 40)}` : 'insert';
 }
 
 const productEventRowSchema = z.object({
@@ -47,11 +56,16 @@ export async function recordProductEvent(input: {
   metadata?: unknown;
   dedupe?: boolean;
   nowMs?: number;
+  /**
+   * Solo para escrituras que se esperan dentro del request. Dentro de `after()` la instancia puede
+   * suspenderse con el insert en vuelo: un plazo de reloj vencería al reanudar y perdería el evento.
+   */
+  timeoutMs?: number;
 }): Promise<{ ok: boolean }> {
   if (!isWritableProductEvent(input.event)) return { ok: false };
 
   try {
-    const supabase = createServerClient();
+    const supabase = createServerClient(input.timeoutMs ? { timeoutMs: input.timeoutMs } : undefined);
     const actorClass = await resolveProductActorClass(supabase, input.userId);
     const metadata = sanitizeFunnelMetadata(input.metadata);
     const actor = productActorKey(input.userId, input.anonymousId);
@@ -100,13 +114,13 @@ export async function recordProductEvent(input: {
 
     if (error) {
       if (error.code === '23505') return { ok: true };
-      observeFailure(error.code ?? 'insert');
+      observeFailure(insertFailureReason(error));
       return { ok: false };
     }
     incrementLaunchMetric('analytics_events');
     return { ok: true };
-  } catch {
-    observeFailure('threw');
+  } catch (error) {
+    observeFailure(`threw:${error instanceof Error ? error.name : 'unknown'}`);
     return { ok: false };
   }
 }

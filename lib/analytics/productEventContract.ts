@@ -4,7 +4,7 @@ import { sanitizeSearchQuery } from '@/lib/offers/searchQuery';
 
 const REPEAT_EMIT_MS = 10_000;
 
-const BLOCKED_PREFIXES = ['/admin', '/equipo', '/team', '/operaciones', '/mi-panel', '/contexto', '/api'];
+const BLOCKED_PREFIXES = ['/admin', '/equipo', '/team', '/operaciones', '/mi-panel', '/contexto', '/api', '/auth'];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LONG_DIGITS_RE = /\d{12,}/;

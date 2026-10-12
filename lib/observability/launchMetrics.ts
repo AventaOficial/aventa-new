@@ -15,6 +15,9 @@ export const LAUNCH_METRIC_NAMES = [
   'rate_limit_backend_denied',
   'analytics_events',
   'analytics_write_failed',
+  'analytics_rate_limited',
+  'supabase_timeouts',
+  'supabase_retries',
   'critical_errors',
 ] as const;
 

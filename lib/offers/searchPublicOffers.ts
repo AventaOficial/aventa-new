@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server';
+import { createInteractiveServerClient } from '@/lib/supabase/server';
 import { buildOfferSearchOrFilter } from '@/lib/offers/inferOfferTags';
 import { sanitizeSearchQuery } from '@/lib/offers/searchQuery';
 
@@ -63,7 +63,7 @@ async function searchWithIlike(input: {
   categories: string[] | null;
   store: string | null;
 }): Promise<PublicSearchHit[]> {
-  const supabase = createServerClient();
+  const supabase = createInteractiveServerClient();
   const nowISO = new Date().toISOString();
   const orFilter = buildOfferSearchOrFilter(input.query);
   if (!orFilter) return [];
@@ -98,7 +98,7 @@ export async function searchPublicOffers(input: {
 
   const categories = input.categories && input.categories.length > 0 ? input.categories : null;
   const store = input.store?.trim() || null;
-  const supabase = createServerClient();
+  const supabase = createInteractiveServerClient();
 
   const { data, error } = await supabase.rpc('search_public_offers', {
     p_query: query,

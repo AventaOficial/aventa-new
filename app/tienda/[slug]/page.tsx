@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
+import { unstable_cache } from 'next/cache';
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
+import { createInteractiveServerClient } from '@/lib/supabase/server';
 import { resolveStoreSlugToCanonicalName, slugifyStore } from '@/lib/slug';
 import Link from 'next/link';
 import AppShell from '@/app/AppShell';
@@ -13,19 +14,30 @@ import { houseEditorialForStore, sponsoredDisclosure } from '@/lib/sponsored/pla
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
 
-async function getStores(): Promise<string[]> {
-  const supabase = createServerClient();
+const STORES_REVALIDATE_SECONDS = 300;
+
+async function readStores(): Promise<string[]> {
+  const supabase = createInteractiveServerClient();
   const now = new Date().toISOString();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ofertas_ranked_general')
     .select('store')
     .or('status.eq.approved,status.eq.published')
     .or(`expires_at.is.null,expires_at.gte.${now}`)
     .limit(2000);
+  if (error) throw new Error(`stores unavailable: ${error.message}`);
   const stores = [...new Set((data ?? []).map((r) => r?.store).filter((s): s is string => Boolean(s?.trim())))].sort(
     (a, b) => a.localeCompare(b, 'es')
   );
   return stores;
+}
+
+/** La lista solo resuelve el slug; una tienda nueva tarda como máximo STORES_REVALIDATE_SECONDS en tener página. */
+const getStores = unstable_cache(readStores, ['public-stores'], { revalidate: STORES_REVALIDATE_SECONDS });
+
+/** Sin rutas en build: cada página se genera en su primera visita y se sirve por ISR. */
+export async function generateStaticParams() {
+  return [];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -57,7 +69,7 @@ export default async function TiendaPage({ params }: { params: Promise<{ slug: s
     redirect(`/tienda/${canonicalSlug}`);
   }
 
-  const supabase = createServerClient();
+  const supabase = createInteractiveServerClient();
   const now = new Date().toISOString();
 
   const { data: rows, error } = await supabase
@@ -69,7 +81,7 @@ export default async function TiendaPage({ params }: { params: Promise<{ slug: s
     .order('ranking_blend', { ascending: false })
     .limit(60);
 
-  if (error) notFound();
+  if (error) throw new Error(`store offers unavailable: ${error.message}`);
   const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
   const editorial = houseEditorialForStore(SPONSORED_CAMPAIGNS, storeName, Date.parse(now));
 

@@ -11,6 +11,7 @@ import {
   type MarketingPipeline,
 } from '@/lib/staff/marketingPipeline';
 import { isAllowedSocialUrl, parseSocialConfig, type SocialNetwork } from '@/lib/social/config';
+import { invalidateSocialLinks } from '@/lib/social/socialLinks';
 
 export async function GET(request: Request) {
   const auth = await requireStaffHub(request);
@@ -96,6 +97,7 @@ export async function PATCH(request: Request) {
         },
         { onConflict: 'key' }
       );
+      invalidateSocialLinks();
     }
   } else if (action === 'remove') {
     if (!offerId) return NextResponse.json({ error: 'offerId requerido' }, { status: 400 });
@@ -124,6 +126,7 @@ export async function PATCH(request: Request) {
       },
       { onConflict: 'key' }
     );
+    invalidateSocialLinks();
     pipeline.updatedAt = nowIso;
     pipeline.updatedBy = auth.user.id;
     const err = await savePipeline(supabase, pipeline);

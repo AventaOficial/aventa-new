@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSocialLinks } from '@/lib/social/config';
+import { getSocialLinks } from '@/lib/social/socialLinks';
 import { enforceRateLimit, getClientIp } from '@/lib/server/rateLimit';
 
 export async function GET(request: Request) {

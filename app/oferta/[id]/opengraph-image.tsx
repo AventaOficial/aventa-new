@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { extractOfferIdFromPathSegment } from '@/lib/offerPath';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { compareWithListPrice, listPercentText } from '@/lib/offers/listPriceComparison';
-import { OFFER_SHARE_PREVIEW_STATUS, presentOfferSharePreview } from '@/lib/offers/offerSharePreview';
+import { PUBLIC_OFFER_DETAIL_STATUSES, presentOfferSharePreview } from '@/lib/offers/offerSharePreview';
 import { normalizeOfferImageUrl } from '@/lib/offers/media/offerImageSource';
 
 export const alt = 'Oferta en AVENTA';
@@ -45,7 +45,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     .from('offers')
     .select('title, price, original_price, store, image_url, status, deleted_at, expires_at')
     .eq('id', id)
-    .eq('status', OFFER_SHARE_PREVIEW_STATUS)
+    .in('status', [...PUBLIC_OFFER_DETAIL_STATUSES])
     .is('deleted_at', null)
     .maybeSingle();
 

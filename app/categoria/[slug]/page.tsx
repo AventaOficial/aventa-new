@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
+import { createInteractiveServerClient } from '@/lib/supabase/server';
 import { ALL_CATEGORIES, getDbCategoryValuesForMacro } from '@/lib/categories';
 import { getSubgroupsForCategory } from '@/lib/categories/subgroups';
 import Link from 'next/link';
@@ -11,6 +11,11 @@ import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
+
+/** Sin rutas en build: cada página se genera en su primera visita y se sirve por ISR. */
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -37,7 +42,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
   if (!cat) notFound();
 
   const categoryValues = getDbCategoryValuesForMacro(slug);
-  const supabase = createServerClient();
+  const supabase = createInteractiveServerClient();
   const now = new Date().toISOString();
 
   const { data: rows, error } = await supabase
@@ -49,7 +54,8 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
     .order('ranking_blend', { ascending: false })
     .limit(60);
 
-  if (error) notFound();
+  // Un fallo de la base no es una categoría vacía ni inexistente: no se guarda en caché.
+  if (error) throw new Error(`category offers unavailable: ${error.message}`);
   const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
   const subgroups = getSubgroupsForCategory(slug);
 

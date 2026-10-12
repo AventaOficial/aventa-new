@@ -5,6 +5,7 @@ import { resolveAndNormalizeAffiliateOfferUrl, validateAffiliatePaste } from '@/
 import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories'
 import { normalizeOfferImageUrl } from '@/lib/offerPath'
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
+import { invalidatePublicOffer } from '@/lib/offers/publicOfferCache'
 import {
   affiliatePasteValidationBaseline,
   originalOfferUrlToPersistOnAffiliatePaste,
@@ -339,6 +340,7 @@ export async function PATCH(request: Request) {
       console.error('[update-offer]', error.message)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    invalidatePublicOffer(id)
 
     // Audit trail en moderation_logs existente (action libre + metadata jsonb).
     if (fields.length > 0 || demoted || hasImageUrlsWrite) {

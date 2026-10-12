@@ -189,7 +189,7 @@ export function getClientIp(request: Request): string {
 const CRITICAL_PRESETS = new Set(['reports', 'comments', 'offers', 'mcp']);
 const DISTRIBUTED_ONLY_PRESETS = new Set<string>(DISTRIBUTED_ONLY_RATE_LIMIT_PRESETS);
 
-/** reports | comments | events | offers | parseOffer | feed | telemetryView | telemetryOutbound | clientEvents | clientEventAlerts | similarOffers | uploadImage | mcp */
+/** reports | comments | events | offers | parseOffer | feed | telemetryView | telemetryOutbound | clientEvents | clientEventAlerts | similarOffers | uploadImage | pageView | pageViewActor | mcp */
 export async function enforceRateLimitCustom(
   identifier: string,
   preset:
@@ -205,6 +205,8 @@ export async function enforceRateLimitCustom(
     | 'clientEventAlerts'
     | 'similarOffers'
     | 'uploadImage'
+    | 'pageView'
+    | 'pageViewActor'
     | 'mcp'
 ): Promise<EnforceResult> {
   const configs: Record<string, [number, Duration, string]> = {
@@ -220,6 +222,10 @@ export async function enforceRateLimitCustom(
     clientEventAlerts: [1, '30 m', 'RATE_LIMIT_CLIENT_EVENT_ALERTS_PER_WINDOW'],
     similarOffers: [30, '1 m', 'RATE_LIMIT_SIMILAR_OFFERS_PER_MIN'],
     uploadImage: [15, '1 h', 'RATE_LIMIT_UPLOAD_IMAGE_PER_HOUR'],
+    // Techo por IP: la única clave no falsificable. Holgado para varios usuarios tras un mismo CGNAT.
+    pageView: [600, '1 m', 'RATE_LIMIT_PAGE_VIEW_PER_MIN'],
+    // Por identidad anónima: una persona no ve más de una página por segundo sostenida.
+    pageViewActor: [60, '1 m', 'RATE_LIMIT_PAGE_VIEW_ACTOR_PER_MIN'],
     mcp: [10, '1 m', 'RATE_LIMIT_MCP_PER_MIN'],
   };
   const [baseLimit, window, envName] = configs[preset];

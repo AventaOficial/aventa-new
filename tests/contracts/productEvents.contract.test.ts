@@ -37,6 +37,7 @@ const db = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
+  ANALYTICS_SUPABASE_TIMEOUT_MS: 3_000,
   createServerClient: () => ({
     from(table: string) {
       if (table === 'machine_clients') {
@@ -368,11 +369,18 @@ describe('rutas y firewall', () => {
     expect(src('app/api/feed/home/route.ts')).toContain('observeFeedRequest');
     expect(src('app/api/feed/for-you/route.ts')).toContain("feedType: 'for_you'");
     expect(src('app/api/search/offers/route.ts')).toContain('observeSearchRequest');
-    expect(src('app/components/analytics/ProductPageView.tsx')).toContain("event: 'page_view'");
+    expect(src('app/components/analytics/PageViewBeacon.tsx')).toContain("'/api/page-view'");
+    expect(src('app/api/page-view/route.ts')).toContain('observePageView');
+    expect(src('lib/analytics/observeProductBehavior.ts')).toContain("event: 'page_view'");
+    expect(src('app/layout.tsx')).toContain('<PageViewBeacon />');
+    const observers = src('lib/analytics/observeProductBehavior.ts');
+    const pageView = observers.slice(observers.indexOf('export async function observePageView'));
+    const pageViewBody = pageView.slice(0, pageView.search(/\r?\n\}\r?\n/));
+    expect(pageViewBody).not.toContain('scheduleProductEvent');
+    expect(pageViewBody).toContain('timeoutMs: ANALYTICS_SUPABASE_TIMEOUT_MS');
+    expect(observers.match(/timeoutMs:/g)).toHaveLength(1);
     const middleware = src('middleware.ts');
     expect(middleware).toContain('ensureAnonymousCookie');
-    expect(middleware).toContain('PRODUCT_PATH_HEADER');
-    expect(src('lib/analytics/anonymousIdentity.ts')).toContain('x-aventa-pathname');
     expect(middleware).not.toContain('recordProductEvent');
     expect(middleware).not.toContain('product_events');
   });

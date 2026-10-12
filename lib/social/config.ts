@@ -63,14 +63,3 @@ export function isAllowedSocialUrl(url: string, network?: SocialNetwork): boolea
     return false;
   }
 }
-
-export async function getSocialLinks(): Promise<SocialConfig> {
-  try {
-    const { createServerClient } = await import('@/lib/supabase/server');
-    const supabase = createServerClient();
-    const { data } = await supabase.from('app_config').select('value').eq('key', 'social_links').maybeSingle();
-    return parseSocialConfig((data as { value?: unknown } | null)?.value);
-  } catch {
-    return EMPTY_SOCIAL;
-  }
-}

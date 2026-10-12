@@ -12,6 +12,7 @@ import {
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
+import { invalidatePublicOffer } from '@/lib/offers/publicOfferCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
 import { isEconomicallyInertAuthor } from '@/lib/economy/botAuthorFirewall'
 import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess'
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
     if (previousStatus === status) {
       if (body?.surface === 'feed' && status === 'rejected') {
         await invalidateHomeFeedCache().catch(() => {})
+        invalidatePublicOffer(id)
       }
       return NextResponse.json({ ok: true, idempotent: true })
     }
@@ -275,6 +277,7 @@ export async function POST(request: Request) {
         const { data: again } = await supabase.from('offers').select('status').eq('id', id).maybeSingle()
         if ((again as { status?: string } | null)?.status === 'rejected') {
           await invalidateHomeFeedCache().catch(() => {})
+          invalidatePublicOffer(id)
           return NextResponse.json({ ok: true, idempotent: true })
         }
         return NextResponse.json({ error: 'No se pudo retirar la oferta del feed.' }, { status: 409 })
@@ -401,6 +404,7 @@ export async function POST(request: Request) {
 
     try {
       revalidatePath('/')
+      invalidatePublicOffer(id)
       if (feedTakedown || (status === 'approved' && previousStatus !== 'approved')) {
         await invalidateHomeFeedCache()
       }

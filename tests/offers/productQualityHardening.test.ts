@@ -38,8 +38,8 @@ describe('expired offer page accessibility', () => {
     'utf8',
   );
 
-  it('loads approved offers without requiring expires_at >= now', () => {
-    expect(pageSrc).toContain(".eq('status', 'approved')");
+  it('loads public (approved/published) offers without requiring expires_at >= now', () => {
+    expect(pageSrc).toContain(".in('status', [...PUBLIC_OFFER_DETAIL_STATUSES])");
     expect(pageSrc).not.toMatch(/expires_at\.is\.null,expires_at\.gte/);
     expect(pageSrc).toContain('isOfferExpiredByExpiresAt');
     expect(pageSrc).toContain('isExpired');

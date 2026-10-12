@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server';
+import { createInteractiveServerClient } from '@/lib/supabase/server';
 import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin } from '@/lib/offers/homeFeedFilters';
 import { presentAuthor } from '@/lib/product/hunters/identity';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
@@ -78,7 +78,7 @@ export async function getHomeFeed({
   store = null,
 }: GetHomeFeedParams = {}): Promise<GetHomeFeedSuccess | GetHomeFeedError> {
   try {
-    const supabase = createServerClient();
+    const supabase = createInteractiveServerClient();
     const nowISO = new Date().toISOString();
 
     let query = supabase
