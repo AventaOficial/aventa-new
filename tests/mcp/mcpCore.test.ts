@@ -599,6 +599,8 @@ describe('get_submission_rules', () => {
     expect(rules.limits.maxCandidatesPerCall).toBe(20);
     expect(rules.limits.maxAcceptedPerRun).toBe(5);
     expect(rules.limits.runIdRequired).toBe(true);
+    expect(rules.candidate.notes.some((r) => r.includes('runId nuevo en cada corrida'))).toBe(true);
+    expect(rules.candidate.notes.some((r) => r.includes('misma idempotencyKey con el mismo payload'))).toBe(true);
     expect(rules.limits.callsPerMinute).toBe(10);
     expect(rules.candidate.required).toEqual(['url', 'title', 'price', 'currency', 'observedAt']);
     expect(rules.supportedStores).toContain('amazon.com.mx');

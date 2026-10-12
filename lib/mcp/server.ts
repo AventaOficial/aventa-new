@@ -123,7 +123,10 @@ export function buildMcpServer(ctx: McpRequestContext): McpServer {
         runId: z
           .string()
           .optional()
-          .describe('Obligatorio durante el piloto. Identificador de tu corrida, 1-128 caracteres [A-Za-z0-9._:-].'),
+          .describe(
+            'Obligatorio durante el piloto. Identificador de tu corrida, 1-128 caracteres [A-Za-z0-9._:-]. ' +
+              'Nuevo en cada corrida; el mismo en todas sus llamadas y reintentos.',
+          ),
         candidates: z
           .array(candidateItemSchema)
           .describe(`Lista de 1 a ${MCP_MAX_CANDIDATES_PER_CALL} candidatos.`),

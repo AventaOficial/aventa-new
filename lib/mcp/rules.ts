@@ -65,6 +65,8 @@ export function buildSubmissionRules(client: MachineClientContext, quota: McpQuo
         'price > 0. originalPrice, si viene, debe ser mayor que price.',
         'observedAt: ISO 8601 con zona horaria, no futuro, máximo 30 días de antigüedad.',
         `runId es obligatorio: como máximo ${MCP_PILOT_MAX_ACCEPTED_PER_RUN} candidatos aceptados por runId, sumando todas sus llamadas. Lo que exceda vuelve como RUN_CAP_REACHED.`,
+        'Usa un runId nuevo en cada corrida y el mismo runId en todas las llamadas y reintentos de esa corrida. Un runId ya usado no recupera cupo.',
+        'Para reintentar una llamada fallida, repite la misma idempotencyKey con el mismo payload; una idempotencyKey nueva es otro envío.',
         'Los datos enviados son pistas. Aventa verifica cada candidato y un humano decide.',
       ],
     },

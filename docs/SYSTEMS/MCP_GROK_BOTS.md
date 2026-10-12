@@ -216,7 +216,7 @@ Rechazos de entrada aparecen como `invalid` con su código. Duplicados en el env
 - **Cupo agotado**: el envío se registra igual (lote archivado, sin ítems) para que su replay sea estable.
 - **Orden de controles**: la cuota diaria se comprueba antes (sin ocupar slots) y se cobra sólo por los candidatos que pasaron el cupo.
 
-**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..5`. Un slot es una fila de `ingest_cycle_locks` (tabla ya aplicada, PK `lock_key`, `service_role` con ALL) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
+**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..5`. Un slot es una fila de `ingest_cycle_locks` (PK `lock_key`, `service_role` con ALL; aplicada en producción, **ausente en staging** al 2026-10-12, ver §14) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
 - **Ocupar**: un INSERT de la PK. Si da 23505, se intenta retomar con un único `UPDATE … WHERE lock_key = … AND expires_at <= now()`.
 - **Liberar** (candidato `ALREADY_IN_REVIEW` o lote fallido): adelantar `expires_at` filtrando por `holder`. Nunca se borra.
 - **Sin choques con la ingesta**: los locks de ingesta usan otras claves (`ingest:ml_worker`) y sólo tocan las suyas.
@@ -339,6 +339,7 @@ Estado al 2026-10-05:
 
 - [x] Migración aplicada en staging con `apply_migration` (Supabase). Verificado: tablas, 4 columnas en `offer_batches`, 9 índices (incluido `offer_batches_mcp_idempotency_uidx`), RLS sin policies, grants exactos, 5 triggers, 0 filas nuevas, 2 lotes previos intactos.
 - [x] Fronteras de base probadas en staging dentro de una transacción revertida: `anon`/`authenticated` sin lectura ni escritura; `service_role` no puede borrar ni truncar, cambiar hash/prefijo/autor, des-revocar, añadir scopes fuera de la lista ni guardar un hash en claro; `machine_client_calls` no se actualiza ni borra (ni como `postgres`); un lote con `machine_client_id` sin llave de idempotencia se rechaza.
+- [ ] `ingest_cycle_locks` en staging (operador): **no existe** (metadatos de staging leídos el 2026-10-12; producción sí la tiene). Sin ella, el cupo por `runId` falla cerrado y todo envío con candidatos válidos devuelve `INTERNAL_ERROR`. Aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` en staging antes del paso 10.
 - [ ] Autor bot de staging (operador: el repo no tiene service role de staging).
 - [ ] Marcador `aventa:staging:environment` en el Redis compartido y variables `UPSTASH_*` + `AVENTA_REDIS_ENVIRONMENT=staging` en staging (operador). Hoy staging no tiene `UPSTASH_*`.
 - [ ] `MCP_BOT_AUTHOR_USER_IDS` en el entorno staging de Vercel (operador).
@@ -465,8 +466,13 @@ Salida: `0` = `READY`, `1` = `NOT_READY` (se puede desplegar con MCP apagado; no
    - cuerpo > 64 KB → 413;
    - 11 `tools/call` en un minuto → 429 `RATE_LIMITED`.
 9. Revisar `machine_client_calls`: sólo metadatos.
-10. **Sólo entonces**, encender `MCP_INGEST_ENABLED=true` en el entorno staging y redeploy. Enviar 1 candidato real (URL limpia de Amazon MX o Mercado Libre). Verificar en base: `offer_batches.machine_client_id`, `mcp_idempotency_key`, `mcp_payload_hash`, `mcp_run_id`, `created_by` = autor bot, ítem `INGESTED` con `hint_*` y sin `evidence`. Replay con la misma llave → mismo `submissionId`; misma llave con otro payload → `IDEMPOTENCY_CONFLICT`.
-11. Procesar el lote desde la consola de lotes, aprobar el ítem (humano) y verificar `offers.created_by` = autor bot ≠ moderador, `status=pending`.
+10. **Sólo entonces**, con `ingest_cycle_locks` presente, encender `MCP_INGEST_ENABLED=true` en el entorno staging y redeploy. Enviar 1 candidato real (URL limpia de Amazon MX o Mercado Libre) con un `runId` nuevo. En la misma llamada, `enqueueHunterOffer` extrae la página y aplica §19. Verificar en base:
+    - `offer_batches`: `machine_client_id`, `mcp_idempotency_key`, `mcp_payload_hash`, `mcp_run_id` = el `runId` enviado, `created_by` = autor bot.
+    - Ítem con `hint_*`. Si pasó §19: estado `APPROVED`, `offer_id` relleno y evento `queued_for_moderation`. Si no: `NEEDS_REVIEW`, `REJECTED` o `ERROR` con `error_code` y sin `offer_id`.
+    - Si hay `offer_id`: `offers.status = pending`, `created_by` = autor bot, `bot_meta.price_policy` presente y `original_price` solo si la página lo respalda.
+    - Una fila `ingest_cycle_locks` con `lock_key` `mcp:run-slot:<clientId>:1:<runId>`.
+    - Replay con la misma llave y el mismo payload → mismo `submissionId`, sin nuevo slot. Misma llave con otro payload → `IDEMPOTENCY_CONFLICT`.
+11. Si el ítem quedó `NEEDS_REVIEW`, un humano decide en `/admin/hunters-ai`: aprobar crea la oferta `pending` (verificar `offers.created_by` = autor bot ≠ moderador) y rechazar la cierra. Ningún camino publica: eso sólo ocurre en el paso 12.
 12. Moderar la oferta (humano) y verificar: el moderador queda en `moderation_logs`; el autor bot sigue con `reputation_score=0`, `achievement_xp=0`, sin logros, sin `reward_program_unlocked_at`, sin filas de comisión, ledger ni settlement, sin notificaciones ni correo.
 13. Apagar `MCP_INGEST_ENABLED` al terminar si no se sigue probando.
 
@@ -538,7 +544,8 @@ order by created_at desc limit 20;
 
 - La cuota diaria tiene una carrera acotada a un envío concurrente (ver §9).
 - Si el guardado de la respuesta falla tras crear el lote, el replay devuelve `INTERNAL_ERROR` en vez de la respuesta original. El lote existe y no se duplica.
-- Corregido el 2026-10-12, verificado en `lib/mcp/submissions.ts`: el procesamiento **no** lo dispara staff. `submit_deal_candidates` llama a `enqueueHunterOffer` en la misma llamada: extrae la página, aplica §19 y crea la oferta `pending`, o deja el ítem `REJECTED`/`NEEDS_REVIEW`/`ERROR`. Staff sólo interviene en la moderación. (§14 pasos 10-11 y §19 paso 11 aún describen el flujo anterior "ítem `INGESTED` → procesar el lote".)
+- Corregido el 2026-10-12, verificado en `lib/mcp/submissions.ts`: el procesamiento **no** lo dispara staff. `submit_deal_candidates` llama a `enqueueHunterOffer` en la misma llamada: extrae la página, aplica §19 y crea la oferta `pending`, o deja el ítem `REJECTED`/`NEEDS_REVIEW`/`ERROR`. Staff sólo interviene en la moderación.
+- Los slots del cupo usan `expires_at = 9999-12-31` en `ingest_cycle_locks`, cuya intención original es un lock con TTL. Es deliberado (un aceptado no devuelve su slot) y no choca con los locks de ingesta, que usan otras claves; una tabla dedicada sería más limpia si el cupo deja de ser temporal.
 - Cupo por `runId` (§9): un slot que no se libera (crash o error) reduce el cupo de esa corrida. No hay herramienta para devolverlo; se usa otro `runId`.
 - xAI no soporta `require_approval` en MCP remoto: todo el control vive en Aventa (auth, scopes, kill switch, cuota, moderación humana).
 - La migración está aplicada en staging (2026-10-05) y en producción (`20261005161927`, verificado el 2026-10-12).
@@ -570,6 +577,7 @@ Política de calidad MCP (`mcp-candidate-policy-v1`, `lib/offers/ingestion/machi
 De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 
+0. `ingest_cycle_locks` en staging: aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` (hoy no existe; sin ella el cupo por `runId` devuelve `INTERNAL_ERROR`).
 1. Autor bot: `npx tsx scripts/mcp-provision-staging-bot-author.ts` con `.env.staging.local` (no versionado). Guardar el UUID.
 2. Marcador en Upstash: `SET aventa:staging:environment staging`.
 3. Variables de staging en Vercel (scope según la regla 9 de §14): `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AVENTA_REDIS_ENVIRONMENT=staging`, `MCP_BOT_AUTHOR_USER_IDS=<uuid>`, `AVENTA_SUPABASE_TARGET=staging`, `AVENTA_EXPECTED_SUPABASE_REF=oojshofrpbfwsiypcecr`. `MCP_INGEST_ENABLED` sin definir.
@@ -579,5 +587,5 @@ Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 7. Pruebas con MCP apagado (§14 paso 8) y revisión de `machine_client_calls`.
 8. Archivo de observaciones reales recogidas por el bot (`{ "records": [...] }`, sin `fixture`, fuera de `tests/`). Simular primero: `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --out <reporte.json>` y revisar rechazos y URLs a mano.
 9. Encender `MCP_INGEST_ENABLED=true` solo en staging y redeploy.
-10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5.
-11. Seguir con `--status <submissionId>`, procesar y moderar a mano (§14 pasos 10-12) y apagar `MCP_INGEST_ENABLED` al terminar.
+10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5. Para reintentar, repetir el mismo comando con el mismo `--run-id`: la llave `<runId>:live:001` hace replay en vez de crear otro envío. Si entre intentos cambia la lista (por ejemplo, un candidato ya aparece en el catálogo), el servidor responde `IDEMPOTENCY_CONFLICT` y no acepta nada nuevo. Sin `--run-id`, el script genera uno por minuto: eso es otra corrida con cupo propio.
+11. La llamada ya dejó cada candidato resuelto: oferta `pending` en la cola de moderación (estado público `accepted`) o ítem `NEEDS_REVIEW`/`REJECTED`/`ERROR` sin oferta. Consultar con `--status <submissionId>`. Moderar a mano las ofertas `pending` en `/admin/moderation` y decidir los `NEEDS_REVIEW` en `/admin/hunters-ai` (§14 pasos 10-12). Apagar `MCP_INGEST_ENABLED` al terminar.
