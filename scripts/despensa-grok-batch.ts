@@ -2,7 +2,7 @@
  * Lote de Grok Bots para Despensa.
  *
  *   npx tsx scripts/despensa-grok-batch.ts --input lote.json [--run-id grok-20261012-a] [--out reporte.json]
- *   npx tsx scripts/despensa-grok-batch.ts --input lote.json --submit [--max 5]
+ *   npx tsx scripts/despensa-grok-batch.ts --input lote.json --submit [--max 1-5]
  *   npx tsx scripts/despensa-grok-batch.ts --status <submissionId>
  *
  * Por defecto es una simulación: normaliza, deduplica, valida con las reglas del servidor MCP
@@ -11,13 +11,20 @@
  * `--submit` usa solo las herramientas MCP reales (`get_submission_rules`, `check_offer_exists`,
  * `submit_deal_candidates`, `get_submission_status`) con el token del cliente máquina
  * autorizado en `AVENTA_MCP_TOKEN` contra `AVENTA_MCP_URL`. Envía como máximo `--max`
- * candidatos (5 por defecto). Se niega si el archivo es un fixture, si se fijó `--now`, o si
+ * candidatos (de 1 a 5; 5 por defecto). Se niega si el archivo es un fixture o vive en una
+ * carpeta de pruebas, si se fijó `--now`, o si
  * `get_submission_rules` reporta la ingesta apagada. Nunca imprime el token.
  *
  * Entrada: `{ "records": RawObservationInput[] }` (ver `lib/despensa/observation.ts`).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { GROK_BATCH_RULES, prepareGrokBatch, summarizeSubmissionStatus } from '@/lib/despensa/grokBatch';
+import {
+  GROK_BATCH_RULES,
+  liveSubmitBlocker,
+  prepareGrokBatch,
+  resolveLiveBatchLimit,
+  summarizeSubmissionStatus,
+} from '@/lib/despensa/grokBatch';
 import type { RawObservationInput } from '@/lib/despensa/observation';
 import type { SubmissionCandidateState } from '@/lib/mcp/contract';
 
@@ -110,10 +117,12 @@ async function main() {
     console.log('[despensa-grok] Simulación: no se envió nada. Usa --submit para un lote pequeño real.');
     return;
   }
-  if (file.fixture) fail('El archivo es un fixture con datos ficticios: no se envía por MCP.', 2);
-  if (args.now) fail('--now solo sirve para simular; un envío real usa la hora actual.', 2);
+  const blocker = liveSubmitBlocker({ path: args.input, fixture: file.fixture, simulatedNow: args.now });
+  if (blocker === 'fixture' || blocker === 'fixture_path') fail('El archivo es un fixture o vive en una carpeta de pruebas: no se envía por MCP.', 2);
+  if (blocker === 'simulated_now') fail('--now solo sirve para simular; un envío real usa la hora actual.', 2);
 
-  const max = Math.max(1, Math.min(Number(args.max ?? GROK_BATCH_RULES.firstLiveBatchMax), 20));
+  const max = resolveLiveBatchLimit(args.max);
+  if (max === null) fail(`--max debe ser un entero de 1 a ${GROK_BATCH_RULES.firstLiveBatchMax}.`, 2);
   const rules = await callTool('get_submission_rules', {});
   if (rules.ingestEnabled !== true) fail('get_submission_rules: ingestEnabled=false (INGEST_PAUSED o cliente pausado). No se envía.', 3);
 

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { prepareGrokBatch, summarizeSubmissionStatus, toMcpCandidate } from '@/lib/despensa/grokBatch';
+import {
+  liveSubmitBlocker,
+  prepareGrokBatch,
+  resolveLiveBatchLimit,
+  summarizeSubmissionStatus,
+  toMcpCandidate,
+} from '@/lib/despensa/grokBatch';
 import { normalizeObservation, type RawObservationInput } from '@/lib/despensa/observation';
 import { validateCandidates } from '@/lib/mcp/candidates';
 import { MCP_MAX_CANDIDATES_PER_CALL, MCP_NOTE_MAX, MCP_TOOLS } from '@/lib/mcp/contract';
@@ -123,5 +129,22 @@ describe('misión de Despensa en get_submission_rules', () => {
     );
     expect(rules.despensa.contractVersion).toBe('despensa-missions-v2');
     expect(rules.tools.map((t) => t.name).sort()).toEqual([...MCP_TOOLS].sort());
+  });
+});
+
+describe('envío real del script', () => {
+  it('nunca pasa de cinco candidatos', () => {
+    expect(resolveLiveBatchLimit(undefined)).toBe(5);
+    expect(resolveLiveBatchLimit(true)).toBe(5);
+    expect(resolveLiveBatchLimit('3')).toBe(3);
+    for (const bad of ['6', '20', '0', '-1', '2.5', 'abc', '', '1e1']) expect(resolveLiveBatchLimit(bad)).toBeNull();
+  });
+
+  it('no envía fixtures ni simulaciones', () => {
+    expect(liveSubmitBlocker({ path: 'lote.json', fixture: fixture.fixture })).toBe('fixture');
+    expect(liveSubmitBlocker({ path: 'tests/fixtures/despensa/grok-batch-sample.json' })).toBe('fixture_path');
+    expect(liveSubmitBlocker({ path: 'C:\\repo\\tests\\fixtures\\copia.json' })).toBe('fixture_path');
+    expect(liveSubmitBlocker({ path: 'lote.json', simulatedNow: '2026-10-12T12:00:00Z' })).toBe('simulated_now');
+    expect(liveSubmitBlocker({ path: 'runs/grok-20261012.json', fixture: false })).toBeNull();
   });
 });

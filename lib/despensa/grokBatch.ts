@@ -201,6 +201,22 @@ export function prepareGrokBatch(
 }
 
 /** Resumen de `get_submission_status`: aprobación y publicación reales, no estimadas. */
+/** Cantidad del envío real: entero de 1 a `firstLiveBatchMax`. Cualquier otro valor es null. */
+export function resolveLiveBatchLimit(raw: unknown): number | null {
+  if (raw === undefined || raw === true) return GROK_BATCH_RULES.firstLiveBatchMax;
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw.trim())) return null;
+  const n = Number(raw.trim());
+  return n >= 1 && n <= GROK_BATCH_RULES.firstLiveBatchMax ? n : null;
+}
+
+/** Motivo para no enviar un archivo por MCP, o null si puede enviarse. */
+export function liveSubmitBlocker(input: { path: string; fixture?: unknown; simulatedNow?: unknown }): string | null {
+  if (input.fixture !== undefined && input.fixture !== false) return 'fixture';
+  if (/(^|[\\/])(tests?|fixtures?|__fixtures__)([\\/]|$)/i.test(input.path)) return 'fixture_path';
+  if (input.simulatedNow !== undefined) return 'simulated_now';
+  return null;
+}
+
 export function summarizeSubmissionStatus(candidates: readonly { state: SubmissionCandidateState }[]) {
   const counts: Record<SubmissionCandidateState, number> = {
     received: 0,

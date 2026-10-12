@@ -190,7 +190,7 @@ Orden lexicográfico: necesidad reconocida → evidencia vigente (≤ 7 días) �
 - Historial: `none`, `single_observation`, `insufficient` o `longitudinal` (≥ 4 observaciones independientes en ≥ 14 días). Solo con historial longitudinal se puede hablar de bajada (≥ 5 % bajo la mediana propia). El precio de lista solo viaja si la tienda lo muestra.
 - Runbook: `scripts/despensa-grok-batch.ts`.
   - Simulación (por defecto, sin red): `npx tsx scripts/despensa-grok-batch.ts --input <registros.json>`.
-  - Lote real pequeño: `--submit` con `AVENTA_MCP_URL` y `AVENTA_MCP_TOKEN` de un cliente máquina autorizado. Rechaza fixtures y `--now`, exige `ingestEnabled`, consulta `check_offer_exists` y envía como máximo 5 (tope 20). Todo queda `pending` para moderación humana.
+  - Lote real pequeño: `--submit` con `AVENTA_MCP_URL` y `AVENTA_MCP_TOKEN` de un cliente máquina autorizado. Rechaza fixtures (por marca o por ruta de pruebas) y `--now`, exige `ingestEnabled`, consulta `check_offer_exists` y envía de 1 a 5 (`--max` fuera de ese rango aborta). Todo queda `pending` para moderación humana.
   - Estado: `--status <submissionId>`.
 
 ### Estado del lote real (2026-10-12)
