@@ -3,6 +3,8 @@
  * Estilos inline para compatibilidad con clientes de correo.
  */
 
+import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
+
 const BRAND_COLOR = '#7c3aed';
 const TEXT_DARK = '#1a1a1a';
 const TEXT_MUTED = '#6b7280';
@@ -113,7 +115,7 @@ function offerCardHtml(o: OfferRow, index: number, baseUrl: string): string {
     o.price != null
       ? '$' +
         Number(o.price).toFixed(0) +
-        (o.original_price
+        (compareWithListPrice(o.price, o.original_price)
           ? ` <span style="color:${TEXT_MUTED}; text-decoration:line-through; font-weight:400;">$${Number(o.original_price).toFixed(0)}</span>`
           : '')
       : '—';

@@ -8,7 +8,14 @@ function formatMx(n: number): string {
 }
 
 /** Bloque compacto de historial propio AVENTA (90d) para Información adicional. */
-export default function OfferPriceInsightBlock({ offerId }: { offerId: string }) {
+export default function OfferPriceInsightBlock({
+  offerId,
+  onVerdict,
+}: {
+  offerId: string;
+  /** Recibe el veredicto del historial para que el encabezado oculte «−N%» si es solo etiqueta. */
+  onVerdict?: (verdict: PriceInsight['verdict'] | null) => void;
+}) {
   const [insight, setInsight] = useState<PriceInsight | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -23,7 +30,10 @@ export default function OfferPriceInsightBlock({ offerId }: { offerId: string })
           return;
         }
         const data = (await res.json()) as { insight?: PriceInsight };
-        if (!cancelled && data.insight) setInsight(data.insight);
+        if (!cancelled && data.insight) {
+          setInsight(data.insight);
+          onVerdict?.(data.insight.verdict);
+        }
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -31,7 +41,7 @@ export default function OfferPriceInsightBlock({ offerId }: { offerId: string })
     return () => {
       cancelled = true;
     };
-  }, [offerId]);
+  }, [offerId, onVerdict]);
 
   if (failed) return null;
   if (!insight) {

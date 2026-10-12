@@ -1,4 +1,5 @@
 import { presentOfferPrice } from '@/lib/formatPrice';
+import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 
 export type OfferForShare = {
   title: string;
@@ -16,8 +17,8 @@ export function generateDealShareText(
   dealUrl: string
 ): string {
   const price = presentOfferPrice(offer.discountPrice, offer.sourceCurrency);
-  const originalPrice =
-    offer.originalPrice > 0 ? presentOfferPrice(offer.originalPrice, offer.sourceCurrency) : null;
+  const comparison = compareWithListPrice(offer.discountPrice, offer.originalPrice);
+  const originalPrice = comparison ? presentOfferPrice(comparison.listPrice, offer.sourceCurrency) : null;
 
   const lines: string[] = [
     '🔥 Ofertaza cazada en Aventa',
@@ -27,7 +28,7 @@ export function generateDealShareText(
     `💰 ${price}`,
   ];
   if (originalPrice) {
-    lines.push(`📉 Antes: ${originalPrice}`);
+    lines.push(`📉 Precio de lista: ${originalPrice}`);
     lines.push('');
   }
   lines.push('👉 Ver oferta');

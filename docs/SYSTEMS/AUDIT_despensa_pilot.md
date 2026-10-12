@@ -135,7 +135,7 @@ Observaciones:
 - Latencia de la lectura de intereses y su rate limit con tráfico real.
 - Vista móvil de la rama.
 
-## 8. Promesa de ahorro (auditoría, sin cambios de código)
+## 8. Promesa de ahorro
 
 Todas las superficies calculan el ahorro como `original_price − price`, sin leer procedencia ni historial:
 
@@ -151,7 +151,9 @@ Evidencia de `original_price`:
 - Bots: `insertIngestedOffer` lo guarda siempre que sea mayor que el precio. La procedencia (`listing_card`, `source_explicit`, `api_quote` frente a `candidate_declared`) se calcula en ingesta (`lib/supply/intelligence/priceProvenance.ts`, `machinePriceProvenance.ts`), pero no llega a ninguna columna que lean el feed o el detalle.
 - El único juicio con historial es `OfferPriceInsightBlock`, y solo en el detalle.
 
-Corrección acotada propuesta (copy, sin datos nuevos ni migración), pendiente de decisión de producto:
-1. Cambiar «Ahorras X» por «X menos que el precio de lista» en las cuatro superficies públicas; el precio tachado y «-N%» se quedan, porque ya se leen como precio de lista.
-2. Cuando `OfferPriceInsightBlock` devuelva `label_only`, ocultar «-N%» en el detalle y dejar el veredicto.
-3. Para hablar de ahorro confirmado hace falta persistir la procedencia o exponer el historial al feed; eso sí requiere migración y no se propone aquí.
+Corrección aplicada (copy y validación, sin datos nuevos ni migración), centralizada en `lib/offers/listPriceComparison.ts`:
+1. «Ahorras X» pasa a «X menos que el precio de lista» en feed, destacada, modal y detalle. El precio tachado, el «-N%» y la diferencia solo aparecen si ambos precios son válidos y el precio de lista es mayor que el actual.
+2. En modal y detalle, si `OfferPriceInsightBlock` devuelve `label_only`, se oculta «-N%» y se deja el veredicto.
+3. OG, Telegram, correo, texto para compartir, copy de marketing y la selección de recompensas aplican la misma regla de validez; no tienen veredicto de historial. Las recompensas solo cambian en presentación.
+4. La vista previa al publicar indica que precio y precio de lista son declarados y no verificados.
+5. Pendiente: para hablar de ahorro confirmado hace falta persistir la procedencia o exponer el historial al feed; eso requiere migración y no se hace aquí.

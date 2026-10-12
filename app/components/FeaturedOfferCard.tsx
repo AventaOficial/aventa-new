@@ -8,6 +8,11 @@ import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import StoreBrandMark from './StoreBrandMark';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import { presentOfferPrice } from '@/lib/formatPrice';
+import {
+  compareWithListPrice,
+  listPriceBadgePercent,
+  listPriceDifferenceText,
+} from '@/lib/offers/listPriceComparison';
 
 type FeaturedOfferCardProps = {
   offerId?: string;
@@ -32,7 +37,6 @@ export default function FeaturedOfferCard({
   originalPrice,
   discountPrice,
   sourceCurrency = null,
-  discount,
   isLiked: isLikedProp = false,
   isTesterOffer = false,
   onCardClick,
@@ -42,14 +46,8 @@ export default function FeaturedOfferCard({
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const [favoritePending, setFavoritePending] = useState(false);
   const isLiked = localLiked !== null ? localLiked : isLikedProp;
-  const discountPct =
-    discount > 0
-      ? discount
-      : originalPrice > 0 && discountPrice < originalPrice
-        ? Math.round((1 - discountPrice / originalPrice) * 100)
-        : 0;
-
-  const savings = originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
+  const listComparison = compareWithListPrice(discountPrice, originalPrice);
+  const discountPct = listPriceBadgePercent(listComparison) ?? 0;
   const imageUnoptimized = Boolean(image) && (image!.startsWith('/') || image!.includes('placehold.co'));
 
   return (
@@ -112,15 +110,15 @@ export default function FeaturedOfferCard({
             <span className="text-lg font-semibold tabular-nums text-violet-600 dark:text-violet-400">
               {presentOfferPrice(discountPrice, sourceCurrency)}
             </span>
-            {originalPrice > discountPrice && originalPrice > 0 ? (
+            {listComparison ? (
               <span className="text-xs text-gray-400 line-through tabular-nums">
-                {presentOfferPrice(originalPrice, sourceCurrency)}
+                {presentOfferPrice(listComparison.listPrice, sourceCurrency)}
               </span>
             ) : null}
           </div>
-          {savings > 0 ? (
+          {listComparison ? (
             <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-              Ahorras {presentOfferPrice(savings, sourceCurrency)}
+              {listPriceDifferenceText(listComparison, sourceCurrency)}
             </p>
           ) : null}
         </div>

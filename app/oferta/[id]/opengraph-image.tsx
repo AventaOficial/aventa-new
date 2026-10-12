@@ -2,6 +2,7 @@ import { ImageResponse } from 'next/og';
 import { createServerClient } from '@/lib/supabase/server';
 import { extractOfferIdFromPathSegment } from '@/lib/offerPath';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
+import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 
 export const alt = 'Oferta en AVENTA';
 export const size = { width: 1200, height: 630 };
@@ -57,14 +58,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   const title = (offer?.title ?? 'Oferta').slice(0, 90);
   const price = typeof offer?.price === 'number' ? offer.price : null;
-  const original =
-    typeof offer?.original_price === 'number' && offer.original_price > 0
-      ? offer.original_price
-      : null;
-  const discountPct =
-    price != null && original != null && original > price
-      ? Math.round(((original - price) / original) * 100)
-      : null;
+  const listComparison = compareWithListPrice(price, offer?.original_price);
+  const original = listComparison?.listPrice ?? null;
+  const discountPct = listComparison?.percent ?? null;
   const store = formatStoreDisplayName(offer?.store) || 'Tienda';
   const img = offer?.image_url?.startsWith('http') ? offer.image_url : null;
 

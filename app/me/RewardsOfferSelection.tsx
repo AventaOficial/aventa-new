@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { Check, Heart, Eye, X } from 'lucide-react';
+import { offerDiscountPercent } from '@/lib/me/offerPresentation';
 
 export type WelcomeChoiceCard = {
   id: string;
@@ -27,11 +28,6 @@ type RewardsOfferSelectionProps = {
 function formatMx(n: number | null): string {
   if (n == null || Number.isNaN(n)) return '—';
   return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-}
-
-function discountPct(price: number | null, original: number | null): number | null {
-  if (price == null || original == null || original <= 0 || price >= original) return null;
-  return Math.round(((original - price) / original) * 100);
 }
 
 /**
@@ -82,7 +78,7 @@ export default function RewardsOfferSelection({
         <ul className="space-y-3">
           {choices.map((offer) => {
             const active = selectedId === offer.id;
-            const disc = discountPct(offer.price, offer.original_price);
+            const disc = offerDiscountPercent(offer.price, offer.original_price);
             return (
               <li key={offer.id}>
                 <div

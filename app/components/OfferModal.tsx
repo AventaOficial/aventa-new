@@ -30,6 +30,12 @@ import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import OfferPriceInsightBlock from './OfferPriceInsightBlock';
+import type { PriceInsight } from '@/lib/offers/priceHistory';
+import {
+  compareWithListPrice,
+  listPriceBadgePercent,
+  listPriceDifferenceText,
+} from '@/lib/offers/listPriceComparison';
 import OfferImageThumbs from './OfferImageThumbs';
 import OfferImageGallery from './OfferImageGallery';
 
@@ -110,7 +116,6 @@ export default function OfferModal({
   brand,
   originalPrice,
   discountPrice,
-  discount,
   description,
   steps,
   conditions,
@@ -209,7 +214,18 @@ export default function OfferModal({
     setImageIndex(0);
   }, [offerId]);
 
-  const savings = originalPrice - discountPrice;
+  const [priceVerdict, setPriceVerdict] = useState<{ offerId: string; verdict: PriceInsight['verdict'] | null } | null>(
+    null,
+  );
+  const handlePriceVerdict = useCallback(
+    (verdict: PriceInsight['verdict'] | null) => setPriceVerdict({ offerId: offerId ?? '', verdict }),
+    [offerId],
+  );
+  const listComparison = compareWithListPrice(discountPrice, originalPrice);
+  const listBadgePercent = listPriceBadgePercent(
+    listComparison,
+    priceVerdict?.offerId === (offerId ?? '') ? priceVerdict.verdict : null,
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -694,22 +710,22 @@ export default function OfferModal({
                   <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
                     {presentOfferPrice(discountPrice)}
                   </span>
-                  {originalPrice > 0 && (
+                  {listComparison && (
                     <>
                       <span className="text-lg md:text-xl text-[#6B7280] dark:text-gray-400 line-through">
-                        {presentOfferPrice(originalPrice)}
+                        {presentOfferPrice(listComparison.listPrice)}
                       </span>
-                      {discount > 0 && (
+                      {listBadgePercent != null && (
                         <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
-                          -{discount}%
+                          -{listBadgePercent}%
                         </span>
                       )}
                     </>
                   )}
                 </div>
-                {originalPrice > 0 && savings > 0 && (
+                {listComparison && (
                   <p className="text-sm text-[#6B7280] dark:text-gray-400 -mt-1">
-                    Ahorras {presentOfferPrice(savings)}
+                    {listPriceDifferenceText(listComparison)}
                   </p>
                 )}
                 {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
@@ -741,7 +757,7 @@ export default function OfferModal({
                     Información adicional
                   </p>
                   {offerId ? (
-                    <OfferPriceInsightBlock offerId={offerId} />
+                    <OfferPriceInsightBlock offerId={offerId} onVerdict={handlePriceVerdict} />
                   ) : null}
                   <AffiliateDisclosure variant="block" includeAmazonEn />
                   {steps?.trim() && (() => {

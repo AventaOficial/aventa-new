@@ -30,6 +30,11 @@ import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
+import {
+  compareWithListPrice,
+  listPriceBadgePercent,
+  listPriceDifferenceText,
+} from '@/lib/offers/listPriceComparison';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
@@ -204,7 +209,6 @@ export default function OfferCard({
   originalPrice,
   discountPrice,
   sourceCurrency = null,
-  discount,
   description: _description,
   hunterComment,
   image,
@@ -421,14 +425,8 @@ export default function OfferCard({
 
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
-  const savingsAmount =
-    originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
-  const discountPct =
-    discount > 0
-      ? discount
-      : originalPrice > 0 && discountPrice < originalPrice
-        ? Math.round((1 - discountPrice / originalPrice) * 100)
-        : 0;
+  const listComparison = compareWithListPrice(discountPrice, originalPrice);
+  const discountPct = listPriceBadgePercent(listComparison) ?? 0;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const msiLabel = formatMsiCardLabel(msiMonths);
   const personalCouponTrim = coupons?.trim() ?? '';
@@ -694,15 +692,15 @@ export default function OfferCard({
                 <span className="text-lg max-[400px]:text-base md:text-2xl font-semibold text-violet-600 dark:text-violet-400 tracking-tight tabular-nums">
                   {presentOfferPrice(discountPrice, sourceCurrency)}
                 </span>
-                {originalPrice > discountPrice && originalPrice > 0 ? (
+                {listComparison ? (
                   <span className="text-xs md:text-sm text-gray-400 dark:text-gray-500 line-through tabular-nums">
-                    {presentOfferPrice(originalPrice, sourceCurrency)}
+                    {presentOfferPrice(listComparison.listPrice, sourceCurrency)}
                   </span>
                 ) : null}
               </div>
-              {savingsAmount > 0 ? (
+              {listComparison ? (
                 <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
-                  Ahorras {presentOfferPrice(savingsAmount, sourceCurrency)}
+                  {listPriceDifferenceText(listComparison, sourceCurrency)}
                 </p>
               ) : null}
               {isTesterOffer ? (
