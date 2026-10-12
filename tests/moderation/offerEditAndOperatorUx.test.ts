@@ -92,7 +92,10 @@ describe('Focus edit + desktop context + mobile intact', () => {
     expect(card).toContain('<OfferMedia');
     expect(card).not.toMatch(/object-contain md:object-cover/);
     expect(media).toContain('object-contain object-center');
-    expect(media).toContain('isNextImageAllowedSrc');
+    expect(media).toContain('resolveOfferImageSource');
+    expect(readFileSync(join(process.cwd(), 'lib/offers/media/offerImageSource.ts'), 'utf8')).toContain(
+      'isNextImageAllowedSrc',
+    );
     expect(media).not.toMatch(/object-contain md:object-cover/);
   });
 });

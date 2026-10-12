@@ -96,14 +96,18 @@ describe('OfferMedia', () => {
     expect(media).toMatch(/blur-xl/);
   });
 
+  const imageSource = readFileSync(join(process.cwd(), 'lib/offers/media/offerImageSource.ts'), 'utf8');
+
   it('fallback accesible para imagen inválida o rota', () => {
-    expect(media).toContain('isNextImageAllowedSrc');
+    expect(media).toContain('resolveOfferImageSource(src)');
+    expect(imageSource).toContain('isNextImageAllowedSrc');
     expect(media).toContain("role: 'img', 'aria-label': alt");
-    expect(media).toContain('const onError = () => setFailedSrc(source?.url ?? null)');
+    expect(media).toContain('const onError = () => markFailed()');
+    expect(media).toContain('setFailedSrc(source.url)');
   });
 
   it('hosts fuera de next/image siguen mostrando la foto si son https', () => {
-    expect(media).toMatch(/\^https:\\\/\\\/\/i\.test\(url\)/);
+    expect(imageSource).toMatch(/\^https:\\\/\\\/\/i\.test\(url\)/);
     expect(media).toContain('<img');
   });
 });

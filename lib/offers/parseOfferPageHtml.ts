@@ -2,16 +2,45 @@ import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import { OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { normalizeOfferUrl } from '@/lib/offers/urlResolution/normalizeOfferUrl';
 
+const NAMED_ATTRIBUTE_ENTITIES: Record<string, string> = {
+  amp: '&',
+  quot: '"',
+  apos: "'",
+  lt: '<',
+  gt: '>',
+  nbsp: ' ',
+};
+
+/** Valores de atributo HTML (`content="…"`) llegan escapados: `&amp;` en una URL rompe su query. */
+export function decodeHtmlAttributeEntities(value: string): string {
+  if (!value.includes('&')) return value;
+  return value.replace(/&(#x[0-9a-f]{1,6}|#[0-9]{1,7}|[a-z]+);/gi, (match, body: string) => {
+    if (body[0] === '#') {
+      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
+        return match;
+      }
+      return String.fromCodePoint(code);
+    }
+    return NAMED_ATTRIBUTE_ENTITIES[body.toLowerCase()] ?? match;
+  });
+}
+
+function metaValue(raw: string | undefined): string | null {
+  if (raw == null) return null;
+  return decodeHtmlAttributeEntities(raw).trim() || null;
+}
+
 export function getMetaContent(html: string, selector: string): string | null {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const propertyMatch = html.match(
     new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']*)["']`, 'i'),
   );
-  if (propertyMatch) return propertyMatch[1].trim() || null;
+  if (propertyMatch) return metaValue(propertyMatch[1]);
   const contentFirstMatch = html.match(
     new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${escaped}["']`, 'i'),
   );
-  return contentFirstMatch ? contentFirstMatch[1].trim() || null : null;
+  return contentFirstMatch ? metaValue(contentFirstMatch[1]) : null;
 }
 
 export function getAllMetaContents(html: string, selector: string): string[] {
@@ -23,7 +52,7 @@ export function getAllMetaContents(html: string, selector: string): string[] {
   );
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
-    const v = m[1].trim();
+    const v = metaValue(m[1]);
     if (v) out.push(v);
   }
   return out;

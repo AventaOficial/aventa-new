@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTheme } from '@/app/providers/ThemeProvider';
+import { PUBLIC_NAVBAR_MOBILE_CLEARANCE_CLASS } from '@/lib/ui/publicNavbarOffset';
 
 function Sparkle({ className }: { className?: string }) {
   return (
@@ -84,7 +85,9 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
   const setSearchQuery = onSearchChange ? (v: string) => onSearchChange(v) : setInternalQuery;
 
   return (
-    <header className="relative w-full pt-[env(safe-area-inset-top)] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pb-3 md:pb-4">
+    <header
+      className={`relative w-full ${PUBLIC_NAVBAR_MOBILE_CLEARANCE_CLASS} md:pt-[env(safe-area-inset-top)] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pb-3 md:pb-4`}
+    >
       <div className="hero-liquid-glass relative mx-auto max-w-[1400px] overflow-hidden rounded-[28px] max-[400px]:rounded-[22px]">
         <div className="md:hidden">
           <div className="px-5 max-[400px]:px-4 pt-5 max-[400px]:pt-4">

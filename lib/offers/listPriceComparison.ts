@@ -8,7 +8,7 @@ import type { PriceInsight } from '@/lib/offers/priceHistory';
  * Es una diferencia contra una etiqueta, no un ahorro confirmado: `offers.original_price`
  * no guarda su procedencia y el único historial propio (`offer_price_snapshots`) solo
  * llega al modal y al detalle vía `buildOfferPriceInsight`. Ninguna superficie debe decir
- * «ahorras», y el porcentaje siempre se presenta «vs. lista».
+ * «ahorras», y el porcentaje se presenta «vs. lista» salvo en la insignia de las tarjetas.
  */
 export type ListPriceComparison = {
   price: number;
@@ -55,6 +55,11 @@ export function listPriceDifferenceText(comparison: ListPriceComparison, currenc
 /** Porcentaje contra la etiqueta, nunca presentado como descuento confirmado. */
 export function listPercentText(percent: number): string {
   return `-${percent}% vs. lista`;
+}
+
+/** Insignia compacta de las tarjetas del feed; misma regla de validez que `listPercentText`. */
+export function cardPercentText(percent: number): string {
+  return `-${percent}%`;
 }
 
 export function observedDropText(percent: number): string {

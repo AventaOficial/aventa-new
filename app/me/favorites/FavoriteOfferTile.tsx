@@ -6,6 +6,7 @@ import StoreBrandMark from '@/app/components/StoreBrandMark';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import { presentOfferPrice } from '@/lib/formatPrice';
 import { buildOfferPublicPath } from '@/lib/offerPath';
+import { cardPercentText, compareWithListPrice, listPriceBadgePercent } from '@/lib/offers/listPriceComparison';
 import type { CardOffer } from '@/lib/offers/transform';
 
 type FavoriteOfferTileProps = {
@@ -19,7 +20,7 @@ type FavoriteOfferTileProps = {
 export default function FavoriteOfferTile({ offer, isFavorite, saving, onToggleFavorite, className = '' }: FavoriteOfferTileProps) {
   const price = offer.discountPrice > 0 ? offer.discountPrice : null;
   const before = price != null && offer.originalPrice > price ? offer.originalPrice : null;
-  const discount = Math.round(offer.discount);
+  const discount = listPriceBadgePercent(compareWithListPrice(price, offer.originalPrice)) ?? 0;
   return (
     <article
       className={`group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md dark:border-white/10 dark:bg-[#141414] dark:hover:border-violet-500/50 ${className}`}
@@ -38,7 +39,7 @@ export default function FavoriteOfferTile({ offer, isFavorite, saving, onToggleF
           />
           {discount >= 1 ? (
             <span className="absolute left-2 top-2 rounded-md bg-orange-500 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-white shadow-sm">
-              -{discount}%<span className="sr-only"> de descuento</span>
+              {cardPercentText(discount)}
             </span>
           ) : null}
         </div>

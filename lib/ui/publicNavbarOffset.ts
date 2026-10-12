@@ -11,3 +11,11 @@
  */
 export const PUBLIC_NAVBAR_OFFSET_CLASS =
   'pt-[calc(max(0.75rem,env(safe-area-inset-top))+4.5rem)] md:pt-[6.5rem]';
+
+/**
+ * Solo móvil (< md): deja libre la franja de la navbar (botón h-10 / avatar h-11 + 0.5rem de aire)
+ * para que «Crear cuenta» no tape el primer contenido. Cada página fija su propio `md:pt-*`,
+ * porque en md+ la navbar ya convive a la derecha sin tapar.
+ */
+export const PUBLIC_NAVBAR_MOBILE_CLEARANCE_CLASS =
+  'pt-[calc(max(0.75rem,env(safe-area-inset-top))+3.25rem)]';

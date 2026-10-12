@@ -9,6 +9,7 @@ import type { OfferQualitySignals } from './offerQualitySignals';
 import { PRODUCT_PAGE_BROWSER_UA } from './ingestHttp';
 import { fetchWithTimeout, HUNTER_HTTP_TIMEOUT_MS } from '@/lib/server/fetchWithTimeout';
 import {
+  decodeHtmlAttributeEntities,
   extractOfferImages,
   extractOfferMetaImages,
 } from '@/lib/offers/parseOfferPageHtml';
@@ -35,14 +36,14 @@ function getMetaContent(html: string, selector: string): string | null {
       'i'
     )
   );
-  if (propertyMatch) return propertyMatch[1].trim() || null;
+  if (propertyMatch) return decodeHtmlAttributeEntities(propertyMatch[1]).trim() || null;
   const contentFirstMatch = html.match(
     new RegExp(
       `<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${escaped}["']`,
       'i'
     )
   );
-  return contentFirstMatch ? contentFirstMatch[1].trim() || null : null;
+  return contentFirstMatch ? decodeHtmlAttributeEntities(contentFirstMatch[1]).trim() || null : null;
 }
 
 function getById(html: string, id: string, attr: 'content' | 'src' | 'text'): string | null {

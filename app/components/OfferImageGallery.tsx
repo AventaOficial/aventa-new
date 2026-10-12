@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react';
+import { normalizeOfferImageUrl } from '@/lib/offers/media/offerImageSource';
+import { reportOfferImageFailure } from '@/lib/offers/media/imageFailureTelemetry';
 
 type OfferImageGalleryProps = {
   images: string[];
@@ -12,6 +14,7 @@ type OfferImageGalleryProps = {
   onClose: () => void;
   onIndexChange: (index: number) => void;
   alt?: string;
+  offerId?: string | null;
 };
 
 /**
@@ -25,6 +28,7 @@ export default function OfferImageGallery({
   onClose,
   onIndexChange,
   alt = '',
+  offerId = null,
 }: OfferImageGalleryProps) {
   const touchStartX = useRef<number | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -78,9 +82,14 @@ export default function OfferImageGallery({
 
   if (typeof document === 'undefined' || !open || images.length === 0) return null;
 
-  const src = images[safeIndex] ?? images[0];
+  const src = normalizeOfferImageUrl(images[safeIndex] ?? images[0]);
   const showNav = images.length > 1;
   const imageBroken = broken[safeIndex] === true;
+
+  const markBroken = (i: number, surface: 'gallery' | 'gallery_thumb') => {
+    setBroken((prev) => (prev[i] ? prev : { ...prev, [i]: true }));
+    reportOfferImageFailure({ src: images[i], surface, offerId });
+  };
 
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.changedTouches[0]?.clientX ?? null;
@@ -158,7 +167,7 @@ export default function OfferImageGallery({
               className="max-h-[min(75vh,720px)] max-w-full object-contain"
               referrerPolicy="no-referrer"
               draggable={false}
-              onError={() => setBroken((prev) => ({ ...prev, [safeIndex]: true }))}
+              onError={() => markBroken(safeIndex, 'gallery')}
             />
           )}
           {showNav ? (
@@ -186,8 +195,23 @@ export default function OfferImageGallery({
                 aria-label={`Foto ${i + 1}`}
                 aria-current={i === safeIndex ? 'true' : undefined}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                {broken[i] ? (
+                  <span
+                    data-gallery-thumb-fallback
+                    className="flex h-full w-full items-center justify-center bg-white/10 text-white/60"
+                  >
+                    <ImageOff className="h-4 w-4" aria-hidden />
+                  </span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={normalizeOfferImageUrl(url)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={() => markBroken(i, 'gallery_thumb')}
+                  />
+                )}
               </button>
             ))}
           </div>
