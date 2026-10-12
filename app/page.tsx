@@ -32,10 +32,12 @@ import { notifyUserError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
 import {
+  DEFAULT_TOP_PERIOD,
   fetchDespensaPreferredNeeds,
   fetchHomeFeedFromAPI,
   limitConsecutiveMachineOffers,
   processHomeFeedList,
+  resolveHomeFeedEmptyState,
   type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
 import { DEFAULT_MAX_SAME_PRODUCT, resolveMaxSameProduct } from '@/lib/offers/feedDiversity';
@@ -136,7 +138,7 @@ function HomeContent() {
   const [voteMap, setVoteMap] = useState<VoteMap>({});
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('day');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>(DEFAULT_TOP_PERIOD);
   const [viewMode, setViewMode] = useState<ViewMode>('latest');
   /** Vigencia de campañas patrocinadas: se evalúa una vez por visita, no en cada render. */
   const [sessionStartedAt] = useState(() => Date.now());
@@ -548,6 +550,12 @@ function HomeContent() {
       .sort((a, b) => (b.ranking_blend ?? b.upvotes ?? 0) - (a.ranking_blend ?? a.upvotes ?? 0))
       .slice(0, 10);
   })();
+  const emptyState = resolveHomeFeedEmptyState({
+    viewMode,
+    listCount: displayOffers.length,
+    featuredCount: featuredOffers.length,
+    searching: Boolean(debouncedQuery.trim()),
+  });
 
   useEffect(() => {
     if (!session?.user?.id || (offers.length === 0 && highlightOffers.length === 0)) {
@@ -833,7 +841,15 @@ function HomeContent() {
                 Reintentar
               </button>
             </div>
-          ) : !debouncedQuery.trim() && displayOffers.length === 0 ? (
+          ) : emptyState === 'top_period' ? (
+            <div className="py-8 px-4 text-center max-w-md mx-auto" data-empty-state="top-period">
+              <p className="text-sm text-[#6e6e73] dark:text-[#a3a3a3]">
+                {timeFilter === 'day'
+                  ? 'Hoy todavía no hay ofertas votadas. Mira las destacadas o cambia el período.'
+                  : 'No hay más ofertas votadas en este período. Prueba otro período.'}
+              </p>
+            </div>
+          ) : emptyState === 'no_offers' ? (
             <div className="py-12 px-4 text-center max-w-md mx-auto">
               <h2 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#fafafa] mb-2">
                 Aún no hay ofertas

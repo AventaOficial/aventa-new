@@ -31,6 +31,27 @@ export type HomeFeedFetchResult = {
  * - Día a día (`vitales`): mismo criterio — sin control de periodo en UI → **semana**.
  * - Top: respeta el timeFilter elegido por el usuario.
  */
+/** Top abre en «Semana»: «Hoy» suele estar vacío y contradice el carrusel «Mejores de la semana». */
+export const DEFAULT_TOP_PERIOD: HomeFeedPeriod = 'week';
+
+export type HomeFeedEmptyState = 'none' | 'top_period' | 'no_offers';
+
+/**
+ * Qué vacío mostrar cuando la lista no trae ofertas.
+ * En Top, si el carrusel de destacados sí tiene ofertas, no se dice «Aún no hay ofertas»:
+ * solo falta contenido en el periodo elegido.
+ */
+export function resolveHomeFeedEmptyState(input: {
+  viewMode: HomeFeedViewMode | 'personalized';
+  listCount: number;
+  featuredCount: number;
+  searching: boolean;
+}): HomeFeedEmptyState {
+  if (input.searching || input.listCount > 0) return 'none';
+  if (input.viewMode === 'top' && input.featuredCount > 0) return 'top_period';
+  return 'no_offers';
+}
+
 export function resolveHomeFeedPeriod(
   viewMode: HomeFeedViewMode,
   timeFilter: HomeFeedPeriod,
