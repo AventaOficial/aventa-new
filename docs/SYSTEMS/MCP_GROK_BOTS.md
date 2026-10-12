@@ -516,3 +516,28 @@ order by created_at desc limit 20;
 - `get_submission_rules` incluye `despensa` (solo lectura): misiones priorizadas por la canasta oficial, variantes y reglas de evidencia. No hay herramienta nueva.
 - Los bots solo descubren: no escriben en la base, no publican, no tocan votos, favoritos ni economía, y no inventan observaciones ni reutilizan un precio como observación independiente.
 - Preparación y envío controlado: `scripts/despensa-grok-batch.ts` (ver `AUDIT_despensa_pilot.md` §9). El primer lote real no pasa de 5 candidatos y requiere `MCP_INGEST_ENABLED` y un token autorizado.
+
+### Piloto en staging: estado al 2026-10-12
+
+- `POST https://staging.aventaofertas.com/api/mcp` sin token responde 401 y `GET` responde 405: la ruta está desplegada en staging (la tabla del inicio y §14 dicen 404; quedó desactualizado). No se sabe qué commit corre; esta rama no está desplegada.
+- Flujo real: `app/api/mcp/route.ts` → `lib/mcp/server.ts` → `submitDealCandidates` (`lib/mcp/submissions.ts`: flag, estado del cliente, idempotencia, `validateCandidates`, cuota) → `createOfferBatch` → `enqueueHunterOffer` (`lib/offers/ingestion/enqueueHunterOffer.ts`: `prepareMachineCandidateOffer` extrae la página; sin título, precio e imagen el ítem queda `ERROR`/`NEEDS_REVIEW`) → `ingestOfferObservation` (oferta `pending`, `onDuplicate: 'reject'`) → `/api/admin/moderate-offer` (humano).
+
+Bloqueos de calidad (el piloto no se ejecuta hasta resolverlos):
+
+1. **Memoria negativa.** La ruta MCP no llama a `isSuppressedByNegativeMemory` (`lib/discovery/negativeMemory/gateInsert.ts`), que la ruta de bots sí usa. Un producto ya rechazado puede volver a la cola. Cambio mínimo: llamarla en `enqueueHunterOffer` antes de `prepareMachineCandidateOffer` y, si suprime, dejar el ítem en `ERROR` con `error_code: 'NEGATIVE_MEMORY'`, evento de lote y `recountBatch`, sin crear oferta.
+2. **Precio de lista declarado por el bot.** `enqueueHunterOffer` guarda `prepared.originalPrice ?? candidate.originalPrice`: si la página no muestra precio de lista, el que declara el bot llega a `offers.original_price` y, tras aprobar, al «-N% vs. lista». Cambio mínimo: usar solo `prepared.originalPrice`; la pista del bot sigue en `offer_batch_items.hint_*`.
+3. **S6.1 no aplica tal cual.** `evaluateMachineCandidateGate` exige descuento mínimo y procedencia confiable del precio original, y necesita `ParsedOfferMetadata` del extractor de bots, que MCP no produce. Aplicado a MCP rechazaría casi toda la despensa, que se publica por precio y no por descuento. Decisión del Owner: la política de calidad MCP es extracción completa + memoria negativa + sin precio de lista declarado + moderación humana, o se exige S6.1 completo y la despensa queda fuera de MCP.
+
+Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
+
+1. Autor bot: `npx tsx scripts/mcp-provision-staging-bot-author.ts` con `.env.staging.local` (no versionado). Guardar el UUID.
+2. Marcador en Upstash: `SET aventa:staging:environment staging`.
+3. Variables de staging en Vercel (scope según la regla 9 de §14): `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AVENTA_REDIS_ENVIRONMENT=staging`, `MCP_BOT_AUTHOR_USER_IDS=<uuid>`, `AVENTA_SUPABASE_TARGET=staging`, `AVENTA_EXPECTED_SUPABASE_REF=oojshofrpbfwsiypcecr`. `MCP_INGEST_ENABLED` sin definir.
+4. `vercel env pull .env.preview.local --environment=preview` (o el entorno del proyecto `aventa-staging`) y `npx tsx scripts/mcp-staging-preflight.ts --env-file .env.preview.local`: debe salir `READY` (código 0). Borrar el archivo después.
+5. Desplegar en staging el código con los bloqueos 1 y 2 resueltos; smoke de §14 paso 6.
+6. Cliente en `/admin/machine-clients` con la política de §13. El token se muestra una vez: va al gestor de secretos del operador, nunca a un archivo del repo, a `.env*` versionado ni a un log.
+7. Pruebas con MCP apagado (§14 paso 8) y revisión de `machine_client_calls`.
+8. Archivo de observaciones reales recogidas por el bot (`{ "records": [...] }`, sin `fixture`, fuera de `tests/`). Simular primero: `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --out <reporte.json>` y revisar rechazos y URLs a mano.
+9. Encender `MCP_INGEST_ENABLED=true` solo en staging y redeploy.
+10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5.
+11. Seguir con `--status <submissionId>`, procesar y moderar a mano (§14 pasos 10-12) y apagar `MCP_INGEST_ENABLED` al terminar.
