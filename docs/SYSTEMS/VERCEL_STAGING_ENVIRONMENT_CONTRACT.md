@@ -180,7 +180,11 @@ vercel project add aventa-staging
 
 `GET /api/health/distribution-env`
 
-Returns: `vercel_env`, `deployment_surface`, targets, refs, flag booleans, `drain_gate` reason.  
+Public (no auth): `{ ok, purpose, detail: "public", health: { resolved_supabase_ref } }` — enough for the
+isolation probes (`e2e/community.spec.ts`, `scripts/ops-smoke.mjs`, `scripts/load-read-profile.mjs`).
+
+With `Authorization: Bearer $CRON_SECRET` (or `x-cron-secret`): `detail: "full"` plus `vercel_env`,
+`deployment_surface`, targets, refs, flag booleans, `drain_gate` reason.  
 **Never** returns keys, tokens, `CRON_SECRET`, cookies.
 
 ---

@@ -133,6 +133,18 @@ export function assertStagingTelegramCredentialRef(
 /**
  * Safe diagnostic snapshot — never includes secret values.
  */
+/**
+ * Vista pública de `/api/health/distribution-env`: solo el ref de Supabase que resolvió el despliegue.
+ * Las sondas de aislamiento (e2e/community.spec.ts, scripts/ops-smoke.mjs, scripts/load-read-profile.mjs)
+ * solo leen `health.resolved_supabase_ref`; ese ref ya viaja al navegador en NEXT_PUBLIC_SUPABASE_URL.
+ * Entorno, flags y estado de credenciales quedan detrás de CRON_SECRET.
+ */
+export function buildPublicDistributionEnvHealth(
+  env: NodeJS.ProcessEnv = process.env,
+): { resolved_supabase_ref: string | null } {
+  return { resolved_supabase_ref: extractSupabaseProjectRef(env.NEXT_PUBLIC_SUPABASE_URL ?? '') };
+}
+
 export function buildDistributionEnvHealth(
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, unknown> {
