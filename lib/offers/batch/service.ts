@@ -1127,6 +1127,30 @@ export async function approveOfferBatchItem(params: {
     .select(ITEM_COLUMNS)
     .maybeSingle();
 
+  if (!updated) {
+    const current = await getOfferBatchItem(supabase, item.batch_id, item.id);
+    if (current?.offer_id !== result.id) {
+      // Otra decisión cambió el ítem mientras se creaba la oferta. La oferta sigue pending:
+      // la cola de moderación la decide; aquí no se marca como aprobada.
+      await appendBatchEvent(supabase, {
+        batchId: item.batch_id,
+        itemId: item.id,
+        actorId,
+        action: 'approve_conflict',
+        fromStatus: item.status,
+        toStatus: current?.status ?? item.status,
+        payload: { offer_id: result.id, current_status: current?.status ?? null },
+      });
+      return {
+        ok: false,
+        httpStatus: 409,
+        code: 'CONCURRENT_DECISION',
+        message: 'Otra decisión cambió este candidato. La oferta creada sigue pendiente en la cola de moderación.',
+        item: current ?? item,
+      };
+    }
+  }
+
   await appendBatchEvent(supabase, {
     batchId: item.batch_id,
     itemId: item.id,

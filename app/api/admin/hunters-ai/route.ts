@@ -1,5 +1,18 @@
-import { HUNTER_SORTS, HUNTER_QUEUE_STATUSES, type HunterQueueStatus, type HunterSort } from '@/lib/huntersAi/contract';
-import { approveHunterCandidate, editHunterCandidate, rejectHunterCandidate, rejectHunterCandidates } from '@/lib/huntersAi/decide';
+import {
+  HUNTER_BULK_MAX,
+  HUNTER_SORTS,
+  HUNTER_QUEUE_STATUSES,
+  type HunterQueueStatus,
+  type HunterSort,
+} from '@/lib/huntersAi/contract';
+import {
+  approveHunterCandidate,
+  approveHunterCandidates,
+  editHunterCandidate,
+  rejectHunterCandidate,
+  rejectHunterCandidates,
+  uniqueTargets,
+} from '@/lib/huntersAi/decide';
 import { loadHunterQueue } from '@/lib/huntersAi/queue';
 import { isUuid, jsonError, jsonOk, requireBatchAuth } from '@/lib/offers/batch/http';
 
@@ -45,17 +58,25 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const action = typeof body?.action === 'string' ? body.action : '';
 
-  if (action === 'reject_many') {
-    const items = Array.isArray(body?.items)
-      ? body.items
-          .filter((row: unknown) => row && typeof row === 'object')
-          .map((row: { batchId?: unknown; itemId?: unknown }) => ({
-            batchId: typeof row.batchId === 'string' ? row.batchId : '',
-            itemId: typeof row.itemId === 'string' ? row.itemId : '',
-          }))
-          .filter((row: { batchId: string; itemId: string }) => isUuid(row.batchId) && isUuid(row.itemId))
-      : [];
+  if (action === 'reject_many' || action === 'approve_many') {
+    const items = uniqueTargets(
+      Array.isArray(body?.items)
+        ? body.items
+            .filter((row: unknown) => row && typeof row === 'object')
+            .map((row: { batchId?: unknown; itemId?: unknown }) => ({
+              batchId: typeof row.batchId === 'string' ? row.batchId : '',
+              itemId: typeof row.itemId === 'string' ? row.itemId : '',
+            }))
+            .filter((row: { batchId: string; itemId: string }) => isUuid(row.batchId) && isUuid(row.itemId))
+        : [],
+    );
     if (items.length === 0) return jsonError('Selecciona candidatos.', 400);
+    if (Array.isArray(body?.items) && body.items.length > HUNTER_BULK_MAX) {
+      return jsonError(`Máximo ${HUNTER_BULK_MAX} candidatos por acción.`, 400);
+    }
+    if (action === 'approve_many') {
+      return jsonOk(await approveHunterCandidates({ supabase: auth.supabase, actorId: auth.user.id, items }));
+    }
     if (typeof body?.reasonId !== 'string' || !body.reasonId) return jsonError('El rechazo necesita una razón.', 400);
     const result = await rejectHunterCandidates({
       supabase: auth.supabase,
