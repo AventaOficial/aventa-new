@@ -84,7 +84,7 @@ export function editorialStatus(
 ): HunterQueueStatus {
   if (status === 'PUBLISHED') return 'APPROVED';
   if (status === 'APPROVED') {
-    if (offerStatus === 'rejected') return 'REJECTED';
+    if (offerStatus === 'rejected' || offerStatus === 'deleted') return 'REJECTED';
     if (offerStatus === 'approved' || offerStatus === 'published') return 'APPROVED';
     return 'IN_MODERATION';
   }

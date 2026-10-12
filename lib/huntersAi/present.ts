@@ -217,7 +217,14 @@ export function toHunterCard(source: HunterSource): HunterCard {
     reviewCode: source.errorCode,
     warnings: source.warnings,
     rejectionReason:
-      source.rejectionReason ?? (source.status === 'APPROVED' && source.offerStatus === 'rejected' ? 'Rechazada en moderación' : null),
+      source.rejectionReason ??
+      (source.status !== 'APPROVED'
+        ? null
+        : source.offerStatus === 'rejected'
+          ? 'Rechazada en moderación'
+          : source.offerStatus === 'deleted'
+            ? 'Oferta eliminada'
+            : null),
     history: readPriceHistory(source.evidence, price, referencePrice),
     identityKey: source.identityKey,
     canApprove: open,

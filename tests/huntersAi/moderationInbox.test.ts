@@ -85,6 +85,9 @@ describe('Hunters IA · 1. un candidato Grok válido llega a moderación sin pub
     const rejected = toHunterCard(rowToSource({ ...base, offers: { status: 'rejected' } }));
     expect(rejected.queueStatus).toBe('REJECTED');
     expect(rejected.rejectionReason).toBe('Rechazada en moderación');
+    const deleted = toHunterCard(rowToSource({ ...base, offers: { status: 'approved', deleted_at: '2026-10-10T00:00:00Z' } }));
+    expect(deleted.queueStatus).toBe('REJECTED');
+    expect(deleted.rejectionReason).toBe('Oferta eliminada');
   });
 
   it('nunca muestra como descuento el precio que declaró el hunter', () => {
@@ -222,7 +225,41 @@ describe('Hunters IA · 6. decisiones concurrentes dejan un estado consistente',
     expect(events(tables, 'approved')).toHaveLength(1);
   });
 
-  it('si un rechazo gana mientras se crea la oferta, la aprobación devuelve conflicto y no se marca aprobada', async () => {
+  it('dos aprobaciones simultáneas crean una sola oferta aunque el writer no deduplique', async () => {
+    let n = 0;
+    writer.createCommunityOfferPending.mockImplementation(async () => {
+      await Promise.resolve();
+      n += 1;
+      return { ok: true, id: `offer-${n}`, status: 'pending' };
+    });
+    const { supabase, tables } = createFakeDb(seedTables([itemRow(ITEM_A)]));
+    const [a, b] = await Promise.all([
+      approveHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID }),
+      approveHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID }),
+    ]);
+    expect(n).toBe(1);
+    expect([a.ok, b.ok].filter(Boolean)).toHaveLength(1);
+    const loser = a.ok ? b : a;
+    if (!loser.ok) expect(loser.code).toBe('CONCURRENT_DECISION');
+    expect(tables.offer_batch_items[0]).toMatchObject({ status: 'APPROVED', offer_id: 'offer-1', lease_expires_at: null });
+    expect(events(tables, 'approved')).toHaveLength(1);
+  });
+
+  it('si el rechazo ganó antes, la aprobación con lectura vieja no crea oferta', async () => {
+    uniqueWriter();
+    const { supabase, tables } = createFakeDb(seedTables([itemRow(ITEM_A)]));
+    const stale = await getOfferBatchItem(supabase, BATCH_ID, ITEM_A);
+    const rejected = await rejectHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID, reasonId: 'other' });
+    expect(rejected.ok).toBe(true);
+    const approved = await approveOfferBatchItem({ supabase, item: stale!, actorId: MODERATOR_ID });
+    expect(approved.ok).toBe(false);
+    if (!approved.ok) expect(approved.code).toBe('CONCURRENT_DECISION');
+    expect(writer.createCommunityOfferPending).not.toHaveBeenCalled();
+    expect(tables.offer_batch_items[0].status).toBe('REJECTED');
+    expect(events(tables, 'approved')).toHaveLength(0);
+  });
+
+  it('un rechazo durante la aprobación en curso devuelve conflicto y no pisa la aprobación', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {
       release = r;
@@ -234,24 +271,46 @@ describe('Hunters IA · 6. decisiones concurrentes dejan un estado consistente',
     const { supabase, tables } = createFakeDb(seedTables([itemRow(ITEM_A)]));
     const approving = approveHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID });
     await vi.waitFor(() => expect(writer.createCommunityOfferPending).toHaveBeenCalled());
-    const rejected = await rejectHunterCandidate({
-      supabase,
-      batchId: BATCH_ID,
-      itemId: ITEM_A,
-      actorId: MODERATOR_ID,
-      reasonId: 'not_relevant',
+    expect(tables.offer_batch_items[0].status).toBe('PROCESSING');
+    const rejected = await rejectHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID, reasonId: 'other' });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.code).toBe('CONCURRENT_DECISION');
+    release();
+    const approved = await approving;
+    expect(approved.ok).toBe(true);
+    expect(tables.offer_batch_items[0]).toMatchObject({ status: 'APPROVED', offer_id: 'offer-late' });
+    expect(events(tables, 'rejected')).toHaveLength(0);
+    expect(events(tables, 'approved')).toHaveLength(1);
+  });
+
+  it('si el lease vence y el pipeline reclama el ítem, la aprobación no se registra como éxito', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
     });
-    expect(rejected.ok).toBe(true);
+    writer.createCommunityOfferPending.mockImplementation(async () => {
+      await gate;
+      return { ok: true, id: 'offer-late', status: 'pending' };
+    });
+    const { supabase, tables } = createFakeDb(seedTables([itemRow(ITEM_A)]));
+    const approving = approveHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID });
+    await vi.waitFor(() => expect(writer.createCommunityOfferPending).toHaveBeenCalled());
+    Object.assign(tables.offer_batch_items[0], { status: 'INGESTED', lease_expires_at: null });
     release();
     const approved = await approving;
     expect(approved.ok).toBe(false);
     if (!approved.ok) expect(approved.code).toBe('CONCURRENT_DECISION');
-    const item = tables.offer_batch_items[0];
-    expect(item.status).toBe('REJECTED');
-    expect(item.offer_id).toBeNull();
+    expect(tables.offer_batch_items[0].status).toBe('INGESTED');
     expect(events(tables, 'approved')).toHaveLength(0);
-    expect(events(tables, 'approve_conflict')).toHaveLength(1);
     expect((events(tables, 'approve_conflict')[0].payload as Record<string, unknown>).offer_id).toBe('offer-late');
+  });
+
+  it('un fallo del writer libera el reclamo y deja el ítem como estaba', async () => {
+    writer.createCommunityOfferPending.mockResolvedValue({ ok: false, httpStatus: 500, error: 'db down' });
+    const { supabase, tables } = createFakeDb(seedTables([itemRow(ITEM_A, { status: 'READY' })]));
+    const result = await approveHunterCandidate({ supabase, batchId: BATCH_ID, itemId: ITEM_A, actorId: MODERATOR_ID });
+    expect(result.ok).toBe(false);
+    expect(tables.offer_batch_items[0]).toMatchObject({ status: 'READY', lease_expires_at: null, offer_id: null });
   });
 
   it('rechazar dos veces es idempotente', async () => {

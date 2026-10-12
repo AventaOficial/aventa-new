@@ -1066,6 +1066,35 @@ export async function approveOfferBatchItem(params: {
     };
   }
 
+  // Reclamo atómico (UPDATE ... WHERE status = <leído>) antes de escribir la oferta: si otra
+  // decisión ya cambió el ítem, no se crea nada. Mientras dura el lease, aprobar o rechazar
+  // otra vez devuelve conflicto; si el proceso muere, el lease vencido lo devuelve al pipeline.
+  const claimedAt = new Date().toISOString();
+  const { data: claimed } = await supabase
+    .from('offer_batch_items')
+    .update({
+      status: 'PROCESSING',
+      lease_expires_at: new Date(Date.now() + OFFER_BATCH_LEASE_MS).toISOString(),
+      updated_at: claimedAt,
+    })
+    .eq('id', item.id)
+    .eq('status', item.status)
+    .select('id')
+    .maybeSingle();
+  if (!claimed) {
+    const current = await getOfferBatchItem(supabase, item.batch_id, item.id);
+    if (current?.offer_id && (current.status === 'APPROVED' || current.status === 'PUBLISHED')) {
+      return { ok: true, item: current, code: 'IDEMPOTENT', message: 'Ya estaba aprobado.' };
+    }
+    return {
+      ok: false,
+      httpStatus: 409,
+      code: 'CONCURRENT_DECISION',
+      message: 'Otra decisión está cambiando este candidato. No se creó ninguna oferta.',
+      item: current ?? item,
+    };
+  }
+
   const result = await createCommunityOfferPending({
     supabase,
     createdBy: author.createdBy,
@@ -1078,22 +1107,24 @@ export async function approveOfferBatchItem(params: {
   if (!result.ok) {
     const code =
       result.httpStatus === 409 ? 'WRITER_DUPLICATE' : result.httpStatus === 400 ? 'WRITER_REJECTED' : 'WRITER_FAILED';
-    const patch: Record<string, unknown> = {
-      status: 'NEEDS_REVIEW',
-      error_code: code,
-      updated_at: now,
-      evidence: {
-        ...item.evidence,
-        writer: { at: now, http_status: result.httpStatus, error: result.error, issues: result.issues ?? null },
-      },
-    };
+    const patch: Record<string, unknown> =
+      result.httpStatus === 500
+        ? { status: item.status, lease_expires_at: null, updated_at: now }
+        : {
+            status: 'NEEDS_REVIEW',
+            lease_expires_at: null,
+            error_code: code,
+            updated_at: now,
+            evidence: {
+              ...item.evidence,
+              writer: { at: now, http_status: result.httpStatus, error: result.error, issues: result.issues ?? null },
+            },
+          };
     if (result.httpStatus === 409) {
       patch.duplicate_status = 'duplicate';
       patch.duplicate_offer_id = result.duplicate_offer_id ?? null;
     }
-    if (result.httpStatus !== 500 && canTransition(item.status, 'NEEDS_REVIEW')) {
-      await supabase.from('offer_batch_items').update(patch).eq('id', item.id).eq('status', item.status);
-    }
+    await supabase.from('offer_batch_items').update(patch).eq('id', item.id).eq('status', 'PROCESSING');
     await appendBatchEvent(supabase, {
       batchId: item.batch_id,
       itemId: item.id,
@@ -1120,35 +1151,34 @@ export async function approveOfferBatchItem(params: {
       offer_id: result.id,
       approved_at: now,
       updated_at: now,
+      lease_expires_at: null,
       error_code: null,
     })
     .eq('id', item.id)
-    .eq('status', item.status)
+    .eq('status', 'PROCESSING')
     .select(ITEM_COLUMNS)
     .maybeSingle();
 
   if (!updated) {
+    // Solo si el lease venció y el pipeline reclamó el ítem. La oferta sigue pending:
+    // la decide la cola de moderación; aquí no se marca como aprobada.
     const current = await getOfferBatchItem(supabase, item.batch_id, item.id);
-    if (current?.offer_id !== result.id) {
-      // Otra decisión cambió el ítem mientras se creaba la oferta. La oferta sigue pending:
-      // la cola de moderación la decide; aquí no se marca como aprobada.
-      await appendBatchEvent(supabase, {
-        batchId: item.batch_id,
-        itemId: item.id,
-        actorId,
-        action: 'approve_conflict',
-        fromStatus: item.status,
-        toStatus: current?.status ?? item.status,
-        payload: { offer_id: result.id, current_status: current?.status ?? null },
-      });
-      return {
-        ok: false,
-        httpStatus: 409,
-        code: 'CONCURRENT_DECISION',
-        message: 'Otra decisión cambió este candidato. La oferta creada sigue pendiente en la cola de moderación.',
-        item: current ?? item,
-      };
-    }
+    await appendBatchEvent(supabase, {
+      batchId: item.batch_id,
+      itemId: item.id,
+      actorId,
+      action: 'approve_conflict',
+      fromStatus: item.status,
+      toStatus: current?.status ?? item.status,
+      payload: { offer_id: result.id, current_status: current?.status ?? null },
+    });
+    return {
+      ok: false,
+      httpStatus: 409,
+      code: 'CONCURRENT_DECISION',
+      message: 'El candidato cambió mientras se creaba la oferta. La oferta sigue pendiente en la cola de moderación.',
+      item: current ?? item,
+    };
   }
 
   await appendBatchEvent(supabase, {
@@ -1165,10 +1195,7 @@ export async function approveOfferBatchItem(params: {
     },
   });
 
-  return {
-    ok: true,
-    item: updated ? normalizeItemRow(updated as Record<string, unknown>) : { ...item, status: 'APPROVED', offer_id: result.id },
-  };
+  return { ok: true, item: normalizeItemRow(updated as Record<string, unknown>) };
 }
 
 export async function rejectOfferBatchItem(params: {
@@ -1179,6 +1206,15 @@ export async function rejectOfferBatchItem(params: {
 }): Promise<ItemActionResult> {
   const { supabase, item, actorId } = params;
   if (item.status === 'REJECTED') return { ok: true, item, code: 'IDEMPOTENT' };
+  if (item.status === 'PROCESSING' && item.lease_expires_at && Date.parse(item.lease_expires_at) > Date.now()) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      code: 'CONCURRENT_DECISION',
+      message: 'Este candidato se está procesando o aprobando. Vuelve a intentarlo en un momento.',
+      item,
+    };
+  }
   if (!canRejectFrom(item.status)) {
     return {
       ok: false,

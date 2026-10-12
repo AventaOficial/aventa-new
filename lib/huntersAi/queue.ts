@@ -13,7 +13,7 @@ const ITEM_COLUMNS = `
   retailer, store, title, hint_title, price, hint_price, original_price, hint_original_price,
   discount_percent, category, hint_note, duplicate_status, duplicate_offer_id, offer_id,
   error_code, warnings, rejection_reason, evidence, created_at, approved_at, rejected_at,
-  offers(status)`;
+  offers(status, deleted_at)`;
 
 const ITEM_SELECT = `${ITEM_COLUMNS},
   offer_batches!inner(mcp_run_id, machine_client_id, machine_clients(name, hunter_code))
@@ -101,7 +101,13 @@ export function rowToSource(raw: Record<string, unknown>): HunterSource {
     duplicateOfferId: typeof raw.duplicate_offer_id === 'string' ? raw.duplicate_offer_id : null,
     offerId: typeof raw.offer_id === 'string' ? raw.offer_id : null,
     offerStatus:
-      typeof offer.status === 'string' ? offer.status : typeof raw.offer_status === 'string' ? raw.offer_status : null,
+      typeof offer.deleted_at === 'string'
+        ? 'deleted'
+        : typeof offer.status === 'string'
+          ? offer.status
+          : typeof raw.offer_status === 'string'
+            ? raw.offer_status
+            : null,
     errorCode: typeof raw.error_code === 'string' ? raw.error_code : null,
     warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((w): w is string => typeof w === 'string') : [],
     rejectionReason: typeof raw.rejection_reason === 'string' ? raw.rejection_reason : null,
@@ -162,7 +168,7 @@ async function countPipeline(
     .select(select, { count: 'exact', head: true })
     .not('offer_batches.machine_client_id', 'is', null)
     .in('status', statuses);
-  if (opts.offerStatus) q = q.eq('offers.status', opts.offerStatus);
+  if (opts.offerStatus) q = q.eq('offers.status', opts.offerStatus).is('offers.deleted_at', null);
   if (opts.since) q = q.gte('created_at', opts.since);
   const { count, error } = await q;
   if (error) return 0;

@@ -47,6 +47,14 @@ export function createFakeDb(seed: Record<string, Row[]>) {
         filters.push((r) => values.includes(r[col]));
         return builder;
       },
+      is: (col: string, value: unknown) => {
+        filters.push((r) => (r[col] ?? null) === value);
+        return builder;
+      },
+      lt: (col: string, value: string) => {
+        filters.push((r) => typeof r[col] === 'string' && (r[col] as string) < value);
+        return builder;
+      },
       not: () => builder,
       gte: () => builder,
       order: () => builder,
@@ -112,6 +120,7 @@ export function itemRow(id: string, over: Row = {}): Row {
     evidence: {},
     error_code: null,
     rejection_reason: null,
+    lease_expires_at: null,
     attempts: 0,
     position: 0,
     ...over,
