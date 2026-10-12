@@ -5,12 +5,19 @@ import "./globals.css";
 import Providers from "./providers";
 import CookieNotice from "./components/CookieNotice";
 import SocialIcons from "./components/SocialIcons";
-import { getSocialLinks } from "@/lib/social/config";
+import { getSocialLinks } from "@/lib/social/socialLinks";
 import {
   AFFILIATE_DISCLOSURE_ES,
   AMAZON_ASSOCIATES_DISCLOSURE,
 } from "@/lib/commissions/programStatus";
-import { ProductPageView } from "@/app/components/analytics/ProductPageView";
+import { PageViewBeacon } from "@/app/components/analytics/PageViewBeacon";
+
+/**
+ * Techo de antigüedad para las páginas públicas servidas desde la caché (ISR/CDN).
+ * Nada en este layout lee headers ni cookies: si lo hiciera, todo el sitio volvería a ser dinámico.
+ * Las secciones privadas fijan `dynamic = 'force-dynamic'` en su propio layout.
+ */
+export const revalidate = 60;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -109,7 +116,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-clip pb-[calc(5.5rem+0.65rem+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >
-        <ProductPageView />
+        <PageViewBeacon />
         <Providers>
           {children}
           <CookieNotice />

@@ -7,6 +7,7 @@ import {
   type SocialConfig,
   type SocialNetwork,
 } from '@/lib/social/config';
+import { invalidateSocialLinks } from '@/lib/social/socialLinks';
 
 function cleanUrl(value: unknown, network?: SocialNetwork): string {
   const url = typeof value === 'string' ? value.trim() : '';
@@ -67,5 +68,6 @@ export async function PATCH(request: Request) {
     console.error('[admin/social] upsert:', error.message);
     return NextResponse.json({ error: 'No se pudo guardar.' }, { status: 500 });
   }
+  invalidateSocialLinks();
   return NextResponse.json({ ok: true, social: next });
 }

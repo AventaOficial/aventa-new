@@ -1,6 +1,10 @@
 import { notFound, permanentRedirect } from 'next/navigation';
+import { unstable_cache } from 'next/cache';
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createInteractiveServerClient } from '@/lib/supabase/server';
+import { PUBLIC_OFFER_DETAIL_STATUSES } from '@/lib/offers/offerSharePreview';
+import { offerDetailCacheTag, PUBLIC_OFFER_REVALIDATE_SECONDS } from '@/lib/offers/publicOfferCache';
 import { ALL_CATEGORIES, normalizeCategoryForStorage } from '@/lib/categories';
 import { slugifyStore } from '@/lib/slug';
 import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offerPath';
@@ -70,10 +74,14 @@ function categorySlugToLabel(slug: string): string {
   return c?.label ?? slug;
 }
 
-async function getOffer(id: string) {
-  const supabase = createServerClient();
+type OfferHealth = { status: string; last_checked_at: string | null; diagnostic: string | null };
 
-  // Lifecycle (expires_at) ≠ accessibility: approved expired offers remain consultable.
+type OfferDetail = { offer: OfferRow; health: OfferHealth | null };
+
+async function readOfferDetail(id: string): Promise<OfferDetail | null> {
+  const supabase = createInteractiveServerClient();
+
+  // Lifecycle (expires_at) ≠ accessibility: public expired offers remain consultable.
   const { data, error } = await supabase
     .from('offers')
     .select(`
@@ -83,39 +91,51 @@ async function getOffer(id: string) {
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)
     `)
     .eq('id', id)
-    .eq('status', 'approved')
+    .in('status', [...PUBLIC_OFFER_DETAIL_STATUSES])
     .maybeSingle();
 
-  if (error || !data) return null;
-  return data as unknown as OfferRow;
+  // Un fallo de la base no es «no existe»: lanzar evita guardar un 404 y conserva la última versión en caché.
+  if (error) throw new Error(`offer detail unavailable: ${error.message}`);
+  if (!data) return null;
+  return { offer: data as unknown as OfferRow, health: await loadOfferHealth(supabase, id) };
 }
 
-async function loadOfferHealth(
-  id: string,
-): Promise<{ status: string; last_checked_at: string | null; diagnostic: string | null } | null> {
+/** Compartido por metadata y página; una lectura por oferta y ventana de caché. */
+function getOfferDetail(id: string): Promise<OfferDetail | null> {
+  return unstable_cache(() => readOfferDetail(id), ['offer-detail', id], {
+    revalidate: PUBLIC_OFFER_REVALIDATE_SECONDS,
+    tags: [offerDetailCacheTag(id)],
+  })();
+}
+
+async function loadOfferHealth(supabase: SupabaseClient, id: string): Promise<OfferHealth | null> {
   try {
-    const supabase = createServerClient();
     const { data, error } = await supabase
       .from('offer_health_state')
       .select('status, last_checked_at, diagnostic')
       .eq('offer_id', id)
       .maybeSingle();
     if (error || !data) return null;
-    return data as { status: string; last_checked_at: string | null; diagnostic: string | null };
+    return data as OfferHealth;
   } catch {
     return null;
   }
+}
+
+/** Sin rutas en build: cada oferta se genera en su primera visita y se sirve por ISR. */
+export async function generateStaticParams() {
+  return [];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: rawSegment } = await params;
   const id = extractOfferIdFromPathSegment(rawSegment);
   if (!id) return brandedTitle('Oferta no encontrada');
-  const offer = await getOffer(id);
-  if (!offer) return { ...brandedTitle('Oferta no encontrada'), robots: { index: false, follow: false } };
+  const detail = await getOfferDetail(id);
+  if (!detail) return { ...brandedTitle('Oferta no encontrada'), robots: { index: false, follow: false } };
+  const { offer, health } = detail;
   if (offer.deleted_at) return { ...brandedTitle('Oferta no encontrada'), robots: { index: false, follow: false } };
 
-  const health = await loadOfferHealth(id);
   const freshness = presentOfferFreshness({
     expiresAt: offer.expires_at,
     deletedAt: offer.deleted_at,
@@ -161,9 +181,9 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   const { id: rawSegment } = await params;
   const id = extractOfferIdFromPathSegment(rawSegment);
   if (!id) notFound();
-  const offer = await getOffer(id);
-  if (!offer || offer.deleted_at) notFound();
-  const health = await loadOfferHealth(id);
+  const detail = await getOfferDetail(id);
+  if (!detail || detail.offer.deleted_at) notFound();
+  const { offer, health } = detail;
   const freshness = presentOfferFreshness({
     expiresAt: offer.expires_at,
     deletedAt: offer.deleted_at,
@@ -200,8 +220,9 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
   };
 
   if (!botAuthor && offer.created_by) {
-    author.featuredAchievement = await loadPrimaryAchievement(createServerClient(), offer.created_by);
-    const card = await loadPublicAuthorCard(createServerClient(), offer.created_by);
+    const supabase = createInteractiveServerClient();
+    author.featuredAchievement = await loadPrimaryAchievement(supabase, offer.created_by);
+    const card = await loadPublicAuthorCard(supabase, offer.created_by);
     author.bio = card.bio;
     author.location = card.location;
   }

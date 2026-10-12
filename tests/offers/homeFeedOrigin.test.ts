@@ -26,14 +26,15 @@ function queryBuilder() {
   return builder;
 }
 
-vi.mock('@/lib/supabase/server', () => ({
-  createServerClient: () => ({
+vi.mock('@/lib/supabase/server', () => {
+  const client = () => ({
     from: (table: string) => {
       state.calls.push({ method: 'from', args: [table] });
       return queryBuilder();
     },
-  }),
-}));
+  });
+  return { createServerClient: client, createInteractiveServerClient: client };
+});
 
 import { getHomeFeed } from '@/lib/offers/feedService';
 import { mapOfferToCard, type FeedApiItemShape } from '@/lib/offers/transform';

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
+import { createInteractiveServerClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import CategoriaOfferList from '@/app/categoria/[slug]/CategoriaOfferList';
@@ -10,6 +10,11 @@ import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
+
+/** Sin rutas en build: cada página se genera en su primera visita y se sirve por ISR. */
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({
   params,
@@ -42,7 +47,7 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
   const hit = findSubgroupBySlug(tag);
   const label = hit?.subgroup.label ?? tag.replace(/-/g, ' ');
 
-  const supabase = createServerClient();
+  const supabase = createInteractiveServerClient();
   const now = new Date().toISOString();
 
   const { data: rows, error } = await supabase
@@ -56,7 +61,8 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
     .order('ranking_blend', { ascending: false })
     .limit(60);
 
-  if (error) notFound();
+  // Un 404 se cachearía con la página; un error no, y ISR sigue sirviendo la versión anterior.
+  if (error) throw new Error(`tag offers unavailable: ${error.message}`);
   const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
 
   return (

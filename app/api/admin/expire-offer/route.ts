@@ -5,6 +5,7 @@ import { canUseBulkModeration } from '@/lib/moderation/moderationBulkAccess';
 import { isValidUuid } from '@/lib/server/validateUuid';
 import { captureHumanModerationOutcome } from '@/lib/autonomous';
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache';
+import { invalidatePublicOffer } from '@/lib/offers/publicOfferCache';
 
 /** POST: marca una oferta como expirada (expires_at = ahora). Solo mods. */
 export async function POST(request: Request) {
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
 
   void captureHumanModerationOutcome(offerId, 'expired');
   await invalidateHomeFeedCache().catch(() => {});
+  invalidatePublicOffer(offerId);
 
   return NextResponse.json({ ok: true });
 }

@@ -5,6 +5,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { readAuthenticatedUserId } from '@/lib/team/gate/session';
 import StaffShell from './components/StaffShell';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Equipo AVENTA',
   robots: { index: false, follow: false },

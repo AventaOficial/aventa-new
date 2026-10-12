@@ -8,6 +8,14 @@ import {
 import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 import { captureRequestAuth, userIdFromCapturedAuth } from '@/lib/analytics/requestUser';
 import { scheduleProductEvent } from '@/lib/analytics/scheduleProductEvent';
+import { ANALYTICS_SUPABASE_TIMEOUT_MS } from '@/lib/supabase/server';
+import {
+  CAMPAIGN_COOKIE,
+  campaignMetadata,
+  parseCampaignCookie,
+  resolveRequestCampaign,
+  serializeCampaignCookie,
+} from '@/lib/growth/campaignContext';
 
 function countItems(payload: unknown): number | null {
   if (!payload || typeof payload !== 'object') return null;
@@ -96,6 +104,35 @@ export async function observeFeedRequest(
   });
   } catch (error) {
     console.error('[product-event] feed observer skipped', error instanceof Error ? error.name : 'error');
+  }
+}
+
+/**
+ * page_view de documento. Lo envía el navegador al cargar la página, así el render público
+ * no lee headers ni cookies y puede servirse desde la caché.
+ * La campaña sale de la query del documento y, si no hay, de la cookie (misma regla que el middleware).
+ */
+export async function observePageView(request: Request, input: { path: string; search: string }): Promise<void> {
+  try {
+    const { anonymousId, cookieList } = await captureAnonymousId();
+    const fromQuery = resolveRequestCampaign(input.search, input.path);
+    const campaign =
+      (fromQuery ? parseCampaignCookie(serializeCampaignCookie(fromQuery)) : null) ??
+      parseCampaignCookie(cookieList.find((cookie) => cookie.name === CAMPAIGN_COOKIE)?.value);
+
+    // Se espera dentro del request: el beacon no bloquea al usuario y así el insert no queda
+    // congelado en `after()` si la instancia se suspende.
+    const userId = await userIdFromCapturedAuth({ bearer: null, cookies: cookieList });
+    await recordProductEvent({
+      event: 'page_view',
+      userId,
+      anonymousId,
+      source: 'document',
+      metadata: { path: input.path, ...campaignMetadata(campaign) },
+      timeoutMs: ANALYTICS_SUPABASE_TIMEOUT_MS,
+    });
+  } catch (error) {
+    console.error('[product-event] page_view skipped', error instanceof Error ? error.name : 'error');
   }
 }
 
