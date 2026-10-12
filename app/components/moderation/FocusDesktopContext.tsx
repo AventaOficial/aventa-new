@@ -7,10 +7,16 @@ import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
 import { formatModerationRelativeTime } from '@/lib/moderation/relativeTime';
 import { getOfferDiscountPercent } from '@/lib/moderation/relativeTime';
-import { parseBotMeta } from '@/lib/moderation/botFacts';
+import { parseBotMeta, parseMachinePricePolicy } from '@/lib/moderation/botFacts';
 import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
+
+const REFERENCE_DROPPED: Record<string, string> = {
+  absent: 'la página no muestra lista',
+  no_page_source: 'sin fuente en la página',
+  not_above_price: 'no es mayor que el precio',
+};
 
 type Props = {
   offer: FocusModerationOffer;
@@ -40,6 +46,7 @@ export default function FocusDesktopContext({
   });
   const pct = getOfferDiscountPercent(offer.price, offer.original_price);
   const meta = parseBotMeta(offer.bot_meta);
+  const pricePolicy = parseMachinePricePolicy(offer.bot_meta);
   const age = formatModerationRelativeTime(offer.created_at);
   const desc = offer.description?.trim() || null;
 
@@ -165,6 +172,25 @@ export default function FocusDesktopContext({
           ) : null}
           {meta?.signals?.suspectedArtificialListPrice === true ? (
             <li>Precio lista sospechoso</li>
+          ) : null}
+          {pricePolicy ? (
+            <>
+              <li data-focus-machine-price-policy>
+                Precio MCP: {pricePolicy.kind === 'list_price_comparison' ? 'comparado vs. lista de la tienda' : 'oportunidad por precio'}
+                {pricePolicy.priceSource ? ` · fuente ${pricePolicy.priceSource}` : ''}
+              </li>
+              {pricePolicy.referenceDropped && pricePolicy.botDeclaredOriginalPrice != null ? (
+                <li>Lista declarada por el bot descartada ({REFERENCE_DROPPED[pricePolicy.referenceDropped] ?? pricePolicy.referenceDropped})</li>
+              ) : null}
+              {pricePolicy.botDeclaredPrice != null ? (
+                <li>
+                  Declarado por el bot (no publicado): ${pricePolicy.botDeclaredPrice.toLocaleString('es-MX')}
+                  {pricePolicy.botDeclaredOriginalPrice != null
+                    ? ` · lista $${pricePolicy.botDeclaredOriginalPrice.toLocaleString('es-MX')}`
+                    : ''}
+                </li>
+              ) : null}
+            </>
           ) : null}
         </ul>
         {desc ? (

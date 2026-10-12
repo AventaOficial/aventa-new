@@ -26,6 +26,9 @@ function source(over: Partial<HunterSource> = {}): HunterSource {
     duplicateStatus: 'none',
     duplicateOfferId: null,
     offerId: null,
+    offerStatus: null,
+    errorCode: null,
+    warnings: [],
     rejectionReason: null,
     evidence: {},
     createdAt: '2026-10-05T12:00:00.000Z',
@@ -41,7 +44,8 @@ describe('Hunters IA · presentación', () => {
   it('mapea el pipeline a la cola editorial sin inventar historial ni score', () => {
     expect(editorialStatus('READY', {})).toBe('PENDING');
     expect(editorialStatus('NEEDS_REVIEW', {})).toBe('NEEDS_REVIEW');
-    expect(editorialStatus('APPROVED', {})).toBe('APPROVED');
+    expect(editorialStatus('APPROVED', {})).toBe('IN_MODERATION');
+    expect(editorialStatus('APPROVED', {}, 'approved')).toBe('APPROVED');
     expect(editorialStatus('REJECTED', {})).toBe('REJECTED');
     const card = toHunterCard(source());
     expect(card.history).toEqual({ available: false, label: 'Historial insuficiente' });

@@ -27,6 +27,10 @@ export type HunterSource = {
   duplicateStatus: string | null;
   duplicateOfferId: string | null;
   offerId: string | null;
+  /** `offers.status` de la oferta creada, si existe. */
+  offerStatus: string | null;
+  errorCode: string | null;
+  warnings: string[];
   rejectionReason: string | null;
   evidence: Record<string, unknown>;
   createdAt: string;
@@ -62,8 +66,13 @@ export type HunterCard = {
   whyGoodDeal: string;
   retailer: string;
   sourceUrl: string;
+  /** Precio extraído de la página. Null si solo existe el que declaró el hunter. */
   price: number | null;
+  /** Precio de lista extraído de la página y mayor que el actual. Nunca el declarado. */
   referencePrice: number | null;
+  /** Pistas del hunter sin verificar; no se usan para descuento ni ahorro. */
+  declaredPrice: number | null;
+  declaredReferencePrice: number | null;
   discountPercent: number | null;
   absoluteSavings: number | null;
   currency: 'MXN';
@@ -80,6 +89,12 @@ export type HunterCard = {
   duplicate: boolean;
   duplicateOfferId: string | null;
   approvedOfferId: string | null;
+  offerStatus: string | null;
+  /** Enlace a la cola de moderación cuando la oferta sigue pending. */
+  moderationHref: string | null;
+  /** Código del control que retuvo o rechazó el candidato (calidad, memoria negativa, extracción). */
+  reviewCode: string | null;
+  warnings: string[];
   rejectionReason: string | null;
   history: PriceHistoryView;
   identityKey: string;
@@ -151,17 +166,17 @@ export function historyReading(
 
 export function toHunterCard(source: HunterSource): HunterCard {
   const ed = editorial(source.evidence);
-  const price = source.price ?? source.hintPrice;
-  const referencePrice = source.originalPrice ?? source.hintOriginalPrice;
+  const price = source.price;
+  const referencePrice =
+    price != null && source.originalPrice != null && source.originalPrice > price ? source.originalPrice : null;
   const discount =
-    source.discountPercent ??
-    (price != null && referencePrice != null && referencePrice > price
-      ? Math.round(((referencePrice - price) / referencePrice) * 1000) / 10
-      : null);
-  const savings = price != null && referencePrice != null && referencePrice > price ? Math.round((referencePrice - price) * 100) / 100 : null;
+    referencePrice == null
+      ? null
+      : (source.discountPercent ?? Math.round(((referencePrice - price!) / referencePrice) * 1000) / 10);
+  const savings = referencePrice != null ? Math.round((referencePrice - price!) * 100) / 100 : null;
   const score = num(source.evidence.deal_score ?? source.evidence.dealScore);
   const grade = text(source.evidence.evidence_grade ?? source.evidence.evidenceGrade, 8);
-  const queueStatus = editorialStatus(source.status, source.evidence);
+  const queueStatus = editorialStatus(source.status, source.evidence, source.offerStatus);
   const open = queueStatus === 'PENDING' || queueStatus === 'NEEDS_REVIEW';
   const hunter = hunterForLane(source.hunterName);
   return {
@@ -176,6 +191,8 @@ export function toHunterCard(source: HunterSource): HunterCard {
     sourceUrl: source.canonicalUrl || source.sourceUrl,
     price,
     referencePrice,
+    declaredPrice: source.hintPrice,
+    declaredReferencePrice: source.hintOriginalPrice,
     discountPercent: discount,
     absoluteSavings: savings,
     currency: 'MXN',
@@ -192,7 +209,22 @@ export function toHunterCard(source: HunterSource): HunterCard {
     duplicate: source.duplicateStatus === 'duplicate' && Boolean(source.duplicateOfferId),
     duplicateOfferId: source.duplicateOfferId,
     approvedOfferId: source.offerId,
-    rejectionReason: source.rejectionReason,
+    offerStatus: source.offerStatus,
+    moderationHref:
+      queueStatus === 'IN_MODERATION' && source.offerId
+        ? `/admin/moderation?focus=${encodeURIComponent(source.offerId)}`
+        : null,
+    reviewCode: source.errorCode,
+    warnings: source.warnings,
+    rejectionReason:
+      source.rejectionReason ??
+      (source.status !== 'APPROVED'
+        ? null
+        : source.offerStatus === 'rejected'
+          ? 'Rechazada en moderación'
+          : source.offerStatus === 'deleted'
+            ? 'Oferta eliminada'
+            : null),
     history: readPriceHistory(source.evidence, price, referencePrice),
     identityKey: source.identityKey,
     canApprove: open,

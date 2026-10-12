@@ -3,12 +3,32 @@
  * Los lotes siguen siendo la unidad de ingestión. Aquí la unidad de decisión es un candidato.
  */
 
-export const HUNTER_QUEUE_STATUSES = ['PENDING', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED'] as const;
+/**
+ * IN_MODERATION: el ítem ya tiene oferta `pending`; la decisión humana sigue en la cola de
+ * moderación. APPROVED solo cuando la oferta quedó aprobada o publicada.
+ */
+export const HUNTER_QUEUE_STATUSES = ['PENDING', 'NEEDS_REVIEW', 'IN_MODERATION', 'APPROVED', 'REJECTED'] as const;
 export type HunterQueueStatus = (typeof HUNTER_QUEUE_STATUSES)[number];
 
 export const HUNTER_PAGE_SIZE = 24;
 /** Ventana reciente sobre la que se deduplica y ordena. Cubre el objetivo de 70–200/día sin cargar el histórico. */
 export const HUNTER_WINDOW = 300;
+/** Tope de una acción masiva; se procesa en serie, ítem por ítem. */
+export const HUNTER_BULK_MAX = 50;
+
+const OPEN_DB_STATUSES = ['INGESTED', 'PROCESSING', 'READY', 'NEEDS_REVIEW', 'ERROR'];
+
+/**
+ * Estados de `offer_batch_items` que pueden caer en cada filtro editorial.
+ * Se filtra en la consulta antes de la ventana para que los ítems cerrados no desplacen a los abiertos.
+ */
+export function pipelineStatusesFor(status: HunterQueueStatus | 'ALL'): string[] | null {
+  if (status === 'PENDING' || status === 'NEEDS_REVIEW') return OPEN_DB_STATUSES;
+  if (status === 'IN_MODERATION') return ['APPROVED'];
+  if (status === 'APPROVED') return ['APPROVED', 'PUBLISHED'];
+  if (status === 'REJECTED') return ['REJECTED', 'APPROVED'];
+  return null;
+}
 
 export const DAILY_CATEGORIES = [
   'Hogar',
@@ -57,8 +77,17 @@ export type HunterSort = (typeof HUNTER_SORTS)[number];
 const OPEN_PIPELINE = new Set(['INGESTED', 'PROCESSING', 'READY']);
 const EDIT_PIPELINE = new Set(['NEEDS_REVIEW', 'ERROR']);
 
-export function editorialStatus(status: string, evidence: Record<string, unknown> | null | undefined): HunterQueueStatus {
-  if (status === 'APPROVED' || status === 'PUBLISHED') return 'APPROVED';
+export function editorialStatus(
+  status: string,
+  evidence: Record<string, unknown> | null | undefined,
+  offerStatus: string | null = null,
+): HunterQueueStatus {
+  if (status === 'PUBLISHED') return 'APPROVED';
+  if (status === 'APPROVED') {
+    if (offerStatus === 'rejected' || offerStatus === 'deleted') return 'REJECTED';
+    if (offerStatus === 'approved' || offerStatus === 'published') return 'APPROVED';
+    return 'IN_MODERATION';
+  }
   if (status === 'REJECTED') return 'REJECTED';
   if (EDIT_PIPELINE.has(status)) return 'NEEDS_REVIEW';
   const editorial = evidence?.editorial;

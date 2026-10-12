@@ -107,6 +107,32 @@ export function parseBotMeta(raw: unknown): BotMeta | null {
   };
 }
 
+/** `bot_meta.price_policy` que escribe `enqueueHunterOffer` (MCP). Null si la oferta no lo trae. */
+export type MachinePricePolicy = {
+  version: string | null;
+  kind: string | null;
+  priceSource: string | null;
+  originalPriceProvenance: string | null;
+  referenceDropped: string | null;
+  botDeclaredPrice: number | null;
+  botDeclaredOriginalPrice: number | null;
+};
+
+export function parseMachinePricePolicy(raw: unknown): MachinePricePolicy | null {
+  const policy = asRecord(asRecord(raw)?.price_policy);
+  if (!policy) return null;
+  const declared = asRecord(policy.bot_declared) ?? {};
+  return {
+    version: str(policy.version),
+    kind: str(policy.kind),
+    priceSource: str(policy.price_source),
+    originalPriceProvenance: str(policy.original_price_provenance),
+    referenceDropped: str(policy.reference_dropped),
+    botDeclaredPrice: num(declared.price),
+    botDeclaredOriginalPrice: num(declared.originalPrice),
+  };
+}
+
 /** Desglose legado embebido en el comentario: `d53 p58 r60 c35 $88`. */
 export function parseLegacyScoreBreakdown(moderatorComment?: string | null): BotMetaScore | null {
   const text = moderatorComment ?? '';
