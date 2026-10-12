@@ -38,6 +38,7 @@ import { createMemoryDb, mcpUniqueIndexes, memorySupabase, type MemoryDb } from 
 const NOW = new Date('2026-10-04T18:00:00.000Z');
 const OBSERVED = '2026-10-04T17:00:00.000Z';
 const BOT_AUTHOR = '0b0b0b0b-0000-4000-8000-000000000001';
+const RUN_ID = 'grok-run-test';
 
 function client(over: Partial<MachineClientContext> = {}): MachineClientContext {
   return {
@@ -307,7 +308,7 @@ describe('submit_deal_candidates', () => {
   it('registra el lote y deja la oferta pending en moderación', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    const r = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-0001', candidates: [candidate()] }, NOW);
+    const r = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-0001', candidates: [candidate()] }, NOW);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.data.accepted).toEqual([{ index: 0 }]);
@@ -341,7 +342,7 @@ describe('submit_deal_candidates', () => {
 
   it('la respuesta no expone notas de moderación, scores, bot_meta, staff ni economía', async () => {
     const db = freshDb();
-    const r = await submitDealCandidates(memorySupabase(db), client(), { idempotencyKey: 'run-0002', candidates: [candidate()] }, NOW);
+    const r = await submitDealCandidates(memorySupabase(db), client(), { runId: RUN_ID, idempotencyKey: 'run-0002', candidates: [candidate()] }, NOW);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(Object.keys(r.data).sort()).toEqual(['accepted', 'duplicatesInRequest', 'quota', 'rejected', 'submissionId']);
@@ -354,9 +355,9 @@ describe('submit_deal_candidates', () => {
   it('idempotencia: misma llave + mismo payload => mismo envío, sin lote duplicado ni cuota extra', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    const input = { idempotencyKey: 'run-0003', candidates: [candidate()] };
+    const input = { runId: RUN_ID, idempotencyKey: 'run-0003', candidates: [candidate()] };
     const first = await submitDealCandidates(sb, client(), input, NOW);
-    const replay = await submitDealCandidates(sb, client(), { candidates: [{ ...candidate() }], idempotencyKey: 'run-0003' }, NOW);
+    const replay = await submitDealCandidates(sb, client(), { candidates: [{ ...candidate() }], idempotencyKey: 'run-0003', runId: RUN_ID }, NOW);
     expect(first.ok && replay.ok).toBe(true);
     if (!first.ok || !replay.ok) return;
     expect(replay.data).toEqual(first.data);
@@ -368,8 +369,8 @@ describe('submit_deal_candidates', () => {
   it('idempotencia: misma llave + payload distinto => IDEMPOTENCY_CONFLICT', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    await submitDealCandidates(sb, client(), { idempotencyKey: 'run-0004', candidates: [candidate()] }, NOW);
-    const r = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-0004', candidates: [candidate({ price: 450 })] }, NOW);
+    await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-0004', candidates: [candidate()] }, NOW);
+    const r = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-0004', candidates: [candidate({ price: 450 })] }, NOW);
     expect(r).toMatchObject({ ok: false, code: 'IDEMPOTENCY_CONFLICT' });
     expect(db.tables.offer_batches).toHaveLength(1);
   });
@@ -377,12 +378,12 @@ describe('submit_deal_candidates', () => {
   it('idempotencia por cliente: otro cliente puede usar la misma llave', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    await submitDealCandidates(sb, client(), { idempotencyKey: 'run-0005', candidates: [candidate()] }, NOW);
+    await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-0005', candidates: [candidate()] }, NOW);
     const other = client({ id: '22222222-2222-4222-8222-222222222222' });
     const r = await submitDealCandidates(
       sb,
       other,
-      { idempotencyKey: 'run-0005', candidates: [candidate({ url: 'https://www.amazon.com.mx/dp/B0TESTBBBB' })] },
+      { runId: RUN_ID, idempotencyKey: 'run-0005', candidates: [candidate({ url: 'https://www.amazon.com.mx/dp/B0TESTBBBB' })] },
       NOW,
     );
     expect(r.ok).toBe(true);
@@ -392,7 +393,7 @@ describe('submit_deal_candidates', () => {
   it('carrera: el índice único de la base decide y la segunda llamada responde como replay', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    const input = { idempotencyKey: 'run-race-1', candidates: [candidate()] };
+    const input = { runId: RUN_ID, idempotencyKey: 'run-race-1', candidates: [candidate()] };
     const [a, b] = await Promise.all([
       submitDealCandidates(sb, client(), input, NOW),
       submitDealCandidates(sb, client(), input, NOW),
@@ -406,13 +407,16 @@ describe('submit_deal_candidates', () => {
   });
 
   it.each([
-    [{ idempotencyKey: 'short', candidates: [candidate()] }, 'INVALID_INPUT'],
-    [{ idempotencyKey: 'x'.repeat(129), candidates: [candidate()] }, 'INVALID_INPUT'],
-    [{ idempotencyKey: 'bad key with spaces', candidates: [candidate()] }, 'INVALID_INPUT'],
-    [{ idempotencyKey: 'run-0006', candidates: [] }, 'INVALID_INPUT'],
-    [{ idempotencyKey: 'run-0006', candidates: 'x' }, 'INVALID_INPUT'],
+    [{ runId: RUN_ID, idempotencyKey: 'short', candidates: [candidate()] }, 'INVALID_INPUT'],
+    [{ runId: RUN_ID, idempotencyKey: 'x'.repeat(129), candidates: [candidate()] }, 'INVALID_INPUT'],
+    [{ runId: RUN_ID, idempotencyKey: 'bad key with spaces', candidates: [candidate()] }, 'INVALID_INPUT'],
+    [{ runId: RUN_ID, idempotencyKey: 'run-0006', candidates: [] }, 'INVALID_INPUT'],
+    [{ runId: RUN_ID, idempotencyKey: 'run-0006', candidates: 'x' }, 'INVALID_INPUT'],
     [{ idempotencyKey: 'run-0006', runId: '<x>', candidates: [candidate()] }, 'INVALID_INPUT'],
-    [{ idempotencyKey: 'run-0006', candidates: Array.from({ length: 21 }, () => candidate()) }, 'TOO_MANY_CANDIDATES'],
+    [{ idempotencyKey: 'run-0006', candidates: [candidate()] }, 'INVALID_INPUT'],
+    [{ idempotencyKey: 'run-0006', runId: '', candidates: [candidate()] }, 'INVALID_INPUT'],
+    [{ idempotencyKey: 'run-0006', runId: null, candidates: [candidate()] }, 'INVALID_INPUT'],
+    [{ runId: RUN_ID, idempotencyKey: 'run-0006', candidates: Array.from({ length: 21 }, () => candidate()) }, 'TOO_MANY_CANDIDATES'],
   ])('entrada inválida => %#', async (input, code) => {
     const db = freshDb();
     const r = await submitDealCandidates(memorySupabase(db), client(), input as never, NOW);
@@ -423,12 +427,12 @@ describe('submit_deal_candidates', () => {
   it('kill switch apagado => INGEST_PAUSED y nada se escribe', async () => {
     delete process.env.MCP_INGEST_ENABLED;
     const db = freshDb();
-    const r = await submitDealCandidates(memorySupabase(db), client(), { idempotencyKey: 'run-0007', candidates: [candidate()] }, NOW);
+    const r = await submitDealCandidates(memorySupabase(db), client(), { runId: RUN_ID, idempotencyKey: 'run-0007', candidates: [candidate()] }, NOW);
     expect(r).toMatchObject({ ok: false, code: 'INGEST_PAUSED' });
     expect(db.tables.offer_batches ?? []).toHaveLength(0);
     process.env.MCP_INGEST_ENABLED = 'false';
     expect(
-      await submitDealCandidates(memorySupabase(db), client(), { idempotencyKey: 'run-0007', candidates: [candidate()] }, NOW),
+      await submitDealCandidates(memorySupabase(db), client(), { runId: RUN_ID, idempotencyKey: 'run-0007', candidates: [candidate()] }, NOW),
     ).toMatchObject({ ok: false, code: 'INGEST_PAUSED' });
   });
 
@@ -437,7 +441,7 @@ describe('submit_deal_candidates', () => {
     const r = await submitDealCandidates(
       memorySupabase(db),
       client({ status: 'paused' }),
-      { idempotencyKey: 'run-0008', candidates: [candidate()] },
+      { runId: RUN_ID, idempotencyKey: 'run-0008', candidates: [candidate()] },
       NOW,
     );
     expect(r).toMatchObject({ ok: false, code: 'CLIENT_PAUSED' });
@@ -448,13 +452,14 @@ describe('submit_deal_candidates', () => {
     const db = freshDb();
     const sb = memorySupabase(db);
     const c = client({ dailyCandidateCap: 2 });
-    const first = await submitDealCandidates(sb, c, { idempotencyKey: 'run-q-1-key', candidates: [candidate()] }, NOW);
+    const first = await submitDealCandidates(sb, c, { runId: RUN_ID, idempotencyKey: 'run-q-1-key', candidates: [candidate()] }, NOW);
     expect(first.ok).toBe(true);
     const r = await submitDealCandidates(
       sb,
       c,
       {
         idempotencyKey: 'run-q-2-key',
+        runId: RUN_ID,
         candidates: [
           candidate({ url: 'https://www.amazon.com.mx/dp/B0TESTBBBB' }),
           candidate({ url: 'https://www.amazon.com.mx/dp/B0TESTCCCC' }),
@@ -469,8 +474,8 @@ describe('submit_deal_candidates', () => {
   it('identidad ya abierta en otro lote => ALREADY_IN_REVIEW, sin duplicar', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    await submitDealCandidates(sb, client(), { idempotencyKey: 'run-o-1-key', candidates: [candidate()] }, NOW);
-    const r = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-o-2-key', candidates: [candidate({ price: 450 })] }, NOW);
+    await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-o-1-key', candidates: [candidate()] }, NOW);
+    const r = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-o-2-key', candidates: [candidate({ price: 450 })] }, NOW);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.data.accepted).toEqual([]);
@@ -478,14 +483,14 @@ describe('submit_deal_candidates', () => {
     expect(db.tables.offer_batch_items).toHaveLength(1);
     const second = db.tables.offer_batches.find((b) => b.mcp_idempotency_key === 'run-o-2-key');
     expect(second?.status).toBe('archived');
-    const replay = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-o-2-key', candidates: [candidate({ price: 450 })] }, NOW);
+    const replay = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-o-2-key', candidates: [candidate({ price: 450 })] }, NOW);
     expect(replay.ok && replay.replay).toBe(true);
   });
 
   it('todo inválido => envío registrado sin ítems, y la respuesta es reproducible', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    const input = { idempotencyKey: 'run-bad-1', candidates: [candidate({ url: 'https://evil.example/x' })] };
+    const input = { runId: RUN_ID, idempotencyKey: 'run-bad-1', candidates: [candidate({ url: 'https://evil.example/x' })] };
     const r = await submitDealCandidates(sb, client(), input, NOW);
     expect(r.ok && r.data.rejected).toEqual([{ index: 0, code: 'UNSUPPORTED_HOST' }]);
     expect(db.tables.offer_batch_items ?? []).toHaveLength(0);
@@ -495,7 +500,7 @@ describe('submit_deal_candidates', () => {
   it('el servicio no hace fetch de ninguna URL', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const db = freshDb();
-    await submitDealCandidates(memorySupabase(db), client(), { idempotencyKey: 'run-0009', candidates: [candidate()] }, NOW);
+    await submitDealCandidates(memorySupabase(db), client(), { runId: RUN_ID, idempotencyKey: 'run-0009', candidates: [candidate()] }, NOW);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
@@ -504,7 +509,7 @@ describe('get_submission_status', () => {
   it('sólo envíos propios; ajenos e inexistentes => NOT_FOUND idéntico', async () => {
     const db = freshDb();
     const sb = memorySupabase(db);
-    const r = await submitDealCandidates(sb, client(), { idempotencyKey: 'run-s-1-key', candidates: [candidate()] }, NOW);
+    const r = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-s-1-key', candidates: [candidate()] }, NOW);
     if (!r.ok) throw new Error('setup');
     const mine = await getSubmissionStatus(sb, client(), r.data.submissionId);
     expect(mine.ok && mine.data.candidates).toEqual([{ index: 0, state: 'accepted' }]);
@@ -524,6 +529,7 @@ describe('get_submission_status', () => {
       client(),
       {
         idempotencyKey: 'run-s-2-key',
+        runId: RUN_ID,
         candidates: [candidate(), candidate({ url: 'https://evil.example/x' }), candidate({ url: 'https://www.amazon.com.mx/Otro-Titulo/dp/B0TESTAAAA' })],
       },
       NOW,
@@ -591,6 +597,10 @@ describe('get_submission_rules', () => {
     const rules = buildSubmissionRules(client(), { dailyCap: 200, usedToday: 3, remainingToday: 197 });
     expect(rules.currency).toBe('MXN');
     expect(rules.limits.maxCandidatesPerCall).toBe(20);
+    expect(rules.limits.maxAcceptedPerRun).toBe(5);
+    expect(rules.limits.runIdRequired).toBe(true);
+    expect(rules.candidate.notes.some((r) => r.includes('runId nuevo en cada corrida'))).toBe(true);
+    expect(rules.candidate.notes.some((r) => r.includes('misma idempotencyKey con el mismo payload'))).toBe(true);
     expect(rules.limits.callsPerMinute).toBe(10);
     expect(rules.candidate.required).toEqual(['url', 'title', 'price', 'currency', 'observedAt']);
     expect(rules.supportedStores).toContain('amazon.com.mx');

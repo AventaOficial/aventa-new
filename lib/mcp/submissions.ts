@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createOfferBatch } from '@/lib/offers/batch/service';
 import type { MachineClientContext } from '@/lib/mcp/auth';
@@ -6,6 +7,7 @@ import {
   MCP_IDEMPOTENCY_KEY_MAX,
   MCP_IDEMPOTENCY_KEY_MIN,
   MCP_MAX_CANDIDATES_PER_CALL,
+  MCP_PILOT_MAX_ACCEPTED_PER_RUN,
   MCP_RUN_ID_MAX,
   mapBatchItemToCandidateState,
   type CandidateRejectionCode,
@@ -13,6 +15,7 @@ import {
   type SubmissionCandidateState,
 } from '@/lib/mcp/contract';
 import { isMcpIngestEnabled } from '@/lib/mcp/flags';
+import { claimRunSlots, releaseRunSlots } from '@/lib/mcp/runCap';
 import { enqueueHunterOffer } from '@/lib/offers/ingestion/enqueueHunterOffer';
 
 export type McpQuota = { dailyCap: number; usedToday: number; remainingToday: number };
@@ -32,7 +35,7 @@ export type McpOutcome<T> =
 type StoredCandidate = {
   index: number;
   identity_key: string | null;
-  outcome: 'queued' | 'rejected' | 'duplicate_in_request' | 'already_in_review';
+  outcome: 'queued' | 'rejected' | 'duplicate_in_request' | 'already_in_review' | 'run_cap_reached';
   code: CandidateRejectionCode | null;
 };
 
@@ -139,9 +142,14 @@ export type SubmitInput = {
 };
 
 /**
- * submit_deal_candidates: valida, aplica idempotencia y cuota, y registra el lote.
+ * submit_deal_candidates: valida, aplica idempotencia, cuota y cupo por corrida, y registra el lote.
  * Cada candidato aceptado nace como oferta pending en la cola de moderación.
  * El lote queda como historial de la importación, no como sala de espera.
+ *
+ * Cupo del piloto: como máximo MCP_PILOT_MAX_ACCEPTED_PER_RUN aceptados por runId, sumando
+ * llamadas, reintentos con otra llave y llamadas concurrentes. Sólo ocupan cupo los candidatos
+ * que entran al lote; los inválidos, repetidos y ALREADY_IN_REVIEW no. Lo que no cabe se
+ * rechaza por índice con RUN_CAP_REACHED (aceptación parcial, en orden de índice).
  */
 export async function submitDealCandidates(
   supabase: SupabaseClient,
@@ -154,8 +162,11 @@ export async function submitDealCandidates(
   if (!isValidIdempotencyKey(input.idempotencyKey)) {
     return fail('INVALID_INPUT', `idempotencyKey debe tener ${MCP_IDEMPOTENCY_KEY_MIN}-${MCP_IDEMPOTENCY_KEY_MAX} caracteres [A-Za-z0-9._:-].`);
   }
-  if (input.runId !== undefined && input.runId !== null && !isValidRunId(input.runId)) {
-    return fail('INVALID_INPUT', `runId debe tener 1-${MCP_RUN_ID_MAX} caracteres [A-Za-z0-9._:-].`);
+  if (!isValidRunId(input.runId)) {
+    return fail(
+      'INVALID_INPUT',
+      `runId es obligatorio durante el piloto: 1-${MCP_RUN_ID_MAX} caracteres [A-Za-z0-9._:-], uno por corrida.`,
+    );
   }
   if (!Array.isArray(input.candidates) || input.candidates.length === 0) {
     return fail('INVALID_INPUT', 'candidates debe ser una lista con al menos un candidato.');
@@ -164,7 +175,7 @@ export async function submitDealCandidates(
     return fail('TOO_MANY_CANDIDATES', `Máximo ${MCP_MAX_CANDIDATES_PER_CALL} candidatos por llamada.`);
   }
   const idempotencyKey = input.idempotencyKey;
-  const runId = typeof input.runId === 'string' ? input.runId : null;
+  const runId = input.runId;
   const payloadHash = canonicalSubmissionHash({ runId, candidates: input.candidates });
 
   const existing = await findSubmissionByKey(supabase, client.id, idempotencyKey);
@@ -181,8 +192,24 @@ export async function submitDealCandidates(
     );
   }
 
+  const slotOwner = { clientId: client.id, runId, holder: randomUUID(), now };
+  const claim =
+    validation.valid.length > 0
+      ? await claimRunSlots(supabase, {
+          ...slotOwner,
+          wanted: validation.valid.length,
+          cap: MCP_PILOT_MAX_ACCEPTED_PER_RUN,
+        })
+      : { ok: true as const, slots: [] };
+  if (!claim.ok) {
+    await releaseRunSlots(supabase, { ...slotOwner, slots: claim.slots });
+    return fail('INTERNAL_ERROR', 'No se pudo verificar el cupo de la corrida. Reintenta con la misma llave.');
+  }
+  const admitted = validation.valid.slice(0, claim.slots.length);
+  const overRunCap = validation.valid.slice(claim.slots.length);
+
   const structuredHintsByIdentityKey = Object.fromEntries(
-    validation.valid.map((c) => [
+    admitted.map((c) => [
       c.identityKey,
       { title: c.title, price: c.price, originalPrice: c.originalPrice, note: c.note },
     ]),
@@ -193,29 +220,33 @@ export async function submitDealCandidates(
     createdBy: client.authorProfileId,
     name: `MCP · ${client.name}`.slice(0, 120),
     text: '',
-    urls: validation.valid.map((c) => ({ url: c.url, identityKey: c.identityKey })),
+    urls: admitted.map((c) => ({ url: c.url, identityKey: c.identityKey })),
     structuredHintsByIdentityKey,
     machineOrigin: {
       machineClientId: client.id,
       idempotencyKey,
       payloadHash,
       runId,
-      meta: { quota_units: validation.valid.length },
+      meta: { quota_units: admitted.length },
     },
   });
 
-  if (!created.ok) {
-    if (created.code === 'IDEMPOTENCY_KEY_TAKEN') {
+  if (!created.ok || !created.batch) {
+    await releaseRunSlots(supabase, { ...slotOwner, slots: claim.slots });
+    if (!created.ok && created.code === 'IDEMPOTENCY_KEY_TAKEN') {
       const raced = await findSubmissionByKey(supabase, client.id, idempotencyKey);
       if ('error' in raced || !raced.found) return fail('INTERNAL_ERROR', 'No se pudo resolver la idempotencia.');
       return replayOrConflict(raced, payloadHash);
     }
     return fail('INTERNAL_ERROR', 'No se pudo registrar el envío.');
   }
-  if (!created.batch) return fail('INTERNAL_ERROR', 'No se pudo registrar el envío.');
 
   const conflicted = new Set(created.conflictIdentityKeys);
-  const acceptedCandidates = validation.valid.filter((c) => !conflicted.has(c.identityKey));
+  const conflictCount = admitted.filter((c) => conflicted.has(c.identityKey)).length;
+  if (conflictCount > 0) {
+    await releaseRunSlots(supabase, { ...slotOwner, slots: claim.slots.slice(claim.slots.length - conflictCount) });
+  }
+  const acceptedCandidates = admitted.filter((c) => !conflicted.has(c.identityKey));
   for (const candidate of acceptedCandidates) {
     await enqueueHunterOffer(supabase, {
       batchId: created.batch.id,
@@ -227,9 +258,10 @@ export async function submitDealCandidates(
   const accepted = acceptedCandidates.map((c) => ({ index: c.index }));
   const rejected: CandidateRejection[] = [
     ...validation.rejected,
-    ...validation.valid
+    ...admitted
       .filter((c) => conflicted.has(c.identityKey))
       .map((c) => ({ index: c.index, code: 'ALREADY_IN_REVIEW' as const })),
+    ...overRunCap.map((c) => ({ index: c.index, code: 'RUN_CAP_REACHED' as const })),
   ].sort((a, b) => a.index - b.index);
 
   const response: SubmitResponse = {
@@ -237,15 +269,21 @@ export async function submitDealCandidates(
     accepted,
     rejected,
     duplicatesInRequest: validation.duplicatesInRequest,
-    quota: quotaOf(client, usedToday + validation.valid.length),
+    quota: quotaOf(client, usedToday + admitted.length),
   };
 
   const stored: StoredCandidate[] = [
-    ...validation.valid.map((c) => ({
+    ...admitted.map((c) => ({
       index: c.index,
       identity_key: c.identityKey,
       outcome: conflicted.has(c.identityKey) ? ('already_in_review' as const) : ('queued' as const),
       code: conflicted.has(c.identityKey) ? ('ALREADY_IN_REVIEW' as const) : null,
+    })),
+    ...overRunCap.map((c) => ({
+      index: c.index,
+      identity_key: null,
+      outcome: 'run_cap_reached' as const,
+      code: 'RUN_CAP_REACHED' as const,
     })),
     ...validation.rejected.map((r) => ({ index: r.index, identity_key: null, outcome: 'rejected' as const, code: r.code })),
     ...validation.duplicatesInRequest.map((d) => ({
@@ -265,7 +303,7 @@ export async function submitDealCandidates(
     .update({
       meta: {
         ...baseMeta,
-        mcp: { quota_units: validation.valid.length, candidates: stored, response },
+        mcp: { quota_units: admitted.length, candidates: stored, response },
       },
     })
     .eq('id', created.batch.id)
@@ -314,6 +352,7 @@ export async function getSubmissionStatus(
 
   const candidates = (readMcpMeta(row.meta).candidates ?? []).map((c) => {
     if (c.outcome === 'rejected') return { index: c.index, state: 'invalid' as const, ...(c.code ? { code: c.code } : {}) };
+    if (c.outcome === 'run_cap_reached') return { index: c.index, state: 'rejected' as const, code: 'RUN_CAP_REACHED' as const };
     if (c.outcome === 'duplicate_in_request' || c.outcome === 'already_in_review') {
       return { index: c.index, state: 'duplicate' as const, ...(c.code ? { code: c.code } : {}) };
     }

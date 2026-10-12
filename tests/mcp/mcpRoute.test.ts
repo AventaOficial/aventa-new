@@ -214,7 +214,7 @@ describe('/api/mcp herramientas', () => {
     const token = seedClient();
     const spyErr = vi.spyOn(console, 'error').mockImplementation(() => {});
     const spyLog = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const { payload } = await call(token, 'submit_deal_candidates', { idempotencyKey: 'grok-run-0001', candidates: [candidate] });
+    const { payload } = await call(token, 'submit_deal_candidates', { runId: 'grok-run', idempotencyKey: 'grok-run-0001', candidates: [candidate] });
     expect(payload.accepted).toEqual([{ index: 0 }]);
     expect(state.db.tables.offer_batches).toHaveLength(1);
     const audit = state.db.tables.machine_client_calls;
@@ -232,7 +232,7 @@ describe('/api/mcp herramientas', () => {
   it('un candidato malformado no tumba la llamada', async () => {
     const token = seedClient();
     const { json, payload } = await call(token, 'submit_deal_candidates', {
-      idempotencyKey: 'grok-run-0002',
+      runId: 'grok-run', idempotencyKey: 'grok-run-0002',
       candidates: [candidate, { url: 42 }, 'texto', { ...candidate, url: 'https://evil.example/x' }],
     });
     expect(json.result?.isError).toBeFalsy();
@@ -246,7 +246,7 @@ describe('/api/mcp herramientas', () => {
 
   it('demasiados candidatos => TOO_MANY_CANDIDATES', async () => {
     const { payload } = await call(seedClient(), 'submit_deal_candidates', {
-      idempotencyKey: 'grok-run-0003',
+      runId: 'grok-run', idempotencyKey: 'grok-run-0003',
       candidates: Array.from({ length: 21 }, () => candidate),
     });
     expect(payload.error.code).toBe('TOO_MANY_CANDIDATES');
@@ -254,7 +254,7 @@ describe('/api/mcp herramientas', () => {
 
   it('scope faltante => FORBIDDEN_SCOPE (y auditado)', async () => {
     const token = seedClient({ scopes: ['catalog:read'] });
-    const { json, payload } = await call(token, 'submit_deal_candidates', { idempotencyKey: 'grok-run-0004', candidates: [candidate] });
+    const { json, payload } = await call(token, 'submit_deal_candidates', { runId: 'grok-run', idempotencyKey: 'grok-run-0004', candidates: [candidate] });
     expect(json.result?.isError).toBe(true);
     expect(payload.error.code).toBe('FORBIDDEN_SCOPE');
     expect((await call(token, 'get_submission_status', { submissionId: 'x' })).payload.error.code).toBe('FORBIDDEN_SCOPE');
@@ -266,7 +266,7 @@ describe('/api/mcp herramientas', () => {
   it('kill switch apagado: escribir => INGEST_PAUSED; leer sigue disponible', async () => {
     delete process.env.MCP_INGEST_ENABLED;
     const token = seedClient();
-    const write = await call(token, 'submit_deal_candidates', { idempotencyKey: 'grok-run-0005', candidates: [candidate] });
+    const write = await call(token, 'submit_deal_candidates', { runId: 'grok-run', idempotencyKey: 'grok-run-0005', candidates: [candidate] });
     expect(write.payload.error.code).toBe('INGEST_PAUSED');
     const rules = await call(token, 'get_submission_rules');
     expect(rules.json.result?.isError).toBeFalsy();
@@ -277,7 +277,7 @@ describe('/api/mcp herramientas', () => {
 
   it('cliente pausado: lee, no escribe', async () => {
     const token = seedClient({ status: 'paused' });
-    expect((await call(token, 'submit_deal_candidates', { idempotencyKey: 'grok-run-0006', candidates: [candidate] })).payload.error.code).toBe(
+    expect((await call(token, 'submit_deal_candidates', { runId: 'grok-run', idempotencyKey: 'grok-run-0006', candidates: [candidate] })).payload.error.code).toBe(
       'CLIENT_PAUSED',
     );
     expect((await call(token, 'get_submission_rules')).json.result?.isError).toBeFalsy();
@@ -286,7 +286,7 @@ describe('/api/mcp herramientas', () => {
   it('aislamiento: un cliente no ve envíos de otro', async () => {
     const a = seedClient({ id: '11111111-1111-4111-8111-111111111111' });
     const b = seedClient({ id: '22222222-2222-4222-8222-222222222222' });
-    const { payload } = await call(a, 'submit_deal_candidates', { idempotencyKey: 'grok-run-0007', candidates: [candidate] });
+    const { payload } = await call(a, 'submit_deal_candidates', { runId: 'grok-run', idempotencyKey: 'grok-run-0007', candidates: [candidate] });
     const mine = await call(a, 'get_submission_status', { submissionId: payload.submissionId });
     expect(mine.payload.candidates).toEqual([{ index: 0, state: 'accepted' }]);
     const theirs = await call(b, 'get_submission_status', { submissionId: payload.submissionId });

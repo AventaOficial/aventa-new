@@ -57,6 +57,7 @@ Código:
 | Autenticación | `lib/mcp/auth.ts` |
 | Validación de candidatos | `lib/mcp/candidates.ts` |
 | Envíos, idempotencia, cuota, estado | `lib/mcp/submissions.ts` |
+| Cupo del piloto por `runId` | `lib/mcp/runCap.ts` (slots en `ingest_cycle_locks`) |
 | Catálogo público | `lib/mcp/catalog.ts` |
 | Reglas | `lib/mcp/rules.ts` |
 | Servidor y herramientas | `lib/mcp/server.ts` |
@@ -108,7 +109,7 @@ Entrada de `submit_deal_candidates`:
 ```json
 {
   "idempotencyKey": "grok-2026-10-04-0001",
-  "runId": "opcional",
+  "runId": "grok-2026-10-04-a",
   "candidates": [
     {
       "url": "https://www.amazon.com.mx/dp/B0XXXXXXX",
@@ -126,6 +127,7 @@ Entrada de `submit_deal_candidates`:
 Reglas:
 
 - 1 a 20 candidatos. Más de 20: `TOO_MANY_CANDIDATES`.
+- `runId` **obligatorio durante el piloto** (1-128 caracteres `[A-Za-z0-9._:-]`, uno por corrida). Sin él: `INVALID_INPUT`. Como máximo **5 candidatos aceptados por `runId`** sumando todas sus llamadas; lo que no cabe vuelve por índice como `RUN_CAP_REACHED` (§9).
 - `url`: https, host en la allowlist de comercio existente (`isAllowedOfferParseHost`), sin credenciales, sin puerto, sin IP literal, sin punto final en el host, sin barras invertidas, **sin query (`?`) y sin fragmento (`#`)**, aunque estén vacíos. La identidad del producto sólo depende de host + path (o ASIN / id de Mercado Libre), y la query podría cargar etiquetas de afiliado ajenas. Un host conocido escondido en query o fragmento no cuenta (`UNSUPPORTED_HOST`). `check_offer_exists` aplica la misma regla.
 - `title` (obligatorio, ≤ 200) y `note` (opcional, ≤ 280): texto plano normalizado NFC. Se rechazan `<`, `>`, entidades HTML, controles C0/C1, zero-width, overrides bidi y BOM.
 - `price` > 0. `originalPrice`, si viene, debe ser mayor que `price`.
@@ -133,7 +135,7 @@ Reglas:
 - `observedAt`: ISO 8601 con zona. No más de 10 min en el futuro ni más de 30 días atrás.
 - Un candidato malformado se rechaza **por índice** y no tumba la llamada.
 - Duplicados dentro del mismo envío (misma identidad de producto) van a `duplicatesInRequest`.
-- Todo lo enviado es **pista**, nunca evidencia: se guarda en `hint_*`. El endpoint **no hace fetch** de ninguna URL; la extracción la hace el pipeline existente cuando staff procesa el lote.
+- Todo lo enviado es **pista**, nunca evidencia: se guarda en `hint_*`. En la misma llamada, `enqueueHunterOffer` extrae la página de cada candidato aceptado con el extractor compartido (`prepareMachineCandidateOffer` → `extractOfferFromUrl`, sólo hosts de la allowlist) y, si pasa §19, crea la oferta `pending`. No interviene staff hasta la moderación.
 
 Respuesta:
 
@@ -149,7 +151,7 @@ Respuesta:
 
 Nunca se exponen notas de moderación, scores, `bot_meta`, identidad del staff, economía, ids internos innecesarios ni contenido crudo.
 
-Códigos de rechazo por candidato: `INVALID_CANDIDATE`, `INVALID_URL`, `UNSUPPORTED_HOST`, `INVALID_TITLE`, `INVALID_PRICE`, `INVALID_ORIGINAL_PRICE`, `INVALID_CURRENCY`, `INVALID_NOTE`, `INVALID_OBSERVED_AT`, `ALREADY_IN_REVIEW` (la identidad ya está abierta en otro lote).
+Códigos de rechazo por candidato: `INVALID_CANDIDATE`, `INVALID_URL`, `UNSUPPORTED_HOST`, `INVALID_TITLE`, `INVALID_PRICE`, `INVALID_ORIGINAL_PRICE`, `INVALID_CURRENCY`, `INVALID_NOTE`, `INVALID_OBSERVED_AT`, `ALREADY_IN_REVIEW` (la identidad ya está abierta en otro lote), `RUN_CAP_REACHED` (el `runId` ya no tiene cupo; código nuevo, aditivo).
 
 Errores de herramienta: `FORBIDDEN_SCOPE`, `INGEST_PAUSED`, `CLIENT_PAUSED`, `QUOTA_EXCEEDED`, `IDEMPOTENCY_CONFLICT`, `INVALID_INPUT`, `TOO_MANY_CANDIDATES`, `NOT_FOUND`, `INTERNAL_ERROR`.
 
@@ -178,7 +180,7 @@ Errores de herramienta: `FORBIDDEN_SCOPE`, `INGEST_PAUSED`, `CLIENT_PAUSED`, `QU
 | `ERROR` | `invalid` |
 | duplicado detectado | `duplicate` |
 
-Rechazos de entrada aparecen como `invalid` con su código. Duplicados en el envío o identidades ya abiertas aparecen como `duplicate`.
+Rechazos de entrada aparecen como `invalid` con su código. Duplicados en el envío o identidades ya abiertas aparecen como `duplicate`. Los que no cupieron en la corrida aparecen como `rejected` con `code: "RUN_CAP_REACHED"`.
 
 ## 8. Catálogo público
 
@@ -196,13 +198,45 @@ Rechazos de entrada aparecen como `invalid` con su código. Duplicados en el env
   Nunca cae al contador en memoria ni cambia de entorno. `initialize` y `tools/list` no consumen el bucket.
 - Namespace por entorno declarado: todas las claves de rate limit (no sólo `mcp`) van bajo `aventa:<staging|production>:ratelimit` cuando el entorno está declarado y verificado. Ver el contrato de entornos en §14.
 - Cuota diaria por cliente: `daily_candidate_cap` (default 200, máximo 1000). Cuenta candidatos válidos enviados desde las 00:00 UTC. Un envío que la exceda se rechaza completo con `QUOTA_EXCEEDED`.
-- Límite conocido: dos envíos concurrentes del mismo cliente pueden pasar la cuota por, como máximo, un envío (20 candidatos). El rate limit acota la ventana.
+- Límite conocido: dos envíos concurrentes del mismo cliente pueden pasar la cuota por, como máximo, un envío (20 candidatos). El rate limit acota la ventana. La cuota diaria se lee y luego se escribe: **no es atómica**. El cupo por corrida (abajo) sí lo es.
+
+### Cupo del piloto por `runId`
+
+**Regla**: como máximo `MCP_PILOT_MAX_ACCEPTED_PER_RUN = 5` candidatos **aceptados** por (cliente, `runId`), sumando llamadas, reintentos con otra `idempotencyKey` y llamadas concurrentes.
+
+**Activación**: siempre activo, por constante en `lib/mcp/contract.ts`. No depende del prompt de Grok, del script local (`--max` 1-5 sigue siendo una segunda barrera) ni de variables de entorno.
+- No hay variable nueva que configurar.
+- `runId` es obligatorio mientras dure el piloto. Si fuera opcional, omitirlo saltaría el cupo.
+- Relajarlo o volverlo una propiedad del cliente requiere un cambio de código (y, para lo segundo, una columna nueva en `machine_clients`).
+- No se usa una variable de entorno porque bajar el tope a mitad de una corrida podría dejar más de N slots vivos (los slots altos ya ocupados). Además, una variable mal puesta no debe poder apagar el cupo.
+
+**Qué cuenta contra el cupo**: sólo los candidatos que entran al lote (los que vuelven en `accepted`). También cuentan aunque después los rechace §19 (memoria negativa o calidad) o la moderación.
+- **No cuentan**: inválidos, `duplicatesInRequest` ni `ALREADY_IN_REVIEW` (su slot se libera).
+- **Solicitudes parciales**: aceptación parcial en orden de índice. Ejemplo: si quedan 2 y llegan 4 válidos, entran los índices 0-1 y 2-3 vuelven como `RUN_CAP_REACHED`. El envío nunca se rechaza completo por el cupo.
+- **Cupo agotado**: el envío se registra igual (lote archivado, sin ítems) para que su replay sea estable.
+- **Orden de controles**: la cuota diaria se comprueba antes (sin ocupar slots) y se cobra sólo por los candidatos que pasaron el cupo.
+
+**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..5`. Un slot es una fila de `ingest_cycle_locks` (PK `lock_key`, `service_role` con ALL; aplicada en producción, **ausente en staging** al 2026-10-12, ver §14) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
+- **Ocupar**: un INSERT de la PK. Si da 23505, se intenta retomar con un único `UPDATE … WHERE lock_key = … AND expires_at <= now()`.
+- **Liberar** (candidato `ALREADY_IN_REVIEW` o lote fallido): adelantar `expires_at` filtrando por `holder`. Nunca se borra.
+- **Sin choques con la ingesta**: los locks de ingesta usan otras claves (`ingest:ml_worker`) y sólo tocan las suyas.
+
+**Garantías**:
+- Atómico por sentencia en Postgres: dos llamadas no pueden ocupar el mismo slot (PK) ni retomar el mismo slot liberado. En Postgres, dos UPDATE concurrentes sobre la fila se serializan y el segundo reevalúa el `WHERE`.
+- Nunca hay más de 5 slots vivos por corrida. Cada ítem aceptado conserva el suyo para siempre, así que una corrida no puede pasar de 5 aceptados.
+- No es una transacción multi-sentencia. Un crash entre ocupar y crear el lote, o un fallo al liberar, deja el slot ocupado: la corrida acepta **menos**, nunca más.
+- **Fail-closed**: si la tabla no responde, o falla algo distinto de "slot ocupado", el envío devuelve `INTERNAL_ERROR` antes de crear lote o ítems. Se libera lo ya ocupado y se puede reintentar con la misma llave.
+- **No depende de Redis**: si Upstash cae, el rate limit ya responde 503 antes de llegar aquí.
+- **Conservador**: una llamada puede recibir `RUN_CAP_REACHED` justo cuando otra está liberando un slot.
+- **Reintentos**: misma llave y mismo payload → replay sin tocar slots. Misma llave y payload distinto → `IDEMPOTENCY_CONFLICT`. Llave nueva y mismo `runId` → compite por los slots que queden.
+
+**Pruebas**: `tests/mcp/mcpRunCap.test.ts` cubre límites, parciales, inválidos, reintentos, concurrencia, aislamiento entre corridas y clientes, y fallo de la primitiva. El Supabase de memoria serializa cada sentencia como Postgres; una versión leer-luego-escribir del contador falla esos tests (acepta 24 de 24 en vez de 5).
 
 ## 10. Seguridad
 
 - Cuerpo máximo 64 KB (HTTP 413), leído con tope aunque no haya `Content-Length`. JSON inválido: 400. Batches JSON-RPC: 400. `GET`/`DELETE`: 405.
 - Transporte oficial `WebStandardStreamableHTTPServerTransport`, sin sesión (`sessionIdGenerator: undefined`), respuestas JSON, un servidor por request.
-- Sin fetch de URLs en el endpoint (SSRF). La allowlist se aplica antes de crear ítems.
+- La allowlist se aplica antes de crear ítems. El único fetch es el del extractor compartido sobre candidatos aceptados (hosts de la allowlist, ver §5); el endpoint no sigue URLs arbitrarias.
 - Auditoría append-only en `machine_client_calls`: cliente, herramienta, request id, resultado, conteos y latencia. Nunca token, cabecera, payload ni contenido de terceros.
 - Base de datos:
   - `machine_clients` y `machine_client_calls` con RLS activo y `REVOKE ALL` para `PUBLIC`, `anon`, `authenticated` **y `service_role`** (los privilegios por defecto de Supabase le darían DELETE y TRUNCATE). Sin policies.
@@ -305,6 +339,7 @@ Estado al 2026-10-05:
 
 - [x] Migración aplicada en staging con `apply_migration` (Supabase). Verificado: tablas, 4 columnas en `offer_batches`, 9 índices (incluido `offer_batches_mcp_idempotency_uidx`), RLS sin policies, grants exactos, 5 triggers, 0 filas nuevas, 2 lotes previos intactos.
 - [x] Fronteras de base probadas en staging dentro de una transacción revertida: `anon`/`authenticated` sin lectura ni escritura; `service_role` no puede borrar ni truncar, cambiar hash/prefijo/autor, des-revocar, añadir scopes fuera de la lista ni guardar un hash en claro; `machine_client_calls` no se actualiza ni borra (ni como `postgres`); un lote con `machine_client_id` sin llave de idempotencia se rechaza.
+- [ ] `ingest_cycle_locks` en staging (operador): **no existe** (metadatos de staging leídos el 2026-10-12; producción sí la tiene). Sin ella, el cupo por `runId` falla cerrado y todo envío con candidatos válidos devuelve `INTERNAL_ERROR`. Aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` en staging antes del paso 10.
 - [ ] Autor bot de staging (operador: el repo no tiene service role de staging).
 - [ ] Marcador `aventa:staging:environment` en el Redis compartido y variables `UPSTASH_*` + `AVENTA_REDIS_ENVIRONMENT=staging` en staging (operador). Hoy staging no tiene `UPSTASH_*`.
 - [ ] `MCP_BOT_AUTHOR_USER_IDS` en el entorno staging de Vercel (operador).
@@ -431,8 +466,13 @@ Salida: `0` = `READY`, `1` = `NOT_READY` (se puede desplegar con MCP apagado; no
    - cuerpo > 64 KB → 413;
    - 11 `tools/call` en un minuto → 429 `RATE_LIMITED`.
 9. Revisar `machine_client_calls`: sólo metadatos.
-10. **Sólo entonces**, encender `MCP_INGEST_ENABLED=true` en el entorno staging y redeploy. Enviar 1 candidato real (URL limpia de Amazon MX o Mercado Libre). Verificar en base: `offer_batches.machine_client_id`, `mcp_idempotency_key`, `mcp_payload_hash`, `mcp_run_id`, `created_by` = autor bot, ítem `INGESTED` con `hint_*` y sin `evidence`. Replay con la misma llave → mismo `submissionId`; misma llave con otro payload → `IDEMPOTENCY_CONFLICT`.
-11. Procesar el lote desde la consola de lotes, aprobar el ítem (humano) y verificar `offers.created_by` = autor bot ≠ moderador, `status=pending`.
+10. **Sólo entonces**, con `ingest_cycle_locks` presente, encender `MCP_INGEST_ENABLED=true` en el entorno staging y redeploy. Enviar 1 candidato real (URL limpia de Amazon MX o Mercado Libre) con un `runId` nuevo. En la misma llamada, `enqueueHunterOffer` extrae la página y aplica §19. Verificar en base:
+    - `offer_batches`: `machine_client_id`, `mcp_idempotency_key`, `mcp_payload_hash`, `mcp_run_id` = el `runId` enviado, `created_by` = autor bot.
+    - Ítem con `hint_*`. Si pasó §19: estado `APPROVED`, `offer_id` relleno y evento `queued_for_moderation`. Si no: `NEEDS_REVIEW`, `REJECTED` o `ERROR` con `error_code` y sin `offer_id`.
+    - Si hay `offer_id`: `offers.status = pending`, `created_by` = autor bot, `bot_meta.price_policy` presente y `original_price` solo si la página lo respalda.
+    - Una fila `ingest_cycle_locks` con `lock_key` `mcp:run-slot:<clientId>:1:<runId>`.
+    - Replay con la misma llave y el mismo payload → mismo `submissionId`, sin nuevo slot. Misma llave con otro payload → `IDEMPOTENCY_CONFLICT`.
+11. Si el ítem quedó `NEEDS_REVIEW`, un humano decide en `/admin/hunters-ai`: aprobar crea la oferta `pending` (verificar `offers.created_by` = autor bot ≠ moderador) y rechazar la cierra. Ningún camino publica: eso sólo ocurre en el paso 12.
 12. Moderar la oferta (humano) y verificar: el moderador queda en `moderation_logs`; el autor bot sigue con `reputation_score=0`, `achievement_xp=0`, sin logros, sin `reward_program_unlocked_at`, sin filas de comisión, ledger ni settlement, sin notificaciones ni correo.
 13. Apagar `MCP_INGEST_ENABLED` al terminar si no se sigue probando.
 
@@ -504,7 +544,9 @@ order by created_at desc limit 20;
 
 - La cuota diaria tiene una carrera acotada a un envío concurrente (ver §9).
 - Si el guardado de la respuesta falla tras crear el lote, el replay devuelve `INTERNAL_ERROR` en vez de la respuesta original. El lote existe y no se duplica.
-- El procesamiento del lote lo dispara staff. MCP no lo automatiza.
+- Corregido el 2026-10-12, verificado en `lib/mcp/submissions.ts`: el procesamiento **no** lo dispara staff. `submit_deal_candidates` llama a `enqueueHunterOffer` en la misma llamada: extrae la página, aplica §19 y crea la oferta `pending`, o deja el ítem `REJECTED`/`NEEDS_REVIEW`/`ERROR`. Staff sólo interviene en la moderación.
+- Los slots del cupo usan `expires_at = 9999-12-31` en `ingest_cycle_locks`, cuya intención original es un lock con TTL. Es deliberado (un aceptado no devuelve su slot) y no choca con los locks de ingesta, que usan otras claves; una tabla dedicada sería más limpia si el cupo deja de ser temporal.
+- Cupo por `runId` (§9): un slot que no se libera (crash o error) reduce el cupo de esa corrida. No hay herramienta para devolverlo; se usa otro `runId`.
 - xAI no soporta `require_approval` en MCP remoto: todo el control vive en Aventa (auth, scopes, kill switch, cuota, moderación humana).
 - La migración está aplicada en staging (2026-10-05) y en producción (`20261005161927`, verificado el 2026-10-12).
 - Una llamada rechazada por rate limit (429/503) no deja fila en `machine_client_calls`: ocurre antes de resolver la herramienta.
@@ -516,6 +558,7 @@ order by created_at desc limit 20;
 - `get_submission_rules` incluye `despensa` (solo lectura): misiones priorizadas por la canasta oficial, variantes y reglas de evidencia. No hay herramienta nueva.
 - Los bots solo descubren: no escriben en la base, no publican, no tocan votos, favoritos ni economía, y no inventan observaciones ni reutilizan un precio como observación independiente.
 - Preparación y envío controlado: `scripts/despensa-grok-batch.ts` (ver `AUDIT_despensa_pilot.md` §9). El primer lote real no pasa de 5 candidatos y requiere `MCP_INGEST_ENABLED` y un token autorizado.
+- El tope de 5 lo impone el servidor por `runId` (§9, "Cupo del piloto por `runId`"), no sólo el `--max` del script. Si se reutiliza el `runId` de una corrida, no entra nada más. Para una corrida nueva hace falta un `runId` nuevo.
 
 ### Piloto en staging: estado al 2026-10-12
 
@@ -534,6 +577,7 @@ Política de calidad MCP (`mcp-candidate-policy-v1`, `lib/offers/ingestion/machi
 De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 
+0. `ingest_cycle_locks` en staging: aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` (hoy no existe; sin ella el cupo por `runId` devuelve `INTERNAL_ERROR`).
 1. Autor bot: `npx tsx scripts/mcp-provision-staging-bot-author.ts` con `.env.staging.local` (no versionado). Guardar el UUID.
 2. Marcador en Upstash: `SET aventa:staging:environment staging`.
 3. Variables de staging en Vercel (scope según la regla 9 de §14): `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AVENTA_REDIS_ENVIRONMENT=staging`, `MCP_BOT_AUTHOR_USER_IDS=<uuid>`, `AVENTA_SUPABASE_TARGET=staging`, `AVENTA_EXPECTED_SUPABASE_REF=oojshofrpbfwsiypcecr`. `MCP_INGEST_ENABLED` sin definir.
@@ -543,5 +587,5 @@ Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 7. Pruebas con MCP apagado (§14 paso 8) y revisión de `machine_client_calls`.
 8. Archivo de observaciones reales recogidas por el bot (`{ "records": [...] }`, sin `fixture`, fuera de `tests/`). Simular primero: `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --out <reporte.json>` y revisar rechazos y URLs a mano.
 9. Encender `MCP_INGEST_ENABLED=true` solo en staging y redeploy.
-10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5.
-11. Seguir con `--status <submissionId>`, procesar y moderar a mano (§14 pasos 10-12) y apagar `MCP_INGEST_ENABLED` al terminar.
+10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5. Para reintentar, repetir el mismo comando con el mismo `--run-id`: la llave `<runId>:live:001` hace replay en vez de crear otro envío. Si entre intentos cambia la lista (por ejemplo, un candidato ya aparece en el catálogo), el servidor responde `IDEMPOTENCY_CONFLICT` y no acepta nada nuevo. Sin `--run-id`, el script genera uno por minuto: eso es otra corrida con cupo propio.
+11. La llamada ya dejó cada candidato resuelto: oferta `pending` en la cola de moderación (estado público `accepted`) o ítem `NEEDS_REVIEW`/`REJECTED`/`ERROR` sin oferta. Consultar con `--status <submissionId>`. Moderar a mano las ofertas `pending` en `/admin/moderation` y decidir los `NEEDS_REVIEW` en `/admin/hunters-ai` (§14 pasos 10-12). Apagar `MCP_INGEST_ENABLED` al terminar.
