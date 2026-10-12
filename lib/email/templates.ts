@@ -116,7 +116,8 @@ function offerCardHtml(o: OfferRow, index: number, baseUrl: string): string {
       ? '$' +
         Number(o.price).toFixed(0) +
         (compareWithListPrice(o.price, o.original_price)
-          ? ` <span style="color:${TEXT_MUTED}; text-decoration:line-through; font-weight:400;">$${Number(o.original_price).toFixed(0)}</span>`
+          ? ` <span style="color:${TEXT_MUTED}; text-decoration:line-through; font-weight:400;">$${Number(o.original_price).toFixed(0)}</span>` +
+            ` <span style="color:${TEXT_MUTED}; font-size:12px; font-weight:400;">precio de lista</span>`
           : '')
       : '—';
   const imgUrl = o.image_url && o.image_url.trim() ? o.image_url.trim() : null;

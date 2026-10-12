@@ -1,55 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { PriceInsight } from '@/lib/offers/priceHistory';
+import type { PriceEvidence } from '@/lib/offers/listPriceComparison';
 
 function formatMx(n: number): string {
   return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 }
 
 /** Bloque compacto de historial propio AVENTA (90d) para Información adicional. */
-export default function OfferPriceInsightBlock({
-  offerId,
-  onVerdict,
-}: {
-  offerId: string;
-  /** Recibe el veredicto del historial para que el encabezado oculte «−N%» si es solo etiqueta. */
-  onVerdict?: (verdict: PriceInsight['verdict'] | null) => void;
-}) {
-  const [insight, setInsight] = useState<PriceInsight | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!offerId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/offers/${offerId}/price-insight`);
-        if (!res.ok) {
-          if (!cancelled) setFailed(true);
-          return;
-        }
-        const data = (await res.json()) as { insight?: PriceInsight };
-        if (!cancelled && data.insight) {
-          setInsight(data.insight);
-          onVerdict?.(data.insight.verdict);
-        }
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [offerId, onVerdict]);
-
-  if (failed) return null;
-  if (!insight) {
+export default function OfferPriceInsightBlock({ evidence }: { evidence: PriceEvidence }) {
+  if (evidence.status === 'unavailable') return null;
+  if (evidence.status === 'loading') {
     return (
       <p className="text-xs text-gray-400 dark:text-gray-500">Consultando historial de precio…</p>
     );
   }
 
+  const { insight } = evidence;
   const tone =
     insight.verdict === 'strong'
       ? 'text-emerald-700 dark:text-emerald-400'

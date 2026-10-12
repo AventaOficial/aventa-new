@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createRewardFromLedgerEntry, cancelReward, reverseReward } from '@/lib/rewards/rewardsEngine';
+import { REPO_SCAN_TIMEOUT_MS } from '../helpers/repoScan';
 
 const LEDGER = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
 const REWARD = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
@@ -200,7 +201,7 @@ describe('reward creation authority', () => {
     expect(engine).not.toMatch(/payout_intents|reward_payouts|affiliate_commissions|affiliate_conversions/);
     expect(bridge).not.toMatch(/\.insert\(/);
     expect(bridge).toMatch(/tryCreateRewardFromLedgerRow/);
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 
   it('rejects a non-positive amount before any reward write', async () => {
     const store = rewardStore();

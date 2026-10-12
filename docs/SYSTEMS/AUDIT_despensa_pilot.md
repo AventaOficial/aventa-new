@@ -157,3 +157,11 @@ Corrección aplicada (copy y validación, sin datos nuevos ni migración), centr
 3. OG, Telegram, correo, texto para compartir, copy de marketing y la selección de recompensas aplican la misma regla de validez; no tienen veredicto de historial. Las recompensas solo cambian en presentación.
 4. La vista previa al publicar indica que precio y precio de lista son declarados y no verificados.
 5. Pendiente: para hablar de ahorro confirmado hace falta persistir la procedencia o exponer el historial al feed; eso requiere migración y no se hace aquí.
+
+Cierre de integridad (segunda pasada):
+- Cinco conceptos separados: precio actual; precio de lista declarado; diferencia aritmética («X menos que el precio de lista», «-N% vs. lista»); bajada respaldada por el historial propio (solo con veredicto `strong` y un precio observado más alto en 90 días); y ahorro confirmado, que ninguna superficie muestra porque no hay evidencia que lo sostenga.
+- Todo porcentaje contra la etiqueta se escribe «-N% vs. lista» (feed, destacada, modal, detalle, OG, Telegram, recompensas, vista previa). El copy de marketing añade «declarado, sin verificar». El correo nombra el «precio de lista» tachado.
+- Modal y detalle leen el historial con `useOfferPriceEvidence` (estados `loading`, `unavailable`, `ready`) y comparten `OfferListPrice`. Mientras carga no hay porcentaje, así que no aparece y luego desaparece. Si hay error, se trata como sin veredicto. Con `label_only` se oculta el porcentaje y se avisa que el historial no respalda la etiqueta.
+- Tarjeta de CazaOfertas: «Antes:» se sustituye por el nombre de la referencia real («Precio de lista de la tienda» o «Precio habitual observado»). El descuento ya exigía referencia autoritativa en `resolveDiscountClaim`. Los snapshots ya preparados conservan su texto, porque el envío nunca regenera la tarjeta.
+
+Estabilidad de pruebas: las guardas que leen todo `app/`+`lib/` (unos 2.500 archivos y 14,6 MB) tardan 1–2 s en reposo y llegaron a 10,6 s con la máquina cargada; no hay trabajo asíncrono que sobreviva al test. Usan `REPO_SCAN_TIMEOUT_MS` (`tests/helpers/repoScan.ts`). `sitemapIndexability` y `mlPublicOffer` pagaban la importación en frío dentro del cuerpo del test; ahora la cargan en `beforeAll`, como `writerBoundaryS61`. No cambió ninguna aserción.

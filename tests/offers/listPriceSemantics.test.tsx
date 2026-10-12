@@ -177,8 +177,9 @@ describe('superficies públicas usan la misma regla', () => {
     }
     for (const file of ['app/components/OfferModal.tsx', 'app/oferta/[id]/OfferPageContent.tsx']) {
       const src = readFileSync(join(process.cwd(), file), 'utf8');
-      expect(src, file).toMatch(/onVerdict=\{handlePriceVerdict\}/);
-      expect(src, file).toMatch(/listPriceBadgePercent\(\s*listComparison,/);
+      expect(src, file).toMatch(/useOfferPriceEvidence\(/);
+      expect(src, file).toMatch(/presentListPrice\([^)]*priceEvidence\)/);
+      expect(src, file).toMatch(/<OfferPriceInsightBlock evidence=\{priceEvidence\} \/>/);
     }
     expect(readFileSync(join(process.cwd(), 'app/components/ActionBar.tsx'), 'utf8')).toContain('DECLARED_PRICES_NOTE');
     expect(DECLARED_PRICES_NOTE).toMatch(/declarados por ti/);
@@ -203,7 +204,7 @@ describe('textos para compartir y distribución', () => {
     }).text;
 
   it('Telegram: tachado y porcentaje solo con precio de lista válido', () => {
-    expect(telegram(80, 100)).toMatch(/<s>.*<\/s> \(−20%\)/);
+    expect(telegram(80, 100)).toMatch(/<s>.*<\/s> \(-20% vs\. lista\)/);
     for (const [p, o] of [[80, 80], [100, 80], [80, null], [0, 100]] as const) {
       const text = telegram(p, o);
       expect(text).not.toContain('<s>');

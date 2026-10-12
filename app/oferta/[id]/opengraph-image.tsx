@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { createServerClient } from '@/lib/supabase/server';
 import { extractOfferIdFromPathSegment } from '@/lib/offerPath';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
-import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
+import { compareWithListPrice, listPercentText } from '@/lib/offers/listPriceComparison';
 
 export const alt = 'Oferta en AVENTA';
 export const size = { width: 1200, height: 630 };
@@ -192,7 +192,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                       padding: '6px 14px',
                     }}
                   >
-                    −{discountPct}%
+                    {listPercentText(discountPct)}
                   </span>
                 </span>
               ) : null}

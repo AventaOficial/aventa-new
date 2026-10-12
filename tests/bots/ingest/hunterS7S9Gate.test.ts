@@ -38,6 +38,7 @@ vi.mock('@/lib/discovery/negativeMemory', () => ({
 }));
 
 import { insertIngestedOffer } from '@/lib/bots/ingest/insertIngestedOffer';
+import { REPO_SCAN_TIMEOUT_MS } from '../../helpers/repoScan';
 
 function baseConfig(): BotIngestConfig {
   return {
@@ -322,7 +323,7 @@ describe('P0 write-path inventory — ungated machine writers = 0', () => {
       const text = readFileSync(join(ROOT, rel), 'utf8');
       expect(text).toMatch(/evaluateMachineLiveInsertEligibility|evaluateS7BridgeS61Gate/);
     }
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 
   it('writer-boundary S6.1 matches bridge authority (same gate function)', () => {
     const meta = blockedMeta();

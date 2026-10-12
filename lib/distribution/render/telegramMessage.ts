@@ -1,5 +1,5 @@
 import { presentOfferPrice } from '@/lib/formatPrice';
-import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
+import { compareWithListPrice, listPercentText } from '@/lib/offers/listPriceComparison';
 import { escapeTelegramHtml } from './escape';
 import { assertSafeHttpsUrl } from '../security/urls';
 
@@ -47,7 +47,7 @@ export function renderTelegramOfferMessage(input: {
   if (price) {
     const priceLine =
       original && pct !== null
-        ? `💰 ${escapeTelegramHtml(price)} · <s>${escapeTelegramHtml(original)}</s> (−${pct}%)`
+        ? `💰 ${escapeTelegramHtml(price)} · <s>${escapeTelegramHtml(original)}</s> (${listPercentText(pct)})`
         : `💰 ${escapeTelegramHtml(price)}`;
     lines.push(priceLine);
   }

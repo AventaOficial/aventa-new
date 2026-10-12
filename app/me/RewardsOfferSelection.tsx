@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { Check, Heart, Eye, X } from 'lucide-react';
 import { offerDiscountPercent } from '@/lib/me/offerPresentation';
+import { listPercentText } from '@/lib/offers/listPriceComparison';
 
 export type WelcomeChoiceCard = {
   id: string;
@@ -115,7 +116,7 @@ export default function RewardsOfferSelection({
                           {formatMx(offer.price)}
                         </span>
                         {disc != null ? (
-                          <span className="text-xs font-semibold text-emerald-400">-{disc}%</span>
+                          <span className="text-xs font-semibold text-emerald-400">{listPercentText(disc)}</span>
                         ) : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const offers = [
   { id: '11111111-1111-4111-8111-111111111111', title: 'Bot wall', created_at: '2026-10-01T00:00:00Z' },
@@ -40,8 +40,14 @@ afterEach(() => {
 });
 
 describe('sitemap offer indexability', () => {
+  let getSitemapOffers: typeof import('@/lib/sitemap').getSitemapOffers;
+
+  // The cold import of lib/sitemap counted against the 5 s test timeout under a full parallel run.
+  beforeAll(async () => {
+    ({ getSitemapOffers } = await import('@/lib/sitemap'));
+  }, 60_000);
+
   it('drops only offers confirmed gone by 404/410, like the offer page robots', async () => {
-    const { getSitemapOffers } = await import('@/lib/sitemap');
     const urls = (await getSitemapOffers()).map((u) => u.url);
     expect(urls.some((u) => u.includes(offers[0].id))).toBe(true);
     expect(urls.some((u) => u.includes(offers[1].id))).toBe(false);

@@ -38,12 +38,9 @@ import ClientLayout from '@/app/ClientLayout';
 import VoteArrowButton from '@/app/components/VoteArrowButton';
 import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
-import type { PriceInsight } from '@/lib/offers/priceHistory';
-import {
-  compareWithListPrice,
-  listPriceBadgePercent,
-  listPriceDifferenceText,
-} from '@/lib/offers/listPriceComparison';
+import { OfferListPriceInline, OfferListPriceNotes } from '@/app/components/OfferListPrice';
+import { presentListPrice } from '@/lib/offers/listPriceComparison';
+import { useOfferPriceEvidence } from '@/lib/hooks/useOfferPriceEvidence';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import { OFFER_COMMENT_MAX_CHARS } from '@/lib/contracts/offerComments';
 import { selectGalleryImage, expandGallery } from '@/lib/offers/galleryView';
@@ -234,13 +231,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
     setImageIndex(0);
   }, [offer.id]);
 
-  const [priceVerdict, setPriceVerdict] = useState<{ offerId: string; verdict: PriceInsight['verdict'] | null } | null>(
-    null,
-  );
-  const handlePriceVerdict = useCallback(
-    (verdict: PriceInsight['verdict'] | null) => setPriceVerdict({ offerId: offer.id, verdict }),
-    [offer.id],
-  );
+  const priceEvidence = useOfferPriceEvidence(offer.id);
 
   useEffect(() => {
     setLocalScore(offer.votes.score);
@@ -250,11 +241,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
 
   const userVote = localVote ?? 0;
   const storedVoteVal = voteValueMap[offer.id];
-  const listComparison = compareWithListPrice(offer.discountPrice, offer.originalPrice);
-  const listBadgePercent = listPriceBadgePercent(
-    listComparison,
-    priceVerdict?.offerId === offer.id ? priceVerdict.verdict : null,
-  );
+  const listPriceView = presentListPrice(offer.discountPrice, offer.originalPrice, priceEvidence);
   const nowMs = hydrated ? Date.now() : null;
   const formatRelativeDate = (iso: string) => formatRelativeMexico(iso, nowMs);
   const remainingLabel = nowMs == null ? null : remainingDaysLabel(offer.expiresAt, nowMs);
@@ -787,24 +774,17 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 <span className="text-3xl font-bold text-violet-600 dark:text-violet-400">
                   {presentOfferPrice(offer.discountPrice, offer.sourceCurrency)}
                 </span>
-                {listComparison && (
-                  <>
-                    <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                      {presentOfferPrice(listComparison.listPrice, offer.sourceCurrency)}
-                    </span>
-                    {listBadgePercent != null && (
-                      <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
-                        -{listBadgePercent}%
-                      </span>
-                    )}
-                  </>
-                )}
+                <OfferListPriceInline
+                  view={listPriceView}
+                  currency={offer.sourceCurrency}
+                  strikeClassName="text-lg text-gray-500 dark:text-gray-400"
+                />
               </div>
-              {listComparison && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {listPriceDifferenceText(listComparison, offer.sourceCurrency)}
-                </p>
-              )}
+              <OfferListPriceNotes
+                view={listPriceView}
+                currency={offer.sourceCurrency}
+                className="mt-1 space-y-0.5 text-sm text-gray-500 dark:text-gray-400"
+              />
               {(offer.msiMonths != null && offer.msiMonths >= 1) || bankCouponLabel ? (
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {offer.msiMonths != null && offer.msiMonths >= 1 ? (
@@ -1239,7 +1219,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 Información adicional
               </summary>
               <div className="mt-3 space-y-4">
-                <OfferPriceInsightBlock offerId={offer.id} onVerdict={handlePriceVerdict} />
+                <OfferPriceInsightBlock evidence={priceEvidence} />
                 <AffiliateDisclosure variant="block" includeAmazonEn />
               </div>
             </details>

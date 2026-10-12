@@ -10,6 +10,7 @@ import OfferMedia from '@/app/components/offers/OfferMedia';
 import { presentOfferPrice } from '@/lib/formatPrice';
 import {
   compareWithListPrice,
+  listPercentText,
   listPriceBadgePercent,
   listPriceDifferenceText,
 } from '@/lib/offers/listPriceComparison';
@@ -70,7 +71,7 @@ export default function FeaturedOfferCard({
         {discountPct >= 1 ? (
           <span className="absolute left-5 top-4 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
             <Flame className="h-3 w-3" aria-hidden />
-            -{discountPct}%
+            {listPercentText(discountPct)}
           </span>
         ) : null}
         <button

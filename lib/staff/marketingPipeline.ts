@@ -93,7 +93,9 @@ export function buildMarketingCopyText(card: StaffFilmCandidate): string {
     card.store ? `Tienda: ${card.store}` : '',
     `Precio: $${card.price.toLocaleString('es-MX')}`,
     listComparison ? `Precio de lista: $${listComparison.listPrice.toLocaleString('es-MX')}` : '',
-    listComparison?.percent != null ? `Descuento: -${listComparison.percent}%` : '',
+    listComparison?.percent != null
+      ? `Descuento: -${listComparison.percent}% vs. precio de lista (declarado, sin verificar)`
+      : '',
     card.offerUrl ? `Enlace: ${card.offerUrl}` : '',
     'Oferta en AVENTA · comunidad de cazadores',
   ].filter(Boolean);

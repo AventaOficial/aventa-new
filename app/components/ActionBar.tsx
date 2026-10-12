@@ -20,6 +20,7 @@ import { formatOfferMoneyInput, presentOfferPrice, sanitizeOfferMoneyTyping } fr
 import {
   compareWithListPrice,
   DECLARED_PRICES_NOTE,
+  listPercentText,
   listPriceBadgePercent,
   listPriceDifferenceText,
 } from '@/lib/offers/listPriceComparison';
@@ -1987,7 +1988,7 @@ export default function ActionBar() {
                                   ) : null}
                                   {previewBadgePercent != null ? (
                                     <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                                      -{previewBadgePercent}%
+                                      {listPercentText(previewBadgePercent)}
                                     </span>
                                   ) : null}
                                 </div>

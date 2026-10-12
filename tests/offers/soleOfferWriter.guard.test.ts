@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { REPO_SCAN_TIMEOUT_MS } from '../helpers/repoScan';
 
 const ROOT = process.cwd();
 
@@ -77,7 +78,7 @@ describe('sole offer writer guard', () => {
       offenders,
       `Direct offers insert/upsert outside ingest: ${offenders.join(', ')}`,
     ).toEqual([]);
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 
   it('sole writer file still contains the authorized offers.insert', () => {
     const ingest = normalizeForScan(readFileSync(join(ROOT, SOLE_WRITER_REL), 'utf8'));

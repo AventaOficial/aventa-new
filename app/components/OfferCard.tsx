@@ -32,6 +32,7 @@ import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupo
 import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
 import {
   compareWithListPrice,
+  listPercentText,
   listPriceBadgePercent,
   listPriceDifferenceText,
 } from '@/lib/offers/listPriceComparison';
@@ -610,7 +611,7 @@ export default function OfferCard({
             {discountPct >= 1 ? (
               <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 <Flame className="h-3 w-3" aria-hidden />
-                -{discountPct}%
+                {listPercentText(discountPct)}
               </span>
             ) : null}
           </div>

@@ -8,7 +8,7 @@
 
 import { presentOfferPrice } from '@/lib/formatPrice';
 import { CAZAOFERTAS_PUBLICATION_BOUNDARY } from '../constants';
-import type { CazaCurrency, CazaResult, DealCandidate, DealGrade } from '../types';
+import type { CazaCurrency, CazaResult, DealCandidate, DealGrade, HistoricalConfidence } from '../types';
 import { failResult, okResult } from '../types';
 
 export const AFFILIATE_DISCLOSURE_ES =
@@ -26,6 +26,19 @@ const GRADE_LABELS: Readonly<Record<DealGrade, string>> = {
   GREAT_DEAL: 'Oferta excelente',
   GOOD_DEAL: 'Buena oferta',
   REJECT: 'No publicable',
+};
+
+/**
+ * El descuento solo llega aquí con referencia autoritativa (`resolveDiscountClaim`), pero
+ * la referencia sigue siendo de dos tipos distintos y la tarjeta los nombra por separado.
+ */
+const REFERENCE_WORDING: Readonly<
+  Record<HistoricalConfidence, { readonly priceLine: string; readonly discountSuffix: string }>
+> = {
+  observed_history: { priceLine: 'Precio habitual observado', discountSuffix: 'vs. precio habitual observado' },
+  store_reference_price: { priceLine: 'Precio de lista de la tienda', discountSuffix: 'vs. precio de lista de la tienda' },
+  page_claimed: { priceLine: 'Precio de lista anunciado', discountSuffix: 'vs. precio de lista anunciado' },
+  none: { priceLine: 'Precio de referencia', discountSuffix: 'vs. precio de referencia' },
 };
 
 export interface TelegramDealCard {
@@ -87,6 +100,7 @@ export function generateTelegramCard(candidate: DealCandidate): CazaResult<Teleg
       ? null
       : formatCazaPrice(candidate.referencePrice, candidate.currency);
   const discountLabel = `-${candidate.discountPercent}%`;
+  const reference = REFERENCE_WORDING[candidate.evidence.historicalConfidence];
   const scoreLabel = `${candidate.score.score}/100`;
   const gradeLabel = GRADE_LABELS[candidate.score.grade];
   const ctaLabel = 'Ver oferta';
@@ -95,8 +109,8 @@ export function generateTelegramCard(candidate: DealCandidate): CazaResult<Teleg
     `🔥 ${title}`,
     '',
     `Precio: ${currentPriceLabel}`,
-    ...(referencePriceLabel ? [`Antes: ${referencePriceLabel}`] : []),
-    `Descuento: ${discountLabel}`,
+    ...(referencePriceLabel ? [`${reference.priceLine}: ${referencePriceLabel}`] : []),
+    `Descuento: ${discountLabel} ${reference.discountSuffix}`,
     `Tienda: ${storeLabel}`,
     `Score: ${scoreLabel} (${gradeLabel})`,
     '',
