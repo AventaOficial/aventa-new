@@ -4,6 +4,8 @@ import { enforceRateLimit } from '@/lib/server/rateLimit';
 import { recordProductEvent } from '@/lib/analytics/recordProductEvent';
 import { bodyClaimsForeignUser, interestBodySchema } from '@/lib/interests/schema';
 import { buildInterestView, insertInterest, listInterests, loadMatchCandidates } from '@/lib/interests/store';
+import { despensaNeedIdsFromInterests } from '@/lib/despensa/classify';
+import { DESPENSA_CATALOG_VERSION } from '@/lib/despensa/catalog';
 
 export async function GET(request: Request) {
   const auth = await requireBearerMeUser(request, { mutate: false });
@@ -11,6 +13,18 @@ export async function GET(request: Request) {
   const rl = await enforceRateLimit(`interests:${auth.user.id}`);
   if (!rl.success) return NextResponse.json({ error: 'Demasiados intentos. Espera un momento.' }, { status: 429 });
   const { user, supabase } = auth;
+  if (new URL(request.url).searchParams.get('scope') === 'despensa') {
+    try {
+      const interests = await listInterests(supabase, user.id);
+      return NextResponse.json({
+        needIds: [...despensaNeedIdsFromInterests(interests)].sort(),
+        catalogVersion: DESPENSA_CATALOG_VERSION,
+      });
+    } catch (error) {
+      console.error('[interests] despensa', error instanceof Error ? error.message : 'failed');
+      return NextResponse.json({ error: 'No se pudo cargar tu lista de intereses.' }, { status: 503 });
+    }
+  }
   try {
     const now = new Date();
     const [interests, offers] = await Promise.all([

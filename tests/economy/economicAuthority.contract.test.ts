@@ -6,6 +6,7 @@ import { classifyLedgerEconomicKind } from '@/lib/economy/readModel/classifyLedg
 import { foldNetworkEconomy } from '@/lib/economy/readModel/aggregateEconomicSnapshot';
 import { SETTLEMENT_EXTERNAL_REF_PREFIX, SETTLEMENT_REVERSAL_PREFIX } from '@/lib/economy/ledger/canonicalLedgerAuthority';
 import { presentEconomicMoney } from '@/lib/economy/readModel/presentEconomicMoney';
+import { REPO_SCAN_TIMEOUT_MS } from '../helpers/repoScan';
 
 function filesUnder(dir: string): string[] {
   const out: string[] = [];
@@ -30,7 +31,7 @@ describe('economic authority contracts', () => {
       }
     }
     expect(hits).toEqual(['lib/rewards/payoutIntent/engine.ts']);
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 
   it('allocation paid cannot reach creator_rewards', () => {
     for (const file of [

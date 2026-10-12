@@ -30,6 +30,12 @@ import { createClient } from '@/lib/supabase/client';
 import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { formatMsiCardLabel } from '@/lib/offers/msiDisplay';
+import {
+  compareWithListPrice,
+  listPercentText,
+  listPriceBadgePercent,
+  listPriceDifferenceText,
+} from '@/lib/offers/listPriceComparison';
 import { postOfferVote, type VoteDirection } from '@/lib/votes/client';
 import { useVoterVoteWeights } from '@/lib/hooks/useVoterVoteWeights';
 import { logClientError } from '@/lib/utils/handleError';
@@ -204,7 +210,6 @@ export default function OfferCard({
   originalPrice,
   discountPrice,
   sourceCurrency = null,
-  discount,
   description: _description,
   hunterComment,
   image,
@@ -421,14 +426,9 @@ export default function OfferCard({
 
   const storeLabel = brand || 'Tienda';
   const timeLabel = createdAt ? formatRelativeTime(createdAt) : null;
-  const savingsAmount =
-    originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
-  const discountPct =
-    discount > 0
-      ? discount
-      : originalPrice > 0 && discountPrice < originalPrice
-        ? Math.round((1 - discountPrice / originalPrice) * 100)
-        : 0;
+  const listComparison = compareWithListPrice(discountPrice, originalPrice);
+  const discountPct = listPriceBadgePercent(listComparison) ?? 0;
+  const listDifferenceText = listComparison ? listPriceDifferenceText(listComparison, sourceCurrency) : null;
   const bankCouponLabel = getBankCouponLabel(bankCoupon);
   const msiLabel = formatMsiCardLabel(msiMonths);
   const personalCouponTrim = coupons?.trim() ?? '';
@@ -612,7 +612,7 @@ export default function OfferCard({
             {discountPct >= 1 ? (
               <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 <Flame className="h-3 w-3" aria-hidden />
-                -{discountPct}%
+                {listPercentText(discountPct)}
               </span>
             ) : null}
           </div>
@@ -694,15 +694,15 @@ export default function OfferCard({
                 <span className="text-lg max-[400px]:text-base md:text-2xl font-semibold text-violet-600 dark:text-violet-400 tracking-tight tabular-nums">
                   {presentOfferPrice(discountPrice, sourceCurrency)}
                 </span>
-                {originalPrice > discountPrice && originalPrice > 0 ? (
+                {listComparison ? (
                   <span className="text-xs md:text-sm text-gray-400 dark:text-gray-500 line-through tabular-nums">
-                    {presentOfferPrice(originalPrice, sourceCurrency)}
+                    {presentOfferPrice(listComparison.listPrice, sourceCurrency)}
                   </span>
                 ) : null}
               </div>
-              {savingsAmount > 0 ? (
+              {listDifferenceText ? (
                 <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
-                  Ahorras {presentOfferPrice(savingsAmount, sourceCurrency)}
+                  {listDifferenceText}
                 </p>
               ) : null}
               {isTesterOffer ? (

@@ -2,7 +2,7 @@
  * Day 5 — Worker → Price Memory persistence + OAuth fail-open tests.
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeAll, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ParsedOfferMetadata } from '@/lib/bots/ingest/fetchParsedOfferMetadata';
 
 const recordMock = vi.fn(async () => undefined);
@@ -18,6 +18,12 @@ vi.mock('@/lib/bots/ingest/mlPriceEngine', async () => {
 });
 
 describe('persistPriceMemoryFromWorkerMetas', () => {
+  // The cold import can exceed the 5 s test timeout under a full parallel run.
+  // A timed-out test keeps running and would then call recordMock during the next test.
+  beforeAll(async () => {
+    await import('@/lib/bots/ingest/persistWorkerPriceMemory');
+  }, 60_000);
+
   beforeEach(() => {
     recordMock.mockClear();
   });

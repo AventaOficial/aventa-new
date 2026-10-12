@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryDb, mcpUniqueIndexes, memorySupabase, type MemoryDb } from '../helpers/memorySupabase';
+import { REPO_SCAN_TIMEOUT_MS } from '../helpers/repoScan';
 
 const owner = vi.hoisted(() => ({
   result: { user: { id: 'owner-0000-4000-8000-000000000001' }, role: 'owner' } as Record<string, unknown>,
@@ -220,7 +221,7 @@ describe('guardas estructurales MCP', () => {
     const files = walk(root).filter((f) => !relative(root, f).startsWith('tests'));
     const forbidden = /\b(mcp_offers|grok_offers|bot_offers|mcp_writer|grok_writer)\b/;
     expect(files.filter((f) => forbidden.test(readFileSync(f, 'utf8'))).map((f) => relative(root, f))).toEqual([]);
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 
   it('lib/mcp y /api/mcp no escriben en offers ni usan CRON_SECRET', () => {
     const files = [...walk(join(root, 'lib/mcp')), join(root, 'app/api/mcp/route.ts')];

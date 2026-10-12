@@ -90,15 +90,17 @@ describe('category normalization regression', () => {
 });
 
 describe('offer detail author avatar', () => {
-  it('detalle usa avatar circular h-10 y marca bot', () => {
+  it('detalle usa avatar circular en la ficha del autor y marca bot', () => {
     const page = readFileSync(join(process.cwd(), 'app/oferta/[id]/page.tsx'), 'utf8');
     const content = readFileSync(
       join(process.cwd(), 'app/oferta/[id]/OfferPageContent.tsx'),
       'utf8',
     );
+    const card = readFileSync(join(process.cwd(), 'app/components/offers/OfferAuthorCard.tsx'), 'utf8');
     expect(page).toContain('isBotUserId');
     expect(page).toContain('presentAuthor');
-    expect(content).toContain('h-10 w-10 rounded-full');
-    expect(content).toContain('isBot');
+    expect(content).toContain('<OfferAuthorCard');
+    expect(card).toContain('h-11 w-11 shrink-0 rounded-full');
+    expect(content).toContain('profileHref: offer.author.isBot ? null');
   });
 });

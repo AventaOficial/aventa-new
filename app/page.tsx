@@ -32,8 +32,10 @@ import { notifyUserError } from '@/lib/utils/handleError';
 import { logEvent } from '@/lib/monitoring/clientLogger';
 import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
 import {
-  applyVitalesFeedTransform,
+  fetchDespensaPreferredNeeds,
   fetchHomeFeedFromAPI,
+  limitConsecutiveMachineOffers,
+  processHomeFeedList,
   type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
 import { DEFAULT_MAX_SAME_PRODUCT, resolveMaxSameProduct } from '@/lib/offers/feedDiversity';
@@ -87,22 +89,6 @@ const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = ALL_CATEGORIE
   (c) => ({ value: c.value, label: c.label })
 );
 
-function processHomeFeedList(
-  raw: ReturnType<typeof mapOfferToCard>[],
-  viewMode: ViewMode,
-  effectiveLimit: number,
-  maxSameProduct: number = DEFAULT_MAX_SAME_PRODUCT,
-): ReturnType<typeof mapOfferToCard>[] {
-  let list = raw;
-  if (viewMode === 'top') {
-    list = list.filter((o) => (o.upvotes ?? 0) >= 1);
-  }
-  if (viewMode === 'vitales') {
-    list = applyVitalesFeedTransform(list, effectiveLimit, maxSameProduct);
-  }
-  return list;
-}
-
 let vitalesCapRequest: Promise<number> | null = null;
 
 function readVitalesCap(): Promise<number> {
@@ -118,6 +104,19 @@ function readVitalesCap(): Promise<number> {
     }
   })();
   return vitalesCapRequest;
+}
+
+const DESPENSA_PREFS_TTL_MS = 60_000;
+let despensaPrefsRequest: { token: string; at: number; needs: Promise<Set<string>> } | null = null;
+
+function readDespensaPreferences(token: string | null | undefined): Promise<Set<string>> {
+  if (!token) return Promise.resolve(new Set());
+  const now = Date.now();
+  if (despensaPrefsRequest?.token === token && now - despensaPrefsRequest.at < DESPENSA_PREFS_TTL_MS) {
+    return despensaPrefsRequest.needs;
+  }
+  despensaPrefsRequest = { token, at: now, needs: fetchDespensaPreferredNeeds(token) };
+  return despensaPrefsRequest.needs;
 }
 
 function HomeContent() {
@@ -300,13 +299,15 @@ function HomeContent() {
         storeFilter,
       }),
       homeView === 'vitales' ? readVitalesCap() : Promise.resolve(DEFAULT_MAX_SAME_PRODUCT),
+      homeView === 'vitales' ? readDespensaPreferences(session?.access_token) : Promise.resolve(new Set<string>()),
     ])
-      .then(([{ items, nextCursor }, maxSameProduct]) => {
+      .then(([{ items, nextCursor }, maxSameProduct, preferredNeedIds]) => {
         const list = processHomeFeedList(
           items.map((item) => mapOfferToCard(item as FeedApiItemShape)),
           homeView,
           effectiveLimit,
           maxSameProduct,
+          preferredNeedIds,
         );
         const keepPages = Boolean(opts?.silent) && offersCountRef.current > list.length;
         setOffers((prev) => (keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list));
@@ -436,7 +437,7 @@ function HomeContent() {
       cursor: feedCursor,
     })
       .then(({ items, nextCursor }) => {
-        const rows = items.map((item) => mapOfferToCard(item as FeedApiItemShape));
+        const rows = limitConsecutiveMachineOffers(items.map((item) => mapOfferToCard(item as FeedApiItemShape)));
         setOffers((prev) => appendOffersById(prev, rows));
         setFeedCursor(nextCursor);
         setHasMoreCursor(nextCursor != null);

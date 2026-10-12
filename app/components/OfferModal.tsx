@@ -30,6 +30,9 @@ import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import OfferPriceInsightBlock from './OfferPriceInsightBlock';
+import { presentListPrice } from '@/lib/offers/listPriceComparison';
+import { useOfferPriceEvidence } from '@/lib/hooks/useOfferPriceEvidence';
+import { OfferListPriceInline, OfferListPriceNotes } from './OfferListPrice';
 import OfferImageThumbs from './OfferImageThumbs';
 import OfferImageGallery from './OfferImageGallery';
 
@@ -110,7 +113,6 @@ export default function OfferModal({
   brand,
   originalPrice,
   discountPrice,
-  discount,
   description,
   steps,
   conditions,
@@ -209,7 +211,8 @@ export default function OfferModal({
     setImageIndex(0);
   }, [offerId]);
 
-  const savings = originalPrice - discountPrice;
+  const priceEvidence = useOfferPriceEvidence(offerId);
+  const listPriceView = presentListPrice(discountPrice, originalPrice, priceEvidence);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -694,24 +697,15 @@ export default function OfferModal({
                   <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-violet-600 dark:text-violet-400 tracking-tight">
                     {presentOfferPrice(discountPrice)}
                   </span>
-                  {originalPrice > 0 && (
-                    <>
-                      <span className="text-lg md:text-xl text-[#6B7280] dark:text-gray-400 line-through">
-                        {presentOfferPrice(originalPrice)}
-                      </span>
-                      {discount > 0 && (
-                        <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
-                          -{discount}%
-                        </span>
-                      )}
-                    </>
-                  )}
+                  <OfferListPriceInline
+                    view={listPriceView}
+                    strikeClassName="text-lg md:text-xl text-[#6B7280] dark:text-gray-400"
+                  />
                 </div>
-                {originalPrice > 0 && savings > 0 && (
-                  <p className="text-sm text-[#6B7280] dark:text-gray-400 -mt-1">
-                    Ahorras {presentOfferPrice(savings)}
-                  </p>
-                )}
+                <OfferListPriceNotes
+                  view={listPriceView}
+                  className="-mt-1 space-y-0.5 text-sm text-[#6B7280] dark:text-gray-400"
+                />
                 {(msiMonths != null && msiMonths >= 1) || bankCouponLabel ? (
                   <div className="-mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                     {msiMonths != null && msiMonths >= 1 ? (
@@ -741,7 +735,7 @@ export default function OfferModal({
                     Información adicional
                   </p>
                   {offerId ? (
-                    <OfferPriceInsightBlock offerId={offerId} />
+                    <OfferPriceInsightBlock evidence={priceEvidence} />
                   ) : null}
                   <AffiliateDisclosure variant="block" includeAmazonEn />
                   {steps?.trim() && (() => {

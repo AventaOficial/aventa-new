@@ -30,8 +30,10 @@ describe('diversidad del feed cotidiano', () => {
   });
 
   it('un tope configurado cambia el inicio y un valor inválido vuelve a 2', () => {
+    // Ningún título es una necesidad de Despensa, así que el orden lo deciden los votos
+    // y la prueba aísla el tope de duplicados.
     const list = [8, 7, 6, 4].map((score, index) => ({
-      title: index === 3 ? 'Detergente líquido' : 'Creatina 300 g',
+      title: index === 3 ? 'Audífonos bluetooth' : 'Creatina 300 g',
       brand: 'Amazon',
       votes: { up: score, down: 0, score },
     }));

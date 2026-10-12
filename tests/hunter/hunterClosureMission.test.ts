@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { REPO_SCAN_TIMEOUT_MS } from '../helpers/repoScan';
 import {
   assertZeroInsertAttempts,
   buildLossFunnelReport,
@@ -195,7 +196,7 @@ describe('discount truth static guard', () => {
       // eslint-disable-next-line no-console
       console.error(scan.criticalViolations.slice(0, 20));
     }
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 });
 
 describe('experiment hard wall', () => {

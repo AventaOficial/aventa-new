@@ -3,6 +3,7 @@ import { join, relative } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { confirmPayoutIntentSuccess } from '@/lib/rewards/payoutIntent/engine';
+import { REPO_SCAN_TIMEOUT_MS } from '../helpers/repoScan';
 
 const REWARD = '11111111-1111-4111-8111-111111111111';
 const INTENT = '22222222-2222-4222-8222-222222222222';
@@ -361,5 +362,5 @@ describe('payout authority closure', () => {
     const payout = readFileSync(join(root, 'lib/rewards/payout.ts'), 'utf8');
     expect(payout).toContain('writeHistoricalPayoutRow === true');
     expect(payout).not.toContain("status: 'PAID'");
-  });
+  }, REPO_SCAN_TIMEOUT_MS);
 });

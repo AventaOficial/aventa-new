@@ -8,6 +8,12 @@ import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import StoreBrandMark from './StoreBrandMark';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import { presentOfferPrice } from '@/lib/formatPrice';
+import {
+  compareWithListPrice,
+  listPercentText,
+  listPriceBadgePercent,
+  listPriceDifferenceText,
+} from '@/lib/offers/listPriceComparison';
 
 type FeaturedOfferCardProps = {
   offerId?: string;
@@ -32,7 +38,6 @@ export default function FeaturedOfferCard({
   originalPrice,
   discountPrice,
   sourceCurrency = null,
-  discount,
   isLiked: isLikedProp = false,
   isTesterOffer = false,
   onCardClick,
@@ -42,14 +47,9 @@ export default function FeaturedOfferCard({
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const [favoritePending, setFavoritePending] = useState(false);
   const isLiked = localLiked !== null ? localLiked : isLikedProp;
-  const discountPct =
-    discount > 0
-      ? discount
-      : originalPrice > 0 && discountPrice < originalPrice
-        ? Math.round((1 - discountPrice / originalPrice) * 100)
-        : 0;
-
-  const savings = originalPrice > discountPrice && originalPrice > 0 ? originalPrice - discountPrice : 0;
+  const listComparison = compareWithListPrice(discountPrice, originalPrice);
+  const discountPct = listPriceBadgePercent(listComparison) ?? 0;
+  const listDifferenceText = listComparison ? listPriceDifferenceText(listComparison, sourceCurrency) : null;
   const imageUnoptimized = Boolean(image) && (image!.startsWith('/') || image!.includes('placehold.co'));
 
   return (
@@ -72,7 +72,7 @@ export default function FeaturedOfferCard({
         {discountPct >= 1 ? (
           <span className="absolute left-5 top-4 inline-flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
             <Flame className="h-3 w-3" aria-hidden />
-            -{discountPct}%
+            {listPercentText(discountPct)}
           </span>
         ) : null}
         <button
@@ -112,16 +112,14 @@ export default function FeaturedOfferCard({
             <span className="text-lg font-semibold tabular-nums text-violet-600 dark:text-violet-400">
               {presentOfferPrice(discountPrice, sourceCurrency)}
             </span>
-            {originalPrice > discountPrice && originalPrice > 0 ? (
+            {listComparison ? (
               <span className="text-xs text-gray-400 line-through tabular-nums">
-                {presentOfferPrice(originalPrice, sourceCurrency)}
+                {presentOfferPrice(listComparison.listPrice, sourceCurrency)}
               </span>
             ) : null}
           </div>
-          {savings > 0 ? (
-            <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-              Ahorras {presentOfferPrice(savings, sourceCurrency)}
-            </p>
+          {listDifferenceText ? (
+            <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">{listDifferenceText}</p>
           ) : null}
         </div>
         <span className="inline-flex items-center justify-center gap-1 rounded-xl border border-violet-600 px-3 py-2 text-xs font-semibold text-violet-600 transition-colors group-hover:bg-violet-600 group-hover:text-white dark:border-violet-500 dark:text-violet-400">

@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin } from '@/lib/offers/homeFeedFilters';
 import { presentAuthor } from '@/lib/product/hunters/identity';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
+import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -37,6 +38,9 @@ export type FeedOffer = {
   conditions: string | null;
   slug: string;
   created_by: string | null;
+  expires_at: string | null;
+  /** Origen según el id del autor (ids de bots en entorno), nunca según el nombre visible. */
+  origin: 'community' | 'machine';
   author: FeedOfferAuthor;
 };
 
@@ -80,7 +84,7 @@ export async function getHomeFeed({
     let query = supabase
       .from('ofertas_ranked_general')
       .select(
-        'id, title, price, original_price, offer_url, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
+        'id, title, price, original_price, offer_url, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, expires_at, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
       )
       .not('created_at', 'is', null)
       .in('status', ['approved', 'published'])
@@ -195,6 +199,8 @@ export async function getHomeFeed({
           row.conditions != null && String(row.conditions).trim() !== '' ? String(row.conditions).trim() : null,
         slug: String(row.id ?? ''),
         created_by: createdBy,
+        expires_at: row.expires_at != null ? new Date(row.expires_at as string).toISOString() : null,
+        origin: isBotUserId(createdBy) ? 'machine' : 'community',
         author: (() => {
           const displayName = prof?.display_name?.trim() || 'Usuario';
           const presented = presentAuthor({ userId: createdBy, displayName });

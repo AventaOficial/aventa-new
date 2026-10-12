@@ -1,4 +1,5 @@
 import type { StaffFilmCandidate } from '@/lib/staff/workBoard';
+import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 
 export type MarketingContentStatus = 'ideas' | 'to_film' | 'editing' | 'published';
 
@@ -86,12 +87,15 @@ export function scorePotential(discountPercent: number | null, clicks7d: number 
 }
 
 export function buildMarketingCopyText(card: StaffFilmCandidate): string {
+  const listComparison = compareWithListPrice(card.price, card.originalPrice);
   const lines = [
     card.title,
     card.store ? `Tienda: ${card.store}` : '',
     `Precio: $${card.price.toLocaleString('es-MX')}`,
-    card.originalPrice != null ? `Antes: $${card.originalPrice.toLocaleString('es-MX')}` : '',
-    card.discountPercent != null ? `Descuento: -${card.discountPercent}%` : '',
+    listComparison ? `Precio de lista: $${listComparison.listPrice.toLocaleString('es-MX')}` : '',
+    listComparison?.percent != null
+      ? `Descuento: -${listComparison.percent}% vs. precio de lista (declarado, sin verificar)`
+      : '',
     card.offerUrl ? `Enlace: ${card.offerUrl}` : '',
     'Oferta en AVENTA · comunidad de cazadores',
   ].filter(Boolean);

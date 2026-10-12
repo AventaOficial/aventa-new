@@ -17,6 +17,13 @@ import { describeOfferIssue, previewOfferDraft, OFFER_COUPON_MAX, OFFER_DESCRIPT
 import { selectOfferImages } from '@/lib/offers/selectOfferImages';
 import { parseOfferEditMoney } from '@/lib/moderation/offerEditContract';
 import { formatOfferMoneyInput, presentOfferPrice, sanitizeOfferMoneyTyping } from '@/lib/formatPrice';
+import {
+  compareWithListPrice,
+  DECLARED_PRICES_NOTE,
+  listPercentText,
+  listPriceBadgePercent,
+  listPriceDifferenceText,
+} from '@/lib/offers/listPriceComparison';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { logClientError } from '@/lib/utils/handleError';
 import {
@@ -1869,6 +1876,13 @@ export default function ActionBar() {
                           ? parseDecimalPrice(formData.discountPrice) || parseDecimalPrice(formData.originalPrice)
                           : parseDecimalPrice(formData.originalPrice);
                         const previewOriginal = parseDecimalPrice(formData.originalPrice);
+                        const previewComparison = hasDiscount
+                          ? compareWithListPrice(parseDecimalPrice(formData.discountPrice), previewOriginal)
+                          : null;
+                        const previewBadgePercent = listPriceBadgePercent(previewComparison);
+                        const previewDifferenceText = previewComparison
+                          ? listPriceDifferenceText(previewComparison, previewCurrency)
+                          : null;
                         return (
                         <motion.div
                           key="preview"
@@ -1970,26 +1984,21 @@ export default function ActionBar() {
                                   <span className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
                                     {presentOfferPrice(previewCurrent, previewCurrency)}
                                   </span>
-                                  {hasDiscount && formData.originalPrice ? (
+                                  {previewComparison ? (
                                     <span className="text-base text-gray-500 line-through dark:text-gray-400">
-                                      {presentOfferPrice(previewOriginal, previewCurrency)}
+                                      {presentOfferPrice(previewComparison.listPrice, previewCurrency)}
                                     </span>
                                   ) : null}
-                                  {hasDiscount &&
-                                  parseDecimalPrice(formData.originalPrice) > parseDecimalPrice(formData.discountPrice) &&
-                                  parseDecimalPrice(formData.discountPrice) > 0 ? (
+                                  {previewBadgePercent != null ? (
                                     <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                                      -{Math.round((1 - parseDecimalPrice(formData.discountPrice) / parseDecimalPrice(formData.originalPrice)) * 100)}%
+                                      {listPercentText(previewBadgePercent)}
                                     </span>
                                   ) : null}
                                 </div>
-                                {hasDiscount &&
-                                parseDecimalPrice(formData.originalPrice) > parseDecimalPrice(formData.discountPrice) &&
-                                parseDecimalPrice(formData.discountPrice) > 0 ? (
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Ahorras {presentOfferPrice(previewOriginal - previewCurrent, previewCurrency)}
-                                  </p>
+                                {previewDifferenceText ? (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">{previewDifferenceText}</p>
                                 ) : null}
+                                <p className="text-xs text-amber-700 dark:text-amber-400">{DECLARED_PRICES_NOTE}</p>
                                 {msiMonths != null && msiMonths >= 1 && parseDecimalPrice(formData.discountPrice) > 0 ? (
                                   <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
                                     {msiMonths} MSI: {presentOfferPrice(parseDecimalPrice(formData.discountPrice) / msiMonths, previewCurrency)}/mes

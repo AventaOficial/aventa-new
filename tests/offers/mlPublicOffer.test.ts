@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 const fetchMlApiMock = vi.fn();
 
@@ -7,6 +7,11 @@ vi.mock('@/lib/integrations/mercadolibre/apiClient', () => ({
 }));
 
 describe('fetchMercadoLibrePublicOffer', () => {
+  // The first test paid the cold import of mlPublicOffer and exceeded 5 s under a full parallel run.
+  beforeAll(async () => {
+    await import('@/lib/offers/mlPublicOffer');
+  }, 60_000);
+
   beforeEach(() => {
     fetchMlApiMock.mockReset();
   });

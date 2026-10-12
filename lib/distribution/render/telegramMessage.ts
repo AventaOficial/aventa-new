@@ -1,4 +1,5 @@
 import { presentOfferPrice } from '@/lib/formatPrice';
+import { compareWithListPrice, listPercentText } from '@/lib/offers/listPriceComparison';
 import { escapeTelegramHtml } from './escape';
 import { assertSafeHttpsUrl } from '../security/urls';
 
@@ -25,16 +26,6 @@ function formatPrice(
   return presentOfferPrice(value, currency);
 }
 
-function discountPct(
-  price: number | string | null,
-  original: number | string | null,
-): number | null {
-  const p = typeof price === 'number' ? price : Number(price);
-  const o = typeof original === 'number' ? original : Number(original);
-  if (!Number.isFinite(p) || !Number.isFinite(o) || o <= 0 || p >= o) return null;
-  return Math.round(((o - p) / o) * 100);
-}
-
 /**
  * Provider-agnostic content → Telegram HTML body.
  * CTA must be the Aventa hop URL (never raw retailer in primary button path).
@@ -47,15 +38,16 @@ export function renderTelegramOfferMessage(input: {
   const title = escapeTelegramHtml((input.offer.title || 'Oferta').slice(0, 200));
   const store = input.offer.store ? escapeTelegramHtml(String(input.offer.store).slice(0, 80)) : null;
   const price = formatPrice(input.offer.price);
-  const original = formatPrice(input.offer.original_price);
-  const pct = discountPct(input.offer.price, input.offer.original_price);
+  const comparison = compareWithListPrice(input.offer.price, input.offer.original_price);
+  const original = comparison ? formatPrice(comparison.listPrice) : null;
+  const pct = comparison?.percent ?? null;
 
   const lines: string[] = [`<b>${title}</b>`];
   if (store) lines.push(`🏪 ${store}`);
   if (price) {
     const priceLine =
       original && pct !== null
-        ? `💰 ${escapeTelegramHtml(price)} · <s>${escapeTelegramHtml(original)}</s> (−${pct}%)`
+        ? `💰 ${escapeTelegramHtml(price)} · <s>${escapeTelegramHtml(original)}</s> (${listPercentText(pct)})`
         : `💰 ${escapeTelegramHtml(price)}`;
     lines.push(priceLine);
   }
