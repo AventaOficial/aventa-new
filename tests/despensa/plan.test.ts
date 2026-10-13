@@ -9,6 +9,7 @@ import {
   DESPENSA_LIST_MAX_ITEMS,
   despensaAisleFor,
   estimateDespensaList,
+  formatMxnCents,
   parseDespensaList,
   type DespensaOffer,
   type DespensaPick,
@@ -198,7 +199,8 @@ describe('evidencia del precio', () => {
     expect(plan.referenceGaps.map((g) => g.label)).toContain('Arroz en grano');
   });
 
-  it('disponibilidad no confirmada sin vigencia; confirmada con vigencia futura', () => {
+  it('la disponibilidad nunca se da por confirmada, ni con fecha de caducidad', () => {
+    // expires_at puede ser la caducidad automática de 7 días del ingreso por bot.
     const plan = buildDespensaPlan(
       [
         offer({ id: 'sin', title: 'Arroz blanco 1 kg' }),
@@ -208,8 +210,9 @@ describe('evidencia del precio', () => {
     );
     expect(picksOf(plan, 'alimentos.arroz')[0].notes).toContain('availability_unconfirmed');
     const frijol = picksOf(plan, 'alimentos.frijol')[0];
-    expect(frijol.notes).not.toContain('availability_unconfirmed');
-    expect(frijol.reasons[0]).toBe('La tienda publica el precio y hasta cuándo es válido.');
+    expect(frijol.notes).toContain('availability_unconfirmed');
+    expect(frijol.reasons[0]).toBe('Precio publicado por una tienda identificada.');
+    expect(html(frijol)).not.toMatch(/hasta cuándo|vigencia/i);
   });
 
   it('distingue precio en línea, de sucursal y no localizado', () => {
@@ -260,6 +263,33 @@ describe('presentaciones y categorías', () => {
     expect(picks[0].unitPeers).toBe(2);
     expect(picks[0].reasons.join(' ')).toContain('Por litro, está en la mitad más barata de 2 opciones comparables.');
     expect(picks[1].cheapestPerUnit).toBe(false);
+  });
+
+  it('limpiavidrios no se compara con multiusos (caso real de producción)', () => {
+    const plan = buildDespensaPlan(
+      [
+        offer({ id: 'musculo', title: 'Mr Músculo Limpiador Multiusos Desengrasante Cocina Platinum, 500 ml (Paquete de 2)', discountPrice: 50 }),
+        offer({ id: 'lysol', title: 'Lysol® Limpiador Líquido Desinfectante Multiusos Citrus 820 ml', discountPrice: 23 }),
+        offer({ id: 'windex', title: 'Windex Limpiador de Vidrios Atomizador 640 ml', discountPrice: 39 }),
+      ],
+      { now: NOW },
+    );
+    const byId = Object.fromEntries(picksOf(plan, 'limpieza.superficies').map((p) => [p.offer.id, p]));
+    expect(byId.windex.variantId).toBe('vidrios');
+    expect(byId.windex.unitPeers).toBe(1);
+    expect(byId.windex.cheapestPerUnit).toBe(false);
+    expect([byId.musculo.variantId, byId.lysol.variantId]).toEqual(['multiusos', 'multiusos']);
+    expect(byId.lysol.unitPeers).toBe(2);
+    expect(byId.lysol.cheapestPerUnit).toBe(true);
+  });
+
+  it('muestra centavos completos', () => {
+    expect([formatMxnCents(44.9), formatMxnCents(33), formatMxnCents(52.818), formatMxnCents(1500)]).toEqual([
+      '$44.90',
+      '$33',
+      '$52.82',
+      '$1,500',
+    ]);
   });
 
   it('no compara variantes distintas por unidad', () => {

@@ -132,7 +132,8 @@ function priceStatus(s: DespensaSignals): DespensaPriceStatus {
 function notesFor(offer: DespensaOffer, s: DespensaSignals): DespensaNote[] {
   const notes: DespensaNote[] = [];
   if (s.saving.status === 'list_contradicted') notes.push('list_contradicted');
-  if (s.evidence !== 'published_with_validity') notes.push('availability_unconfirmed');
+  // `expires_at` puede ser la caducidad automática de Aventa, no una vigencia de la tienda.
+  notes.push('availability_unconfirmed');
   if (offer.offerScope === 'in_store') notes.push('branch_unconfirmed');
   else if (offer.offerScope === 'online') notes.push('zone_unconfirmed');
   else notes.push('location_unknown');
@@ -143,11 +144,13 @@ function notesFor(offer: DespensaOffer, s: DespensaSignals): DespensaNote[] {
 
 const UNIT_LABEL: Record<string, string> = { kg: 'kg', l: 'litro' };
 
-const MXN_CENTS = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const MXN_WHOLE = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+const MXN_CENTS = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Pesos con centavos cuando los hay: los precios por kilo o por pieza los necesitan. */
+/** Pesos con centavos cuando los hay ($44.90, no $44.9); enteros sin decimales. */
 export function formatMxnCents(amount: number): string {
-  return MXN_CENTS.format(amount);
+  const cents = Math.round(amount * 100);
+  return cents % 100 === 0 ? MXN_WHOLE.format(cents / 100) : MXN_CENTS.format(cents / 100);
 }
 
 export function unitPriceLabel(u: UnitPrice): string {
@@ -163,8 +166,9 @@ export function explainPick(
   price: number,
 ): string[] {
   const reasons: string[] = [];
-  if (s.evidence === 'published_with_validity') reasons.push('La tienda publica el precio y hasta cuándo es válido.');
-  else if (s.evidence === 'published_source') reasons.push('Precio publicado por una tienda identificada.');
+  if (s.evidence === 'published_with_validity' || s.evidence === 'published_source') {
+    reasons.push('Precio publicado por una tienda identificada.');
+  }
   if (standing === 'at_or_below_median' && s.unitPrice) {
     reasons.push(`Por ${UNIT_LABEL[s.unitPrice.per] ?? s.unitPrice.per}, está en la mitad más barata de ${unitPeers} opciones comparables.`);
   }

@@ -5,7 +5,7 @@ import type { DespensaOffer } from '@/lib/despensa/plan';
 import type { FeedOffer } from '@/lib/offers/feedService';
 import { buildOfferPriceInsights, type PriceInsight } from '@/lib/offers/priceHistory';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
-import { parseOfferScopeFromConditions } from '@/lib/offerScope';
+import { inferBotOfferScope, parseOfferScopeFromConditions } from '@/lib/offerScope';
 
 /** Oferta del feed apta para Despensa: clasificada en el catálogo y con precio en MXN confirmado. */
 export function isDespensaCandidate(offer: Pick<FeedOffer, 'title' | 'price'>, currency: string | null): boolean {
@@ -24,7 +24,9 @@ export function toDespensaOffer(offer: FeedOffer, insight: PriceInsight | null):
     createdAt: offer.created_at || null,
     expiresAt: offer.expires_at,
     votes: { score: offer.up_votes - offer.down_votes },
-    offerScope: parseOfferScopeFromConditions(offer.conditions),
+    offerScope:
+      parseOfferScopeFromConditions(offer.conditions) ??
+      (inferBotOfferScope({ store: offer.store, url: offer.offer_url }) === 'online' ? 'online' : null),
     priceHistory: insight
       ? { verdict: insight.verdict, min90d: insight.min90d, max90d: insight.max90d, samples90d: insight.samples90d }
       : null,

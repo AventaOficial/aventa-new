@@ -18,7 +18,7 @@ import type { CategoryId } from '@/lib/categories';
  *   necesidad declara variantes, la misma variante. Las sustituciones aproximadas viven aparte
  *   (`substitutes`) y nunca se usan para decir que algo es más barato.
  */
-export const DESPENSA_CATALOG_VERSION = '2026-10-12.3';
+export const DESPENSA_CATALOG_VERSION = '2026-10-13.1';
 
 export const DESPENSA_FAMILIES = [
   'alimentacion_basica',
@@ -383,7 +383,14 @@ export const DESPENSA_NEEDS: readonly DespensaNeed[] = [
     expectedCategories: ['supermercado', 'hogar'],
   }),
   need({ id: 'limpieza.lavatrastes', family: 'limpieza_hogar', subcategory: 'Cocina', label: 'Lavatrastes', synonyms: ['lavatrastes', 'jabon para trastes', 'detergente para trastes', 'lavaplatos', 'lavavajillas', 'jabon lavatrastes'], excludes: ['maquina lavavajillas', 'lavavajillas empotrable'], comparableBy: ['volume', 'mass'], expectedCategories: ['supermercado', 'hogar'] }),
-  need({ id: 'limpieza.superficies', family: 'limpieza_hogar', subcategory: 'Superficies', label: 'Limpiadores de superficies', synonyms: ['limpiador multiusos', 'limpiador de pisos', 'limpiador desinfectante', 'desengrasante', 'limpiavidrios', 'limpiador de vidrios', 'multiusos', 'toallitas desinfectantes'], comparableBy: ['volume'], expectedCategories: ['supermercado', 'hogar'] }),
+  need({ id: 'limpieza.superficies', family: 'limpieza_hogar', subcategory: 'Superficies', label: 'Limpiadores de superficies', synonyms: ['limpiador multiusos', 'limpiador de pisos', 'limpiador desinfectante', 'desengrasante', 'limpiavidrios', 'limpiador de vidrios', 'multiusos', 'toallitas desinfectantes'], comparableBy: ['volume'],
+    variants: [
+      { id: 'vidrios', label: 'Limpiavidrios', synonyms: ['limpiavidrios', 'limpiador de vidrios'] },
+      { id: 'pisos', label: 'Limpiador de pisos', synonyms: ['limpiador de pisos'] },
+      { id: 'toallitas', label: 'Toallitas desinfectantes', synonyms: ['toallitas desinfectantes'], comparableBy: ['count'] },
+      { id: 'multiusos', label: 'Multiusos y desengrasante', synonyms: ['limpiador multiusos', 'multiusos', 'limpiador desinfectante', 'desengrasante'] },
+    ],
+    expectedCategories: ['supermercado', 'hogar'] }),
   need({ id: 'limpieza.cloro', family: 'limpieza_hogar', subcategory: 'Superficies', label: 'Cloro y blanqueadores', synonyms: ['cloro', 'blanqueador', 'hipoclorito'], excludes: ['sin cloro'], comparableBy: ['volume'], expectedCategories: ['supermercado', 'hogar'] }),
   need({ id: 'limpieza.bolsas_basura', family: 'limpieza_hogar', subcategory: 'Desechables', label: 'Bolsas para basura', synonyms: ['bolsas para basura', 'bolsa para basura', 'bolsas de basura', 'bolsa de basura'], comparableBy: ['count'], expectedCategories: ['supermercado', 'hogar'] }),
   need({ id: 'limpieza.papel_cocina', family: 'limpieza_hogar', subcategory: 'Desechables', label: 'Toallas de papel y servilletas', synonyms: ['toallas de papel', 'toalla de papel', 'papel de cocina', 'servilletas'], comparableBy: ['count'], expectedCategories: ['supermercado', 'hogar'] }),
