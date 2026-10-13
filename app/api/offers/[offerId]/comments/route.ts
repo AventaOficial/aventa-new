@@ -205,7 +205,13 @@ export async function POST(
   const textMod = moderateCommentText(trimmedContent);
   if (textMod.verdict === 'block') {
     return NextResponse.json(
-      { error: 'Tu comentario no se puede publicar. Evita insultos u ofensas.' },
+      {
+        error:
+          textMod.categories.includes('empty')
+            ? 'Escribe un comentario.'
+            : 'Tu comentario no se puede publicar: contiene insultos, amenazas u ofensas. Puedes criticar la oferta o la tienda sin atacar a nadie.',
+        code: 'comment_blocked',
+      },
       { status: 400 }
     );
   }

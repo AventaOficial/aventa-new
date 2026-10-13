@@ -139,6 +139,18 @@ describe('filtro editorial del comentario', () => {
     expect(reviewHunterComment(text, noDiscount).review).toMatchObject({ status: 'dropped', reason: 'MENTIONS_BOT' });
   });
 
+  it.each([
+    'Está bien pinche barato este arroz de 1 kg.',
+    'Para los pendejos que pagan de más: 1 kg a $42.',
+    'Precio de poca madre para 1 kg de arroz.',
+  ])('el comentario editorial no lleva groserías: %s', (text) => {
+    expect(reviewHunterComment(text, noDiscount).review).toMatchObject({ status: 'dropped', reason: 'OFFENSIVE' });
+  });
+
+  it('un comentario normal con «matar» o «retrasado» en otro sentido se conserva', () => {
+    expect(reviewHunterComment('Snack de 1 kg ideal para matar el antojo a $42.', noDiscount).review.status).toBe('kept');
+  });
+
   it('palabras parecidas no cuentan como autorreferencia de bot', () => {
     expect(reviewHunterComment('Bote de 1 kg con tapa hermética a $42.', noDiscount).review.status).toBe('kept');
     expect(reviewHunterComment('Botella de agua de 1 L ideal para el día.', noDiscount).review.status).toBe('kept');
