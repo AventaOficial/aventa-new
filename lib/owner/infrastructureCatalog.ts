@@ -195,7 +195,7 @@ export const INFRASTRUCTURE_CATALOG: InfraCatalogEntry[] = [
     id: 'api-mercadolibre-public',
     group: 'afiliacion',
     name: 'API pública Mercado Libre',
-    usage: 'Bot: búsqueda sites/MLM/search e items?ids= (api.mercadolibre.com).',
+    usage: 'Bot: highlights, products/search, products/{id}/items e items/bulk (api.mercadolibre.com).',
     costCurrent: 'API pública documentada por ML — sin API key en el repo.',
     scaleWhen: ['Mucho volumen de búsqueda/reviews desde el bot'],
     failureImpact: 'El bot no descubre ofertas ML; ingesta manual u otras fuentes siguen.',
