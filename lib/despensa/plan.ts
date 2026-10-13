@@ -168,13 +168,12 @@ export function explainPick(
   if (standing === 'at_or_below_median' && s.unitPrice) {
     reasons.push(`Por ${UNIT_LABEL[s.unitPrice.per] ?? s.unitPrice.per}, está en la mitad más barata de ${unitPeers} opciones comparables.`);
   }
-  if (s.saving.status === 'verified') {
-    reasons.push(`${formatMxnCents(s.saving.amount)} menos que el precio más alto visto en Aventa en 90 días.`);
-  }
+  if (s.saving.status === 'verified') reasons.push('Su precio está en el nivel más bajo visto en Aventa en 90 días.');
   if (budget && s.budgetFit === 'fits') {
     const weekly = weeklyEquivalentMxn(budget);
     const pct = weekly > 0 ? Math.round((price / weekly) * 100) : null;
-    if (pct != null) reasons.push(`Equivale a ${pct}% de tu presupuesto semanal.`);
+    const label = budget.horizon === 'weekly' ? 'tu presupuesto semanal' : 'tu presupuesto mensual llevado a una semana';
+    if (pct != null) reasons.push(`Equivale a ${pct}% de ${label}.`);
   }
   if (s.personal) reasons.push('Lo marcaste en tus intereses.');
   if (s.freshness === 'fresh') reasons.push('Precio visto en los últimos 2 días.');
@@ -283,7 +282,7 @@ export function parseDespensaList(raw: unknown): DespensaListItem[] {
     if (!v || typeof v !== 'object') continue;
     const o = v as Record<string, unknown>;
     if (typeof o.id !== 'string' || !o.id || seen.has(o.id)) continue;
-    if (typeof o.title !== 'string' || typeof o.price !== 'number' || !(o.price > 0)) continue;
+    if (typeof o.title !== 'string' || typeof o.price !== 'number' || !Number.isFinite(o.price) || !(o.price > 0)) continue;
     seen.add(o.id);
     out.push({
       id: o.id,
@@ -327,7 +326,7 @@ export const DESPENSA_PLAN_COPY = {
     'Ofertas de productos básicos ordenadas por necesidad, evidencia del precio y precio por unidad. Tu presupuesto solo ayuda a desempatar: no ocultamos nada.',
   disclaimer:
     'El total es un estimado con los precios vistos en Aventa. No garantiza que tu presupuesto alcance ni que el precio siga igual en tienda.',
-  shareRule: `Una oferta «cabe» si cuesta hasta ${Math.round(DESPENSA_BUDGET_RULES.maxShareOfWeeklyBudget * 100)}% de tu presupuesto semanal.`,
+  shareRule: `Una oferta «cabe» si cuesta hasta ${Math.round(DESPENSA_BUDGET_RULES.maxShareOfWeeklyBudget * 100)}% de tu presupuesto por semana (el mensual se divide entre 4.3 semanas).`,
   status: {
     verified_saving: 'Ahorro verificado',
     observed_price: 'Precio observado',
@@ -344,10 +343,12 @@ export const DESPENSA_PLAN_COPY = {
     branch_unconfirmed: 'Precio de tienda física; sucursal no confirmada.',
     zone_unconfirmed: 'Precio en línea; puede variar por zona o envío.',
     location_unknown: 'No sabemos si el precio es en línea o en una sucursal.',
-    over_budget_share: `Cuesta más del ${Math.round(DESPENSA_BUDGET_RULES.maxShareOfWeeklyBudget * 100)}% de tu presupuesto semanal; se muestra porque cubre esta necesidad.`,
+    over_budget_share: `Cuesta más del ${Math.round(DESPENSA_BUDGET_RULES.maxShareOfWeeklyBudget * 100)}% de tu presupuesto por semana; se muestra porque cubre esta necesidad.`,
     no_unit_price: 'No se pudo leer la presentación para compararla por unidad.',
   } satisfies Record<DespensaNote, string>,
   noOffers: 'Esta semana no hay ofertas de despensa validadas. Vuelve pronto o revisa «Día a día».',
-  referenceGapsTitle: 'De la canasta de referencia, sin oferta esta semana',
-  referenceGapsHelp: 'Productos de la canasta de 24 de Profeco (PACIC). Es una referencia, no una lista de lo que necesitas.',
+  referenceGapsTitle: 'De la canasta de referencia, sin oferta entre las destacadas de la semana',
+  referenceGapsHelp:
+    'Productos de la canasta de 24 de Profeco (PACIC). Es una referencia, no una lista de lo que necesitas. Revisamos las 100 ofertas más destacadas de «Día a día» de los últimos 7 días.',
+  emptyAisle: 'No hay ofertas de este pasillo entre las destacadas de la semana.',
 } as const;

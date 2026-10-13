@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { ExternalLink, Plus, Check } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import OfferMedia from '@/app/components/offers/OfferMedia';
 import { buildOfferPublicPath } from '@/lib/offerPath';
-import { formatMxnCents, unitPriceLabel, type DespensaNeedPlan, type DespensaPick } from '@/lib/despensa/plan';
+import { DESPENSA_PLAN_COPY, formatMxnCents, unitPriceLabel, type DespensaNeedPlan, type DespensaPick } from '@/lib/despensa/plan';
 import { DespensaPickDetails } from './DespensaPickDetails';
 
 type Props = {
@@ -42,7 +42,7 @@ export function DespensaNeedSection({ plan, selected, onToggle }: Props) {
         {plan.personal ? <span className="text-[12px] text-violet-700 dark:text-violet-300">En tus intereses</span> : null}
       </header>
       <div className="mt-3 flex gap-3">
-        <Link href={href} className="w-20 shrink-0 sm:w-24" aria-label={`Ver ${best.offer.title}`}>
+        <Link href={href} className="w-20 shrink-0 sm:w-24" tabIndex={-1} aria-hidden>
           <OfferMedia src={best.offer.imageUrl} alt={best.offer.title} sizes="96px" ratioClass="aspect-square" compact />
         </Link>
         <div className="min-w-0 flex-1">
@@ -57,8 +57,8 @@ export function DespensaNeedSection({ plan, selected, onToggle }: Props) {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <ToggleButton pick={best} active={selected.has(best.offer.id)} onToggle={onToggle} />
-            <Link href={href} className="inline-flex items-center gap-1 text-[13px] font-semibold text-violet-700 hover:underline dark:text-violet-300">
-              Ver oferta <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            <Link href={href} className="text-[13px] font-semibold text-violet-700 hover:underline dark:text-violet-300">
+              Ver oferta y comprar
             </Link>
           </div>
         </div>
@@ -83,6 +83,14 @@ export function DespensaNeedSection({ plan, selected, onToggle }: Props) {
                         p.unitPrice ? unitPriceLabel(p.unitPrice) : 'sin precio por unidad',
                         p.cheapestPerUnit ? 'el más bajo por unidad aquí' : null,
                         p.offer.store,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                    <p className="text-[12px] text-[#6e6e73] dark:text-[#a3a3a3]">
+                      {[
+                        DESPENSA_PLAN_COPY.status[p.status],
+                        p.notes.includes('list_contradicted') ? DESPENSA_PLAN_COPY.notes.list_contradicted : null,
                       ]
                         .filter(Boolean)
                         .join(' · ')}

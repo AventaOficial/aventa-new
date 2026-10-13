@@ -210,16 +210,17 @@ export default function DespensaView() {
             onClick={() => setAisle(a.id)}
           >
             {a.label}
-            {plan && !aislesWithOffers.has(a.id) ? ' · sin ofertas' : ''}
+            {plan && aislesWithOffers.has(a.id) ? ` · ${plan.needs.filter((n) => n.aisle === a.id).length}` : ''}
           </button>
         ))}
       </nav>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section aria-label="Ofertas por necesidad" className="min-w-0">
-          {load.status === 'loading' ? <p className="text-[14px] text-[#6e6e73]">Cargando ofertas de despensa…</p> : null}
+        <section aria-labelledby="despensa-offers" className="min-w-0">
+          <h2 id="despensa-offers" className="sr-only">Ofertas por necesidad</h2>
+          {load.status === 'loading' ? <p role="status" className="text-[14px] text-[#6e6e73]">Cargando ofertas de despensa…</p> : null}
           {load.status === 'error' ? (
-            <div className="rounded-2xl border border-[#e5e5e7] bg-white p-4 dark:border-[#262626] dark:bg-[#141414]">
+            <div role="alert" className="rounded-2xl border border-[#e5e5e7] bg-white p-4 dark:border-[#262626] dark:bg-[#141414]">
               <p className="text-[15px] font-medium">No se pudieron cargar las ofertas.</p>
               <button type="button" onClick={() => void fetchOffers()} className="mt-2 text-[13px] font-semibold text-violet-700 hover:underline dark:text-violet-300">
                 Reintentar
@@ -237,7 +238,7 @@ export default function DespensaView() {
                 </p>
               ) : null}
               {plan.needs.length > 0 && visibleNeeds.length === 0 ? (
-                <p className="text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">No hay ofertas validadas en este pasillo esta semana.</p>
+                <p className="text-[14px] text-[#6e6e73] dark:text-[#a3a3a3]">{DESPENSA_PLAN_COPY.emptyAisle}</p>
               ) : null}
               <div className="grid gap-3 md:grid-cols-2">
                 {visibleNeeds.map((n) => (
@@ -301,7 +302,7 @@ export default function DespensaView() {
                   </Link>
                   <span className="flex shrink-0 items-center gap-1">
                     {formatMxnCents(item.price)}
-                    <button type="button" onClick={() => removeItem(item.id)} aria-label={`Quitar ${item.title}`} className="p-1 text-[#6e6e73] hover:text-rose-700">
+                    <button type="button" onClick={() => removeItem(item.id)} aria-label={`Quitar ${item.title}`} className="-m-1 p-2.5 text-[#6e6e73] hover:text-rose-700">
                       <Trash2 className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   </span>

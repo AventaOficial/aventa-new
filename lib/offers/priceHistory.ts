@@ -62,9 +62,36 @@ export async function buildOfferPriceInsight(
   return computePriceInsight(args.currentPrice, args.originalPrice ?? null, prices);
 }
 
+/** Ofertas por consulta: 8 × 120 registros queda por debajo del tope de filas de PostgREST (1000). */
+const BATCH_OFFERS_PER_QUERY = 8;
+/** Un registro de estas fuentes corrige el precio: lo anterior no sirve de referencia. */
+const CORRECTION_SOURCES = new Set(['update', 'manual']);
+
+type SnapshotRow = { offer_id?: string; price?: number; source?: string | null };
+
 /**
- * Historial propio de varias ofertas en una sola consulta. Las ofertas sin registros
- * (o si la consulta falla) quedan con veredicto `insufficient`; nunca se inventa historial.
+ * Registros usables por oferta (de más nuevo a más viejo): se detiene en la última
+ * corrección, que se conserva, para que un precio mal capturado no parezca un precio previo.
+ */
+export function snapshotPricesSinceLastCorrection(rows: readonly SnapshotRow[]): Map<string, number[]> {
+  const byOffer = new Map<string, number[]>();
+  const closed = new Set<string>();
+  for (const row of rows) {
+    const id = row.offer_id;
+    if (!id || closed.has(id)) continue;
+    const list = byOffer.get(id) ?? [];
+    if (list.length >= HISTORY_SAMPLES_PER_OFFER) continue;
+    list.push(Number(row.price));
+    byOffer.set(id, list);
+    if (row.source && CORRECTION_SOURCES.has(row.source)) closed.add(id);
+  }
+  return byOffer;
+}
+
+/**
+ * Historial propio de varias ofertas con pocas consultas. Las ofertas sin registros quedan
+ * `insufficient`. Si una consulta falla o llega recortada (el conteo supera las filas recibidas),
+ * todas sus ofertas quedan sin historial: un historial parcial podría fabricar un mínimo falso.
  */
 export async function buildOfferPriceInsights(
   supabase: SupabaseClient,
@@ -73,25 +100,25 @@ export async function buildOfferPriceInsights(
   const out = new Map<string, PriceInsight>();
   if (offers.length === 0) return out;
   const since = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
-  const { data, error } = await supabase
-    .from('offer_price_snapshots')
-    .select('offer_id, price, recorded_at')
-    .in(
-      'offer_id',
-      offers.map((o) => o.offerId),
-    )
-    .gte('recorded_at', since)
-    .order('recorded_at', { ascending: false })
-    .limit(offers.length * HISTORY_SAMPLES_PER_OFFER);
-  const byOffer = new Map<string, number[]>();
-  if (!error && data) {
-    for (const row of data as { offer_id?: string; price?: number }[]) {
-      if (!row.offer_id) continue;
-      const list = byOffer.get(row.offer_id) ?? [];
-      if (list.length < HISTORY_SAMPLES_PER_OFFER) list.push(Number(row.price));
-      byOffer.set(row.offer_id, list);
-    }
+  const chunks: string[][] = [];
+  for (let i = 0; i < offers.length; i += BATCH_OFFERS_PER_QUERY) {
+    chunks.push(offers.slice(i, i + BATCH_OFFERS_PER_QUERY).map((o) => o.offerId));
   }
+  const results = await Promise.all(
+    chunks.map(async (ids) => {
+      const { data, error, count } = await supabase
+        .from('offer_price_snapshots')
+        .select('offer_id, price, recorded_at, source', { count: 'exact' })
+        .in('offer_id', ids)
+        .gte('recorded_at', since)
+        .order('recorded_at', { ascending: false })
+        .limit(ids.length * HISTORY_SAMPLES_PER_OFFER);
+      const rows = (data ?? []) as SnapshotRow[];
+      const complete = !error && data != null && count != null && count <= rows.length;
+      return complete ? rows : [];
+    }),
+  );
+  const byOffer = snapshotPricesSinceLastCorrection(results.flat());
   for (const o of offers) {
     out.set(o.offerId, computePriceInsight(o.currentPrice, o.originalPrice ?? null, byOffer.get(o.offerId) ?? []));
   }

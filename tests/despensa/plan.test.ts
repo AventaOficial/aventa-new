@@ -108,7 +108,7 @@ describe('presupuestos', () => {
     );
     const byId = Object.fromEntries(picksOf(plan, 'bebes.panales').map((p) => [p.offer.id, p]));
     expect(byId.cabe.budgetFit).toBe('fits');
-    expect(byId.cabe.reasons).toContain('Equivale a 24% de tu presupuesto semanal.');
+    expect(byId.cabe.reasons).toContain('Equivale a 24% de tu presupuesto mensual llevado a una semana.');
     expect(byId.excede.budgetFit).toBe('over_share');
   });
 
@@ -165,7 +165,8 @@ describe('evidencia del precio', () => {
     expect(pickIds(picks)).toEqual(['con', 'sin']);
     expect(picks[0].status).toBe('verified_saving');
     expect(picks[0].saving).toEqual({ status: 'verified', amount: 8, percent: 20, reference: 40 });
-    expect(picks[0].reasons.join(' ')).toContain('menos que el precio más alto visto en Aventa en 90 días');
+    expect(picks[0].reasons).toContain('Su precio está en el nivel más bajo visto en Aventa en 90 días.');
+    expect(html(picks[0])).toContain('Ahorro verificado · $8 menos que su precio más alto en 90 días');
     expect(plan.verifiedCount).toBe(1);
   });
 
@@ -336,6 +337,7 @@ describe('lista y gasto estimado', () => {
       { id: 'a', title: 'Arroz otra vez', price: 31 },
       { id: 'b', title: 'Sin precio', price: 0 },
       { id: 'c', title: 'Precio texto', price: '20' },
+      { id: 'e', title: 'Infinito', price: Infinity },
       null,
       'basura',
       { id: 'd', title: 'Frijol', price: 38 },

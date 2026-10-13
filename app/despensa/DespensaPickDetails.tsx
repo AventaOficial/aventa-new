@@ -20,7 +20,7 @@ export function DespensaPickDetails({ pick, showReasons = true }: { pick: Despen
           </span>
         ) : null}
       </p>
-      <p className={`mt-1 text-[13px] font-semibold ${STATUS_TONE[pick.status]}`} title={DESPENSA_PLAN_COPY.statusHelp[pick.status]}>
+      <p className={`mt-1 text-[13px] font-semibold ${STATUS_TONE[pick.status]}`}>
         {DESPENSA_PLAN_COPY.status[pick.status]}
         {pick.saving.status === 'verified' ? ` · ${formatMxnCents(pick.saving.amount)} menos que su precio más alto en 90 días` : null}
       </p>

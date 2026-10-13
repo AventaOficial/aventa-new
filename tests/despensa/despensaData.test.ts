@@ -39,13 +39,18 @@ describe('savingEvidence', () => {
   });
 });
 
-type Row = { offer_id: string; price: number; recorded_at: string };
+type Row = { offer_id: string; price: number; recorded_at: string; source?: string };
 
-function fakeSupabase(tables: { offer_price_snapshots?: Row[] | 'error'; offers?: { id: string; source_currency: string | null }[] }) {
+/** Imita PostgREST: filtra por ids, ordena por fecha desc, aplica `limit` y un tope de filas. */
+function fakeSupabase(
+  tables: { offer_price_snapshots?: Row[] | 'error'; offers?: { id: string; source_currency: string | null }[] },
+  opts: { maxRows?: number } = {},
+) {
   const calls: { table: string; ids: string[] }[] = [];
   const from = vi.fn((table: string) => {
     const chain = {
       ids: [] as string[],
+      limitN: Infinity,
       select: () => chain,
       in: (_col: string, ids: string[]) => {
         chain.ids = ids;
@@ -54,12 +59,18 @@ function fakeSupabase(tables: { offer_price_snapshots?: Row[] | 'error'; offers?
       },
       gte: () => chain,
       order: () => chain,
-      limit: () => chain,
+      limit: (n: number) => {
+        chain.limitN = n;
+        return chain;
+      },
       then: (resolve: (v: unknown) => unknown) => {
         const data = tables[table as keyof typeof tables];
-        if (data === 'error') return resolve({ data: null, error: { message: 'boom' } });
-        const rows = (data ?? []) as { offer_id?: string; id?: string }[];
-        return resolve({ data: rows.filter((r) => chain.ids.includes(r.offer_id ?? r.id ?? '')), error: null });
+        if (data === 'error') return resolve({ data: null, error: { message: 'boom' }, count: null });
+        const rows = ((data ?? []) as { offer_id?: string; id?: string; recorded_at?: string }[])
+          .filter((r) => chain.ids.includes(r.offer_id ?? r.id ?? ''))
+          .sort((a, b) => String(b.recorded_at ?? '').localeCompare(String(a.recorded_at ?? '')));
+        const cap = Math.min(chain.limitN, opts.maxRows ?? Infinity);
+        return resolve({ data: rows.slice(0, cap), error: null, count: rows.length });
       },
     };
     return chain;
@@ -71,8 +82,8 @@ describe('buildOfferPriceInsights (lote)', () => {
   it('una sola consulta para todas las ofertas; sin registros queda insuficiente', async () => {
     const { client, calls } = fakeSupabase({
       offer_price_snapshots: [
-        { offer_id: 'a', price: 30, recorded_at: '2026-10-10' },
-        { offer_id: 'a', price: 40, recorded_at: '2026-09-10' },
+        { offer_id: 'a', price: 30, recorded_at: '2026-10-10', source: 'create' },
+        { offer_id: 'a', price: 40, recorded_at: '2026-09-10', source: 'health' },
       ],
     });
     const out = await buildOfferPriceInsights(client, [
@@ -88,6 +99,44 @@ describe('buildOfferPriceInsights (lote)', () => {
     const { client } = fakeSupabase({ offer_price_snapshots: 'error' });
     const out = await buildOfferPriceInsights(client, [{ offerId: 'a', currentPrice: 30 }]);
     expect(out.get('a')?.verdict).toBe('insufficient');
+  });
+
+  it('una respuesta recortada no fabrica un mínimo: el grupo queda sin historial', async () => {
+    // Completo: 80 (viejo), 120, 100 → actual 100 es «fair». Recortado sin el 80 parecería «strong».
+    const rows: Row[] = [
+      { offer_id: 'a', price: 100, recorded_at: '2026-10-11' },
+      { offer_id: 'a', price: 120, recorded_at: '2026-09-11' },
+      { offer_id: 'a', price: 80, recorded_at: '2026-08-11' },
+    ];
+    const full = await buildOfferPriceInsights(fakeSupabase({ offer_price_snapshots: rows }).client, [{ offerId: 'a', currentPrice: 100 }]);
+    expect(full.get('a')?.verdict).toBe('fair');
+    const cut = await buildOfferPriceInsights(fakeSupabase({ offer_price_snapshots: rows }, { maxRows: 2 }).client, [
+      { offerId: 'a', currentPrice: 100 },
+    ]);
+    expect(cut.get('a')?.verdict).toBe('insufficient');
+    expect(savingEvidence({ price: 100, history: cut.get('a') })).toEqual({ status: 'none' });
+  });
+
+  it('consulta en grupos de 8 ofertas para no chocar con el tope de filas', async () => {
+    const { client, calls } = fakeSupabase({ offer_price_snapshots: [] });
+    await buildOfferPriceInsights(
+      client,
+      Array.from({ length: 20 }, (_, i) => ({ offerId: `o${i}`, currentPrice: 10 })),
+    );
+    expect(calls.map((c) => c.ids.length)).toEqual([8, 8, 4]);
+  });
+
+  it('un precio corregido no sirve de referencia de ahorro', async () => {
+    const { client } = fakeSupabase({
+      offer_price_snapshots: [
+        { offer_id: 'a', price: 15, recorded_at: '2026-10-11', source: 'create' },
+        { offer_id: 'a', price: 15, recorded_at: '2026-10-05', source: 'update' },
+        { offer_id: 'a', price: 1500, recorded_at: '2026-10-01', source: 'create' },
+      ],
+    });
+    const out = await buildOfferPriceInsights(client, [{ offerId: 'a', currentPrice: 15 }]);
+    expect(out.get('a')).toMatchObject({ max90d: 15, samples90d: 2 });
+    expect(savingEvidence({ price: 15, history: out.get('a') })).toEqual({ status: 'none' });
   });
 
   it('sin ofertas no consulta', async () => {
