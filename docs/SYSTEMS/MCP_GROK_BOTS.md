@@ -156,7 +156,7 @@ Códigos de rechazo por candidato: `INVALID_CANDIDATE`, `INVALID_URL`, `UNSUPPOR
 
 ### Comentario del cazador (`hunterComment`)
 
-Campo opcional y aditivo: un cliente que no lo envía se comporta igual que antes. `note` sigue siendo contexto interno y alimenta `offers.description`; `hunterComment` es un borrador para el comprador y alimenta `offers.hunter_comment`, que la tarjeta pública muestra como «Comentario del cazador».
+Campo opcional y aditivo: un cliente que no lo envía se comporta igual que antes. `note` es contexto interno y nunca se publica: se guarda en `bot_meta.internal_note` y en `moderator_comment` (visible solo en moderación). La descripción pública es una plantilla con datos verificados de la ficha (`buildBotOfferDescription`), y las páginas públicas la leen a través de `publicOfferDescription`, que oculta frases de diagnóstico antiguas como «precio tachado no verificado»; `hunterComment` es un borrador para el comprador y alimenta `offers.hunter_comment`, que la tarjeta pública muestra como «Comentario del cazador».
 
 - Formato: texto plano NFC, ≤ 160 caracteres (`OFFER_HUNTER_COMMENT_MAX`). Saltos de línea y espacios repetidos se colapsan a un espacio. Vacío o solo espacios cuenta como ausente. `hunterComment` **no tiene código de rechazo**: a diferencia de `note`, un comentario mal formado o largo nunca rechaza el candidato; solo se descarta el comentario (motivos `INVALID_FORMAT` y `TOO_LONG`).
 - Filtro editorial (`lib/offers/hunterCommentReview.ts`), aplicado después de la política de precios. Usa el precio de lista que confirma la página, no el que declara el bot. El texto no se reescribe: se conserva tal cual o se descarta, y **descartarlo nunca rechaza el candidato**. Motivos de descarte:

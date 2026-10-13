@@ -252,7 +252,10 @@ describe('writer MCP: comentario en la oferta pendiente', () => {
     const { r, call, updates } = await run(candidate({ hunterComment: text, note: 'nota interna' }));
     expect(r.offerId).toBe('o1');
     expect(call.body.hunter_comment).toBe(text);
-    expect(call.body.description).toBe('nota interna');
+    expect(call.body.description).not.toContain('nota interna');
+    expect(call.body.description).toContain('Revisa disponibilidad');
+    expect(call.offerExtras.bot_meta.internal_note).toBe('nota interna');
+    expect(call.offerExtras.moderator_comment).toBe('Nota interna del bot: nota interna');
     expect(call.body).not.toHaveProperty('status');
     expect(call.offerExtras.bot_meta.hunter_comment).toEqual({ status: 'kept', reason: null, submitted: text });
     expect(updates.some((u) => u.status === 'PUBLISHED')).toBe(false);

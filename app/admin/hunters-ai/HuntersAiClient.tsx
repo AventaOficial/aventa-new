@@ -430,6 +430,11 @@ export default function HuntersAiClient() {
                     </div>
                   </div>
                   {card.description ? <p className="mt-3 text-sm text-white/55">{card.description}</p> : null}
+                  {card.internalNote ? (
+                    <p className="mt-2 text-xs text-amber-200/80">
+                      <span className="font-semibold">Nota interna (no se publica):</span> {card.internalNote}
+                    </p>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button type="button" disabled={busy || !card.canApprove || card.duplicate} className={btnPrimary} onClick={() => void act({ action: 'approve', batchId: card.batchId, itemId: card.id })} title="Crea la oferta pendiente. Publicar sigue en la cola de moderación.">Enviar a moderación</button>
                     <button type="button" disabled={busy || !card.canEdit} className={btn} onClick={() => setEditing(card)}>Editar</button>

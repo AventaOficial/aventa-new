@@ -213,7 +213,7 @@ export function evaluateAffiliateReadiness(
       reason: 'ready_platform_tagged',
       source: 'platform_tagged',
       label: 'Lista',
-      detail: 'Aventa puede monetizar este enlace.',
+      detail: 'El enlace lleva el tag de afiliado configurado.',
       programRequired: true,
       offerUrl,
     };
@@ -237,7 +237,7 @@ export function evaluateAffiliateReadiness(
       reason: 'ready_moderator_confirmed',
       source: 'moderator_confirmed',
       label: 'Lista',
-      detail: 'Aventa puede monetizar este enlace.',
+      detail: 'Enlace afiliado confirmado en moderación.',
       programRequired: true,
       offerUrl,
     };

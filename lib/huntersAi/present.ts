@@ -62,7 +62,10 @@ export type HunterCard = {
   queueStatus: HunterQueueStatus;
   pipelineStatus: string;
   title: string;
+  /** Descripción pública: solo la que escribe o confirma una persona. */
   description: string;
+  /** Nota del hunter (contexto para el equipo). Nunca se publica. */
+  internalNote: string | null;
   whyGoodDeal: string;
   retailer: string;
   sourceUrl: string;
@@ -185,7 +188,8 @@ export function toHunterCard(source: HunterSource): HunterCard {
     queueStatus,
     pipelineStatus: source.status,
     title: text(ed.title, 200) ?? source.title ?? source.hintTitle ?? 'Sin título',
-    description: text(ed.description, 2000) ?? source.hintNote ?? '',
+    description: text(ed.description, 2000) ?? '',
+    internalNote: text(source.hintNote, 600),
     whyGoodDeal: text(ed.why_good_deal, 600) ?? '',
     retailer: source.store || source.retailer || 'Tienda',
     sourceUrl: source.canonicalUrl || source.sourceUrl,

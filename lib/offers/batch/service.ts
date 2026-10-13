@@ -951,8 +951,11 @@ export function buildOfferBodyFromItem(item: OfferBatchItemRow): Record<string, 
       : null;
   const editedDescription = typeof editorial?.description === 'string' ? editorial.description.trim() : '';
   const why = typeof editorial?.why_good_deal === 'string' ? editorial.why_good_deal.trim() : '';
-  const base = editedDescription || item.hint_note?.trim() || '';
-  const description = (why ? `${base}${base ? '\n\n' : ''}${why}` : base).slice(0, OFFER_DESCRIPTION_MAX);
+  // hint_note es la nota del hunter (contexto interno); solo lo editado por una persona se publica.
+  const description = (why ? `${editedDescription}${editedDescription ? '\n\n' : ''}${why}` : editedDescription).slice(
+    0,
+    OFFER_DESCRIPTION_MAX,
+  );
   const persisted = persistedBatchOutbound(item);
   return {
     title: item.title ?? '',

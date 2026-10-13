@@ -60,6 +60,32 @@ describe('public offer description', () => {
     expect(publicOfferDescription(`  ${LEGACY_BATCH_PLACEHOLDER_DESCRIPTION}\n`)).toBeNull();
   });
 
+  it('quita la nota interna del bot sobre el precio tachado y conserva el resto', () => {
+    expect(
+      publicOfferDescription('Detergente Ariel 5 kg. Precio tachado no verificado, se usa el de la ficha.')
+    ).toBe('Detergente Ariel 5 kg.');
+    expect(publicOfferDescription('Precio original no confirmado por la página.')).toBeNull();
+    expect(publicOfferDescription('Nota interna: revisar stock\nIncluye envío gratis')).toBe('Incluye envío gratis');
+    expect(publicOfferDescription('Evidencia: captura del 3 de octubre')).toBeNull();
+  });
+
+  it('no toca descripciones normales que mencionan precios', () => {
+    for (const text of [
+      'El precio original era de $899 y hoy está en $599.',
+      'Precio de lista $1,299, con cupón queda en $999.',
+      'Precio más bajo en 90 días',
+      'Robot aspiradora con base de carga',
+    ]) {
+      expect(publicOfferDescription(text)).toBe(text);
+    }
+  });
+
+  it('la página pública lee la descripción a través del filtro', () => {
+    expect(read('app/oferta/[id]/OfferPageContent.tsx')).toContain(
+      'publicOfferDescription(offer.description)'
+    );
+  });
+
   it('keeps real text and drops empty values', () => {
     expect(publicOfferDescription(' Precio más bajo en 90 días ')).toBe('Precio más bajo en 90 días');
     expect(publicOfferDescription('')).toBeNull();
@@ -72,10 +98,19 @@ describe('batch writers', () => {
     expect(buildOfferBodyFromItem(batchItem())).not.toHaveProperty('description');
   });
 
-  it('keeps the hunter note as description', () => {
-    expect(buildOfferBodyFromItem(batchItem({ hint_note: 'Mínimo histórico' })).description).toBe(
-      'Mínimo histórico',
+  it('never publishes the hunter note as description', () => {
+    const body = buildOfferBodyFromItem(batchItem({ hint_note: 'Precio tachado no verificado' }));
+    expect(body).not.toHaveProperty('description');
+  });
+
+  it('publishes only what a person edited', () => {
+    const body = buildOfferBodyFromItem(
+      batchItem({
+        hint_note: 'Precio tachado no verificado',
+        evidence: { editorial: { description: 'Paquete de 3 piezas', why_good_deal: 'Mínimo en 90 días' } },
+      } as Partial<OfferBatchItemRow>),
     );
+    expect(body.description).toBe('Paquete de 3 piezas\n\nMínimo en 90 días');
   });
 
   it('no writer stores the moderation note anymore', () => {
