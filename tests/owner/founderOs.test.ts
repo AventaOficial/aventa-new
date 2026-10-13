@@ -35,13 +35,35 @@ function priority(over: Partial<CeoPriority> & Pick<CeoPriority, 'id' | 'severit
 describe('Founder OS · navegación por capacidad', () => {
   const allItems = OWNER_NAV_SECTIONS.flatMap((s) => [...s.items, ...(s.more ?? [])]);
 
-  it('CEO OS en siete secciones, con el dashboard como primera entrada', () => {
-    expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['ceo', 'operar', 'crecer', 'dinero', 'sistema', 'administracion', 'herramientas']);
-    expect(OWNER_NAV_SECTIONS[0]!.items.map((i) => i.label)).toEqual(['Dashboard']);
-    expect(OWNER_NAV_SECTIONS[1]!.items.map((i) => i.label)).toEqual(['Moderación', 'Supply', 'Usuarios', 'Distribución']);
-    expect(OWNER_NAV_SECTIONS[3]!.items.map((i) => i.label)).toEqual(['Economía', 'Comisiones', 'Rewards', 'Contabilidad', 'Payouts']);
+  it('CEO OS en VER, HACER y TÉCNICO, con el dashboard como primera entrada', () => {
+    expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['ver', 'ofertas', 'dinero', 'administracion', 'tecnico']);
+    expect(OWNER_NAV_SECTIONS.map((s) => s.audience)).toEqual(['VER', 'HACER', 'HACER', 'HACER', 'TECNICO']);
+    expect(OWNER_NAV_SECTIONS[0]!.items[0]).toMatchObject({ href: '/admin/owner', label: 'Vista general' });
+    expect(OWNER_NAV_SECTIONS[1]!.items.map((i) => i.label)).toEqual(['Moderación', 'Hunters IA', 'Trusted Hunters', 'Distribución', 'Cupones', 'Avisos']);
+    expect(OWNER_NAV_SECTIONS[2]!.items.map((i) => i.label)).toEqual(['Comisiones', 'Rewards', 'Contabilidad', 'Creator Tags']);
     expect(OWNER_NAV_SECTIONS.flatMap((s) => s.items).some((i) => i.href === '/admin/contexto')).toBe(false);
-    expect(OWNER_NAV_SECTIONS[0]!.items[0]!.href).toBe('/admin/owner');
+  });
+
+  it('VER solo lleva a las vistas del CEO', () => {
+    for (const item of OWNER_NAV_SECTIONS[0]!.items) {
+      expect(item.href === '/admin/owner' || item.href.startsWith('/admin/owner/vista/'), item.href).toBe(true);
+    }
+    expect(OWNER_NAV_SECTIONS[0]!.items.map((i) => i.href)).toContain('/admin/owner/vista/crecimiento');
+  });
+
+  it('las páginas absorbidas por las vistas ya no están en el menú y redirigen', () => {
+    const hrefs = allItems.map((i) => i.href);
+    const absorbed: Record<string, string> = {
+      'admin/owner/economia/page.tsx': '/admin/owner/vista/pagos',
+      'admin/owner/payouts/page.tsx': '/admin/owner/vista/pagos',
+      'admin/supply/page.tsx': '/admin/owner/vista/ofertas',
+      'admin/owner/crecimiento/cazadores/page.tsx': '/admin/owner/vista/crecimiento',
+      'admin/owner/experimentos/page.tsx': '/admin/owner/vista/crecimiento',
+    };
+    for (const [file, target] of Object.entries(absorbed)) {
+      expect(hrefs).not.toContain(`/${file.replace(/\/page\.tsx$/, '')}`);
+      expect(read(`app/${file}`)).toContain(`redirect('${target}')`);
+    }
   });
 
   it('cada sección responde una pregunta humana', () => {
@@ -68,11 +90,15 @@ describe('Founder OS · navegación por capacidad', () => {
     }
   });
 
-  it('el menú no lista las vistas del CEO ni Team OS', () => {
-    for (const item of allItems) {
-      expect(item.href.startsWith('/admin/owner/vista')).toBe(false);
-      expect(item.href === '/team' || item.href.startsWith('/team/')).toBe(false);
+  it('las vistas del CEO viven solo en VER y el menú no lista Team OS', () => {
+    for (const section of OWNER_NAV_SECTIONS.filter((s) => s.audience !== 'VER')) {
+      for (const item of section.items) expect(item.href.startsWith('/admin/owner/vista'), item.href).toBe(false);
     }
+    for (const item of allItems) expect(item.href === '/team' || item.href.startsWith('/team/')).toBe(false);
+  });
+
+  it('VistaShell no dibuja un segundo menú lateral', () => {
+    expect(read('app/admin/owner/vista/shell.tsx')).not.toMatch(/<aside|<nav/);
   });
 
   it('el buscador cubre exactamente lo navegable', () => {
@@ -159,7 +185,7 @@ describe('Founder OS · Control Center', () => {
 
 describe('Founder OS · explicación humana de módulos', () => {
   it('cada módulo principal del menú tiene ficha con su mismo nombre', () => {
-    const primary = OWNER_NAV_SECTIONS.flatMap((s) => s.items).filter((i) => i.href !== '/admin/owner');
+    const primary = OWNER_NAV_SECTIONS.filter((s) => s.audience !== 'VER').flatMap((s) => s.items);
     for (const item of primary) {
       const m = findFounderModule(item.href);
       expect(m?.href, item.href).toBe(item.href);

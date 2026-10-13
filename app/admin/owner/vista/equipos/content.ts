@@ -30,7 +30,7 @@ export const TEAM_VIEWS: Record<TeamId, TeamVista> = {
     id: 'growth',
     title: 'Equipo de growth',
     subtitle: 'Visitas, clics y conversión de la comunidad.',
-    toolHref: '/admin/owner/crecimiento',
+    toolHref: '/admin/owner/vista/crecimiento',
     toolLabel: 'Abrir crecimiento',
     people: { title: 'Campañas' },
   },

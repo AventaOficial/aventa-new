@@ -1,24 +1,35 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import OwnerSidebar from './OwnerSidebar';
 import OwnerHeader from './OwnerHeader';
 import ModuleBrief from './ModuleBrief';
 import { findFounderModule } from '@/lib/founderOs/modules';
+import { ownerNavLocation } from '@/lib/owner/navigation';
 import LoadingState from '@/app/components/panel/LoadingState';
 import { cn } from '@/app/components/panel/utils';
 
 /** El CEO Dashboard (/admin/owner) usa el lienzo completo; la navegación se abre desde el header. */
 const CEO_DASHBOARD_PATH = '/admin/owner';
-const CEO_DASHBOARD_BG = { backgroundColor: '#0b0b14', backgroundImage: 'radial-gradient(ellipse 70% 40% at 15% -10%, rgba(124,58,237,0.10), transparent)' };
+const VISTA_PREFIX = '/admin/owner/vista/';
+/** Mismo lienzo y mismas tarjetas que las vistas del CEO, también en las herramientas heredadas. */
+const CEO_CANVAS_STYLE = {
+  backgroundColor: '#0b0b14',
+  backgroundImage: 'radial-gradient(ellipse 70% 40% at 15% -10%, rgba(124,58,237,0.10), transparent)',
+  '--owner-surface': '#141422',
+  '--owner-border': 'rgba(255, 255, 255, 0.07)',
+} as CSSProperties;
 
 export default function OwnerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isCeoDashboard = pathname === CEO_DASHBOARD_PATH;
   const isCeoCanvas = isCeoDashboard;
-  const brief = isCeoCanvas ? null : findFounderModule(pathname);
+  const isVista = pathname.startsWith(VISTA_PREFIX);
+  const brief = isCeoCanvas || isVista ? null : findFounderModule(pathname);
+  const location = isCeoCanvas || isVista ? null : ownerNavLocation(pathname);
   const [ready, setReady] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -54,14 +65,14 @@ export default function OwnerShell({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="aventa-panel-route owner-os-bg min-h-screen" style={isCeoCanvas ? CEO_DASHBOARD_BG : undefined}>
+      <div className="aventa-panel-route owner-os-bg min-h-screen" style={CEO_CANVAS_STYLE}>
         <LoadingState message="Iniciando Founder OS…" />
       </div>
     );
   }
 
   return (
-    <div className="aventa-panel-route owner-os-bg min-h-screen flex text-white" style={isCeoCanvas ? CEO_DASHBOARD_BG : undefined}>
+    <div className="aventa-panel-route owner-os-bg min-h-screen flex text-white" style={CEO_CANVAS_STYLE}>
       {/* Desktop sidebar */}
       {isCeoCanvas ? null : (
         <div className="hidden lg:flex shrink-0">
@@ -96,7 +107,23 @@ export default function OwnerShell({ children }: { children: ReactNode }) {
           panelLabel={isCeoCanvas ? 'Abrir navegación de Founder OS' : sidebarCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
         />
         <main className="flex-1 overflow-y-auto">
-          <div className={cn('mx-auto w-full px-4 py-6', isCeoDashboard ? 'max-w-[1600px] lg:px-5 lg:py-3' : 'max-w-[1440px] lg:px-8 lg:py-8')}>
+          <div
+            className={cn(
+              'mx-auto w-full px-4',
+              isCeoDashboard ? 'max-w-[1600px] py-6 lg:px-5 lg:py-3' : isVista ? 'max-w-[1600px] py-4 lg:px-5 lg:py-5' : 'max-w-[1440px] py-6 lg:px-8 lg:py-6',
+            )}
+          >
+            {location ? (
+              <p className="mb-3 text-[11px] text-white/40">
+                <Link href="/admin/owner" className="hover:text-white/70">
+                  CEO Dashboard
+                </Link>
+                <span className="mx-1.5">/</span>
+                <span>{location.section.title.charAt(0) + location.section.title.slice(1).toLowerCase()}</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-white/70">{location.item.label}</span>
+              </p>
+            ) : null}
             {brief ? <ModuleBrief key={brief.href} module={brief} /> : null}
             {children}
           </div>

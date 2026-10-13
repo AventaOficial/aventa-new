@@ -132,7 +132,7 @@ describe('CEO Control Center contracts', () => {
     expect(nav).toMatch(/\/admin\/moderation/);
     expect(nav).toMatch(/\/admin\/hunter/);
     expect(nav).toMatch(/\/admin\/health/);
-    expect(nav).toMatch(/audience: 'CEO'/);
-    expect(nav).toMatch(/audience: 'SISTEMA'/);
+    expect(nav).toMatch(/audience: 'VER'/);
+    expect(nav).toMatch(/audience: 'TECNICO'/);
   });
 });

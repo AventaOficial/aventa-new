@@ -4,15 +4,14 @@ import {
   BadgeCheck,
   BarChart3,
   Bot,
-  BowArrow,
+  CalendarDays,
   Calculator,
   CircleDollarSign,
   Cog,
-  FlaskConical,
+  Database,
   Gift,
   Heart,
   LayoutDashboard,
-  Database,
   Map,
   Megaphone,
   Network,
@@ -22,8 +21,11 @@ import {
   Share2,
   Shield,
   SlidersHorizontal,
+  Tag,
   Tags,
+  Target,
   Ticket,
+  TrendingUp,
   UserCog,
   Users,
   UsersRound,
@@ -39,12 +41,15 @@ export type OwnerNavItem = {
   exact?: boolean;
 };
 
+export type OwnerNavAudience = 'VER' | 'HACER' | 'TECNICO';
+
 export type OwnerNavSection = {
   id: string;
   title: string;
   /** La pregunta que responde la sección. */
   question: string;
-  audience: 'CEO' | 'OPERAR' | 'CRECER' | 'DINERO' | 'SISTEMA' | 'ADMINISTRACION' | 'HERRAMIENTAS';
+  /** VER = leer cómo está Aventa. HACER = herramientas que cambian algo. TECNICO = diagnóstico, plegado. */
+  audience: OwnerNavAudience;
   items: OwnerNavItem[];
   /** Compatibilidad con lectores que aún miran el cajón plegado. Vacío: todo vive en items. */
   more?: OwnerNavItem[];
@@ -52,96 +57,88 @@ export type OwnerNavSection = {
 
 /**
  * CEO OS. Una sola configuración de navegación para el owner.
- * Una sección abierta a la vez. Las herramientas puntuales no compiten con operar.
+ * VER siempre abierta; de HACER y TÉCNICO solo una abierta a la vez.
  */
 export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
   {
-    id: 'ceo',
-    title: 'CEO',
+    id: 'ver',
+    title: 'CEO DASHBOARD',
     question: '¿Cómo está Aventa hoy?',
-    audience: 'CEO',
-    items: [{ href: '/admin/owner', label: 'Dashboard', icon: LayoutDashboard, exact: true }],
-  },
-  {
-    id: 'operar',
-    title: 'OPERAR',
-    question: '¿Qué hay que operar ahora?',
-    audience: 'OPERAR',
+    audience: 'VER',
     items: [
-      { href: '/admin/moderation', label: 'Moderación', icon: Shield },
-      { href: '/admin/supply', label: 'Supply', icon: BowArrow },
-      { href: '/admin/users', label: 'Usuarios', icon: Users },
-      { href: '/admin/distribution', label: 'Distribución', icon: Share2 },
+      { href: '/admin/owner', label: 'Vista general', icon: LayoutDashboard, exact: true },
+      { href: '/admin/owner/vista/prioridades', label: 'Prioridades del CEO', icon: Zap },
+      { href: '/admin/owner/vista/metas', label: 'Metas del día', icon: Target },
+      { href: '/admin/owner/vista/ingresos', label: 'Ingresos estimados', icon: CircleDollarSign },
+      { href: '/admin/owner/vista/pagos', label: 'Pagos pendientes', icon: Wallet },
+      { href: '/admin/owner/vista/crecimiento', label: 'Crecimiento', icon: TrendingUp },
+      { href: '/admin/owner/vista/ofertas', label: 'Ofertas publicadas', icon: Tag },
+      { href: '/admin/owner/vista/comunidad', label: 'Actividad de la comunidad', icon: UsersRound },
+      { href: '/admin/owner/vista/usuarios', label: 'Usuarios en tiempo real', icon: Users },
+      { href: '/admin/owner/vista/equipos', label: 'Equipos', icon: Shield },
+      { href: '/admin/owner/vista/capacidad', label: 'Capacidad de Aventa', icon: Server },
+      { href: '/admin/owner/vista/temporada', label: 'Siguiente temporada', icon: CalendarDays },
     ],
   },
   {
-    id: 'crecer',
-    title: 'CRECER',
-    question: '¿Está creciendo la oferta humana?',
-    audience: 'CRECER',
+    id: 'ofertas',
+    title: 'OFERTAS',
+    question: '¿Qué ofertas hay que decidir?',
+    audience: 'HACER',
     items: [
-      { href: '/admin/owner/crecimiento', label: 'Growth', icon: Rocket, exact: true },
-      { href: '/admin/owner/crecimiento/cazadores', label: 'Cazadores', icon: UsersRound },
-      { href: '/admin/metrics', label: 'Analytics', icon: BarChart3 },
-      { href: '/admin/owner/experimentos', label: 'Experimentos', icon: FlaskConical },
+      { href: '/admin/moderation', label: 'Moderación', icon: Shield },
+      { href: '/admin/hunters-ai', label: 'Hunters IA', icon: Bot },
+      { href: '/admin/owner/cazadores', label: 'Trusted Hunters', icon: BadgeCheck },
+      { href: '/admin/distribution', label: 'Distribución', icon: Share2 },
+      { href: '/admin/coupons', label: 'Cupones', icon: Ticket },
+      { href: '/admin/announcements', label: 'Avisos', icon: Megaphone },
     ],
   },
   {
     id: 'dinero',
     title: 'DINERO',
-    question: '¿En qué estado está el dinero?',
-    audience: 'DINERO',
+    question: '¿Qué dinero hay que registrar o mover?',
+    audience: 'HACER',
     items: [
-      { href: '/admin/owner/economia', label: 'Economía', icon: CircleDollarSign },
       { href: '/admin/commissions', label: 'Comisiones', icon: CircleDollarSign },
       { href: '/admin/rewards', label: 'Rewards', icon: Gift },
       { href: '/equipo/contabilidad', label: 'Contabilidad', icon: Calculator },
-      { href: '/admin/owner/payouts', label: 'Payouts', icon: Wallet },
-    ],
-  },
-  {
-    id: 'sistema',
-    title: 'SISTEMA',
-    question: '¿Cómo está armado el sistema?',
-    audience: 'SISTEMA',
-    items: [
-      { href: '/admin/sistemas/mapa', label: 'Systems Map', icon: Map },
-      { href: '/admin/sistemas/atlas', label: 'Database Atlas', icon: Database },
-      { href: '/admin/health', label: 'Health', icon: Heart },
-      { href: '/admin/infraestructura', label: 'Infrastructure', icon: Server },
-      { href: '/admin/technical', label: 'Technical', icon: Network },
-      { href: '/admin/machine-clients', label: 'MCP', icon: Bot },
+      { href: '/admin/creator-tags', label: 'Creator Tags', icon: Tags },
     ],
   },
   {
     id: 'administracion',
     title: 'ADMINISTRACIÓN',
     question: '¿Quién puede hacer qué?',
-    audience: 'ADMINISTRACION',
+    audience: 'HACER',
     items: [
-      { href: '/admin/owner/control', label: 'Centro de control', icon: SlidersHorizontal },
-      { href: '/admin/owner/team-management', label: 'Equipos', icon: UsersRound },
+      { href: '/admin/users', label: 'Usuarios', icon: Users },
+      { href: '/admin/owner/team-management', label: 'Gestión de equipos', icon: UsersRound },
       { href: '/admin/team', label: 'Roles y permisos', icon: UserCog },
+      { href: '/admin/vote-weights', label: 'Vote Weights', icon: Scale },
+      { href: '/admin/machine-clients', label: 'MCP', icon: Bot },
+      { href: '/admin/owner/control', label: 'Centro de control', icon: SlidersHorizontal },
+      { href: '/equipo', label: 'Team Hub', icon: Users, exact: true },
     ],
   },
   {
-    id: 'herramientas',
-    title: 'HERRAMIENTAS',
-    question: '¿Qué herramienta puntual necesitas?',
-    audience: 'HERRAMIENTAS',
+    id: 'tecnico',
+    title: 'TÉCNICO',
+    question: '¿Qué dice el diagnóstico detallado?',
+    audience: 'TECNICO',
     items: [
-      { href: '/admin/coupons', label: 'Cupones', icon: Ticket },
-      { href: '/admin/announcements', label: 'Avisos', icon: Megaphone },
-      { href: '/admin/creator-tags', label: 'Creator Tags', icon: Tags },
-      { href: '/admin/owner/cazadores', label: 'Trusted Hunters', icon: BadgeCheck },
-      { href: '/admin/vote-weights', label: 'Vote Weights', icon: Scale },
-      { href: '/admin/hunters-ai', label: 'Hunters IA', icon: Bot },
       { href: '/admin/hunter', label: 'Motor de oferta', icon: Zap },
+      { href: '/admin/health', label: 'Health', icon: Heart },
+      { href: '/admin/infraestructura', label: 'Infrastructure', icon: Server },
+      { href: '/admin/owner/crecimiento', label: 'Costos y hoja de ruta', icon: Rocket },
+      { href: '/admin/metrics', label: 'Analytics', icon: BarChart3 },
+      { href: '/admin/technical', label: 'Technical', icon: Network },
+      { href: '/admin/sistemas/mapa', label: 'Systems Map', icon: Map },
+      { href: '/admin/sistemas/atlas', label: 'Database Atlas', icon: Database },
       { href: '/admin/logs', label: 'Activity', icon: Activity },
       { href: '/admin/operaciones', label: 'Operaciones', icon: Cog, exact: true },
       { href: '/admin/operaciones/trabajo', label: 'Bot y trabajo', icon: Wrench },
       { href: '/admin/mantenimiento', label: 'Mantenimiento', icon: Wrench },
-      { href: '/equipo', label: 'Team Hub', icon: Users, exact: true },
     ],
   },
 ];
@@ -151,10 +148,26 @@ export const OWNER_COMMAND_ITEMS: { href: string; label: string; group: string }
   [...s.items, ...(s.more ?? [])].map((i) => ({ href: i.href, label: i.label, group: s.title })),
 );
 
+export function isOwnerNavItemActive(item: OwnerNavItem, pathname: string): boolean {
+  if (item.exact) return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
 export function ownerNavSectionForPath(pathname: string): string {
   for (const section of OWNER_NAV_SECTIONS) {
-    const hit = section.items.some((item) => (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`)));
-    if (hit) return section.id;
+    if (section.items.some((item) => isOwnerNavItemActive(item, pathname))) return section.id;
   }
-  return 'ceo';
+  return 'ver';
+}
+
+/** Sección e item activos, para el rastro de migas de las herramientas. */
+export function ownerNavLocation(pathname: string): { section: OwnerNavSection; item: OwnerNavItem } | null {
+  let best: { section: OwnerNavSection; item: OwnerNavItem } | null = null;
+  for (const section of OWNER_NAV_SECTIONS) {
+    for (const item of section.items) {
+      if (!isOwnerNavItemActive(item, pathname)) continue;
+      if (!best || item.href.length > best.item.href.length) best = { section, item };
+    }
+  }
+  return best;
 }
