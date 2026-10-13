@@ -1,11 +1,21 @@
 # MCP Grok Bots — contrato de integración
 
-Estado: implementado y apagado. La escritura sólo se enciende con `MCP_INGEST_ENABLED=true`, después de validar en staging.
+Estado: en operación en producción, en piloto controlado (§20). La escritura depende de `MCP_INGEST_ENABLED`; su valor vive en Vercel y no se lee desde el repo, así que el estado se infiere de la actividad registrada.
 
-| Entorno | Migración | Autor bot | Redis (namespace) | Cliente máquina | Código desplegado | `MCP_INGEST_ENABLED` |
-|---|---|---|---|---|---|---|
-| Staging (`oojshofrpbfwsiypcecr`) | aplicada 2026-10-05 | pendiente (operador) | sin configurar (MCP respondería 503); usará `aventa:staging:*` en el Redis compartido | ninguno | no | apagado |
-| Producción (`mkgsrpsuvedwwlzmzmzh`) | aplicada (`20261005161927_machine_clients_mcp`; verificado con `list_migrations` el 2026-10-12) | no | Redis físico actual; `aventa:production:*` cuando se declare | ninguno | no | apagado |
+Verificado el 2026-10-13 (solo lectura, `machine_clients` y `offer_batches` de producción):
+
+| Cliente | Estado | Scopes | Lotes en 14 días | Último lote |
+|---|---|---|---|---|
+| `aventa-mcp-xai-production` (v1) | `revoked` | `candidates:submit`, `candidates:read`, `catalog:read` | 0 | nunca |
+| `aventa-mcp-xai-production-v2` | `paused` | mismos 3 | 13 | 2026-10-07 11:21 UTC |
+| `aventa-mcp-xai-production-v3` | `active` (cuota 200, vence 2027-01-01) | mismos 3 | 5 | 2026-10-13 20:50 UTC |
+
+Ítems MCP de los últimos 14 días: 193 `APPROVED` (oferta `pending` creada), 4 `PUBLISHED`, 8 `NEEDS_REVIEW` (1 con `IMAGE_NOT_FOUND`). El cupo de 5 aceptados por `runId` (§9) sigue activo.
+
+| Entorno | Migración | Autor bot | Redis (namespace) | Cliente activo |
+|---|---|---|---|---|
+| Staging (`oojshofrpbfwsiypcecr`) | aplicada (`20261005141954`) | pendiente (operador) | `aventa:staging:*` en el Redis compartido | ninguno |
+| Producción (`mkgsrpsuvedwwlzmzmzh`) | aplicada (`20261005161927_machine_clients_mcp`) | sí | `aventa:production:*` en el Redis compartido | v3 |
 
 > **Redis compartido (riesgo aceptado).** Staging y Production comparten temporalmente el mismo backend físico de Upstash por restricción presupuestaria. El aislamiento se realiza mediante namespaces y marcadores de entorno independientes. Esto NO equivale a aislamiento físico y deberá migrarse a Redis separado antes de que staging maneje datos sensibles, volumen significativo o pruebas de producción. La migración a Redis separado es una tarea posterior de infraestructura, no un requisito para activar controladamente MCP ahora (ver §14).
 

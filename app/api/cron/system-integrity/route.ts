@@ -4,6 +4,26 @@ import { persistSystemIntegrityResult, runSystemIntegrityChecks } from '@/lib/se
 import { createServerClient } from '@/lib/supabase/server';
 import { releaseStaleModerationLocks } from '@/lib/moderation/releaseStaleLocks';
 
+const ALERT_TIMEOUT_MS = 5_000;
+
+/** Devuelve `canal:resultado` sin URL ni credenciales. */
+async function deliverAlert(
+  channel: 'webhook' | 'email',
+  url: string,
+  init: { headers: Record<string, string>; body: string },
+): Promise<string> {
+  try {
+    const res = await fetch(url, { method: 'POST', ...init, signal: AbortSignal.timeout(ALERT_TIMEOUT_MS) });
+    if (res.ok) return `${channel}:sent`;
+    console.error(`[SYSTEM INTEGRITY] ${channel} alert rejected: HTTP ${res.status}`);
+    return `${channel}:http_${res.status}`;
+  } catch (err) {
+    const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+    console.error(`[SYSTEM INTEGRITY] ${channel} alert failed: ${timedOut ? 'timeout' : 'network_error'}`);
+    return `${channel}:${timedOut ? 'timeout' : 'network_error'}`;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
   if (denied) return denied;
@@ -33,31 +53,37 @@ export async function GET(request: NextRequest) {
       .join('\n');
     const text = `SYSTEM INTEGRITY FAILED\n${details}\n\nstartedAt=${payload.startedAt}\nfinishedAt=${payload.finishedAt}`;
 
+    // Sin await la función serverless puede congelarse antes de que salga la alerta.
+    // Un intento por canal, con timeout: el siguiente cron vuelve a avisar si sigue fallando.
+    const deliveries: Array<Promise<string>> = [];
     if (webhookUrl) {
-      fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: `AVENTA alerta de integridad:\n${text}`,
-          failedChecks: failed,
-          payload,
+      deliveries.push(
+        deliverAlert('webhook', webhookUrl, {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `AVENTA alerta de integridad:\n${text}`,
+            failedChecks: failed,
+            payload,
+          }),
         }),
-      }).catch((err) => console.error('[SYSTEM INTEGRITY] webhook alert failed', err));
+      );
     }
 
     if (alertEmailTo && resendKey) {
-      fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + resendKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from,
-          to: alertEmailTo,
-          subject: '[AVENTA] Alerta de integridad del sistema',
-          text,
+      deliveries.push(
+        deliverAlert('email', 'https://api.resend.com/emails', {
+          headers: { Authorization: 'Bearer ' + resendKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from,
+            to: alertEmailTo,
+            subject: '[AVENTA] Alerta de integridad del sistema',
+            text,
+          }),
         }),
-      }).catch((err) => console.error('[SYSTEM INTEGRITY] email alert failed', err));
+      );
     }
-    return NextResponse.json({ ...payload, staleLocksReleased }, { status: 500 });
+    const alerts = deliveries.length > 0 ? await Promise.all(deliveries) : ['none_configured'];
+    return NextResponse.json({ ...payload, staleLocksReleased, alerts }, { status: 500 });
   }
   return NextResponse.json({ ...payload, staleLocksReleased }, { status: 200 });
 }
