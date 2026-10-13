@@ -166,46 +166,17 @@ Campo opcional y aditivo: un cliente que no lo envía se comporta igual que ante
   - `REPEATS_TITLE`: repite el título.
   - `CONTAINS_LINK`: contiene un enlace o dominio.
   - `MENTIONS_BOT`: se presenta como bot o IA («Grok», «xAI», «bot», «IA», «inteligencia artificial», «MCP»).
-  - `UNSUPPORTED_CLAIM`: «histórico», «el más barato», «mejor precio», «últimas unidades», urgencia, «irrepetible», «ahorras $…» o comparaciones con otras tiendas.
+  - `UNSUPPORTED_CLAIM`: «histórico», «el más barato», «mejor precio», «últimas unidades», urgencia, «irrepetible», «ofertón», «garantizado», «remate», «ahorras $…» o comparaciones con otras tiendas.
+  - `PERSONAL_CLAIM`: inventa una experiencia propia («lo compré», «en casa lo usamos», «me encantó») o supone la situación del comprador («tu presupuesto», «tu quincena»).
   - `DISCOUNT_NOT_CONFIRMED`: habla de descuento, rebaja o porcentaje sin un precio de lista confirmado.
   - `DISCOUNT_MISMATCH`: el porcentaje se desvía más de 1 punto del que sale de los precios admitidos.
+  - `OFFENSIVE`: groserías o lenguaje ofensivo.
 - Trazabilidad: `bot_meta.hunter_comment = { status: 'kept' | 'dropped', reason, submitted }` en la oferta pendiente. Moderación (Focus: panel de contexto y «Ver por qué») muestra el comentario vigente o el borrador descartado con su motivo, y lo edita desde «Editar oferta».
 - Identidad: el comentario se presenta bajo la atribución pública existente (`AVENTA DIARIAS` para hunters del canon). Ni Grok ni el cliente MCP aparecen como autor, y `MENTIONS_BOT` impide que el propio texto lo diga.
 - Ningún comentario publica la oferta: la oferta sigue `pending` hasta la decisión humana.
 - Prueba pendiente (no ejecutada; requiere entorno aislado o autorización del owner para el canario): un `submit_deal_candidates` real con tres candidatos (comentario válido, comentario con «precio histórico», sin comentario) y comprobar en Focus que el primero muestra el comentario público, el segundo el borrador descartado con `UNSUPPORTED_CLAIM` y el tercero nada; las tres ofertas en `pending`.
 
-Especificación para los Grok bots. Las instrucciones alojadas en xAI se actualizan fuera de este repo; este es el texto a pegar allí, sin cambios:
-
-```text
-COMENTARIO DEL CAZADOR (campo opcional hunterComment de cada candidato)
-
-- Es un borrador para el comprador, distinto de note (note es contexto interno para el equipo).
-- Envíalo solo si puedes decir en una o dos frases, en español natural, por qué el producto le sirve
-  al comprador, con datos que ves en la página: precio, presentación o cantidad, una característica
-  relevante o el precio de lista que muestra la tienda.
-- Texto plano de 12 a 160 caracteres. Sin HTML, sin enlaces, sin dominios, sin emojis decorativos.
-- No repitas el título ni copies el texto promocional de la tienda.
-- Si la tienda no muestra un precio de lista mayor que el precio actual, no hables de descuento,
-  rebaja ni porcentaje: describe el precio conocido («$89 por 1 kg en Soriana»).
-- Si mencionas un porcentaje, calcúlalo como round((1 - price / originalPrice) * 100) con los mismos
-  price y originalPrice que envías, y solo si originalPrice es el precio de lista visible en la página.
-- Prohibido: «precio histórico», «el más barato», «mejor precio», «precio más bajo», «últimas unidades»,
-  «se agota», «solo hoy», «irrepetible», «no te lo pierdas», ahorro en pesos («ahorras $120») y
-  comparaciones con otras tiendas («más barato que en Walmart»).
-- No te presentes como bot, IA, Grok, xAI ni MCP. El comentario se publica bajo la identidad editorial
-  de Aventa, no la tuya.
-- Si no hay nada útil que decir, omite hunterComment. Un comentario ausente es mejor que uno genérico.
-- Aventa filtra el comentario: si no cumple, lo descarta y el candidato sigue su curso normal. Un
-  humano revisa y puede editarlo antes de publicar. No reenvíes el candidato por un comentario descartado.
-
-Ejemplos aceptables:
-- «Paquete de 12 rollos a $139; la tienda lo marca en $189 de lista.»
-- «Aceite de oliva extra virgen de 1 L a $129 en Walmart.»
-Ejemplos que se descartan:
-- «¡Precio histórico! No te lo pierdas.» (afirmación no demostrable)
-- «30% de descuento» sin precio de lista visible (descuento no confirmado)
-- «Encontrado por Grok para tu despensa.» (se presenta como bot)
-```
+Las instrucciones del comentario para los Grok bots están en la sección 6 del prompt maestro, `docs/SYSTEMS/GROK_HUNTER_PROMPT.md`. `tests/mcp/grokHunterPrompt.test.ts` comprueba que sus ejemplos y frases prohibidas coinciden con este filtro.
 
 Errores de herramienta: `FORBIDDEN_SCOPE`, `INGEST_PAUSED`, `CLIENT_PAUSED`, `QUOTA_EXCEEDED`, `IDEMPOTENCY_CONFLICT`, `INVALID_INPUT`, `TOO_MANY_CANDIDATES`, `NOT_FOUND`, `INTERNAL_ERROR`.
 
@@ -637,6 +608,7 @@ Política de calidad MCP (`mcp-candidate-policy-v2`, `lib/offers/ingestion/machi
 5. **Título de baja calidad** (`isLowQualityTitle` con `loadBotIngestConfig`): `REJECTED` (`LOW_QUALITY_TITLE`).
 6. **Writer** (`ingestOfferObservation`): si ya existe una oferta activa con la misma identidad (409), el ítem queda `REJECTED` con `duplicate_status: 'duplicate'`, `duplicate_offer_id` y evento `duplicate_linked`; no se crea otra oferta y el contrato lo informa como `duplicate`. Datos rechazados (400): `NEEDS_REVIEW` (`WRITER_REJECTED`). Fallo técnico: `ERROR` (`WRITER_FAILED`).
 7. **Precio de lista** solo si la página lo muestra con fuente (`source_explicit`) y es mayor que el actual (`compareWithListPrice`). El que declara el bot nunca llega a `offers.original_price`; queda en `hint_original_price` y en `bot_meta.price_policy.bot_declared`. Sin precio de lista la oferta es `price_opportunity` (sin porcentaje).
+   - Soriana no publica el precio de lista en JSON-LD; lo pinta tachado (`span.value[content] > span.strike-through`). `extractSorianaStrikePrice` lo lee solo en `soriana.com`, solo si todos los tachados de la página son el mismo valor y solo si supera el precio actual. Antes de esto, los 6 precios de lista que declaró el bot en los canarios de v3 quedaron `reference_dropped: absent` aunque la ficha los mostraba (comprobado en `11400966`: $163.00 y tachado $224.50).
 
 De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
@@ -689,104 +661,13 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 Ambas cosas viven fuera de este repo, en xAI (Grok):
 
 - **Conector MCP**: URL `https://aventaofertas.com/api/mcp`, con encabezado `Authorization: Bearer <token del cliente aventa-mcp-xai-production-v3>`. El token se toma del gestor de secretos y nunca se pega en tickets, chats ni en este repo. Cada tarea programada que use el conector debe apuntar a ese mismo conector. Un token de un cliente `paused` o `revoked` no envía nada.
-- **Instrucciones de la tarea programada**: el bloque siguiente, seguido del bloque de `hunterComment` de §5 sin cambios.
+- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.0.0`, configuración `despensa-mx-1.0.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
 
-### Instrucciones definitivas (copiar y pegar en xAI)
+### Estado verificado el 2026-10-13 (20:15 UTC, solo lectura)
 
-```text
-ROL
-Eres un cazador de ofertas para Aventa (México). Tu trabajo es encontrar ofertas reales y vigentes de
-tiendas mexicanas y ENVIARLAS a Aventa por el conector MCP. No publicas nada: un humano de Aventa
-modera cada candidato. Investigar sin enviar no cumple la tarea; enviar datos no verificados tampoco.
-
-ORDEN OBLIGATORIO DE CADA CORRIDA
-1. Llama get_submission_rules.
-   - Si ingestEnabled no es true: DETENTE. No llames check_offer_exists ni submit_deal_candidates.
-     Reporta "BLOQUEADO: ingestEnabled=false (cliente pausado o ingesta apagada)".
-   - Usa supportedStores, limits y despensa de esa respuesta como fuente de verdad.
-2. Genera UN runId nuevo para esta corrida: grok-<AAAAMMDD>-<HHMM>-<sufijo>, por ejemplo
-   grok-20261014-1300-a. Solo [A-Za-z0-9._:-], máximo 128. Nunca reutilices un runId de otra corrida.
-3. Descubre y verifica candidatos (ver DESCUBRIMIENTO y VERIFICACIÓN). Prepara como máximo 5.
-4. Para cada candidato verificado, llama check_offer_exists con su url. Si exists es true, descártalo.
-   No hagas más de 10 llamadas de herramienta por minuto en total.
-5. Si queda al menos 1 candidato válido, llama submit_deal_candidates UNA vez, con 1 a 5 candidatos.
-6. Llama get_submission_status con el submissionId devuelto y reporta (ver REPORTE FINAL).
-Si no hay candidatos válidos, no envíes nada y reporta por qué.
-
-DESCUBRIMIENTO
-- Solo ofertas para México, con precio en pesos mexicanos (MXN), de tiendas incluidas en
-  supportedStores.
-- Prioridad: despensa y básicos del hogar (abarrotes, lácteos, limpieza, higiene, papel). Sigue las
-  misiones de despensa de get_submission_rules.
-- Tiendas preferidas porque Aventa verifica sus fichas: soriana.com, bodegaaurrera.com.mx,
-  chedraui.com.mx, heb.com.mx, lacomer.com.mx, walmart.com.mx, amazon.com.mx (con /dp/<ASIN>).
-- Mercado Libre: solo una URL de ficha con el identificador MLM visible en la ruta. No uses acortadores
-  (meli.la, links de app). Si la página responde 403, pide inicio de sesión o verificación de cuenta,
-  descarta el producto. No intentes eludir el bloqueo.
-
-VERIFICACIÓN (todo lo que envías debe verse en la ficha que abriste)
-- url: la ficha del producto en https, con el host de la tienda y sin "?" ni "#". Quita los parámetros
-  de rastreo y de afiliado. No uses páginas de búsqueda, categoría o carrito.
-- title: el nombre del producto tal como lo muestra la tienda, con presentación o cantidad.
-  Máximo 200 caracteres.
-- price: el precio actual visible, en pesos, como número (129.9, no "$129.90").
-- originalPrice: solo si la tienda muestra un precio de lista o tachado MAYOR que price. Si no lo
-  muestra, omítelo. Nunca lo calcules ni lo tomes de otra tienda.
-- currency: siempre "MXN".
-- observedAt: el momento en que viste el precio, en ISO 8601 con zona (2026-10-14T19:05:00Z).
-  No puede estar en el futuro ni tener más de 30 días.
-- note (opcional, máximo 280): contexto interno para el moderador, por ejemplo cómo verificaste el
-  precio. No se publica.
-- hunterComment (opcional): sigue las reglas del bloque COMENTARIO DEL CAZADOR.
-Descarta el producto si: no hay stock o no se puede comprar, el precio no es visible, la moneda no es
-MXN, la URL es de una tienda fuera de supportedStores, la ficha está bloqueada, o ya existe
-(check_offer_exists = true). NUNCA inventes, completes ni redondees datos que no viste.
-
-FORMATO DE submit_deal_candidates
-{
-  "runId": "<runId de la corrida>",
-  "idempotencyKey": "<runId>:submit:01",
-  "candidates": [
-    { "url": "...", "title": "...", "price": 129.9, "originalPrice": 159.9, "currency": "MXN",
-      "observedAt": "2026-10-14T19:05:00Z", "note": "...", "hunterComment": "..." }
-  ]
-}
-- Máximo 5 aceptados por runId. Envía 5 o menos; si mandas más, el excedente vuelve RUN_CAP_REACHED.
-- idempotencyKey: de 8 a 128 caracteres [A-Za-z0-9._:-]. Si reintentas la MISMA llamada, usa la MISMA
-  llave y EXACTAMENTE el mismo payload; Aventa devuelve la respuesta original sin duplicar. Nunca
-  cambies el payload con la misma llave.
-
-ERRORES Y REINTENTOS
-- CLIENT_PAUSED, INGEST_PAUSED, FORBIDDEN_SCOPE, o HTTP 401: DETENTE y reporta el código. No reintentes.
-- QUOTA_EXCEEDED: cupo diario agotado. DETENTE hasta mañana.
-- RUN_CAP_REACHED en un candidato: el runId ya tiene 5 aceptados. No reenvíes con otro runId en la
-  misma corrida.
-- Rate limit (HTTP 429 o RATE_LIMITED): espera 60 segundos y repite la misma llamada.
-- INTERNAL_ERROR o HTTP 503: espera 60 segundos y repite UNA vez con la MISMA idempotencyKey y el MISMO
-  payload. Si vuelve a fallar, detente y reporta.
-- IDEMPOTENCY_CONFLICT: no reintentes. Reporta el error; indica que la llave se reutilizó con otro
-  payload.
-- INVALID_INPUT o TOO_MANY_CANDIDATES: el formato está mal. Corrígelo y envía con una idempotencyKey
-  nueva dentro del mismo runId.
-- Rechazos por candidato (rejected[].code: INVALID_URL, UNSUPPORTED_HOST, INVALID_PRICE,
-  INVALID_ORIGINAL_PRICE, INVALID_CURRENCY, INVALID_OBSERVED_AT, ALREADY_IN_REVIEW, ...): no
-  reenvíes ese candidato en esta corrida; repórtalo con su código.
-
-SIGNIFICADO DE LOS ESTADOS (get_submission_status)
-- accepted: Aventa lo recibió y está en cola de moderación humana. NO está publicado.
-- in_review: retenido para revisión manual. NO está publicado.
-- published: un moderador lo aprobó y es visible. Solo di "publicado" si el estado es published.
-- duplicate, rejected, invalid: no entró; reporta el código.
-- received, processing: aún en proceso.
-Nunca afirmes que una oferta está publicada por haberla enviado o porque salió accepted.
-
-REPORTE FINAL DE CADA CORRIDA
-- runId, submissionId, ingestEnabled, cuota (usedToday/remainingToday).
-- Por candidato: url, price, estado de get_submission_status y código si lo hay.
-- Si te detuviste: en qué paso y con qué código.
-- Si no enviaste nada: por qué (sin candidatos válidos, todos existían, bloqueo de la tienda, etc.).
-```
-
+- Clientes: v1 `revoked`, v2 `paused`, v3 `active` (3 scopes, cuota 200, vence 2027-01-01).
+- Las tareas de Grok siguen llamando con v2 (última llamada 20:00 UTC; 12 llamadas en 30 min). v3 no se usa desde las 17:46 UTC. El conector de xAI todavía no apunta a v3.
+- El prompt que ejecuta xAI no está verificado: no hay acceso a xAI desde el repo.
 ### Diagnóstico operativo (sólo lectura)
 
 | Síntoma | Causa probable | Acción |
@@ -822,16 +703,23 @@ where i.batch_id = '<submissionId>' order by i.position;
 
 ### Canario de cierre (preparado, no ejecutado)
 
-Requiere tres cosas: el PR de la corrección de §7 fusionado y desplegado; el conector de xAI con el token del cliente v3; y la autorización explícita del Owner.
+Requisitos:
+- el conector de xAI con el token del cliente v3 y solo las 4 herramientas;
+- el prompt `core-1.0.0` / `despensa-mx-1.0.0` pegado en la tarea;
+- el código que lee el tachado de Soriana desplegado en producción, para que el precio de lista del candidato se pueda confirmar;
+- moderación disponible para revisar el candidato;
+- la autorización explícita del Owner.
 
 1. `get_submission_rules`: debe devolver `ingestEnabled: true`, y la fila nueva de `machine_client_calls` debe ser del cliente v3.
-2. Elegir 1 producto de despensa en `soriana.com` con su URL de ficha limpia, precio visible en MXN y `observedAt` actual.
+2. Elegir 1 producto de despensa en `soriana.com` que cumpla las reglas de calidad del prompt: ficha limpia, comprable, con imagen, precio visible en MXN y precio tachado mayor, sin condiciones.
 3. `check_offer_exists(url)`: debe devolver `exists: false`. Si es `true`, elegir otro producto.
-4. `submit_deal_candidates` con `runId` `grok-canary-closure-20261013-01`, `idempotencyKey` `grok-canary-closure-20261013-01:submit:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
+4. `submit_deal_candidates` con `runId` `grok-despensa-canary-<AAAAMMDD>-01`, `idempotencyKey` `<runId>:core-1.0.0:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
 5. `get_submission_status(submissionId)`: se espera `accepted`, es decir, oferta `pending` y no publicada.
 6. Verificar en la base con las consultas de arriba:
-   - `offer_batches.mcp_run_id` coincide con el `runId`;
+   - `offer_batches.mcp_run_id` coincide con el `runId` y `mcp_idempotency_key` contiene `core-1.0.0`;
    - el ítem está `APPROVED` con `offer_id`;
    - `offers.status = 'pending'` y `source_currency = 'MXN'`;
-   - existe la fila `ingest_cycle_locks` `mcp:run-slot:<v3>:1:<runId>`.
+   - `bot_meta.price_policy.kind = 'list_price_comparison'` y `offers.original_price` igual al tachado de la ficha;
+   - existe la fila `ingest_cycle_locks` `mcp:run-slot:<v3>:1:<runId>`;
+   - ninguna escritura en tablas de recompensas, comisiones, ledger ni payouts.
 7. Cuando un moderador apruebe la oferta, `get_submission_status` debe devolver `published` sin que nadie abra la consola de lotes.

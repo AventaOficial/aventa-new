@@ -63,6 +63,29 @@ function normalizePair(
   return { discount: d, original: o };
 }
 
+function isSorianaHost(host: string | null): boolean {
+  if (!host) return false;
+  const h = host.toLowerCase();
+  return h === 'soriana.com' || h.endsWith('.soriana.com');
+}
+
+const SORIANA_STRIKE_PRICE_RE =
+  /<span\s+class="value\s*"\s+content="([0-9]+(?:\.[0-9]+)?)"\s*>\s*<span\s+class="strike-through[^"]*"/g;
+
+/**
+ * Soriana (SFCC) no publica el precio de lista en JSON-LD; lo pinta tachado en el bloque de precio
+ * de la ficha. Solo se acepta si todos los tachados de la página son el mismo valor: si hay varios
+ * (carruseles, variantes), no hay forma de saber cuál es el del producto.
+ */
+export function extractSorianaStrikePrice(html: string): number | null {
+  const values = new Set<number>();
+  for (const match of html.matchAll(SORIANA_STRIKE_PRICE_RE)) {
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > 0) values.add(value);
+  }
+  return values.size === 1 ? [...values][0] : null;
+}
+
 export function enrichRetailOfferFromHtml(html: string, pageUrl: string): RetailOfferEnrichment {
   const products = parseJsonLdProducts(html, pageUrl);
   const primary = products[0] ?? null;
@@ -81,10 +104,10 @@ export function enrichRetailOfferFromHtml(html: string, pageUrl: string): Retail
   const storeFromHost = host ? inferStoreFromHostname(host) : null;
 
   const heuristic = extractSuggestedPrices(html);
-  const pair = normalizePair(
-    primary?.price ?? heuristic.discount,
-    primary?.originalPrice ?? heuristic.original,
-  );
+  const current = primary?.price ?? heuristic.discount;
+  const strike = isSorianaHost(host) ? extractSorianaStrikePrice(html) : null;
+  const sorianaList = strike != null && current != null && strike > current ? strike : null;
+  const pair = normalizePair(current, primary?.originalPrice ?? heuristic.original ?? sorianaList);
 
   const titleRaw = (primary?.title || ogTitle || '').trim();
   const imageRaw = primary?.image || ogImage || null;
