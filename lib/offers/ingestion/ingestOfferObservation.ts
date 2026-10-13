@@ -24,6 +24,7 @@ import {
 } from '@/lib/offers/ingestion/mergePendingOffer';
 import { buildObservationIdempotencyKey } from '@/lib/offers/ingestion/observationIdempotency';
 import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
+import { isValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { incrementHumanOfferCounter } from '@/lib/server/reputation';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
 
@@ -65,6 +66,11 @@ export type IngestOfferObservationInput = {
   forceLoteTag?: boolean;
   /** Public community may submit without URL. */
   allowMissingUrl?: boolean;
+  /**
+   * Fuentes de máquina: sin imagen de producto válida no se crea oferta (ni placeholder).
+   * Comunidad y admin pueden subir sin imagen.
+   */
+  requireProductImage?: boolean;
   /** Increment offers_submitted_count (community yes, bot no). */
   recordSubmissionCount?: boolean;
   /** Record price snapshot on create. */
@@ -340,6 +346,14 @@ export async function ingestOfferObservation(
   const firstImage =
     cover ?? (imageUrlRaw && imageUrlRaw !== '/placeholder.png' ? imageUrlRaw : null) ?? '/placeholder.png';
   const extraImages = extras.slice(0, Math.max(0, OFFER_MAX_IMAGES - (firstImage === '/placeholder.png' ? 0 : 1)));
+  if (input.requireProductImage === true && !isValidOfferImage(firstImage)) {
+    return {
+      ok: false,
+      httpStatus: 400,
+      error: 'Imagen de producto obligatoria para ingestión automática',
+      issues: [{ path: 'image_url', message: 'IMAGE_REQUIRED' }],
+    };
+  }
 
   const categoryRaw = typeof body.category === 'string' ? body.category : null;
   const categoryBase = normalizeCategoryForStorage(categoryRaw);

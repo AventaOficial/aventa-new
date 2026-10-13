@@ -69,7 +69,7 @@ export type InsertIngestResult =
   | {
       ok: false;
       error: string;
-      code?: 'NEGATIVE_MEMORY' | 'S61_BLOCKED';
+      code?: 'NEGATIVE_MEMORY' | 'S61_BLOCKED' | 'IMAGE_REQUIRED';
       gate?: CandidateGateResult;
       hunterDecisionTrace?: HunterDecisionTrace;
     };
@@ -250,6 +250,7 @@ export async function insertIngestedOffer(
     onDuplicate: 'reuse',
     forceLoteTag: false,
     allowMissingUrl: false,
+    requireProductImage: true,
     recordSubmissionCount: false,
     recordPriceSnapshot: false,
     extractionMethod: opts?.ingestSourceDetail ?? 'bot_ingest',
@@ -268,7 +269,7 @@ export async function insertIngestedOffer(
       hasDiscount: hasOriginal,
       price: meta.discountPrice,
       original_price: hasOriginal ? meta.originalPrice : null,
-      image_url: imageNormalized.slice(0, 2048) || '/placeholder.png',
+      ...(imageNormalized ? { image_url: imageNormalized.slice(0, 2048) } : {}),
       offer_url: originalOfferUrl || offerUrl,
       description,
       category: categoryBase || undefined,
@@ -291,7 +292,8 @@ export async function insertIngestedOffer(
         }),
       };
     }
-    return { ok: false, error: result.error };
+    const imageRequired = result.issues?.some((issue) => issue.message === 'IMAGE_REQUIRED') === true;
+    return { ok: false, error: result.error, ...(imageRequired ? { code: 'IMAGE_REQUIRED' as const } : {}) };
   }
 
   if (!result.created) {

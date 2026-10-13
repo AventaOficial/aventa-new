@@ -136,6 +136,33 @@ export async function enqueueHunterOffer(
     images: prepared.imageUrl ? [prepared.imageUrl, ...prepared.imageUrls] : [],
   };
 
+  // REJECTED libera la identidad: tras una caída del retailer el bot puede reenviar en otra corrida
+  // (acotado por cupo diario y por corrida). La memoria negativa sólo aprende de `offers`.
+  const fetchClass = prepared.pageFetchFailureClass;
+  if (fetchClass === 'permanent' || fetchClass === 'transient') {
+    const code = fetchClass === 'permanent' ? 'PRODUCT_PAGE_UNAVAILABLE' : 'SOURCE_TEMPORARILY_UNAVAILABLE';
+    const fetchEvidence = {
+      class: fetchClass,
+      failure: prepared.pageFetchFailure,
+      http_status: prepared.pageHttpStatus,
+    };
+    await settleItem(supabase, {
+      ...base,
+      update: {
+        status: 'REJECTED',
+        error_code: code,
+        rejection_reason: `page_fetch:${fetchClass}:${prepared.pageFetchFailure}`.slice(0, 300),
+        rejected_at: new Date().toISOString(),
+        warnings: [prepared.pageFetchFailure],
+        evidence: { page_kind: prepared.pageKind, page_fetch: fetchEvidence, enrichment: 'page_unavailable' },
+      },
+      action: 'page_fetch_failed',
+      toStatus: 'REJECTED',
+      payload: { code, ...fetchEvidence, machine_client_id: machineClientId },
+    });
+    return { offerId: null };
+  }
+
   if (!machineOfferReadyForModeration(prepared)) {
     await settleItem(supabase, {
       ...base,
@@ -207,6 +234,7 @@ export async function enqueueHunterOffer(
     source: 'mcp:hunter',
     onDuplicate: 'reject',
     forceLoteTag: false,
+    requireProductImage: true,
     recordSubmissionCount: false,
     offerExtras: {
       ...(internalNote ? { moderator_comment: `${MCP_INTERNAL_NOTE_PREFIX}${internalNote}` } : {}),
