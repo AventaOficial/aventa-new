@@ -1,3 +1,4 @@
+import { OFFER_HUNTER_COMMENT_MAX } from '@/lib/contracts/offers';
 import type { ListPriceComparison } from '@/lib/offers/listPriceComparison';
 
 /**
@@ -8,8 +9,11 @@ import type { ListPriceComparison } from '@/lib/offers/listPriceComparison';
 export const HUNTER_COMMENT_MIN_CHARS = 12;
 
 export const HUNTER_COMMENT_DROP_REASONS = [
+  'INVALID_FORMAT',
   'TOO_SHORT',
+  'TOO_LONG',
   'REPEATS_TITLE',
+  'MENTIONS_BOT',
   'CONTAINS_LINK',
   'UNSUPPORTED_CLAIM',
   'DISCOUNT_NOT_CONFIRMED',
@@ -46,6 +50,10 @@ const UNSUPPORTED_CLAIMS: readonly RegExp[] = [
   new RegExp(`\\b(que en|vs\\.?|contra|frente a) (${STORES})\\b|\\botras tiendas\\b`),
 ];
 
+/** El comentario se publica bajo la identidad editorial; el texto no puede presentarse como bot. */
+const BOT_SELF_REFERENCE =
+  /\bgrok\b|\bx\.?ai\b|\bchat ?gpt\b|\bbots?\b|\bmcp\b|\binteligencia artificial\b|\bmodelo de lenguaje\b|\b(soy|como|una|la|por|con) ia\b|\bhunters? ia\b/;
+
 const DISCOUNT_WORDS = /\bdescuento|\brebaj|\bantes (costaba|estaba|\$)|\bprecio de lista\b/;
 /** «100% algodón» no es un descuento; «-25%», «baja 25%» o «25% menos» sí. */
 const DISCOUNT_PERCENT =
@@ -67,10 +75,13 @@ export function reviewHunterComment(
   });
 
   const folded = fold(comment);
-  if (Array.from(comment).length < HUNTER_COMMENT_MIN_CHARS) return drop('TOO_SHORT');
+  const length = Array.from(comment).length;
+  if (length < HUNTER_COMMENT_MIN_CHARS) return drop('TOO_SHORT');
+  if (length > OFFER_HUNTER_COMMENT_MAX) return drop('TOO_LONG');
   const title = fold(ctx.title);
   if (title && (folded === title || title.includes(folded))) return drop('REPEATS_TITLE');
   if (/https?:|www\.|\.com\b|\.mx\b/.test(folded)) return drop('CONTAINS_LINK');
+  if (BOT_SELF_REFERENCE.test(folded)) return drop('MENTIONS_BOT');
   if (UNSUPPORTED_CLAIMS.some((re) => re.test(folded))) return drop('UNSUPPORTED_CLAIM');
 
   const percents = [...folded.matchAll(DISCOUNT_PERCENT)].map((m) => Number(m[1] ?? m[2]));
@@ -86,8 +97,11 @@ export function reviewHunterComment(
 }
 
 export const HUNTER_COMMENT_DROP_LABELS: Readonly<Record<HunterCommentDropReason, string>> = {
+  INVALID_FORMAT: 'no es texto plano',
   TOO_SHORT: 'demasiado corto',
+  TOO_LONG: `pasa de ${OFFER_HUNTER_COMMENT_MAX} caracteres`,
   REPEATS_TITLE: 'repite el título',
+  MENTIONS_BOT: 'se presenta como bot o IA',
   CONTAINS_LINK: 'incluye un enlace',
   UNSUPPORTED_CLAIM: 'afirmación no demostrable',
   DISCOUNT_NOT_CONFIRMED: 'habla de descuento sin precio de lista confirmado',

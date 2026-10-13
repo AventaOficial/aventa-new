@@ -100,6 +100,7 @@ const candidateDocSchema = z
       .describe(
         `Opcional. Comentario breve para el comprador, en español, máximo ${MCP_HUNTER_COMMENT_MAX} caracteres. ` +
           'Solo datos verificables; sin «precio histórico», «el más barato», urgencia ni comparaciones con otras tiendas. ' +
+          'No te menciones como bot ni IA. Si no cumple, Aventa descarta solo el comentario y el candidato sigue. ' +
           'Omítelo si no hay nada útil que decir.',
       ),
     observedAt: z.string().describe('Momento de la observación, ISO 8601 con zona horaria.'),

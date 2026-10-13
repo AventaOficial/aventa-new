@@ -65,7 +65,7 @@ export function buildSubmissionRules(client: MachineClientContext, quota: McpQuo
         'url: https, tienda soportada, sin credenciales, puerto, IP, query (?) ni fragmento (#).',
         'title, note y hunterComment: texto plano, sin HTML ni caracteres de control.',
         'note es contexto para el equipo. hunterComment es un borrador para el comprador: una o dos frases en español con datos verificables. Si no hay nada útil, omítelo.',
-        'hunterComment no puede afirmar «precio histórico», «el más barato», «últimas unidades», urgencia, ahorros ni comparaciones con otras tiendas. Solo menciona descuento o porcentaje si la tienda muestra un precio de lista mayor. Si no cumple, Aventa lo descarta y el candidato sigue su curso.',
+        'hunterComment no puede afirmar «precio histórico», «el más barato», «últimas unidades», urgencia, ahorros ni comparaciones con otras tiendas, ni mencionarse como bot o IA. Solo menciona descuento o porcentaje si la tienda muestra un precio de lista mayor. Si no cumple (incluido pasar del tope de caracteres o traer HTML), Aventa descarta solo el comentario y el candidato sigue su curso.',
         'price > 0. originalPrice, si viene, debe ser mayor que price.',
         'observedAt: ISO 8601 con zona horaria, no futuro, máximo 30 días de antigüedad.',
         `runId es obligatorio: como máximo ${MCP_PILOT_MAX_ACCEPTED_PER_RUN} candidatos aceptados por runId, sumando todas sus llamadas. Lo que exceda vuelve como RUN_CAP_REACHED.`,

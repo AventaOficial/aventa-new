@@ -15,7 +15,7 @@ import {
 import { isSuppressedByNegativeMemory } from '@/lib/discovery/negativeMemory';
 import { isLowQualityTitle } from '@/lib/bots/ingest/isLowQualityTitle';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
-import { reviewHunterComment } from '@/lib/offers/hunterCommentReview';
+import { reviewHunterComment, type HunterCommentReviewResult } from '@/lib/offers/hunterCommentReview';
 import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 
 export type EnqueueHunterOfferDeps = {
@@ -177,10 +177,12 @@ export async function enqueueHunterOffer(
 
   const { price, originalPrice } = admission;
   const title = prepared.title || candidate.title;
-  const hunterComment = reviewHunterComment(candidate.hunterComment, {
-    title,
-    comparison: compareWithListPrice(price, originalPrice),
-  });
+  const hunterComment: HunterCommentReviewResult = candidate.hunterCommentInvalid
+    ? { comment: null, review: { status: 'dropped', reason: 'INVALID_FORMAT' } }
+    : reviewHunterComment(candidate.hunterComment, {
+        title,
+        comparison: compareWithListPrice(price, originalPrice),
+      });
   const result = await (deps.ingest ?? ingestOfferObservation)(supabase, {
     createdBy,
     source: 'mcp:hunter',

@@ -50,22 +50,34 @@ describe('contrato MCP: hunterComment', () => {
     expect(r.valid[0].hunterComment).toBe('Bolsa de 1 kg a $42 en Amazon.');
   });
 
-  it('formato inválido se rechaza por índice con INVALID_HUNTER_COMMENT', () => {
-    const cases = [
-      { hunterComment: 'x'.repeat(MCP_HUNTER_COMMENT_MAX + 1) },
-      { hunterComment: '<b>oferta</b>' },
-      { hunterComment: 'linea\u0007' },
-      { hunterComment: 42 },
-    ];
-    const r = validateCandidates(cases.map((c) => raw(c)), NOW);
-    expect(r.valid).toEqual([]);
-    expect(r.rejected.every((x) => x.code === 'INVALID_HUNTER_COMMENT')).toBe(true);
+  it('formato inválido no rechaza el candidato: el comentario se marca y no se conserva el texto', () => {
+    const cases = [{ hunterComment: '<b>oferta</b>' }, { hunterComment: 'linea\u0007' }, { hunterComment: 42 }];
+    const r = validateCandidates(cases.map((c, i) => raw({ ...c, url: `${AMAZON}${i}` })), NOW);
+    expect(r.rejected).toEqual([]);
+    expect(r.valid).toHaveLength(cases.length);
+    for (const v of r.valid) {
+      expect(v.hunterComment).toBeNull();
+      expect(v.hunterCommentInvalid).toBe(true);
+    }
   });
 
-  it('el tope coincide con la columna pública y el código es aditivo', () => {
+  it('un comentario largo no rechaza el candidato: llega acotado para que el filtro lo descarte', () => {
+    const r = validateCandidates([raw({ hunterComment: 'x'.repeat(MCP_HUNTER_COMMENT_MAX * 5) })], NOW);
+    expect(r.rejected).toEqual([]);
+    expect(r.valid[0].hunterCommentInvalid).toBeUndefined();
+    expect(Array.from(r.valid[0].hunterComment ?? '').length).toBe(MCP_HUNTER_COMMENT_MAX * 2);
+  });
+
+  it('saltos de línea cuentan como espacios, no como caracteres de control', () => {
+    const r = validateCandidates([raw({ hunterComment: 'Bolsa de 1 kg\na $42 en Amazon.' })], NOW);
+    expect(r.valid[0].hunterComment).toBe('Bolsa de 1 kg a $42 en Amazon.');
+    expect(r.valid[0].hunterCommentInvalid).toBeUndefined();
+  });
+
+  it('el tope coincide con la columna pública y hunterComment no tiene código de rechazo', () => {
     expect(MCP_HUNTER_COMMENT_MAX).toBe(OFFER_HUNTER_COMMENT_MAX);
     expect(CANDIDATE_REJECTION_CODES).toContain('INVALID_NOTE');
-    expect(CANDIDATE_REJECTION_CODES).toContain('INVALID_HUNTER_COMMENT');
+    expect(CANDIDATE_REJECTION_CODES).not.toContain('INVALID_HUNTER_COMMENT');
   });
 
   it('el hash de idempotencia de payloads sin el campo no cambia', () => {
@@ -116,6 +128,26 @@ describe('filtro editorial del comentario', () => {
     'Solo hoy a este precio en Amazon México',
   ])('afirmación no demostrable se descarta: %s', (text) => {
     expect(reviewHunterComment(text, withList).review).toMatchObject({ status: 'dropped', reason: 'UNSUPPORTED_CLAIM' });
+  });
+
+  it.each([
+    'Encontrado por Grok: bolsa de 1 kg a $42.',
+    'Como IA te recomiendo este arroz de 1 kg.',
+    'Seleccionado por nuestro bot para tu despensa.',
+    'Sugerencia de inteligencia artificial: 1 kg a $42.',
+  ])('el comentario no puede presentarse como bot o IA: %s', (text) => {
+    expect(reviewHunterComment(text, noDiscount).review).toMatchObject({ status: 'dropped', reason: 'MENTIONS_BOT' });
+  });
+
+  it('palabras parecidas no cuentan como autorreferencia de bot', () => {
+    expect(reviewHunterComment('Bote de 1 kg con tapa hermética a $42.', noDiscount).review.status).toBe('kept');
+    expect(reviewHunterComment('Botella de agua de 1 L ideal para el día.', noDiscount).review.status).toBe('kept');
+  });
+
+  it('pasar del tope público descarta el comentario', () => {
+    const long = `Bolsa de 1 kg a $42 para la despensa. ${'Ideal para comidas diarias. '.repeat(6)}`;
+    expect(Array.from(long.trim()).length).toBeGreaterThan(OFFER_HUNTER_COMMENT_MAX);
+    expect(reviewHunterComment(long, noDiscount)).toEqual({ comment: null, review: { status: 'dropped', reason: 'TOO_LONG' } });
   });
 
   it('comentarios sin valor se descartan: muy corto, repite el título o trae enlace', () => {
@@ -237,6 +269,21 @@ describe('writer MCP: comentario en la oferta pendiente', () => {
       reason: 'DISCOUNT_NOT_CONFIRMED',
       submitted: text,
     });
+  });
+
+  it('comentario largo: la oferta entra igual y moderación ve el borrador con su motivo', async () => {
+    const text = 'Arroz de 1 kg a $42. '.repeat(10).trim();
+    const { r, call } = await run(candidate({ hunterComment: text }));
+    expect(r.offerId).toBe('o1');
+    expect(call.body).not.toHaveProperty('hunter_comment');
+    expect(call.offerExtras.bot_meta.hunter_comment).toEqual({ status: 'dropped', reason: 'TOO_LONG', submitted: text });
+  });
+
+  it('comentario que no es texto plano: la oferta entra igual y no se guarda el texto', async () => {
+    const { r, call } = await run(candidate({ hunterComment: null, hunterCommentInvalid: true }));
+    expect(r.offerId).toBe('o1');
+    expect(call.body).not.toHaveProperty('hunter_comment');
+    expect(call.offerExtras.bot_meta.hunter_comment).toEqual({ status: 'dropped', reason: 'INVALID_FORMAT', submitted: null });
   });
 
   it('lista confirmada por la página: el porcentaje que coincide se conserva', async () => {
