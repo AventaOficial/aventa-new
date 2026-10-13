@@ -25,7 +25,10 @@ export function assertIsolatedBaseUrl(raw) {
     throw new Error('e2e refused: invalid url');
   }
   const host = url.hostname.toLowerCase();
-  if (url.protocol !== 'https:') throw new Error('e2e refused: https required');
+  const loopback = host === '127.0.0.1' || host === 'localhost';
+  if (url.protocol !== 'https:' && !(loopback && url.protocol === 'http:')) {
+    throw new Error('e2e refused: https required');
+  }
   if (host === 'aventaofertas.com' || host === 'www.aventaofertas.com' || host.includes(PRODUCTION_SUPABASE_REF)) {
     throw new Error('e2e refused: production host');
   }
