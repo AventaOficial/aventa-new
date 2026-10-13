@@ -9,6 +9,7 @@
  * - UPP `/{slug}/up/{MLMU…}` se preserva; MLMU ≠ item_id de /items.
  * - item_id ≠ public URL; user_product_id ≠ bare path.
  */
+import { isOfferMercadoLibreHost, isOfferMeliLaHost } from '@/lib/offers/commerceHostAllowlist';
 
 export type MercadoLibreResolutionMethod =
   | 'query_wid'
@@ -258,12 +259,7 @@ export function normalizeMercadoLibreInputUrl(raw: string): string {
 }
 
 export function isMercadoLibreHost(hostname: string): boolean {
-  const host = hostname.replace(/^www\./i, '').toLowerCase();
-  return (
-    host.includes('mercadolibre.') ||
-    host === 'meli.la' ||
-    host.endsWith('.meli.la')
-  );
+  return isOfferMercadoLibreHost(hostname) || isOfferMeliLaHost(hostname);
 }
 
 /**

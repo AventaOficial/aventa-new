@@ -6,7 +6,7 @@ import {
   applyAdapterOutboundTracking,
   type OutboundTrackingContext,
 } from '@/lib/rewards/adapters/types';
-import { normalizeMercadoLibreInputUrl } from '@/lib/offers/resolveMercadoLibreItem';
+import { isMercadoLibreHost, normalizeMercadoLibreInputUrl } from '@/lib/offers/resolveMercadoLibreItem';
 
 const RESOLVE_TIMEOUT_MS = 12_000;
 const RESOLVE_USER_AGENT =
@@ -48,9 +48,11 @@ export function isMeliLaShortUrl(url: string): boolean {
 }
 
 function isMercadoLibreOfferUrl(url: string): boolean {
-  const lower = url.toLowerCase();
-  if (lower.includes('mercadolibre.')) return true;
-  return isMeliLaShortUrl(url);
+  try {
+    return isMercadoLibreHost(new URL(url.trim()).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function isAmazonOfferUrl(url: string): boolean {
