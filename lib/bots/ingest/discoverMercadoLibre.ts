@@ -3,7 +3,12 @@ import type { BotIngestConfig } from './config';
 import type { IngestItem } from './types';
 import type { ParsedOfferMetadata } from './fetchParsedOfferMetadata';
 import { sanitizeOfferTitle } from '@/lib/sanitizeOfferTitle';
-import { fetchMercadoLibreItemsMulti, mlItemBodyToSignals, type MlItemApiBody } from './mlItemDetails';
+import {
+  fetchMercadoLibreItemsBulk,
+  mlItemBodyToSignals,
+  type MlItemApiBody,
+  type MlItemFetchFailure,
+} from './mlItemDetails';
 import { attachMlRatingsToMap, type MlRatingSummary } from './mlReviews';
 import { sleep } from './ingestHttp';
 import { isLowQualityTitle } from './isLowQualityTitle';
@@ -24,6 +29,11 @@ import {
 
 const ML_SITE = 'MLM';
 const ML_FETCH_DELAY_MS = 300;
+/**
+ * `original_price` de la API ML lo fija el vendedor: es referencia, no evidencia de descuento.
+ * S6.1 sólo confía en listing_card / source_explicit, así que esta fuente necesita historial propio.
+ */
+const ML_API_ORIGINAL_PROVENANCE = 'unknown' as const;
 
 function canonicalKey(url: string): string {
   try {
@@ -373,7 +383,7 @@ function pushHighlightRows(
       salePrice: listing.price,
       originalPrice: listing.originalPrice,
       existingDiscountPercent: null,
-      originalPriceProvenance: 'source_explicit',
+      originalPriceProvenance: ML_API_ORIGINAL_PROVENANCE,
     });
     const discountPercent = applied.discountPercent;
     highlightRows.push({
@@ -394,7 +404,7 @@ function pushHighlightRows(
         listingTypeId: listing.listingTypeId,
         soldQuantity: null,
         currentPriceProvenance: 'source_explicit',
-        originalPriceProvenance: 'source_explicit',
+        originalPriceProvenance: ML_API_ORIGINAL_PROVENANCE,
         discountPercentProvenance: 'derived',
         discountCalculationStatus: applied.canonical.calculationStatus,
         discountTruthSource: applied.canonical.source,
@@ -405,7 +415,7 @@ function pushHighlightRows(
   }
 }
 
-function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | null; reason?: string } {
+export function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | null; reason?: string } {
   const permalink = body.permalink?.trim();
   if (!permalink) return { meta: null, reason: 'ml discovery: sin permalink' };
   const titleRaw = sanitizeOfferTitle(body.title) ?? body.title?.trim();
@@ -432,7 +442,7 @@ function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | 
     salePrice: price,
     originalPrice,
     existingDiscountPercent: null,
-    originalPriceProvenance: 'source_explicit',
+    originalPriceProvenance: ML_API_ORIGINAL_PROVENANCE,
   });
   const discountPercent = applied.discountPercent;
 
@@ -451,7 +461,7 @@ function itemToMetaDetailed(body: MlItemApiBody): { meta: ParsedOfferMetadata | 
         discountTruthConfidence: applied.canonical.confidence,
         discountPercentProvenance: 'derived',
         currentPriceProvenance: 'source_explicit',
-        originalPriceProvenance: 'source_explicit',
+        originalPriceProvenance: ML_API_ORIGINAL_PROVENANCE,
       },
     },
   };
@@ -499,7 +509,7 @@ function passesMlHardFilters(
 }
 
 /**
- * Descubre publicaciones vía API ML, enriquece con /items?ids= y valoraciones opcionales.
+ * Descubre publicaciones vía API ML, enriquece con /items/bulk y valoraciones opcionales.
  * Rotación por `rotationWave` (trending / categorías / mixto).
  */
 export type MercadoLibreDiscoverySkip = {
@@ -627,7 +637,7 @@ export async function discoverMercadoLibreIngestItems(
   // Primary discovery (post-2025):
   // - kind=q  → official /products/search (sites/.../search genérico → 403 forever)
   // - kind=cat → highlights(category) (mismo canal sellable que el fallback histórico)
-  // Listings se resuelven con /products/{id}/items — /items?ids= también 403.
+  // Listings se resuelven con /products/{id}/items: /items/{id} devuelve 403 a esta app.
   for (const src of plan) {
     if (idOrder.length + highlightRows.length >= maxIds) break;
     if (signal?.aborted) {
@@ -800,8 +810,14 @@ export async function discoverMercadoLibreIngestItems(
     return { items: [], collectedCount: 0, skipReasonCounts, skippedCandidates };
   }
 
-  const details =
-    idOrder.length > 0 ? await fetchMercadoLibreItemsMulti(idOrder) : new Map<string, MlItemApiBody>();
+  const bulk =
+    idOrder.length > 0
+      ? await fetchMercadoLibreItemsBulk(idOrder)
+      : { items: new Map<string, MlItemApiBody>(), missing: new Map<string, MlItemFetchFailure>() };
+  const details = bulk.items;
+  for (const failure of bulk.missing.values()) {
+    bumpReason(skipReasonCounts, `ml discovery: items_bulk_${failure}`);
+  }
 
   const priceObservations = [
     ...idOrder.flatMap((id) => {

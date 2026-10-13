@@ -3,6 +3,8 @@
  * Sin credenciales configuradas, la URL no cambia.
  * (Lógica ML duplicada aquí a propósito para evitar import circular con offerUrl.)
  */
+import { isOfferMercadoLibreHost } from '@/lib/offers/commerceHostAllowlist';
+
 function isMeliLaShortUrl(url: string): boolean {
   try {
     const h = new URL(url.trim()).hostname.toLowerCase();
@@ -13,9 +15,11 @@ function isMeliLaShortUrl(url: string): boolean {
 }
 
 function isMercadoLibreOfferUrlLocal(url: string): boolean {
-  const lower = url.toLowerCase();
-  if (lower.includes('mercadolibre.')) return true;
-  return isMeliLaShortUrl(url);
+  try {
+    return isOfferMercadoLibreHost(new URL(url.trim()).hostname) || isMeliLaShortUrl(url);
+  } catch {
+    return false;
+  }
 }
 
 function getPlatformMercadoLibreAffiliateTagLocal(): string | null {
