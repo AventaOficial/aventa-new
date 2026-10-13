@@ -40,7 +40,7 @@ export function normalizeOfferImageUrl(raw?: string | null): string | null {
     try {
       const u = new URL(value);
       if (/placeholder/i.test(u.pathname)) return null;
-      return value;
+      return value.replace(/&amp;/gi, '&');
     } catch {
       return null;
     }

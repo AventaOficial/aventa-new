@@ -4,11 +4,18 @@ import Image from 'next/image';
 import { useState, type SyntheticEvent } from 'react';
 import { Sparkles } from 'lucide-react';
 import { offerFrameMode, readEdgeTone, type EdgeTone } from '@/lib/offers/media/edgeTone';
-import { isImageElementBroken, resolveOfferImageSource } from '@/lib/offers/media/offerImageSource';
+import {
+  isImageElementBroken,
+  resolveOfferImageSource,
+  type OfferImageSource,
+} from '@/lib/offers/media/offerImageSource';
+import { mergeOfferImageUrls } from '@/lib/offerPath';
 import { reportOfferImageFailure, type OfferImageSurface } from '@/lib/offers/media/imageFailureTelemetry';
 
 type OfferMediaProps = {
   src?: string | null;
+  /** Other photos of the same offer, tried in order if `src` fails to load. */
+  fallbackSrcs?: readonly (string | null | undefined)[] | null;
   alt: string;
   sizes: string;
   /** Tailwind aspect class. The box is stable so the card does not jump. */
@@ -31,6 +38,38 @@ type OfferMediaProps = {
 const toneCache = new Map<string, EdgeTone>();
 
 /**
+ * Load order: `src`, then each distinct fallback, then `src` once more.
+ * Some retail CDNs (Soriana) answer 403 intermittently without caching it, so one retry recovers.
+ */
+export function offerMediaAttempts(
+  src: string | null | undefined,
+  fallbackSrcs?: readonly (string | null | undefined)[] | null,
+): OfferImageSource[] {
+  const primary = resolveOfferImageSource(src);
+  const extras = mergeOfferImageUrls(null, (fallbackSrcs ?? []).filter((u): u is string => typeof u === 'string'));
+  const seen = new Set<string>();
+  const unique: OfferImageSource[] = [];
+  for (const candidate of [primary, ...extras.map((u) => resolveOfferImageSource(u))]) {
+    if (!candidate || seen.has(candidate.url)) continue;
+    seen.add(candidate.url);
+    unique.push(candidate);
+  }
+  return unique.length > 0 ? [...unique, unique[0]] : [];
+}
+
+export type OfferMediaFailure = { key: string; count: number };
+
+/** One step per failed attempt; a late or duplicate error for an older attempt is ignored. */
+export function advanceOfferMediaFailure(
+  prev: OfferMediaFailure,
+  attemptsKey: string,
+  failedAttempt: number,
+): OfferMediaFailure {
+  const count = prev.key === attemptsKey ? prev.count : 0;
+  return count === failedAttempt ? { key: attemptsKey, count: count + 1 } : prev;
+}
+
+/**
  * One frame for offer photos, reused by every product surface.
  * - Studio shots (uniform edge) sit on a plate of their own edge colour, so the photo
  *   blends into the card instead of floating as a white box inside a dark well.
@@ -39,6 +78,7 @@ const toneCache = new Map<string, EdgeTone>();
  */
 export default function OfferMedia({
   src,
+  fallbackSrcs,
   alt,
   sizes,
   ratioClass = 'aspect-[4/3]',
@@ -49,10 +89,13 @@ export default function OfferMedia({
   className = '',
   telemetry,
 }: OfferMediaProps) {
-  const source = resolveOfferImageSource(src);
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const attempts = offerMediaAttempts(src, fallbackSrcs);
+  const attemptsKey = attempts.map((a) => a.url).join('\n');
+  const [failure, setFailure] = useState<OfferMediaFailure>({ key: attemptsKey, count: 0 });
+  const failedCount = failure.key === attemptsKey ? failure.count : 0;
+  const source = attempts[failedCount] ?? null;
   const [tone, setTone] = useState<{ src: string; tone: EdgeTone } | null>(null);
-  const show = source != null && failedSrc !== source.url;
+  const show = source != null;
   const cached = source ? toneCache.get(source.url) : undefined;
   const edge: EdgeTone | null = cached ?? (tone && tone.src === source?.url ? tone.tone : null);
 
@@ -65,7 +108,7 @@ export default function OfferMedia({
   };
   const markFailed = () => {
     if (!source) return;
-    setFailedSrc(source.url);
+    setFailure((prev) => advanceOfferMediaFailure(prev, attemptsKey, failedCount));
     if (telemetry) {
       reportOfferImageFailure({ src: source.url, surface: telemetry.surface, offerId: telemetry.offerId });
     }
@@ -92,6 +135,7 @@ export default function OfferMedia({
     if (source.optimized) {
       return (
         <Image
+          key={`${variant}-${failedCount}`}
           src={source.url}
           alt={isBackdrop ? '' : alt}
           fill
@@ -109,6 +153,7 @@ export default function OfferMedia({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
+        key={`${variant}-${failedCount}`}
         src={source.url}
         alt={isBackdrop ? '' : alt}
         aria-hidden={isBackdrop || undefined}

@@ -151,6 +151,8 @@ interface OfferCardProps {
   /** Comentario corto del cazador; solo se muestra si existe (no sustituye description del detalle). */
   hunterComment?: string;
   image?: string;
+  /** Resto de fotos de la oferta; respaldo si la portada no carga. */
+  imageUrls?: string[];
   onCardClick?: () => void;
   upvotes: number;
   downvotes: number;
@@ -213,6 +215,7 @@ export default function OfferCard({
   description: _description,
   hunterComment,
   image,
+  imageUrls,
   onCardClick,
   upvotes,
   downvotes,
@@ -603,6 +606,7 @@ export default function OfferCard({
           <div className="relative">
             <OfferMedia
               src={image}
+              fallbackSrcs={imageUrls}
               alt={title}
               sizes="(max-width: 400px) 80px, (max-width: 768px) 36vw, 200px"
               ratioClass="aspect-square"
