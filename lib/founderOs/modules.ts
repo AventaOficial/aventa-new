@@ -1,4 +1,5 @@
 import type { HealthAreaId, TeamId } from '@/app/admin/owner/command/types';
+import { COUPONS_MODULE_AVAILABLE } from '@/lib/intelligence/coupon/availability';
 
 /**
  * Explicación humana de cada módulo del Founder OS.
@@ -523,7 +524,9 @@ export const FOUNDER_MODULES: FounderModule[] = [
   moduleBrief('/admin/sistemas/atlas', 'Database Atlas', 'Muestra tablas, vistas y relaciones sin filas de personas.'),
   moduleBrief('/admin/owner/control', 'Centro de control', 'Ajusta cuántas veces puede repetirse un producto en Día a día.'),
   moduleBrief('/equipo/contabilidad', 'Contabilidad', 'Es el libro del equipo sobre ingresos y pools.'),
-  moduleBrief('/admin/coupons', 'Cupones', 'Revisa códigos de descuento antes de mostrarlos.'),
+  ...(COUPONS_MODULE_AVAILABLE
+    ? [moduleBrief('/admin/coupons', 'Cupones', 'Revisa códigos de descuento antes de mostrarlos.')]
+    : []),
   moduleBrief('/admin/announcements', 'Avisos', 'Publica avisos cortos en el sitio.'),
   moduleBrief('/admin/creator-tags', 'Creator Tags', 'Guarda el tag de tienda de cada creador.'),
   moduleBrief('/admin/owner/cazadores', 'Trusted Hunters', 'Marca quién puede publicar sin pasar por la cola.'),

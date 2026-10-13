@@ -39,7 +39,7 @@ describe('Founder OS · navegación por capacidad', () => {
     expect(OWNER_NAV_SECTIONS.map((s) => s.id)).toEqual(['ver', 'ofertas', 'dinero', 'administracion', 'tecnico']);
     expect(OWNER_NAV_SECTIONS.map((s) => s.audience)).toEqual(['VER', 'HACER', 'HACER', 'HACER', 'TECNICO']);
     expect(OWNER_NAV_SECTIONS[0]!.items[0]).toMatchObject({ href: '/admin/owner', label: 'Vista general' });
-    expect(OWNER_NAV_SECTIONS[1]!.items.map((i) => i.label)).toEqual(['Moderación', 'Hunters IA', 'Trusted Hunters', 'Distribución', 'Cupones', 'Avisos']);
+    expect(OWNER_NAV_SECTIONS[1]!.items.map((i) => i.label)).toEqual(['Moderación', 'Hunters IA', 'Trusted Hunters', 'Distribución', 'Avisos']);
     expect(OWNER_NAV_SECTIONS[2]!.items.map((i) => i.label)).toEqual(['Comisiones', 'Rewards', 'Contabilidad', 'Creator Tags']);
     expect(OWNER_NAV_SECTIONS.flatMap((s) => s.items).some((i) => i.href === '/admin/contexto')).toBe(false);
   });
@@ -85,7 +85,7 @@ describe('Founder OS · navegación por capacidad', () => {
 
   it('las superficies antes huérfanas ya son alcanzables desde el menú', () => {
     const hrefs = allItems.map((i) => i.href);
-    for (const h of ['/admin/coupons', '/admin/vote-weights', '/admin/distribution', '/admin/mantenimiento', '/admin/creator-tags', '/admin/announcements', '/admin/owner/cazadores', '/equipo']) {
+    for (const h of ['/admin/vote-weights', '/admin/distribution', '/admin/mantenimiento', '/admin/creator-tags', '/admin/announcements', '/admin/owner/cazadores', '/equipo']) {
       expect(hrefs).toContain(h);
     }
   });
