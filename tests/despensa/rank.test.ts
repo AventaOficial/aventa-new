@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { discountIsVerified, evidenceFreshness, evidenceLevel } from '@/lib/despensa/evidence';
+import { evidenceFreshness, evidenceLevel, savingEvidence } from '@/lib/despensa/evidence';
 import { DESPENSA_RANK_RULES, despensaSignals, rankDespensa, spreadStores, unitPriceStandings } from '@/lib/despensa/rank';
 import { despensaFeedMetrics } from '@/lib/despensa/metrics';
 
@@ -36,7 +36,11 @@ describe('evidencia', () => {
   });
 
   it('nunca confirma un descuento sin historial', () => {
-    expect(discountIsVerified()).toBe(false);
+    expect(savingEvidence({ price: 80, originalPrice: 200 })).toEqual({ status: 'list_unconfirmed' });
+    expect(savingEvidence({ price: 80, originalPrice: null })).toEqual({ status: 'none' });
+    expect(
+      savingEvidence({ price: 80, originalPrice: 200, history: { verdict: 'insufficient', min90d: 80, max90d: 80, samples90d: 1 } }),
+    ).toEqual({ status: 'list_unconfirmed' });
   });
 
   it('distingue fresca, reciente, vieja y desconocida', () => {

@@ -308,7 +308,10 @@ function DespensaBudgetSettings() {
         <h2 id="despensa-budget-settings" className="text-[18px] font-semibold">{DESPENSA_BUDGET_COPY.settingsTitle}</h2>
       </div>
       <p className="mt-1 text-[14px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
-        {budget ? `${DESPENSA_BUDGET_COPY.activePrefix} ${describeDespensaBudget(budget)}.` : DESPENSA_BUDGET_COPY.settingsEmpty}
+        {budget ? `${DESPENSA_BUDGET_COPY.activePrefix} ${describeDespensaBudget(budget)}.` : DESPENSA_BUDGET_COPY.settingsEmpty}{' '}
+        <Link href="/despensa" className="font-semibold text-violet-700 hover:underline dark:text-violet-300">
+          {DESPENSA_BUDGET_COPY.openDespensa}
+        </Link>
       </p>
       <div className="mt-3">
         <DespensaBudgetEditor

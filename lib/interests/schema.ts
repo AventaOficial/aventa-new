@@ -41,7 +41,7 @@ export const interestEventSchema = z.union([
       kind: z.literal('despensa_budget'),
       horizon: z.enum(DESPENSA_BUDGET_HORIZONS).optional(),
       tier: z.enum(DESPENSA_BUDGET_TIERS).optional(),
-      surface: z.enum(['dia_a_dia', 'me_intereses']),
+      surface: z.enum(['dia_a_dia', 'me_intereses', 'despensa']),
     })
     .strict(),
 ]);

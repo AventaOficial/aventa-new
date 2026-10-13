@@ -2,12 +2,14 @@ import { comparableDimensionsFor, despensaNeedById } from '@/lib/despensa/catalo
 import { classifyDespensaText } from '@/lib/despensa/classify';
 import { budgetFit, type BudgetFit, type DespensaBudget } from '@/lib/despensa/budget';
 import {
-  discountIsVerified,
   EVIDENCE_RANK,
   evidenceFreshness,
   evidenceLevel,
+  savingEvidence,
+  type DespensaPriceHistory,
   type EvidenceLevel,
   type Freshness,
+  type SavingEvidence,
 } from '@/lib/despensa/evidence';
 import { parsePresentation, unitPriceFor, type UnitPrice } from '@/lib/despensa/presentation';
 
@@ -21,7 +23,10 @@ import { parsePresentation, unitPriceFor, type UnitPrice } from '@/lib/despensa/
  * 2. nivel de evidencia del precio (validez y fuente identificable),
  * 3. precio unitario frente a ofertas comparables del mismo listado (misma necesidad,
  *    misma variante, misma unidad): igual o por debajo de la mediana, sin pares, o sin dato,
- * 4. ahorro verificado contra una referencia válida (hoy el feed no la trae: nunca aplica),
+ * 4. respaldo del ahorro (`savingEvidence`): verificado por el historial propio de Aventa,
+ *    luego sin referencia o con precio de lista sin confirmar (empatan: la etiqueta no suma),
+ *    y al final el precio de lista que el historial contradice. El tamaño del descuento
+ *    nominal no entra en ninguna clave. Sin `priceHistory` (el feed) esta clave empata siempre,
  * 5. ajuste al presupuesto declarado (solo desempata; nunca oculta una oferta),
  * 6. frescura de la evidencia,
  * 7. relevancia personal (necesidades de `/me/intereses`, si se pasan),
@@ -30,7 +35,7 @@ import { parsePresentation, unitPriceFor, type UnitPrice } from '@/lib/despensa/
  * Después se reparte: tope de ofertas seguidas por necesidad y por tienda. No se borra nada.
  */
 export const DESPENSA_RANK_RULES = {
-  version: 'despensa-rank-v2',
+  version: 'despensa-rank-v3',
   /** Evidencia más vieja que esto deja de competir. Coincide con la ventana semanal del feed. */
   maxEvidenceAgeDays: 7,
   /** Máximo de ofertas seguidas de la misma necesidad antes de ceder el lugar. */
@@ -41,11 +46,21 @@ export const DESPENSA_RANK_RULES = {
 
 const FRESHNESS_RANK: Record<Freshness, number> = { fresh: 0, recent: 1, unknown: 2, stale: 3 };
 const BUDGET_FIT_RANK: Record<BudgetFit, number> = { fits: 0, no_budget: 0, unknown_price: 1, over_share: 1 };
+const SAVING_RANK: Record<SavingEvidence['status'], number> = {
+  verified: 0,
+  none: 1,
+  list_unconfirmed: 1,
+  list_contradicted: 2,
+};
 
 export type DespensaRankable = {
   id?: string | null;
   title?: string | null;
   discountPrice?: number | null;
+  /** Precio de lista declarado. Solo cuenta si el historial lo contradice (baja), nunca para subir. */
+  originalPrice?: number | null;
+  /** Historial propio de 90 días (`computePriceInsight`). Ausente en el feed. */
+  priceHistory?: DespensaPriceHistory | null;
   votes?: { score: number } | null;
   createdAt?: string | null;
   expiresAt?: string | null;
@@ -60,6 +75,7 @@ export type DespensaSignals = {
   freshness: Freshness;
   personal: boolean;
   budgetFit: BudgetFit;
+  saving: SavingEvidence;
   verifiedSaving: boolean;
 };
 
@@ -77,6 +93,11 @@ export function despensaSignals<T extends DespensaRankable>(offer: T, opts: Desp
   const unitPrice = need
     ? unitPriceFor(offer.discountPrice, parsePresentation(offer.title), comparableDimensionsFor(hit?.needId, hit?.variantId))
     : null;
+  const saving = savingEvidence({
+    price: offer.discountPrice,
+    originalPrice: offer.originalPrice,
+    history: offer.priceHistory,
+  });
   return {
     needId: hit?.needId ?? null,
     variantId: hit?.variantId ?? null,
@@ -88,7 +109,8 @@ export function despensaSignals<T extends DespensaRankable>(offer: T, opts: Desp
     freshness: evidenceFreshness(offer.createdAt, opts.now, DESPENSA_RANK_RULES.maxEvidenceAgeDays),
     personal: Boolean(hit && opts.preferredNeedIds?.has(hit.needId)),
     budgetFit: budgetFit(offer.discountPrice, opts.budget),
-    verifiedSaving: discountIsVerified(),
+    saving,
+    verifiedSaving: saving.status === 'verified',
   };
 }
 
@@ -149,7 +171,7 @@ function sortKey<T extends DespensaRankable>(offer: T, s: DespensaSignals, stand
     s.needId ? 0 : 1,
     EVIDENCE_RANK[s.evidence],
     UNIT_PRICE_RANK[standing],
-    s.verifiedSaving ? 0 : 1,
+    SAVING_RANK[s.saving.status],
     BUDGET_FIT_RANK[s.budgetFit],
     FRESHNESS_RANK[s.freshness],
     s.personal ? 0 : 1,

@@ -12,7 +12,7 @@ import {
   writeBudgetDismissed,
 } from '@/lib/despensa/budgetStore';
 
-export type DespensaBudgetSurface = 'dia_a_dia' | 'me_intereses';
+export type DespensaBudgetSurface = 'dia_a_dia' | 'me_intereses' | 'despensa';
 
 function track(
   token: string | null | undefined,
