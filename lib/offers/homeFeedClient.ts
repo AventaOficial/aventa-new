@@ -83,40 +83,12 @@ export function applyVitalesFeedTransform<T extends VitalesItem>(
   return deferDuplicateProducts([...ranked, ...demoted], maxSameProduct).slice(0, effectiveLimit);
 }
 
-/** Máximo de ofertas de origen máquina seguidas en Recientes. */
-export const RECIENTES_MAX_MACHINE_RUN = 2;
-
 /**
- * Recientes no debe quedar dominado por publicaciones automáticas.
- * Usa `origin`, que el servidor calcula con el id del autor (no con el nombre visible).
- * Conserva el orden de la comunidad; las automáticas sobrantes pasan más abajo en la
- * misma página, nunca se eliminan. Sin `origin` cuenta como comunidad.
+ * Recientes es solo de la comunidad. El servidor ya excluye a los autores automáticos
+ * antes de paginar; esto descarta cualquier oferta que aun así llegue marcada como máquina.
  */
-export function limitConsecutiveMachineOffers<T extends { origin?: 'community' | 'machine' | null }>(
-  list: readonly T[],
-  maxRun: number = RECIENTES_MAX_MACHINE_RUN,
-): T[] {
-  const out: T[] = [];
-  const queue: T[] = [];
-  let run = 0;
-  for (const item of list) {
-    if (item.origin !== 'machine') {
-      out.push(item);
-      run = 0;
-      while (queue.length > 0 && run < maxRun) {
-        out.push(queue.shift()!);
-        run += 1;
-      }
-      continue;
-    }
-    if (run < maxRun && queue.length === 0) {
-      out.push(item);
-      run += 1;
-    } else {
-      queue.push(item);
-    }
-  }
-  return [...out, ...queue];
+export function excludeMachineOffers<T extends { origin?: 'community' | 'machine' | null }>(list: readonly T[]): T[] {
+  return list.filter((item) => item.origin !== 'machine');
 }
 
 /**
@@ -140,7 +112,7 @@ export async function fetchDespensaPreferredNeeds(accessToken: string | null | u
 
 /**
  * Reglas de cliente por pestaña del home. Despensa solo aplica en Día a día;
- * Recientes solo limita rachas automáticas; Top solo exige un voto; Para ti no pasa por aquí.
+ * Recientes descarta ofertas automáticas; Top solo exige un voto; Para ti no pasa por aquí.
  */
 export function processHomeFeedList<T extends VitalesItem & { upvotes?: number; origin?: 'community' | 'machine' | null }>(
   raw: T[],
@@ -154,7 +126,7 @@ export function processHomeFeedList<T extends VitalesItem & { upvotes?: number; 
   if (viewMode === 'vitales') {
     return applyVitalesFeedTransform(raw, effectiveLimit, maxSameProduct, { preferredNeedIds, budget });
   }
-  if (viewMode === 'latest') return limitConsecutiveMachineOffers(raw);
+  if (viewMode === 'latest') return excludeMachineOffers(raw);
   return raw;
 }
 

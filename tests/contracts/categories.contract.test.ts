@@ -47,6 +47,13 @@ describe('Contrato de categorías', () => {
     });
   });
 
+  it('Día a día solo cubre consumo cotidiano', () => {
+    expect([...VITAL_CATEGORY_IDS].sort()).toEqual(['bebes', 'belleza', 'hogar', 'supermercado']);
+    for (const outside of ['moda', 'jardin', 'viajes', 'servicios', 'fashion', 'garden', 'bancaria']) {
+      expect(VITAL_FILTER_VALUES).not.toContain(outside);
+    }
+  });
+
   it('categoría desconocida no se pierde en fallback de query', () => {
     expect(getValidCategoryValuesForFeed('categoria-no-existe')).toEqual(['categoria-no-existe']);
   });

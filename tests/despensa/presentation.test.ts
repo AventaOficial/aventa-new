@@ -20,6 +20,21 @@ describe('presentación', () => {
     expect(parsePresentation('Croquetas 1,000 g')).toMatchObject({ dimension: 'mass', totalBase: 1000 });
   });
 
+  it('N latas o barras con tamaño por envase cuentan una sola vez', () => {
+    expect(parsePresentation('Atún 3 latas 140 g')).toMatchObject({ dimension: 'mass', totalBase: 420, packs: 3 });
+    expect(unitPriceFor(60, parsePresentation('Atún 3 latas 140 g'), ['mass'])).toEqual({ dimension: 'mass', value: 142.86, per: 'kg' });
+    expect(parsePresentation('Paquete de 3 latas de atún 140 g')).toMatchObject({ totalBase: 420, packs: 3 });
+    expect(parsePresentation('Refresco 6 latas 355 ml')).toMatchObject({ dimension: 'volume', totalBase: 2130 });
+    expect(parsePresentation('Jabón de tocador 3 barras 150 g')).toMatchObject({ dimension: 'mass', totalBase: 450 });
+    expect(parsePresentation('Atún 4 latas 4×140 g')).toMatchObject({ totalBase: 560 });
+  });
+
+  it('tamaño con conteo ambiguo no calcula precio unitario', () => {
+    expect(parsePresentation('Paquete de 2 con 3 latas 140 g')).toBeNull();
+    expect(parsePresentation('Galletas 12 piezas 300 g')).toBeNull();
+    expect(parsePresentation('Atún 3 latas 2 barras 140 g')).toBeNull();
+  });
+
   it('devuelve null si la lectura es ambigua o no existe', () => {
     expect(parsePresentation('Shampoo 400 ml + acondicionador 200 ml')).toBeNull();
     expect(parsePresentation('Detergente líquido')).toBeNull();

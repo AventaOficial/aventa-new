@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef, Suspense, Fragment } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Clock, Star, User, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { Clock, ShoppingBasket, Star, User, Zap } from 'lucide-react';
 import ClientLayout from './ClientLayout';
 import Hero, { SearchField } from './components/Hero';
 import OfferCard from './components/OfferCard';
@@ -33,13 +34,26 @@ import { logEvent } from '@/lib/monitoring/clientLogger';
 import { recordFeedLoadFailure, recordFeedLoadSuccess } from '@/lib/monitoring/feedConsecutiveErrors';
 import {
   DEFAULT_TOP_PERIOD,
+  excludeMachineOffers,
   fetchDespensaPreferredNeeds,
   fetchHomeFeedFromAPI,
-  limitConsecutiveMachineOffers,
   processHomeFeedList,
   resolveHomeFeedEmptyState,
-  type HomeFeedViewMode,
 } from '@/lib/offers/homeFeedClient';
+import {
+  HOME_FEED_PAGE_SIZE,
+  HOME_TAB_PARAM,
+  excludeFeaturedOffers,
+  homeFeedHeading,
+  homeTabDefinition,
+  homeTabHref,
+  hrefWithoutParams,
+  parseHomeTab,
+  vitalesApiLimit,
+  vitalesHasMore,
+  visibleHomeTabs,
+  type HomeTab,
+} from '@/lib/offers/homeFeedTabs';
 import { DEFAULT_MAX_SAME_PRODUCT, resolveMaxSameProduct } from '@/lib/offers/feedDiversity';
 import { appendOffersById, refreshFeedWithoutDroppingPages } from '@/lib/offers/feedList';
 import { buildOfferPublicPath } from '@/lib/offerPath';
@@ -55,7 +69,12 @@ import { useDespensaBudget } from './components/feed/useDespensaBudget';
 import type { DespensaBudget } from '@/lib/despensa/budget';
 
 type TimeFilter = 'day' | 'week' | 'month';
-type ViewMode = HomeFeedViewMode | 'personalized';
+type ViewMode = HomeTab;
+
+const TAB_ICONS: Record<HomeTab, typeof Zap> = { vitales: Zap, top: Star, personalized: User, latest: Clock };
+
+/** Búsqueda en el máximo del endpoint: no hay más páginas que pedir. */
+const SEARCH_MAX_LIMIT = 50;
 
 type Offer = CardOffer;
 
@@ -86,9 +105,6 @@ interface OfferRow {
     | { display_name: string | null; avatar_url: string | null; leader_badge?: string | null; ml_tracking_tag?: string | null }[]
     | null;
 }
-
-/** Umbral mínimo de ranking_blend para mostrar badge "Destacada" (calidad + votos ponderados). */
-const DESTACADA_RANKING_BLEND_MIN = 15;
 
 const DIA_A_DIA_FILTERS: Array<{ value: string; label: string }> = ALL_CATEGORIES.filter((c) => c.vital).map(
   (c) => ({ value: c.value, label: c.label })
@@ -127,9 +143,18 @@ function readDespensaPreferences(token: string | null | undefined): Promise<Set<
 function HomeContent() {
   useTheme();
   const { showToast, openUploadModal, openRegisterModal } = useUI();
-  const { session } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  /** La URL (`?tab=`) es la única fuente de la pestaña: sobrevive a abrir una oferta y volver. */
+  const viewMode: ViewMode = parseHomeTab(searchParams.get(HOME_TAB_PARAM), Boolean(session) || authLoading);
+  const setViewMode = useCallback(
+    (tab: ViewMode) => {
+      router.replace(homeTabHref(pathname, searchParams.toString(), tab), { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -142,7 +167,6 @@ function HomeContent() {
   const [voteValueMap, setVoteValueMap] = useState<VoteValueMap>({});
   const [favoriteMap, setFavoriteMap] = useState<FavoriteMap>({});
   const [timeFilter, setTimeFilter] = useState<TimeFilter>(DEFAULT_TOP_PERIOD);
-  const [viewMode, setViewMode] = useState<ViewMode>('latest');
   /** Vigencia de campañas patrocinadas: se evalúa una vez por visita, no en cada render. */
   const [sessionStartedAt] = useState(() => Date.now());
   const [season, setSeason] = useState<SeasonDefinition | null>(null);
@@ -154,7 +178,8 @@ function HomeContent() {
   const [highlightPeriod, setHighlightPeriod] = useState<'week' | 'month'>('week');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
-  const [hasMoreCursor, setHasMoreCursor] = useState(true);
+  const [hasMoreCursor, setHasMoreCursor] = useState(false);
+  const [searchHasMore, setSearchHasMore] = useState(false);
   const [showTesterOffers, setShowTesterOffers] = useState(false);
   const [justPublished, setJustPublished] = useState<Offer[]>([]);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -203,20 +228,20 @@ function HomeContent() {
       });
   }, [showToast]);
 
-  // Mostrar error de OAuth si el callback redirigió con ?error=... y limpiar la URL
-  const router = useRouter();
+  // Mostrar error de OAuth si el callback redirigió con ?error=... y limpiar esos parámetros
   useEffect(() => {
     const err = searchParams.get('error');
     const msg = searchParams.get('message');
+    const clean = () => router.replace(hrefWithoutParams(pathname, searchParams.toString(), ['error', 'message']), { scroll: false });
     if (err === 'missing_code') {
       showToast('No se recibió el código de Google. Vuelve a intentar iniciar sesión.');
-      router.replace(pathname, { scroll: false });
+      clean();
     } else if (err === 'auth' && msg) {
       showToast(`Error al iniciar sesión: ${safeDecodeURIComponentOnce(msg)}`);
-      router.replace(pathname, { scroll: false });
+      clean();
     } else if (err === 'config') {
       showToast('Error de configuración. Revisa las variables de entorno.');
-      router.replace(pathname, { scroll: false });
+      clean();
     }
   }, [searchParams, showToast, router, pathname]);
 
@@ -277,7 +302,7 @@ function HomeContent() {
             matchLabel: offer.matchLabel,
           })));
           setOffers(rows.map((r) => mapOfferToCard(r as RankedOfferSource)));
-          setHasMoreCursor(false);
+          setHasMoreCursor(data?.hasMore === true);
           recordFeedLoadSuccess();
           logEvent({
             type: 'view',
@@ -294,9 +319,11 @@ function HomeContent() {
         .finally(() => setLoading(false));
       return;
     }
+    // «Para ti» mientras la sesión se resuelve: esperar en lugar de cargar otra pestaña.
+    if (viewMode === 'personalized') return;
 
-    const homeView = viewMode === 'personalized' ? 'latest' : viewMode;
-    const apiLimit = homeView === 'vitales' ? Math.max(effectiveLimit, 60) : effectiveLimit;
+    const homeView = viewMode;
+    const apiLimit = homeView === 'vitales' ? vitalesApiLimit(effectiveLimit) : effectiveLimit;
 
     void Promise.all([
       fetchHomeFeedFromAPI({
@@ -310,14 +337,15 @@ function HomeContent() {
       homeView === 'vitales' ? readDespensaPreferences(session?.access_token) : Promise.resolve(new Set<string>()),
     ])
       .then(([{ items, nextCursor }, maxSameProduct, preferredNeedIds]) => {
-        const list = processHomeFeedList(
+        const processed = processHomeFeedList(
           items.map((item) => mapOfferToCard(item as FeedApiItemShape)),
           homeView,
-          effectiveLimit,
+          homeView === 'vitales' ? effectiveLimit + 1 : effectiveLimit,
           maxSameProduct,
           preferredNeedIds,
           vitalesBudget,
         );
+        const list = homeView === 'vitales' ? processed.slice(0, effectiveLimit) : processed;
         const keepPages = Boolean(opts?.silent) && offersCountRef.current > list.length;
         setOffers((prev) => (keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list));
         setJustPublished((prev) => prev.filter((p) => !list.some((o) => o.id === p.id)));
@@ -325,7 +353,11 @@ function HomeContent() {
         setFeedError(null);
         if (!keepPages) {
           setFeedCursor(nextCursor);
-          setHasMoreCursor(homeView === 'latest' ? nextCursor != null : homeView !== 'vitales' && items.length >= effectiveLimit);
+          setHasMoreCursor(
+            homeView === 'vitales'
+              ? vitalesHasMore({ rankedCount: processed.length, pageSize: effectiveLimit, serverHasMore: nextCursor != null })
+              : nextCursor != null,
+          );
         }
         recordFeedLoadSuccess();
         logEvent({
@@ -446,7 +478,7 @@ function HomeContent() {
       cursor: feedCursor,
     })
       .then(({ items, nextCursor }) => {
-        const rows = limitConsecutiveMachineOffers(items.map((item) => mapOfferToCard(item as FeedApiItemShape)));
+        const rows = excludeMachineOffers(items.map((item) => mapOfferToCard(item as FeedApiItemShape)));
         setOffers((prev) => appendOffersById(prev, rows));
         setFeedCursor(nextCursor);
         setHasMoreCursor(nextCursor != null);
@@ -477,8 +509,9 @@ function HomeContent() {
     const effectiveLimit = filtersChanged ? 12 : limit;
     if (filtersChanged) {
       prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter };
-      setLimit(12);
-      setHasMoreCursor(true);
+      setLimit(HOME_FEED_PAGE_SIZE);
+      setHasMoreCursor(false);
+      setSearchHasMore(false);
     }
 
     if (filtersChanged || offersCountRef.current === 0) setLoading(true);
@@ -486,7 +519,7 @@ function HomeContent() {
       const params = new URLSearchParams({
         q: debouncedQuery.trim(),
         limit: String(effectiveLimit),
-        view: viewMode === 'personalized' ? 'latest' : viewMode,
+        view: viewMode,
       });
       if (storeFilter?.trim()) params.set('store', storeFilter.trim());
       if (categoryFilter?.trim()) params.set('category', categoryFilter.trim());
@@ -498,12 +531,14 @@ function HomeContent() {
             notifyUserError(showToast, 'No pudimos cargar la búsqueda. Revisa tu conexión.', 'feed:search');
             setFeedError('load');
             setOffers([]);
+            setSearchHasMore(false);
             return;
           }
           const json = (await res.json()) as { offers?: RankedOfferSource[] };
           setFeedError(null);
           const searchRows = json.offers ?? [];
           setOffers(searchRows.map((r) => mapOfferToCard(r)));
+          setSearchHasMore(searchRows.length >= effectiveLimit && effectiveLimit < SEARCH_MAX_LIMIT);
           recordFeedLoadSuccess();
           logEvent({
             type: 'view',
@@ -528,24 +563,9 @@ function HomeContent() {
     }
   }, [pathname, viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter, limit, fetchOffers, showToast]);
 
-  useEffect(() => {
-    if (!session && viewMode === 'personalized') {
-      setViewMode('latest');
-    }
-  }, [session, viewMode]);
-
   const testerOffers =
     !debouncedQuery.trim() && showTesterOffers ? testersForTab(viewMode) : [];
   const publishedNow = !debouncedQuery.trim() ? justPublished : [];
-  const mergedOffers = [
-    ...publishedNow,
-    ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id)),
-  ];
-  const displayOffers = testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers;
-  const sponsoredAfter = debouncedQuery.trim()
-    ? new Map<number, SponsoredCampaign>()
-    : planFeedPlacements(displayOffers.length, SPONSORED_CAMPAIGNS, DEFAULT_FEED_POLICY, sessionStartedAt);
-  const feedHunters = activeHuntersFromFeed(displayOffers);
   const featuredOffers = (() => {
     if (viewMode !== 'top' || debouncedQuery.trim()) return [];
     const testers = showTesterOffers ? testersForTab('top') : [];
@@ -557,6 +577,16 @@ function HomeContent() {
       .sort((a, b) => (b.ranking_blend ?? b.upvotes ?? 0) - (a.ranking_blend ?? a.upvotes ?? 0))
       .slice(0, 10);
   })();
+  const mergedOffers = [...publishedNow, ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id))];
+  /** Top: la lista no repite ofertas del carrusel. */
+  const displayOffers = excludeFeaturedOffers(
+    testerOffers.length > 0 ? [...mergedOffers, ...testerOffers] : mergedOffers,
+    featuredOffers,
+  );
+  const sponsoredAfter = debouncedQuery.trim()
+    ? new Map<number, SponsoredCampaign>()
+    : planFeedPlacements(displayOffers.length, SPONSORED_CAMPAIGNS, DEFAULT_FEED_POLICY, sessionStartedAt);
+  const feedHunters = activeHuntersFromFeed(displayOffers);
   const emptyState = resolveHomeFeedEmptyState({
     viewMode,
     listCount: displayOffers.length,
@@ -634,68 +664,42 @@ function HomeContent() {
         <section className="mx-auto max-w-[1400px] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pt-1 pb-32 md:pb-12">
         <div className="mb-3 max-[400px]:mb-2 md:mb-4">
           <div className="mb-3 max-[400px]:mb-2">
-            <div className="md:hidden flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 border border-[#e5e5e7] dark:border-[#262626]">
-              <button
-                onClick={() => setViewMode('vitales')}
-                className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
-                  viewMode === 'vitales'
-                    ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
-                    : 'text-[#6e6e73] dark:text-[#a3a3a3]'
-                }`}
-                title="Ofertas en lo que usas cada día para el mejor ahorro"
-              >
-                Día a día
-              </button>
-              <button
-                onClick={() => setViewMode('top')}
-                className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
-                  viewMode === 'top'
-                    ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
-                    : 'text-[#6e6e73] dark:text-[#a3a3a3]'
-                }`}
-                title="Mejor puntuadas en el período (hoy, semana, mes)"
-              >
-                Top
-              </button>
-              {session && (
-                <button
-                  onClick={() => setViewMode('personalized')}
-                  className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
-                    viewMode === 'personalized'
-                      ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
-                      : 'text-[#6e6e73] dark:text-[#a3a3a3]'
-                  }`}
-                >
-                  Para ti
-                </button>
-              )}
-              <button
-                onClick={() => setViewMode('latest')}
-                className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
-                  viewMode === 'latest'
-                    ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
-                    : 'text-[#6e6e73] dark:text-[#a3a3a3]'
-                }`}
-                title="Solo lo más nuevo, ordenado por fecha"
-              >
-                Recientes
-              </button>
-            </div>
-            <div className="hidden md:flex flex-wrap items-center gap-2">
-              {(
-                [
-                  { id: 'vitales' as const, label: 'Día a día', icon: Zap },
-                  { id: 'top' as const, label: 'Top', icon: Star },
-                  ...(session ? [{ id: 'personalized' as const, label: 'Para ti', icon: User }] : []),
-                  { id: 'latest' as const, label: 'Recientes', icon: Clock },
-                ] as const
-              ).map(({ id, label, icon: Icon }) => {
+            <div
+              role="group"
+              aria-label="Secciones de ofertas"
+              className="md:hidden flex rounded-2xl max-[400px]:rounded-xl bg-[#e8e8ed] dark:bg-[#1a1a1a] p-1.5 max-[400px]:p-1 border border-[#e5e5e7] dark:border-[#262626]"
+            >
+              {visibleHomeTabs(Boolean(session)).map(({ id, label }) => {
                 const active = viewMode === id;
                 return (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setViewMode(id)}
+                    aria-pressed={active}
+                    aria-describedby={active ? 'feed-tab-description' : undefined}
+                    className={`flex-1 rounded-xl max-[400px]:rounded-lg py-2.5 max-[400px]:py-2 md:py-2.5 text-sm max-[400px]:text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
+                      active
+                        ? 'bg-white dark:bg-[#141414] text-[#1d1d1f] dark:text-[#fafafa] shadow-sm border border-[#e5e5e7] dark:border-[#262626]'
+                        : 'text-[#6e6e73] dark:text-[#a3a3a3]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div role="group" aria-label="Secciones de ofertas" className="hidden md:flex flex-wrap items-center gap-2">
+              {visibleHomeTabs(Boolean(session)).map(({ id, label }) => {
+                const active = viewMode === id;
+                const Icon = TAB_ICONS[id];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setViewMode(id)}
+                    aria-pressed={active}
+                    aria-describedby={active ? 'feed-tab-description' : undefined}
                     className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                       active
                         ? 'bg-violet-600 text-white'
@@ -708,12 +712,22 @@ function HomeContent() {
                 );
               })}
             </div>
-            <p className="mt-1.5 text-xs text-[#6e6e73] dark:text-[#a3a3a3] md:hidden">
-              {viewMode === 'vitales' && 'Encontrarás ofertas especializadas en lo que usas en tu día a día para tener siempre el mejor ahorro.'}
-              {viewMode === 'top' && 'Las ofertas mejor votadas por la comunidad.'}
-              {viewMode === 'personalized' && 'Elegidos únicamente para ti :)'}
-              {viewMode === 'latest' && 'Ofertas recién salidas del horno.'}
+            <p
+              id="feed-tab-description"
+              aria-live="polite"
+              className="mt-1.5 md:mt-2 text-xs text-[#6e6e73] dark:text-[#a3a3a3]"
+            >
+              {homeTabDefinition(viewMode).description}
             </p>
+            {viewMode === 'vitales' && (
+              <Link
+                href="/despensa"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+              >
+                <ShoppingBasket className="h-4 w-4" aria-hidden />
+                Mi despensa: compara precios por unidad y arma tu lista
+              </Link>
+            )}
 
             {viewMode === 'vitales' && (
               <div className="mt-3 max-[400px]:mt-2 flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:overflow-visible md:flex-wrap">
@@ -896,15 +910,7 @@ function HomeContent() {
           ) : (
             <>
               <h2 className="hidden md:block text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
-                {viewMode === 'top'
-                  ? timeFilter === 'week'
-                    ? 'Top de la semana'
-                    : timeFilter === 'month'
-                      ? 'Top del mes'
-                      : 'Top del día'
-                  : viewMode === 'personalized'
-                    ? 'Para ti'
-                    : 'Últimas ofertas'}
+                {homeFeedHeading(viewMode, timeFilter)}
               </h2>
               {displayOffers.map((offer, index) => (
                 <Fragment key={offer.id}>
@@ -943,7 +949,6 @@ function HomeContent() {
                     msiMonths={offer.msiMonths}
                     bankCoupon={offer.bankCoupon}
                     coupons={offer.coupons}
-                    isDestacada={offer.ranking_blend != null && offer.ranking_blend >= DESTACADA_RANKING_BLEND_MIN}
                     dailyNeed={offer.dailyNeed}
                     isTesterOffer={offer.id.startsWith('tester-')}
                     offerScope={offer.offerScope ?? null}
@@ -966,9 +971,7 @@ function HomeContent() {
                 ) : null}
                 </Fragment>
               ))}
-              {((viewMode === 'latest' || viewMode === 'personalized') && !debouncedQuery.trim()
-                ? hasMoreCursor
-                : true) && (
+              {(debouncedQuery.trim() ? searchHasMore : hasMoreCursor) && (
                 <div className="flex justify-center pt-4 md:pt-6">
                   <button
                     type="button"
@@ -977,7 +980,7 @@ function HomeContent() {
                       if (viewMode === 'latest' && !debouncedQuery.trim()) {
                         fetchNextPage();
                       } else {
-                        setLimit((prev) => prev + 12);
+                        setLimit((prev) => prev + HOME_FEED_PAGE_SIZE);
                       }
                     }}
                     className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-60"

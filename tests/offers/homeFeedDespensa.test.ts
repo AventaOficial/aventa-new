@@ -4,10 +4,11 @@ import { join } from 'node:path';
 import {
   applyVitalesFeedTransform,
   DIA_A_DIA_SCORE_CAP,
-  limitConsecutiveMachineOffers,
+  excludeMachineOffers,
   resolveHomeFeedPeriod,
 } from '@/lib/offers/homeFeedClient';
 import { mapOfferToCard, type FeedApiItemShape } from '@/lib/offers/transform';
+import { homeTabDefinition } from '@/lib/offers/homeFeedTabs';
 
 const NOW = new Date('2026-10-11T12:00:00.000Z');
 
@@ -33,8 +34,9 @@ describe('Día a día con reglas de Despensa', () => {
   it('la API sigue pidiendo view=vitales', () => {
     const src = readFileSync(join(process.cwd(), 'lib/offers/homeFeedClient.ts'), 'utf8');
     expect(src).toMatch(/qs\.set\('view', params\.viewMode\)/);
+    expect(homeTabDefinition('vitales').label).toBe('Día a día');
     const page = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf8');
-    expect(page).toMatch(/'Día a día'/);
+    expect(page).toMatch(/visibleHomeTabs\(/);
   });
 });
 
@@ -42,16 +44,14 @@ describe('Recientes con origen confiable', () => {
   const m = (id: string) => ({ id, origin: 'machine' as const });
   const c = (id: string) => ({ id, origin: 'community' as const });
 
-  it('limita rachas de ofertas automáticas sin eliminar ninguna', () => {
+  it('descarta todas las ofertas automáticas', () => {
     const list = [m('m1'), m('m2'), m('m3'), m('m4'), c('c1'), m('m5'), c('c2')];
-    const out = limitConsecutiveMachineOffers(list, 2).map((o) => o.id);
-    expect(out).toEqual(['m1', 'm2', 'c1', 'm3', 'm4', 'c2', 'm5']);
-    expect([...out].sort()).toEqual(list.map((o) => o.id).sort());
+    expect(excludeMachineOffers(list).map((o) => o.id)).toEqual(['c1', 'c2']);
   });
 
   it('conserva el orden de la comunidad y trata el origen ausente como comunidad', () => {
     const list = [c('c1'), { id: 'x', origin: null }, c('c2'), m('m1')];
-    expect(limitConsecutiveMachineOffers(list).map((o) => o.id)).toEqual(['c1', 'x', 'c2', 'm1']);
+    expect(excludeMachineOffers(list).map((o) => o.id)).toEqual(['c1', 'x', 'c2']);
   });
 
   describe('el origen se decide por id de autor, no por nombre visible', () => {

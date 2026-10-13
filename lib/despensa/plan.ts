@@ -209,7 +209,8 @@ export type DespensaPlanOptions = {
  */
 export function buildDespensaPlan(offers: readonly DespensaOffer[], opts: DespensaPlanOptions): DespensaPlan {
   const rankOpts = { now: opts.now, budget: opts.budget ?? null, preferredNeedIds: opts.preferredNeedIds };
-  const { ranked, demotions, rulesVersion } = rankDespensa(offers, rankOpts);
+  // Dentro de cada necesidad manda el mérito; el reparto por tienda solo aplica al feed.
+  const { byMerit: ranked, demotions, rulesVersion } = rankDespensa(offers, rankOpts);
   const signals = ranked.map((o) => despensaSignals(o, rankOpts));
   const standings = unitPriceStandings(signals);
 

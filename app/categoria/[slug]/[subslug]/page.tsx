@@ -28,7 +28,7 @@ export async function generateMetadata({
   if (!cat || !sub) return brandedTitle('Categoría');
 
   const title = `${sub.label} — ${cat.label} | AVENTA`;
-  const description = `Ofertas de ${sub.label} en ${cat.label}. Descuentos verificados por la comunidad.`;
+  const description = `Ofertas de ${sub.label} en ${cat.label}. Ofertas compartidas y votadas por la comunidad.`;
 
   return {
     ...brandedTitle(title),

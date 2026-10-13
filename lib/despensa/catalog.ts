@@ -18,7 +18,7 @@ import type { CategoryId } from '@/lib/categories';
  *   necesidad declara variantes, la misma variante. Las sustituciones aproximadas viven aparte
  *   (`substitutes`) y nunca se usan para decir que algo es más barato.
  */
-export const DESPENSA_CATALOG_VERSION = '2026-10-13.1';
+export const DESPENSA_CATALOG_VERSION = '2026-10-13.2';
 
 export const DESPENSA_FAMILIES = [
   'alimentacion_basica',
@@ -169,7 +169,7 @@ export const DESPENSA_NEEDS: readonly DespensaNeed[] = [
   // Alimentación básica
   need({
     id: 'alimentos.arroz', family: 'alimentacion_basica', subcategory: 'Granos y legumbres', label: 'Arroz', kind: 'esencial',
-    synonyms: ['arroz'], excludes: ['arrocera', 'galletas de arroz', 'leche de arroz'], comparableBy: ['mass'],
+    synonyms: ['arroz'], excludes: ['arrocera', 'galletas de arroz', 'leche de arroz', 'arroz con leche'], comparableBy: ['mass'],
     variants: [
       { id: 'blanco', label: 'Arroz blanco', synonyms: ['arroz blanco', 'arroz en grano', 'arroz super extra', 'arroz grano largo'] },
       { id: 'integral', label: 'Arroz integral', synonyms: ['arroz integral'] },
@@ -242,7 +242,7 @@ export const DESPENSA_NEEDS: readonly DespensaNeed[] = [
   need({
     id: 'alimentos.leche', family: 'alimentacion_basica', subcategory: 'Lácteos y huevo', label: 'Leche', kind: 'esencial',
     synonyms: ['leche entera', 'leche deslactosada', 'leche semidescremada', 'leche descremada', 'leche en polvo', 'leche ultrapasteurizada', 'leche'],
-    excludes: ['leche corporal', 'crema corporal', 'leche limpiadora', 'leche de arroz'], comparableBy: ['volume', 'mass'],
+    excludes: ['leche corporal', 'crema corporal', 'leche limpiadora', 'leche de arroz', 'leche condensada', 'leche evaporada', 'dulce de leche', 'con leche'], comparableBy: ['volume', 'mass'],
     variants: [
       { id: 'entera', label: 'Leche entera', synonyms: ['leche entera'], comparableBy: ['volume'] },
       { id: 'deslactosada', label: 'Leche deslactosada', synonyms: ['leche deslactosada'], comparableBy: ['volume'] },
@@ -329,7 +329,7 @@ export const DESPENSA_NEEDS: readonly DespensaNeed[] = [
   need({
     id: 'alimentos.frutas', family: 'alimentacion_basica', subcategory: 'Frutas y verduras', label: 'Frutas', kind: 'esencial',
     synonyms: ['limon', 'limones', 'manzana', 'manzanas', 'platano', 'platanos', 'naranjas', 'naranja valencia'],
-    excludes: ['verde limon', 'sabor', 'aroma', 'jugo', 'esencia', 'fragancia', 'mermelada', 'vinagre', 'te de', 'shampoo', 'jabon', 'jabon liquido', 'deshidratada', 'deshidratado', 'pure'],
+    excludes: ['verde limon', 'sabor', 'aroma', 'jugo', 'nectar', 'refresco', 'bebida', 'compota', 'esencia', 'fragancia', 'mermelada', 'vinagre', 'te de', 'shampoo', 'jabon', 'jabon liquido', 'deshidratada', 'deshidratado', 'pure'],
     comparableBy: ['mass'],
     variants: [
       { id: 'limon', label: 'Limón', synonyms: ['limon', 'limones'] },
@@ -400,7 +400,7 @@ export const DESPENSA_NEEDS: readonly DespensaNeed[] = [
   need({
     id: 'higiene.jabon', family: 'higiene_personal', subcategory: 'Baño', label: 'Jabón de tocador', kind: 'esencial',
     synonyms: ['jabon de tocador', 'jabon en barra', 'jabon liquido para manos', 'jabon corporal', 'gel de bano', 'jabon'],
-    excludes: ['para ropa', 'para trastes', 'lavatrastes', 'jabonera', 'dispensador'], comparableBy: ['mass', 'volume', 'count'],
+    excludes: ['para ropa', 'de ropa', 'lavanderia', 'para lavar ropa', 'para trastes', 'lavatrastes', 'jabonera', 'dispensador'], comparableBy: ['mass', 'volume', 'count'],
     variants: [
       { id: 'barra', label: 'Jabón en barra', synonyms: ['jabon de tocador', 'jabon en barra'], comparableBy: ['mass', 'count'] },
       { id: 'liquido', label: 'Jabón líquido o gel', synonyms: ['jabon liquido para manos', 'jabon corporal', 'gel de bano'], comparableBy: ['volume'] },

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2, Link2, Monitor, Store, ArrowRight, MessagesSquare } from 'lucide-react';
+import { Home, Compass, Heart, User, Plus, X, Image as ImageIcon, ChevronDown, ChevronUp, Info, Sparkles, Eye, FileText, Loader2, Link2, Monitor, Store, ArrowRight, MessagesSquare, ShoppingBasket } from 'lucide-react';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -941,6 +941,13 @@ export default function ActionBar() {
         >
           <Home className="h-5 w-5 shrink-0" />
           Inicio
+        </Link>
+        <Link
+          href="/despensa"
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${pathname.startsWith('/despensa') ? sidebarLinkActive : sidebarLinkInactive}`}
+        >
+          <ShoppingBasket className="h-5 w-5 shrink-0" />
+          Mi despensa
         </Link>
         <Link
           href="/descubre"

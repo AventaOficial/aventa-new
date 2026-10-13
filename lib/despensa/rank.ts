@@ -236,7 +236,14 @@ export function spreadStores<T extends { sourceHost?: string | null }>(list: rea
 export function rankDespensa<T extends DespensaRankable>(
   offers: readonly T[],
   opts: DespensaRankOptions,
-): { ranked: T[]; demoted: T[]; demotions: DespensaDemotion[]; rulesVersion: string } {
+): {
+  ranked: T[];
+  /** Mismo conjunto que `ranked` en orden de mérito, antes de repartir necesidades y tiendas. */
+  byMerit: T[];
+  demoted: T[];
+  demotions: DespensaDemotion[];
+  rulesVersion: string;
+} {
   const demoted: T[] = [];
   const demotions: DespensaDemotion[] = [];
   const competing: { offer: T; signals: DespensaSignals }[] = [];
@@ -259,5 +266,5 @@ export function rankDespensa<T extends DespensaRankable>(
     DESPENSA_RANK_RULES.maxPerNeed,
   );
   const ranked = spreadStores(byNeed, DESPENSA_RANK_RULES.maxConsecutivePerStore);
-  return { ranked, demoted, demotions, rulesVersion: DESPENSA_RANK_RULES.version };
+  return { ranked, byMerit: scored.map((s) => s.offer), demoted, demotions, rulesVersion: DESPENSA_RANK_RULES.version };
 }

@@ -185,7 +185,13 @@ export function computePriceInsight(
   if (prices.length < 2) {
     verdict = 'insufficient';
     verdictLabel = 'Pocos registros todavía; el historial se irá llenando solo.';
-  } else if (min90d != null && current <= min90d * 1.02) {
+  } else if (
+    min90d != null &&
+    max90d != null &&
+    max90d > min90d &&
+    max90d > current &&
+    current <= min90d * 1.02
+  ) {
     verdict = 'strong';
     verdictLabel = 'Buen precio respecto a lo visto en AVENTA en ~90 días.';
   } else if (

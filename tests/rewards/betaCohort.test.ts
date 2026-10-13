@@ -65,6 +65,9 @@ describe('cohorte Rewards beta', () => {
     expect(nextBetaStatus('enrolled', 'remove')).toBe('removed');
     expect(nextBetaStatus('removed', 'reenroll')).toBe('invited');
     expect(nextBetaStatus('removed', 'remove')).toBeNull();
+    expect(nextBetaStatus('suspended', 'enroll')).toBeNull();
+    expect(nextBetaStatus('removed', 'enroll')).toBeNull();
+    expect(nextBetaStatus(null, 'enroll')).toBeNull();
   });
 
   it('el 40% sale de una sola regla y una versión vieja no hereda el porcentaje nuevo', () => {

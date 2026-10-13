@@ -128,6 +128,19 @@ describe('clasificación por texto', () => {
     ['Té de limón 25 sobres', 'alimentos.cafe_te'],
     ['Papas fritas sabor cebolla 150 g', null],
     ['Tortillas de maíz 1 kg', 'alimentos.maiz_harina'],
+    ['Leche condensada La Lechera 375 g', null],
+    ['Leche evaporada Carnation 360 g', null],
+    ['Arroz con leche Danette 4 x 100 g', null],
+    ['Néctar de manzana Jumex 1 L', null],
+    ['Refresco de manzana Sidral 600 ml', null],
+    ['Jugo de manzana 1 L', null],
+    ['Jabón para ropa Zote 400 g', 'limpieza.detergente_ropa'],
+    ['Jabón de lavandería en barra 400 g', null],
+    ['Leche deslactosada Lala 1 L', 'alimentos.leche'],
+    ['Leche en polvo Nido 800 g', 'alimentos.leche'],
+    ['Arroz blanco 1 kg', 'alimentos.arroz'],
+    ['Manzana gala 1 kg', 'alimentos.frutas'],
+    ['Jabón de tocador Escudo 3 barras 150 g', 'higiene.jabon'],
   ];
   it.each(cases)('«%s» → %s', (title, expected) => {
     expect(classifyDespensaText(title)?.needId ?? null).toBe(expected);

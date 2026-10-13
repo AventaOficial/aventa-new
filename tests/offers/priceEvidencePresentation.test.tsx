@@ -151,10 +151,11 @@ describe('modal y detalle según el estado del historial', () => {
     expect(html).toContain(observedDropText(20));
   });
 
-  it('strong sin un precio observado más alto no es una bajada', async () => {
+  it('historial plano no es «Buen precio» ni una bajada', async () => {
     const evidence = await ready([60, 60]);
-    expect(evidence.status === 'ready' && evidence.insight.verdict).toBe('strong');
+    expect(evidence.status === 'ready' && evidence.insight.verdict).toBe('fair');
     expect(presentListPrice(60, 100, evidence).observedDropPercent).toBeNull();
+    expect(renderDetail(evidence)).not.toContain('Buen precio');
   });
 
   it('sin precio de lista válido, la evidencia propia se muestra sin inventar un «vs. lista»', async () => {

@@ -69,7 +69,7 @@ export function nextBetaStatus(
     return 'invited';
   }
   if (action === 'enroll') {
-    if (current === 'invited' || current === 'suspended') return 'enrolled';
+    if (current === 'invited') return 'enrolled';
     if (current === 'enrolled') return 'enrolled';
     return null;
   }

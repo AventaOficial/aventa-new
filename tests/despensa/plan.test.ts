@@ -194,6 +194,26 @@ describe('evidencia del precio', () => {
     expect(plan.verifiedCount).toBe(1);
   });
 
+  it('el reparto por tienda del feed no cambia la mejor opción de una necesidad', () => {
+    const amazon = { store: 'Amazon', sourceHost: 'amazon.com.mx' };
+    const list = [
+      offer({ id: 'frijol-barato', title: 'Frijol negro 1 kg', discountPrice: 30, votes: { score: 10 }, ...amazon }),
+      offer({ id: 'frijol-caro', title: 'Frijol negro 1 kg', discountPrice: 40 }),
+      offer({ id: 'azucar-barata', title: 'Azúcar estándar 1 kg', discountPrice: 25, votes: { score: 10 }, ...amazon }),
+      offer({ id: 'azucar-cara', title: 'Azúcar estándar 1 kg', discountPrice: 35 }),
+      offer({ id: 'avena-barata', title: 'Avena 1 kg', discountPrice: 35, votes: { score: 10 }, ...amazon }),
+      offer({ id: 'avena-cara', title: 'Avena 1 kg', discountPrice: 45 }),
+      offer({ id: 'arroz-barato', title: 'Arroz blanco 1 kg', discountPrice: 28, ...amazon }),
+      offer({ id: 'arroz-caro', title: 'Arroz blanco 1 kg', discountPrice: 38, votes: { score: 5 } }),
+    ];
+    const feedOrder = rankDespensa(list, { now: NOW, budget: null }).ranked.map((o) => o.id);
+    expect(feedOrder.indexOf('arroz-caro')).toBeLessThan(feedOrder.indexOf('arroz-barato'));
+
+    const picks = picksOf(buildDespensaPlan(list, { now: NOW }), 'alimentos.arroz');
+    expect(pickIds(picks)).toEqual(['arroz-barato', 'arroz-caro']);
+    expect(picks[0].cheapestPerUnit).toBe(true);
+  });
+
   it('precio anterior inválido: un descuento nominal enorme no sube y no se muestra como ahorro', () => {
     const list = [
       offer({ id: 'normal', title: 'Arroz blanco 1 kg', discountPrice: 30 }),
