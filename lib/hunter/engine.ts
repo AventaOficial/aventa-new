@@ -120,6 +120,7 @@ export async function runHunterCollect(
     config: options.config,
     rotationWave: options.rotationWave,
     now,
+    ...(signal ? { signal } : {}),
   };
 
   const healthMap = await loadHealthMap(sources);
