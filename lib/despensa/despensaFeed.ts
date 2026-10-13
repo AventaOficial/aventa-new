@@ -1,12 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { classifyDespensaText } from '@/lib/despensa/classify';
-import { despensaHostOf } from '@/lib/despensa/sources';
+import { despensaHostOf, despensaSourceForUrl } from '@/lib/despensa/sources';
 import type { DespensaOffer } from '@/lib/despensa/plan';
 import type { FeedOffer } from '@/lib/offers/feedService';
 import type { DespensaPriceHistory } from '@/lib/despensa/evidence';
 import type { PriceInsight } from '@/lib/offers/priceHistory';
 import { evaluatePriceHistory, type PriceHistoryEvaluation } from '@/lib/offers/priceObservations/evaluate';
-import { readOfferObservations } from '@/lib/offers/priceObservations/read';
+import { anchorKey, captureSourceIdOf, productAnchorFor, readProduct, type ProductAnchor } from '@/lib/offers/priceObservations/identity';
+import { readProductObservations } from '@/lib/offers/priceObservations/read';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { inferBotOfferScope, parseOfferScopeFromConditions } from '@/lib/offerScope';
 
@@ -29,6 +30,8 @@ export function engineHistory(e: PriceHistoryEvaluation): DespensaPriceHistory {
       savingPct: e.savingPct,
       availabilityConfirmed: e.availabilityConfirmed,
       policyVersion: e.policyVersion,
+      current: e.current,
+      priceRelation: e.priceRelation,
     },
   };
 }
@@ -61,9 +64,12 @@ export function toDespensaOffer(offer: FeedOffer, insight: PriceInsight | Despen
 }
 
 /**
- * Ofertas de Despensa con su historial propio. Solo lectura: no escribe precios ni ofertas.
- * La moneda se lee de `offers.source_currency` (la vista del feed no la trae); si esa lectura
- * falla, queda solo la que confirma el dominio.
+ * Ofertas de Despensa con el historial propio de su producto. Solo lectura: no escribe precios
+ * ni ofertas. El historial se lee por item externo (tienda:item), así que una oferta nueva del
+ * mismo producto hereda la serie y una caducada no la borra. Solo cuentan observaciones de la
+ * misma necesidad, variante y presentación que declara la oferta.
+ * La moneda y la huella se leen de `offers` (la vista del feed no las trae); si esa lectura
+ * falla, queda solo la moneda que confirma el dominio y el item que trae la URL.
  */
 export async function loadDespensaOffers(supabase: SupabaseClient, feed: readonly FeedOffer[]): Promise<{
   offers: DespensaOffer[];
@@ -72,36 +78,45 @@ export async function loadDespensaOffers(supabase: SupabaseClient, feed: readonl
   const classified = feed.filter((o) => o.price > 0 && classifyDespensaText(o.title) != null);
   if (classified.length === 0) return { offers: [], excludedCurrency: 0 };
 
-  const stored = new Map<string, string | null>();
+  const stored = new Map<string, { currency: string | null; fingerprint: string | null }>();
   const { data, error } = await supabase
     .from('offers')
-    .select('id, source_currency')
+    .select('id, source_currency, product_fingerprint')
     .in(
       'id',
       classified.map((o) => o.id),
     );
   if (!error && data) {
-    for (const row of data as { id: string; source_currency: string | null }[]) stored.set(row.id, row.source_currency);
+    for (const row of data as { id: string; source_currency: string | null; product_fingerprint?: string | null }[]) {
+      stored.set(row.id, { currency: row.source_currency, fingerprint: row.product_fingerprint ?? null });
+    }
   }
 
   const eligible = classified.filter((o) =>
-    isDespensaCandidate(o, resolveOfferSourceCurrency(stored.get(o.id) ?? null, o.offer_url)),
+    isDespensaCandidate(o, resolveOfferSourceCurrency(stored.get(o.id)?.currency ?? null, o.offer_url)),
   );
   const now = new Date();
-  const history = await readOfferObservations(
-    supabase,
-    eligible.map((o) => o.id),
-    { now },
-  );
+  const anchors = new Map<string, ProductAnchor>();
+  for (const o of eligible) {
+    const anchor = productAnchorFor(captureSourceIdOf(despensaSourceForUrl(o.offer_url)?.id), {
+      offerUrl: o.offer_url,
+      productFingerprint: stored.get(o.id)?.fingerprint ?? null,
+    });
+    if (anchor) anchors.set(o.id, anchor);
+  }
+  const history = await readProductObservations(supabase, [...anchors.values()], { now });
   return {
     offers: eligible.map((o) => {
-      const h = history.byOffer.get(o.id);
+      const anchor = anchors.get(o.id);
+      const h = anchor ? history.byAnchor.get(anchorKey(anchor)) : undefined;
       const evaluation = evaluatePriceHistory({
         rows: h?.rows ?? [],
-        historyComplete: h?.complete ?? false,
+        // Sin item externo no hay serie que leer: no es un historial incompleto, es ninguno.
+        historyComplete: anchor ? (h?.complete ?? false) : true,
         currentPrice: o.price,
         originalPrice: o.original_price,
         now,
+        expect: readProduct(o.title),
       });
       return toDespensaOffer(o, engineHistory(evaluation));
     }),

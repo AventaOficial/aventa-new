@@ -26,6 +26,8 @@ export type SourceOperationalStatus =
   | 'integrated_flag_off'
   /** Solo metadatos de presentación; no hay adaptador. */
   | 'metadata_only'
+  /** El proveedor retiró la API que usaba el adaptador; no hay acceso vigente verificado. */
+  | 'api_retired'
   /** No hay código ni método de acceso validado. */
   | 'pending_research';
 
@@ -88,14 +90,14 @@ export const DESPENSA_SOURCES: readonly DespensaSource[] = [
     displayName: 'Amazon México',
     hosts: ['amazon.com.mx', 'amzn.to'],
     hunterSourceIds: ['amazon_paapi', 'amazon_asin'],
-    accessMethod: 'official_api',
+    accessMethod: 'none',
     declared: { families: ALL_FAMILIES, geography: 'MX_national_online', evidence: ['published_price', 'list_price'], updateFrequency: 'unknown' },
-    implemented: { discovery: true, originalPrice: true, affiliate: true },
-    status: 'integrated_flag_off',
+    implemented: { discovery: false, originalPrice: false, affiliate: true },
+    status: 'api_retired',
     verification: null,
     limitations: [
-      'PA-API requiere BOT_INGEST_AMAZON_PAAPI_ENABLED, credenciales y una lista de ASIN; no permite consultar catálogos arbitrarios.',
-      'No hay evidencia en el repositorio de una ejecución reciente.',
+      'Amazon retiró PA-API 5.0 (15-may-2026, guía de migración oficial) y la sustituye Creators API (OAuth y credenciales nuevas). Los adaptadores `amazon_paapi`/`amazon_asin` usan PA-API: no son una fuente vigente.',
+      'Creators API no está integrada ni hay evidencia de acceso para Aventa. Los enlaces de afiliado no dependen de esta API.',
     ],
   },
   {

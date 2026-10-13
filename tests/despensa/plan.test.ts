@@ -335,14 +335,44 @@ describe('presentaciones y categorías', () => {
   });
 });
 
-describe('ranking v3 (feed sin historial)', () => {
+describe('ranking v4 (feed sin historial)', () => {
   it('sin historial la clave de ahorro empata: el precio de lista no ayuda', () => {
     const list = [
       { id: 'lista', title: 'Arroz blanco 1 kg', discountPrice: 30, originalPrice: 500, votes: { score: 0 }, createdAt: hoursAgo(1), sourceHost: 'walmart.com.mx' },
       { id: 'votada', title: 'Arroz blanco 1 kg', discountPrice: 30, originalPrice: null, votes: { score: 1 }, createdAt: hoursAgo(1), sourceHost: 'walmart.com.mx' },
     ];
     expect(rankDespensa(list, { now: NOW }).ranked.map((o) => o.id)).toEqual(['votada', 'lista']);
-    expect(DESPENSA_RANK_RULES.version).toBe('despensa-rank-v3');
+    expect(DESPENSA_RANK_RULES.version).toBe('despensa-rank-v4');
+  });
+
+  it('un precio publicado que la tienda ya no confirma baja como la etiqueta contradicha', () => {
+    const differs = {
+      id: 'distinto',
+      title: 'Arroz blanco 1 kg',
+      discountPrice: 30,
+      originalPrice: null,
+      votes: { score: 5 },
+      createdAt: hoursAgo(1),
+      sourceHost: 'mercadolibre.com.mx',
+      priceHistory: {
+        verdict: 'insufficient' as const,
+        min90d: 36,
+        max90d: 36,
+        samples90d: 1,
+        engine: {
+          label: 'price_differs' as const,
+          reference: null,
+          savingAmount: null,
+          savingPct: null,
+          availabilityConfirmed: true,
+          policyVersion: 'price-observation-v2',
+          current: { price: 36, recordedAt: hoursAgo(2) },
+          priceRelation: 'observed_higher' as const,
+        },
+      },
+    };
+    const plain = { id: 'normal', title: 'Arroz blanco 1 kg', discountPrice: 30, originalPrice: null, votes: { score: 0 }, createdAt: hoursAgo(1), sourceHost: 'mercadolibre.com.mx' };
+    expect(rankDespensa([differs, plain], { now: NOW }).ranked.map((o) => o.id)).toEqual(['normal', 'distinto']);
   });
 });
 

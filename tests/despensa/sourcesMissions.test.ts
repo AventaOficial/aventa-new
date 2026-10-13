@@ -55,7 +55,14 @@ describe('misiones de Despensa', () => {
       expect(mission.requiresHumanModeration).toBe(true);
       expect(mission.allowedSourceIds).not.toContain('tiendas_3b_mx');
       expect(mission.allowedSourceIds).not.toContain('soriana_mx');
+      expect(mission.allowedSourceIds).not.toContain('amazon_mx');
     }
+  });
+
+  it('Amazon PA-API figura como retirada, sin acceso vigente', () => {
+    const amazon = DESPENSA_SOURCES.find((s) => s.id === 'amazon_mx');
+    expect(amazon).toMatchObject({ status: 'api_retired', accessMethod: 'none', verification: null });
+    expect(amazon?.implemented.discovery).toBe(false);
   });
 
   it('no están conectadas a MCP ni al pipeline de publicación', () => {

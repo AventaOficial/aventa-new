@@ -70,6 +70,7 @@ export type DespensaPriceStatus = 'verified_saving' | 'observed_price' | 'report
 
 /** Avisos secundarios. Se muestran como texto, no como insignias. */
 export type DespensaNote =
+  | 'price_differs'
   | 'list_contradicted'
   | 'list_unconfirmed'
   | 'availability_unconfirmed'
@@ -133,6 +134,7 @@ function priceStatus(s: DespensaSignals): DespensaPriceStatus {
 
 function notesFor(offer: DespensaOffer, s: DespensaSignals): DespensaNote[] {
   const notes: DespensaNote[] = [];
+  if (s.saving.status === 'price_differs') notes.push('price_differs');
   if (s.saving.status === 'list_contradicted') notes.push('list_contradicted');
   if (s.saving.status === 'list_unconfirmed') notes.push('list_unconfirmed');
   // `expires_at` puede ser la caducidad automática de Aventa, no una vigencia de la tienda.
@@ -351,6 +353,7 @@ export const DESPENSA_PLAN_COPY = {
     reported_price: 'Precio enviado por la comunidad sin tienda identificable. Confírmalo antes de comprar.',
   } satisfies Record<DespensaPriceStatus, string>,
   notes: {
+    price_differs: `${PRICE_EVIDENCE_LABELS.price_differs}: confírmalo antes de comprar.`,
     list_contradicted: `${PRICE_EVIDENCE_LABELS.list_contradicted}: el historial de Aventa no lo respalda.`,
     list_unconfirmed: `${PRICE_EVIDENCE_LABELS.list_unconfirmed}: Aventa no tiene historial que lo respalde.`,
     availability_unconfirmed: 'Disponibilidad no confirmada.',

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CaptureSourceId } from './policy';
+import type { ActiveCaptureSourceId } from './policy';
 
 export const PRICE_CAPTURE_CONFIG_KEY = 'despensa_price_capture';
 
@@ -16,21 +16,21 @@ export type PriceCaptureConfig = {
   /** Por qué está apagada, para el registro. */
   disabledReason: 'no_config_row' | 'config_read_failed' | 'disabled' | 'paused' | null;
   maxCandidates: number;
-  maxPerSource: Record<CaptureSourceId, number>;
+  maxPerSource: Record<ActiveCaptureSourceId, number>;
   budgetMs: number;
-  /** Una oferta no se vuelve a capturar antes de esto. */
+  /** Un producto no se vuelve a capturar antes de esto. */
   minHoursBetweenCaptures: number;
   candidatePool: number;
-  sources: readonly CaptureSourceId[];
+  sources: readonly ActiveCaptureSourceId[];
 };
 
 export const PRICE_CAPTURE_DEFAULTS: Omit<PriceCaptureConfig, 'enabled' | 'disabledReason'> = {
   maxCandidates: 24,
-  maxPerSource: { mercadolibre_mx: 20, amazon_mx: 10 },
+  maxPerSource: { mercadolibre_mx: 20 },
   budgetMs: 60_000,
   minHoursBetweenCaptures: 20,
   candidatePool: 300,
-  sources: ['mercadolibre_mx', 'amazon_mx'],
+  sources: ['mercadolibre_mx'],
 };
 
 function clampInt(raw: unknown, fallback: number, min: number, max: number): number {
@@ -38,7 +38,8 @@ function clampInt(raw: unknown, fallback: number, min: number, max: number): num
   return Math.min(max, Math.max(min, n));
 }
 
-const KNOWN_SOURCES: readonly CaptureSourceId[] = ['mercadolibre_mx', 'amazon_mx'];
+/** Solo fuentes activas. Amazon (PA-API retirada) no se puede encender desde `app_config`. */
+const KNOWN_SOURCES: readonly ActiveCaptureSourceId[] = ['mercadolibre_mx'];
 
 /**
  * Interpreta el valor de `app_config.despensa_price_capture`. Apagada salvo `{ "enabled": true }`
@@ -75,7 +76,6 @@ export function parsePriceCaptureConfig(value: unknown): PriceCaptureConfig {
     maxCandidates: clampInt(v.maxCandidates, D.maxCandidates, 1, H.maxCandidates),
     maxPerSource: {
       mercadolibre_mx: clampInt(perSource.mercadolibre_mx, D.maxPerSource.mercadolibre_mx, 0, H.maxPerSource),
-      amazon_mx: clampInt(perSource.amazon_mx, D.maxPerSource.amazon_mx, 0, H.maxPerSource),
     },
     budgetMs: clampInt(v.budgetMs, D.budgetMs, 1_000, H.budgetMs),
     minHoursBetweenCaptures: clampInt(v.minHoursBetweenCaptures, D.minHoursBetweenCaptures, 1, 24 * 7),

@@ -29,10 +29,22 @@ export type EvaluationReason =
   | 'current_stale'
   | 'current_price_mismatch'
   | 'current_not_comparable'
+  | 'offer_identity_mismatch'
+  | 'offer_presentation_unknown'
+  | 'availability_unconfirmed'
   | 'single_observation'
   | 'insufficient_history'
   | 'no_drop'
   | 'verified_drop';
+
+/**
+ * Precio observado frente al publicado en la oferta. Nunca se corrige la oferta para que
+ * coincidan: si difieren, el publicado no se puede respaldar y se informa el observado.
+ */
+export type PublishedPriceRelation = 'matches' | 'observed_lower' | 'observed_higher';
+
+/** Necesidad, variante y presentación que la oferta declara en su título. */
+export type ExpectedProduct = { needId: string | null; variantId: string | null; presentationKey: string | null };
 
 /** Referencia del ahorro verificado: mediana del historial propio comparable. */
 export type VerifiedReference = {
@@ -56,19 +68,46 @@ export type PriceHistoryEvaluation = {
   /** La serie usada: identidad + alcance de la observación actual. */
   seriesKey: string | null;
   availabilityConfirmed: boolean;
+  /** Última observación válida de la serie, con su hora. Null si no hay. */
+  current: { price: number; recordedAt: string } | null;
+  /** Null si no hay observación vigente o la oferta no trae precio. */
+  priceRelation: PublishedPriceRelation | null;
   excluded: Partial<Record<ExclusionReason, number>>;
   policyVersion: string;
 };
 
 export type EvaluateInput = {
-  /** Filas de una sola oferta en cualquier orden. */
+  /**
+   * Filas en cualquier orden: las de un producto (todas sus ofertas, por item externo) o las de
+   * una sola oferta. La serie se separa por identidad y alcance.
+   */
   rows: readonly StoredObservationRow[];
   /** false si la lectura falló o llegó recortada: no se puede afirmar nada con un historial parcial. */
   historyComplete: boolean;
   currentPrice: number | null;
   originalPrice: number | null;
   now: Date;
+  /**
+   * Producto que declara la oferta. Con historial por producto, solo cuentan las observaciones
+   * de esa misma necesidad, variante y presentación.
+   */
+  expect?: ExpectedProduct | null;
 };
+
+function identityParts(identity: string): { needId: string | null; variantId: string | null; presentationKey: string | null } {
+  const [, need, variant, presentation] = identity.split('|');
+  const known = (s: string | undefined, unknown: string) => (s && s !== unknown ? s : null);
+  return { needId: known(need, '-'), variantId: known(variant, '-'), presentationKey: known(presentation, 'unknown') };
+}
+
+/** Distinto solo si ambos lados se conocen y no coinciden; la presentación de la oferta manda. */
+function sameProduct(identity: string, expect: ExpectedProduct): boolean {
+  const seen = identityParts(identity);
+  if (expect.presentationKey && seen.presentationKey !== expect.presentationKey) return false;
+  if (expect.needId && seen.needId && seen.needId !== expect.needId) return false;
+  if (expect.variantId && seen.variantId && seen.variantId !== expect.variantId) return false;
+  return true;
+}
 
 function median(values: readonly number[]): number {
   const s = [...values].sort((a, b) => a - b);
@@ -87,16 +126,23 @@ function listLabel(currentPrice: number | null, originalPrice: number | null): P
 }
 
 /**
- * Veredicto del historial capturado de una oferta. Pura y determinista.
+ * Veredicto del historial capturado de un producto. Pura y determinista.
  *
  * Ahorro verificado exige todo lo siguiente:
  * - historial completo (sin errores ni recortes de consulta);
- * - observación actual válida, disponible, en MXN, de hace menos de 48 h y con el mismo precio
- *   que el publicado;
+ * - observación actual válida, en MXN, de hace menos de 48 h, con disponibilidad confirmada
+ *   (en existencia o limitada) y con el mismo precio que el publicado;
  * - al menos 4 ventanas de 24 h previas, repartidas en 14 días o más, de la misma identidad
  *   (item, necesidad, variante, presentación) y el mismo alcance;
+ * - la presentación de la oferta conocida y la misma que la observada;
  * - una bajada de al menos 5 % frente a la mediana de esas observaciones.
  * Nunca se usa el precio de lista como referencia y nunca alcanza una sola fila.
+ *
+ * Precio publicado frente al observado (`priceRelation`):
+ * - coincide (± 0.01): se evalúa el ahorro sobre el precio publicado;
+ * - difiere (promoción terminada, cupón, membresía o dato viejo): `price_differs`, sin ahorro;
+ *   la oferta no se toca y se informa el precio observado con su hora;
+ * - observación de más de 48 h: no hay precio vigente (`current_stale`).
  */
 export function evaluatePriceHistory(input: EvaluateInput): PriceHistoryEvaluation {
   const excluded: Partial<Record<ExclusionReason, number>> = {};
@@ -109,6 +155,8 @@ export function evaluatePriceHistory(input: EvaluateInput): PriceHistoryEvaluati
     savingPct: null,
     seriesKey: null,
     availabilityConfirmed: false,
+    current: null,
+    priceRelation: null,
     excluded,
     policyVersion: P.version,
   };
@@ -154,9 +202,15 @@ export function evaluatePriceHistory(input: EvaluateInput): PriceHistoryEvaluati
       bump('currency_not_mxn');
       continue;
     }
+    if (input.expect && !sameProduct(row.identity_key, input.expect)) {
+      bump('different_identity');
+      continue;
+    }
     captured.push(row);
   }
-  if (captured.length === 0) return fallback(['no_history']);
+  if (captured.length === 0) {
+    return fallback([input.expect && (excluded.different_identity ?? 0) > 0 ? 'offer_identity_mismatch' : 'no_history']);
+  }
 
   const latest = captured[0];
   const latestPrice = toPrice(latest.price);
@@ -203,21 +257,34 @@ export function evaluatePriceHistory(input: EvaluateInput): PriceHistoryEvaluati
   const samples = independent.length;
   const availabilityConfirmed = latest.availability === 'in_stock' || latest.availability === 'limited';
 
-  const withSeries = (e: Omit<PriceHistoryEvaluation, 'seriesKey' | 'availabilityConfirmed' | 'excluded' | 'policyVersion'>): PriceHistoryEvaluation => ({
+  const stale = nowMs - current.ms > P.maxCurrentAgeHours * 3_600_000;
+  const priceRelation: PublishedPriceRelation | null =
+    stale || input.currentPrice == null
+      ? null
+      : Math.abs(current.price - input.currentPrice) <= P.currentPriceToleranceMxn
+        ? 'matches'
+        : current.price < input.currentPrice
+          ? 'observed_lower'
+          : 'observed_higher';
+
+  const withSeries = (
+    e: Omit<PriceHistoryEvaluation, 'seriesKey' | 'availabilityConfirmed' | 'excluded' | 'policyVersion' | 'current' | 'priceRelation'>,
+  ): PriceHistoryEvaluation => ({
     ...e,
     seriesKey: series,
     availabilityConfirmed,
+    current: { price: current.price, recordedAt: new Date(current.ms).toISOString() },
+    priceRelation,
     excluded,
     policyVersion: P.version,
   });
 
-  const notCurrent = (reason: EvaluationReason) =>
-    withSeries({ label: listOnly ?? 'insufficient', reasons: [reason], verdict: 'insufficient', samples, min, max, reference: null, savingAmount: null, savingPct: null });
+  const notCurrent = (reason: EvaluationReason, label: PriceEvidenceLabel = listOnly ?? 'insufficient') =>
+    withSeries({ label, reasons: [reason], verdict: 'insufficient', samples, min, max, reference: null, savingAmount: null, savingPct: null });
 
-  if (nowMs - current.ms > P.maxCurrentAgeHours * 3_600_000) return notCurrent('current_stale');
-  if (input.currentPrice == null || Math.abs(current.price - input.currentPrice) > P.currentPriceToleranceMxn) {
-    return notCurrent('current_price_mismatch');
-  }
+  if (stale) return notCurrent('current_stale');
+  if (input.currentPrice == null) return notCurrent('current_price_mismatch');
+  if (priceRelation !== 'matches') return notCurrent('current_price_mismatch', 'price_differs');
 
   const observed = (reason: EvaluationReason, verdict: PriceHistoryEvaluation['verdict'], reference: VerifiedReference | null) =>
     withSeries({ label: listOnly ?? 'observed_price', reasons: [reason], verdict, samples, min, max, reference, savingAmount: null, savingPct: null });
@@ -238,6 +305,8 @@ export function evaluatePriceHistory(input: EvaluateInput): PriceHistoryEvaluati
   const pct = Math.round((difference / reference.price) * 1000) / 10;
 
   if (pct >= P.minVerifiedDropPct) {
+    if (!availabilityConfirmed) return observed('availability_unconfirmed', 'fair', reference);
+    if (input.expect && !input.expect.presentationKey) return observed('offer_presentation_unknown', 'fair', reference);
     return withSeries({
       label: 'verified_saving',
       reasons: ['verified_drop'],

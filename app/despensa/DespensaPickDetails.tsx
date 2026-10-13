@@ -1,5 +1,7 @@
 import { DESPENSA_PLAN_COPY, formatMxnCents, unitPriceLabel, type DespensaPick } from '@/lib/despensa/plan';
 
+const OBSERVED_AT = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' });
+
 const STATUS_TONE: Record<DespensaPick['status'], string> = {
   verified_saving: 'text-emerald-700 dark:text-emerald-400',
   observed_price: 'text-[#1d1d1f] dark:text-[#fafafa]',
@@ -32,7 +34,12 @@ export function DespensaPickDetails({ pick, showReasons = true }: { pick: Despen
       {pick.notes.length > 0 ? (
         <ul className="mt-1 space-y-0.5 text-[12px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
           {pick.notes.map((n) => (
-            <li key={n}>{DESPENSA_PLAN_COPY.notes[n]}</li>
+            <li key={n}>
+              {DESPENSA_PLAN_COPY.notes[n]}
+              {n === 'price_differs' && pick.saving.status === 'price_differs'
+                ? ` Aventa vio ${formatMxnCents(pick.saving.observedPrice)} el ${OBSERVED_AT.format(new Date(pick.saving.observedAt))}.`
+                : null}
+            </li>
           ))}
         </ul>
       ) : null}

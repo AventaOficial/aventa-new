@@ -1,12 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { acquireIngestCycleLock, releaseIngestCycleLock } from '@/lib/bots/ingest/ingestCycleLock';
-import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
-import { fetchAmazonPaapiItems } from '@/lib/bots/ingest/amazonPaapi';
 import { classifyDespensaText } from '@/lib/despensa/classify';
 import { despensaHostOf, despensaSourceForUrl } from '@/lib/despensa/sources';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import {
-  createAmazonCaptureAdapter,
   createMercadoLibreCaptureAdapter,
   type CaptureCandidate,
   type PriceCaptureAdapter,
@@ -14,9 +11,26 @@ import {
   type SourceReading,
 } from './adapters';
 import { readPriceCaptureConfig, type PriceCaptureConfig } from './config';
-import { externalItemFor, identityKey, observationIdempotencyKey, ONLINE_NATIONAL_SCOPE, readProduct, scopeKey } from './identity';
-import { isMissingColumnError, PRICE_OBSERVATION_POLICY as P, toPrice, type CaptureSourceId, type StoredObservationRow, type ValidationStatus } from './policy';
-import { readOfferObservations } from './read';
+import {
+  anchorKey,
+  captureSourceIdOf,
+  identityKey,
+  observationIdempotencyKey,
+  ONLINE_NATIONAL_SCOPE,
+  readProduct,
+  resolveCaptureItem,
+  scopeKey,
+} from './identity';
+import {
+  isActiveCaptureSource,
+  isMissingColumnError,
+  PRICE_OBSERVATION_POLICY as P,
+  toPrice,
+  type ActiveCaptureSourceId,
+  type StoredObservationRow,
+  type ValidationStatus,
+} from './policy';
+import { readProductObservations } from './read';
 import { validateCapturedObservation } from './validate';
 
 export const PRICE_CAPTURE_LOCK_KEY = 'despensa_price_capture';
@@ -27,10 +41,14 @@ export type CaptureSkipReason =
   | 'currency_not_mxn'
   | 'source_unknown'
   | 'source_not_supported'
+  | 'source_retired'
   | 'source_not_in_config'
   | 'source_disabled'
   | 'source_not_configured'
   | 'item_id_unresolved'
+  | 'catalog_without_item'
+  | 'tracking_window_ended'
+  | 'same_product_other_offer'
   | 'captured_recently'
   | 'recent_capture_check_failed'
   | 'over_source_cap'
@@ -62,7 +80,9 @@ export type PriceCaptureReport = {
   attempted: number;
   inserted: Record<ValidationStatus, number>;
   skipped: Partial<Record<CaptureSkipReason, number>>;
-  perSource: Partial<Record<CaptureSourceId, { selected: number; inserted: number; failed: number }>>;
+  perSource: Partial<Record<ActiveCaptureSourceId, { selected: number; inserted: number; failed: number }>>;
+  /** Productos seleccionados cuya oferta ancla ya caducó (seguimiento después de la caducidad). */
+  trackedAfterExpiry: number;
   /** Motivo por oferta (sin `not_despensa`, que es la mayoría del feed). Máximo 200. */
   events: CaptureEvent[];
 };
@@ -93,10 +113,7 @@ const MAX_EVENTS = 200;
 const RECENT_CHECK_CHUNK = 100;
 
 export function defaultPriceCaptureAdapters(): PriceCaptureAdapter[] {
-  return [
-    createMercadoLibreCaptureAdapter(),
-    createAmazonCaptureAdapter({ loadConfig: () => loadBotIngestConfig(), fetchItems: fetchAmazonPaapiItems }),
-  ];
+  return [createMercadoLibreCaptureAdapter()];
 }
 
 function newRunId(clock: () => number): string {
@@ -111,8 +128,12 @@ function newRunId(clock: () => number): string {
  * Captura periódica de precios de Canasta Básica.
  *
  * - Apagada salvo `app_config.despensa_price_capture = { "enabled": true }`.
- * - Solo fuentes con API oficial (Mercado Libre, Amazon PA-API con sus propios flags).
- *   Las demás se omiten con motivo; no hay scraping.
+ * - Solo fuentes con API oficial vigente (Mercado Libre). Amazon PA-API está retirada y sus
+ *   ofertas se omiten con `source_retired`; las demás tiendas, con `source_not_supported`.
+ *   No hay scraping.
+ * - Observa productos, no ofertas: una observación por item externo y ventana de 24 h, anclada
+ *   a la oferta vigente más nueva del producto. Si todas caducaron, el producto se sigue
+ *   observando `trackingDaysAfterExpiry` días más.
  * - Solo escribe en `offer_price_snapshots` (source = capture). Nunca crea, publica ni
  *   modifica ofertas.
  * - Idempotente por `idempotency_key` (índice único); dos corridas simultáneas chocan en el
@@ -143,6 +164,7 @@ export async function runPriceCaptureCycle(deps: PriceCaptureDeps): Promise<Pric
     inserted: { valid: 0, quarantined: 0, invalid: 0, superseded: 0 },
     skipped: {},
     perSource: {},
+    trackedAfterExpiry: 0,
     events: [],
   };
   const finish = (status: PriceCaptureReport['status'], detail: string | null = null): PriceCaptureReport => {
@@ -217,14 +239,18 @@ async function captureWithLock(ctx: {
     .order('created_at', { ascending: false })
     .limit(config.candidatePool);
   if (pool.error) return finish('failed', 'candidate_query_failed');
+  const trackingFloor = startedMs - P.trackingDaysAfterExpiry * 86_400_000;
   const offers = ((pool.data ?? []) as OfferRow[]).filter((o) => {
     const exp = o.expires_at ? Date.parse(o.expires_at) : NaN;
-    return !Number.isFinite(exp) || exp >= startedMs;
+    if (!Number.isFinite(exp) || exp >= trackingFloor) return true;
+    skip(o.id, null, 'tracking_window_ended', false);
+    return false;
   });
   report.pool = offers.length;
 
   const adapterBySource = new Map(adapters.map((a) => [a.sourceId, a]));
-  const eligible: CaptureCandidate[] = [];
+  // Un candidato por producto: la oferta vigente más nueva; si todas caducaron, la más nueva.
+  const byAnchor = new Map<string, CaptureCandidate>();
   for (const o of offers) {
     const title = o.title?.trim() ?? '';
     if (!classifyDespensaText(title)) {
@@ -246,7 +272,12 @@ async function captureWithLock(ctx: {
       skip(o.id, null, 'source_unknown');
       continue;
     }
-    const adapter = adapterBySource.get(source.id as CaptureSourceId);
+    const captureId = captureSourceIdOf(source.id);
+    if (captureId && !isActiveCaptureSource(captureId)) {
+      skip(o.id, source.id, 'source_retired');
+      continue;
+    }
+    const adapter = captureId ? adapterBySource.get(captureId) : undefined;
     if (!adapter) {
       skip(o.id, source.id, 'source_not_supported');
       continue;
@@ -260,49 +291,67 @@ async function captureWithLock(ctx: {
       skip(o.id, source.id, st.reason);
       continue;
     }
-    const ext = externalItemFor(adapter.sourceId, { offerUrl: o.offer_url, productFingerprint: o.product_fingerprint });
-    if (!ext) {
-      skip(o.id, source.id, 'item_id_unresolved');
+    const item = resolveCaptureItem(adapter.sourceId, { offerUrl: o.offer_url, productFingerprint: o.product_fingerprint });
+    if (!item.ok) {
+      skip(o.id, source.id, item.reason);
       continue;
     }
+    const exp = o.expires_at ? Date.parse(o.expires_at) : NaN;
     const original = toPrice(o.original_price);
-    eligible.push({
+    const candidate: CaptureCandidate = {
       offerId: o.id,
       title,
       price,
       originalPrice: original != null && original > 0 ? original : null,
       offerUrl: o.offer_url ?? '',
       sourceId: adapter.sourceId,
-      externalItemId: ext.externalItemId,
-      canonicalUrl: ext.canonicalUrl,
+      externalItemId: item.externalItemId,
+      catalogProductId: item.catalogProductId,
+      canonicalUrl: item.canonicalUrl,
       storeHost: despensaHostOf(o.offer_url),
-    });
+      anchorExpired: Number.isFinite(exp) && exp < startedMs,
+    };
+    const key = anchorKey(candidate);
+    const held = byAnchor.get(key);
+    if (held && !(held.anchorExpired && !candidate.anchorExpired)) {
+      skip(o.id, source.id, 'same_product_other_offer', false);
+      continue;
+    }
+    if (held) skip(held.offerId, held.sourceId, 'same_product_other_offer', false);
+    byAnchor.set(key, candidate);
   }
+  const eligible = [...byAnchor.values()];
 
-  // Capturadas hace poco: una consulta por cada 100 ofertas. Si falla, no se captura a ciegas.
+  // Productos capturados hace poco: una consulta por cada 100 items. Si falla, no se captura a ciegas.
   const recentSince = new Date(startedMs - config.minHoursBetweenCaptures * 3_600_000).toISOString();
   const recent = new Set<string>();
   let recentFailed = false;
   for (let i = 0; i < eligible.length && !recentFailed; i += RECENT_CHECK_CHUNK) {
-    const ids = eligible.slice(i, i + RECENT_CHECK_CHUNK).map((c) => c.offerId);
-    const { data, error } = await supabase
-      .from('offer_price_snapshots')
-      .select('offer_id')
-      .eq('source', 'capture')
-      .in('offer_id', ids)
-      .gte('recorded_at', recentSince);
-    if (error) recentFailed = true;
-    for (const r of (data ?? []) as { offer_id: string }[]) recent.add(r.offer_id);
+    const chunk = eligible.slice(i, i + RECENT_CHECK_CHUNK);
+    for (const sourceId of new Set(chunk.map((c) => c.sourceId))) {
+      const { data, error } = await supabase
+        .from('offer_price_snapshots')
+        .select('source_id, external_item_id')
+        .eq('source', 'capture')
+        .eq('source_id', sourceId)
+        .in(
+          'external_item_id',
+          chunk.filter((c) => c.sourceId === sourceId).map((c) => c.externalItemId),
+        )
+        .gte('recorded_at', recentSince);
+      if (error) recentFailed = true;
+      for (const r of (data ?? []) as { source_id: string; external_item_id: string }[]) recent.add(`${r.source_id}:${r.external_item_id}`);
+    }
   }
 
   const selected: CaptureCandidate[] = [];
-  const perSourceCount = new Map<CaptureSourceId, number>();
+  const perSourceCount = new Map<ActiveCaptureSourceId, number>();
   for (const c of eligible) {
     if (recentFailed) {
       skip(c.offerId, c.sourceId, 'recent_capture_check_failed');
       continue;
     }
-    if (recent.has(c.offerId)) {
+    if (recent.has(anchorKey(c))) {
       skip(c.offerId, c.sourceId, 'captured_recently');
       continue;
     }
@@ -319,16 +368,13 @@ async function captureWithLock(ctx: {
     selected.push(c);
   }
   report.selected = selected.length;
+  report.trackedAfterExpiry = selected.filter((c) => c.anchorExpired).length;
   for (const [sourceId, n] of perSourceCount) report.perSource[sourceId] = { selected: n, inserted: 0, failed: 0 };
   if (selected.length === 0) return finish('completed', 'no_candidates');
 
-  const history = await readOfferObservations(
-    supabase,
-    selected.map((c) => c.offerId),
-    { now, onlyCapture: true },
-  );
+  const history = await readProductObservations(supabase, selected, { now });
   const ready = selected.filter((c) => {
-    if (history.byOffer.get(c.offerId)?.complete) return true;
+    if (history.byAnchor.get(anchorKey(c))?.complete) return true;
     skip(c.offerId, c.sourceId, 'prior_history_unavailable');
     return false;
   });
@@ -361,7 +407,7 @@ async function captureWithLock(ctx: {
         supabase,
         candidate: c,
         reading,
-        prior: history.byOffer.get(c.offerId)?.rows ?? [],
+        prior: history.byAnchor.get(anchorKey(c))?.rows ?? [],
         now: new Date(clock()),
         runId,
         dryRun,
@@ -445,7 +491,6 @@ async function persistReading(args: {
     validated_at: args.now.toISOString(),
     policy_version: P.version,
     idempotency_key: observationIdempotencyKey({
-      offerId: c.offerId,
       sourceId: c.sourceId,
       externalItemId: c.externalItemId,
       scope,
@@ -455,6 +500,8 @@ async function persistReading(args: {
     provenance: {
       detail: r.detail,
       http_status: r.httpStatus,
+      catalog_product_id: c.catalogProductId,
+      anchor_offer_expired: c.anchorExpired,
       observed_title: r.observedTitle ? r.observedTitle.slice(0, 200) : null,
       presentation_from: observedReading?.presentationKey ? 'source_title' : offerReading.presentationKey ? 'offer_title' : null,
       offer_price_at_capture: c.price,
