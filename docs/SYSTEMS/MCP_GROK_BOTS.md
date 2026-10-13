@@ -701,6 +701,20 @@ from offer_batch_items i left join offers o on o.id = i.offer_id
 where i.batch_id = '<submissionId>' order by i.position;
 ```
 
+### Piloto controlado (preparado, no ejecutado)
+
+Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se detiene el piloto y no se pasa al siguiente.
+
+1. **Cliente.** Se revisan las filas nuevas de `machine_client_calls` (consultas de arriba): deben ser de `aventa-mcp-xai-production-v3`, y v2 no debe registrar llamadas nuevas.
+2. **Herramientas y permisos.** El conector de xAI debe exponer solo las 4 herramientas de §4. El cliente v3 debe tener solo `candidates:submit`, `candidates:read` y `catalog:read`.
+3. **Prompt.** La tarea de xAI tiene el bloque `text` completo de `GROK_HUNTER_PROMPT.md`. Se comprueba con la sincronización descrita en ese documento.
+4. **Lectura segura.** Una corrida que solo llame a `get_submission_rules` y `check_offer_exists`. No debe enviar nada ni crear filas en `offer_batches`.
+5. **Prueba de pausa.** Con `MCP_INGEST_ENABLED` apagado, `get_submission_rules` devuelve `ingestEnabled: false`. El reporte del bot debe terminar sin llamar a `submit_deal_candidates`. Si llega a enviar, el servidor responde `INGEST_PAUSED` y el prompt instalado no es el correcto.
+6. **Canario de 1 candidato.** Se ejecuta con los requisitos y pasos del canario de cierre (abajo), con autorización explícita del Owner para encender la ingesta y con un moderador disponible.
+7. **Revisión real.** Un moderador decide sobre la oferta. Antes de seguir se revisan el precio de lista, la imagen, la tienda, el comentario y que no haya escrituras económicas.
+8. **Muestra inicial de 3.** Solo si el canario salió limpio, una corrida nueva con 2 candidatos (`runId` nuevo) para llegar a 3. Se revisan con el mismo criterio.
+9. **Escalar.** Solo si los 3 salieron limpios y la moderación puede revisar el volumen sin que expiren pendientes (con v2, 69 de 193 candidatos expiraron sin revisión). Se sube por corridas de como máximo 5 aceptados, dentro de la cuota diaria configurada. Nunca se suben límites para acelerar.
+
 ### Canario de cierre (preparado, no ejecutado)
 
 Requisitos:
