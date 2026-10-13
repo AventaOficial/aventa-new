@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from('offers')
-    .select('id, offer_url')
+    .select('id, offer_url, link_mod_ok')
     .eq('status', 'pending')
     .not('offer_url', 'is', null)
     .order('created_at', { ascending: true })
@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     const id = (row as { id?: string }).id;
     const raw = ((row as { offer_url?: string | null }).offer_url ?? '').trim();
     if (!id || !raw) continue;
+    // El enlace que confirmó el moderador (p. ej. su meli.la) no se reescribe.
+    if ((row as { link_mod_ok?: boolean | null }).link_mod_ok === true) continue;
     scanned += 1;
     try {
       const normalized = await resolveAndNormalizeAffiliateOfferUrl(raw);

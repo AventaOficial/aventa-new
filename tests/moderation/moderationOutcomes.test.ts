@@ -23,8 +23,7 @@ function botOffer(over: Record<string, unknown> = {}) {
     image_url: IMG,
     price: 585,
     original_price: 849,
-    offer_url:
-      'https://articulo.mercadolibre.com.mx/MLM-62559998-test-product?tag=aventa',
+    offer_url: 'https://meli.la/2vWwBNv',
     link_mod_ok: true,
     is_bot: true,
     moderator_comment: '[bot-ingest]',

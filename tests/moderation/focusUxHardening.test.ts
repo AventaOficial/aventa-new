@@ -110,10 +110,15 @@ describe('affiliate gate authority', () => {
     process.env.ML_AFFILIATE_TAG = 'aventa_test_tag';
     process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG = 'aventa_test_tag';
     const r = assertOfferReadyForAffiliateApproval({
-      offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-1?tag=aventa_test_tag',
+      offerUrl: 'https://meli.la/2vWwBNv',
       linkModOk: true,
     });
     expect(r.ok).toBe(true);
+    const legacy = assertOfferReadyForAffiliateApproval({
+      offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-1?tag=aventa_test_tag',
+      linkModOk: true,
+    });
+    expect(legacy.ok).toBe(false);
     process.env = { ...envBackup };
   });
 });

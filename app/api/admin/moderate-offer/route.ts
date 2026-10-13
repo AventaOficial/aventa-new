@@ -9,6 +9,7 @@ import {
   resolveAndNormalizeAffiliateOfferUrl,
   isResolvedProductOfferUrl,
 } from '@/lib/affiliate'
+import { isMeliLaShortUrl } from '@/lib/offerUrl'
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
@@ -185,7 +186,8 @@ export async function POST(request: Request) {
       payload.expires_at = expiresAtOnApprove(row?.expires_at ?? null)
       // Home period=day filtra por created_at: go-live al aprobar.
       payload.created_at = createdAtOnApprove()
-      if (rawUrl) {
+      // meli.la confirmado por el moderador es el enlace afiliado: expandirlo borra matt_*.
+      if (rawUrl && !(linkModOk && isMeliLaShortUrl(rawUrl))) {
         // Al aprobar: intenta expandir acortadores y aplicar tags. Si ML/Amazon
         // bloquean el fetch (p. ej. 403 desde Vercel) y el moderador ya confirmó
         // el producto (link_mod_ok), no bloqueamos: guardamos lo mejor que haya.

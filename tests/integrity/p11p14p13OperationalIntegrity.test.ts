@@ -43,12 +43,20 @@ describe('P1-1 — batch approve invariants', () => {
     ).toBe(false);
     expect(
       assertOfferReadyForAffiliateApproval({
-        offerUrl: mlUrl,
+        offerUrl: 'https://meli.la/2vWwBNv',
         linkModOk: true,
         batchApprove: true,
         originalProductUrl: mlUrl,
       }).ok,
     ).toBe(true);
+    expect(
+      assertOfferReadyForAffiliateApproval({
+        offerUrl: mlUrl,
+        linkModOk: true,
+        batchApprove: true,
+        originalProductUrl: mlUrl,
+      }).ok,
+    ).toBe(false);
   });
 
   it('5 — already same status handled at route (pending-only CAS documented)', () => {

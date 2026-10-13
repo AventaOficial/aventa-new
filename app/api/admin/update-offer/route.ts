@@ -11,6 +11,7 @@ import {
   originalOfferUrlToPersistOnAffiliatePaste,
 } from '@/lib/moderation/originalOfferUrlPolicy'
 import { shouldPersistLinkModOk } from '@/lib/moderation/affiliateReadinessContract'
+import { verifyMeliLaPaste, type MeliLaPasteVerification } from '@/lib/affiliate/verifyMeliLaPaste'
 import {
   buildOfferEditDiff,
   isMaterialOfferEdit,
@@ -63,6 +64,8 @@ export async function PATCH(request: Request) {
     const existingOriginal =
       (offer as { original_offer_url?: string | null }).original_offer_url?.trim() ?? ''
     const affiliatePaste = body?.affiliate_paste === true
+    let meliLaVerification: MeliLaPasteVerification | null = null
+    let affiliateAudit: Record<string, unknown> | null = null
 
     if (offerStatus === 'pending') {
       const lockCheck = assertModeratorOwnsLock(
@@ -179,7 +182,6 @@ export async function PATCH(request: Request) {
             { status: 400 }
           )
         }
-        payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
         const toPersist = originalOfferUrlToPersistOnAffiliatePaste({
           existingOriginal,
           bodyOriginalProductUrl: bodyOriginal,
@@ -187,24 +189,70 @@ export async function PATCH(request: Request) {
         if (toPersist) {
           payload.original_offer_url = toPersist
         }
-        const originalForContract = (toPersist ?? existingOriginal) || validationBaseline
-        if (
-          !shouldPersistLinkModOk({
-            offerUrl: payload.offer_url,
-            originalOfferUrl: originalForContract,
-            linkModOk: false,
-          })
-        ) {
-          return NextResponse.json(
-            {
-              error:
-                'El enlace afiliado no quedó en un permalink navegable/taggeado. Usa la URL original del producto.',
-            },
-            { status: 400 }
-          )
+        if (validation.needsServerVerification) {
+          // meli.la se guarda tal cual: expandirlo pierde el afiliado (matt_* se limpia como tracking).
+          const alreadyConfirmed =
+            pasted === currentOfferUrl &&
+            (offer as { link_mod_ok?: boolean | null }).link_mod_ok === true
+          if (!alreadyConfirmed) {
+            meliLaVerification = await verifyMeliLaPaste(validationBaseline, pasted)
+            if (meliLaVerification.status === 'rejected') {
+              return NextResponse.json(
+                { error: meliLaVerification.reason, validation, meli_la_verification: meliLaVerification },
+                { status: 400 }
+              )
+            }
+            if (
+              meliLaVerification.status === 'needs_manual_review' &&
+              body.manual_affiliate_review !== true
+            ) {
+              return NextResponse.json(
+                {
+                  error: `Revisión manual requerida: ${meliLaVerification.reason}`,
+                  code: 'manual_affiliate_review_required',
+                  validation,
+                  meli_la_verification: meliLaVerification,
+                },
+                { status: 422 }
+              )
+            }
+            affiliateAudit = {
+              original_url: validationBaseline,
+              published_url: validation.normalizedUrl ?? pasted,
+              destination_url: meliLaVerification.destinationUrl,
+              status: meliLaVerification.status,
+              reason: meliLaVerification.reason,
+              account_verified: meliLaVerification.accountVerified,
+              product_verified: meliLaVerification.productVerified,
+              affiliate_tool: meliLaVerification.affiliateTool,
+              affiliate_word: meliLaVerification.affiliateWord,
+              manual_review: meliLaVerification.status === 'needs_manual_review',
+            }
+          }
+          payload.offer_url = validation.normalizedUrl ?? pasted
+          payload.link_mod_ok = true
+          afterSnapshot.offer_url = payload.offer_url
+        } else {
+          payload.offer_url = await resolveAndNormalizeAffiliateOfferUrl(pasted)
+          const originalForContract = (toPersist ?? existingOriginal) || validationBaseline
+          if (
+            !shouldPersistLinkModOk({
+              offerUrl: payload.offer_url,
+              originalOfferUrl: originalForContract,
+              linkModOk: false,
+            })
+          ) {
+            return NextResponse.json(
+              {
+                error:
+                  'El enlace afiliado no quedó en un permalink navegable/taggeado. Usa la URL original del producto.',
+              },
+              { status: 400 }
+            )
+          }
+          payload.link_mod_ok = true
+          afterSnapshot.offer_url = payload.offer_url
         }
-        payload.link_mod_ok = true
-        afterSnapshot.offer_url = payload.offer_url
       } else {
         if (!existingOriginal) {
           payload.original_offer_url = pasted
@@ -222,6 +270,9 @@ export async function PATCH(request: Request) {
           })
         ) {
           payload.link_mod_ok = true
+        } else if (payload.offer_url !== currentOfferUrl) {
+          // La confirmación del moderador era para el enlace anterior.
+          payload.link_mod_ok = false
         }
         afterSnapshot.offer_url = payload.offer_url
       }
@@ -343,7 +394,7 @@ export async function PATCH(request: Request) {
     invalidatePublicOffer(id)
 
     // Audit trail en moderation_logs existente (action libre + metadata jsonb).
-    if (fields.length > 0 || demoted || hasImageUrlsWrite) {
+    if (fields.length > 0 || demoted || hasImageUrlsWrite || affiliateAudit) {
       const { error: logError } = await supabase.from('moderation_logs').insert({
         offer_id: id,
         user_id: auth.user.id,
@@ -357,6 +408,7 @@ export async function PATCH(request: Request) {
             : fields,
           changes,
           demoted,
+          ...(affiliateAudit ? { affiliate_verification: affiliateAudit } : {}),
         },
       })
       if (logError) console.error('[update-offer] audit log:', logError.message)
@@ -379,6 +431,7 @@ export async function PATCH(request: Request) {
       bank_coupon: payload.bank_coupon,
       msi_months: payload.msi_months,
       status: demoted ? 'pending' : offerStatus,
+      meli_la_verification: meliLaVerification,
     })
   } catch (e) {
     console.error('[update-offer]', e)

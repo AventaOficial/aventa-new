@@ -9,6 +9,7 @@
  * 3. Tienda sin programa afiliado configurado → READY
  * 4. URL operativa ya tagged (isPlatformAffiliateTagged) → READY
  * 5. link_mod_ok explícito del moderador + URL canónica → READY
+ *    (Mercado Libre: solo si la URL es el meli.la verificado; los parámetros no certifican cuenta)
  * 6. Else → NOT READY (falta tag / confirmación)
  *
  * NO duplica parsing de tags: reutiliza assessOfferAffiliateLink / isPlatformAffiliateTagged.
@@ -67,6 +68,15 @@ export type AffiliateReadinessResult = {
 function isMlUrl(url: string): boolean {
   try {
     return isMercadoLibreHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isMeliLaShortUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return h === 'meli.la' || h.endsWith('.meli.la');
   } catch {
     return false;
   }
@@ -204,6 +214,18 @@ export function evaluateAffiliateReadiness(
       source: 'platform_tagged',
       label: 'Lista',
       detail: 'Aventa puede monetizar este enlace.',
+      programRequired: true,
+      offerUrl,
+    };
+  }
+
+  if (linkModOk && isMlUrl(offerUrl) && !isMeliLaShortUrl(offerUrl)) {
+    return {
+      ready: false,
+      reason: 'needs_moderator_confirmation',
+      source: 'not_ready',
+      label: 'Requiere atención',
+      detail: 'Mercado Libre: pega el meli.la de la cuenta de afiliados de Aventa.',
       programRequired: true,
       offerUrl,
     };

@@ -14,7 +14,17 @@ export type AffiliatePasteValidation = {
   productMatched: boolean;
   affiliateTagged: boolean;
   normalizedUrl: string | null;
+  /** meli.la: el producto solo se puede comprobar en servidor siguiendo la redirección. */
+  needsServerVerification?: boolean;
 };
+
+export const MELI_LA_REQUIRED_REASON =
+  'Pega el enlace meli.la generado en la cuenta de afiliados de Mercado Libre';
+
+function isMeliLaHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === 'meli.la' || h.endsWith('.meli.la');
+}
 
 function parseHttpsUrl(raw: string): URL | null {
   const trimmed = raw.trim();
@@ -115,6 +125,23 @@ export function validateAffiliatePaste(
     return invalid('El enlace no corresponde al producto', {
       store: detectAffiliateStoreLabel(pasted),
     });
+  }
+
+  const pastedIsMercadoLibre = hostFamily(pastedParsed.hostname) === 'mercadolibre';
+  if (pastedIsMercadoLibre && !isMeliLaHost(pastedParsed.hostname)) {
+    return invalid(MELI_LA_REQUIRED_REASON, { store: 'Mercado Libre' });
+  }
+
+  if (isMeliLaHost(pastedParsed.hostname)) {
+    return {
+      valid: true,
+      store: 'Mercado Libre',
+      reason: null,
+      productMatched: false,
+      affiliateTagged: true,
+      normalizedUrl: pastedParsed.toString(),
+      needsServerVerification: true,
+    };
   }
 
   const productMatched = offerUrlsAreSameProduct(original, pasted);

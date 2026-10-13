@@ -15,6 +15,7 @@ import FocusRejectSheet from './FocusRejectSheet';
 import FocusDetailsDrawer from './FocusDetailsDrawer';
 import FocusShortcutsHint from './FocusShortcutsHint';
 import FocusAffiliatePrepare from './FocusAffiliatePrepare';
+import AffiliateLinkTrace from './AffiliateLinkTrace';
 import FocusDesktopContext from './FocusDesktopContext';
 import ModerationWorkspaceStats from '@/app/admin/moderation/ModerationWorkspaceStats';
 import ModerationFixSheet from '@/app/admin/components/ModerationFixSheet';
@@ -192,16 +193,27 @@ export default function ModerationFocusWorkspace({
         acting={queue.acting}
         open={prepareOpen}
         variant={monetization?.status === 'needs_attention' ? 'prepare' : 'replace'}
+        originalUrl={queue.offer?.original_offer_url ?? queue.offer?.offer_url ?? null}
         onClose={() => {
           setUserPrepare(false);
           queue.dismissAffiliateGate();
         }}
-        onSave={async (pasted) => {
-          const result = await queue.prepareAffiliateLink(pasted);
+        onSave={async (pasted, opts) => {
+          const result = await queue.prepareAffiliateLink(pasted, opts);
           if (result.ok) setUserPrepare(false);
           return result;
         }}
       />
+
+      {!prepareOpen && queue.affiliateCheck ? (
+        <div className={cn('mb-3', ui.body)}>
+          <AffiliateLinkTrace
+            originalUrl={queue.affiliateCheck.originalUrl}
+            publishedUrl={queue.affiliateCheck.publishedUrl}
+            verification={queue.affiliateCheck.result}
+          />
+        </div>
+      ) : null}
 
       <div className="flex flex-col">
         {queue.loading && !queue.offer ? (
