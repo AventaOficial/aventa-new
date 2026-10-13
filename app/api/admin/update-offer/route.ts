@@ -6,6 +6,7 @@ import { normalizeCategoryForStorage, isValidCategoryId } from '@/lib/categories
 import { normalizeOfferImageUrl } from '@/lib/offerPath'
 import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidatePublicOffer } from '@/lib/offers/publicOfferCache'
+import { OFFER_MAX_IMAGES } from '@/lib/contracts/offers'
 import {
   affiliatePasteValidationBaseline,
   originalOfferUrlToPersistOnAffiliatePaste,
@@ -317,7 +318,7 @@ export async function PATCH(request: Request) {
         .filter((u: unknown): u is string => typeof u === 'string' && u.trim().startsWith('http'))
         .map((u: string) => (normalizeOfferImageUrl(u.trim()) ?? u.trim()).slice(0, 4096))
         .filter((u: string, i: number, arr: string[]) => arr.indexOf(u) === i)
-        .slice(0, 8)
+        .slice(0, OFFER_MAX_IMAGES)
       payload.image_urls = cleaned.length > 0 ? cleaned : null
     }
     if (body.category !== undefined) {

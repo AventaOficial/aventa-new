@@ -59,6 +59,7 @@ export default function ModerationFocusWorkspace({
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if ((e.target as HTMLElement)?.isContentEditable) return;
+      if (e.defaultPrevented) return;
 
       if (e.key === 'Escape') {
         setRejectOpen(false);
@@ -279,6 +280,7 @@ export default function ModerationFocusWorkspace({
                   offer={queue.offer}
                   mode={mode}
                   onOpenWhy={() => setWhyOpen(true)}
+                  onSetCover={canEdit ? queue.setCoverImage : undefined}
                 />
                 <div className="mt-4" data-focus-actions-bar>
                   <FocusActionsBar

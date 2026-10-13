@@ -33,6 +33,7 @@ import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
 import ModerationChecklist from './ModerationChecklist';
 import ModerationImageGallery from './ModerationImageGallery';
+import { setOfferCover } from '@/lib/moderation/setOfferCover';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
 import { validateAffiliatePaste, type AffiliatePasteValidation } from '@/lib/affiliate/validateAffiliatePaste';
@@ -165,7 +166,9 @@ export default function ModerationOfferDetail({
   const { session } = useAuth();
   const [imgBroken, setImgBroken] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
-  const [showImageExpand, setShowImageExpand] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -244,6 +247,7 @@ export default function ModerationOfferDetail({
   useEffect(() => {
     setGalleryIndex(0);
     setImgBroken(false);
+    setCoverError(null);
     setLinkConfirmed(false);
     setShowRejectInput(false);
     setRejectReason('');
@@ -322,7 +326,20 @@ export default function ModerationOfferDetail({
         )
       : 0;
 
-  const heroSrc = !imgBroken ? allPreviewImages[galleryIndex] ?? allPreviewImages[0] : null;
+  const hasGallery = !imgBroken && allPreviewImages.length > 0;
+
+  const setCoverImage = async (src: string) => {
+    setCoverSaving(true);
+    setCoverError(null);
+    const result = await setOfferCover(offer.id, allPreviewImages, src, session?.access_token);
+    setCoverSaving(false);
+    if (!result.ok) {
+      setCoverError(result.error);
+      return;
+    }
+    setGalleryIndex(0);
+    onOfferUpdated?.();
+  };
 
   const fetchHistory = useCallback(() => {
     if (historyLogs.length > 0) {
@@ -579,20 +596,27 @@ export default function ModerationOfferDetail({
               ← Volver a la cola
             </button>
           ) : null}
-        {heroSrc ? (
-          <ModerationImageGallery
-            images={allPreviewImages}
-            index={galleryIndex}
-            onIndexChange={(i) => {
-              setGalleryIndex(i);
-              setImgBroken(false);
-            }}
-            onImageError={() => setImgBroken(true)}
-            heroBg={ui.heroBg}
-            heroClassName="aspect-[4/3] max-h-[min(36vh,320px)] md:max-h-[min(42vh,380px)]"
-            showExpand
-            onExpand={() => setShowImageExpand(true)}
-          />
+        {hasGallery ? (
+          <>
+            <ModerationImageGallery
+              key={`${offer.id}:${allPreviewImages.join('|')}`}
+              images={allPreviewImages}
+              index={galleryIndex}
+              onIndexChange={setGalleryIndex}
+              onImageError={() => setImgBroken(true)}
+              heroBg={ui.heroBg}
+              heroClassName="aspect-[4/3] max-h-[min(36vh,320px)] md:max-h-[min(42vh,380px)]"
+              showExpand
+              onExpand={setExpandedImage}
+              onSetCover={readOnly ? undefined : setCoverImage}
+              coverSaving={coverSaving}
+            />
+            {coverError ? (
+              <p className="px-4 pt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+                {coverError}
+              </p>
+            ) : null}
+          </>
         ) : isBotOffer ? (
           <ModerationBotFactsCard
             variant="hero"
@@ -724,7 +748,7 @@ export default function ModerationOfferDetail({
                 onFix={handleFix}
                 disabled={readOnly}
               />
-              {heroSrc ? (
+              {hasGallery ? (
                 <ModerationBotFactsCard
                   mode={mode}
                   store={offer.store}
@@ -1169,18 +1193,18 @@ export default function ModerationOfferDetail({
         </div>
       ) : null}
 
-      {showImageExpand && heroSrc ? (
+      {expandedImage ? (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4"
-          onClick={() => setShowImageExpand(false)}
+          onClick={() => setExpandedImage(null)}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => e.key === 'Escape' && setShowImageExpand(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setExpandedImage(null)}
           aria-label="Cerrar imagen"
         >
           <button
             type="button"
-            onClick={() => setShowImageExpand(false)}
+            onClick={() => setExpandedImage(null)}
             className="absolute right-4 top-4 rounded-full p-2 text-white hover:bg-white/10"
             aria-label="Cerrar"
           >
@@ -1188,7 +1212,7 @@ export default function ModerationOfferDetail({
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={heroSrc}
+            src={expandedImage}
             alt=""
             className="max-h-full max-w-full object-contain"
             referrerPolicy="no-referrer"

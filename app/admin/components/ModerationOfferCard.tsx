@@ -9,6 +9,12 @@ import { ALL_CATEGORIES, normalizeCategoryForStorage, isVitalCategory } from '@/
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import { MODERATION_REJECTION_PRESETS } from '@/lib/moderation/rejectionPresets';
 import { mergeOfferImageUrls } from '@/lib/offerPath';
+import {
+  clampGalleryIndex,
+  indexAfterImageFailure,
+  stepGalleryIndex,
+  workingGalleryImages,
+} from '@/lib/moderation/galleryNavigation';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { presentAuthor } from '@/lib/product/hunters/identity';
@@ -86,8 +92,13 @@ export default function ModerationOfferCard({
     [offer.image_url, offer.image_urls]
   );
 
+  const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(() => new Set());
+  const cardImages = workingGalleryImages(allPreviewImages, failedImages);
+  const cardIndex = clampGalleryIndex(galleryIndex, cardImages.length);
+
   useEffect(() => {
     setGalleryIndex(0);
+    setFailedImages(new Set());
   }, [offer.id]);
   const [showEdit, setShowEdit] = useState(false);
   const [editTitle, setEditTitle] = useState(offer.title);
@@ -170,20 +181,26 @@ export default function ModerationOfferCard({
     >
       <div className="flex flex-col">
         <div className="relative w-full h-52 md:h-56 shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900">
-          {allPreviewImages.length > 0 ? (
+          {cardImages.length > 0 ? (
             <>
               <img
-                src={allPreviewImages[galleryIndex] ?? allPreviewImages[0]}
+                key={cardImages[cardIndex]}
+                src={cardImages[cardIndex]}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  const failedUrl = cardImages[cardIndex];
+                  const next = indexAfterImageFailure(allPreviewImages, failedImages, failedUrl);
+                  setFailedImages((prev) => new Set([...prev, failedUrl]));
+                  setGalleryIndex(Math.max(0, next));
+                }}
               />
-              {allPreviewImages.length > 1 && (
+              {cardImages.length > 1 && (
                 <>
                   <button
                     type="button"
-                    onClick={() =>
-                      setGalleryIndex((i) => (i === 0 ? allPreviewImages.length - 1 : i - 1))
-                    }
+                    onClick={() => setGalleryIndex(stepGalleryIndex(cardIndex, cardImages.length, -1))}
                     className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-black/45 text-white p-1 shadow-md"
                     aria-label="Imagen anterior"
                   >
@@ -191,22 +208,15 @@ export default function ModerationOfferCard({
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      setGalleryIndex((i) => (i === allPreviewImages.length - 1 ? 0 : i + 1))
-                    }
+                    onClick={() => setGalleryIndex(stepGalleryIndex(cardIndex, cardImages.length, 1))}
                     className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-black/45 text-white p-1 shadow-md"
                     aria-label="Siguiente imagen"
                   >
                     ›
                   </button>
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                    {allPreviewImages.map((_, i) => (
-                      <span
-                        key={i}
-                        className={`h-1 rounded-full ${i === galleryIndex ? 'w-2 bg-white' : 'w-1 bg-white/50'}`}
-                      />
-                    ))}
-                  </div>
+                  <span className="absolute left-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+                    {cardIndex + 1}/{cardImages.length}
+                  </span>
                 </>
               )}
             </>

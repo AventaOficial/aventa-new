@@ -45,7 +45,12 @@ describe('Focus layout — fixed action bar', () => {
       join(process.cwd(), 'app/components/moderation/FocusOfferStage.tsx'),
       'utf8'
     );
-    expect(stage).toMatch(/Fotos de la oferta/);
+    expect(stage).toMatch(/<ModerationImageGallery/);
+    const gallery = readFileSync(
+      join(process.cwd(), 'app/admin/components/ModerationImageGallery.tsx'),
+      'utf8'
+    );
+    expect(gallery).toMatch(/Fotos de la oferta/);
     expect(stage).toMatch(/Monetización/);
     expect(stage).not.toMatch(/\{offer\.offer_url\}/);
   });

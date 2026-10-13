@@ -11,6 +11,8 @@ import {
   focusOriginalProductUrlForRequest,
 } from '@/lib/moderation/originalOfferUrlPolicy';
 import { requestModerationLock } from '@/lib/moderation/moderationLockClient';
+import { setOfferCover } from '@/lib/moderation/setOfferCover';
+import { mergeOfferImageUrls } from '@/lib/offerPath';
 import type {
   FocusModerationOffer,
   FocusQueueStats,
@@ -861,6 +863,18 @@ export function useModerationFocusQueue({
     [offer]
   );
 
+  const setCoverImage = useCallback(
+    async (src: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!offer) return { ok: false, error: 'Sin oferta' };
+      const images = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null);
+      const result = await setOfferCover(offer.id, images, src, session?.access_token);
+      if (!result.ok) return { ok: false, error: result.error };
+      applyOfferEditResult(result.data);
+      return { ok: true };
+    },
+    [applyOfferEditResult, offer, session?.access_token]
+  );
+
   const viewingHistory = historyIndex >= 0;
   const sessionCounterLabel = formatFocusSessionCounter({
     reviewedCount,
@@ -896,6 +910,7 @@ export function useModerationFocusQueue({
     prepareAffiliateLink,
     affiliateCheck: affiliateCheck && affiliateCheck.offerId === offer?.id ? affiliateCheck : null,
     applyOfferEditResult,
+    setCoverImage,
     dismissAffiliateGate,
     setError,
   };
