@@ -1,4 +1,5 @@
 import { OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
+import { normalizeOfferImageUrl } from '@/lib/offers/media/offerImageSource';
 
 /** Candidatas internas antes de ranking; la publicación siempre corta a OFFER_MAX_IMAGES. */
 export const OFFER_IMAGE_CANDIDATE_CAP = 24;
@@ -102,12 +103,12 @@ export function selectOfferImages(
   opts: SelectOfferImagesOptions = {},
 ): string[] {
   const limit = opts.limit ?? OFFER_MAX_IMAGES;
-  const preferredCover = opts.preferredCover?.trim() || null;
+  const preferredCover = normalizeOfferImageUrl(opts.preferredCover) || null;
   const bestByResource = new Map<string, { url: string; score: number; index: number }>();
 
   urls.forEach((raw, index) => {
     if (typeof raw !== 'string') return;
-    const url = raw.trim();
+    const url = normalizeOfferImageUrl(raw);
     if (!url || !/^https?:\/\//i.test(url)) return;
     if (isHighConfidenceJunkImage(url)) return;
 
