@@ -20,6 +20,18 @@ jobs:
   community:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Redis desechable del runner (API REST de Upstash vía SRH); solo lo usa target=local.
+    services:
+      redis:
+        image: redis:7
+      srh:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: e2e_local_only
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+          - 8079:80
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -48,12 +60,20 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
           AVENTA_SUPABASE_TARGET: staging
+          AVENTA_REDIS_ENVIRONMENT: staging
+          UPSTASH_REDIS_REST_URL: http://127.0.0.1:8079
+          UPSTASH_REDIS_REST_TOKEN: e2e_local_only
           MONEY_PATH_FROZEN: 'true'
           DIGEST_TIMEZONE: America/Mexico_City
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
         run: |
           set -euo pipefail
           node --input-type=module -e "import { assertIsolatedBaseUrl, assertIsolatedDeployment } from './e2e/cases.mjs'; const u = assertIsolatedBaseUrl(process.env.E2E_SUPABASE_URL); assertIsolatedDeployment({ health: { resolved_supabase_ref: u.hostname.split('.')[0] } });"
+          for i in $(seq 1 30); do
+            if curl -fsS -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" "$UPSTASH_REDIS_REST_URL/set/aventa:staging:environment/staging" > /dev/null; then break; fi
+            if [ "$i" = 30 ]; then echo "e2e refused: Redis local no disponible"; exit 1; fi
+            sleep 2
+          done
           npm run build
           nohup npx next start -H 127.0.0.1 -p 3000 > next-start.log 2>&1 &
           for i in $(seq 1 60); do
