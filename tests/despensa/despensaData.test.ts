@@ -200,6 +200,16 @@ describe('datos de /api/despensa', () => {
     });
   });
 
+  it('sin alcance declarado, solo las tiendas que el código ya trata como en línea quedan «online»', () => {
+    const amazon = toDespensaOffer(feedOffer({ id: 'a', title: 'Arroz blanco 1 kg', conditions: null, offer_url: 'https://www.amazon.com.mx/dp/X', store: 'Amazon' }), null);
+    const soriana = toDespensaOffer(feedOffer({ id: 's', title: 'Arroz blanco 1 kg', conditions: null, offer_url: 'https://www.soriana.com/p/1', store: 'Soriana' }), null);
+    const tienda = toDespensaOffer(
+      feedOffer({ id: 't', title: 'Arroz blanco 1 kg', conditions: 'Alcance: oferta en tienda física / sucursales.', offer_url: 'https://www.amazon.com.mx/dp/X' }),
+      null,
+    );
+    expect([amazon.offerScope, soriana.offerScope, tienda.offerScope]).toEqual(['online', null, 'in_store']);
+  });
+
   it('usa la moneda guardada, descarta otras monedas y adjunta el historial', async () => {
     const { client } = fakeSupabase({
       offers: [
