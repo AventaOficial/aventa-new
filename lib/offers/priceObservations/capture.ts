@@ -78,7 +78,7 @@ export type CaptureEvent = {
 
 export type PriceCaptureReport = {
   runId: string;
-  status: 'disabled' | 'schema_missing' | 'skipped_concurrent' | 'failed' | 'completed';
+  status: 'disabled' | 'schema_missing' | 'skipped_concurrent' | 'skipped_time' | 'failed' | 'completed';
   detail: string | null;
   dryRun: boolean;
   policyVersion: string;
@@ -108,9 +108,15 @@ export type PriceCaptureDeps = {
   log?: (line: string) => void;
   /** Lee y valida sin escribir nada (ni observaciones ni lock). `inserted` cuenta lo que se habría guardado. */
   dryRun?: boolean;
+  /** Instante en que la función que la invoca deja de ejecutarse; el presupuesto no lo excede. */
+  hostDeadlineMs?: number;
 };
 
 const MAX_EVENTS = 200;
+/** Margen para soltar el lock y registrar el reporte antes del límite de la función. */
+const HOST_DEADLINE_MARGIN_MS = 15_000;
+/** Con menos tiempo que esto no vale la pena empezar: se omite y se reintenta en la próxima corrida. */
+const MIN_USEFUL_BUDGET_MS = 10_000;
 
 export function defaultPriceCaptureAdapters(): PriceCaptureAdapter[] {
   return [createMercadoLibreCaptureAdapter()];
@@ -185,9 +191,15 @@ export async function runPriceCaptureCycle(deps: PriceCaptureDeps): Promise<Pric
     }
   };
 
-  const config = deps.config ?? (await readPriceCaptureConfig(supabase));
+  const stored = deps.config ?? (await readPriceCaptureConfig(supabase));
+  if (!stored.enabled) {
+    report.budgetMs = stored.budgetMs;
+    return finish('disabled', stored.disabledReason);
+  }
+  const hostRoomMs = deps.hostDeadlineMs != null ? deps.hostDeadlineMs - HOST_DEADLINE_MARGIN_MS - clock() : Infinity;
+  const config = { ...stored, budgetMs: Math.max(0, Math.min(stored.budgetMs, hostRoomMs)) };
   report.budgetMs = config.budgetMs;
-  if (!config.enabled) return finish('disabled', config.disabledReason);
+  if (config.budgetMs < MIN_USEFUL_BUDGET_MS) return finish('skipped_time', 'host_time_insufficient');
 
   const probe = await supabase.from('offer_price_snapshots').select('id, validation_status, idempotency_key, policy_version').limit(1);
   if (probe.error) {

@@ -267,6 +267,14 @@ Es una aproximación: solo cuenta las ofertas con huella `ml:`. Las de URL sin h
 Concurrencia: lock `despensa_price_capture` en `ingest_cycle_locks` (TTL = presupuesto + 60 s, mínimo 5 min). El lock
 falla abierto por diseño; si eso pasa, el índice único impide duplicados (probado).
 
+Tiempo: corre en el `after()` de `pm-freshness` (`maxDuration` 300 s), después de Price Memory. El presupuesto efectivo
+es el menor entre `budgetMs` (tope 120 s) y lo que le queda a la función menos 15 s. Si quedan menos de 10 s, no
+empieza (`skipped_time`, `host_time_insufficient`) y lo intenta en la próxima corrida (probado).
+
+Ofertas sin `expires_at`: el producto las trata como vigentes en el feed, los votos y la RLS, y la captura hace lo
+mismo. Siguen elegibles mientras estén `approved`/`published` y sin `deleted_at`. El costo no crece con ellas: la
+capacidad por corrida es fija y la rotación reparte el cupo.
+
 Fallas de Mercado Libre (`classifyMlFailure`, por código HTTP):
 
 | Respuesta | Motivo | Reintento | Efecto en la corrida |
@@ -333,8 +341,23 @@ Importación: `npx tsx scripts/profeco-qqp-import.ts --resource=b07_2026_q1.csv`
 la base es local. Muestra real (primeros 3 MB de julio q1, 9 392 filas): 579 aceptadas, 354 referencias, 182
 comparables con ofertas; la mayoría de filas son otros productos (`not_in_catalog_map`).
 
-Pendiente: aplicar la migración, importar en un entorno autorizado, leer referencias en `/api/despensa` y mostrarlas en
-la interfaz con la atribución.
+Estado al cierre: el importador y la etiqueta están probados (esquema, idempotencia, procedencia y que nunca se
+convierte en ahorro). La lectura en `/api/despensa` y la interfaz **no** se construyeron. No hay ninguna referencia
+importada en ningún entorno (la tabla no existe hasta aplicar la migración 3), así que la interfaz no tendría datos que
+mostrar ni forma de validarse. Para completarla: aplicar la migración 3, importar un periodo en staging y entonces
+conectar la lectura y la etiqueta con la atribución.
+
+## Estado del precio en Despensa
+
+| Estado | Cuándo |
+| --- | --- |
+| Ahorro verificado | El motor (o, sin la migración, la regla legada) lo respalda |
+| Precio observado | El motor confirmó el precio con una lectura de la tienda de < 48 h que coincide con el publicado |
+| Precio publicado | Tienda identificable, sin lectura reciente de Aventa (hoy, todas las ofertas de producción) |
+| Información insuficiente | Precio enviado sin tienda identificable |
+
+Además, como avisos: «Precio en tienda distinto al publicado», «Precio de lista contradicho» y «Precio de lista sin
+confirmar». Antes de este cierre, toda oferta de tienda identificable decía «Precio observado» sin lectura alguna.
 
 ## Costo estimado por corrida (configuración por defecto)
 
@@ -344,7 +367,8 @@ la interfaz con la atribución.
   subir `candidatePool`.
 - Mercado Libre: 1 llamada `/items/bulk` por cada 20 items + 1 a 3 llamadas de precio por item → 21–61 llamadas/día. Sin costo
   monetario por la API.
-- Cómputo: dentro de la invocación existente de `pm-freshness`, ≤ 60 s mayormente en espera de red. Menos de US$0.01 por corrida.
+- Cómputo: dentro de la invocación existente de `pm-freshness`, ≤ 60 s (≤ 120 s con el tope duro y nunca más allá
+  del límite de la función), mayormente en espera de red. Menos de US$0.01 por corrida.
 - Almacenamiento: ≤ 24 filas/día (~1 KB cada una) → ~9 MB/año. Sin borrado.
 - Apagada: 1 lectura de `app_config`.
 
@@ -354,16 +378,40 @@ Nunca contra producción. Requiere autorización explícita para aplicar la migr
 
 1. **Local, sin Docker:** `npm i --no-save @electric-sql/pglite@0.3` y
    `node scripts/verify-offer-price-observations-local.mjs` → debe terminar en `TODO OK`.
-2. **Local con Supabase** (si Docker funciona): `supabase start`, aplicar `offer_price_snapshots.sql`,
-   `20261012_offer_price_observations.sql`, `20261013_offer_price_observations_product_series.sql` y
-   `20261014_price_observations_lifecycle.sql` con `psql` contra `127.0.0.1:54322`.
-3. **Staging (con autorización):** aplicar la migración con el procedimiento habitual de migraciones manuales (SQL Editor
-   o `psql` con la URL de staging). No usar `supabase db push`. Verificar:
+2. **Local con Supabase** (si Docker funciona): `supabase start` y aplicar las migraciones en el orden de abajo con
+   `psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f <archivo>`.
+3. **Staging (con autorización):** mismas migraciones y orden, con `psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -1 -f <archivo>`
+   (`-1` = una transacción por archivo) o pegando cada archivo en el SQL Editor. No usar `supabase db push`.
+
+   | Orden | Archivo | Depende de | Qué hace |
+   | --- | --- | --- | --- |
+   | 0 | `offer_price_snapshots.sql` | `offers` | Ya existe en producción (RLS activo, solo `service_role`) |
+   | 1 | `20261012_offer_price_observations.sql` | 0 | Columnas, CHECK, índice único de idempotencia, guarda |
+   | 2 | `20261013_offer_price_observations_product_series.sql` | 1 | Índice por producto, guarda de identidad |
+   | 3 | `20261013_price_references.sql` | — | Tabla `price_references` (RLS, solo `service_role`) |
+   | 4 | `20261014_price_observations_lifecycle.sql` | 1, 2 | FK RESTRICT, capturas no borrables, sin TRUNCATE, `price_capture_product_stats` |
+
+   Todas son idempotentes (probado aplicándolas dos veces). Verificar después de la 4:
    ```sql
    select column_name from information_schema.columns
    where table_name = 'offer_price_snapshots' and column_name in ('validation_status','idempotency_key','identity_key');
    select indexname from pg_indexes where tablename = 'offer_price_snapshots';
+   select conname, confdeltype from pg_constraint
+   where conrelid = 'public.offer_price_snapshots'::regclass and contype = 'f';          -- offer_id → 'r'
+   select tgname from pg_trigger where tgrelid = 'public.offer_price_snapshots'::regclass and not tgisinternal;
+   select has_function_privilege('anon', 'public.price_capture_product_stats(text, text[], timestamptz)', 'EXECUTE'); -- false
+   select count(*) from offer_price_snapshots where validation_status is not null;      -- 0 antes de la primera captura
    ```
+
+   **Rollback** (sin borrar datos; ninguna migración rellena ni reescribe filas):
+   - Captura: `paused: true` o borrar la fila de `app_config`. No requiere despliegue.
+   - Código: revertir el merge. Los lectores vuelven a la consulta legada si faltan columnas (42703) y la selección
+     cae a la consulta de recientes si falta la función.
+   - Esquema: no hace falta revertirlo; las columnas son `NULL`/`DEFAULT` y las filas legado no cambian. Si se exigiera,
+     `DROP FUNCTION public.price_capture_product_stats(text, text[], timestamptz);`,
+     `DROP TRIGGER trg_offer_price_snapshots_no_truncate ON public.offer_price_snapshots;` y
+     `DROP INDEX IF EXISTS idx_offer_price_snapshots_capture_item_recorded;`. **No** volver la FK a CASCADE: la política
+     de retención v2 la exige en RESTRICT.
 4. Activar en staging con topes bajos:
    ```sql
    insert into app_config (key, value) values

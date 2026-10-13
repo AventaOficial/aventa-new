@@ -17,6 +17,7 @@ export const maxDuration = 300;
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
   if (denied) return denied;
+  const hostDeadlineMs = Date.now() + maxDuration * 1000;
 
   after(async () => {
     try {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
     try {
       // Apagada salvo app_config.despensa_price_capture = { "enabled": true }. Registra [price-capture].
-      await runPriceCaptureCycle({ supabase: createServerClient() });
+      await runPriceCaptureCycle({ supabase: createServerClient(), hostDeadlineMs });
     } catch {
       console.error('[price-capture] cycle_crashed');
     }

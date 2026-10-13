@@ -117,6 +117,9 @@ CREATE TRIGGER trg_offer_price_snapshots_no_truncate
 
 REVOKE TRUNCATE ON public.offer_price_snapshots FROM PUBLIC, anon, authenticated;
 
+COMMENT ON COLUMN public.offer_price_snapshots.idempotency_key IS
+  'Una observación por producto (fuente + item externo), alcance y ventana de 24 h; no incluye offer_id. Reintentos y corridas simultáneas chocan aquí.';
+
 -- Estado por producto para la selección de la captura. Usa
 -- idx_offer_price_snapshots_capture_item_recorded (source_id, external_item_id, recorded_at).
 -- Un «día válido» es un día UTC con al menos una observación válida y no agotada, igual que el motor.

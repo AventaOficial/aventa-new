@@ -63,10 +63,11 @@ export function despensaAisleFor(needId: string): DespensaAisleId | null {
 /**
  * Estado principal del precio. Uno solo por oferta para no saturar la tarjeta.
  * - `verified_saving`: ahorro respaldado por el historial propio de Aventa.
- * - `observed_price`: precio publicado por una tienda identificable; sin descuento demostrado.
+ * - `observed_price`: el motor confirmó el precio con una lectura de la tienda de < 48 h; sin descuento demostrado.
+ * - `published_price`: precio publicado por una tienda identificable, sin lectura reciente de Aventa.
  * - `reported_price`: precio enviado sin tienda identificable; información insuficiente.
  */
-export type DespensaPriceStatus = 'verified_saving' | 'observed_price' | 'reported_price';
+export type DespensaPriceStatus = 'verified_saving' | 'observed_price' | 'published_price' | 'reported_price';
 
 /** Avisos secundarios. Se muestran como texto, no como insignias. */
 export type DespensaNote =
@@ -127,9 +128,10 @@ export type DespensaPlan = {
 
 const KIND_ORDER = { esencial: 0, cotidiano: 1, discrecional: 2 } as const;
 
-function priceStatus(s: DespensaSignals): DespensaPriceStatus {
+function priceStatus(offer: DespensaOffer, s: DespensaSignals): DespensaPriceStatus {
   if (s.saving.status === 'verified') return 'verified_saving';
-  return s.evidence === 'reported' ? 'reported_price' : 'observed_price';
+  if (s.evidence === 'reported') return 'reported_price';
+  return offer.priceHistory?.engine?.label === 'observed_price' ? 'observed_price' : 'published_price';
 }
 
 function notesFor(offer: DespensaOffer, s: DespensaSignals): DespensaNote[] {
@@ -240,7 +242,7 @@ export function buildDespensaPlan(offers: readonly DespensaOffer[], opts: Despen
       freshness: s.freshness,
       budgetFit: s.budgetFit,
       personal: s.personal,
-      status: priceStatus(s),
+      status: priceStatus(offer, s),
       notes: notesFor(offer, s),
       reasons: explainPick(s, standings[i], peers, opts.budget ?? null, offer.discountPrice),
     };
@@ -345,11 +347,13 @@ export const DESPENSA_PLAN_COPY = {
   status: {
     verified_saving: PRICE_EVIDENCE_LABELS.verified_saving,
     observed_price: PRICE_EVIDENCE_LABELS.observed_price,
+    published_price: 'Precio publicado',
     reported_price: PRICE_EVIDENCE_LABELS.insufficient,
   } satisfies Record<DespensaPriceStatus, string>,
   statusHelp: {
     verified_saving: 'El historial de Aventa muestra este producto más caro en los últimos 90 días.',
-    observed_price: 'Precio publicado por la tienda. No hay historial que demuestre un descuento.',
+    observed_price: 'Aventa leyó este precio en la tienda en las últimas 48 horas. No hay historial que demuestre un descuento.',
+    published_price: 'Precio publicado por la tienda. Aventa aún no lo confirmó con una lectura reciente ni hay historial que demuestre un descuento.',
     reported_price: 'Precio enviado por la comunidad sin tienda identificable. Confírmalo antes de comprar.',
   } satisfies Record<DespensaPriceStatus, string>,
   notes: {

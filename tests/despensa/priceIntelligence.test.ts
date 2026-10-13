@@ -390,6 +390,26 @@ describe('captura periódica: controles', () => {
     });
   });
 
+  it('respeta el tiempo que le queda a la función que la invoca (cron)', async () => {
+    // Quedan 20 s: tras el margen de 15 s no alcanza para empezar; no toma el lock ni escribe.
+    const tight = captureEnv();
+    const t = await runPriceCaptureCycle({ ...tight.deps(), hostDeadlineMs: tight.now().getTime() + 20_000 });
+    expect(t).toMatchObject({ status: 'skipped_time', detail: 'host_time_insufficient' });
+    expect(tight.db.writes).toEqual([]);
+    expect(tight.mlCalls()).toBe(0);
+
+    // Quedan 45 s: el presupuesto baja de 60 s a 30 s y la corrida termina normal.
+    const some = captureEnv();
+    const s = await runPriceCaptureCycle({ ...some.deps(), hostDeadlineMs: some.now().getTime() + 45_000 });
+    expect(s.status).toBe('completed');
+    expect(s.budgetMs).toBe(30_000);
+    expect(s.inserted.valid).toBe(2);
+
+    // Apagada: ni siquiera calcula el tiempo.
+    const off = captureEnv({ config: null });
+    expect((await runPriceCaptureCycle({ ...off.deps(), hostDeadlineMs: 0 })).status).toBe('disabled');
+  });
+
   it('sin la migración aplicada no escribe nada', async () => {
     const env = captureEnv();
     env.db.missingColumns = { offer_price_snapshots: ['validation_status', 'idempotency_key'] };

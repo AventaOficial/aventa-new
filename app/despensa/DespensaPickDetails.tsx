@@ -5,6 +5,7 @@ const OBSERVED_AT = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 's
 const STATUS_TONE: Record<DespensaPick['status'], string> = {
   verified_saving: 'text-emerald-700 dark:text-emerald-400',
   observed_price: 'text-[#1d1d1f] dark:text-[#fafafa]',
+  published_price: 'text-[#1d1d1f] dark:text-[#fafafa]',
   reported_price: 'text-amber-700 dark:text-amber-400',
 };
 
