@@ -42,30 +42,80 @@ export async function recordOfferPriceSnapshot(
   }
 }
 
+const HISTORY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+const HISTORY_SAMPLES_PER_OFFER = 120;
+
 export async function buildOfferPriceInsight(
   supabase: SupabaseClient,
   args: { offerId: string; currentPrice: number; originalPrice?: number | null },
 ): Promise<PriceInsight> {
-  const current = round2(args.currentPrice);
-  const original =
-    args.originalPrice != null && Number.isFinite(args.originalPrice)
-      ? round2(args.originalPrice)
-      : null;
-  const labelDiscountPct =
-    original != null && original > current && original > 0
-      ? round2(((original - current) / original) * 100)
-      : null;
-
-  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
   const { data, error } = await supabase
     .from('offer_price_snapshots')
     .select('price, recorded_at')
     .eq('offer_id', args.offerId)
     .gte('recorded_at', since)
     .order('recorded_at', { ascending: false })
-    .limit(120);
+    .limit(HISTORY_SAMPLES_PER_OFFER);
 
-  if (error || !data?.length) {
+  const prices = error || !data ? [] : data.map((r) => Number((r as { price?: number }).price));
+  return computePriceInsight(args.currentPrice, args.originalPrice ?? null, prices);
+}
+
+/**
+ * Historial propio de varias ofertas en una sola consulta. Las ofertas sin registros
+ * (o si la consulta falla) quedan con veredicto `insufficient`; nunca se inventa historial.
+ */
+export async function buildOfferPriceInsights(
+  supabase: SupabaseClient,
+  offers: readonly { offerId: string; currentPrice: number; originalPrice?: number | null }[],
+): Promise<Map<string, PriceInsight>> {
+  const out = new Map<string, PriceInsight>();
+  if (offers.length === 0) return out;
+  const since = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
+  const { data, error } = await supabase
+    .from('offer_price_snapshots')
+    .select('offer_id, price, recorded_at')
+    .in(
+      'offer_id',
+      offers.map((o) => o.offerId),
+    )
+    .gte('recorded_at', since)
+    .order('recorded_at', { ascending: false })
+    .limit(offers.length * HISTORY_SAMPLES_PER_OFFER);
+  const byOffer = new Map<string, number[]>();
+  if (!error && data) {
+    for (const row of data as { offer_id?: string; price?: number }[]) {
+      if (!row.offer_id) continue;
+      const list = byOffer.get(row.offer_id) ?? [];
+      if (list.length < HISTORY_SAMPLES_PER_OFFER) list.push(Number(row.price));
+      byOffer.set(row.offer_id, list);
+    }
+  }
+  for (const o of offers) {
+    out.set(o.offerId, computePriceInsight(o.currentPrice, o.originalPrice ?? null, byOffer.get(o.offerId) ?? []));
+  }
+  return out;
+}
+
+/** Veredicto del historial propio (90 días) para un precio actual. Pura y determinista. */
+export function computePriceInsight(
+  currentPrice: number,
+  originalPrice: number | null,
+  observedPrices: readonly number[],
+): PriceInsight {
+  const current = round2(currentPrice);
+  const original =
+    originalPrice != null && Number.isFinite(originalPrice)
+      ? round2(originalPrice)
+      : null;
+  const labelDiscountPct =
+    original != null && original > current && original > 0
+      ? round2(((original - current) / original) * 100)
+      : null;
+
+  const prices = observedPrices.filter((n) => Number.isFinite(n) && n >= 0);
+  if (!prices.length) {
     return {
       current,
       originalPrice: original,
@@ -79,9 +129,6 @@ export async function buildOfferPriceInsight(
     };
   }
 
-  const prices = data
-    .map((r) => Number((r as { price?: number }).price))
-    .filter((n) => Number.isFinite(n) && n >= 0);
   const min90d = prices.length ? round2(Math.min(...prices)) : null;
   const max90d = prices.length ? round2(Math.max(...prices)) : null;
   const vsMin90dPct =
