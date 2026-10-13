@@ -2,6 +2,11 @@ name: E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Preview https://*.vercel.app a probar (vacío = secreto E2E_BASE_URL). Debe resolver a Supabase staging.'
+        required: false
+        default: ''
   push:
     branches:
       - community-launch-closure
@@ -18,9 +23,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Destino de la preview
+        if: ${{ inputs.base_url != '' }}
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$INPUT_BASE_URL" | grep -Eq '^https://[a-z0-9-]+\.vercel\.app/?$'; then
+            echo "e2e refused: base_url debe ser una preview https://*.vercel.app"; exit 1
+          fi
+          echo "E2E_BASE_URL_OVERRIDE=$INPUT_BASE_URL" >> "$GITHUB_ENV"
       - name: Flujos comunitarios
         env:
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_BASE_URL: ${{ env.E2E_BASE_URL_OVERRIDE || secrets.E2E_BASE_URL }}
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           E2E_MOD_EMAIL: ${{ secrets.E2E_MOD_EMAIL }}
@@ -31,6 +46,7 @@ jobs:
           E2E_APPROVED_OFFER_ID: ${{ secrets.E2E_APPROVED_OFFER_ID }}
           E2E_PUBLISHED_OFFER_ID: ${{ secrets.E2E_PUBLISHED_OFFER_ID }}
         run: |
+          node scripts/e2e-assert-target.mjs
           if [ -n "$E2E_SUPABASE_SERVICE_ROLE_KEY" ]; then node scripts/e2e-provision.mjs; fi
           npx playwright test
       - name: Resumen
