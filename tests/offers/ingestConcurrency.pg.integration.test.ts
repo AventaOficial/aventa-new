@@ -31,6 +31,13 @@ const URL_ENV = process.env.ISOLATED_SUPABASE_URL ?? '';
 const KEY_ENV = process.env.ISOLATED_SUPABASE_SERVICE_ROLE_KEY ?? '';
 const enabled = process.env.AVENTA_ISOLATED_PG_TEST === '1' && Boolean(URL_ENV && KEY_ENV);
 
+// El workflow exige la corrida: un skip silencioso no puede pasar por verde.
+describe.runIf(process.env.AVENTA_REQUIRE_PG_TEST === '1')('configuración de la prueba aislada', () => {
+  it('tiene URL y llave del Supabase local', () => {
+    expect(enabled).toBe(true);
+  });
+});
+
 function assertIsolated(url: string): void {
   const host = new URL(url).hostname;
   if (url.includes(PRODUCTION_SUPABASE_REF) || url.includes(STAGING_SUPABASE_REF)) {
@@ -234,5 +241,148 @@ describe.skipIf(!enabled)('PostgreSQL aislado: una sola oferta activa por identi
     }
     const { data: offer } = await supabase.from('offers').select('status').eq('id', approved[0].offer_id).single();
     expect(offer?.status).toBe('pending');
+  });
+
+  const clean = async () => ({ suppressed: false, reason: null, fingerprint: null });
+
+  function machineCandidate(raw: string) {
+    const checked = normalizeCandidateUrl(raw);
+    if (!checked.ok) throw new Error('url');
+    const identityKey = offerBatchIdentityKey(checked.url);
+    return { index: 0, url: checked.url, identityKey, title: 'Arroz', price: 42, originalPrice: null, note: null } as unknown as ValidCandidate;
+  }
+
+  function preparedFor(slug: string, over: Record<string, unknown> = {}) {
+    return {
+      pageKind: 'PRODUCT', product: true, title: `Arroz Verde Valle 1 kg ${RUN} ${slug}`, imageUrl: 'https://www.soriana.com/img/a.jpg',
+      imageUrls: [], store: 'Soriana', price: 42, originalPrice: null, priceSource: 'retail_html', originalPriceSource: null,
+      category: 'Despensa', currency: 'MXN', retailer: 'soriana', imageFailure: null, fetched: true,
+      pageFetchFailure: null, pageFetchFailureClass: null, pageHttpStatus: null, ...over,
+    } as unknown as PreparedMachineCandidate;
+  }
+
+  async function itemsOf(batchIds: string[]) {
+    const { data, error } = await supabase
+      .from('offer_batch_items')
+      .select('batch_id, identity_key, status, offer_id, error_code')
+      .in('batch_id', batchIds);
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  it('lotes simultáneos que se solapan ([A,B], [B,C], [C,A]): un ítem abierto y una oferta por identidad', async () => {
+    const [a, b, c] = ['ov-a', 'ov-b', 'ov-c'].map((s) => machineCandidate(productUrl(s)));
+    const groups = [[a, b], [b, c], [c, a]];
+    const batches = await Promise.all(
+      groups.map((g) =>
+        createOfferBatch({ supabase, createdBy: authorId, name: `QA ${RUN}`, text: '', urls: g.map((x) => ({ url: x.url, identityKey: x.identityKey })) }),
+      ),
+    );
+    const opened = batches.flatMap((r) => (r.ok && r.batch ? [r.batch.id] : []));
+    const byKey = new Map([a, b, c].map((x) => [x.identityKey, x]));
+    const inserted = await itemsOf(opened);
+    for (const key of byKey.keys()) {
+      expect(inserted.filter((i) => i.identity_key === key)).toHaveLength(1);
+    }
+
+    await Promise.all(
+      inserted.map((item) =>
+        enqueueHunterOffer(
+          supabase,
+          { batchId: item.batch_id, createdBy: authorId, machineClientId: `qa-${RUN}`, candidate: byKey.get(item.identity_key)! },
+          { prepare: async () => preparedFor(item.identity_key), negativeMemory: clean, lowQualityTitle: () => false },
+        ),
+      ),
+    );
+    const settled = await itemsOf(opened);
+    expect(settled.filter((i) => i.status === 'INGESTED')).toHaveLength(0);
+    for (const key of byKey.keys()) {
+      const approved = settled.filter((i) => i.identity_key === key && i.status === 'APPROVED');
+      expect(approved).toHaveLength(1);
+      expect(approved[0].offer_id).toBeTruthy();
+      expect(await activeOffers(await offerIdentity(approved[0].offer_id as string))).toHaveLength(1);
+    }
+  });
+
+  async function offerIdentity(offerId: string): Promise<string> {
+    const { data, error } = await supabase.from('offers').select('ingestion_identity_key').eq('id', offerId).single();
+    if (error) throw error;
+    return (data as { ingestion_identity_key: string }).ingestion_identity_key;
+  }
+
+  it('errores parciales en un lote: cada ítem queda en un estado final y solo el válido crea oferta', async () => {
+    const ok = machineCandidate(productUrl('part-ok'));
+    const incomplete = machineCandidate(productUrl('part-noimg'));
+    const writerDown = machineCandidate(productUrl('part-500'));
+    const created = await createOfferBatch({
+      supabase,
+      createdBy: authorId,
+      name: `QA ${RUN}`,
+      text: '',
+      urls: [ok, incomplete, writerDown].map((x) => ({ url: x.url, identityKey: x.identityKey })),
+    });
+    if (!created.ok || !created.batch) throw new Error('batch');
+    const batchId = created.batch.id;
+    const failingIngest: typeof ingestOfferObservation = async (client, input) =>
+      (input.body as { offer_url?: string }).offer_url === writerDown.url
+        ? { ok: false, httpStatus: 500, error: 'simulado' }
+        : ingestOfferObservation(client, input);
+
+    await Promise.all([
+      enqueueHunterOffer(supabase, { batchId, createdBy: authorId, machineClientId: `qa-${RUN}`, candidate: ok }, { prepare: async () => preparedFor('ok'), negativeMemory: clean, lowQualityTitle: () => false, ingest: failingIngest }),
+      enqueueHunterOffer(supabase, { batchId, createdBy: authorId, machineClientId: `qa-${RUN}`, candidate: incomplete }, { prepare: async () => preparedFor('noimg', { imageUrl: null, imageFailure: 'IMAGE_NOT_FOUND' }), negativeMemory: clean, lowQualityTitle: () => false, ingest: failingIngest }),
+      enqueueHunterOffer(supabase, { batchId, createdBy: authorId, machineClientId: `qa-${RUN}`, candidate: writerDown }, { prepare: async () => preparedFor('500'), negativeMemory: clean, lowQualityTitle: () => false, ingest: failingIngest }),
+    ]);
+
+    const items = await itemsOf([batchId]);
+    const byKey = new Map(items.map((i) => [i.identity_key, i]));
+    expect(byKey.get(ok.identityKey)).toMatchObject({ status: 'APPROVED' });
+    expect(byKey.get(ok.identityKey)?.offer_id).toBeTruthy();
+    expect(byKey.get(incomplete.identityKey)).toMatchObject({ status: 'NEEDS_REVIEW', error_code: 'IMAGE_NOT_FOUND', offer_id: null });
+    expect(byKey.get(writerDown.identityKey)).toMatchObject({ status: 'ERROR', error_code: 'WRITER_FAILED', offer_id: null });
+    const { data: offers, error } = await supabase
+      .from('offers')
+      .select('id')
+      .in('title', [`Arroz Verde Valle 1 kg ${RUN} noimg`, `Arroz Verde Valle 1 kg ${RUN} 500`]);
+    expect(error).toBeNull();
+    expect(offers ?? []).toHaveLength(0);
+  });
+
+  it('recuperación: tras un fallo del escritor, el reintento crea una sola oferta y repetirlo no duplica', async () => {
+    const candidate = machineCandidate(productUrl('recover'));
+    const first = await createOfferBatch({ supabase, createdBy: authorId, name: `QA ${RUN}`, text: '', urls: [{ url: candidate.url, identityKey: candidate.identityKey }] });
+    if (!first.ok || !first.batch) throw new Error('batch');
+    await enqueueHunterOffer(
+      supabase,
+      { batchId: first.batch.id, createdBy: authorId, machineClientId: `qa-${RUN}`, candidate },
+      { prepare: async () => preparedFor('recover'), negativeMemory: clean, lowQualityTitle: () => false, ingest: async () => ({ ok: false, httpStatus: 500, error: 'simulado' }) },
+    );
+    expect((await itemsOf([first.batch.id]))[0]).toMatchObject({ status: 'ERROR', offer_id: null });
+
+    // ERROR retiene la identidad: un lote nuevo no puede abrir el mismo producto hasta que el operador lo cierre.
+    const blocked = await createOfferBatch({ supabase, createdBy: authorId, name: `QA ${RUN}`, text: '', urls: [{ url: candidate.url, identityKey: candidate.identityKey }] });
+    expect(blocked.ok && blocked.inserted).toBe(0);
+    await supabase.from('offer_batch_items').update({ status: 'REJECTED', rejection_reason: 'qa:retry' }).eq('batch_id', first.batch.id);
+
+    const retries = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        createOfferBatch({ supabase, createdBy: authorId, name: `QA ${RUN}`, text: '', urls: [{ url: candidate.url, identityKey: candidate.identityKey }] }),
+      ),
+    );
+    const reopened = retries.flatMap((r) => (r.ok && r.batch && r.inserted > 0 ? [r.batch.id] : []));
+    expect(reopened).toHaveLength(1);
+    await enqueueHunterOffer(
+      supabase,
+      { batchId: reopened[0]!, createdBy: authorId, machineClientId: `qa-${RUN}`, candidate },
+      { prepare: async () => preparedFor('recover'), negativeMemory: clean, lowQualityTitle: () => false },
+    );
+    const [item] = await itemsOf(reopened);
+    expect(item).toMatchObject({ status: 'APPROVED' });
+    const key = await offerIdentity(item!.offer_id as string);
+    expect(await activeOffers(key)).toHaveLength(1);
+
+    const again = await ingest(candidate.url, `${RUN}-recover-again`);
+    expect(again).toMatchObject({ ok: false, httpStatus: 409, duplicate_offer_id: item!.offer_id });
+    expect(await activeOffers(key)).toHaveLength(1);
   });
 });
