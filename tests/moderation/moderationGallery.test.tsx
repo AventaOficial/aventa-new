@@ -112,6 +112,11 @@ describe('ModerationImageGallery (render)', () => {
     expect(render({ index: 1, onSetCover: () => {}, coverSaving: true })).toContain('Guardando…');
   });
 
+  it('Referer: sin Referer por defecto; la cola de enfoque lo envía (Soriana)', () => {
+    expect(render({})).toContain('referrerPolicy="no-referrer"');
+    expect(render({ sendReferer: true })).not.toContain('no-referrer');
+  });
+
   it('marca la portada en el hero cuando está activa', () => {
     expect(render({ index: 0 })).toMatch(/Portada/);
   });

@@ -11,7 +11,7 @@ import {
 } from '@/lib/affiliate'
 import { isMeliLaShortUrl } from '@/lib/offerUrl'
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
-import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
+import { assertBulkMayActOnLock, assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { invalidatePublicOffer } from '@/lib/offers/publicOfferCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
@@ -120,14 +120,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'La oferta ya fue moderada' }, { status: 409 })
     }
 
-    if (!feedTakedown && !bulkAction) {
-      const lockCheck = assertModeratorOwnsLock(
-        {
-          locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
-          locked_at: (offer as { locked_at?: string | null }).locked_at ?? null,
-        },
-        auth.user.id
-      )
+    if (!feedTakedown) {
+      const lockFields = {
+        locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
+        locked_at: (offer as { locked_at?: string | null }).locked_at ?? null,
+      }
+      const lockCheck = bulkAction
+        ? assertBulkMayActOnLock(lockFields, auth.user.id)
+        : assertModeratorOwnsLock(lockFields, auth.user.id)
       if (!lockCheck.ok) {
         return NextResponse.json({ error: lockCheck.error }, { status: 409 })
       }

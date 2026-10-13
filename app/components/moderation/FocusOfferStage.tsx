@@ -92,6 +92,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy, onSetCover }: 
             thumbStripClassName="mt-2 gap-1.5 px-1 pb-0.5"
             onSetCover={handleSetCover}
             coverSaving={coverSaving}
+            sendReferer
           />
         ) : (
           <div

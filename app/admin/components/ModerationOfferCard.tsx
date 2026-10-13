@@ -188,7 +188,6 @@ export default function ModerationOfferCard({
                 src={cardImages[cardIndex]}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
-                referrerPolicy="no-referrer"
                 onError={() => {
                   const failedUrl = cardImages[cardIndex];
                   const next = indexAfterImageFailure(allPreviewImages, failedImages, failedUrl);

@@ -26,6 +26,8 @@ type Props = {
   /** Tamaño de las miniaturas. */
   thumbClassName?: string;
   thumbStripClassName?: string;
+  /** Envía Referer a la tienda (algunas, como Soriana, fallan más sin él). */
+  sendReferer?: boolean;
 };
 
 const SWIPE_MIN_PX = 40;
@@ -48,7 +50,9 @@ export default function ModerationImageGallery({
   coverSaving = false,
   thumbClassName = 'h-14 w-14',
   thumbStripClassName = 'gap-2 border-b px-3 py-2.5',
+  sendReferer = false,
 }: Props) {
+  const referrerPolicy = sendReferer ? undefined : 'no-referrer';
   const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
   const touchStartX = useRef<number | null>(null);
 
@@ -113,7 +117,7 @@ export default function ModerationImageGallery({
           src={src}
           alt=""
           className="absolute inset-0 h-full w-full object-contain p-3"
-          referrerPolicy="no-referrer"
+          referrerPolicy={referrerPolicy}
           onError={() => handleError(src)}
         />
         {many ? (
@@ -191,7 +195,7 @@ export default function ModerationImageGallery({
                 src={url}
                 alt=""
                 className="h-full w-full object-cover"
-                referrerPolicy="no-referrer"
+                referrerPolicy={referrerPolicy}
                 onError={() => handleError(url)}
               />
               {url === images[0] ? (

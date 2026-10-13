@@ -372,7 +372,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true, unchanged: true })
     }
 
-    let { error } = await supabase.from('offers').update(payload).eq('id', id)
+    // Compare-and-set sobre el estado leído: si otro moderador aprobó/rechazó entre medio, no se pisa.
+    const writeOffer = () =>
+      supabase.from('offers').update(payload).eq('id', id).eq('status', offerStatus).select('id')
+    let { data: written, error } = await writeOffer()
     if (
       error &&
       (hasMissingColumn(error, 'link_mod_ok') ||
@@ -386,11 +389,17 @@ export async function PATCH(request: Request) {
       if (hasMissingColumn(error, 'coupons')) delete payload.coupons
       if (hasMissingColumn(error, 'bank_coupon')) delete payload.bank_coupon
       if (hasMissingColumn(error, 'snoozed_until')) delete payload.snoozed_until
-      ;({ error } = await supabase.from('offers').update(payload).eq('id', id))
+      ;({ data: written, error } = await writeOffer())
     }
     if (error) {
       console.error('[update-offer]', error.message)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    if (!written || written.length === 0) {
+      return NextResponse.json(
+        { error: 'La oferta cambió de estado mientras la editabas. Recarga y revisa de nuevo.', code: 'status_changed' },
+        { status: 409 }
+      )
     }
     invalidatePublicOffer(id)
 

@@ -46,6 +46,18 @@ export function assertModeratorOwnsLock(
 }
 
 /**
+ * Lote (owner/admin): no exige claim, pero no pisa a otro moderador que la está revisando.
+ */
+export function assertBulkMayActOnLock(
+  lock: ModerationLockFields,
+  moderatorId: string
+): { ok: true } | { ok: false; error: string } {
+  if (!lock.locked_by || lock.locked_by === moderatorId) return { ok: true };
+  if (isModerationLockStale(lock.locked_at)) return { ok: true };
+  return { ok: false, error: 'Esta oferta ya está siendo moderada por otro usuario.' };
+}
+
+/**
  * Reclama una oferta de forma atómica (UPDATE condicional).
  * Solo una transacción gana si dos moderadores compiten por la misma fila.
  */
