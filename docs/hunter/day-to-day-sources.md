@@ -2,6 +2,50 @@
 
 Ofertas útiles de retailers grandes **aunque Aventa no tenga afiliado**.
 
+## Estado verificado en producción (2026-10-13, solo lectura)
+
+Fuente: `hunter_source_health` y `offer_batches` de producción. "Desplegada" significa que el código está en `master`; "activa", que la fila está `enabled = true`.
+
+| Fuente | Tipo | Desplegada | Estado en producción | Último error |
+|---|---|---|---|---|
+| `ml_worker` | worker de Mercado Libre (GitHub Actions) | sí | activa, `healthy`, breaker cerrado | — |
+| `ml_api_legacy` | API pública de ML (`/items/bulk`) | sí | activa, `healthy`, breaker cerrado | — |
+| Grok vía MCP (`aventa-mcp-xai-production-v3`) | proveedor de candidatos, no es fuente Hunter | sí | piloto controlado (ver `docs/SYSTEMS/MCP_GROK_BOTS.md`) | — |
+| `chedraui_mx`, `bodega_aurrera_mx`, `walmart_mx`, `liverpool_mx` | day-to-day | sí | apagadas (`not_configured`) | — |
+| `amazon_paapi`, `amazon_asin` | API de afiliado | sí | apagadas: faltan credenciales | `missing_credentials_or_config` |
+| `env_urls` | lista fija por variable | sí | apagada | `missing_credentials_or_config` |
+| `ml_official_api` | API oficial de ML con OAuth | no: rama `feat/ml-official-discovery` sin fusionar | apagada (`ML_OFFICIAL_DISCOVERY_MODE` sin `live`) | búsqueda con 403 documentada en la rama |
+
+Hunter 2 (perfumes, SHEIN, tenis, accesorios) no existe todavía; no hay fuentes ni flags para él.
+
+### Códigos de descarte de la ingesta automática
+
+`PRODUCT_PAGE_UNAVAILABLE`, `SOURCE_TEMPORARILY_UNAVAILABLE` e `IMAGE_REQUIRED` llegan con la rama `fix/ingest-quality-gates` (pendiente de fusionar). Hasta entonces, `master` no distingue un fallo permanente de uno transitorio.
+
+| Código (`offer_batch_items.error_code`) | Estado | Significado | Reintento |
+|---|---|---|---|
+| `PRODUCT_PAGE_UNAVAILABLE` | `REJECTED` | la ficha respondió 404/410, no es HTML o supera 8 MB | no: permanente |
+| `SOURCE_TEMPORARILY_UNAVAILABLE` | `REJECTED` | 429, 5xx, error de red o timeout | sí: `REJECTED` libera la identidad y el bot puede reenviarla. No hay reproceso automático |
+| `IMAGE_BLOCKED` | `NEEDS_REVIEW` | muro anti-bot, otro 4xx o host bloqueado por política; no se elude | revisión humana |
+| `IMAGE_NOT_FOUND`, `IMAGE_FETCH_FAILED` | `NEEDS_REVIEW` | sin imagen de producto válida | revisión humana |
+| `IMAGE_REQUIRED` (bots) | no se crea oferta | el writer rechaza ofertas automáticas sin imagen; ya no se usa `/placeholder.png` | no |
+| `DUPLICATE_OFFER` | `REJECTED` | la oferta ya existe; no cuenta como descarte | no |
+
+`rejection_reason` guarda `page_fetch:<clase>:<fallo>` (por ejemplo `page_fetch:transient:RATE_LIMITED`). El estado de MCP (`get_submission_status`) no expone el código, solo el estado del ítem.
+
+### Alertas
+
+El cron `/api/cron/system-integrity` evalúa, entre otros:
+
+- `hunter.source_health` (WARN): una fuente activa con `status = down` o breaker `open`.
+- `ingest.discard_rate` (WARN): con 20 ítems o más en 24 h, más del 50 % descartados (sin contar duplicados). El detalle lista los 5 códigos más frecuentes.
+
+Si algún check falla, avisa por `SYSTEM_ALERT_WEBHOOK_URL` y por correo (`SYSTEM_ALERT_EMAIL_TO` + `RESEND_API_KEY`). Cada envío se espera con un timeout de 5 s y un solo intento; la respuesta del cron incluye `alerts` (`webhook:sent`, `email:http_403`, `none_configured`, etc.). **No está verificado** que esas variables existan en producción ni que el canal externo reciba el mensaje: falta una prueba real del Owner.
+
+### Rechazos "no deja abrir el url"
+
+14 ofertas rechazadas a mano el 2026-10-07 con ese motivo: City Club 6, Chedraui 6, Costco 2. Desde el servidor, la ficha de Chedraui respondió 200. El fallo parece estar al abrir el enlace desde el navegador del moderador, no en la extracción. Está pendiente de investigar; no hay cambio de código para esto.
+
 ## Pipeline
 
 SOURCE → discovery → normalize → enrichment → Price Intel → **Deal Qualification** → dedupe → Deal Verifier → Autonomous (SHADOW) → pending → moderation → publish → monetization.

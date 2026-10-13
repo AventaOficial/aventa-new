@@ -17,6 +17,12 @@ import {
   type IntegrityCheckState,
   type QueryErrorLike,
 } from '@/lib/server/integrityClassification';
+import {
+  formatIngestDiscardDetail,
+  summarizeIngestDiscards,
+  unhealthySources,
+  type SourceHealthRow,
+} from '@/lib/server/ingestDiscardSummary';
 
 type RawIntegrityCheck = {
   name: string;
@@ -78,6 +84,18 @@ export const INTEGRITY_CHECK_SPECS: Record<string, IntegrityCheckSpec> = {
   'moderation.stale_locks': spec('low', 'WARN', 'Locks pending vencidos tras la limpieza: revisar releaseStaleModerationLocks.'),
   'moderation.queue_depth': spec('medium', 'WARN', 'Cola de moderación > 1000: reforzar moderación o revisar ingesta.'),
   'supply.worker_recent': spec('medium', 'WARN', 'El worker de supply no corre hace >12h: revisar cron supply-engine.', 'NOT_APPLICABLE'),
+  'hunter.source_health': spec(
+    'medium',
+    'WARN',
+    'Fuente Hunter caída o con breaker abierto: revisar last_error_code y credenciales de esa fuente.',
+    'NOT_APPLICABLE',
+  ),
+  'ingest.discard_rate': spec(
+    'medium',
+    'WARN',
+    'Más de la mitad de los ítems de lote de las últimas 24h se descartaron: revisar el código dominante.',
+    'NOT_APPLICABLE',
+  ),
   'runtime.exception': spec('critical', 'FAIL', 'El runner de integridad lanzó una excepción: revisar logs del cron.'),
 };
 
@@ -445,6 +463,40 @@ export async function runSystemIntegrityChecks(): Promise<SystemIntegrityResult>
         violated: supplyStale,
         detail: supplyStartedAt ? `last_started_at=${supplyStartedAt}` : 'no runs recorded',
         violationState: 'stale',
+      })
+    );
+
+    const { data: sourceRows, error: sourceError } = await supabase
+      .from('hunter_source_health')
+      .select('source_id, status, breaker_state, last_error_code')
+      .eq('enabled', true);
+    const unhealthy = unhealthySources((sourceRows ?? []) as SourceHealthRow[]);
+    checks.push(
+      classifyGenericCheck({
+        name: 'hunter.source_health',
+        error: sourceError,
+        violated: unhealthy.length > 0,
+        detail:
+          unhealthy.length > 0
+            ? unhealthy.map((s) => `${s.source_id}:${s.status}/${s.breaker_state}:${s.last_error_code ?? 'n/a'}`).join(', ')
+            : `enabled=${(sourceRows ?? []).length} sin fuentes caídas`,
+        migration: '20260907_hunter_source_health.sql',
+      })
+    );
+
+    const { data: recentItems, error: recentItemsError } = await supabase
+      .from('offer_batch_items')
+      .select('status, error_code')
+      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .limit(5000);
+    const discards = summarizeIngestDiscards((recentItems ?? []) as Array<{ status: string | null; error_code: string | null }>);
+    checks.push(
+      classifyGenericCheck({
+        name: 'ingest.discard_rate',
+        error: recentItemsError,
+        violated: discards.violated,
+        detail: formatIngestDiscardDetail(discards),
+        migration: '20260927_offer_batches.sql',
       })
     );
 
