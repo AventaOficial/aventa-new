@@ -590,3 +590,24 @@ Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 9. Encender `MCP_INGEST_ENABLED=true` solo en staging y redeploy.
 10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5. Para reintentar, repetir el mismo comando con el mismo `--run-id`: la llave `<runId>:live:001` hace replay en vez de crear otro envío. Si entre intentos cambia la lista (por ejemplo, un candidato ya aparece en el catálogo), el servidor responde `IDEMPOTENCY_CONFLICT` y no acepta nada nuevo. Sin `--run-id`, el script genera uno por minuto: eso es otra corrida con cupo propio.
 11. La llamada ya dejó cada candidato resuelto: oferta `pending` en la cola de moderación (estado público `accepted`) o ítem `NEEDS_REVIEW`/`REJECTED`/`ERROR` sin oferta. Consultar con `--status <submissionId>`. Moderar a mano las ofertas `pending` en `/admin/moderation` y decidir los `NEEDS_REVIEW` en `/admin/hunters-ai` (§14 pasos 10-12). Apagar `MCP_INGEST_ENABLED` al terminar.
+
+### Canario en producción tras el merge de la aprobación única (PR #100)
+
+Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y autorización operativa explícita. El interruptor no se toca desde el repo.
+
+| Estado | Cómo se comprueba |
+|---|---|
+| Código integrado | `git log origin/master` contiene el commit del PR |
+| Código desplegado | el deployment de producción `READY` apunta a ese SHA |
+| Cliente autenticado | `/admin/machine-clients`: un solo cliente `active`; el resto `paused`/`revoked` |
+| Ingesta habilitada | `get_submission_rules` devuelve `ingestEnabled: true` (flag y cliente activo) |
+| Probada con un lote | `--status <submissionId>` muestra cada índice resuelto |
+| En moderación | ofertas `pending` del autor bot en `/admin/moderation` |
+| Publicadas | solo las que un moderador aprobó (`offers.status = 'approved'`) |
+
+1. Archivo de 1 a 5 observaciones reales verificadas a mano: URL de ficha de producto, precio visible en la página. En Amazon y Mercado Libre, solo URLs con ASIN / item id (`/dp/…`, `MLM…`); los enlaces cortos quedan retenidos.
+2. Simular: `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --out <reporte.json>`. Revisar rechazos.
+3. En una terminal sin historial, `AVENTA_MCP_URL=https://aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` del gestor de secretos; ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max <n ≤ 5>`. El script consulta `get_submission_rules` (se detiene si `ingestEnabled` no es `true`), descarta con `check_offer_exists` lo que ya existe, envía con `submit_deal_candidates` y muestra `get_submission_status`. El servidor limita a 5 aceptados por cliente y `runId`.
+4. Resultado esperado por índice: `accepted` (oferta `pending` en `/admin/moderation`, sin paso por Hunters IA), `in_review` (retenido con motivo visible en Hunters IA), `duplicate` (vinculado a la oferta existente) o `rejected`/`invalid`. Ninguno queda `published` sin moderador.
+5. Un moderador decide cada `pending` en `/admin/moderation`. El bot no publica ni tiene herramienta para hacerlo.
+6. Si algo no coincide: pausar el cliente en `/admin/machine-clients` (efecto inmediato) y abrir el lote en la consola de lotes; el historial no se borra.
