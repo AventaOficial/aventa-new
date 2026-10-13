@@ -31,6 +31,15 @@ import {
   type ValidationStatus,
 } from './policy';
 import { readProductObservations } from './read';
+import {
+  loadProductStats,
+  needsHistory,
+  prioritize,
+  scanCandidatePool,
+  staleCapHours,
+  staleHours,
+  type CaptureCoverage,
+} from './selection';
 import { validateCapturedObservation } from './validate';
 
 export const PRICE_CAPTURE_LOCK_KEY = 'despensa_price_capture';
@@ -63,6 +72,8 @@ export type CaptureEvent = {
   sourceId: string | null;
   outcome: 'inserted' | 'skipped';
   reason: CaptureSkipReason | ValidationStatus;
+  /** Horas desde la última observación del producto (null: nunca observado o sin dato). */
+  staleHours?: number | null;
 };
 
 export type PriceCaptureReport = {
@@ -83,6 +94,7 @@ export type PriceCaptureReport = {
   perSource: Partial<Record<ActiveCaptureSourceId, { selected: number; inserted: number; failed: number }>>;
   /** Productos seleccionados cuya oferta ancla ya caducó (seguimiento después de la caducidad). */
   trackedAfterExpiry: number;
+  coverage: CaptureCoverage | null;
   /** Motivo por oferta (sin `not_despensa`, que es la mayoría del feed). Máximo 200. */
   events: CaptureEvent[];
 };
@@ -98,19 +110,7 @@ export type PriceCaptureDeps = {
   dryRun?: boolean;
 };
 
-type OfferRow = {
-  id: string;
-  title: string | null;
-  price: number | string | null;
-  original_price: number | string | null;
-  offer_url: string | null;
-  product_fingerprint: string | null;
-  source_currency: string | null;
-  expires_at: string | null;
-};
-
 const MAX_EVENTS = 200;
-const RECENT_CHECK_CHUNK = 100;
 
 export function defaultPriceCaptureAdapters(): PriceCaptureAdapter[] {
   return [createMercadoLibreCaptureAdapter()];
@@ -165,19 +165,24 @@ export async function runPriceCaptureCycle(deps: PriceCaptureDeps): Promise<Pric
     skipped: {},
     perSource: {},
     trackedAfterExpiry: 0,
+    coverage: null,
     events: [],
   };
   const finish = (status: PriceCaptureReport['status'], detail: string | null = null): PriceCaptureReport => {
     report.status = status;
     report.detail = detail;
     report.durationMs = clock() - startedMs;
+    const cov = report.coverage;
+    if (cov) cov.coverage48h = cov.eligibleProducts > 0 ? Math.round((cov.observedWithin48h / cov.eligibleProducts) * 1000) / 1000 : null;
     const { events, ...summary } = report;
     log(`[price-capture] ${JSON.stringify({ ...summary, eventsLogged: events.length, events: events.slice(0, 50) })}`);
     return report;
   };
-  const skip = (offerId: string, sourceId: string | null, reason: CaptureSkipReason, record = true) => {
+  const skip = (offerId: string, sourceId: string | null, reason: CaptureSkipReason, record = true, stale?: number | null) => {
     report.skipped[reason] = (report.skipped[reason] ?? 0) + 1;
-    if (record && report.events.length < MAX_EVENTS) report.events.push({ offerId, sourceId, outcome: 'skipped', reason });
+    if (record && report.events.length < MAX_EVENTS) {
+      report.events.push({ offerId, sourceId, outcome: 'skipped', reason, ...(stale !== undefined ? { staleHours: stale } : {}) });
+    }
   };
 
   const config = deps.config ?? (await readPriceCaptureConfig(supabase));
@@ -221,7 +226,7 @@ async function captureWithLock(ctx: {
   clock: () => number;
   config: PriceCaptureConfig;
   report: PriceCaptureReport;
-  skip: (offerId: string, sourceId: string | null, reason: CaptureSkipReason, record?: boolean) => void;
+  skip: (offerId: string, sourceId: string | null, reason: CaptureSkipReason, record?: boolean, stale?: number | null) => void;
   runId: string;
   startedMs: number;
   finish: (status: PriceCaptureReport['status'], detail?: string | null) => PriceCaptureReport;
@@ -231,16 +236,11 @@ async function captureWithLock(ctx: {
   const deadlineMs = startedMs + config.budgetMs;
   const now = new Date(startedMs);
 
-  const pool = await supabase
-    .from('offers')
-    .select('id, title, price, original_price, offer_url, product_fingerprint, source_currency, expires_at')
-    .in('status', ['approved', 'published'])
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(config.candidatePool);
-  if (pool.error) return finish('failed', 'candidate_query_failed');
+  const scanSources = config.sources.filter((s) => adapters.some((a) => a.sourceId === s));
+  const scan = await scanCandidatePool(supabase, { sources: scanSources, nowMs: startedMs, budget: config.candidatePool });
+  if (scan.failed) return finish('failed', 'candidate_query_failed');
   const trackingFloor = startedMs - P.trackingDaysAfterExpiry * 86_400_000;
-  const offers = ((pool.data ?? []) as OfferRow[]).filter((o) => {
+  const offers = scan.rows.filter((o) => {
     const exp = o.expires_at ? Date.parse(o.expires_at) : NaN;
     if (!Number.isFinite(exp) || exp >= trackingFloor) return true;
     skip(o.id, null, 'tracking_window_ended', false);
@@ -251,6 +251,14 @@ async function captureWithLock(ctx: {
   const adapterBySource = new Map(adapters.map((a) => [a.sourceId, a]));
   // Un candidato por producto: la oferta vigente más nueva; si todas caducaron, la más nueva.
   const byAnchor = new Map<string, CaptureCandidate>();
+  const createdAt = new Map<string, string>();
+  const firstSeen = new Map<string, number>();
+  const preferred = (a: CaptureCandidate, b: CaptureCandidate): boolean => {
+    if (a.anchorExpired !== b.anchorExpired) return !a.anchorExpired;
+    const ca = createdAt.get(a.offerId) ?? '';
+    const cb = createdAt.get(b.offerId) ?? '';
+    return ca !== cb ? ca > cb : a.offerId > b.offerId;
+  };
   for (const o of offers) {
     const title = o.title?.trim() ?? '';
     if (!classifyDespensaText(title)) {
@@ -311,63 +319,92 @@ async function captureWithLock(ctx: {
       storeHost: despensaHostOf(o.offer_url),
       anchorExpired: Number.isFinite(exp) && exp < startedMs,
     };
+    createdAt.set(o.id, o.created_at ?? '');
     const key = anchorKey(candidate);
+    const seen = o.created_at ? Date.parse(o.created_at) : NaN;
+    if (Number.isFinite(seen)) firstSeen.set(key, Math.min(firstSeen.get(key) ?? seen, seen));
     const held = byAnchor.get(key);
-    if (held && !(held.anchorExpired && !candidate.anchorExpired)) {
+    if (held && !preferred(candidate, held)) {
       skip(o.id, source.id, 'same_product_other_offer', false);
       continue;
     }
     if (held) skip(held.offerId, held.sourceId, 'same_product_other_offer', false);
     byAnchor.set(key, candidate);
   }
-  const eligible = [...byAnchor.values()];
 
-  // Productos capturados hace poco: una consulta por cada 100 items. Si falla, no se captura a ciegas.
-  const recentSince = new Date(startedMs - config.minHoursBetweenCaptures * 3_600_000).toISOString();
-  const recent = new Set<string>();
-  let recentFailed = false;
-  for (let i = 0; i < eligible.length && !recentFailed; i += RECENT_CHECK_CHUNK) {
-    const chunk = eligible.slice(i, i + RECENT_CHECK_CHUNK);
-    for (const sourceId of new Set(chunk.map((c) => c.sourceId))) {
-      const { data, error } = await supabase
-        .from('offer_price_snapshots')
-        .select('source_id, external_item_id')
-        .eq('source', 'capture')
-        .eq('source_id', sourceId)
-        .in(
-          'external_item_id',
-          chunk.filter((c) => c.sourceId === sourceId).map((c) => c.externalItemId),
-        )
-        .gte('recorded_at', recentSince);
-      if (error) recentFailed = true;
-      for (const r of (data ?? []) as { source_id: string; external_item_id: string }[]) recent.add(`${r.source_id}:${r.external_item_id}`);
-    }
-  }
+  // Estado de cada producto (última observación, días válidos). Si falla, no se captura a ciegas.
+  const recentSinceMs = startedMs - config.minHoursBetweenCaptures * 3_600_000;
+  const stats = await loadProductStats(supabase, [...byAnchor.values()], { nowMs: startedMs, recentSinceMs });
+  const runCapacity = Math.min(config.maxCandidates, scanSources.reduce((n, s) => n + config.maxPerSource[s], 0));
+  const estimatedProducts = scan.complete ? byAnchor.size : Math.ceil(byAnchor.size / scan.coveredFraction);
+  const cycleHours = staleCapHours(estimatedProducts, runCapacity);
+  const plan = stats.failed
+    ? null
+    : prioritize([...byAnchor.values()], stats.byAnchor, startedMs, {
+        cycleHours,
+        runCapacity,
+        firstSeenMs: (c) => firstSeen.get(anchorKey(c)) ?? null,
+      });
+  const eligible = plan?.ordered ?? [...byAnchor.values()];
+  const staleOf = (c: CaptureCandidate) => {
+    const h = staleHours(stats.byAnchor.get(anchorKey(c)), startedMs);
+    return h == null ? null : Math.round(h);
+  };
 
   const selected: CaptureCandidate[] = [];
   const perSourceCount = new Map<ActiveCaptureSourceId, number>();
+  let deferred = 0;
   for (const c of eligible) {
-    if (recentFailed) {
+    if (stats.failed) {
       skip(c.offerId, c.sourceId, 'recent_capture_check_failed');
       continue;
     }
-    if (recent.has(anchorKey(c))) {
-      skip(c.offerId, c.sourceId, 'captured_recently');
+    const last = stats.byAnchor.get(anchorKey(c))?.lastObservedAt;
+    if (last && Date.parse(last) >= recentSinceMs) {
+      skip(c.offerId, c.sourceId, 'captured_recently', false);
       continue;
     }
     const n = perSourceCount.get(c.sourceId) ?? 0;
     if (n >= config.maxPerSource[c.sourceId]) {
-      skip(c.offerId, c.sourceId, 'over_source_cap');
+      deferred += 1;
+      skip(c.offerId, c.sourceId, 'over_source_cap', true, staleOf(c));
       continue;
     }
     if (selected.length >= config.maxCandidates) {
-      skip(c.offerId, c.sourceId, 'over_run_cap');
+      deferred += 1;
+      skip(c.offerId, c.sourceId, 'over_run_cap', true, staleOf(c));
       continue;
     }
     perSourceCount.set(c.sourceId, n + 1);
     selected.push(c);
   }
   report.selected = selected.length;
+
+  const anchorsAll = [...byAnchor.values()];
+  const rpcStats = !stats.failed && stats.source === 'rpc';
+  const observedRecently = (c: CaptureCandidate) => {
+    const last = stats.byAnchor.get(anchorKey(c))?.lastObservedAt;
+    return last != null && Date.parse(last) >= startedMs - P.maxCurrentAgeHours * 3_600_000;
+  };
+  const ages = anchorsAll.map(staleOf).filter((h): h is number => h != null);
+  report.coverage = {
+    scannedOffers: scan.rows.length,
+    scanPages: scan.pages,
+    scanComplete: scan.complete,
+    scanStartKey: scan.startKey,
+    statsSource: stats.failed ? 'unavailable' : stats.source,
+    eligibleProducts: anchorsAll.length,
+    estimatedEligibleProducts: estimatedProducts,
+    observedWithin48h: anchorsAll.filter(observedRecently).length,
+    coverage48h: null,
+    neverObserved: rpcStats ? anchorsAll.filter((c) => !stats.byAnchor.get(anchorKey(c))?.lastObservedAt).length : null,
+    needingHistory: rpcStats ? anchorsAll.filter((c) => needsHistory(stats.byAnchor.get(anchorKey(c)))).length : null,
+    oldestObservationHours: ages.length ? Math.max(...ages) : null,
+    deferredByQuota: deferred,
+    runCapacity,
+    cycleHours: plan ? cycleHours : null,
+    overdueProducts: plan ? plan.overdue.size : null,
+  };
   report.trackedAfterExpiry = selected.filter((c) => c.anchorExpired).length;
   for (const [sourceId, n] of perSourceCount) report.perSource[sourceId] = { selected: n, inserted: 0, failed: 0 };
   if (selected.length === 0) return finish('completed', 'no_candidates');
@@ -382,7 +419,7 @@ async function captureWithLock(ctx: {
   for (const adapter of adapters) {
     const batch = ready.filter((c) => c.sourceId === adapter.sourceId);
     if (batch.length === 0) continue;
-    const stats = report.perSource[adapter.sourceId]!;
+    const sourceStats = report.perSource[adapter.sourceId]!;
     if (clock() >= deadlineMs) {
       report.budgetExhausted = true;
       for (const c of batch) skip(c.offerId, c.sourceId, 'time_budget_exhausted');
@@ -398,7 +435,7 @@ async function captureWithLock(ctx: {
       const reading = readings.get(c.offerId) ?? { ok: false as const, reason: 'source_error' as const, httpStatus: null };
       if (!reading.ok) {
         if (reading.reason === 'time_budget_exhausted') report.budgetExhausted = true;
-        stats.failed += 1;
+        sourceStats.failed += 1;
         skip(c.offerId, c.sourceId, reading.reason);
         continue;
       }
@@ -414,7 +451,8 @@ async function captureWithLock(ctx: {
       });
       if (status.ok) {
         report.inserted[status.validation] += 1;
-        stats.inserted += 1;
+        sourceStats.inserted += 1;
+        if (!dryRun && !observedRecently(c) && report.coverage) report.coverage.observedWithin48h += 1;
         if (report.events.length < 200) report.events.push({ offerId: c.offerId, sourceId: c.sourceId, outcome: 'inserted', reason: status.validation });
       } else {
         skip(c.offerId, c.sourceId, status.reason);

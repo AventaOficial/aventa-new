@@ -56,9 +56,32 @@ nunca se alcanzaría. Por eso se separan tres cosas:
   mutable por día (`last_price`, `min_price` con trinquete), sin alcance, presentación, disponibilidad ni procedencia.
   Sigue intacto y la captura no lo escribe (probado).
 
-Límite conocido: `offer_price_snapshots.offer_id` tiene `ON DELETE CASCADE`. Borrar físicamente una oferta borra las
-observaciones que originó. La app solo hace borrado lógico (`deleted_at`); los únicos borrados físicos están en scripts
-de staging.
+## Ciclo de vida de la evidencia
+
+El SQL base (`offer_price_snapshots.sql`) declaraba `offer_id … ON DELETE CASCADE`: borrar físicamente una oferta
+borraba sus observaciones. La política de retención v2 (`offers_evidence_protection.sql`) ya la convierte en
+`RESTRICT`. Según `docs/LAUNCH/AVENTA_LAUNCH_READINESS.md`, eso está aplicado en producción; este PR no lo verificó
+contra la base. La migración `20261014_price_observations_lifecycle.sql` lo garantiza en cualquier entorno, sin depender
+de esa migración ni de que un script futuro recuerde archivar:
+
+| Operación | Resultado |
+| --- | --- |
+| `DELETE FROM offers` de una oferta con observaciones (incluido `clean_offers_and_metrics_data.sql`) | Falla con 23503. Se archiva (`status`/`deleted_at`) |
+| `DELETE` de una captura (`source = 'capture'`) | Falla siempre (antes: solo mientras la oferta existiera) |
+| `TRUNCATE offer_price_snapshots` o `TRUNCATE offers CASCADE` | Falla (42501) |
+| Cambiar precio, fecha, identidad o procedencia de una captura | Falla (ya en 20261013); solo avanza el estado |
+| Borrar una fila legado (`create`/`app`/`update`) | Permitido, sin cambio |
+| Borrar una oferta sin observaciones | Permitido |
+
+- **Procedencia:** `offer_id` nunca queda colgando ni en `NULL`: la oferta se archiva y sigue resolviendo (título,
+  estado, fechas). Se descartó `SET NULL` + copia del id: deja referencias que no resuelven y pierde la integridad referencial.
+- **Privacidad:** una observación no tiene datos personales (precio, item, fuente, alcance `online/MX`).
+  `offers.created_by` es `ON DELETE SET NULL`, así que la purga de cuentas (`runAccountPurge`) no borra ofertas ni observaciones.
+- **Excepción (orden legal sobre una fila):** se hace con una migración revisada que deshabilita la guarda para esa sola operación.
+- **Consecuencia operativa:** los scripts que borran ofertas (`clean_offers_and_metrics_data.sql`,
+  `scripts/staging-p0d3-dry-run.ts`, `scripts/staging-w15-smoke.mjs`, `tests/offers/ingestConcurrency.pg.integration.test.ts`)
+  fallan si la oferta tiene observaciones. Ya era así con la política v2.
+- Probado sobre Postgres en proceso: `tests/offers/priceObservationsLifecycle.pglite.test.ts`.
 
 ## Precio publicado frente al observado
 
@@ -107,8 +130,8 @@ Guardas en la base:
 - índice único parcial en `idempotency_key`;
 - `CHECK` de fuente (se amplía con `capture`), estado, moneda, alcance y disponibilidad;
 - una captura siempre declara estado, llave y versión de política;
-- disparador: la evidencia de una captura es inmutable (solo avanza el estado) y no se borra mientras la oferta exista.
-  El borrado en cascada de una oferta sigue funcionando.
+- disparador: la evidencia de una captura es inmutable (solo avanza el estado) y no se borra nunca; ver
+  «Ciclo de vida de la evidencia».
 
 ## Validación (validate.ts)
 
@@ -158,18 +181,88 @@ Configuración en `app_config` (clave `despensa_price_capture`). Sin fila = apag
 
 ```json
 { "enabled": true, "paused": false, "maxCandidates": 24, "maxPerSource": { "mercadolibre_mx": 20 },
-  "budgetMs": 60000, "minHoursBetweenCaptures": 20, "candidatePool": 300, "sources": ["mercadolibre_mx"] }
+  "budgetMs": 60000, "minHoursBetweenCaptures": 20, "candidatePool": 2000, "sources": ["mercadolibre_mx"] }
 ```
 
 `amazon_mx` en `sources` o `maxPerSource` se ignora: una fuente retirada no se puede encender desde la configuración.
 
-Topes duros en código: 60 candidatos, 40 por fuente, 120 s, 400 ofertas en el pool.
+Topes duros en código: 60 candidatos, 40 por fuente, 120 s, 10 000 ofertas recorridas por corrida.
 
-Por candidato, en orden: dentro de la ventana de seguimiento (≤ 45 días tras caducar) → necesidad de Canasta Básica →
-precio > 0 → MXN → fuente identificable → fuente no retirada → adaptador existente → fuente en la configuración → item
-externo resoluble → una oferta por producto → producto no capturado en las últimas 20 h → topes → historial previo del
-producto completo → lectura → validación → `INSERT`. Cada omisión queda con motivo en `skipped` y en `events`
-(máximo 200).
+### Selección (selection.ts)
+
+Antes se leían las 300 ofertas más recientes. Con la ventana de 45 días tras caducar, un producto cuya última oferta
+quedara fuera de esas 300 dejaba de capturarse aunque siguiera elegible. Ahora:
+
+1. **Universo en SQL:** ofertas `approved`/`published`, sin `deleted_at`, vigentes o caducadas hace ≤ 45 días, con
+   URL o huella de una fuente capturable (`offer_url ilike *mercadolibre.com.mx*`, `*meli.la*` o
+   `product_fingerprint like ml:*`). Amazon, Soriana y lo que no es de una fuente activa ni se leen.
+2. **Recorrido paginado por `id`** (keyset, 500 por página) con presupuesto `candidatePool`. Si el universo cabe, se
+   recorre entero (`scanComplete: true`). Si no, el inicio rota cada día (`frac(día × φ)` del espacio de uuid, con
+   vuelta) y el reporte lo marca. No se recorre la tabla completa cuando el presupuesto no alcanza.
+3. **Estado por producto** con `price_capture_product_stats` (última observación, días válidos, primer y último día
+   válido; 200 items por llamada, usa `idx_offer_price_snapshots_capture_item_recorded`). Si la función no existe, cae
+   a la consulta de capturas recientes (`statsSource: 'fallback'`). Cualquier otra falla detiene la selección
+   (`recent_capture_check_failed`): no se captura a ciegas.
+4. **Prioridad:** horas desde la última observación, saturadas en la duración del ciclo (elegibles ÷ capacidad + 1
+   día, mínimo 2). Nunca observado cuenta como saturado. Suma 24 h si falta historial mínimo y resta 12 h si la oferta
+   ya caducó. Los empates se resuelven con un sorteo que cambia cada día. Un producto capturado vuelve al final de la
+   cola, así que dentro del ciclo la rotación es estricta.
+5. **Atrasados:** un producto está atrasado si excede el ciclo (observado hace más que eso, o nunca observado aunque su
+   primera oferta ya es más vieja). Casi siempre es porque la fuente falla con él, p. ej. un 404 permanente. Los
+   atrasados comparten una reserva del 25 % del cupo por sorteo y solo usan el resto si sobra. Sin la reserva, 15
+   productos muertos de 50 consumían el 60 % de los intentos; con ella, ≤ 1 ciclo × cupo + 25 % del cupo después (probado).
+6. **Topes** por fuente y por corrida sobre ese orden. Lo que no entra queda `over_source_cap`/`over_run_cap` con
+   `staleHours` en el evento.
+
+Se determina por día y no guarda estado propio. Dos corridas simultáneas eligen lo mismo; el lock deja pasar a una y,
+si falla abierto, el índice único evita duplicados (probado).
+
+Por oferta, en orden: necesidad de Canasta Básica → precio > 0 → MXN → fuente identificable → fuente no retirada →
+adaptador existente → fuente en la configuración → item externo resoluble → una oferta por producto (la vigente; entre
+iguales, la más nueva). Por producto: no capturado en las últimas 20 h → prioridad → topes → historial previo completo
+→ lectura → validación → `INSERT`. Cada omisión queda con motivo en `skipped` y en `events` (máximo 200).
+
+### Cobertura (`report.coverage`)
+
+| Campo | Significado |
+| --- | --- |
+| `scannedOffers`, `scanPages`, `scanComplete`, `scanStartKey` | Qué se recorrió y si fue todo |
+| `eligibleProducts`, `estimatedEligibleProducts` | Productos elegibles vistos; estimación del universo si el recorrido quedó corto |
+| `observedWithin48h`, `coverage48h` | Elegibles con observación en las últimas 48 h (incluida esta corrida) y su proporción |
+| `neverObserved`, `needingHistory` | Sin ninguna observación; sin historial mínimo (null sin la función de estadísticas) |
+| `oldestObservationHours` | Antigüedad de la última observación más vieja entre los observados |
+| `deferredByQuota`, `runCapacity`, `cycleHours`, `overdueProducts` | Diferidos por cupo, capacidad por corrida, ciclo esperado y atrasados |
+
+**Límite de capacidad:** la cobertura completa no está garantizada. Con la configuración por defecto (20 por corrida,
+una corrida diaria) cada producto se observa como mucho una vez cada ⌈elegibles / 20⌉ días. El criterio de ahorro
+verificado pide una observación de < 48 h, así que solo es alcanzable para todos mientras elegibles < capacidad × 2
+(hoy, < 40 productos). Por encima, `coverage48h` ≈ capacidad × 2 ÷ elegibles; con 100 elegibles, ~0.4. Subir el cupo
+hasta el tope duro (40 por fuente) requiere autorización, porque implica más llamadas a Mercado Libre.
+
+Métrica verificable fuera de la app (lectura, sin escribir):
+
+```sql
+with eligible as (
+  select distinct split_part(product_fingerprint, ':', 2) as item
+  from offers
+  where status in ('approved','published') and deleted_at is null
+    and (expires_at is null or expires_at >= now() - interval '45 days')
+    and product_fingerprint like 'ml:%'
+), last_obs as (
+  select external_item_id as item, max(recorded_at) as last_at
+  from offer_price_snapshots
+  where source = 'capture' and source_id = 'mercadolibre_mx' and recorded_at >= now() - interval '90 days'
+  group by 1
+)
+select count(*) as eligible,
+       count(*) filter (where l.last_at >= now() - interval '48 hours') as observed_48h,
+       round(avg((l.last_at >= now() - interval '48 hours')::int), 3) as coverage_48h,
+       count(*) filter (where l.last_at is null) as never_observed,
+       max(extract(epoch from now() - l.last_at) / 3600)::int as oldest_hours
+from eligible e left join last_obs l using (item);
+```
+
+Es una aproximación: solo cuenta las ofertas con huella `ml:`. Las de URL sin huella se resuelven en código.
 
 Concurrencia: lock `despensa_price_capture` en `ingest_cycle_locks` (TTL = presupuesto + 60 s, mínimo 5 min). El lock
 falla abierto por diseño; si eso pasa, el índice único impide duplicados (probado).
@@ -245,8 +338,10 @@ la interfaz con la atribución.
 
 ## Costo estimado por corrida (configuración por defecto)
 
-- Base de datos: ~30 consultas (config, sonda, lock ×2, pool, recientes, historial en lotes de 8, ≤24 inserts).
-  Máximo ~80 con los topes duros.
+- Base de datos: ~30 consultas (config, sonda, lock ×2, recorrido de 1–4 páginas, estadísticas en lotes de 200,
+  historial en lotes de 8, ≤24 inserts). Máximo ~100 con los topes duros (20 páginas de recorrido).
+  El recorrido filtra `offers` sin índice dedicado; con decenas de miles de ofertas conviene medir el plan antes de
+  subir `candidatePool`.
 - Mercado Libre: 1 llamada `/items/bulk` por cada 20 items + 1 a 3 llamadas de precio por item → 21–61 llamadas/día. Sin costo
   monetario por la API.
 - Cómputo: dentro de la invocación existente de `pm-freshness`, ≤ 60 s mayormente en espera de red. Menos de US$0.01 por corrida.
@@ -260,8 +355,8 @@ Nunca contra producción. Requiere autorización explícita para aplicar la migr
 1. **Local, sin Docker:** `npm i --no-save @electric-sql/pglite@0.3` y
    `node scripts/verify-offer-price-observations-local.mjs` → debe terminar en `TODO OK`.
 2. **Local con Supabase** (si Docker funciona): `supabase start`, aplicar `offer_price_snapshots.sql`,
-   `20261012_offer_price_observations.sql` y `20261013_offer_price_observations_product_series.sql` con `psql` contra
-   `127.0.0.1:54322`.
+   `20261012_offer_price_observations.sql`, `20261013_offer_price_observations_product_series.sql` y
+   `20261014_price_observations_lifecycle.sql` con `psql` contra `127.0.0.1:54322`.
 3. **Staging (con autorización):** aplicar la migración con el procedimiento habitual de migraciones manuales (SQL Editor
    o `psql` con la URL de staging). No usar `supabase db push`. Verificar:
    ```sql

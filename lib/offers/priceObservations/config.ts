@@ -8,7 +8,7 @@ export const PRICE_CAPTURE_HARD_LIMITS = {
   maxCandidates: 60,
   maxPerSource: 40,
   budgetMs: 120_000,
-  candidatePool: 400,
+  candidatePool: 10_000,
 } as const;
 
 export type PriceCaptureConfig = {
@@ -20,6 +20,10 @@ export type PriceCaptureConfig = {
   budgetMs: number;
   /** Un producto no se vuelve a capturar antes de esto. */
   minHoursBetweenCaptures: number;
+  /**
+   * Ofertas elegibles que se recorren por corrida (paginado por `id`, 500 por página). No es un
+   * «top N recientes»: si el universo no cabe, el inicio rota cada día y el reporte lo marca.
+   */
   candidatePool: number;
   sources: readonly ActiveCaptureSourceId[];
 };
@@ -29,7 +33,7 @@ export const PRICE_CAPTURE_DEFAULTS: Omit<PriceCaptureConfig, 'enabled' | 'disab
   maxPerSource: { mercadolibre_mx: 20 },
   budgetMs: 60_000,
   minHoursBetweenCaptures: 20,
-  candidatePool: 300,
+  candidatePool: 2_000,
   sources: ['mercadolibre_mx'],
 };
 

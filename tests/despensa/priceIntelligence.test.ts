@@ -408,13 +408,28 @@ describe('captura periódica: controles', () => {
   });
 
   it('fuentes sin API autorizada se omiten con motivo; Amazon PA-API está retirada y no se puede encender', async () => {
-    const env = captureEnv();
+    // Amazon, Soriana y lo que no es despensa ni siquiera se leen: el filtro de fuente va en SQL.
+    const plain = captureEnv();
+    const p = await runPriceCaptureCycle(plain.deps());
+    expect(p.coverage).toMatchObject({ scannedOffers: 2, eligibleProducts: 2, scanComplete: true });
+    expect(p.events.some((e) => ['amz1', 'sor1', 'tech1'].includes(e.offerId))).toBe(false);
+
+    // Si una oferta de otra tienda pasa el filtro (huella «ml:» pegada por error), el chequeo por
+    // URL la sigue frenando con su motivo.
+    const env = captureEnv({
+      offers: [
+        offerRow('ml1', 'Arroz blanco 1 kg', 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz', 34, 'ml:MLM123456789'),
+        offerRow('amz1', 'Frijol negro 900 g', 'https://www.amazon.com.mx/dp/B000TEST01', 28, 'ml:MLM000000001'),
+        offerRow('sor1', 'Aceite vegetal 1 L', 'https://www.soriana.com/p/1', 45, 'ml:MLM000000002'),
+      ],
+    });
     const r = await runPriceCaptureCycle(env.deps());
     expect(r.skipped.source_not_supported).toBe(1);
     expect(r.skipped.source_retired).toBe(1);
     expect(r.events).toContainEqual({ offerId: 'sor1', sourceId: 'soriana_mx', outcome: 'skipped', reason: 'source_not_supported' });
     expect(r.events).toContainEqual({ offerId: 'amz1', sourceId: 'amazon_mx', outcome: 'skipped', reason: 'source_retired' });
     expect(new Set(captureRows(env.db).map((x) => x.source_id))).toEqual(new Set(['mercadolibre_mx']));
+    expect(env.resolveCalls.map((c) => c.itemId)).toEqual(['MLM123456789']);
     // Ni la configuración puede activarla.
     expect(parsePriceCaptureConfig({ enabled: true, sources: ['amazon_mx', 'mercadolibre_mx'] }).sources).toEqual(['mercadolibre_mx']);
     expect(parsePriceCaptureConfig({ enabled: true, sources: ['amazon_mx'] }).sources).toEqual([]);
@@ -435,7 +450,7 @@ describe('captura periódica: controles', () => {
   it('la fila guardada declara procedencia, validación e idempotencia sin datos sensibles', async () => {
     const env = captureEnv();
     await runPriceCaptureCycle(env.deps());
-    const ml = captureRows(env.db).find((x) => x.source_id === 'mercadolibre_mx')!;
+    const ml = captureRows(env.db).find((x) => x.external_item_id === 'MLM123456789')!;
     expect(ml).toMatchObject({
       offer_id: 'ml1',
       price: 34,
@@ -578,7 +593,9 @@ describe('continuidad del producto entre ofertas', () => {
 
     const old = captureEnv({ offers: [{ ...offerRow('vieja', 'Arroz blanco 1 kg', URL, 34), expires_at: iso(50) }] });
     const o = await runPriceCaptureCycle(old.deps());
-    expect(o.skipped.tracking_window_ended).toBe(1);
+    // La ventana se aplica en SQL: la oferta ni se lee.
+    expect(o.coverage).toMatchObject({ scannedOffers: 0, eligibleProducts: 0, scanComplete: true });
+    expect(o.detail).toBe('no_candidates');
     expect(old.mlCalls()).toBe(0);
     expect(captureRows(old.db)).toHaveLength(0);
   });
@@ -758,17 +775,31 @@ describe('Mercado Libre: catálogo y autorización', () => {
   });
 
   it('401/403: sin reintento, se cierra en la corrida y vuelve a intentarse en la siguiente', async () => {
-    const env = captureEnv({ extraMlOffers: 3, mlFailItems: { MLM123456789: [403], MLM987654321: [401], MLM555000: [403] } });
+    // Todos los items responden 401/403 la primera vez (el orden de captura es por prioridad).
+    const env = captureEnv({
+      extraMlOffers: 3,
+      mlFailItems: { MLM123456789: [403], MLM987654321: [401], MLM555000: [403], MLM555001: [401], MLM555002: [403] },
+    });
     const first = await runPriceCaptureCycle(env.deps());
     expect(first.skipped.source_unauthorized).toBe(3);
     expect(first.skipped.source_circuit_open).toBe(2);
-    expect(env.callsFor('MLM123456789')).toBe(1);
+    expect(env.mlCalls()).toBe(3);
     expect(captureRows(env.db)).toHaveLength(0);
 
+    // Al día siguiente se reintenta todo: los 3 ya fallidos responden bien; los 2 que no se
+    // llegaron a intentar dan su 401/403 (dos seguidos no cierran la fuente).
     env.advance(DAY);
     const second = await runPriceCaptureCycle(env.deps());
-    expect(second.inserted.valid).toBe(5);
-    expect(env.callsFor('MLM123456789')).toBe(2);
+    expect(second.inserted.valid).toBe(3);
+    expect(second.skipped.source_unauthorized).toBe(2);
+    expect(second.skipped.source_circuit_open ?? 0).toBe(0);
+    expect(env.mlCalls()).toBe(3 + 5);
+
+    env.advance(DAY);
+    const third = await runPriceCaptureCycle(env.deps());
+    expect(third.skipped.source_unauthorized ?? 0).toBe(0);
+    expect(third.inserted.valid).toBe(5);
+    expect(new Set(captureRows(env.db).map((x) => x.external_item_id)).size).toBe(5);
   });
 
   it('un 403 aislado no cierra la fuente', async () => {
@@ -780,7 +811,10 @@ describe('Mercado Libre: catálogo y autorización', () => {
   });
 
   it('429: cierra la fuente de inmediato y sin reintentos', async () => {
-    const env = captureEnv({ extraMlOffers: 2, mlFailItems: { MLM123456789: [429] } });
+    const env = captureEnv({
+      extraMlOffers: 2,
+      mlFailItems: { MLM123456789: [429], MLM987654321: [429], MLM555000: [429], MLM555001: [429] },
+    });
     const r = await runPriceCaptureCycle(env.deps());
     expect(r.skipped.source_rate_limited).toBe(1);
     expect(r.skipped.source_circuit_open).toBe(3);
@@ -882,7 +916,34 @@ type EnvOpts = {
   mlIncomplete?: string[];
   offers?: ReturnType<typeof offerRow>[];
   startMs?: number;
+  /** false: la función `price_capture_product_stats` no existe (migración sin aplicar). */
+  statsRpc?: boolean;
 };
+
+/** Réplica en memoria de `price_capture_product_stats` (misma semántica que el SQL). */
+function productStatsRpc(args: Record<string, unknown>, db: MemoryDb) {
+  const items = new Set(args.p_item_ids as string[]);
+  const since = String(args.p_since);
+  const out = new Map<string, { external_item_id: string; last_recorded_at: string; days: Set<string>; first_valid_at: string | null; last_valid_at: string | null }>();
+  for (const r of db.tables.offer_price_snapshots ?? []) {
+    if (r.source !== 'capture' || r.source_id !== args.p_source_id || !items.has(String(r.external_item_id))) continue;
+    const at = String(r.recorded_at);
+    if (at < since) continue;
+    const id = String(r.external_item_id);
+    const s = out.get(id) ?? { external_item_id: id, last_recorded_at: at, days: new Set<string>(), first_valid_at: null, last_valid_at: null };
+    if (at > s.last_recorded_at) s.last_recorded_at = at;
+    if (r.validation_status === 'valid' && r.availability !== 'out_of_stock') {
+      s.days.add(at.slice(0, 10));
+      if (!s.first_valid_at || at < s.first_valid_at) s.first_valid_at = at;
+      if (!s.last_valid_at || at > s.last_valid_at) s.last_valid_at = at;
+    }
+    out.set(id, s);
+  }
+  return {
+    data: [...out.values()].map(({ days, ...s }) => ({ ...s, valid_days: days.size })),
+    error: null,
+  };
+}
 
 const ML_TITLES: Record<string, string> = { MLM123456789: 'Arroz blanco 1 kg', MLM987654321: 'Frijol negro 900 g' };
 const ML_PRICES: Record<string, number> = { MLM123456789: 34, MLM987654321: 28 };
@@ -931,6 +992,7 @@ function captureEnv(opts: EnvOpts = {}) {
       ingest_cycle_locks: [{ columns: ['lock_key'] }],
     },
   });
+  if (opts.statsRpc !== false) db.rpcHandlers = { price_capture_product_stats: productStatsRpc };
 
   const ml = createMercadoLibreCaptureAdapter({
     fetchItems: async (ids) =>

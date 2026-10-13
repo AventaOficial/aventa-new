@@ -1,7 +1,8 @@
 /**
  * Verificación local de docs/supabase-migrations/20261012_offer_price_observations.sql,
- * 20261013_offer_price_observations_product_series.sql y 20261013_price_references.sql en
- * Postgres en proceso (PGlite).
+ * 20261013_offer_price_observations_product_series.sql, 20261013_price_references.sql y
+ * 20261014_price_observations_lifecycle.sql en Postgres en proceso (PGlite).
+ * Las pruebas con aserciones están en tests/offers/priceObservationsLifecycle.pglite.test.ts.
  * No se conecta a ninguna base remota.
  *
  * Uso (sin modificar package.json):
@@ -111,9 +112,19 @@ const product = await db.query(`
 ok('la serie del producto reúne capturas de varias ofertas', product.rows[0].n === 3 && product.rows[0].offers === 2);
 
 await db.query(capture('k5', 28, 'valid', '22222222-2222-2222-2222-222222222222', 'MLM9'));
-await db.exec(`DELETE FROM public.offers WHERE id = '22222222-2222-2222-2222-222222222222'`);
+
+// Ciclo de vida (20261014): la evidencia sobrevive a su oferta.
+const lifecycle = readFileSync(`${repo}/20261014_price_observations_lifecycle.sql`, 'utf8');
+await db.exec(lifecycle);
+await db.exec(lifecycle);
+ok('migración de ciclo de vida aplicada dos veces (idempotente)', true);
+await fails('borrar una oferta con observaciones', `DELETE FROM public.offers WHERE id = '22222222-2222-2222-2222-222222222222'`, '23503');
 const left = await db.query(`SELECT count(*)::int AS n FROM public.offer_price_snapshots WHERE offer_id = '22222222-2222-2222-2222-222222222222'`);
-ok('borrar la oferta sigue en cascada (riesgo documentado: la app solo hace borrado lógico)', left.rows[0].n === 0);
+ok('las observaciones de la oferta siguen ahí', left.rows[0].n === 1);
+await fails('TRUNCATE de observaciones', `TRUNCATE public.offer_price_snapshots`, '42501');
+await fails('TRUNCATE offers CASCADE', `TRUNCATE public.offers CASCADE`, '42501');
+const stats = await db.query(`SELECT * FROM public.price_capture_product_stats('mercadolibre_mx', ARRAY['MLM1','MLM9'], now() - interval '90 days') ORDER BY external_item_id`);
+ok(`estadísticas por producto: ${stats.rows.map((r) => `${r.external_item_id}=${r.valid_days}d`).join(', ')}`, stats.rows.length === 2);
 
 const idx = await db.query(`SELECT indexname FROM pg_indexes WHERE tablename = 'offer_price_snapshots' ORDER BY indexname`);
 const names = idx.rows.map((r) => r.indexname);
