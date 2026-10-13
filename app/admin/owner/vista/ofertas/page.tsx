@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Clock, Hourglass, Tag, XCircle } from 'lucide-react';
+import { Activity, CheckCircle2, Clock, Hourglass, Tag, XCircle } from 'lucide-react';
 import VistaShell from '../shell';
 import { DateChip, Donut, Ghost, KpiCard, LineChart, Panel, PeriodBar } from '../ui';
 import { deltaOf, num, seriesValues, useVista } from '../live';
@@ -15,6 +15,8 @@ export default function OfertasVistaPage() {
   const share = (part: number | null | undefined) => (part != null && total ? Math.round((part / total) * 100) : 0);
   const series = seriesValues((cmd?.series.points ?? []).map((p) => ({ label: p.label, value: p.offers })));
   const top = base?.week.topOffers ?? [];
+  const supply = cmd?.supply ?? null;
+  const supplyLevel = supply?.health.level;
   return (
     <VistaShell
       title="Ofertas publicadas"
@@ -59,6 +61,37 @@ export default function OfertasVistaPage() {
           )}
         </Panel>
       </div>
+      <Panel
+        title="Salud de la oferta"
+        icon={Activity}
+        extra={
+          <>
+            <Ghost href="/admin/hunters-ai">Revisar candidatos</Ghost>
+            <Ghost href="/admin/hunter">Abrir motor</Ghost>
+          </>
+        }
+      >
+        {supply ? (
+          <div className="space-y-2 text-[12px] text-white/70">
+            <p>
+              <b className={supplyLevel === 'CRITICAL' ? 'text-rose-300' : supplyLevel === 'WARNING' ? 'text-amber-300' : 'text-emerald-300'}>
+                {supplyLevel === 'CRITICAL' ? 'Crítica' : supplyLevel === 'WARNING' ? 'En aviso' : 'Estable'}
+              </b>
+              {' · '}
+              {num(supply.pendingNow)} pendientes ahora. El motor observa y propone; no publica solo.
+            </p>
+            {supply.health.conditions.length > 0 ? (
+              <ul className="list-disc space-y-1 pl-4 text-white/60">
+                {supply.health.conditions.slice(0, 4).map((condition) => (
+                  <li key={condition.code}>{condition.detail}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-[12px] text-white/45">No hay lectura de oferta en este momento.</p>
+        )}
+      </Panel>
     </VistaShell>
   );
 }

@@ -95,8 +95,13 @@ describe('post-v1 economía', () => {
   it('el menú del owner no ofrece configuración ni un pago que parezca vivo', () => {
     const hrefs = OWNER_NAV_SECTIONS.flatMap((section) => section.items.map((item) => item.href));
     expect(hrefs).not.toContain('/admin/contexto');
-    expect(hrefs).toContain('/admin/owner/economia');
-    expect(hrefs).toContain('/admin/owner/payouts');
+    expect(hrefs).toContain('/admin/owner/vista/pagos');
+    expect(hrefs).not.toContain('/admin/owner/economia');
+    expect(hrefs).not.toContain('/admin/owner/payouts');
+    const pagos = read('app/admin/owner/vista/pagos/page.tsx');
+    expect(pagos).toMatch(/readEconomicState/);
+    expect(pagos).toMatch(/Congelado/);
+    expect(pagos).toMatch(/Esta vista no mueve dinero/);
     const rewards = read('app/admin/rewards/page.tsx');
     const commissions = read('app/admin/commissions/page.tsx');
     expect(rewards).toMatch(/payoutFrozen/);

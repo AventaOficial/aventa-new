@@ -116,7 +116,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/owner/crecimiento',
-    name: 'Growth',
+    name: 'Costos y hoja de ruta',
     whatIs: [
       'Es la guía de qué hacer ahora para que Aventa crezca de forma sana.',
       'Reúne lo que conviene atender antes de atraer más usuarios.',
@@ -332,7 +332,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/owner/team-management',
-    name: 'Equipos',
+    name: 'Gestión de equipos',
     whatIs: [
       'Es donde se organizan los equipos que trabajan en Aventa día a día.',
       'Cada equipo tiene miembros y un área de responsabilidad.',
@@ -519,14 +519,9 @@ export const FOUNDER_MODULES: FounderModule[] = [
     teams: ['producto'],
     technical: ['Tablas machine_clients y machine_client_calls. Endpoint MCP en /api/mcp. Kill switch MCP_INGEST_ENABLED.'],
   },
-  moduleBrief('/admin/supply', 'Supply', 'Es la casa de la oferta: motor, calidad, humanos y candidatos.'),
   moduleBrief('/admin/distribution', 'Distribución', 'Mira publicaciones atascadas hacia fuera, sin pagar ni publicar de nuevo.'),
-  moduleBrief('/admin/owner/crecimiento/cazadores', 'Cazadores', 'Mide si las personas están cazando y volviendo a cazar.'),
-  moduleBrief('/admin/owner/experimentos', 'Experimentos', 'Deja a la vista las hipótesis de crecimiento y su límite.'),
   moduleBrief('/admin/sistemas/atlas', 'Database Atlas', 'Muestra tablas, vistas y relaciones sin filas de personas.'),
   moduleBrief('/admin/owner/control', 'Centro de control', 'Ajusta cuántas veces puede repetirse un producto en Día a día.'),
-  moduleBrief('/admin/owner/economia', 'Economía', 'Resume comisiones, recompensas y el congelamiento de pagos.'),
-  moduleBrief('/admin/owner/payouts', 'Payouts', 'Muestra que los pagos reales siguen congelados.'),
   moduleBrief('/equipo/contabilidad', 'Contabilidad', 'Es el libro del equipo sobre ingresos y pools.'),
   moduleBrief('/admin/coupons', 'Cupones', 'Revisa códigos de descuento antes de mostrarlos.'),
   moduleBrief('/admin/announcements', 'Avisos', 'Publica avisos cortos en el sitio.'),

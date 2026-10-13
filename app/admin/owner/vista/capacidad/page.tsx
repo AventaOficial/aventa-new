@@ -21,7 +21,7 @@ export default function CapacidadVistaPage() {
       title="Capacidad de Aventa"
       crumb="Capacidad de Aventa"
       subtitle="Estado real de los componentes y de la cola. No hay porcentajes de uptime inventados."
-      toolbar={<><DateChip /><Ghost href="/admin/infraestructura">Abrir infraestructura</Ghost></>}
+      toolbar={<><DateChip /><Ghost href="/admin/health">Abrir salud</Ghost><Ghost href="/admin/infraestructura">Abrir infraestructura</Ghost></>}
     >
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         <KpiCard icon={Server} tint="bg-violet-500/20 text-violet-200" label="Salud general" value={health?.overall ?? '—'} />

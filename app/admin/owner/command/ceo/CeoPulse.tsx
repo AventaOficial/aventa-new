@@ -23,9 +23,9 @@ export default function CeoPulse({
   const growth = command?.users.newUsers.value;
   const cells = [
     cell('Usuarios', users == null ? '—' : users.toLocaleString('es-MX'), '/admin/users', 'Activos en el período'),
-    cell('Supply', pending == null ? '—' : `${pending.toLocaleString('es-MX')} pendientes`, '/admin/supply', supply?.health.level === 'CRITICAL' ? 'Salud crítica' : supply?.health.level === 'WARNING' ? 'En aviso' : supply ? 'Estable' : 'Sin lectura'),
+    cell('Supply', pending == null ? '—' : `${pending.toLocaleString('es-MX')} pendientes`, '/admin/owner/vista/ofertas', supply?.health.level === 'CRITICAL' ? 'Salud crítica' : supply?.health.level === 'WARNING' ? 'En aviso' : supply ? 'Estable' : 'Sin lectura'),
     cell('Growth', growth == null ? '—' : `${growth.toLocaleString('es-MX')} nuevos`, '/admin/owner/crecimiento', 'Usuarios nuevos del período'),
-    cell('Dinero', gate.payout === 'ALLOWED' ? 'Pago permitido' : 'Pago congelado', '/admin/owner/economia', CURRENT_FISCAL_POLICY.status === 'UNCONFIRMED' ? 'Fiscal sin confirmar' : 'Fiscal activa'),
+    cell('Dinero', gate.payout === 'ALLOWED' ? 'Pago permitido' : 'Pago congelado', '/admin/owner/vista/pagos', CURRENT_FISCAL_POLICY.status === 'UNCONFIRMED' ? 'Fiscal sin confirmar' : 'Fiscal activa'),
     cell('Sistema', systemLabel, '/admin/health', 'Salud que ya calcula el centro'),
   ];
 
