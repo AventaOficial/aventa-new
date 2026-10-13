@@ -176,6 +176,7 @@ export default function ModerationOfferCard({
                 src={allPreviewImages[galleryIndex] ?? allPreviewImages[0]}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
+                referrerPolicy="no-referrer"
               />
               {allPreviewImages.length > 1 && (
                 <>
@@ -601,12 +602,13 @@ export default function ModerationOfferCard({
               <X className="h-5 w-5" />
             </button>
             <div className="p-4 space-y-3">
-              {offer.image_url ? (
+              {allPreviewImages[0] ? (
                 <div className="relative">
                   <img
-                    src={offer.image_url}
+                    src={allPreviewImages[0]}
                     alt=""
                     className="w-full h-48 object-cover object-center bg-gray-100 dark:bg-gray-700 rounded-lg"
+                    referrerPolicy="no-referrer"
                   />
                   <button
                     type="button"
@@ -706,7 +708,7 @@ export default function ModerationOfferCard({
         </div>
       )}
 
-      {showImageExpand && offer.image_url && (
+      {showImageExpand && allPreviewImages[0] && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4"
           onClick={() => setShowImageExpand(false)}
@@ -724,9 +726,10 @@ export default function ModerationOfferCard({
             <X className="h-6 w-6" />
           </button>
           <img
-            src={offer.image_url}
+            src={allPreviewImages[0]}
             alt=""
             className="max-w-full max-h-full object-contain"
+            referrerPolicy="no-referrer"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
