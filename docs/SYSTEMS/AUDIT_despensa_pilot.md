@@ -41,7 +41,7 @@ Todo en `lib/despensa/`, sin dependencias nuevas, sin tablas nuevas y sin escrit
 
 ### Integración
 
-- `lib/offers/homeFeedClient.ts`: `applyVitalesFeedTransform` conserva la exclusión de score alto (Top) y reemplaza el entrelazado por votos por `rankDespensa`. `view=vitales`, el periodo y el API no cambian. Nueva `limitConsecutiveMachineOffers` para Recientes.
+- `lib/offers/homeFeedClient.ts`: `applyVitalesFeedTransform` conserva la exclusión de score alto (Top) y reemplaza el entrelazado por votos por `rankDespensa`. `view=vitales`, el periodo y el API no cambian. Recientes excluye a los autores automáticos en el servidor (`lib/offers/machineAuthors.ts`) y `excludeMachineOffers` descarta en el cliente cualquier oferta marcada como máquina.
 - `lib/offers/feedService.ts`: añade `expires_at` (columna ya filtrada por la vista) y `origin` calculado con `isBotUserId(created_by)`.
 - `lib/offers/transform.ts`: `dailyNeed`, `despensaNeedId`, `sourceHost` (solo el dominio; la card sigue sin URL), `expiresAt`, `origin`.
 - `app/page.tsx`: aplica la regla de Recientes a la primera página y a cada página siguiente. El cursor sigue siendo el `created_at` del servidor.

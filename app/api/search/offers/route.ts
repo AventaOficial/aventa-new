@@ -18,7 +18,10 @@ export async function GET(request: Request) {
   const store = url.searchParams.get('store');
   const category = url.searchParams.get('category');
   const viewParam = url.searchParams.get('view');
-  const view = viewParam === 'vitales' || viewParam === 'top' || viewParam === 'latest' ? viewParam : 'latest';
+  const view =
+    viewParam === 'vitales' || viewParam === 'top' || viewParam === 'latest' || viewParam === 'personalized'
+      ? viewParam
+      : 'latest';
   const categories = homeSearchCategoryInList(view, category);
 
   const result = await searchPublicOffers({
@@ -26,7 +29,12 @@ export async function GET(request: Request) {
     limit: Number.isFinite(limit) ? limit : 12,
     categories,
     store,
+    communityOnly: view === 'latest',
   });
+
+  if (result.engine === 'unavailable') {
+    return NextResponse.json({ error: 'Búsqueda no disponible. Reintenta.' }, { status: 503 });
+  }
 
   await observeSearchRequest(request, q, result.hits.length);
 

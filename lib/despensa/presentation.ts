@@ -33,6 +33,8 @@ const COUNT_UNITS: Record<string, string> = {
   barra: 'barra', barras: 'barra',
 };
 
+const PER_CONTAINER_UNITS = new Set(['lata', 'barra']);
+
 const NUM = '(\\d+(?:[.,]\\d+)?)';
 const MASS_UNITS = Object.keys(MASS).sort((a, b) => b.length - a.length).join('|');
 const VOLUME_UNITS = Object.keys(VOLUME).sort((a, b) => b.length - a.length).join('|');
@@ -113,7 +115,14 @@ export function parsePresentation(title: string | null | undefined): Presentatio
   if (sizeReadings.length > 1) return null;
   if (sizeReadings.length === 1) {
     const s = sizes[0];
-    return { dimension: s.dimension, totalBase: s.base * packs, countUnit: null, packs, raw: s.raw };
+    if (countReadings.length === 0) {
+      return { dimension: s.dimension, totalBase: s.base * packs, countUnit: null, packs, raw: s.raw };
+    }
+    // «3 latas 140 g»: el tamaño es por envase. Con piezas genéricas no se sabe si el tamaño es total.
+    if (countReadings.length > 1 || !PER_CONTAINER_UNITS.has(counts[0].unit)) return null;
+    const containers = counts[0].n;
+    if (packs > 1 && packs !== containers) return null;
+    return { dimension: s.dimension, totalBase: s.base * containers, countUnit: null, packs: containers, raw: `${counts[0].raw} ${s.raw}` };
   }
   if (countReadings.length === 1) {
     const c = counts[0];

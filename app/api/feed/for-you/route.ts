@@ -8,14 +8,14 @@ import {
   hasAffinitySignals,
   sortOffersByAffinity,
 } from '@/lib/preferences/affinity';
-import { feedForYouQuerySchema } from '@/lib/contracts/feed';
+import { FOR_YOU_MAX_LIMIT, feedForYouQuerySchema } from '@/lib/contracts/feed';
 import { computeOfferScore } from '@/lib/offers/scoring';
 import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
 import { omitMatchedOffers } from '@/lib/interests/match';
 import { buildInterestView, listInterests } from '@/lib/interests/store';
 
 const DEFAULT_LIMIT = 12;
-const FETCH_LIMIT = 60;
+const FETCH_LIMIT = FOR_YOU_MAX_LIMIT;
 /** Ventana de ofertas candidatas: 30 días para tener suficiente material al ordenar por afinidad. */
 const FOR_YOU_LOOKBACK_DAYS = 30;
 
@@ -209,5 +209,5 @@ export async function GET(request: Request) {
     resultCount: result.length,
     source: 'api/feed/for-you',
   });
-  return NextResponse.json({ offers: result, interestMatches });
+  return NextResponse.json({ offers: result, interestMatches, hasMore: feed.length > limit });
 }

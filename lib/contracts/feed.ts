@@ -26,8 +26,11 @@ export const feedHomeQuerySchema = z.object({
   ).default(null),
 });
 
+/** Para ti ordena un universo fijo de candidatos: pedir más que esto no devuelve nada nuevo. */
+export const FOR_YOU_MAX_LIMIT = 60;
+
 export const feedForYouQuerySchema = z.object({
-  limit: z.number().int().min(1).max(24).default(12),
+  limit: z.number().int().min(1).max(FOR_YOU_MAX_LIMIT).default(12),
   store: z.string().trim().min(1).max(200).nullable().default(null),
   category: z.string().trim().min(1).max(80).nullable().default(null),
 });

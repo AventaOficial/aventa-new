@@ -180,8 +180,6 @@ interface OfferCardProps {
   bankCoupon?: string | null;
   /** Código o texto de cupón que el cazador escribió a mano. */
   coupons?: string | null;
-  /** Badge "Destacada" cuando la oferta tiene alta calidad (ranking_blend alto). */
-  isDestacada?: boolean;
   /** Oferta de prueba (relleno): badge "Prueba", click solo toast, no voto/favorito. */
   isTesterOffer?: boolean;
   /** Status for "My Deals" page: show badge (Pending / Approved / Rejected / Expired). */
@@ -680,7 +678,7 @@ export default function OfferCard({
                   </span>
                 )}
                 {author.leaderBadge === 'cazador_estrella' ? (
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Cazador destacado por Aventa">
                     <BadgeCheck className="h-3 w-3" />
                     Top
                   </span>

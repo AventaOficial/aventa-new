@@ -21,7 +21,7 @@ import { presentOfferPrice } from '@/lib/formatPrice';
 import { generateDealShareText } from '@/lib/shareText';
 import { buildShareUrl, facebookShareHref, telegramShareHref, whatsAppShareHref } from '@/lib/growth/shareLink';
 import { buildOfferUrl } from '@/lib/offerUrl';
-import { trackAndOpenOfferUrl } from '@/lib/rewards/clientOutbound';
+import { isNativeOpenClick, trackAndOpenOfferUrl, trackOutboundClick } from '@/lib/rewards/clientOutbound';
 import { formatCupónBancarioDisplay, getBankCouponLabel } from '@/lib/bankCoupons';
 import type { OfferFreshnessPresentation } from '@/lib/offers/freshness/present';
 import { mergeOfferImageUrls, buildOfferPublicPath } from '@/lib/offerPath';
@@ -939,14 +939,21 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     onClick={(e) => {
+                      const outbound =
+                        offer.id && offer.offerUrl?.trim()
+                          ? { offerId: offer.id, offerUrl: offer.offerUrl, accessToken: session?.access_token }
+                          : null;
+                      if (isNativeOpenClick(e)) {
+                        if (outbound) trackOutboundClick(outbound);
+                        return;
+                      }
                       e.preventDefault();
                       void copyOfferCouponsToClipboard();
-                      if (offer.id && offer.offerUrl?.trim()) {
-                        void trackAndOpenOfferUrl({
-                          offerId: offer.id,
-                          offerUrl: offer.offerUrl,
-                          accessToken: session?.access_token,
-                        });
+                      if (outbound) void trackAndOpenOfferUrl(outbound);
+                    }}
+                    onAuxClick={(e) => {
+                      if (e.button === 1 && offer.id && offer.offerUrl?.trim()) {
+                        trackOutboundClick({ offerId: offer.id, offerUrl: offer.offerUrl, accessToken: session?.access_token });
                       }
                     }}
                     className="inline-flex flex-1 min-w-[min(100%,11rem)] items-center justify-center gap-2 rounded-xl bg-violet-600 dark:bg-violet-500 text-white px-6 py-3 font-semibold hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors"
@@ -1253,7 +1260,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
               {!offer.author.hunter ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {offer.author.leaderBadge === 'cazador_estrella' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Suele acertar en precios">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="Cazador destacado por Aventa">
                       <BadgeCheck className="h-3.5 w-3.5" /> Top
                     </span>
                   )}

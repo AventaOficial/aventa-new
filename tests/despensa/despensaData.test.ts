@@ -17,6 +17,13 @@ describe('computePriceInsight (misma regla que el detalle de la oferta)', () => 
     expect(computePriceInsight(31.5, null, [30, 40])).toMatchObject({ verdict: 'fair' });
   });
 
+  it('historial plano o sin un precio visto más alto no es «Buen precio»', () => {
+    expect(computePriceInsight(100, null, [100, 100])).toMatchObject({ verdict: 'fair', min90d: 100, max90d: 100 });
+    expect(computePriceInsight(100, 150, [100, 100, 100]).verdict).not.toBe('strong');
+    expect(computePriceInsight(101, null, [100, 101]).verdict).not.toBe('strong');
+    expect(computePriceInsight(100, null, [100, 101]).verdict).toBe('strong');
+  });
+
   it('descarta precios no numéricos sin inventar registros', () => {
     expect(computePriceInsight(30, null, [Number.NaN, -1, 30]).samples90d).toBe(1);
   });

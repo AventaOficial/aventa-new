@@ -3,6 +3,7 @@ import { homeFeedCategoryInList, homeFeedCreatedAtIsoMin } from '@/lib/offers/ho
 import { presentAuthor } from '@/lib/product/hunters/identity';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { loadMachineAuthorIds, machineAuthorNotInList } from '@/lib/offers/machineAuthors';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -68,6 +69,14 @@ type GetHomeFeedError = {
 
 export type { GetHomeFeedSuccess, GetHomeFeedError };
 
+/** Recientes (y el orden cronológico sin vista) solo muestra publicaciones de la comunidad. */
+export function isCommunityOnlyFeed(
+  view: GetHomeFeedParams['view'],
+  type: GetHomeFeedParams['type'],
+): boolean {
+  return view === 'latest' || (view == null && type === 'recent');
+}
+
 export async function getHomeFeed({
   limit = 20,
   cursor = null,
@@ -91,6 +100,17 @@ export async function getHomeFeed({
       .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
 
     const useHomePipeline = view != null;
+
+    if (isCommunityOnlyFeed(view, type)) {
+      const machineAuthors = await loadMachineAuthorIds(supabase);
+      if (!machineAuthors) {
+        console.error('[FEED API ERROR] machine authors unavailable; Recientes closed');
+        return { success: false, error: 'machine_authors_unavailable' };
+      }
+      const notIn = machineAuthorNotInList(machineAuthors);
+      query = query.not('created_by', 'is', null);
+      if (notIn) query = query.not('created_by', 'in', notIn);
+    }
 
     if (useHomePipeline) {
       const floor = homeFeedCreatedAtIsoMin(period);

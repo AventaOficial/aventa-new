@@ -14,14 +14,22 @@ export async function GET(request: Request) {
   if (!key || !ALLOWED_KEYS.includes(key as (typeof ALLOWED_KEYS)[number])) {
     return NextResponse.json({ value: false });
   }
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('app_config')
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
-  if (error || !data) return NextResponse.json({ value: true });
-  const raw = (data as { value: unknown }).value;
-  const value = key === 'show_tester_offers' ? (raw === true || raw === 'true') : false;
-  return NextResponse.json({ value });
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    if (error || !data) {
+      if (error) console.error('[app-config] read failed; ofertas de prueba apagadas', error.message);
+      return NextResponse.json({ value: false });
+    }
+    const raw = (data as { value: unknown }).value;
+    const value = key === 'show_tester_offers' ? (raw === true || raw === 'true') : false;
+    return NextResponse.json({ value });
+  } catch (error) {
+    console.error('[app-config] read threw; ofertas de prueba apagadas', error instanceof Error ? error.message : error);
+    return NextResponse.json({ value: false });
+  }
 }

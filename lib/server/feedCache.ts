@@ -5,6 +5,8 @@ import { getAppRedis } from '@/lib/server/scopedRedis';
 
 /** Sufijos relativos: el namespace del entorno lo pone getAppRedis(). */
 const VERSION_KEY = 'feed:home:ver';
+/** Sube cuando cambia el contenido que devuelve una vista: las entradas viejas dejan de leerse. */
+export const FEED_CACHE_CONTRACT = 'c2';
 
 export type HomeFeedCacheParams = {
   limit: number;
@@ -31,6 +33,7 @@ function isFeedCacheEnabled(): boolean {
 
 function buildParamsKey(params: HomeFeedCacheParams): string {
   const parts = [
+    FEED_CACHE_CONTRACT,
     `l${params.limit}`,
     `t${params.type}`,
     `v${params.view ?? 'none'}`,

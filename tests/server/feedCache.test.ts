@@ -41,7 +41,7 @@ describe('feedCache', () => {
   it('getCachedHomeFeed devuelve payload parseado', async () => {
     store.set('aventa:staging:feed:home:ver', 0);
     store.set(
-      'aventa:staging:feed:home:v0:l20:ttrending:vvitales:pday:call:sall',
+      'aventa:staging:feed:home:v0:c2:l20:ttrending:vvitales:pday:call:sall',
       JSON.stringify({ success: true, data: [{ id: '1' }], nextCursor: null })
     );
     const hit = await getCachedHomeFeed({
@@ -54,9 +54,19 @@ describe('feedCache', () => {
     expect(hit?.data).toHaveLength(1);
   });
 
+  it('no lee entradas guardadas con el contrato anterior (Recientes con Hunters)', async () => {
+    store.set('aventa:staging:feed:home:ver', 0);
+    store.set(
+      'aventa:staging:feed:home:v0:l20:trecent:vlatest:pweek:call:sall',
+      JSON.stringify({ success: true, data: [{ id: 'hunter' }], nextCursor: null })
+    );
+    const hit = await getCachedHomeFeed({ limit: 20, type: 'recent', view: 'latest', period: 'week' });
+    expect(hit).toBeNull();
+  });
+
   it('getCachedHomeFeed acepta el objeto que Upstash ya deserializó', async () => {
     store.set('aventa:staging:feed:home:ver', '40');
-    store.set('aventa:staging:feed:home:v40:l2:ttrending:vlatest:pmonth:call:sall', {
+    store.set('aventa:staging:feed:home:v40:c2:l2:ttrending:vlatest:pmonth:call:sall', {
       success: true,
       data: [{ id: 'oferta-1' }],
       nextCursor: 'cursor',
