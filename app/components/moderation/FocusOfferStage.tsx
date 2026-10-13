@@ -14,20 +14,23 @@ import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import ModerationPriorityHints from './ModerationPriorityHints';
+import ModerationImageGallery from '@/app/admin/components/ModerationImageGallery';
 
 type Props = {
   offer: FocusModerationOffer;
   mode: ModerationHubMode;
   onOpenWhy: () => void;
+  /** Ausente en historial: elegir portada es una edición. */
+  onSetCover?: (src: string) => Promise<{ ok: boolean; error?: string }>;
 };
 
-export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
+export default function FocusOfferStage({ offer, mode, onOpenWhy, onSetCover }: Props) {
   const ui = moderationUi(mode);
   const gallery = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null);
   const [activeIdx, setActiveIdx] = useState(0);
-  const [imgBroken, setImgBroken] = useState(false);
-  const safeIdx = Math.min(activeIdx, Math.max(0, gallery.length - 1));
-  const thumb = !imgBroken ? gallery[safeIdx] ?? null : null;
+  const [allBroken, setAllBroken] = useState(false);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const pct = getOfferDiscountPercent(offer.price, offer.original_price);
   const hasOriginal =
     offer.original_price != null && Number(offer.original_price) > Number(offer.price);
@@ -62,67 +65,51 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
         ? 'bg-amber-400'
         : 'bg-gray-400';
 
+  const handleSetCover = onSetCover
+    ? async (src: string) => {
+        setCoverSaving(true);
+        setCoverError(null);
+        const result = await onSetCover(src);
+        setCoverSaving(false);
+        if (result.ok) setActiveIdx(0);
+        else setCoverError(result.error ?? 'No se pudo cambiar la portada');
+      }
+    : undefined;
+
   return (
     <div className="flex w-full flex-col gap-4 text-left sm:flex-row sm:items-start">
-      <div className="w-full shrink-0 sm:w-44">
-      <div
-        className={cn(
-          'relative w-full overflow-hidden rounded-2xl',
-          'aspect-square',
-          ui.heroBg
-        )}
-      >
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumb}
-            alt=""
-            className="h-full w-full object-contain"
-            onError={() => {
-              if (safeIdx < gallery.length - 1) {
-                setActiveIdx(safeIdx + 1);
-                setImgBroken(false);
-              } else {
-                setImgBroken(true);
-              }
-            }}
+      <div className="w-full shrink-0 sm:w-52">
+        {!allBroken && gallery.length > 0 ? (
+          <ModerationImageGallery
+            key={gallery.join('|')}
+            images={gallery}
+            index={activeIdx}
+            onIndexChange={setActiveIdx}
+            onImageError={() => setAllBroken(true)}
+            heroBg={ui.heroBg}
+            heroClassName="aspect-square overflow-hidden rounded-2xl"
+            thumbClassName="h-11 w-11"
+            thumbStripClassName="mt-2 gap-1.5 px-1 pb-0.5"
+            onSetCover={handleSetCover}
+            coverSaving={coverSaving}
+            sendReferer
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4">
+          <div
+            className={cn(
+              'flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-2xl px-4',
+              ui.heroBg
+            )}
+          >
             <ImageOff className={cn('h-8 w-8', ui.iconMuted)} />
             <p className={cn('text-sm font-medium', ui.title)}>Sin imagen</p>
           </div>
         )}
-      </div>
-
-      {gallery.length > 1 ? (
-        <div
-          className="mt-2 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-0.5"
-          aria-label="Fotos de la oferta"
-        >
-          {gallery.slice(0, 8).map((src, i) => (
-            <button
-              key={`${src}-${i}`}
-              type="button"
-              onClick={() => {
-                setActiveIdx(i);
-                setImgBroken(false);
-              }}
-              className={cn(
-                'h-11 w-11 shrink-0 overflow-hidden rounded-lg border-2',
-                i === safeIdx
-                  ? ui.ws
-                    ? 'border-emerald-500'
-                    : 'border-violet-400'
-                  : 'border-transparent opacity-70 hover:opacity-100'
-              )}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-full w-full object-cover" />
-            </button>
-          ))}
-        </div>
-      ) : null}
+        {coverError ? (
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
+            {coverError}
+          </p>
+        ) : null}
       </div>
 
       <div className="min-w-0 flex-1">

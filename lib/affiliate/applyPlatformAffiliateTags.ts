@@ -138,6 +138,8 @@ function applyTemu(url: string, pid: string): string {
 export function applyPlatformAffiliateTags(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
+  // Un meli.la ya lleva su cuenta afiliada en la redirección; se publica tal cual.
+  if (isMeliLaShortUrl(trimmed)) return trimmed;
 
   let out = trimmed;
 

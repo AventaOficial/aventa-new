@@ -58,6 +58,7 @@ import OfferMedia from '@/app/components/offers/OfferMedia';
 import { formatMexicoDateTime, formatRelativeMexico, remainingDaysLabel } from '@/lib/time/mexicoClock';
 import { useHydrated } from '@/lib/hooks/useHydrated';
 import { alignCommentLike, toggleCommentLike } from '@/lib/comments/commentLikeState';
+import { publicOfferDescription } from '@/lib/offers/publicDescription';
 
 function CommentAvatar({
   avatarUrl,
@@ -246,7 +247,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
   const nowMs = hydrated ? Date.now() : null;
   const formatRelativeDate = (iso: string) => formatRelativeMexico(iso, nowMs);
   const remainingLabel = nowMs == null ? null : remainingDaysLabel(offer.expiresAt, nowMs);
-  const descriptionText = offer.description?.trim() ?? '';
+  const descriptionText = publicOfferDescription(offer.description) ?? '';
   const descriptionLong = descriptionText.length > 220 || descriptionText.split('\n').length > 4;
   const allImages = mergeOfferImageUrls(offer.image, offer.imageUrls);
   const rawCurrentImage = allImages[imageIndex] || allImages[0] || offer.image || '/placeholder.png';

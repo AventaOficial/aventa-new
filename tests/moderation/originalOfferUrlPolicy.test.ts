@@ -107,22 +107,29 @@ describe('affiliate gate sin regresión (CASO F)', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('permite approve con link_mod_ok cuando hay programa', () => {
+  it('permite approve con link_mod_ok cuando hay programa (meli.la verificado)', () => {
     const result = assertOfferReadyForAffiliateApproval({
-      offerUrl: MONETIZED,
+      offerUrl: 'https://meli.la/2vWwBNv',
       linkModOk: true,
       originalProductUrl: TRUSTED_ORIGINAL,
     });
     expect(result.ok).toBe(true);
   });
 
-  it('permite publicación sin programa (política actual)', () => {
-    delete process.env.ML_AFFILIATE_TAG;
-    delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
-    delete process.env.ML_MATT_TOOL;
-    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+  it('no aprueba con link_mod_ok heredado sobre la URL larga de ML', () => {
     const result = assertOfferReadyForAffiliateApproval({
-      offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-1',
+      offerUrl: MONETIZED,
+      linkModOk: true,
+      originalProductUrl: TRUSTED_ORIGINAL,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('permite publicación sin programa (política actual)', () => {
+    delete process.env.AMAZON_ASSOCIATE_TAG;
+    delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
+    const result = assertOfferReadyForAffiliateApproval({
+      offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
       linkModOk: false,
       originalProductUrl: undefined,
     });

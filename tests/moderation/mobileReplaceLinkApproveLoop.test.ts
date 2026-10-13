@@ -1,17 +1,21 @@
 /**
  * Regresión P0: loop móvil REPLACE LINK → SAVE → READY → APPROVE.
  * Reproduce el contrato completo sin I/O de red.
+ *
+ * Mercado Libre: el único enlace que deja la oferta lista es el meli.la de la cuenta de Aventa,
+ * verificado en servidor y confirmado por moderación (link_mod_ok). Los parámetros tag/matt_*
+ * que la plataforma escribe en una URL larga no certifican cuenta.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   evaluateAffiliateReadiness,
   shouldPersistLinkModOk,
 } from '@/lib/moderation/affiliateReadinessContract';
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness';
 import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
-import { validateAffiliatePaste } from '@/lib/affiliate/validateAffiliatePaste';
+import { MELI_LA_REQUIRED_REASON, validateAffiliatePaste } from '@/lib/affiliate/validateAffiliatePaste';
 import { assessOfferAffiliateLink } from '@/lib/affiliate/assessOfferAffiliateLink';
 
 const ML_TAG = 'aventa';
@@ -21,6 +25,7 @@ const ML_WORD = 'aventa';
 const ORIGINAL =
   'https://www.mercadolibre.com.mx/celular-motorola-edge-60-neo-12256-grisaille/p/MLM61500237?wid=MLM61500237';
 const TAGGED = `${ORIGINAL}&tag=${ML_TAG}&matt_word=${ML_WORD}&matt_tool=${ML_TOOL}`;
+const MELI_LA = 'https://meli.la/2vWwBNv';
 
 function withMlEnv(run: () => void) {
   const backup = { ...process.env };
@@ -38,48 +43,35 @@ function withMlEnv(run: () => void) {
 }
 
 describe('mobile replace-link → approve loop regression', () => {
-  afterEach(() => {
-    // no-op: withMlEnv restores
-  });
-
-  it('pending tagged + link_mod_ok null → prepare persiste READY → approve OK', () => {
+  it('pending con URL larga etiquetada → pegar meli.la → persistir link_mod_ok → approve OK', () => {
     withMlEnv(() => {
-      // 1) Estado inicial (pre-backfill / pre-save): tagged pero flag null
+      // 1) URL larga con tag/matt_* de plataforma: no está lista y no persiste link_mod_ok.
       const before = evaluateAffiliateReadiness({
         offerUrl: TAGGED,
         originalOfferUrl: ORIGINAL,
         linkModOk: null,
       });
-      expect(before.ready).toBe(true);
-      expect(before.source).toBe('platform_tagged');
-
-      // 2) update-offer contract: debe persistir link_mod_ok
+      expect(before.ready).toBe(false);
       expect(
-        shouldPersistLinkModOk({
-          offerUrl: TAGGED,
-          originalOfferUrl: ORIGINAL,
-          linkModOk: false,
-        })
-      ).toBe(true);
+        shouldPersistLinkModOk({ offerUrl: TAGGED, originalOfferUrl: ORIGINAL, linkModOk: false })
+      ).toBe(false);
+      const longPaste = validateAffiliatePaste(ORIGINAL, TAGGED);
+      expect(longPaste.valid).toBe(false);
+      expect(longPaste.reason).toBe(MELI_LA_REQUIRED_REASON);
 
-      const paste = validateAffiliatePaste(ORIGINAL, TAGGED);
+      // 2) meli.la pegado: válido localmente, la cuenta y el producto los verifica el servidor.
+      const paste = validateAffiliatePaste(ORIGINAL, MELI_LA);
       expect(paste.valid).toBe(true);
+      expect(paste.needsServerVerification).toBe(true);
+      expect(paste.normalizedUrl).toBe(MELI_LA);
 
-      // 3) Tras persistir (DB: link_mod_ok=true + tagged URL)
-      const after = evaluateAffiliateReadiness({
-        offerUrl: TAGGED,
-        originalOfferUrl: ORIGINAL,
-        linkModOk: true,
-      });
-      expect(after.ready).toBe(true);
-      expect(computeMonetizationReadiness({
-        offerUrl: TAGGED,
-        originalOfferUrl: ORIGINAL,
-        linkModOk: true,
-      }).status).toBe('ready');
+      // 3) Tras persistir (DB: link_mod_ok=true + meli.la tal cual)
+      const after = { offerUrl: MELI_LA, originalOfferUrl: ORIGINAL, linkModOk: true as const };
+      expect(evaluateAffiliateReadiness(after).ready).toBe(true);
+      expect(computeMonetizationReadiness(after).status).toBe('ready');
       expect(
         assertOfferReadyForAffiliateApproval({
-          offerUrl: TAGGED,
+          offerUrl: MELI_LA,
           linkModOk: true,
           originalProductUrl: ORIGINAL,
         }).ok
@@ -87,44 +79,30 @@ describe('mobile replace-link → approve loop regression', () => {
     });
   });
 
-  it('replace link → approve immediately (moderator_confirmed sin re-gate isTagged)', () => {
+  it('link_mod_ok heredado sobre URL larga de ML ya no aprueba', () => {
     withMlEnv(() => {
-      // URL canónica + link_mod_ok, aunque assessment secundario fuera estricto:
-      // el approve SOLO usa el contrato canónico.
-      const ready = assertOfferReadyForAffiliateApproval({
-        offerUrl: TAGGED,
-        linkModOk: true,
-        originalProductUrl: ORIGINAL,
-      });
-      expect(ready.ok).toBe(true);
-
-      // Caso que el gate competidor rompía: link_mod_ok true + isTagged false
-      // (p.ej. env distinto / shortlink). Contrato sigue READY.
-      const untaggedCanonical =
-        'https://www.mercadolibre.com.mx/celular-motorola-edge-60-neo-12256-grisaille/p/MLM61500237?wid=MLM61500237';
-      const live = assessOfferAffiliateLink(untaggedCanonical);
+      const live = assessOfferAffiliateLink(ORIGINAL);
       expect(live.isTagged).toBe(false);
       const contract = evaluateAffiliateReadiness({
-        offerUrl: untaggedCanonical,
+        offerUrl: TAGGED,
         originalOfferUrl: ORIGINAL,
         linkModOk: true,
       });
-      expect(contract.ready).toBe(true);
-      expect(contract.source).toBe('moderator_confirmed');
+      expect(contract.ready).toBe(false);
       expect(
         assertOfferReadyForAffiliateApproval({
-          offerUrl: untaggedCanonical,
+          offerUrl: TAGGED,
           linkModOk: true,
           originalProductUrl: ORIGINAL,
         }).ok
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 
   it('replace link → refresh mental model: readiness permanece READY', () => {
     withMlEnv(() => {
       const persisted = {
-        offerUrl: TAGGED,
+        offerUrl: MELI_LA,
         originalOfferUrl: ORIGINAL,
         linkModOk: true as const,
       };
@@ -163,23 +141,15 @@ describe('mobile replace-link → approve loop regression', () => {
     );
   });
 
-  it('meli.la tagged + link_mod_ok: contrato READY (approve no debe exigir paste match)', () => {
+  it('meli.la + link_mod_ok: contrato READY (approve no exige paste match offline)', () => {
     withMlEnv(() => {
-      const short =
-        'https://meli.la/1uLAo65?tag=aventa&matt_word=aventa&matt_tool=97583635';
-      const original =
-        'https://www.mercadolibre.com.mx/pack-x5/p/MLM36799011';
-      const paste = validateAffiliatePaste(original, short);
-      expect(paste.valid).toBe(false); // fingerprint distinto — gate viejo fallaba aquí
-      const contract = evaluateAffiliateReadiness({
-        offerUrl: short,
-        originalOfferUrl: original,
-        linkModOk: true,
-      });
-      expect(contract.ready).toBe(true);
+      const original = 'https://www.mercadolibre.com.mx/pack-x5/p/MLM36799011';
+      const paste = validateAffiliatePaste(original, MELI_LA);
+      expect(paste.valid).toBe(true);
+      expect(paste.needsServerVerification).toBe(true);
       expect(
         assertOfferReadyForAffiliateApproval({
-          offerUrl: short,
+          offerUrl: MELI_LA,
           linkModOk: true,
           originalProductUrl: original,
         }).ok

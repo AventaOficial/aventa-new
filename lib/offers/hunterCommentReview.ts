@@ -1,5 +1,6 @@
 import { OFFER_HUNTER_COMMENT_MAX } from '@/lib/contracts/offers';
 import type { ListPriceComparison } from '@/lib/offers/listPriceComparison';
+import { moderateUserText } from '@/lib/moderation/commentProfanity';
 
 /**
  * Filtro editorial del comentario que un hunter automático propone para el comprador.
@@ -18,6 +19,7 @@ export const HUNTER_COMMENT_DROP_REASONS = [
   'UNSUPPORTED_CLAIM',
   'DISCOUNT_NOT_CONFIRMED',
   'DISCOUNT_MISMATCH',
+  'OFFENSIVE',
 ] as const;
 export type HunterCommentDropReason = (typeof HUNTER_COMMENT_DROP_REASONS)[number];
 
@@ -82,6 +84,9 @@ export function reviewHunterComment(
   if (title && (folded === title || title.includes(folded))) return drop('REPEATS_TITLE');
   if (/https?:|www\.|\.com\b|\.mx\b/.test(folded)) return drop('CONTAINS_LINK');
   if (BOT_SELF_REFERENCE.test(folded)) return drop('MENTIONS_BOT');
+  // Voz editorial: ni groserías coloquiales.
+  const language = moderateUserText(comment, { field: 'hunter_comment' });
+  if (language.categories.some((c) => c !== 'spam' && c !== 'empty')) return drop('OFFENSIVE');
   if (UNSUPPORTED_CLAIMS.some((re) => re.test(folded))) return drop('UNSUPPORTED_CLAIM');
 
   const percents = [...folded.matchAll(DISCOUNT_PERCENT)].map((m) => Number(m[1] ?? m[2]));
@@ -106,6 +111,7 @@ export const HUNTER_COMMENT_DROP_LABELS: Readonly<Record<HunterCommentDropReason
   UNSUPPORTED_CLAIM: 'afirmación no demostrable',
   DISCOUNT_NOT_CONFIRMED: 'habla de descuento sin precio de lista confirmado',
   DISCOUNT_MISMATCH: 'el porcentaje no coincide con los precios',
+  OFFENSIVE: 'lenguaje ofensivo o grosero',
 };
 
 /** Lectura tolerante de `bot_meta.hunter_comment` para moderación. */

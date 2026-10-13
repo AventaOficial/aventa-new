@@ -1,5 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { validateAffiliatePaste } from '@/lib/affiliate/validateAffiliatePaste';
+import {
+  MELI_LA_REQUIRED_REASON,
+  validateAffiliatePaste,
+} from '@/lib/affiliate/validateAffiliatePaste';
 import { applyPlatformAffiliateTags } from '@/lib/affiliate/applyPlatformAffiliateTags';
 
 const ML_ORIGINAL = 'https://articulo.mercadolibre.com.mx/MLM-1234567890-test';
@@ -19,19 +22,26 @@ describe('validateAffiliatePaste', () => {
     process.env = { ...envBackup };
   });
 
-  it('acepta mismo producto ML con tag Aventa', () => {
+  it('ML con tag de plataforma en la URL larga no basta: pide el meli.la', () => {
     const pasted = applyPlatformAffiliateTags(ML_ORIGINAL);
+    expect(pasted).toContain('tag=aventa_test_tag');
     const result = validateAffiliatePaste(ML_ORIGINAL, pasted);
-    expect(result.valid).toBe(true);
-    expect(result.productMatched).toBe(true);
-    expect(result.affiliateTagged).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe(MELI_LA_REQUIRED_REASON);
     expect(result.store).toBe('Mercado Libre');
   });
 
+  it('acepta meli.la de ML aunque haya tags de plataforma en env, sin modificarlo', () => {
+    const result = validateAffiliatePaste(ML_ORIGINAL, 'https://meli.la/2vWwBNv');
+    expect(result.valid).toBe(true);
+    expect(result.needsServerVerification).toBe(true);
+    expect(result.normalizedUrl).toBe('https://meli.la/2vWwBNv');
+  });
+
   it('rechaza productos diferentes', () => {
-    const other = 'https://articulo.mercadolibre.com.mx/MLM-9999999999-other';
+    const other = 'https://www.amazon.com.mx/dp/B0OTHERASI1';
     const pasted = applyPlatformAffiliateTags(other);
-    const result = validateAffiliatePaste(ML_ORIGINAL, pasted);
+    const result = validateAffiliatePaste(AMZ_ORIGINAL, pasted);
     expect(result.valid).toBe(false);
     expect(result.reason).toBe('El enlace no corresponde al producto');
   });
@@ -67,10 +77,52 @@ describe('validateAffiliatePaste', () => {
     expect(result.valid).toBe(false);
   });
 
-  it('rechaza ML sin tag cuando el programa está configurado', () => {
+  it('rechaza ML sin afiliado cuando el programa está configurado', () => {
     const result = validateAffiliatePaste(ML_ORIGINAL, ML_ORIGINAL);
+    expect(result.valid).toBe(false);
+    expect(result.affiliateTagged).toBe(false);
+    expect(result.reason).toBe(MELI_LA_REQUIRED_REASON);
+  });
+
+  it('rechaza Amazon sin tag cuando el programa está configurado', () => {
+    const result = validateAffiliatePaste(AMZ_ORIGINAL, AMZ_ORIGINAL);
     expect(result.valid).toBe(false);
     expect(result.productMatched).toBe(true);
     expect(result.affiliateTagged).toBe(false);
+  });
+});
+
+describe('validateAffiliatePaste sin parámetros ML en env (meli.la manual)', () => {
+  const envBackup = { ...process.env };
+
+  beforeEach(() => {
+    delete process.env.ML_AFFILIATE_TAG;
+    delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
+    delete process.env.ML_MATT_TOOL;
+    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+    delete process.env.ML_MATT_WORD;
+    delete process.env.NEXT_PUBLIC_ML_MATT_WORD;
+  });
+
+  afterEach(() => {
+    process.env = { ...envBackup };
+  });
+
+  it('acepta meli.la y lo deja tal cual para verificación en servidor', () => {
+    const result = validateAffiliatePaste(ML_ORIGINAL, 'https://meli.la/2vWwBNv');
+    expect(result.valid).toBe(true);
+    expect(result.needsServerVerification).toBe(true);
+    expect(result.normalizedUrl).toBe('https://meli.la/2vWwBNv');
+  });
+
+  it('rechaza la URL larga de ML sin afiliado y pide el meli.la', () => {
+    const result = validateAffiliatePaste(ML_ORIGINAL, ML_ORIGINAL);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe(MELI_LA_REQUIRED_REASON);
+  });
+
+  it('rechaza meli.la para un producto de otra tienda', () => {
+    const result = validateAffiliatePaste(AMZ_ORIGINAL, 'https://meli.la/2vWwBNv');
+    expect(result.valid).toBe(false);
   });
 });

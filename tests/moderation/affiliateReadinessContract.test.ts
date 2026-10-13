@@ -8,7 +8,11 @@ import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadi
 
 const NAV = 'https://articulo.mercadolibre.com.mx/MLM-1234567890-test-product';
 const BARE = 'https://www.mercadolibre.com.mx/MLM1234567890';
+const MELI_LA = 'https://meli.la/2vWwBNv';
 const TAG = 'aventa_test_tag';
+const AMZ = 'https://www.amazon.com.mx/dp/B0TESTASI1';
+const AMZ_TAG = 'aventa-20';
+const AMZ_TAGGED = `${AMZ}?tag=${AMZ_TAG}`;
 
 describe('affiliate readiness contract (canonical)', () => {
   const envBackup = { ...process.env };
@@ -16,10 +20,10 @@ describe('affiliate readiness contract (canonical)', () => {
   beforeEach(() => {
     process.env.ML_AFFILIATE_TAG = TAG;
     process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG = TAG;
-    delete process.env.ML_MATT_TOOL;
-    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
-    delete process.env.ML_MATT_WORD;
-    delete process.env.NEXT_PUBLIC_ML_MATT_WORD;
+    process.env.ML_MATT_TOOL = '97583635';
+    process.env.ML_MATT_WORD = 'aventa';
+    process.env.AMAZON_ASSOCIATE_TAG = AMZ_TAG;
+    delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
   });
 
   afterEach(() => {
@@ -28,17 +32,27 @@ describe('affiliate readiness contract (canonical)', () => {
 
   it('A. tagged + canonical → READY (sin link_mod_ok)', () => {
     const r = evaluateAffiliateReadiness({
-      offerUrl: `${NAV}?tag=${TAG}`,
-      originalOfferUrl: NAV,
+      offerUrl: AMZ_TAGGED,
+      originalOfferUrl: AMZ,
       linkModOk: null,
     });
     expect(r.ready).toBe(true);
     expect(r.source).toBe('platform_tagged');
     expect(assertOfferReadyForAffiliateApproval({
-      offerUrl: `${NAV}?tag=${TAG}`,
+      offerUrl: AMZ_TAGGED,
       linkModOk: null,
-      originalProductUrl: NAV,
+      originalProductUrl: AMZ,
     }).ok).toBe(true);
+  });
+
+  it('A2. ML con tag/matt_* de plataforma en la URL → NOT READY (los parámetros no certifican cuenta)', () => {
+    const tagged = `${NAV}?tag=${TAG}&matt_word=aventa&matt_tool=97583635`;
+    const r = evaluateAffiliateReadiness({ offerUrl: tagged, originalOfferUrl: NAV, linkModOk: null });
+    expect(r.ready).toBe(false);
+    expect(r.reason).toBe('missing_affiliate_tag');
+    expect(
+      assertOfferReadyForAffiliateApproval({ offerUrl: tagged, linkModOk: null, originalProductUrl: NAV }).ok
+    ).toBe(false);
   });
 
   it('B. tagged + bare/non-canonical → NOT READY', () => {
@@ -69,11 +83,31 @@ describe('affiliate readiness contract (canonical)', () => {
     expect(r.reason).toBe('missing_url');
   });
 
-  it('E. link_mod_ok=true + valid canonical → READY', () => {
+  it('E. link_mod_ok=true + meli.la verificado → READY', () => {
     const r = evaluateAffiliateReadiness({
-      offerUrl: NAV,
+      offerUrl: MELI_LA,
+      originalOfferUrl: NAV,
       linkModOk: true,
     });
+    expect(r.ready).toBe(true);
+    expect(r.source).toBe('moderator_confirmed');
+  });
+
+  it('E2. link_mod_ok=true heredado sobre URL larga de ML → NOT READY', () => {
+    const r = evaluateAffiliateReadiness({
+      offerUrl: NAV,
+      originalOfferUrl: NAV,
+      linkModOk: true,
+    });
+    expect(r.ready).toBe(false);
+    expect(r.reason).toBe('needs_moderator_confirmation');
+    expect(
+      assertOfferReadyForAffiliateApproval({ offerUrl: NAV, linkModOk: true, originalProductUrl: NAV }).ok
+    ).toBe(false);
+  });
+
+  it('E3. link_mod_ok=true en tienda no-ML con programa → READY', () => {
+    const r = evaluateAffiliateReadiness({ offerUrl: AMZ, originalOfferUrl: AMZ, linkModOk: true });
     expect(r.ready).toBe(true);
     expect(r.source).toBe('moderator_confirmed');
   });
@@ -95,42 +129,53 @@ describe('affiliate readiness contract (canonical)', () => {
   });
 
   it('G. no affiliate program → READY', () => {
-    delete process.env.ML_AFFILIATE_TAG;
-    delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
-    delete process.env.ML_MATT_TOOL;
-    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+    delete process.env.AMAZON_ASSOCIATE_TAG;
+    delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
     const r = evaluateAffiliateReadiness({
-      offerUrl: NAV,
+      offerUrl: AMZ,
       linkModOk: false,
     });
     expect(r.ready).toBe(true);
     expect(r.source).toBe('no_program');
   });
 
+  it('G2. ML sin parámetros de plataforma → exige meli.la confirmado por moderador', () => {
+    delete process.env.ML_AFFILIATE_TAG;
+    delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
+    delete process.env.ML_MATT_TOOL;
+    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+    const unconfirmed = evaluateAffiliateReadiness({ offerUrl: NAV, linkModOk: false });
+    expect(unconfirmed.ready).toBe(false);
+    expect(unconfirmed.reason).toBe('missing_affiliate_tag');
+
+    const creatorMeliLa = evaluateAffiliateReadiness({
+      offerUrl: MELI_LA,
+      originalOfferUrl: NAV,
+      linkModOk: false,
+    });
+    expect(creatorMeliLa.ready).toBe(false);
+
+    const confirmed = evaluateAffiliateReadiness({
+      offerUrl: MELI_LA,
+      originalOfferUrl: NAV,
+      linkModOk: true,
+    });
+    expect(confirmed.ready).toBe(true);
+    expect(confirmed.source).toBe('moderator_confirmed');
+  });
+
   it('H. shouldPersistLinkModOk true solo si tagged canónica', () => {
-    expect(
-      shouldPersistLinkModOk({
-        offerUrl: `${NAV}?tag=${TAG}`,
-        originalOfferUrl: NAV,
-      })
-    ).toBe(true);
-    expect(
-      shouldPersistLinkModOk({
-        offerUrl: NAV,
-        originalOfferUrl: NAV,
-      })
-    ).toBe(false);
-    expect(
-      shouldPersistLinkModOk({
-        offerUrl: `${BARE}?tag=${TAG}`,
-      })
-    ).toBe(false);
+    expect(shouldPersistLinkModOk({ offerUrl: AMZ_TAGGED, originalOfferUrl: AMZ })).toBe(true);
+    expect(shouldPersistLinkModOk({ offerUrl: AMZ, originalOfferUrl: AMZ })).toBe(false);
+    expect(shouldPersistLinkModOk({ offerUrl: `${BARE}?tag=${TAG}` })).toBe(false);
+    expect(shouldPersistLinkModOk({ offerUrl: `${NAV}?tag=${TAG}`, originalOfferUrl: NAV })).toBe(false);
+    expect(shouldPersistLinkModOk({ offerUrl: MELI_LA, originalOfferUrl: NAV })).toBe(false);
   });
 
   it('I. idempotent: tagged ready no cambia con retries de evaluación', () => {
     const input = {
-      offerUrl: `${NAV}?tag=${TAG}`,
-      originalOfferUrl: NAV,
+      offerUrl: AMZ_TAGGED,
+      originalOfferUrl: AMZ,
       linkModOk: null as boolean | null,
     };
     const a = evaluateAffiliateReadiness(input);
@@ -141,25 +186,37 @@ describe('affiliate readiness contract (canonical)', () => {
   });
 
   it('J. approve usa el mismo contrato que evaluate', () => {
-    const tagged = `${NAV}?tag=${TAG}`;
-    const ev = evaluateAffiliateReadiness({ offerUrl: tagged, linkModOk: null });
-    const ap = assertOfferReadyForAffiliateApproval({
-      offerUrl: tagged,
-      linkModOk: null,
-      originalProductUrl: NAV,
-    });
-    expect(ev.ready).toBe(ap.ok);
+    for (const [offerUrl, original, linkModOk] of [
+      [AMZ_TAGGED, AMZ, null],
+      [`${NAV}?tag=${TAG}`, NAV, null],
+      [MELI_LA, NAV, true],
+      [NAV, NAV, true],
+    ] as const) {
+      const ev = evaluateAffiliateReadiness({ offerUrl, originalOfferUrl: original, linkModOk });
+      const ap = assertOfferReadyForAffiliateApproval({
+        offerUrl,
+        linkModOk,
+        originalProductUrl: original,
+      });
+      expect(ev.ready).toBe(ap.ok);
+    }
   });
 
   it('K. Focus/monetization UI alinea con contrato', () => {
-    const tagged = `${NAV}?tag=${TAG}`;
     const ui = computeMonetizationReadiness({
-      offerUrl: tagged,
-      originalOfferUrl: NAV,
+      offerUrl: AMZ_TAGGED,
+      originalOfferUrl: AMZ,
       linkModOk: null,
     });
     expect(ui.status).toBe('ready');
     expect(ui.readiness?.source).toBe('platform_tagged');
+
+    const ml = computeMonetizationReadiness({
+      offerUrl: `${NAV}?tag=${TAG}`,
+      originalOfferUrl: NAV,
+      linkModOk: null,
+    });
+    expect(ml.status).toBe('needs_attention');
   });
 
   it('empty URLs → UI unknown / approve ok', () => {

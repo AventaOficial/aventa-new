@@ -21,7 +21,7 @@ describe('computeMonetizationReadiness', () => {
 
   it('6. programa + link listo → ready', () => {
     const r = computeMonetizationReadiness({
-      offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-x?tag=aventa_test_tag',
+      offerUrl: 'https://meli.la/2vWwBNv',
       originalOfferUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-x',
       linkModOk: true,
     });
@@ -39,6 +39,16 @@ describe('computeMonetizationReadiness', () => {
   });
 
   it('8. sin programa → no_program', () => {
+    delete process.env.AMAZON_ASSOCIATE_TAG;
+    delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
+    const r = computeMonetizationReadiness({
+      offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
+      linkModOk: null,
+    });
+    expect(r.status).toBe('no_program');
+  });
+
+  it('8b. ML sin parámetros de plataforma sigue requiriendo afiliado', () => {
     delete process.env.ML_AFFILIATE_TAG;
     delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
     delete process.env.ML_MATT_TOOL;
@@ -47,7 +57,7 @@ describe('computeMonetizationReadiness', () => {
       offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-x',
       linkModOk: null,
     });
-    expect(r.status).toBe('no_program');
+    expect(r.status).toBe('needs_attention');
   });
 
   it('9. información insuficiente → unknown', () => {
@@ -68,14 +78,12 @@ describe('computeMonetizationReadiness', () => {
   });
 
   it('11. backend permite publicación cuando no existe programa', () => {
-    delete process.env.ML_AFFILIATE_TAG;
-    delete process.env.NEXT_PUBLIC_ML_AFFILIATE_TAG;
-    delete process.env.ML_MATT_TOOL;
-    delete process.env.NEXT_PUBLIC_ML_MATT_TOOL;
+    delete process.env.AMAZON_ASSOCIATE_TAG;
+    delete process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
     const result = assertOfferReadyForAffiliateApproval({
-      offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-1',
+      offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
       linkModOk: false,
-      originalProductUrl: 'https://articulo.mercadolibre.com.mx/MLM-1',
+      originalProductUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1',
     });
     expect(result.ok).toBe(true);
   });

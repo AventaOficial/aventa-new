@@ -17,6 +17,12 @@ import { isLowQualityTitle } from '@/lib/bots/ingest/isLowQualityTitle';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import { reviewHunterComment, type HunterCommentReviewResult } from '@/lib/offers/hunterCommentReview';
 import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
+import { buildBotOfferDescription } from '@/lib/bots/ingest/buildBotOfferDescription';
+import { OFFER_DESCRIPTION_MAX } from '@/lib/contracts/offers';
+
+/** `moderator_comment` admite 500; el prefijo cabe con la nota MCP completa (280). */
+const MCP_INTERNAL_NOTE_MAX = 470;
+export const MCP_INTERNAL_NOTE_PREFIX = 'Nota interna del bot: ';
 
 export type EnqueueHunterOfferDeps = {
   prepare?: (url: string) => Promise<PreparedMachineCandidate>;
@@ -99,7 +105,8 @@ export async function enqueueHunterOffer(
   } catch {
     /* keep */
   }
-  const description = (candidate.note?.trim() || candidate.title).slice(0, 4000);
+  // `note` es contexto para el equipo (evidencia, dudas de precio). Nunca va a la descripción pública.
+  const internalNote = candidate.note?.trim() ? candidate.note.trim().slice(0, MCP_INTERNAL_NOTE_MAX) : null;
   const prepared = await (deps.prepare ?? prepareMachineCandidateOffer)(candidate.url);
   if (!prepared.product) {
     await settleItem(supabase, {
@@ -183,6 +190,18 @@ export async function enqueueHunterOffer(
         title,
         comparison: compareWithListPrice(price, originalPrice),
       });
+  const description = buildBotOfferDescription(
+    {
+      canonicalUrl: candidate.url,
+      title,
+      store: prepared.store || store,
+      imageUrl: prepared.imageUrl ?? '',
+      discountPrice: price,
+      originalPrice,
+      discountPercent: null,
+    },
+    prepared.category ?? null,
+  ).slice(0, OFFER_DESCRIPTION_MAX);
   const result = await (deps.ingest ?? ingestOfferObservation)(supabase, {
     createdBy,
     source: 'mcp:hunter',
@@ -190,7 +209,9 @@ export async function enqueueHunterOffer(
     forceLoteTag: false,
     recordSubmissionCount: false,
     offerExtras: {
+      ...(internalNote ? { moderator_comment: `${MCP_INTERNAL_NOTE_PREFIX}${internalNote}` } : {}),
       bot_meta: {
+        ...(internalNote ? { internal_note: internalNote } : {}),
         enrichment: {
           page_kind: prepared.pageKind,
           retailer: prepared.retailer,

@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
+import { useAuth } from '@/app/providers/AuthProvider';
+import { setOfferCover } from '@/lib/moderation/setOfferCover';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
@@ -122,6 +124,9 @@ export default function ModerationMobileReview({
   const [rejectReason, setRejectReason] = useState('');
   const [imgBroken, setImgBroken] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const { session } = useAuth();
   const [showMore, setShowMore] = useState(false);
   const [fixField, setFixField] = useState<FixField | null>(null);
   const [showFix, setShowFix] = useState(false);
@@ -138,6 +143,7 @@ export default function ModerationMobileReview({
   useEffect(() => {
     setImgBroken(false);
     setGalleryIndex(0);
+    setCoverError(null);
     setShowReject(false);
     setRejectReason('');
     setShowMore(false);
@@ -149,7 +155,21 @@ export default function ModerationMobileReview({
     () => (offer ? mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null) : []),
     [offer]
   );
-  const heroSrc = !imgBroken ? images[galleryIndex] ?? images[0] ?? null : null;
+  const hasGallery = !imgBroken && images.length > 0;
+
+  const setCoverImage = async (src: string) => {
+    if (!offer) return;
+    setCoverSaving(true);
+    setCoverError(null);
+    const result = await setOfferCover(offer.id, images, src, session?.access_token);
+    setCoverSaving(false);
+    if (!result.ok) {
+      setCoverError(result.error);
+      return;
+    }
+    setGalleryIndex(0);
+    onOfferUpdated?.();
+  };
 
   const readOnly = offer
     ? isOfferLockedByOther(
@@ -376,18 +396,25 @@ export default function ModerationMobileReview({
           ) : null}
         </div>
 
-        {heroSrc ? (
-          <ModerationImageGallery
-            images={images}
-            index={galleryIndex}
-            onIndexChange={(i) => {
-              setGalleryIndex(i);
-              setImgBroken(false);
-            }}
-            onImageError={() => setImgBroken(true)}
-            heroBg={ui.heroBg}
-            heroClassName="aspect-[4/3] max-h-[34vh]"
-          />
+        {hasGallery ? (
+          <>
+            <ModerationImageGallery
+              key={`${offer.id}:${images.join('|')}`}
+              images={images}
+              index={galleryIndex}
+              onIndexChange={setGalleryIndex}
+              onImageError={() => setImgBroken(true)}
+              heroBg={ui.heroBg}
+              heroClassName="aspect-[4/3] max-h-[34vh]"
+              onSetCover={readOnly ? undefined : setCoverImage}
+              coverSaving={coverSaving}
+            />
+            {coverError ? (
+              <p className="px-4 pt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+                {coverError}
+              </p>
+            ) : null}
+          </>
         ) : offer.is_bot ? (
           <ModerationBotFactsCard
             variant="hero"

@@ -104,11 +104,11 @@ describe('buildBotFacts', () => {
 
 describe('buildModerationChecklist', () => {
   it('avisa foto faltante sin bloquear (ficha del bot basta para decidir)', () => {
-    process.env.ML_AFFILIATE_TAG = 'aventa_test';
+    process.env.AMAZON_ASSOCIATE_TAG = 'aventa-20';
     const items = buildModerationChecklist({
       title: 'Cerveza Clara Modelo Especial 24 Latas',
       image_url: '',
-      offer_url: 'https://articulo.mercadolibre.com.mx/MLM-1234567890-1?tag=aventa_test',
+      offer_url: 'https://www.amazon.com.mx/dp/B0TESTASI1?tag=aventa-20',
       category: 'supermercado',
     });
     const map = Object.fromEntries(items.map((i) => [i.id, i]));

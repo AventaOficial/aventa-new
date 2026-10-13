@@ -89,15 +89,24 @@ describe('camino legacy de auto-approve del bot', () => {
   });
 
   it('H. pedir pending nunca se convierte en approved (sí puede marcar link_mod_ok si ya está taggeada)', () => {
+    vi.stubEnv('AMAZON_ASSOCIATE_TAG', 'aventa-20');
+    const tagged = resolveBotInsertPublication({
+      requestedStatus: 'pending',
+      offerUrl: 'https://www.amazon.com.mx/dp/B0TESTASI1?tag=aventa-20',
+    });
+    expect(tagged.status).toBe('pending');
+    expect(tagged.linkModOk).toBe(true);
+
+    // ML: tag/matt_* en la URL no certifican cuenta; el meli.la lo pega moderación.
     vi.stubEnv('ML_AFFILIATE_TAG', 'aventa');
     vi.stubEnv('ML_MATT_TOOL', '17030900');
-    const tagged = resolveBotInsertPublication({
+    const mlTagged = resolveBotInsertPublication({
       requestedStatus: 'pending',
       offerUrl:
         'https://www.mercadolibre.com.mx/p/MLM123?tag=aventa&matt_tool=17030900',
     });
-    expect(tagged.status).toBe('pending');
-    expect(tagged.linkModOk).toBe(true);
+    expect(mlTagged.status).toBe('pending');
+    expect(mlTagged.linkModOk).toBe(false);
 
     const untagged = resolveBotInsertPublication({
       requestedStatus: 'pending',

@@ -1,6 +1,7 @@
 /**
  * Plan de enlace para lote. No aplica tags (eso es servidor).
- * Amazon/ML: tag automático al crear. Otras redes: se pega en la cola al aprobar.
+ * Amazon: tag de entorno al crear. ML: el moderador pega el meli.la de Aventa antes de aprobar.
+ * Otras redes: se pega en la cola al aprobar.
  */
 
 export type BatchAffiliatePlan = 'auto_tag' | 'queue_paste' | 'product_only';
@@ -40,7 +41,7 @@ export function batchAffiliatePlan(url: string): BatchAffiliatePlan {
 }
 
 export function batchAffiliatePlanLabel(plan: BatchAffiliatePlan): string {
-  if (plan === 'auto_tag') return 'Afiliado al crear (Amazon/ML)';
+  if (plan === 'auto_tag') return 'Afiliado (Amazon: tag al crear · ML: meli.la al moderar)';
   if (plan === 'queue_paste') return 'Pegar afiliado en la cola';
   return 'URL de producto';
 }

@@ -33,9 +33,13 @@ import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
 import ModerationChecklist from './ModerationChecklist';
 import ModerationImageGallery from './ModerationImageGallery';
+import { setOfferCover } from '@/lib/moderation/setOfferCover';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
 import { buildModerationChecklist, countChecklistBlockers } from '@/lib/moderation/botFacts';
 import { validateAffiliatePaste, type AffiliatePasteValidation } from '@/lib/affiliate/validateAffiliatePaste';
+import type { MeliLaPasteVerification } from '@/lib/affiliate/verifyMeliLaPaste';
+import { isMeliLaPasteVerification } from '@/lib/moderation/affiliateVerificationUi';
+import AffiliateLinkTrace from '@/app/components/moderation/AffiliateLinkTrace';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
 import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 import type { ModerationLevel } from '@/lib/moderation/classifyModerationLevel';
@@ -162,7 +166,9 @@ export default function ModerationOfferDetail({
   const { session } = useAuth();
   const [imgBroken, setImgBroken] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
-  const [showImageExpand, setShowImageExpand] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -193,6 +199,19 @@ export default function ModerationOfferDetail({
   const [pasteStatus, setPasteStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
   const [pasteValidation, setPasteValidation] = useState<AffiliatePasteValidation | null>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
+  // Ligada al id: sobrevive al refresco tras guardar (cambia offer_url) y se descarta al cambiar de oferta.
+  const [meliLaCheckState, setMeliLaCheckState] = useState<{
+    offerId: string;
+    publishedUrl: string;
+    result: MeliLaPasteVerification;
+  } | null>(null);
+  const meliLaCheck = meliLaCheckState?.offerId === offer.id ? meliLaCheckState : null;
+  const [manualReviewState, setManualReviewState] = useState<{
+    offerId: string;
+    url: string;
+    confirmed: boolean;
+  } | null>(null);
+  const manualReview = manualReviewState?.offerId === offer.id ? manualReviewState : null;
   const [showSecondary, setShowSecondary] = useState(false);
   const botImageInputRef = useRef<HTMLInputElement>(null);
   const botUrlInputRef = useRef<HTMLInputElement>(null);
@@ -228,6 +247,7 @@ export default function ModerationOfferDetail({
   useEffect(() => {
     setGalleryIndex(0);
     setImgBroken(false);
+    setCoverError(null);
     setLinkConfirmed(false);
     setShowRejectInput(false);
     setRejectReason('');
@@ -244,7 +264,6 @@ export default function ModerationOfferDetail({
     setPasteError(pasteUi.pasteError);
     setShowSecondary(moderationLevel !== 'sprint');
   }, [offer.id, offer.image_url, offer.offer_url, offer.category, offer.link_mod_ok, moderationLevel]);
-
   useEffect(() => {
     onAffiliateReadyChange?.(affiliateReady);
   }, [affiliateReady, onAffiliateReadyChange]);
@@ -307,7 +326,20 @@ export default function ModerationOfferDetail({
         )
       : 0;
 
-  const heroSrc = !imgBroken ? allPreviewImages[galleryIndex] ?? allPreviewImages[0] : null;
+  const hasGallery = !imgBroken && allPreviewImages.length > 0;
+
+  const setCoverImage = async (src: string) => {
+    setCoverSaving(true);
+    setCoverError(null);
+    const result = await setOfferCover(offer.id, allPreviewImages, src, session?.access_token);
+    setCoverSaving(false);
+    if (!result.ok) {
+      setCoverError(result.error);
+      return;
+    }
+    setGalleryIndex(0);
+    onOfferUpdated?.();
+  };
 
   const fetchHistory = useCallback(() => {
     if (historyLogs.length > 0) {
@@ -395,9 +427,11 @@ export default function ModerationOfferDetail({
         ? `Sin categoría — sugerencia: ${suggestedCategoryLabel} → Top / Recientes`
         : 'Sin categoría — asignar antes de aprobar';
 
+  const accessToken = session?.access_token;
   const saveAffiliatePaste = useCallback(
-    async (pasted: string) => {
+    async (pasted: string, manualReview = false) => {
       const trimmed = pasted.trim();
+      setManualReviewState(null);
       if (!trimmed || !originalProductUrl) {
         setPasteStatus('idle');
         setPasteValidation(null);
@@ -414,7 +448,7 @@ export default function ModerationOfferDetail({
         return;
       }
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
       const res = await fetch('/api/admin/update-offer', {
         method: 'PATCH',
         headers,
@@ -423,10 +457,19 @@ export default function ModerationOfferDetail({
           offer_url: trimmed,
           affiliate_paste: true,
           original_product_url: originalProductUrl,
+          ...(manualReview ? { manual_affiliate_review: true } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
+      setMeliLaCheckState(
+        isMeliLaPasteVerification(data?.meli_la_verification)
+          ? { offerId: offer.id, publishedUrl: trimmed, result: data.meli_la_verification }
+          : null
+      );
       if (!res.ok) {
+        if (data?.code === 'manual_affiliate_review_required') {
+          setManualReviewState({ offerId: offer.id, url: trimmed, confirmed: false });
+        }
         setPasteStatus('invalid');
         setPasteError(
           typeof data?.error === 'string' ? data.error : 'El enlace no corresponde al producto'
@@ -441,7 +484,7 @@ export default function ModerationOfferDetail({
       setPasteError(null);
       onOfferUpdated?.();
     },
-    [offer.id, originalProductUrl, onOfferUpdated, session?.access_token]
+    [offer.id, originalProductUrl, onOfferUpdated, accessToken]
   );
 
   const handleAffiliatePasteChange = (value: string) => {
@@ -553,20 +596,27 @@ export default function ModerationOfferDetail({
               ← Volver a la cola
             </button>
           ) : null}
-        {heroSrc ? (
-          <ModerationImageGallery
-            images={allPreviewImages}
-            index={galleryIndex}
-            onIndexChange={(i) => {
-              setGalleryIndex(i);
-              setImgBroken(false);
-            }}
-            onImageError={() => setImgBroken(true)}
-            heroBg={ui.heroBg}
-            heroClassName="aspect-[4/3] max-h-[min(36vh,320px)] md:max-h-[min(42vh,380px)]"
-            showExpand
-            onExpand={() => setShowImageExpand(true)}
-          />
+        {hasGallery ? (
+          <>
+            <ModerationImageGallery
+              key={`${offer.id}:${allPreviewImages.join('|')}`}
+              images={allPreviewImages}
+              index={galleryIndex}
+              onIndexChange={setGalleryIndex}
+              onImageError={() => setImgBroken(true)}
+              heroBg={ui.heroBg}
+              heroClassName="aspect-[4/3] max-h-[min(36vh,320px)] md:max-h-[min(42vh,380px)]"
+              showExpand
+              onExpand={setExpandedImage}
+              onSetCover={readOnly ? undefined : setCoverImage}
+              coverSaving={coverSaving}
+            />
+            {coverError ? (
+              <p className="px-4 pt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+                {coverError}
+              </p>
+            ) : null}
+          </>
         ) : isBotOffer ? (
           <ModerationBotFactsCard
             variant="hero"
@@ -698,7 +748,7 @@ export default function ModerationOfferDetail({
                 onFix={handleFix}
                 disabled={readOnly}
               />
-              {heroSrc ? (
+              {hasGallery ? (
                 <ModerationBotFactsCard
                   mode={mode}
                   store={offer.store}
@@ -913,16 +963,54 @@ export default function ModerationOfferDetail({
                 {pasteStatus === 'validating' ? (
                   <p className={`text-xs ${ui.muted}`}>Validando…</p>
                 ) : null}
-                {pasteStatus === 'valid' || offer.link_mod_ok === true ? (
+                {meliLaCheck ? (
+                  <div className={ui.body}>
+                    <AffiliateLinkTrace
+                      originalUrl={originalProductUrl}
+                      publishedUrl={meliLaCheck.publishedUrl}
+                      verification={meliLaCheck.result}
+                    />
+                  </div>
+                ) : pasteStatus === 'valid' || offer.link_mod_ok === true ? (
                   <ul className={`space-y-1 text-xs text-emerald-700 dark:text-emerald-300`}>
                     {pasteValidation?.store || offer.store ? (
                       <li>✓ {pasteValidation?.store ?? offer.store}</li>
                     ) : null}
-                    <li>✓ Producto coincide</li>
-                    <li>✓ Tag AVENTA</li>
+                    {pasteValidation?.productMatched ? (
+                      <li>✓ Producto coincide</li>
+                    ) : (
+                      <li>✓ Enlace afiliado confirmado en moderación</li>
+                    )}
                   </ul>
                 ) : null}
-                {pasteStatus === 'invalid' && pasteError ? (
+                {manualReview ? (
+                  <div className="space-y-2">
+                    <label className={`flex items-start gap-2 text-xs ${ui.body}`}>
+                      <input
+                        type="checkbox"
+                        checked={manualReview.confirmed}
+                        onChange={(e) =>
+                          setManualReviewState({ ...manualReview, confirmed: e.target.checked })
+                        }
+                        disabled={readOnly}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        Abrí el meli.la y confirmo que es este producto y la cuenta de afiliados de
+                        Aventa. Quedará registrado como revisión manual.
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={readOnly || !manualReview.confirmed || pasteStatus === 'validating'}
+                      onClick={() => void saveAffiliatePaste(manualReview.url, true)}
+                      className="rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      Guardar con revisión manual
+                    </button>
+                  </div>
+                ) : null}
+                {pasteStatus === 'invalid' && pasteError && !meliLaCheck ? (
                   <p className="text-xs text-red-600 dark:text-red-300" role="alert">
                     ✕ {pasteError}
                   </p>
@@ -1105,18 +1193,18 @@ export default function ModerationOfferDetail({
         </div>
       ) : null}
 
-      {showImageExpand && heroSrc ? (
+      {expandedImage ? (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4"
-          onClick={() => setShowImageExpand(false)}
+          onClick={() => setExpandedImage(null)}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => e.key === 'Escape' && setShowImageExpand(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setExpandedImage(null)}
           aria-label="Cerrar imagen"
         >
           <button
             type="button"
-            onClick={() => setShowImageExpand(false)}
+            onClick={() => setExpandedImage(null)}
             className="absolute right-4 top-4 rounded-full p-2 text-white hover:bg-white/10"
             aria-label="Cerrar"
           >
@@ -1124,7 +1212,7 @@ export default function ModerationOfferDetail({
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={heroSrc}
+            src={expandedImage}
             alt=""
             className="max-h-full max-w-full object-contain"
             referrerPolicy="no-referrer"

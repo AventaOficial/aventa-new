@@ -22,6 +22,14 @@ import { createServerClient } from '@/lib/supabase/server';
 import { ingestOfferObservation } from '@/lib/offers/ingestion/ingestOfferObservation';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
+import { moderateUserText, type UserTextField } from '@/lib/moderation/commentProfanity';
+
+const OFFER_FIELD_LABEL: Record<UserTextField, string> = {
+  comment: 'Comentario',
+  offer_title: 'Título',
+  offer_description: 'Descripción',
+  hunter_comment: 'Comentario del cazador',
+};
 
 /**
  * Community public create. Always pending. No auto-publish.
@@ -78,6 +86,25 @@ export async function POST(request: Request) {
       );
     }
     const input = parsed.data;
+
+    const languageChecks: Array<[UserTextField, string | null | undefined]> = [
+      ['offer_title', input.title],
+      ['offer_description', input.description],
+      ['hunter_comment', input.hunter_comment],
+    ];
+    for (const [field, text] of languageChecks) {
+      if (typeof text !== 'string' || !text.trim()) continue;
+      const verdict = moderateUserText(text, { field });
+      if (verdict.severity === 'high') {
+        return NextResponse.json(
+          {
+            error: `${OFFER_FIELD_LABEL[field]}: ${verdict.userMessage}`,
+            code: 'offer_text_blocked',
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     let reputation = null;
     try {

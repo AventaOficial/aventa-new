@@ -17,17 +17,20 @@ function hostIncludes(url: string, fragment: string): boolean {
   }
 }
 
-/** ¿Esta tienda tiene algún programa de afiliado configurado en env? */
+function isMercadoLibreUrl(url: string): boolean {
+  return hostIncludes(url, 'mercadolibre.') || hostIncludes(url, 'meli.la');
+}
+
+/**
+ * ¿Esta tienda tiene programa de afiliado activo?
+ * Mercado Libre siempre: su afiliado llega por el meli.la que pega el moderador, no por env.
+ * El resto depende de env.
+ */
 export function storeHasAffiliateProgram(url: string): boolean {
   const trimmed = url.trim();
   if (!trimmed) return false;
 
-  if (hostIncludes(trimmed, 'mercadolibre.') || hostIncludes(trimmed, 'meli.la')) {
-    return Boolean(
-      getEnv('ML_AFFILIATE_TAG', 'NEXT_PUBLIC_ML_AFFILIATE_TAG') ||
-        getEnv('ML_MATT_TOOL', 'NEXT_PUBLIC_ML_MATT_TOOL')
-    );
-  }
+  if (isMercadoLibreUrl(trimmed)) return true;
   if (hostIncludes(trimmed, 'amazon.') || hostIncludes(trimmed, 'amzn.to') || hostIncludes(trimmed, 'a.co')) {
     return Boolean(getEnv('AMAZON_ASSOCIATE_TAG', 'NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG'));
   }
@@ -59,23 +62,14 @@ export function isPlatformAffiliateTagged(url: string): boolean {
   const trimmed = url.trim();
   if (!trimmed) return false;
   if (!storeHasAffiliateProgram(trimmed)) return true;
+  // Ningún parámetro en la URL certifica un afiliado ML (tag/matt_* se escriben a mano y
+  // un meli.la puede ser de otra cuenta). Solo el meli.la verificado en moderación (link_mod_ok).
+  if (isMercadoLibreUrl(trimmed)) return false;
 
   const expected = applyPlatformAffiliateTags(trimmed);
   try {
     const current = new URL(trimmed);
     const target = new URL(expected);
-
-    const mlTag = getEnv('ML_AFFILIATE_TAG', 'NEXT_PUBLIC_ML_AFFILIATE_TAG');
-    if (mlTag && (hostIncludes(trimmed, 'mercadolibre.') || hostIncludes(trimmed, 'meli.la'))) {
-      if (current.searchParams.get('tag') !== mlTag) return false;
-    }
-
-    const mattTool = getEnv('ML_MATT_TOOL', 'NEXT_PUBLIC_ML_MATT_TOOL');
-    const mattWord = getEnv('ML_MATT_WORD', 'NEXT_PUBLIC_ML_MATT_WORD');
-    if (mattTool && (hostIncludes(trimmed, 'mercadolibre.') || hostIncludes(trimmed, 'meli.la'))) {
-      if (current.searchParams.get('matt_tool') !== mattTool) return false;
-      if (mattWord && current.searchParams.get('matt_word') !== mattWord) return false;
-    }
 
     const amzTag = getEnv('AMAZON_ASSOCIATE_TAG', 'NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG');
     if (amzTag && hostIncludes(trimmed, 'amazon.')) {

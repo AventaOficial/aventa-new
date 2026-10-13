@@ -40,6 +40,7 @@ import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadin
 import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
+import { batchFailureMessage, moderationDecisionApplied } from '@/lib/moderation/moderationDecisionResponse';
 import {
   readModerationLastSeen,
   writeModerationLastSeen,
@@ -678,14 +679,18 @@ export default function ModerationPendingPanel({
     setBatchActing(true);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const failed: string[] = [];
     for (const id of ids) {
       const offer = pending.find((o) => o.id === id);
-      await fetch('/api/admin/moderate-offer', {
+      const res = await fetch('/api/admin/moderate-offer', {
         method: 'POST',
         headers,
         body: JSON.stringify({ id, status: 'approved', batch_approve: true }),
-      });
-      if (offer?.created_by) {
+      }).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      const applied = moderationDecisionApplied(Boolean(res?.ok), data);
+      if (!res?.ok) failed.push(typeof data?.error === 'string' ? data.error : 'error');
+      if (applied && offer?.created_by) {
         await fetch('/api/reputation/increment-approved', {
           method: 'POST',
           headers,
@@ -695,6 +700,7 @@ export default function ModerationPendingPanel({
     }
     setBatchActing(false);
     setSelectedIds(new Set());
+    setActionError(batchFailureMessage(failed, ids.length));
     await refreshList(true);
   };
 
@@ -705,14 +711,18 @@ export default function ModerationPendingPanel({
     setBatchActing(true);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const failed: string[] = [];
     for (const id of ids) {
       const offer = pending.find((o) => o.id === id);
-      await fetch('/api/admin/moderate-offer', {
+      const res = await fetch('/api/admin/moderate-offer', {
         method: 'POST',
         headers,
         body: JSON.stringify({ id, status: 'rejected', reason, batch_reject: true }),
-      });
-      if (offer?.created_by) {
+      }).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      const applied = moderationDecisionApplied(Boolean(res?.ok), data);
+      if (!res?.ok) failed.push(typeof data?.error === 'string' ? data.error : 'error');
+      if (applied && offer?.created_by) {
         await fetch('/api/reputation/increment-rejected', {
           method: 'POST',
           headers,
@@ -724,6 +734,7 @@ export default function ModerationPendingPanel({
     setShowBatchReject(false);
     setBatchRejectReason('');
     setSelectedIds(new Set());
+    setActionError(batchFailureMessage(failed, ids.length));
     await refreshList(true);
   };
 
@@ -835,10 +846,11 @@ export default function ModerationPendingPanel({
         headers,
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(typeof err?.error === 'string' ? err.error : 'No se pudo actualizar la oferta');
+        throw new Error(typeof data?.error === 'string' ? data.error : 'No se pudo actualizar la oferta');
       }
+      const applied = moderationDecisionApplied(res.ok, data);
 
       const currentId = id;
       originalUrlSnapshots.current.delete(id);
@@ -853,13 +865,13 @@ export default function ModerationPendingPanel({
 
       const repHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) repHeaders.Authorization = `Bearer ${session.access_token}`;
-      if (status === 'approved' && createdBy) {
+      if (applied && status === 'approved' && createdBy) {
         fetch('/api/reputation/increment-approved', {
           method: 'POST',
           headers: repHeaders,
           body: JSON.stringify({ userId: createdBy }),
         }).catch(() => {});
-      } else if (status === 'rejected' && createdBy) {
+      } else if (applied && status === 'rejected' && createdBy) {
         fetch('/api/reputation/increment-rejected', {
           method: 'POST',
           headers: repHeaders,

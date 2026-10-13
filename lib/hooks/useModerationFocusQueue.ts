@@ -11,6 +11,8 @@ import {
   focusOriginalProductUrlForRequest,
 } from '@/lib/moderation/originalOfferUrlPolicy';
 import { requestModerationLock } from '@/lib/moderation/moderationLockClient';
+import { setOfferCover } from '@/lib/moderation/setOfferCover';
+import { mergeOfferImageUrls } from '@/lib/offerPath';
 import type {
   FocusModerationOffer,
   FocusQueueStats,
@@ -30,6 +32,23 @@ import {
 } from '@/lib/moderation/moderationSessionStorage';
 import { recordFocusSessionTelemetry } from '@/lib/moderation/focusSessionTelemetry';
 import type { ClaimKind } from '@/lib/moderation/claimNextModerationOffer';
+import type { MeliLaPasteVerification } from '@/lib/affiliate/verifyMeliLaPaste';
+import { isMeliLaPasteVerification } from '@/lib/moderation/affiliateVerificationUi';
+
+export type PrepareAffiliateLinkResult = {
+  ok: boolean;
+  error?: string;
+  verification?: MeliLaPasteVerification | null;
+  /** El servidor no pudo comprobar el meli.la; solo se guarda con confirmación manual. */
+  manualReviewRequired?: boolean;
+};
+
+export type FocusAffiliateCheck = {
+  offerId: string;
+  originalUrl: string | null;
+  publishedUrl: string;
+  result: MeliLaPasteVerification;
+};
 
 export type UseModerationFocusQueueOptions = {
   sourceTab: FocusSourceTab;
@@ -60,6 +79,7 @@ export function useModerationFocusQueue({
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsAffiliateConfirm, setNeedsAffiliateConfirm] = useState(false);
+  const [affiliateCheck, setAffiliateCheck] = useState<FocusAffiliateCheck | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
@@ -715,7 +735,10 @@ export function useModerationFocusQueue({
 
   /** Guarda enlace afiliado pegado (sin aprobar). No inventa original_offer_url. */
   const prepareAffiliateLink = useCallback(
-    async (pastedUrl: string): Promise<{ ok: boolean; error?: string }> => {
+    async (
+      pastedUrl: string,
+      opts: { manualReview?: boolean } = {}
+    ): Promise<PrepareAffiliateLinkResult> => {
       if (!offer || actingRef.current) return { ok: false, error: 'No hay oferta activa' };
       if (historyIndex >= 0) {
         return { ok: false, error: 'Estás en historial. Vuelve a la oferta activa.' };
@@ -742,15 +765,31 @@ export function useModerationFocusQueue({
             id: offer.id,
             offer_url: pasted,
             affiliate_paste: affiliatePaste,
+            ...(opts.manualReview ? { manual_affiliate_review: true } : {}),
             ...(trustedOriginal ? { original_product_url: trustedOriginal } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
+        const verification = isMeliLaPasteVerification(data?.meli_la_verification)
+          ? data.meli_la_verification
+          : null;
+        setAffiliateCheck(
+          verification
+            ? {
+                offerId: offer.id,
+                originalUrl: trustedOriginal || offer.original_offer_url || null,
+                publishedUrl: pasted,
+                result: verification,
+              }
+            : null
+        );
         if (!res.ok) {
           return {
             ok: false,
             error:
               typeof data?.error === 'string' ? data.error : 'No se pudo guardar el enlace',
+            verification,
+            manualReviewRequired: data?.code === 'manual_affiliate_review_required',
           };
         }
         const nextUrl = typeof data?.offer_url === 'string' ? data.offer_url : pasted;
@@ -764,7 +803,7 @@ export function useModerationFocusQueue({
         applyOfferUrlWrite({ offer_url: nextUrl, link_mod_ok: nextLinkModOk });
         setNeedsAffiliateConfirm(false);
         setError(null);
-        return { ok: true };
+        return { ok: true, verification };
       } catch (e) {
         return {
           ok: false,
@@ -824,6 +863,18 @@ export function useModerationFocusQueue({
     [offer]
   );
 
+  const setCoverImage = useCallback(
+    async (src: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!offer) return { ok: false, error: 'Sin oferta' };
+      const images = mergeOfferImageUrls(offer.image_url, offer.image_urls ?? null);
+      const result = await setOfferCover(offer.id, images, src, session?.access_token);
+      if (!result.ok) return { ok: false, error: result.error };
+      applyOfferEditResult(result.data);
+      return { ok: true };
+    },
+    [applyOfferEditResult, offer, session?.access_token]
+  );
+
   const viewingHistory = historyIndex >= 0;
   const sessionCounterLabel = formatFocusSessionCounter({
     reviewedCount,
@@ -857,7 +908,9 @@ export function useModerationFocusQueue({
     start,
     confirmAffiliateAndApprove,
     prepareAffiliateLink,
+    affiliateCheck: affiliateCheck && affiliateCheck.offerId === offer?.id ? affiliateCheck : null,
     applyOfferEditResult,
+    setCoverImage,
     dismissAffiliateGate,
     setError,
   };

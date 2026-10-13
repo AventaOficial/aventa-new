@@ -9,8 +9,9 @@ import {
   resolveAndNormalizeAffiliateOfferUrl,
   isResolvedProductOfferUrl,
 } from '@/lib/affiliate'
+import { isMeliLaShortUrl } from '@/lib/offerUrl'
 import { assertOfferReadyForAffiliateApproval } from '@/lib/moderation/approveReadiness'
-import { assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
+import { assertBulkMayActOnLock, assertModeratorOwnsLock } from '@/lib/moderation/atomicModerationLock'
 import { invalidateHomeFeedCache } from '@/lib/server/feedCache'
 import { invalidatePublicOffer } from '@/lib/offers/publicOfferCache'
 import { maybeUnlockRewardsProgram } from '@/lib/rewards/unlock'
@@ -119,14 +120,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'La oferta ya fue moderada' }, { status: 409 })
     }
 
-    if (!feedTakedown && !bulkAction) {
-      const lockCheck = assertModeratorOwnsLock(
-        {
-          locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
-          locked_at: (offer as { locked_at?: string | null }).locked_at ?? null,
-        },
-        auth.user.id
-      )
+    if (!feedTakedown) {
+      const lockFields = {
+        locked_by: (offer as { locked_by?: string | null }).locked_by ?? null,
+        locked_at: (offer as { locked_at?: string | null }).locked_at ?? null,
+      }
+      const lockCheck = bulkAction
+        ? assertBulkMayActOnLock(lockFields, auth.user.id)
+        : assertModeratorOwnsLock(lockFields, auth.user.id)
       if (!lockCheck.ok) {
         return NextResponse.json({ error: lockCheck.error }, { status: 409 })
       }
@@ -185,7 +186,8 @@ export async function POST(request: Request) {
       payload.expires_at = expiresAtOnApprove(row?.expires_at ?? null)
       // Home period=day filtra por created_at: go-live al aprobar.
       payload.created_at = createdAtOnApprove()
-      if (rawUrl) {
+      // meli.la confirmado por el moderador es el enlace afiliado: expandirlo borra matt_*.
+      if (rawUrl && !(linkModOk && isMeliLaShortUrl(rawUrl))) {
         // Al aprobar: intenta expandir acortadores y aplicar tags. Si ML/Amazon
         // bloquean el fetch (p. ej. 403 desde Vercel) y el moderador ya confirmó
         // el producto (link_mod_ok), no bloqueamos: guardamos lo mejor que haya.
