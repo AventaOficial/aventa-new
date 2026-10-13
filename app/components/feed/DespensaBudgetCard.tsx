@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Wallet } from 'lucide-react';
 import {
   buildDespensaBudget,
@@ -151,6 +152,9 @@ export function DespensaBudgetCard({ budget, dismissed, saving, onSave, onDismis
         <button type="button" onClick={() => setEditing(true)} className="font-semibold text-violet-700 hover:underline dark:text-violet-300">
           Cambiar
         </button>
+        <Link href="/despensa" className="font-semibold text-violet-700 hover:underline dark:text-violet-300">
+          {DESPENSA_BUDGET_COPY.openDespensa}
+        </Link>
       </div>
     );
   }

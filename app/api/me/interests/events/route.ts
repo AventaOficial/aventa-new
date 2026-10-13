@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     await recordProductEvent({
       event: data.name,
       userId: auth.user.id,
-      source: data.surface === 'dia_a_dia' ? 'home/dia-a-dia' : 'me/intereses',
+      source: { dia_a_dia: 'home/dia-a-dia', me_intereses: 'me/intereses', despensa: 'despensa' }[data.surface],
       metadata: { kind: data.kind, horizon: data.horizon ?? null, tier: data.tier ?? null },
     });
     return NextResponse.json({ ok: true });
