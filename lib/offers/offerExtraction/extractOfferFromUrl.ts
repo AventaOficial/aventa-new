@@ -41,6 +41,11 @@ import {
   verifiedCommercialFactsFromHtml,
 } from '@/lib/offers/offerExtraction/verifiedCommercialFacts';
 import {
+  classifyHttpStatus,
+  readHtmlCapped,
+  type PageFetchFailure,
+} from '@/lib/offers/offerExtraction/pageFetchFailure';
+import {
   classifyOfferExtraction,
   type OfferExtractionErrorCode,
   type OfferExtractionStatus,
@@ -106,6 +111,9 @@ export type ParseOfferDiagnostics = {
   extractionErrorCode: OfferExtractionErrorCode | null;
   /** Causa de acceso, distinta de un campo de producto ausente. */
   accessFailure?: 'ACCESS_BLOCKED' | 'TIMEOUT' | 'EXTRACTION_EMPTY' | null;
+  /** Detalle del fallo al bajar la página cuando el producto quedó vacío. */
+  pageFetchFailure?: PageFetchFailure | null;
+  pageHttpStatus?: number | null;
   resolutionMethod?: string | null;
   durationMs?: number | null;
   imageAcceptedCount?: number;
@@ -382,9 +390,13 @@ function collectCandidates(primary: string | null, extras: string[]): string[] {
   return out;
 }
 
+type PageFetchDetail = { kind: PageFetchFailure; status: number | null };
+
 type HtmlFetch =
   | { ok: true; html: string; pageUrl: URL }
-  | { ok: false; failure: 'TIMEOUT' | 'ACCESS_BLOCKED' };
+  | { ok: false; failure: 'TIMEOUT' | 'ACCESS_BLOCKED'; detail: PageFetchDetail };
+
+const BLOCKED_PAGE: PageFetchDetail = { kind: 'BLOCKED', status: null };
 
 function keepAccessFailure(
   current: 'TIMEOUT' | 'ACCESS_BLOCKED' | null,
@@ -412,12 +424,24 @@ async function fetchHtml(
         'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
       },
     });
-    if (!result.ok || !result.response.ok) return { ok: false, failure: 'ACCESS_BLOCKED' };
-    const html = await result.response.text();
-    return { html, pageUrl: new URL(result.finalUrl), ok: true };
+    if (!result.ok) return { ok: false, failure: 'ACCESS_BLOCKED', detail: { kind: 'BLOCKED', status: null } };
+    const status = result.response.status;
+    const httpFailure = classifyHttpStatus(status);
+    if (httpFailure) {
+      await result.response.body?.cancel().catch(() => undefined);
+      return { ok: false, failure: 'ACCESS_BLOCKED', detail: { kind: httpFailure, status } };
+    }
+    const body = await readHtmlCapped(result.response);
+    if (!body.ok) return { ok: false, failure: 'ACCESS_BLOCKED', detail: { kind: body.failure, status } };
+    return { html: body.html, pageUrl: new URL(result.finalUrl), ok: true };
   } catch (err) {
     const name = err instanceof Error ? err.name : '';
-    return { ok: false, failure: name === 'AbortError' || name === 'TimeoutError' ? 'TIMEOUT' : 'ACCESS_BLOCKED' };
+    const timedOut = name === 'AbortError' || name === 'TimeoutError';
+    return {
+      ok: false,
+      failure: timedOut ? 'TIMEOUT' : 'ACCESS_BLOCKED',
+      detail: { kind: timedOut ? 'TIMEOUT' : 'UPSTREAM_UNAVAILABLE', status: null },
+    };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -586,6 +610,7 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
     let html = htmlResult.ok ? htmlResult.html : '';
     let pageUrl = htmlResult.ok ? htmlResult.pageUrl : workingUrl;
     let pageAccess: 'TIMEOUT' | 'ACCESS_BLOCKED' | null = htmlResult.ok ? null : htmlResult.failure;
+    let pageFetch: PageFetchDetail | null = htmlResult.ok ? null : htmlResult.detail;
 
     // Mobile `/gp/aw/d/` is the first HTML hop. If that hop is a wall or fails,
     // fall back to the canonical `/dp/` document (and the reverse).
@@ -597,13 +622,16 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
           html = retry.html;
           pageUrl = retry.pageUrl;
           pageAccess = null;
+          pageFetch = null;
         } else if (!html || isAmazonBotWallHtml(html)) {
           html = '';
           pageAccess = keepAccessFailure(pageAccess, retry.ok ? 'ACCESS_BLOCKED' : retry.failure);
+          pageFetch = pageFetch ?? (retry.ok ? BLOCKED_PAGE : retry.detail);
         }
       } else if (html && isAmazonBotWallHtml(html)) {
         html = '';
         pageAccess = keepAccessFailure(pageAccess, 'ACCESS_BLOCKED');
+        pageFetch = pageFetch ?? BLOCKED_PAGE;
       }
     }
 
@@ -618,9 +646,11 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
         html = retry.html;
         pageUrl = retry.pageUrl;
         pageAccess = null;
+        pageFetch = null;
       } else {
         html = '';
         pageAccess = keepAccessFailure(pageAccess, retry.ok ? 'ACCESS_BLOCKED' : retry.failure);
+        pageFetch = pageFetch ?? (retry.ok ? BLOCKED_PAGE : retry.detail);
       }
     }
 
@@ -642,6 +672,7 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
       }
       html = '';
       pageAccess = keepAccessFailure(pageAccess, 'ACCESS_BLOCKED');
+      pageFetch = pageFetch ?? BLOCKED_PAGE;
     }
     const base = pageUrl.origin + pageUrl.pathname;
     const flags = resolveOfferStoreFlags(url.hostname, pageUrl.hostname);
@@ -991,6 +1022,8 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
     else if (emptyProduct) accessFailure = 'ACCESS_BLOCKED';
     if (accessFailure) fieldWarnings.unshift(accessFailure);
     extractDiagnostics.accessFailure = accessFailure;
+    extractDiagnostics.pageFetchFailure = emptyProduct ? (pageFetch?.kind ?? null) : null;
+    extractDiagnostics.pageHttpStatus = emptyProduct ? (pageFetch?.status ?? null) : null;
     const fingerprint = adapter.productFingerprint;
     const productId =
       mlIdOnMlHost ||

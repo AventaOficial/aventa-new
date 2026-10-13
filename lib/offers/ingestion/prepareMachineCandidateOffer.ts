@@ -9,6 +9,11 @@ import { mexicanRetailerCurrency } from '@/lib/offers/sourceCurrency';
 import { isValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { recordHunterEnrichment } from '@/lib/hunter/enrichment/metrics';
 import { evaluateBatchExtraction } from '@/lib/offers/batch/contract';
+import {
+  pageFetchFailureClass,
+  type PageFetchFailure,
+  type PageFetchFailureClass,
+} from '@/lib/offers/offerExtraction/pageFetchFailure';
 
 export type ImageFailureCode =
   | 'IMAGE_NOT_FOUND'
@@ -41,11 +46,16 @@ export type PreparedMachineCandidate = {
   retailer: string | null;
   imageFailure: ImageFailureCode | null;
   fetched: boolean;
+  /** Fallo al bajar la PDP cuando no se extrajo nada; null si la página respondió. */
+  pageFetchFailure: PageFetchFailure | null;
+  pageFetchFailureClass: PageFetchFailureClass | null;
+  pageHttpStatus: number | null;
 };
 
 function imageFailureOf(outcome: OfferExtractionOutcome, images: string[]): ImageFailureCode | null {
   if (images.length > 0) return null;
   const access = outcome.body.diagnostics?.accessFailure;
+  if (pageFetchFailureClass(outcome.body.diagnostics?.pageFetchFailure) === 'transient') return 'IMAGE_FETCH_FAILED';
   if (access === 'ACCESS_BLOCKED' || outcome.adapter.blockedByHostPolicy) return 'IMAGE_BLOCKED';
   if (access === 'TIMEOUT') return 'IMAGE_FETCH_FAILED';
   const code = outcome.body.diagnostics?.extractionErrorCode;
@@ -118,12 +128,16 @@ export async function prepareMachineCandidateOffer(
       retailer: null,
       imageFailure: 'NO_PRODUCT_IMAGE_SOURCE',
       fetched: false,
+      pageFetchFailure: null,
+      pageFetchFailureClass: null,
+      pageHttpStatus: null,
     };
   }
 
   const outcome = await extract(url);
   const images = (outcome.body.images ?? []).map((value) => value.trim()).filter((value) => isValidOfferImage(value));
   const imageFailure = imageFailureOf(outcome, images);
+  const pageFetchFailure = outcome.body.diagnostics?.pageFetchFailure ?? null;
   const price = outcome.body.suggested_discount_price;
   recordHunterEnrichment({
     source: 'mcp:hunter',
@@ -151,5 +165,8 @@ export async function prepareMachineCandidateOffer(
     retailer: outcome.adapter.provider ?? outcome.core?.provider ?? null,
     imageFailure,
     fetched: true,
+    pageFetchFailure,
+    pageFetchFailureClass: pageFetchFailureClass(pageFetchFailure),
+    pageHttpStatus: outcome.body.diagnostics?.pageHttpStatus ?? null,
   };
 }
