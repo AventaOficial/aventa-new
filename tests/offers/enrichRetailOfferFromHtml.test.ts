@@ -83,6 +83,48 @@ describe('enrichRetailOfferFromHtml', () => {
     expect(e.image).toContain('phone.jpg');
   });
 
+  describe('Soriana: precio de lista tachado (SFCC)', () => {
+    const page = 'https://www.soriana.com/leche-uht-lala-deslactosada-1-litro-6-piezas/11400966.html';
+    const jsonLd = (price: string) =>
+      `<script type="application/ld+json">${JSON.stringify({
+        '@type': 'Product',
+        name: 'Leche UHT Lala Deslactosada 1 Litro 6 Piezas',
+        image: 'https://www.soriana.com/img/leche.jpg',
+        offers: { '@type': 'Offer', priceCurrency: 'MXN', price },
+      })}</script>`;
+    const strike = (value: string) =>
+      `<div class="list d-flex align-items-center inline-max-content-disabled align-self-start size-price-content align-self-lg-center"> <span class="value " content="${value}"> <span class="strike-through cart-price price-plp price-not-found price-pdp text-truncate "> $${value} </span> </span> </div>`;
+
+    it('toma el tachado de la ficha como precio de lista', () => {
+      const html = `${jsonLd('163.00')}${strike('224.50')}${strike('224.50')}`;
+      const e = enrichRetailOfferFromHtml(html, page);
+      expect(e.suggestedDiscount).toBe(163);
+      expect(e.suggestedOriginal).toBe(224.5);
+    });
+
+    it('varios tachados distintos: no adivina cuál es el del producto', () => {
+      const html = `${jsonLd('163.00')}${strike('224.50')}${strike('199.00')}`;
+      expect(enrichRetailOfferFromHtml(html, page).suggestedOriginal).toBeNull();
+    });
+
+    it('tachado que no supera el precio actual se ignora y no intercambia precios', () => {
+      const html = `${jsonLd('163.00')}${strike('150.00')}`;
+      const e = enrichRetailOfferFromHtml(html, page);
+      expect(e.suggestedDiscount).toBe(163);
+      expect(e.suggestedOriginal).toBeNull();
+    });
+
+    it('sin tachado no hay precio de lista', () => {
+      expect(enrichRetailOfferFromHtml(jsonLd('163.00'), page).suggestedOriginal).toBeNull();
+    });
+
+    it('el mismo marcado en otra tienda no se interpreta', () => {
+      const html = `${jsonLd('163.00')}${strike('224.50')}`;
+      const e = enrichRetailOfferFromHtml(html, 'https://www.chedraui.com.mx/leche-lala-6-pack/p');
+      expect(e.suggestedOriginal).toBeNull();
+    });
+  });
+
   it('sin JSON-LD cae a og tags + hostname', () => {
     const page = 'https://www.liverpool.com.mx/tienda/x';
     const html = `<meta property="og:title" content="Solo OG" />

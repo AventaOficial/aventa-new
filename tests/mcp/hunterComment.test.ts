@@ -131,6 +131,32 @@ describe('filtro editorial del comentario', () => {
   });
 
   it.each([
+    'Ofertón: bolsa de 1 kg de arroz a $42.',
+    'Ahorro garantizado con esta bolsa de 1 kg.',
+    'Precio de remate para el arroz de 1 kg.',
+  ])('lenguaje de venta agresivo se descarta: %s', (text) => {
+    expect(reviewHunterComment(text, withList).review).toMatchObject({ status: 'dropped', reason: 'UNSUPPORTED_CLAIM' });
+  });
+
+  it.each([
+    'Lo compré la semana pasada y rinde bastante.',
+    'En casa lo usamos diario, bolsa de 1 kg a $42.',
+    'Me encantó este arroz, 1 kg a $42.',
+    'Cabe perfecto en tu presupuesto de la semana.',
+    'Ideal si tu quincena ya viene justa: 1 kg a $42.',
+  ])('no inventa experiencias ni supone la situación del comprador: %s', (text) => {
+    expect(reviewHunterComment(text, noDiscount).review).toMatchObject({ status: 'dropped', reason: 'PERSONAL_CLAIM' });
+  });
+
+  it.each([
+    'Encontré este paquete de arroz que puede valer la pena revisar para la despensa. Checa el precio por kilo y las condiciones de la tienda.',
+    'Bolsa de 1 kg a $42 en Soriana; sale en $42 el kilo, útil para la despensa de la semana.',
+    'Si comes arroz seguido, la bolsa de 1 kg a $42 rinde para varias comidas.',
+  ])('un comentario natural y factual se conserva: %s', (text) => {
+    expect(reviewHunterComment(text, noDiscount).review.status).toBe('kept');
+  });
+
+  it.each([
     'Encontrado por Grok: bolsa de 1 kg a $42.',
     'Como IA te recomiendo este arroz de 1 kg.',
     'Seleccionado por nuestro bot para tu despensa.',

@@ -20,6 +20,7 @@ export const HUNTER_COMMENT_DROP_REASONS = [
   'DISCOUNT_NOT_CONFIRMED',
   'DISCOUNT_MISMATCH',
   'OFFENSIVE',
+  'PERSONAL_CLAIM',
 ] as const;
 export type HunterCommentDropReason = (typeof HUNTER_COMMENT_DROP_REASONS)[number];
 
@@ -48,6 +49,7 @@ const UNSUPPORTED_CLAIMS: readonly RegExp[] = [
   /\b(el|la|lo|los|las) mas barat[oa]s?\b|\bmas barat[oa]s? que\b|\bmejor precio\b|\bprecio mas bajo\b/,
   /\bultim[oa]s? (unidades|piezas|existencias)\b|\bquedan pocas?\b|\bse agota\b|\bagotarse\b|\bantes de que se acabe\b/,
   /\birrepetible\b|\bnunca antes\b|\bunica oportunidad\b|\bno te lo pierdas\b|\bsolo (por )?hoy\b/,
+  /\bofert[oa]n(es)?\b|\bgarantizad[oa]s?\b|\bremate\b/,
   /\bahorr(as|aras|arias)\b|\bahorr\w*\s+(\$|\d)/,
   new RegExp(`\\b(que en|vs\\.?|contra|frente a) (${STORES})\\b|\\botras tiendas\\b`),
 ];
@@ -55,6 +57,13 @@ const UNSUPPORTED_CLAIMS: readonly RegExp[] = [
 /** El comentario se publica bajo la identidad editorial; el texto no puede presentarse como bot. */
 const BOT_SELF_REFERENCE =
   /\bgrok\b|\bx\.?ai\b|\bchat ?gpt\b|\bbots?\b|\bmcp\b|\binteligencia artificial\b|\bmodelo de lenguaje\b|\b(soy|como|una|la|por|con) ia\b|\bhunters? ia\b/;
+
+/**
+ * El hunter no compró ni usó el producto y no conoce la situación del comprador:
+ * ni experiencias inventadas ni supuestos sobre su presupuesto o ingresos.
+ */
+const PERSONAL_CLAIMS =
+  /\blo (he )?(compre|comprado|probe|probado|uso|usamos)\b|\b(yo|en casa|nosotros) (lo )?(uso|usamos|compro|compramos)\b|\bme encanto\b|\ba mi me\b|\bmi familia\b|\btu (presupuesto|quincena|sueldo|salario|ingreso)s?\b/;
 
 const DISCOUNT_WORDS = /\bdescuento|\brebaj|\bantes (costaba|estaba|\$)|\bprecio de lista\b/;
 /** «100% algodón» no es un descuento; «-25%», «baja 25%» o «25% menos» sí. */
@@ -88,6 +97,7 @@ export function reviewHunterComment(
   const language = moderateUserText(comment, { field: 'hunter_comment' });
   if (language.categories.some((c) => c !== 'spam' && c !== 'empty')) return drop('OFFENSIVE');
   if (UNSUPPORTED_CLAIMS.some((re) => re.test(folded))) return drop('UNSUPPORTED_CLAIM');
+  if (PERSONAL_CLAIMS.test(folded)) return drop('PERSONAL_CLAIM');
 
   const percents = [...folded.matchAll(DISCOUNT_PERCENT)].map((m) => Number(m[1] ?? m[2]));
   if (percents.length > 0 || DISCOUNT_WORDS.test(folded)) {
@@ -112,6 +122,7 @@ export const HUNTER_COMMENT_DROP_LABELS: Readonly<Record<HunterCommentDropReason
   DISCOUNT_NOT_CONFIRMED: 'habla de descuento sin precio de lista confirmado',
   DISCOUNT_MISMATCH: 'el porcentaje no coincide con los precios',
   OFFENSIVE: 'lenguaje ofensivo o grosero',
+  PERSONAL_CLAIM: 'inventa una experiencia propia o supone la situación del comprador',
 };
 
 /** Lectura tolerante de `bot_meta.hunter_comment` para moderación. */

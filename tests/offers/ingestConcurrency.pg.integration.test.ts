@@ -2,12 +2,16 @@
  * Deduplicación concurrente contra PostgreSQL real. Escribe datos sintéticos.
  * Solo corre contra un Supabase local y desechable; nunca contra staging ni production.
  *
- *   supabase start            # stack local aislado
- *   # aplicar docs/supabase-migrations/FOUNDATION_BASELINE_20260917.sql
- *   # y docs/supabase-migrations/20260926_offer_ingestion_evidence.sql
+ *   # en un directorio desechable fuera del repo (requiere Docker en marcha):
+ *   supabase init && supabase start   # stack local aislado
+ *   # aplicar docs/supabase-migrations/FOUNDATION_BASELINE_20260917.sql y después,
+ *   # en orden de nombre, las migraciones fechadas 2026*.sql. Como mínimo la ruta probada usa:
+ *   #   20260920_offers_hunter_comment.sql, 20260926_offer_ingestion_evidence.sql,
+ *   #   20260927_offer_batches.sql, 20261006_machine_clients_mcp.sql,
+ *   #   20261006_offer_source_currency.sql
  *   AVENTA_ISOLATED_PG_TEST=1 \
  *   ISOLATED_SUPABASE_URL=http://127.0.0.1:54321 \
- *   ISOLATED_SUPABASE_SERVICE_ROLE_KEY=<service_role local> \
+ *   ISOLATED_SUPABASE_SERVICE_ROLE_KEY=<service_role local de `supabase status`> \
  *   npx vitest run tests/offers/ingestConcurrency.pg.integration.test.ts
  *
  * Cada llamada viaja por PostgREST en su propia conexión y transacción: la carrera la decide
