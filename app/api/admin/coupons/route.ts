@@ -4,10 +4,12 @@ import { createServerClient } from '@/lib/supabase/server';
 import { parseCouponPaste } from '@/lib/intelligence/coupon/parse';
 import { saveCouponText, setCouponVerification } from '@/lib/intelligence/coupon/store';
 import type { CouponSourceClass } from '@/lib/intelligence/coupon/types';
+import { COUPONS_MODULE_AVAILABLE, COUPONS_MODULE_UNAVAILABLE } from '@/lib/intelligence/coupon/availability';
 
 const SOURCE_CLASSES = new Set<CouponSourceClass>(['user_paste', 'bot', 'external_page', 'official_page', 'admin']);
 
 export async function GET(request: Request) {
+  if (!COUPONS_MODULE_AVAILABLE) return NextResponse.json(COUPONS_MODULE_UNAVAILABLE, { status: 404 });
   const auth = await requireModeration(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const url = new URL(request.url);
@@ -57,6 +59,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!COUPONS_MODULE_AVAILABLE) return NextResponse.json(COUPONS_MODULE_UNAVAILABLE, { status: 404 });
   const auth = await requireModeration(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const body = (await request.json().catch(() => null)) as {

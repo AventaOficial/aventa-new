@@ -19,6 +19,7 @@ import {
 } from '@/lib/offers/ingestion';
 import { parseCouponPaste } from '@/lib/intelligence/coupon/parse';
 import type { CouponDraft } from '@/lib/intelligence/coupon/types';
+import { COUPONS_MODULE_AVAILABLE } from '@/lib/intelligence/coupon/availability';
 import { pendingBasePath, type ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '@/app/admin/moderation/moderationUi';
 import { cn } from '@/app/components/panel/utils';
@@ -93,7 +94,7 @@ export default function OfferBatchPastePanel({ mode }: { mode: ModerationHubMode
   function detect() {
     setBanner(null);
     const drafts = buildOfferBatchDrafts(paste);
-    const parsed = parseCouponPaste(paste);
+    const parsed = COUPONS_MODULE_AVAILABLE ? parseCouponPaste(paste) : { drafts: [], failures: [] };
     setCouponDrafts([...parsed.drafts, ...parsed.failures]);
     const nextRows = drafts.length > 0 ? draftsToRows(drafts) : [];
     setRows(nextRows);
