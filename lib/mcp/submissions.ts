@@ -17,6 +17,7 @@ import {
 import { isMcpIngestEnabled } from '@/lib/mcp/flags';
 import { claimRunSlots, releaseRunSlots } from '@/lib/mcp/runCap';
 import { enqueueHunterOffer } from '@/lib/offers/ingestion/enqueueHunterOffer';
+import { isPublicCatalogOffer, type PublicCatalogOfferFields } from '@/lib/offers/publicCatalogGate';
 
 export type McpQuota = { dailyCap: number; usedToday: number; remainingToday: number };
 
@@ -340,15 +341,24 @@ export async function getSubmissionStatus(
 
   const { data: items, error: itemsError } = await supabase
     .from('offer_batch_items')
-    .select('identity_key, status, duplicate_status')
+    .select('identity_key, status, duplicate_status, offer_id')
     .eq('batch_id', row.id);
   if (itemsError) return fail('INTERNAL_ERROR', 'No se pudo leer el envío.');
-  const byIdentity = new Map(
-    ((items ?? []) as Array<{ identity_key: string; status: string; duplicate_status: string | null }>).map((it) => [
-      it.identity_key,
-      it,
-    ]),
-  );
+  const itemRows = (items ?? []) as StatusItemRow[];
+
+  // El ítem del lote sólo se sincroniza cuando staff abre la consola del lote;
+  // la moderación vive en `offers`, así que el estado público se deriva de ahí.
+  const linkedOfferIds = itemRows.filter((it) => it.offer_id && it.status === 'APPROVED').map((it) => it.offer_id as string);
+  const offersById = new Map<string, StatusOfferRow>();
+  if (linkedOfferIds.length > 0) {
+    const { data: offers, error: offersError } = await supabase
+      .from('offers')
+      .select('id, status, deleted_at, bot_meta, offer_url')
+      .in('id', linkedOfferIds);
+    if (offersError) return fail('INTERNAL_ERROR', 'No se pudo leer el envío.');
+    for (const o of (offers ?? []) as StatusOfferRow[]) offersById.set(o.id, o);
+  }
+  const byIdentity = new Map(itemRows.map((it) => [it.identity_key, it]));
 
   const candidates = (readMcpMeta(row.meta).candidates ?? []).map((c) => {
     if (c.outcome === 'rejected') return { index: c.index, state: 'invalid' as const, ...(c.code ? { code: c.code } : {}) };
@@ -357,8 +367,20 @@ export async function getSubmissionStatus(
       return { index: c.index, state: 'duplicate' as const, ...(c.code ? { code: c.code } : {}) };
     }
     const item = c.identity_key ? byIdentity.get(c.identity_key) : undefined;
-    return { index: c.index, state: item ? mapBatchItemToCandidateState(item) : ('received' as const) };
+    if (!item) return { index: c.index, state: 'received' as const };
+    const offer = item.offer_id ? offersById.get(item.offer_id) : undefined;
+    return { index: c.index, state: offer ? stateFromModeratedOffer(offer) : mapBatchItemToCandidateState(item) };
   });
 
   return { ok: true, data: { submissionId: row.id, createdAt: row.created_at, candidates } };
+}
+
+type StatusItemRow = { identity_key: string; status: string; duplicate_status: string | null; offer_id: string | null };
+type StatusOfferRow = PublicCatalogOfferFields & { id: string };
+
+/** Ítem APPROVED con oferta vinculada: `accepted` = pendiente de moderación, nunca publicado. */
+function stateFromModeratedOffer(offer: StatusOfferRow): SubmissionCandidateState {
+  if (offer.status === 'rejected' || offer.deleted_at) return 'rejected';
+  if (isPublicCatalogOffer(offer)) return 'published';
+  return 'accepted';
 }

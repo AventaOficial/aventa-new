@@ -547,6 +547,45 @@ describe('get_submission_status', () => {
     expect(text).not.toContain(BOT_AUTHOR);
   });
 
+  it('estado derivado de la oferta moderada aunque el ítem del lote no se haya sincronizado', async () => {
+    const db = freshDb();
+    const sb = memorySupabase(db);
+    const r = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-s-3-key', candidates: [candidate()] }, NOW);
+    if (!r.ok) throw new Error('setup');
+    const offer = db.tables.offers[0];
+    const item = db.tables.offer_batch_items[0];
+    const status = async () => {
+      const s = await getSubmissionStatus(sb, client(), r.data.submissionId);
+      return s.ok ? s.data.candidates[0].state : s.code;
+    };
+
+    expect(offer.status).toBe('pending');
+    expect(await status()).toBe('accepted');
+
+    offer.status = 'approved';
+    expect(await status()).toBe('published');
+    expect(item.status).toBe('APPROVED');
+
+    offer.status = 'rejected';
+    expect(await status()).toBe('rejected');
+
+    offer.status = 'approved';
+    offer.deleted_at = '2026-10-05T12:00:00.000Z';
+    expect(await status()).toBe('rejected');
+    expect(item.status).toBe('APPROVED');
+  });
+
+  it('una oferta aprobada que no cumple el catálogo público no se reporta como published', async () => {
+    const db = freshDb();
+    const sb = memorySupabase(db);
+    const r = await submitDealCandidates(sb, client(), { runId: RUN_ID, idempotencyKey: 'run-s-4-key', candidates: [candidate()] }, NOW);
+    if (!r.ok) throw new Error('setup');
+    db.tables.offers[0].status = 'approved';
+    db.tables.offers[0].bot_meta = { source: 'wave3_seam' };
+    const s = await getSubmissionStatus(sb, client(), r.data.submissionId);
+    expect(s.ok && s.data.candidates).toEqual([{ index: 0, state: 'accepted' }]);
+  });
+
   it('mapa de estados del contrato', () => {
     const m = (status: string, duplicate_status: string | null = 'none') => mapBatchItemToCandidateState({ status, duplicate_status });
     expect(m('INGESTED')).toBe('received');
