@@ -7,6 +7,7 @@ import { recordMachineCall } from '@/lib/mcp/audit';
 import { checkOfferExists } from '@/lib/mcp/catalog';
 import {
   MCP_CURRENCY,
+  MCP_HUNTER_COMMENT_MAX,
   MCP_MAX_CANDIDATES_PER_CALL,
   MCP_NOTE_MAX,
   MCP_PILOT_MAX_ACCEPTED_PER_RUN,
@@ -93,6 +94,14 @@ const candidateDocSchema = z
     originalPrice: z.number().optional().describe('Precio de lista en MXN, mayor que price.'),
     currency: z.literal(MCP_CURRENCY).describe('Siempre "MXN".'),
     note: z.string().optional().describe(`Nota en texto plano, máximo ${MCP_NOTE_MAX} caracteres.`),
+    hunterComment: z
+      .string()
+      .optional()
+      .describe(
+        `Opcional. Comentario breve para el comprador, en español, máximo ${MCP_HUNTER_COMMENT_MAX} caracteres. ` +
+          'Solo datos verificables; sin «precio histórico», «el más barato», urgencia ni comparaciones con otras tiendas. ' +
+          'Omítelo si no hay nada útil que decir.',
+      ),
     observedAt: z.string().describe('Momento de la observación, ISO 8601 con zona horaria.'),
   })
   .describe('Candidato. Es una pista: Aventa lo verifica y un humano decide.');

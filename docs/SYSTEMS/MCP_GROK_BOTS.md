@@ -118,6 +118,7 @@ Entrada de `submit_deal_candidates`:
       "originalPrice": 899,
       "currency": "MXN",
       "note": "Texto plano ≤ 280",
+      "hunterComment": "Opcional, español, ≤ 160",
       "observedAt": "2026-10-04T17:00:00Z"
     }
   ]
@@ -151,7 +152,33 @@ Respuesta:
 
 Nunca se exponen notas de moderación, scores, `bot_meta`, identidad del staff, economía, ids internos innecesarios ni contenido crudo.
 
-Códigos de rechazo por candidato: `INVALID_CANDIDATE`, `INVALID_URL`, `UNSUPPORTED_HOST`, `INVALID_TITLE`, `INVALID_PRICE`, `INVALID_ORIGINAL_PRICE`, `INVALID_CURRENCY`, `INVALID_NOTE`, `INVALID_OBSERVED_AT`, `ALREADY_IN_REVIEW` (la identidad ya está abierta en otro lote), `RUN_CAP_REACHED` (el `runId` ya no tiene cupo; código nuevo, aditivo).
+Códigos de rechazo por candidato: `INVALID_CANDIDATE`, `INVALID_URL`, `UNSUPPORTED_HOST`, `INVALID_TITLE`, `INVALID_PRICE`, `INVALID_ORIGINAL_PRICE`, `INVALID_CURRENCY`, `INVALID_NOTE`, `INVALID_HUNTER_COMMENT` (formato de `hunterComment`; código nuevo, aditivo), `INVALID_OBSERVED_AT`, `ALREADY_IN_REVIEW` (la identidad ya está abierta en otro lote), `RUN_CAP_REACHED` (el `runId` ya no tiene cupo; código nuevo, aditivo).
+
+### Comentario del cazador (`hunterComment`)
+
+Campo opcional y aditivo: un cliente que no lo envía se comporta igual que antes. `note` sigue siendo contexto interno y alimenta `offers.description`; `hunterComment` es un borrador para el comprador y alimenta `offers.hunter_comment`, que la tarjeta pública muestra como «Comentario del cazador».
+
+- Formato: texto plano NFC, ≤ 160 caracteres (`OFFER_HUNTER_COMMENT_MAX`), con las mismas restricciones que `note`. Vacío o solo espacios cuenta como ausente. Un formato inválido rechaza el candidato con `INVALID_HUNTER_COMMENT`, igual que `INVALID_NOTE`.
+- Filtro editorial (`lib/offers/hunterCommentReview.ts`), aplicado después de la política de precios. Usa el precio de lista que confirma la página, no el que declara el bot. El texto no se reescribe: se conserva tal cual o se descarta, y **descartarlo nunca rechaza el candidato**. Motivos de descarte:
+  - `TOO_SHORT`: menos de 12 caracteres.
+  - `REPEATS_TITLE`: repite el título.
+  - `CONTAINS_LINK`: contiene un enlace o dominio.
+  - `UNSUPPORTED_CLAIM`: «histórico», «el más barato», «mejor precio», «últimas unidades», urgencia, «irrepetible», «ahorras $…» o comparaciones con otras tiendas.
+  - `DISCOUNT_NOT_CONFIRMED`: habla de descuento, rebaja o porcentaje sin un precio de lista confirmado.
+  - `DISCOUNT_MISMATCH`: el porcentaje se desvía más de 1 punto del que sale de los precios admitidos.
+- Trazabilidad: `bot_meta.hunter_comment = { status: 'kept' | 'dropped', reason, submitted }` en la oferta pendiente. Moderación (Focus: panel de contexto y «Ver por qué») muestra el comentario vigente o el borrador descartado con su motivo, y lo edita desde «Editar oferta».
+- Identidad: el comentario se presenta bajo la atribución pública existente (`AVENTA DIARIAS` para hunters del canon). Ni Grok ni el cliente MCP aparecen como autor.
+- Ningún comentario publica la oferta: la oferta sigue `pending` hasta la decisión humana.
+
+Especificación para los Grok bots (las instrucciones alojadas en xAI se actualizan fuera de este repo):
+
+1. Envía `hunterComment` solo si puedes explicar en una o dos frases, en español natural, por qué el producto le sirve al comprador, usando datos que ves en la página: precio, presentación o cantidad, característica relevante o precio de lista mostrado por la tienda.
+2. Si la tienda no muestra un precio de lista mayor, no hables de descuento, rebaja ni porcentaje. Describe el precio conocido («$89 por 1 kg en Soriana»).
+3. Si mencionas un porcentaje, calcúlalo como `round((1 - price/originalPrice) * 100)` con los mismos valores que envías.
+4. No afirmes «precio histórico», «el más barato», «mejor precio», «últimas unidades», urgencia, ahorro en pesos ni comparaciones con otras tiendas. No copies el texto promocional de la tienda ni repitas el título.
+5. Si no hay nada útil que decir, omite el campo. Un comentario ausente es mejor que uno genérico.
+
+Ejemplos aceptables: «Paquete de 12 rollos a $139; la tienda lo marca en $189 de lista.» · «Aceite de oliva extra virgen de 1 L a $129 en Walmart.»
 
 Errores de herramienta: `FORBIDDEN_SCOPE`, `INGEST_PAUSED`, `CLIENT_PAUSED`, `QUOTA_EXCEEDED`, `IDEMPOTENCY_CONFLICT`, `INVALID_INPUT`, `TOO_MANY_CANDIDATES`, `NOT_FOUND`, `INTERNAL_ERROR`.
 

@@ -6,6 +6,8 @@
  * publicador, Hunter ni actor económico.
  */
 
+import { OFFER_HUNTER_COMMENT_MAX } from '@/lib/contracts/offers';
+
 export const MCP_SCOPES = ['candidates:submit', 'candidates:read', 'catalog:read'] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
 
@@ -35,6 +37,8 @@ export const MCP_MAX_CANDIDATES_PER_CALL = 20;
 export const MCP_PILOT_MAX_ACCEPTED_PER_RUN = 5;
 export const MCP_TITLE_MAX = 200;
 export const MCP_NOTE_MAX = 280;
+/** Mismo tope que `offers.hunter_comment` en la tarjeta pública. */
+export const MCP_HUNTER_COMMENT_MAX = OFFER_HUNTER_COMMENT_MAX;
 export const MCP_URL_MAX = 2048;
 export const MCP_IDEMPOTENCY_KEY_MIN = 8;
 export const MCP_IDEMPOTENCY_KEY_MAX = 128;
@@ -72,6 +76,7 @@ export const CANDIDATE_REJECTION_CODES = [
   'INVALID_ORIGINAL_PRICE',
   'INVALID_CURRENCY',
   'INVALID_NOTE',
+  'INVALID_HUNTER_COMMENT',
   'INVALID_OBSERVED_AT',
   'DUPLICATE_IN_REQUEST',
   'ALREADY_IN_REVIEW',

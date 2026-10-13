@@ -3,6 +3,7 @@ import { offerBatchIdentityKey } from '@/lib/offers/batchPaste/extractOfferUrls'
 import { isAllowedOfferParseHost } from '@/lib/server/fetchUrlSafety';
 import {
   MCP_CURRENCY,
+  MCP_HUNTER_COMMENT_MAX,
   MCP_MAX_PRICE,
   MCP_NOTE_MAX,
   MCP_OBSERVED_AT_FUTURE_SKEW_MS,
@@ -25,6 +26,8 @@ export type ValidCandidate = {
   price: number;
   originalPrice: number | null;
   note: string | null;
+  /** Borrador para el comprador; el texto final lo decide `reviewHunterComment` y luego moderación. */
+  hunterComment: string | null;
   observedAt: string;
 };
 
@@ -113,6 +116,8 @@ function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | C
   if (c.currency !== MCP_CURRENCY) return { index, code: 'INVALID_CURRENCY' };
   const note = cleanText(c.note, MCP_NOTE_MAX, false);
   if (!note.ok) return { index, code: 'INVALID_NOTE' };
+  const hunterComment = cleanText(c.hunterComment, MCP_HUNTER_COMMENT_MAX, false);
+  if (!hunterComment.ok) return { index, code: 'INVALID_HUNTER_COMMENT' };
   const observedAt = cleanObservedAt(c.observedAt, now);
   if (!observedAt) return { index, code: 'INVALID_OBSERVED_AT' };
   return {
@@ -123,6 +128,7 @@ function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | C
     price,
     originalPrice,
     note: note.value,
+    hunterComment: hunterComment.value ? hunterComment.value.replace(/\s+/g, ' ') : null,
     observedAt,
   };
 }
