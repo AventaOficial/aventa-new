@@ -30,10 +30,11 @@ import {
   type BatchStatus,
 } from '@/lib/offers/batch/contract';
 import type { OfferBatchEventRow, OfferBatchItemRow, OfferBatchRow } from '@/lib/offers/batch/service';
+import { batchAuthorLabel } from '@/lib/product/hunters/identity';
 
 type BatchListRow = OfferBatchRow & { author_name?: string | null; kinds?: string[] };
 
-type ItemFilter = 'all' | 'ready' | 'review' | 'errors' | 'duplicates' | 'published';
+type ItemFilter = 'all' | 'ready' | 'review' | 'errors' | 'duplicates' | 'moderation' | 'published';
 
 const FILTERS: Array<{ id: ItemFilter; label: string }> = [
   { id: 'all', label: 'Todos' },
@@ -41,6 +42,7 @@ const FILTERS: Array<{ id: ItemFilter; label: string }> = [
   { id: 'review', label: 'Revisar' },
   { id: 'errors', label: 'Errores' },
   { id: 'duplicates', label: 'Duplicados' },
+  { id: 'moderation', label: 'En moderación' },
   { id: 'published', label: 'Publicados' },
 ];
 
@@ -64,7 +66,8 @@ function matchesFilter(item: OfferBatchItemRow, filter: ItemFilter): boolean {
   if (filter === 'review') return item.status === 'NEEDS_REVIEW';
   if (filter === 'errors') return item.status === 'ERROR';
   if (filter === 'duplicates') return item.duplicate_status === 'duplicate' || item.duplicate_status === 'in_batch';
-  if (filter === 'published') return item.status === 'PUBLISHED' || item.status === 'APPROVED';
+  if (filter === 'moderation') return item.status === 'APPROVED';
+  if (filter === 'published') return item.status === 'PUBLISHED';
   return true;
 }
 
@@ -327,7 +330,13 @@ export default function OfferBatchOps({
                   className={cn('flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3', ui.borderStrong)}
                 >
                   <div className="min-w-0">
-                    <p className={cn('font-medium', ui.body)}>{row.author_name || 'Usuario'}</p>
+                    <p className={cn('font-medium', ui.body)}>
+                      {batchAuthorLabel({
+                        createdBy: row.created_by,
+                        authorName: row.author_name,
+                        machineClientId: row.machine_client_id,
+                      })}
+                    </p>
                     <p className={cn('mt-0.5 text-xs', ui.muted)}>
                       {new Date(row.created_at).toLocaleString('es-MX', {
                         day: 'numeric',

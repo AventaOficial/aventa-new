@@ -99,6 +99,27 @@ describe('Hunters IA · fronteras', () => {
     expect(read('app/api/mcp/route.ts')).not.toContain('hunters-ai');
   });
 
+  it('distingue revisión técnica, moderación editorial y publicación', () => {
+    expect(editorialStatus('NEEDS_REVIEW', {})).toBe('NEEDS_REVIEW');
+    expect(editorialStatus('ERROR', {})).toBe('NEEDS_REVIEW');
+    expect(editorialStatus('APPROVED', {}, 'pending')).toBe('IN_MODERATION');
+    expect(editorialStatus('APPROVED', {}, 'published')).toBe('APPROVED');
+    expect(editorialStatus('APPROVED', {}, 'rejected')).toBe('REJECTED');
+    expect(editorialStatus('PUBLISHED', {})).toBe('APPROVED');
+    const client = read('app/admin/hunters-ai/HuntersAiClient.tsx');
+    expect(client).toContain("IN_MODERATION: 'En moderación'");
+    expect(client).toContain("NEEDS_REVIEW: 'Retenida: revisión técnica'");
+    expect(client).toContain('Enviar a moderación');
+    expect(client).not.toMatch(/>Aprobar</);
+  });
+
+  it('el cliente envía la sesión: la API exige Bearer', () => {
+    const client = read('app/admin/hunters-ai/HuntersAiClient.tsx');
+    const fetches = client.match(/fetch\([^;]*?\}\)/gs) ?? [];
+    expect(fetches.length).toBe(3);
+    for (const call of fetches) expect(call).toContain('Authorization: `Bearer ${token');
+  });
+
   it('aprobar un duplicado no crea otra oferta', () => {
     const decide = read('lib/huntersAi/decide.ts');
     const fn = decide.slice(decide.indexOf('export async function approveHunterCandidate'));

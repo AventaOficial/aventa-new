@@ -197,6 +197,7 @@ export async function enqueueHunterOffer(
           reference_dropped: admission.referenceDropped,
           bot_declared: admission.botDeclared,
           negative_memory: nm.reason,
+          identity: admission.identity,
         },
       },
     },
@@ -215,6 +216,39 @@ export async function enqueueHunterOffer(
 
   if (!result.ok) {
     if (result.httpStatus >= 500) console.error('[mcp] hunter offer not queued:', result.httpStatus);
+    const now = new Date().toISOString();
+    const duplicate = result.httpStatus === 409;
+    const status = duplicate ? 'REJECTED' : result.httpStatus === 400 ? 'NEEDS_REVIEW' : 'ERROR';
+    const code = duplicate ? 'DUPLICATE_OFFER' : result.httpStatus === 400 ? 'WRITER_REJECTED' : 'WRITER_FAILED';
+    await settleItem(supabase, {
+      ...base,
+      update: {
+        status,
+        error_code: code,
+        ...extracted,
+        ...(duplicate
+          ? {
+              duplicate_status: 'duplicate',
+              duplicate_offer_id: result.duplicate_offer_id ?? null,
+              rejection_reason: `duplicate:${result.duplicate_status ?? 'unknown'}`,
+              rejected_at: now,
+            }
+          : {}),
+        evidence: {
+          page_kind: prepared.pageKind,
+          policy: MACHINE_CANDIDATE_POLICY_VERSION,
+          writer: { http_status: result.httpStatus, issues: result.issues ?? null },
+        },
+      },
+      action: duplicate ? 'duplicate_linked' : 'writer_failed',
+      toStatus: status,
+      payload: {
+        code,
+        http_status: result.httpStatus,
+        duplicate_offer_id: duplicate ? (result.duplicate_offer_id ?? null) : null,
+        machine_client_id: machineClientId,
+      },
+    });
     return { offerId: null };
   }
 

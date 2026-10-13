@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSupplyHunter, hunterByCode, isTechnicalAuthorLabel, presentAuthor } from '@/lib/product/hunters/identity';
+import {
+  batchAuthorLabel,
+  defaultSupplyHunter,
+  hunterByCode,
+  isTechnicalAuthorLabel,
+  presentAuthor,
+} from '@/lib/product/hunters/identity';
 
 describe('identidad pública de Hunters', () => {
   it('un nombre técnico de suministro se presenta como Ximena, sin el UUID del cliente', () => {
@@ -37,5 +43,16 @@ describe('identidad pública de Hunters', () => {
     expect(hunterByCode('ximena-fuego')?.displayName).toBe('Ximena "Fuego"');
     expect(hunterByCode('otro-codigo')).toBeNull();
     expect(JSON.stringify(presented)).not.toMatch(/machine_client|avk_|mcp/i);
+  });
+
+  it('lote MCP: hunter editorial con procedencia, nunca el perfil técnico', () => {
+    const label = batchAuthorLabel({ createdBy: 'bot', authorName: 'Aventa MCP Supply', machineClientId: 'mc-1' });
+    expect(label).toBe('Ximena "Fuego" · vía MCP');
+    expect(label).not.toMatch(/Supply|aventa-mcp|mc-1/);
+  });
+
+  it('lote humano: conserva su autor y no se marca como MCP', () => {
+    expect(batchAuthorLabel({ createdBy: 'u1', authorName: 'Ana López' })).toBe('Ana López');
+    expect(batchAuthorLabel({ createdBy: 'u1', authorName: null })).toBe('Usuario');
   });
 });

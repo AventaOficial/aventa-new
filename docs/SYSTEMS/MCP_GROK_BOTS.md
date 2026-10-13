@@ -40,7 +40,7 @@ Diferencias con la ruta de bots (`insertIngestedOffer`), verificadas el 2026-10-
 |---|---|---|
 | Kill switch | `BOT_INGEST_MACHINE_PENDING_WRITES` | `MCP_INGEST_ENABLED` |
 | Bloqueo en producción (`assertMachineOfferWriteAuthorized`) | sí | no: producción es un destino previsto (§15) |
-| Elegibilidad S6.1 (evidencia de precio) | sí | parcial: `mcp-candidate-policy-v1` (§19) reutiliza identidad, título y procedencia del precio de lista; no exige descuento |
+| Elegibilidad S6.1 (evidencia de precio) | sí | parcial: `mcp-candidate-policy-v2` (§19) reutiliza identidad, título y procedencia del precio de lista; no exige descuento |
 | Memoria negativa | sí | sí (`isSuppressedByNegativeMemory`, §19) |
 | Cliente, scopes, cuota e idempotencia | no aplica | sí |
 | Estado al insertar | `pending` | `pending` |
@@ -565,14 +565,15 @@ order by created_at desc limit 20;
 - `POST https://staging.aventaofertas.com/api/mcp` sin token responde 401 y `GET` responde 405: la ruta está desplegada en staging (la tabla del inicio y §14 dicen 404; quedó desactualizado). No se sabe qué commit corre; esta rama no está desplegada.
 - Flujo real: `app/api/mcp/route.ts` → `lib/mcp/server.ts` → `submitDealCandidates` (`lib/mcp/submissions.ts`: flag, estado del cliente, idempotencia, `validateCandidates`, cuota) → `createOfferBatch` → `enqueueHunterOffer` (`lib/offers/ingestion/enqueueHunterOffer.ts`: `prepareMachineCandidateOffer` extrae la página; sin título, precio e imagen el ítem queda `ERROR`/`NEEDS_REVIEW`) → `ingestOfferObservation` (oferta `pending`, `onDuplicate: 'reject'`) → `/api/admin/moderate-offer` (humano).
 
-Política de calidad MCP (`mcp-candidate-policy-v1`, `lib/offers/ingestion/machineCandidatePolicy.ts`), aplicada en `enqueueHunterOffer` antes de crear la oferta:
+Política de calidad MCP (`mcp-candidate-policy-v2`, `lib/offers/ingestion/machineCandidatePolicy.ts`), aplicada en `enqueueHunterOffer` antes de crear la oferta. Un candidato que la pasa crea la oferta `pending` directamente: el ítem del lote queda `APPROVED` («En moderación») con `offer_id`, y la única aprobación es la de la cola de moderación. Hunters IA y la consola de lotes solo deciden los retenidos (`NEEDS_REVIEW`).
 
 1. **Memoria negativa** (`isSuppressedByNegativeMemory`, la misma de bots), antes de extraer la página. Si suprime: ítem `REJECTED` (terminal, no reprocesable como fallo), `error_code: 'NEGATIVE_MEMORY'`, evento `negative_memory_suppressed`, sin oferta. Público: `rejected`.
 2. **Extracción completa** (título, precio, imagen) como antes.
-3. **Identidad fuerte** (`strongProductFingerprintForUrl`): sin ella la memoria negativa no puede evaluar; el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`) para la consola de lotes, sin oferta.
+3. **Identidad**: fuerte (`strongProductFingerprintForUrl`: `amz:`/`ml:`/`liv:`) o, en otras tiendas (Soriana, Walmart…), la URL canónica `url:` de `resolveIngestionIdentity`, que deduplica por el índice único `idx_offers_active_ingestion_identity`. Queda marcada en `bot_meta.price_policy.identity` (`strong` | `url_fingerprint`). La memoria negativa solo evalúa identidades fuertes: con `url:` un producto rechazado antes puede volver a la cola de moderación, donde decide un humano. Sin ninguna identidad (p. ej. shortlinks `meli.la`) el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`), sin oferta. En hosts de Amazon y Mercado Libre (incluidos `amzn.to`, `a.co`, `/sec/`) no hay fallback `url:`: el writer resuelve esos enlaces a `amz:`/`ml:`, la clave persistida no coincidiría con la evaluada y la memoria negativa no se aplicaría; sin ASIN / item id quedan retenidos. `tests/offers/mcpIdentityParity.test.ts` comprueba que la clave admitida es la que persiste `ingestOfferObservation`. La carrera entre solicitudes concurrentes la decide el índice único; `tests/offers/ingestConcurrency.pg.integration.test.ts` la comprueba contra un Supabase local desechable (ver cabecera), pero **todavía no se ha ejecutado contra PostgreSQL real**: hoy la deduplicación concurrente solo está verificada por lectura de código. Hasta `v1` toda identidad no fuerte quedaba retenida; eso obligaba a aprobar en Hunters IA/lotes antes de la moderación (piloto Grok del 2026-10-12, lote `432879fd`).
 4. **Precio actual** con fuente de página (`priceSource` del extractor); si falta, `NEEDS_REVIEW` (`PRICE_SOURCE_UNKNOWN`).
 5. **Título de baja calidad** (`isLowQualityTitle` con `loadBotIngestConfig`): `REJECTED` (`LOW_QUALITY_TITLE`).
-6. **Precio de lista** solo si la página lo muestra con fuente (`source_explicit`) y es mayor que el actual (`compareWithListPrice`). El que declara el bot nunca llega a `offers.original_price`; queda en `hint_original_price` y en `bot_meta.price_policy.bot_declared`. Sin precio de lista la oferta es `price_opportunity` (sin porcentaje).
+6. **Writer** (`ingestOfferObservation`): si ya existe una oferta activa con la misma identidad (409), el ítem queda `REJECTED` con `duplicate_status: 'duplicate'`, `duplicate_offer_id` y evento `duplicate_linked`; no se crea otra oferta y el contrato lo informa como `duplicate`. Datos rechazados (400): `NEEDS_REVIEW` (`WRITER_REJECTED`). Fallo técnico: `ERROR` (`WRITER_FAILED`).
+7. **Precio de lista** solo si la página lo muestra con fuente (`source_explicit`) y es mayor que el actual (`compareWithListPrice`). El que declara el bot nunca llega a `offers.original_price`; queda en `hint_original_price` y en `bot_meta.price_policy.bot_declared`. Sin precio de lista la oferta es `price_opportunity` (sin porcentaje).
 
 De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
@@ -589,3 +590,24 @@ Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 9. Encender `MCP_INGEST_ENABLED=true` solo en staging y redeploy.
 10. En una terminal sin historial persistente, cargar `AVENTA_MCP_URL=https://staging.aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` desde el gestor de secretos, y ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max 5`. El script exige `ingestEnabled`, omite lo que ya existe en el catálogo y envía de 1 a 5. Para reintentar, repetir el mismo comando con el mismo `--run-id`: la llave `<runId>:live:001` hace replay en vez de crear otro envío. Si entre intentos cambia la lista (por ejemplo, un candidato ya aparece en el catálogo), el servidor responde `IDEMPOTENCY_CONFLICT` y no acepta nada nuevo. Sin `--run-id`, el script genera uno por minuto: eso es otra corrida con cupo propio.
 11. La llamada ya dejó cada candidato resuelto: oferta `pending` en la cola de moderación (estado público `accepted`) o ítem `NEEDS_REVIEW`/`REJECTED`/`ERROR` sin oferta. Consultar con `--status <submissionId>`. Moderar a mano las ofertas `pending` en `/admin/moderation` y decidir los `NEEDS_REVIEW` en `/admin/hunters-ai` (§14 pasos 10-12). Apagar `MCP_INGEST_ENABLED` al terminar.
+
+### Canario en producción tras el merge de la aprobación única (PR #100)
+
+Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y autorización operativa explícita. El interruptor no se toca desde el repo.
+
+| Estado | Cómo se comprueba |
+|---|---|
+| Código integrado | `git log origin/master` contiene el commit del PR |
+| Código desplegado | el deployment de producción `READY` apunta a ese SHA |
+| Cliente autenticado | `/admin/machine-clients`: un solo cliente `active`; el resto `paused`/`revoked` |
+| Ingesta habilitada | `get_submission_rules` devuelve `ingestEnabled: true` (flag y cliente activo) |
+| Probada con un lote | `--status <submissionId>` muestra cada índice resuelto |
+| En moderación | ofertas `pending` del autor bot en `/admin/moderation` |
+| Publicadas | solo las que un moderador aprobó (`offers.status = 'approved'`) |
+
+1. Archivo de 1 a 5 observaciones reales verificadas a mano: URL de ficha de producto, precio visible en la página. En Amazon y Mercado Libre, solo URLs con ASIN / item id (`/dp/…`, `MLM…`); los enlaces cortos quedan retenidos.
+2. Simular: `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --out <reporte.json>`. Revisar rechazos.
+3. En una terminal sin historial, `AVENTA_MCP_URL=https://aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` del gestor de secretos; ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max <n ≤ 5>`. El script consulta `get_submission_rules` (se detiene si `ingestEnabled` no es `true`), descarta con `check_offer_exists` lo que ya existe, envía con `submit_deal_candidates` y muestra `get_submission_status`. El servidor limita a 5 aceptados por cliente y `runId`.
+4. Resultado esperado por índice: `accepted` (oferta `pending` en `/admin/moderation`, sin paso por Hunters IA), `in_review` (retenido con motivo visible en Hunters IA), `duplicate` (vinculado a la oferta existente) o `rejected`/`invalid`. Ninguno queda `published` sin moderador.
+5. Un moderador decide cada `pending` en `/admin/moderation`. El bot no publica ni tiene herramienta para hacerlo.
+6. Si algo no coincide: pausar el cliente en `/admin/machine-clients` (efecto inmediato) y abrir el lote en la consola de lotes; el historial no se borra.
