@@ -118,6 +118,7 @@ Entrada de `submit_deal_candidates`:
       "originalPrice": 899,
       "currency": "MXN",
       "note": "Texto plano ≤ 280",
+      "hunterComment": "Opcional, español, ≤ 160",
       "observedAt": "2026-10-04T17:00:00Z"
     }
   ]
@@ -152,6 +153,59 @@ Respuesta:
 Nunca se exponen notas de moderación, scores, `bot_meta`, identidad del staff, economía, ids internos innecesarios ni contenido crudo.
 
 Códigos de rechazo por candidato: `INVALID_CANDIDATE`, `INVALID_URL`, `UNSUPPORTED_HOST`, `INVALID_TITLE`, `INVALID_PRICE`, `INVALID_ORIGINAL_PRICE`, `INVALID_CURRENCY`, `INVALID_NOTE`, `INVALID_OBSERVED_AT`, `ALREADY_IN_REVIEW` (la identidad ya está abierta en otro lote), `RUN_CAP_REACHED` (el `runId` ya no tiene cupo; código nuevo, aditivo).
+
+### Comentario del cazador (`hunterComment`)
+
+Campo opcional y aditivo: un cliente que no lo envía se comporta igual que antes. `note` sigue siendo contexto interno y alimenta `offers.description`; `hunterComment` es un borrador para el comprador y alimenta `offers.hunter_comment`, que la tarjeta pública muestra como «Comentario del cazador».
+
+- Formato: texto plano NFC, ≤ 160 caracteres (`OFFER_HUNTER_COMMENT_MAX`). Saltos de línea y espacios repetidos se colapsan a un espacio. Vacío o solo espacios cuenta como ausente. `hunterComment` **no tiene código de rechazo**: a diferencia de `note`, un comentario mal formado o largo nunca rechaza el candidato; solo se descarta el comentario (motivos `INVALID_FORMAT` y `TOO_LONG`).
+- Filtro editorial (`lib/offers/hunterCommentReview.ts`), aplicado después de la política de precios. Usa el precio de lista que confirma la página, no el que declara el bot. El texto no se reescribe: se conserva tal cual o se descarta, y **descartarlo nunca rechaza el candidato**. Motivos de descarte:
+  - `INVALID_FORMAT`: no es texto (HTML, entidades, caracteres de control o un tipo distinto de string). El texto no se guarda.
+  - `TOO_SHORT`: menos de 12 caracteres.
+  - `TOO_LONG`: más de 160 caracteres. Moderación ve el borrador (acotado a 320).
+  - `REPEATS_TITLE`: repite el título.
+  - `CONTAINS_LINK`: contiene un enlace o dominio.
+  - `MENTIONS_BOT`: se presenta como bot o IA («Grok», «xAI», «bot», «IA», «inteligencia artificial», «MCP»).
+  - `UNSUPPORTED_CLAIM`: «histórico», «el más barato», «mejor precio», «últimas unidades», urgencia, «irrepetible», «ahorras $…» o comparaciones con otras tiendas.
+  - `DISCOUNT_NOT_CONFIRMED`: habla de descuento, rebaja o porcentaje sin un precio de lista confirmado.
+  - `DISCOUNT_MISMATCH`: el porcentaje se desvía más de 1 punto del que sale de los precios admitidos.
+- Trazabilidad: `bot_meta.hunter_comment = { status: 'kept' | 'dropped', reason, submitted }` en la oferta pendiente. Moderación (Focus: panel de contexto y «Ver por qué») muestra el comentario vigente o el borrador descartado con su motivo, y lo edita desde «Editar oferta».
+- Identidad: el comentario se presenta bajo la atribución pública existente (`AVENTA DIARIAS` para hunters del canon). Ni Grok ni el cliente MCP aparecen como autor, y `MENTIONS_BOT` impide que el propio texto lo diga.
+- Ningún comentario publica la oferta: la oferta sigue `pending` hasta la decisión humana.
+- Prueba pendiente (no ejecutada; requiere entorno aislado o autorización del owner para el canario): un `submit_deal_candidates` real con tres candidatos (comentario válido, comentario con «precio histórico», sin comentario) y comprobar en Focus que el primero muestra el comentario público, el segundo el borrador descartado con `UNSUPPORTED_CLAIM` y el tercero nada; las tres ofertas en `pending`.
+
+Especificación para los Grok bots. Las instrucciones alojadas en xAI se actualizan fuera de este repo; este es el texto a pegar allí, sin cambios:
+
+```text
+COMENTARIO DEL CAZADOR (campo opcional hunterComment de cada candidato)
+
+- Es un borrador para el comprador, distinto de note (note es contexto interno para el equipo).
+- Envíalo solo si puedes decir en una o dos frases, en español natural, por qué el producto le sirve
+  al comprador, con datos que ves en la página: precio, presentación o cantidad, una característica
+  relevante o el precio de lista que muestra la tienda.
+- Texto plano de 12 a 160 caracteres. Sin HTML, sin enlaces, sin dominios, sin emojis decorativos.
+- No repitas el título ni copies el texto promocional de la tienda.
+- Si la tienda no muestra un precio de lista mayor que el precio actual, no hables de descuento,
+  rebaja ni porcentaje: describe el precio conocido («$89 por 1 kg en Soriana»).
+- Si mencionas un porcentaje, calcúlalo como round((1 - price / originalPrice) * 100) con los mismos
+  price y originalPrice que envías, y solo si originalPrice es el precio de lista visible en la página.
+- Prohibido: «precio histórico», «el más barato», «mejor precio», «precio más bajo», «últimas unidades»,
+  «se agota», «solo hoy», «irrepetible», «no te lo pierdas», ahorro en pesos («ahorras $120») y
+  comparaciones con otras tiendas («más barato que en Walmart»).
+- No te presentes como bot, IA, Grok, xAI ni MCP. El comentario se publica bajo la identidad editorial
+  de Aventa, no la tuya.
+- Si no hay nada útil que decir, omite hunterComment. Un comentario ausente es mejor que uno genérico.
+- Aventa filtra el comentario: si no cumple, lo descarta y el candidato sigue su curso normal. Un
+  humano revisa y puede editarlo antes de publicar. No reenvíes el candidato por un comentario descartado.
+
+Ejemplos aceptables:
+- «Paquete de 12 rollos a $139; la tienda lo marca en $189 de lista.»
+- «Aceite de oliva extra virgen de 1 L a $129 en Walmart.»
+Ejemplos que se descartan:
+- «¡Precio histórico! No te lo pierdas.» (afirmación no demostrable)
+- «30% de descuento» sin precio de lista visible (descuento no confirmado)
+- «Encontrado por Grok para tu despensa.» (se presenta como bot)
+```
 
 Errores de herramienta: `FORBIDDEN_SCOPE`, `INGEST_PAUSED`, `CLIENT_PAUSED`, `QUOTA_EXCEEDED`, `IDEMPOTENCY_CONFLICT`, `INVALID_INPUT`, `TOO_MANY_CANDIDATES`, `NOT_FOUND`, `INTERNAL_ERROR`.
 

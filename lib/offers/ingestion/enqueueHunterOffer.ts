@@ -15,6 +15,8 @@ import {
 import { isSuppressedByNegativeMemory } from '@/lib/discovery/negativeMemory';
 import { isLowQualityTitle } from '@/lib/bots/ingest/isLowQualityTitle';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
+import { reviewHunterComment, type HunterCommentReviewResult } from '@/lib/offers/hunterCommentReview';
+import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 
 export type EnqueueHunterOfferDeps = {
   prepare?: (url: string) => Promise<PreparedMachineCandidate>;
@@ -174,6 +176,13 @@ export async function enqueueHunterOffer(
   }
 
   const { price, originalPrice } = admission;
+  const title = prepared.title || candidate.title;
+  const hunterComment: HunterCommentReviewResult = candidate.hunterCommentInvalid
+    ? { comment: null, review: { status: 'dropped', reason: 'INVALID_FORMAT' } }
+    : reviewHunterComment(candidate.hunterComment, {
+        title,
+        comparison: compareWithListPrice(price, originalPrice),
+      });
   const result = await (deps.ingest ?? ingestOfferObservation)(supabase, {
     createdBy,
     source: 'mcp:hunter',
@@ -199,10 +208,19 @@ export async function enqueueHunterOffer(
           negative_memory: nm.reason,
           identity: admission.identity,
         },
+        ...(hunterComment.review.status !== 'absent'
+          ? {
+              hunter_comment: {
+                status: hunterComment.review.status,
+                reason: hunterComment.review.reason,
+                submitted: candidate.hunterComment,
+              },
+            }
+          : {}),
       },
     },
     body: {
-      title: prepared.title || candidate.title,
+      title,
       store: prepared.store || store,
       hasDiscount: originalPrice != null,
       price,
@@ -211,6 +229,7 @@ export async function enqueueHunterOffer(
       ...(prepared.category ? { category: prepared.category } : {}),
       offer_url: candidate.url,
       description,
+      ...(hunterComment.comment ? { hunter_comment: hunterComment.comment } : {}),
     },
   });
 

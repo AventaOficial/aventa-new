@@ -11,6 +11,7 @@ import { parseBotMeta, parseMachinePricePolicy } from '@/lib/moderation/botFacts
 import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { cn } from '@/app/components/panel/utils';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
+import FocusHunterComment from '@/app/components/moderation/FocusHunterComment';
 
 const REFERENCE_DROPPED: Record<string, string> = {
   absent: 'la página no muestra lista',
@@ -199,6 +200,8 @@ export default function FocusDesktopContext({
           <p className={cn('mt-2 text-xs', ui.faint)}>Sin descripción</p>
         )}
       </section>
+
+      <FocusHunterComment mode={mode} hunterComment={offer.hunter_comment} botMeta={offer.bot_meta} />
 
       <section className={cn('mt-auto space-y-2 border-t pt-3', ui.border)}>
         <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>

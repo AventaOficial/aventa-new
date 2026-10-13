@@ -3,6 +3,7 @@ import { offerBatchIdentityKey } from '@/lib/offers/batchPaste/extractOfferUrls'
 import { isAllowedOfferParseHost } from '@/lib/server/fetchUrlSafety';
 import {
   MCP_CURRENCY,
+  MCP_HUNTER_COMMENT_MAX,
   MCP_MAX_PRICE,
   MCP_NOTE_MAX,
   MCP_OBSERVED_AT_FUTURE_SKEW_MS,
@@ -25,6 +26,13 @@ export type ValidCandidate = {
   price: number;
   originalPrice: number | null;
   note: string | null;
+  /**
+   * Borrador para el comprador; el texto final lo decide `reviewHunterComment` y luego moderación.
+   * Puede pasar del tope público: el filtro editorial lo descarta sin rechazar el candidato.
+   */
+  hunterComment: string | null;
+  /** El bot envió un `hunterComment` que no es texto plano; se descarta sin guardar el texto. */
+  hunterCommentInvalid?: boolean;
   observedAt: string;
 };
 
@@ -81,6 +89,19 @@ function cleanText(raw: unknown, max: number, required: boolean): { ok: true; va
   return { ok: true, value };
 }
 
+/**
+ * Un `hunterComment` mal formado nunca rechaza el candidato. El texto se acota a dos veces el
+ * tope público para que el filtro editorial vea que se pasó y moderación lea el borrador.
+ */
+function cleanHunterComment(raw: unknown): { value: string | null; invalid: boolean } {
+  if (raw === undefined || raw === null) return { value: null, invalid: false };
+  if (typeof raw !== 'string') return { value: null, invalid: true };
+  const value = raw.normalize('NFC').replace(/[\t\n\r\f\v ]+/g, ' ').trim();
+  if (!value) return { value: null, invalid: false };
+  if (UNSAFE_TEXT_RE.test(value) || HTML_RE.test(value)) return { value: null, invalid: true };
+  return { value: Array.from(value).slice(0, MCP_HUNTER_COMMENT_MAX * 2).join(''), invalid: false };
+}
+
 function cleanMoney(raw: unknown): number | null {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
   if (raw <= 0 || raw > MCP_MAX_PRICE) return null;
@@ -113,6 +134,7 @@ function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | C
   if (c.currency !== MCP_CURRENCY) return { index, code: 'INVALID_CURRENCY' };
   const note = cleanText(c.note, MCP_NOTE_MAX, false);
   if (!note.ok) return { index, code: 'INVALID_NOTE' };
+  const hunterComment = cleanHunterComment(c.hunterComment);
   const observedAt = cleanObservedAt(c.observedAt, now);
   if (!observedAt) return { index, code: 'INVALID_OBSERVED_AT' };
   return {
@@ -123,6 +145,8 @@ function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | C
     price,
     originalPrice,
     note: note.value,
+    hunterComment: hunterComment.value,
+    ...(hunterComment.invalid ? { hunterCommentInvalid: true } : {}),
     observedAt,
   };
 }
