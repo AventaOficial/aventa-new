@@ -58,6 +58,15 @@ import { parseDiscoverySourceDetail } from '@/lib/hunter/candidateIntelligence/d
 export const S91_DISCOVERY_ONLY_SKIP_REASON =
   's91_discovery_only_use_s9_for_writes' as const;
 
+/**
+ * The route runs this cycle inside `after()` with maxDuration 300s. Stop evaluating
+ * well before that so supply runs, shadow snapshot and candidate intelligence persist.
+ */
+export const INGEST_CYCLE_SOFT_DEADLINE_MS = 240_000;
+/** Collect gets a share of the soft deadline; ML discovery stops cooperatively. */
+export const INGEST_COLLECT_BUDGET_MS = 150_000;
+export const INGEST_SOFT_DEADLINE_SKIP_REASON = 'soft_deadline' as const;
+
 function emptySummary() {
   return { inserted: 0, duplicate: 0, skipped: 0, errors: 0, rejected: 0, autoApproved: 0 };
 }
@@ -109,8 +118,16 @@ function markSourceSkip(
 export async function runIngestCycleForProfile(
   profile: IngestProfileId = 'standard',
   startedAt = new Date().toISOString(),
-  opts?: { config?: ReturnType<typeof loadBotIngestConfig> }
+  opts?: {
+    config?: ReturnType<typeof loadBotIngestConfig>;
+    softDeadlineMs?: number;
+    collectBudgetMs?: number;
+  }
 ): Promise<IngestCycleReport> {
+  const cycleStartedMs = Date.now();
+  const softDeadlineMs = opts?.softDeadlineMs ?? INGEST_CYCLE_SOFT_DEADLINE_MS;
+  const collectBudgetMs = Math.min(opts?.collectBudgetMs ?? INGEST_COLLECT_BUDGET_MS, softDeadlineMs);
+  const deadlineReached = () => Date.now() - cycleStartedMs >= softDeadlineMs;
   const config = opts?.config ?? loadBotIngestConfig(profile);
   const results: IngestSingleResult[] = [];
   const sourceStats = emptySourceStats();
@@ -244,7 +261,17 @@ export async function runIngestCycleForProfile(
   const delayHi = fastPace ? 240 : 560;
 
   const rotationWave = computeSourceRotationWave(now, tz);
-  const collection = await collectIngestItems(config, rotationWave);
+  const collectAbort = new AbortController();
+  const collectTimer = setTimeout(() => collectAbort.abort(), collectBudgetMs);
+  let collection: Awaited<ReturnType<typeof collectIngestItems>>;
+  try {
+    collection = await collectIngestItems(config, rotationWave, {
+      budgetMs: collectBudgetMs,
+      signal: collectAbort.signal,
+    });
+  } finally {
+    clearTimeout(collectTimer);
+  }
   const pool = prioritizeAcquisitionPool(collection.items);
   for (const [source, diagnostics] of Object.entries(collection.discoveryDiagnostics ?? {})) {
     const typedSource = source as IngestSourceId;
@@ -360,7 +387,19 @@ export async function runIngestCycleForProfile(
     }
   }
 
-  for (const item of slice) {
+  for (const [index, item] of slice.entries()) {
+    if (deadlineReached()) {
+      for (const rest of slice.slice(index)) {
+        results.push({
+          url: rest.url,
+          source: rest.source,
+          status: 'skipped',
+          reason: INGEST_SOFT_DEADLINE_SKIP_REASON,
+        });
+        markSourceSkip(sourceStats, rest.source, INGEST_SOFT_DEADLINE_SKIP_REASON);
+      }
+      break;
+    }
     sourceStats[item.source].evaluated += 1;
     stageCounts.evaluated += 1;
     try {

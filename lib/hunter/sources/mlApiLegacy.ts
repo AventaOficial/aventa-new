@@ -30,7 +30,8 @@ export const mlApiLegacySource: HunterSource = {
     const discovery = await discoverMercadoLibreIngestItems(
       ctx.config,
       seen,
-      ctx.rotationWave
+      ctx.rotationWave,
+      { signal: ctx.signal }
     );
     const detectedAt = (ctx.now ?? new Date()).toISOString();
     const candidates = discovery.items.map((item) =>

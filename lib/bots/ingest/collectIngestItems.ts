@@ -27,12 +27,15 @@ export type IngestCollectionResult = {
  */
 export async function collectIngestItems(
   config: BotIngestConfig,
-  rotationWave: number
+  rotationWave: number,
+  opts?: { budgetMs?: number; signal?: AbortSignal }
 ): Promise<IngestCollectionResult> {
   const result = await runHunterCollect({
     config,
     rotationWave,
     persistHealth: true,
+    ...(opts?.budgetMs !== undefined ? { budgetMs: opts.budgetMs } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
   });
 
   const rssEnabled = process.env.BOT_INGEST_RSS_ENABLED === 'true';

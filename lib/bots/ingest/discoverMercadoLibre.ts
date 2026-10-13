@@ -174,6 +174,7 @@ async function collectListingsFromProductIds(opts: {
   seenId: Set<string>;
   itemsPerProduct?: number;
   onSkip?: (entry: MercadoLibreDiscoverySkip) => void;
+  signal?: AbortSignal;
 }): Promise<HighlightListing[]> {
   const itemsPerProduct = opts.itemsPerProduct ?? 2;
   const out: HighlightListing[] = [];
@@ -181,6 +182,7 @@ async function collectListingsFromProductIds(opts: {
 
   for (const productIdRaw of opts.productIds) {
     if (out.length >= opts.budget) break;
+    if (opts.signal?.aborted) break;
     const productId = productIdRaw?.trim();
     if (!productId) continue;
     const productUrl = `https://www.mercadolibre.com.mx/p/${productId}`;
@@ -310,8 +312,10 @@ async function collectListingsFromHighlights(opts: {
   productsCap?: number;
   itemsPerProduct?: number;
   onSkip?: (entry: MercadoLibreDiscoverySkip) => void;
+  signal?: AbortSignal;
 }): Promise<HighlightListing[]> {
   const productsCap = opts.productsCap ?? 8;
+  if (opts.signal?.aborted) return [];
   const hl = await fetchMlApi(
     `/highlights/${ML_SITE}/category/${encodeURIComponent(opts.categoryId)}`,
   );
@@ -337,6 +341,7 @@ async function collectListingsFromHighlights(opts: {
     seenId: opts.seenId,
     itemsPerProduct: opts.itemsPerProduct,
     onSkip: opts.onSkip,
+    signal: opts.signal,
   });
 }
 
@@ -534,11 +539,13 @@ function mlItemUrl(id: string, permalink?: string | null): string {
 export async function discoverMercadoLibreIngestItems(
   config: BotIngestConfig,
   seenKeys: Set<string>,
-  rotationWave: number
+  rotationWave: number,
+  opts?: { signal?: AbortSignal }
 ): Promise<MercadoLibreDiscoveryResult> {
   if (!config.discoverMlEnabled) {
     return { items: [], collectedCount: 0, skipReasonCounts: {}, skippedCandidates: [] };
   }
+  const signal = opts?.signal;
 
   let supabase: import('@supabase/supabase-js').SupabaseClient | null = null;
   if (isAdaptiveDiscoveryEnabled()) {
@@ -623,6 +630,10 @@ export async function discoverMercadoLibreIngestItems(
   // Listings se resuelven con /products/{id}/items — /items?ids= también 403.
   for (const src of plan) {
     if (idOrder.length + highlightRows.length >= maxIds) break;
+    if (signal?.aborted) {
+      bumpReason(skipReasonCounts, 'ml discovery: soft_deadline');
+      break;
+    }
 
     if (src.kind === 'cat') {
       await sleep(ML_FETCH_DELAY_MS);
@@ -633,6 +644,7 @@ export async function discoverMercadoLibreIngestItems(
         budget: Math.min(remaining, Math.max(6, Math.floor(config.mlMaxCollect / 2))),
         seenId,
         onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
+        signal,
       });
       const hlSrc: SearchCall = {
         kind: 'hl',
@@ -651,6 +663,7 @@ export async function discoverMercadoLibreIngestItems(
     const offsets = useExperimentDepth ? experimentOffsets : [0];
     for (const offset of offsets) {
       if (idOrder.length + highlightRows.length >= maxIds) break;
+      if (signal?.aborted) break;
       const pageNum = useExperimentDepth ? Math.floor(offset / Math.max(limit, 1)) + 1 : (src.page ?? 1);
       const pageSrc: SearchCall = {
         ...src,
@@ -690,12 +703,13 @@ export async function discoverMercadoLibreIngestItems(
         budget: Math.min(remaining, Math.max(6, Math.floor(config.mlMaxCollect / 2))),
         seenId,
         onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
+        signal,
       });
 
       // Catalog search often returns products without /items. Secondary: map query →
       // category highlights (official) so q-seeds still yield sellable listings.
       const withOriginal = listings.filter((l) => l.originalPrice != null).length;
-      if (withOriginal === 0) {
+      if (withOriginal === 0 && !signal?.aborted) {
         bumpReason(skipReasonCounts, `ml discovery: products_search sin listings ${src.value}`);
         await sleep(ML_FETCH_DELAY_MS);
         const cat = await resolveCategoryFromQuery(src.value);
@@ -709,6 +723,7 @@ export async function discoverMercadoLibreIngestItems(
             ),
             seenId,
             onSkip: (entry) => pushSkip(skippedCandidates, skipReasonCounts, entry),
+            signal,
           });
           if (listings.length === 0) {
             bumpReason(skipReasonCounts, `ml discovery: highlights vacíos ${cat}`);
@@ -739,7 +754,7 @@ export async function discoverMercadoLibreIngestItems(
   }
 
   // Fallback only if primary yielded nothing (should be rare with products/search + highlights cats).
-  if (idOrder.length === 0 && highlightRows.length === 0) {
+  if (idOrder.length === 0 && highlightRows.length === 0 && !signal?.aborted) {
     bumpReason(skipReasonCounts, 'ml discovery: highlights_fallback');
     const categoryBudget = new Map<string, string>();
     for (const c of config.mlCategoryIds.slice(0, 6)) categoryBudget.set(c, `cat:${c}`);

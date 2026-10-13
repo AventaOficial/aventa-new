@@ -120,6 +120,8 @@ export type HunterCollectContext = {
   config: BotIngestConfig;
   rotationWave: number;
   now?: Date;
+  /** Cooperative stop: sources with many serial remote calls must check it between calls. */
+  signal?: AbortSignal;
 };
 
 export type HunterSource = {
