@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { COUPONS_MODULE_AVAILABLE } from '@/lib/intelligence/coupon/availability';
 import {
   Activity,
   BadgeCheck,
@@ -90,7 +91,7 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
       { href: '/admin/hunters-ai', label: 'Hunters IA', icon: Bot },
       { href: '/admin/owner/cazadores', label: 'Trusted Hunters', icon: BadgeCheck },
       { href: '/admin/distribution', label: 'Distribución', icon: Share2 },
-      { href: '/admin/coupons', label: 'Cupones', icon: Ticket },
+      ...(COUPONS_MODULE_AVAILABLE ? [{ href: '/admin/coupons', label: 'Cupones', icon: Ticket }] : []),
       { href: '/admin/announcements', label: 'Avisos', icon: Megaphone },
     ],
   },
