@@ -1,6 +1,8 @@
 import { despensaSourceForUrl } from '@/lib/despensa/sources';
 import { compareWithListPrice, observedDropPercent } from '@/lib/offers/listPriceComparison';
 import type { PriceInsight } from '@/lib/offers/priceHistory';
+import type { PublishedPriceRelation, VerifiedReference } from '@/lib/offers/priceObservations/evaluate';
+import type { PriceEvidenceLabel } from '@/lib/offers/priceObservations/policy';
 
 /**
  * Nivel de evidencia del precio con los datos que el feed tiene de verdad.
@@ -47,13 +49,36 @@ export function evidenceLevel(input: EvidenceInput, now: Date): EvidenceLevel {
   return 'published_source';
 }
 
-/** Lo mínimo del historial propio (`computePriceInsight`) que necesita Despensa. */
-export type DespensaPriceHistory = Pick<PriceInsight, 'verdict' | 'max90d' | 'min90d' | 'samples90d'>;
+/** Veredicto del motor de precios sobre observaciones capturadas y comparables. */
+export type DespensaEngineVerdict = {
+  label: PriceEvidenceLabel;
+  reference: VerifiedReference | null;
+  savingAmount: number | null;
+  savingPct: number | null;
+  availabilityConfirmed: boolean;
+  policyVersion: string;
+  /** Última observación válida del producto (ausente en veredictos anteriores a v2). */
+  current?: { price: number; recordedAt: string } | null;
+  priceRelation?: PublishedPriceRelation | null;
+};
+
+/**
+ * Lo mínimo del historial propio que necesita Despensa. Con `engine`, el veredicto viene del
+ * motor de precios y es el único que decide ahorro y contradicción; sin `engine` (forma legada
+ * de `computePriceInsight`) se aplica la regla anterior.
+ */
+export type DespensaPriceHistory = Pick<PriceInsight, 'verdict' | 'max90d' | 'min90d' | 'samples90d'> & {
+  engine?: DespensaEngineVerdict;
+};
 
 /**
  * Qué respalda el ahorro que se podría mostrar.
- * - `verified`: el historial propio de Aventa (≥2 registros en 90 días) pone el precio actual
- *   en su mínimo y antes se vio más alto. Es la única forma de mostrar una cantidad ahorrada.
+ * - `verified`: con veredicto del motor, el precio actual (observado hace < 48 h) está al menos 5 %
+ *   bajo la mediana de ≥4 observaciones comparables en ≥14 días. En la forma legada, el historial
+ *   (≥2 registros en 90 días) lo pone en su mínimo y antes se vio más alto. Es la única forma de
+ *   mostrar una cantidad ahorrada.
+ * - `price_differs`: la última lectura de la tienda (< 48 h) da otro precio que el publicado;
+ *   no se respalda el publicado ni se habla de ahorro. Lleva el precio observado y su hora.
  * - `list_contradicted`: hay precio de lista, pero el historial dice que el descuento es de etiqueta.
  * - `list_unconfirmed`: hay precio de lista mayor, sin historial que lo respalde.
  * - `none`: no hay referencia; se muestra el precio observado sin hablar de ahorro.
@@ -61,7 +86,16 @@ export type DespensaPriceHistory = Pick<PriceInsight, 'verdict' | 'max90d' | 'mi
  * El precio de lista nunca es prueba suficiente: `offers.original_price` no guarda su procedencia.
  */
 export type SavingEvidence =
-  | { status: 'verified'; amount: number; percent: number; reference: number }
+  | {
+      status: 'verified';
+      amount: number;
+      percent: number;
+      reference: number;
+      /** Solo en veredictos del motor: la referencia es la mediana propia, no el máximo. */
+      basis?: 'own_history_median';
+      observations?: number;
+    }
+  | { status: 'price_differs'; observedPrice: number; observedAt: string }
   | { status: 'list_contradicted' }
   | { status: 'list_unconfirmed' }
   | { status: 'none' };
@@ -74,6 +108,24 @@ export function savingEvidence(input: {
   const price = input.price ?? null;
   if (price == null || !(price > 0)) return { status: 'none' };
   const history = input.history;
+  const engine = history?.engine;
+  if (engine) {
+    if (engine.label === 'verified_saving' && engine.reference && engine.savingAmount != null && engine.savingPct != null) {
+      return {
+        status: 'verified',
+        amount: engine.savingAmount,
+        percent: Math.round(engine.savingPct),
+        reference: engine.reference.price,
+        basis: 'own_history_median',
+        observations: engine.reference.observations,
+      };
+    }
+    if (engine.label === 'price_differs' && engine.current) {
+      return { status: 'price_differs', observedPrice: engine.current.price, observedAt: engine.current.recordedAt };
+    }
+    if (engine.label === 'list_contradicted') return { status: 'list_contradicted' };
+    return compareWithListPrice(price, input.originalPrice) ? { status: 'list_unconfirmed' } : { status: 'none' };
+  }
   if (history) {
     const percent = observedDropPercent({ ...history, current: price } as PriceInsight);
     if (percent != null && history.max90d != null) {

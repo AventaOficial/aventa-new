@@ -3,9 +3,12 @@ import { after } from 'next/server';
 import { requireCronSecret } from '@/lib/server/cronAuth';
 import { runPriceMemoryFreshnessCycle } from '@/lib/hunter/priceMemory';
 import { readSupplyFreshnessStatus } from '@/lib/hunter/supply/supplyFreshnessStatus';
+import { runPriceCaptureCycle } from '@/lib/offers/priceObservations/capture';
+import { createServerClient } from '@/lib/supabase/server';
 
 /**
  * Day 5 — Dedicated Price Memory freshness cron (observe-only).
+ * Also runs the Canasta Básica price capture (offer_price_snapshots, source=capture), off by default.
  * Does NOT mint offers. Does NOT enable money paths.
  * Auth: CRON_SECRET.
  */
@@ -14,6 +17,7 @@ export const maxDuration = 300;
 export async function GET(request: NextRequest) {
   const denied = requireCronSecret(request);
   if (denied) return denied;
+  const hostDeadlineMs = Date.now() + maxDuration * 1000;
 
   after(async () => {
     try {
@@ -37,6 +41,12 @@ export async function GET(request: NextRequest) {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       console.error('[pm-freshness:after]', message);
+    }
+    try {
+      // Apagada salvo app_config.despensa_price_capture = { "enabled": true }. Registra [price-capture].
+      await runPriceCaptureCycle({ supabase: createServerClient(), hostDeadlineMs });
+    } catch {
+      console.error('[price-capture] cycle_crashed');
     }
   });
 

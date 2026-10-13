@@ -59,3 +59,10 @@ No writes back. No new table. `DEAL_INTELLIGENCE_ENABLED` stays OFF.
 - Counts: `head:true` + marketplace/date filters (existing indexes).
 - Samples: `ORDER BY recorded_at|recorded_on DESC LIMIT N` (N≤200).
 - No full-table identity scans for CEO.
+
+## Update 2026-10-12 — price intelligence engine
+
+- Migration `20261012_offer_price_observations.sql` adds currency, identity, scope, availability, validation and idempotency columns to `offer_price_snapshots` (additive; legacy rows stay `validation_status IS NULL`).
+- Readers here skip quarantined/invalid/superseded/out-of-stock rows and fall back to the legacy select when the columns are missing.
+- Capture rows (`source = 'capture'`) map to `captureMethod: 'official_api'`.
+- Design and activation procedure: `docs/SYSTEMS/PRICE_INTELLIGENCE_ENGINE.md`.

@@ -234,7 +234,7 @@ export default function DespensaView() {
               ) : null}
               {plan.needs.length > 0 && plan.verifiedCount === 0 ? (
                 <p className="mb-3 text-[13px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">
-                  Esta semana ninguna oferta tiene ahorro verificado con el historial de Aventa. Te mostramos precios observados y por unidad para que compares.
+                  Esta semana ninguna oferta tiene ahorro verificado con el historial de Aventa. Te mostramos los precios publicados y por unidad para que compares.
                 </p>
               ) : null}
               {plan.needs.length > 0 && visibleNeeds.length === 0 ? (

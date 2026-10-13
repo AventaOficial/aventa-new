@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ML_PRICE_MARKETPLACE } from '@/lib/bots/ingest/mlPriceEngine';
+import { isMissingColumnError, isUsableSnapshot, LEGACY_SNAPSHOT_SELECT } from '@/lib/offers/priceObservations/policy';
 import { isObservationStale } from '../priceObservation';
 import { mapOfferPriceSnapshotToObservation } from '../mappers/offerPriceSnapshot';
 import { mapPriceMemorySnapshotToObservation } from '../mappers/priceMemorySnapshot';
@@ -96,15 +97,14 @@ export async function readOfferPriceObservations(
   const now = opts?.now ?? new Date();
   const limit = clampLimit(opts?.limit);
   try {
-    let q = supabase
-      .from('offer_price_snapshots')
-      .select('id, offer_id, price, original_price, source, recorded_at')
-      .order('recorded_at', { ascending: false })
-      .limit(limit);
-    if (opts?.offerId) q = q.eq('offer_id', opts.offerId);
-    if (opts?.sinceIso) q = q.gte('recorded_at', opts.sinceIso);
-
-    const { data, error } = await q;
+    const read = (columns: string) => {
+      let q = supabase.from('offer_price_snapshots').select(columns).order('recorded_at', { ascending: false }).limit(limit);
+      if (opts?.offerId) q = q.eq('offer_id', opts.offerId);
+      if (opts?.sinceIso) q = q.gte('recorded_at', opts.sinceIso);
+      return q;
+    };
+    let { data, error } = await read(`${LEGACY_SNAPSHOT_SELECT}, validation_status, availability`);
+    if (isMissingColumnError(error)) ({ data, error } = await read(LEGACY_SNAPSHOT_SELECT));
     const latencyMs = Date.now() - started;
     recordReadLatency(latencyMs);
     if (error) {
@@ -112,10 +112,14 @@ export async function readOfferPriceObservations(
       return { ok: false, observations: [], invalid: 0, error: error.message, latencyMs };
     }
 
-    const rows = (data ?? []) as OfferPriceSnapshotRow[];
+    const rows = (data ?? []) as unknown as (OfferPriceSnapshotRow & Parameters<typeof isUsableSnapshot>[0])[];
     const observations: PriceObservation[] = [];
     let invalid = 0;
     for (const row of rows) {
+      if (!isUsableSnapshot(row)) {
+        invalid += 1;
+        continue;
+      }
       const hint: OfferSnapshotIdentityHint = {
         ...(opts?.identityByOfferId?.[row.offer_id] ?? {}),
         currencyHint:

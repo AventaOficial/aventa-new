@@ -230,7 +230,15 @@ describe('datos de /api/despensa', () => {
     const out = await loadDespensaOffers(client, feed);
     expect(out.offers.map((o) => o.id)).toEqual(['walmart', 'meli']);
     expect(out.excludedCurrency).toBe(1);
-    expect(out.offers[0].priceHistory).toEqual({ verdict: 'strong', min90d: 30, max90d: 36, samples90d: 2 });
+    // Filas legado (sin moneda, presentación ni alcance) no forman historial comparable.
+    expect(out.offers[0].priceHistory).toMatchObject({
+      verdict: 'insufficient',
+      min90d: null,
+      max90d: null,
+      samples90d: 0,
+      engine: { label: 'insufficient', reference: null, savingAmount: null },
+    });
+    expect(savingEvidence({ price: 30, history: out.offers[0].priceHistory })).toEqual({ status: 'none' });
     expect(out.offers[1].priceHistory?.verdict).toBe('insufficient');
   });
 });
