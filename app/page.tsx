@@ -806,6 +806,7 @@ function HomeContent() {
                       title={offer.title}
                       brand={offer.brand}
                       image={offer.image ?? undefined}
+                      imageUrls={offer.imageUrls}
                       originalPrice={offer.originalPrice}
                       discountPrice={offer.discountPrice}
                       sourceCurrency={offer.sourceCurrency}
@@ -924,6 +925,7 @@ function HomeContent() {
                     description={offer.description}
                     hunterComment={offer.hunterComment}
                     image={offer.image ?? undefined}
+                    imageUrls={offer.imageUrls}
                     upvotes={offer.upvotes}
                     downvotes={offer.downvotes}
                     votes={offer.votes}

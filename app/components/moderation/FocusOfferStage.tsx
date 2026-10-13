@@ -78,7 +78,6 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
             src={thumb}
             alt=""
             className="h-full w-full object-contain"
-            referrerPolicy="no-referrer"
             onError={() => {
               if (safeIdx < gallery.length - 1) {
                 setActiveIdx(safeIdx + 1);
@@ -119,7 +118,7 @@ export default function FocusOfferStage({ offer, mode, onOpenWhy }: Props) {
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              <img src={src} alt="" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>

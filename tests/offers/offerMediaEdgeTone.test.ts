@@ -103,7 +103,7 @@ describe('OfferMedia', () => {
     expect(imageSource).toContain('isNextImageAllowedSrc');
     expect(media).toContain("role: 'img', 'aria-label': alt");
     expect(media).toContain('const onError = () => markFailed()');
-    expect(media).toContain('setFailedSrc(source.url)');
+    expect(media).toContain('setFailure((prev) => advanceOfferMediaFailure(prev, attemptsKey, failedCount))');
   });
 
   it('hosts fuera de next/image siguen mostrando la foto si son https', () => {

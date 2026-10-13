@@ -22,6 +22,7 @@ export default function CategoriaOfferList({ offers }: { offers: CardOffer[] }) 
           description={offer.description}
           hunterComment={offer.hunterComment}
           image={offer.image}
+          imageUrls={offer.imageUrls}
           upvotes={offer.upvotes}
           downvotes={offer.downvotes}
           votes={offer.votes}

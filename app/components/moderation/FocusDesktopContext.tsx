@@ -69,7 +69,7 @@ export default function FocusDesktopContext({
         <div className="mt-2 flex gap-3">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="" className="h-16 w-16 rounded-lg object-cover" referrerPolicy="no-referrer" />
+            <img src={preview} alt="" className="h-16 w-16 rounded-lg object-cover" />
           ) : (
             <div className={cn('flex h-16 w-16 items-center justify-center rounded-lg', ui.thumbBg)}>
               <ImageOff className={cn('h-4 w-4', ui.iconMuted)} />
@@ -106,7 +106,7 @@ export default function FocusDesktopContext({
           <div className="mt-2 flex gap-2 overflow-x-auto">
             {gallery.slice(0, 6).map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={`${src}-${i}`} src={src} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" referrerPolicy="no-referrer" />
+              <img key={`${src}-${i}`} src={src} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
             ))}
           </div>
         </section>

@@ -176,7 +176,6 @@ export default function ModerationOfferCard({
                 src={allPreviewImages[galleryIndex] ?? allPreviewImages[0]}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
-                referrerPolicy="no-referrer"
               />
               {allPreviewImages.length > 1 && (
                 <>
@@ -608,7 +607,6 @@ export default function ModerationOfferCard({
                     src={allPreviewImages[0]}
                     alt=""
                     className="w-full h-48 object-cover object-center bg-gray-100 dark:bg-gray-700 rounded-lg"
-                    referrerPolicy="no-referrer"
                   />
                   <button
                     type="button"
@@ -729,7 +727,6 @@ export default function ModerationOfferCard({
             src={allPreviewImages[0]}
             alt=""
             className="max-w-full max-h-full object-contain"
-            referrerPolicy="no-referrer"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

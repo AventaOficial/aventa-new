@@ -20,6 +20,8 @@ type FeaturedOfferCardProps = {
   title: string;
   brand: string;
   image?: string;
+  /** Resto de fotos de la oferta; respaldo si la portada no carga. */
+  imageUrls?: string[];
   originalPrice: number;
   discountPrice: number;
   sourceCurrency?: string | null;
@@ -35,6 +37,7 @@ export default function FeaturedOfferCard({
   title,
   brand,
   image,
+  imageUrls,
   originalPrice,
   discountPrice,
   sourceCurrency = null,
@@ -63,6 +66,7 @@ export default function FeaturedOfferCard({
       <div className="relative px-3 pt-2">
         <OfferMedia
           src={image}
+          fallbackSrcs={imageUrls}
           alt={title}
           sizes="240px"
           ratioClass="aspect-[4/3]"

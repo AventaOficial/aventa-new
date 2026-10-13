@@ -63,26 +63,21 @@ describe('esquemas y URLs inválidas', () => {
   });
 });
 
-describe('moderación carga fotos sin Referer', () => {
-  const files = [
-    'app/components/moderation/FocusOfferStage.tsx',
-    'app/components/moderation/FocusDesktopContext.tsx',
-    'app/admin/components/ModerationOfferCard.tsx',
-    'app/admin/components/ModerationImageGallery.tsx',
-    'app/admin/components/ModerationOfferDetail.tsx',
-    'app/admin/components/ModerationDecisionCard.tsx',
-  ];
-
-  it.each(files)('%s: cada <img> de oferta usa no-referrer', (file) => {
-    const src = readFileSync(join(process.cwd(), file), 'utf8');
-    const tags = src.match(/<img\b[^>]*>/g) ?? [];
-    const offerTags = tags.filter((t) => !/editImageUrl/.test(t));
-    expect(offerTags.length).toBeGreaterThan(0);
-    for (const tag of offerTags) expect(tag).toContain('referrerPolicy="no-referrer"');
-  });
+describe('moderación: portada normalizada y Referer sin cambios', () => {
+  const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8');
 
   it('ModerationOfferCard no pinta offer.image_url sin normalizar', () => {
-    const src = readFileSync(join(process.cwd(), 'app/admin/components/ModerationOfferCard.tsx'), 'utf8');
-    expect(src).not.toMatch(/src=\{offer\.image_url\}/);
+    expect(read('app/admin/components/ModerationOfferCard.tsx')).not.toMatch(/src=\{offer\.image_url\}/);
+  });
+
+  it('las vistas que envían Referer lo siguen enviando (Soriana falla más sin él)', () => {
+    for (const file of [
+      'app/components/moderation/FocusOfferStage.tsx',
+      'app/components/moderation/FocusDesktopContext.tsx',
+      'app/admin/components/ModerationOfferCard.tsx',
+    ]) {
+      expect(read(file)).not.toContain('no-referrer');
+    }
   });
 });
+
