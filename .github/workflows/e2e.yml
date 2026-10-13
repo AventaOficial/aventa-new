@@ -70,7 +70,8 @@ jobs:
           set -euo pipefail
           node --input-type=module -e "import { assertIsolatedBaseUrl, assertIsolatedDeployment } from './e2e/cases.mjs'; const u = assertIsolatedBaseUrl(process.env.E2E_SUPABASE_URL); assertIsolatedDeployment({ health: { resolved_supabase_ref: u.hostname.split('.')[0] } });"
           for i in $(seq 1 30); do
-            if curl -fsS -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" "$UPSTASH_REDIS_REST_URL/set/aventa:staging:environment/staging" > /dev/null; then break; fi
+            if curl -fsS -X POST -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" -H "Content-Type: application/json" \
+              -d '["SET","aventa:staging:environment","staging"]' "$UPSTASH_REDIS_REST_URL/" > /dev/null; then break; fi
             if [ "$i" = 30 ]; then echo "e2e refused: Redis local no disponible"; exit 1; fi
             sleep 2
           done
