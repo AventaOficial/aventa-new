@@ -1,0 +1,93 @@
+name: PG concurrency (Supabase local desechable)
+
+# Corre la prueba de concurrencia del escritor único contra un Supabase local que nace y muere
+# en el runner. No usa secretos ni datos de staging/producción: `assertIsolated` en la prueba
+# rechaza cualquier host que no sea 127.0.0.1/localhost.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'lib/offers/ingestion/**'
+      - 'lib/offers/batch/**'
+      - 'lib/offers/findDuplicateOffer.ts'
+      - 'docs/supabase-migrations/FOUNDATION_BASELINE_20260917.sql'
+      - 'docs/supabase-migrations/20260926_offer_ingestion_evidence.sql'
+      - 'docs/supabase-migrations/20260927_offer_batches.sql'
+      - 'docs/supabase-migrations/20261013_offer_batch_items_open_identity_uidx.sql'
+      - 'tests/offers/ingestConcurrency.pg.integration.test.ts'
+      - '.github/workflows/pg-concurrency.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pg-concurrency-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Levantar Supabase local
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir pgstack && cd pgstack
+          supabase init
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta,supavisor
+
+      - name: Aplicar baseline y migraciones de la ruta de ingesta
+        run: |
+          set -euo pipefail
+          for f in \
+            FOUNDATION_BASELINE_20260917.sql \
+            20260920_offers_hunter_comment.sql \
+            20260926_offer_ingestion_evidence.sql \
+            20260927_offer_batches.sql \
+            20261006_machine_clients_mcp.sql \
+            20261006_offer_source_currency.sql \
+            20261013_offer_batch_items_open_identity_uidx.sql; do
+            echo "::group::$f"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "docs/supabase-migrations/$f"
+            echo "::endgroup::"
+          done
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
+          psql "$DB_URL" -At -c "select indexname from pg_indexes where indexname in ('idx_offers_active_ingestion_identity','offer_batch_items_open_identity_uidx') order by 1;"
+
+      - name: Prueba de concurrencia
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          eval "$(cd "$RUNNER_TEMP/pgstack" && supabase status -o env | grep -E '^(API_URL|SERVICE_ROLE_KEY)=')"
+          test -n "${SERVICE_ROLE_KEY:-}" || { echo 'supabase status no devolvió SERVICE_ROLE_KEY'; exit 1; }
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          sleep 3
+          AVENTA_ISOLATED_PG_TEST=1 AVENTA_REQUIRE_PG_TEST=1 \
+          ISOLATED_SUPABASE_URL="$API_URL" ISOLATED_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+            npx vitest run tests/offers/ingestConcurrency.pg.integration.test.ts \
+              --reporter=verbose --reporter=junit --outputFile.junit=pg-concurrency-results.xml
+
+      - name: Resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-concurrency-results
+          path: pg-concurrency-results.xml
+          if-no-files-found: warn
+
+      - name: Apagar Supabase local
+        if: always()
+        working-directory: ${{ runner.temp }}/pgstack
+        run: supabase stop --no-backup

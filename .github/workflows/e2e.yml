@@ -2,6 +2,16 @@ name: E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'secret = sitio de E2E_BASE_URL; preview = base_url (*.vercel.app); local = este commit con next start contra Supabase staging'
+        type: choice
+        options: [secret, preview, local]
+        default: secret
+      base_url:
+        description: 'Solo con target=preview: https://*.vercel.app que resuelva a Supabase staging'
+        required: false
+        default: ''
   push:
     branches:
       - community-launch-closure
@@ -10,6 +20,18 @@ jobs:
   community:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Redis desechable del runner (API REST de Upstash vía SRH); solo lo usa target=local.
+    services:
+      redis:
+        image: redis:7
+      srh:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: e2e_local_only
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+          - 8079:80
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -18,9 +40,52 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+
+      - name: Destino de la preview
+        if: ${{ inputs.target == 'preview' }}
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$INPUT_BASE_URL" | grep -Eq '^https://[a-z0-9-]+\.vercel\.app/?$'; then
+            echo "e2e refused: base_url debe ser una preview https://*.vercel.app"; exit 1
+          fi
+          echo "E2E_BASE_URL_OVERRIDE=$INPUT_BASE_URL" >> "$GITHUB_ENV"
+
+      - name: App local de este commit contra Supabase staging
+        if: ${{ inputs.target == 'local' }}
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          AVENTA_SUPABASE_TARGET: staging
+          AVENTA_REDIS_ENVIRONMENT: staging
+          UPSTASH_REDIS_REST_URL: http://127.0.0.1:8079
+          UPSTASH_REDIS_REST_TOKEN: e2e_local_only
+          MONEY_PATH_FROZEN: 'true'
+          DIGEST_TIMEZONE: America/Mexico_City
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "import { assertIsolatedBaseUrl, assertIsolatedDeployment } from './e2e/cases.mjs'; const u = assertIsolatedBaseUrl(process.env.E2E_SUPABASE_URL); assertIsolatedDeployment({ health: { resolved_supabase_ref: u.hostname.split('.')[0] } });"
+          for i in $(seq 1 30); do
+            if curl -fsS -X POST -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" -H "Content-Type: application/json" \
+              -d '["SET","aventa:staging:environment","staging"]' "$UPSTASH_REDIS_REST_URL/" > /dev/null; then break; fi
+            if [ "$i" = 30 ]; then echo "e2e refused: Redis local no disponible"; exit 1; fi
+            sleep 2
+          done
+          npm run build
+          nohup npx next start -H 127.0.0.1 -p 3000 > next-start.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/health/distribution-env > /dev/null; then break; fi
+            sleep 2
+          done
+          echo "E2E_BASE_URL_OVERRIDE=http://127.0.0.1:3000" >> "$GITHUB_ENV"
+
       - name: Flujos comunitarios
         env:
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_BASE_URL: ${{ env.E2E_BASE_URL_OVERRIDE || secrets.E2E_BASE_URL }}
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           E2E_MOD_EMAIL: ${{ secrets.E2E_MOD_EMAIL }}
@@ -31,8 +96,12 @@ jobs:
           E2E_APPROVED_OFFER_ID: ${{ secrets.E2E_APPROVED_OFFER_ID }}
           E2E_PUBLISHED_OFFER_ID: ${{ secrets.E2E_PUBLISHED_OFFER_ID }}
         run: |
+          node scripts/e2e-assert-target.mjs
           if [ -n "$E2E_SUPABASE_SERVICE_ROLE_KEY" ]; then node scripts/e2e-provision.mjs; fi
           npx playwright test
       - name: Resumen
         if: always()
         run: node scripts/e2e-summary.mjs
+      - name: Errores del servidor local
+        if: ${{ failure() && inputs.target == 'local' }}
+        run: grep -iE "error|unhandled|abort" next-start.log | grep -viE "key|token|secret|password" | tail -n 40 || true
