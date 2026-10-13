@@ -54,7 +54,8 @@ CREATE INDEX IF NOT EXISTS idx_price_references_lookup
   ON public.price_references (need_id, presentation_key, period_end DESC);
 
 ALTER TABLE public.price_references ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.price_references FROM PUBLIC, anon, authenticated;
+-- service_role también: los privilegios por defecto de Supabase le darían UPDATE, DELETE y TRUNCATE.
+REVOKE ALL ON TABLE public.price_references FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.price_references TO service_role;
 
 COMMENT ON TABLE public.price_references IS

@@ -343,9 +343,9 @@ comparables con ofertas; la mayoría de filas son otros productos (`not_in_catal
 
 Estado al cierre: el importador y la etiqueta están probados (esquema, idempotencia, procedencia y que nunca se
 convierte en ahorro). La lectura en `/api/despensa` y la interfaz **no** se construyeron. No hay ninguna referencia
-importada en ningún entorno (la tabla no existe hasta aplicar la migración 3), así que la interfaz no tendría datos que
-mostrar ni forma de validarse. Para completarla: aplicar la migración 3, importar un periodo en staging y entonces
-conectar la lectura y la etiqueta con la atribución.
+importada en ningún entorno (la tabla existe en staging desde el 13-oct-2026 y está vacía; en producción no existe),
+así que la interfaz no tendría datos que mostrar ni forma de validarse. Para completarla: importar un periodo en
+staging y entonces conectar la lectura y la etiqueta con la atribución.
 
 ## Estado del precio en Despensa
 
@@ -391,7 +391,20 @@ Nunca contra producción. Requiere autorización explícita para aplicar la migr
    | 3 | `20261013_price_references.sql` | — | Tabla `price_references` (RLS, solo `service_role`) |
    | 4 | `20261014_price_observations_lifecycle.sql` | 1, 2 | FK RESTRICT, capturas no borrables, sin TRUNCATE, `price_capture_product_stats` |
 
-   Todas son idempotentes (probado aplicándolas dos veces). Verificar después de la 4:
+   Todas son idempotentes (probado aplicándolas dos veces). Estado al 13-oct-2026:
+
+   | Entorno | 0 | 1 | 2 | 3 | 4 |
+   | --- | --- | --- | --- | --- | --- |
+   | Staging (`oojshofrpbfwsiypcecr`) | aplicada (no existía) | aplicada | aplicada | aplicada | aplicada |
+   | Producción (`mkgsrpsuvedwwlzmzmzh`) | existe (212 filas legado, FK ya `RESTRICT`) | no | no | no | no |
+
+   En staging se comprobó contra Postgres 17 real, en una transacción revertida: captura inmutable (precio e item),
+   estado de validación editable, borrado y TRUNCATE bloqueados (también para `service_role`), FK `RESTRICT`,
+   idempotencia (23505), CHECK de fuente, moneda y captura completa, `price_capture_product_stats` solo para
+   `service_role`, y sin lectura para `anon`/`authenticated`. Staging reveló que Supabase da a `service_role` todos
+   los privilegios sobre tablas nuevas: la migración 3 ahora se los revoca y deja solo `SELECT, INSERT`.
+
+   Verificar después de la 4:
    ```sql
    select column_name from information_schema.columns
    where table_name = 'offer_price_snapshots' and column_name in ('validation_status','idempotency_key','identity_key');
@@ -435,15 +448,54 @@ Nunca contra producción. Requiere autorización explícita para aplicar la migr
 Todas, con autorización explícita:
 
 1. Migración aplicada y verificada en staging (pasos 3–7) y luego en producción.
-2. Al menos 7 corridas en staging sin `failed`, sin duplicados y con cuarentenas revisadas.
-3. Ofertas reales de Despensa en Mercado Libre. Al 13-oct-2026 producción tiene 19 ofertas de Despensa (11 Amazon,
-   8 Soriana) y 0 de Mercado Libre: la captura en producción terminaría con 0 filas. Amazon solo volvería con una
-   integración de Creators API verificada (credenciales nuevas, decisión aparte).
-4. Confirmar que el token OAuth de Mercado Libre en producción lee `/items/{id}/prices` de items de terceros y que la
-   cuota aguanta la carga diaria.
+2. Al menos 7 corridas en staging sin `failed`, sin duplicados y con cuarentenas revisadas. **Hoy no es posible**:
+   staging no tiene `ingest_cycle_locks` (la captura toma ahí su lock) ni `mercadolibre_oauth_tokens`, y el contrato de
+   entornos prohíbe copiar el token de producción. Hace falta una app OAuth de Mercado Libre propia de staging, o
+   aceptar como primera prueba real una corrida en producción con topes mínimos.
+3. Ofertas reales de Despensa en Mercado Libre. Al 13-oct-2026, de 69 ofertas de Mercado Libre dentro de la ventana
+   de seguimiento, **una** es de Despensa y tiene item resoluble: Pinol Multiusos 5.1 L (`MLM3138313012`), vencida el
+   22-sep (seguimiento hasta el 6-nov). Las 194 ofertas que llegaron por MCP son de Amazon, Soriana, Costco, Chedraui
+   y City Club: ninguna capturable. Amazon solo volvería con Creators API verificada (decisión aparte).
+4. Token OAuth de Mercado Libre: existe en producción y se renueva solo. Evidencia indirecta: Price Memory, en el
+   mismo cron y con la misma `resolveMercadoLibrePrice`, guarda ~120 precios diarios de items de terceros
+   (`product_price_snapshots`, 124 el 13-oct). La confirmación directa es la primera corrida: 3 respuestas 401/403
+   seguidas cierran la fuente en esa corrida sin guardar nada.
 5. Insertar la fila de `app_config` con topes conservadores (`maxCandidates` ≤ 24) y vigilar los registros
    `[price-capture]` durante una semana.
 6. El primer «Ahorro verificado» real aparecerá, como pronto, 14 días después de la primera captura de cada producto
    (gracias a la continuidad por producto, ya no depende de que una sola oferta dure 14 días).
 
 Desactivar: `paused: true` o `enabled: false` en la misma fila. No hace falta desplegar.
+
+## Ofertas de Grok que generan historial
+
+Una oferta que llega por MCP solo alimenta la captura si cumple todo esto (comprobado con `normalizeCandidateUrl`,
+`strongProductFingerprintForUrl`, `despensaSourceForUrl`, `resolveCaptureItem` y `classifyDespensaText`):
+
+| Clase | Condición | Ejemplo de URL |
+| --- | --- | --- |
+| `capture_eligible` | Mercado Libre con item en la ruta, título de Despensa | `https://articulo.mercadolibre.com.mx/MLM-3138313012-…-_JM` |
+| `reference_only` | Producto de Despensa en una tienda sin captura (Soriana, Chedraui, Walmart, Bodega Aurrera) que Profeco cubre | `https://www.soriana.com/…` |
+| `not_capture_eligible` | Catálogo de Mercado Libre sin item (`/p/MLM…`), `meli.la`, Amazon, Costco, City Club, o título que no clasifica | `https://www.mercadolibre.com.mx/…/p/MLM18980915` |
+
+- El MCP rechaza URLs con query: `/p/MLM…?wid=MLM…` vuelve `INVALID_URL`. La única forma capturable es la de
+  artículo (`articulo.mercadolibre.com.mx/MLM-<id>`).
+- El título que cuenta es el de la página extraída. Debe nombrar el tipo: «Aceite vegetal Nutrioli» clasifica,
+  «Aceite Nutrioli» no; «Sal» y «Croquetas» tampoco clasifican hoy.
+- Cupos vigentes: 5 aceptados por `runId`, 20 candidatos por llamada, 200 por día y cliente, 10 llamadas por minuto.
+  100 aceptadas requieren al menos 20 `runId` distintos.
+- Aceptada por MCP no es publicada: cada oferta queda `pending` hasta la moderación. Del 5 al 13 de octubre, de 194
+  ofertas MCP, moderación rechazó 164.
+
+Consultas de seguimiento (solo lectura):
+
+```sql
+-- Cobertura y última observación por producto
+select source_id, external_item_id, max(recorded_at) last_seen,
+       count(*) filter (where validation_status = 'valid') valid,
+       count(*) filter (where validation_status = 'quarantined') quarantined
+from offer_price_snapshots where source = 'capture' group by 1, 2 order by last_seen;
+-- Días distintos por producto (el ahorro verificado pide historial de ≥ 14 días)
+select external_item_id, count(distinct (recorded_at at time zone 'UTC')::date) days
+from offer_price_snapshots where source = 'capture' and validation_status = 'valid' group by 1 order by 2 desc;
+```
