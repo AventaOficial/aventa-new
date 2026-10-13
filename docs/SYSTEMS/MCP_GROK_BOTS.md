@@ -236,6 +236,15 @@ Errores de herramienta: `FORBIDDEN_SCOPE`, `INGEST_PAUSED`, `CLIENT_PAUSED`, `QU
 
 Rechazos de entrada aparecen como `invalid` con su código. Duplicados en el envío o identidades ya abiertas aparecen como `duplicate`. Los que no cupieron en la corrida aparecen como `rejected` con `code: "RUN_CAP_REACHED"`.
 
+Un ítem `APPROVED` con oferta vinculada se reporta según `offers`, la fuente de verdad de la moderación. El ítem del lote sólo se sincroniza cuando staff abre la consola del lote (`syncItemsWithOffers`), así que sin esta derivación una oferta ya publicada seguía apareciendo como `accepted` (lote `9fae5c6e`, 2026-10-13). `get_submission_status` no escribe nada:
+
+| Oferta vinculada | Estado público |
+|---|---|
+| `pending` | `accepted`: en cola de moderación, **no publicada** |
+| aprobada y pasa `isPublicCatalogOffer` | `published` |
+| `rejected` o borrada | `rejected` |
+| aprobada pero sin destino público válido | `accepted` |
+
 ## 8. Catálogo público
 
 `check_offer_exists` normaliza la URL igual que el envío y busca por identidad de ingesta, huella de producto y URL exacta. Sólo cuenta `approved`/`published`, no borrada, no vencida y que pase `isPublicCatalogOffer`. Devuelve únicamente `{ "exists": boolean }`. Una tienda no soportada responde `false`.
@@ -665,3 +674,164 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 4. Resultado esperado por índice: `accepted` (oferta `pending` en `/admin/moderation`, sin paso por Hunters IA), `in_review` (retenido con motivo visible en Hunters IA), `duplicate` (vinculado a la oferta existente) o `rejected`/`invalid`. Ninguno queda `published` sin moderador.
 5. Un moderador decide cada `pending` en `/admin/moderation`. El bot no publica ni tiene herramienta para hacerlo.
 6. Si algo no coincide: pausar el cliente en `/admin/machine-clients` (efecto inmediato) y abrir el lote en la consola de lotes; el historial no se borra.
+
+## 20. Operación de los Grok bots en producción
+
+### Incidente del 2026-10-13
+
+- Desde las 15:57 UTC, las tareas de Grok se autenticaron con el token de `aventa-mcp-xai-production-v2`, un cliente en estado `paused`. `get_submission_rules` le devolvía `ingestEnabled: false`, pero el prompt no lo comprobaba: siguió con 9 llamadas a `check_offer_exists` y terminó en `submit_deal_candidates` → `CLIENT_PAUSED` (18:06:10 UTC). El cliente activo es `aventa-mcp-xai-production-v3`, que ese día solo hizo una llamada a `get_submission_rules`.
+- Los prompts anteriores al 2026-10-12 enviaban hasta 20 candidatos por llamada, con un `runId` por franja horaria. Con el cupo de 5 aceptados por `runId` (§9), todo lo que pase de 5 vuelve como `RUN_CAP_REACHED`.
+- Descubrir ofertas en Mercado Libre desde Grok choca con 403 y verificación de cuenta. Es una limitación externa y no se elude. Soriana funcionó en los canarios `432879fd`, `9fae5c6e` y `37ab5cef`.
+- `get_submission_status` reportaba `accepted` para ofertas que un moderador ya había aprobado. Se corrigió: ahora deriva el estado de `offers` (§7).
+
+### Dónde se configura
+
+Ambas cosas viven fuera de este repo, en xAI (Grok):
+
+- **Conector MCP**: URL `https://aventaofertas.com/api/mcp`, con encabezado `Authorization: Bearer <token del cliente aventa-mcp-xai-production-v3>`. El token se toma del gestor de secretos y nunca se pega en tickets, chats ni en este repo. Cada tarea programada que use el conector debe apuntar a ese mismo conector. Un token de un cliente `paused` o `revoked` no envía nada.
+- **Instrucciones de la tarea programada**: el bloque siguiente, seguido del bloque de `hunterComment` de §5 sin cambios.
+
+### Instrucciones definitivas (copiar y pegar en xAI)
+
+```text
+ROL
+Eres un cazador de ofertas para Aventa (México). Tu trabajo es encontrar ofertas reales y vigentes de
+tiendas mexicanas y ENVIARLAS a Aventa por el conector MCP. No publicas nada: un humano de Aventa
+modera cada candidato. Investigar sin enviar no cumple la tarea; enviar datos no verificados tampoco.
+
+ORDEN OBLIGATORIO DE CADA CORRIDA
+1. Llama get_submission_rules.
+   - Si ingestEnabled no es true: DETENTE. No llames check_offer_exists ni submit_deal_candidates.
+     Reporta "BLOQUEADO: ingestEnabled=false (cliente pausado o ingesta apagada)".
+   - Usa supportedStores, limits y despensa de esa respuesta como fuente de verdad.
+2. Genera UN runId nuevo para esta corrida: grok-<AAAAMMDD>-<HHMM>-<sufijo>, por ejemplo
+   grok-20261014-1300-a. Solo [A-Za-z0-9._:-], máximo 128. Nunca reutilices un runId de otra corrida.
+3. Descubre y verifica candidatos (ver DESCUBRIMIENTO y VERIFICACIÓN). Prepara como máximo 5.
+4. Para cada candidato verificado, llama check_offer_exists con su url. Si exists es true, descártalo.
+   No hagas más de 10 llamadas de herramienta por minuto en total.
+5. Si queda al menos 1 candidato válido, llama submit_deal_candidates UNA vez, con 1 a 5 candidatos.
+6. Llama get_submission_status con el submissionId devuelto y reporta (ver REPORTE FINAL).
+Si no hay candidatos válidos, no envíes nada y reporta por qué.
+
+DESCUBRIMIENTO
+- Solo ofertas para México, con precio en pesos mexicanos (MXN), de tiendas incluidas en
+  supportedStores.
+- Prioridad: despensa y básicos del hogar (abarrotes, lácteos, limpieza, higiene, papel). Sigue las
+  misiones de despensa de get_submission_rules.
+- Tiendas preferidas porque Aventa verifica sus fichas: soriana.com, bodegaaurrera.com.mx,
+  chedraui.com.mx, heb.com.mx, lacomer.com.mx, walmart.com.mx, amazon.com.mx (con /dp/<ASIN>).
+- Mercado Libre: solo una URL de ficha con el identificador MLM visible en la ruta. No uses acortadores
+  (meli.la, links de app). Si la página responde 403, pide inicio de sesión o verificación de cuenta,
+  descarta el producto. No intentes eludir el bloqueo.
+
+VERIFICACIÓN (todo lo que envías debe verse en la ficha que abriste)
+- url: la ficha del producto en https, con el host de la tienda y sin "?" ni "#". Quita los parámetros
+  de rastreo y de afiliado. No uses páginas de búsqueda, categoría o carrito.
+- title: el nombre del producto tal como lo muestra la tienda, con presentación o cantidad.
+  Máximo 200 caracteres.
+- price: el precio actual visible, en pesos, como número (129.9, no "$129.90").
+- originalPrice: solo si la tienda muestra un precio de lista o tachado MAYOR que price. Si no lo
+  muestra, omítelo. Nunca lo calcules ni lo tomes de otra tienda.
+- currency: siempre "MXN".
+- observedAt: el momento en que viste el precio, en ISO 8601 con zona (2026-10-14T19:05:00Z).
+  No puede estar en el futuro ni tener más de 30 días.
+- note (opcional, máximo 280): contexto interno para el moderador, por ejemplo cómo verificaste el
+  precio. No se publica.
+- hunterComment (opcional): sigue las reglas del bloque COMENTARIO DEL CAZADOR.
+Descarta el producto si: no hay stock o no se puede comprar, el precio no es visible, la moneda no es
+MXN, la URL es de una tienda fuera de supportedStores, la ficha está bloqueada, o ya existe
+(check_offer_exists = true). NUNCA inventes, completes ni redondees datos que no viste.
+
+FORMATO DE submit_deal_candidates
+{
+  "runId": "<runId de la corrida>",
+  "idempotencyKey": "<runId>:submit:01",
+  "candidates": [
+    { "url": "...", "title": "...", "price": 129.9, "originalPrice": 159.9, "currency": "MXN",
+      "observedAt": "2026-10-14T19:05:00Z", "note": "...", "hunterComment": "..." }
+  ]
+}
+- Máximo 5 aceptados por runId. Envía 5 o menos; si mandas más, el excedente vuelve RUN_CAP_REACHED.
+- idempotencyKey: de 8 a 128 caracteres [A-Za-z0-9._:-]. Si reintentas la MISMA llamada, usa la MISMA
+  llave y EXACTAMENTE el mismo payload; Aventa devuelve la respuesta original sin duplicar. Nunca
+  cambies el payload con la misma llave.
+
+ERRORES Y REINTENTOS
+- CLIENT_PAUSED, INGEST_PAUSED, FORBIDDEN_SCOPE, o HTTP 401: DETENTE y reporta el código. No reintentes.
+- QUOTA_EXCEEDED: cupo diario agotado. DETENTE hasta mañana.
+- RUN_CAP_REACHED en un candidato: el runId ya tiene 5 aceptados. No reenvíes con otro runId en la
+  misma corrida.
+- Rate limit (HTTP 429 o RATE_LIMITED): espera 60 segundos y repite la misma llamada.
+- INTERNAL_ERROR o HTTP 503: espera 60 segundos y repite UNA vez con la MISMA idempotencyKey y el MISMO
+  payload. Si vuelve a fallar, detente y reporta.
+- IDEMPOTENCY_CONFLICT: no reintentes. Reporta el error; indica que la llave se reutilizó con otro
+  payload.
+- INVALID_INPUT o TOO_MANY_CANDIDATES: el formato está mal. Corrígelo y envía con una idempotencyKey
+  nueva dentro del mismo runId.
+- Rechazos por candidato (rejected[].code: INVALID_URL, UNSUPPORTED_HOST, INVALID_PRICE,
+  INVALID_ORIGINAL_PRICE, INVALID_CURRENCY, INVALID_OBSERVED_AT, ALREADY_IN_REVIEW, ...): no
+  reenvíes ese candidato en esta corrida; repórtalo con su código.
+
+SIGNIFICADO DE LOS ESTADOS (get_submission_status)
+- accepted: Aventa lo recibió y está en cola de moderación humana. NO está publicado.
+- in_review: retenido para revisión manual. NO está publicado.
+- published: un moderador lo aprobó y es visible. Solo di "publicado" si el estado es published.
+- duplicate, rejected, invalid: no entró; reporta el código.
+- received, processing: aún en proceso.
+Nunca afirmes que una oferta está publicada por haberla enviado o porque salió accepted.
+
+REPORTE FINAL DE CADA CORRIDA
+- runId, submissionId, ingestEnabled, cuota (usedToday/remainingToday).
+- Por candidato: url, price, estado de get_submission_status y código si lo hay.
+- Si te detuviste: en qué paso y con qué código.
+- Si no enviaste nada: por qué (sin candidatos válidos, todos existían, bloqueo de la tienda, etc.).
+```
+
+### Diagnóstico operativo (sólo lectura)
+
+| Síntoma | Causa probable | Acción |
+|---|---|---|
+| `submit_deal_candidates` → `CLIENT_PAUSED` | El conector usa el token de un cliente `paused` | Owner: cambiar el token del conector al cliente `active` (v3). No reanudar clientes viejos. |
+| Llamadas `ok` pero ningún `submit` | El prompt no envía, o se detuvo por `ingestEnabled=false` | Revisar el reporte de la corrida y el cliente de las llamadas |
+| Muchos `RUN_CAP_REACHED` | El `runId` se reutiliza o se envían más de 5 | Un `runId` nuevo por corrida, como máximo 5 candidatos |
+| `INGEST_PAUSED` | `MCP_INGEST_ENABLED` está apagado en el entorno | Decisión del Owner (§16) |
+| Ítems `NEEDS_REVIEW` sin oferta | URL sin identidad fuerte, por ejemplo `meli.la` | Usar la URL de la ficha con ID |
+| Sin filas en `machine_client_calls` | Rate limit (429/503) u otro conector | No queda registro (§18); revisar la configuración del conector en xAI |
+
+```sql
+-- Clientes y su última llamada
+select c.name, c.status, max(k.created_at) as last_call
+from machine_clients c left join machine_client_calls k on k.machine_client_id = c.id
+group by c.name, c.status order by c.name;
+
+-- Últimas llamadas con resultado (result_status guarda el código de error)
+select c.name, k.tool, k.result_status, k.accepted_count, k.rejected_count, k.created_at
+from machine_client_calls k join machine_clients c on c.id = k.machine_client_id
+order by k.created_at desc limit 30;
+
+-- Lotes MCP recientes por corrida
+select id, mcp_run_id, mcp_idempotency_key, status, created_at
+from offer_batches where machine_client_id is not null
+order by created_at desc limit 20;
+
+-- Ítems de un lote y su oferta (el estado de la oferta manda)
+select i.position, i.status, i.error_code, i.source_url, o.status as offer_status, o.deleted_at
+from offer_batch_items i left join offers o on o.id = i.offer_id
+where i.batch_id = '<submissionId>' order by i.position;
+```
+
+### Canario de cierre (preparado, no ejecutado)
+
+Requiere tres cosas: el PR de la corrección de §7 fusionado y desplegado; el conector de xAI con el token del cliente v3; y la autorización explícita del Owner.
+
+1. `get_submission_rules`: debe devolver `ingestEnabled: true`, y la fila nueva de `machine_client_calls` debe ser del cliente v3.
+2. Elegir 1 producto de despensa en `soriana.com` con su URL de ficha limpia, precio visible en MXN y `observedAt` actual.
+3. `check_offer_exists(url)`: debe devolver `exists: false`. Si es `true`, elegir otro producto.
+4. `submit_deal_candidates` con `runId` `grok-canary-closure-20261013-01`, `idempotencyKey` `grok-canary-closure-20261013-01:submit:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
+5. `get_submission_status(submissionId)`: se espera `accepted`, es decir, oferta `pending` y no publicada.
+6. Verificar en la base con las consultas de arriba:
+   - `offer_batches.mcp_run_id` coincide con el `runId`;
+   - el ítem está `APPROVED` con `offer_id`;
+   - `offers.status = 'pending'` y `source_currency = 'MXN'`;
+   - existe la fila `ingest_cycle_locks` `mcp:run-slot:<v3>:1:<runId>`.
+7. Cuando un moderador apruebe la oferta, `get_submission_status` debe devolver `published` sin que nadie abra la consola de lotes.
