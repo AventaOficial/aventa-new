@@ -59,6 +59,7 @@ function productUrl(slug: string): string {
 function body(url: string) {
   return {
     title: `Producto de prueba ${RUN}`,
+    description: 'Producto de prueba para la verificación de concurrencia.',
     store: 'Soriana',
     price: 42,
     original_price: null,
