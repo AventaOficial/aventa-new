@@ -16,6 +16,8 @@ function mapCaptureMethod(source: string | null | undefined): CaptureMethod {
   switch ((source ?? 'app').toLowerCase()) {
     case 'health':
       return 'derived';
+    case 'capture':
+      return 'official_api';
     case 'create':
     case 'update':
     case 'manual':

@@ -15,6 +15,10 @@ export type MemoryDb = {
   unique: Record<string, UniqueIndex[]>;
   failOn: Record<string, { op: 'select' | 'insert' | 'update' | 'delete'; error: { code?: string; message: string } } | undefined>;
   rpcCalls: Array<{ fn: string; args: unknown }>;
+  /** Escrituras realizadas (insert/update/delete) por tabla, en orden. */
+  writes?: Array<{ table: string; op: 'insert' | 'update' | 'delete' }>;
+  /** Columnas que «no existen» (migración sin aplicar): un select que las pida falla con 42703. */
+  missingColumns?: Record<string, string[]>;
 };
 
 let seq = 0;
@@ -25,7 +29,7 @@ function uuid(): string {
 }
 
 export function createMemoryDb(init: Partial<Pick<MemoryDb, 'tables' | 'unique'>> = {}): MemoryDb {
-  return { tables: { ...(init.tables ?? {}) }, unique: { ...(init.unique ?? {}) }, failOn: {}, rpcCalls: [] };
+  return { tables: { ...(init.tables ?? {}) }, unique: { ...(init.unique ?? {}) }, failOn: {}, rpcCalls: [], writes: [] };
 }
 
 function violates(db: MemoryDb, table: string, candidate: Row, ignore?: Row): boolean {
@@ -51,11 +55,16 @@ class Query implements PromiseLike<{ data: unknown; error: unknown }> {
   private limitN: number | null = null;
   private orderBy: { col: string; asc: boolean } | null = null;
   private mode: 'many' | 'single' | 'maybe' = 'many';
+  private withCount = false;
 
   constructor(private db: MemoryDb, private table: string) {}
 
-  select() {
+  private columns: string[] = [];
+
+  select(columns?: string, opts?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean }) {
     if (this.op !== 'select') this.returning = true;
+    if (opts?.count) this.withCount = true;
+    if (columns) this.columns = columns.split(',').map((c) => c.trim());
     return this;
   }
   eq(col: string, val: unknown) {
@@ -130,8 +139,13 @@ class Query implements PromiseLike<{ data: unknown; error: unknown }> {
   private async run(): Promise<{ data: unknown; error: unknown }> {
     const fail = this.db.failOn[this.table];
     if (fail && fail.op === this.op) return { data: null, error: fail.error };
+    const missing = this.db.missingColumns?.[this.table] ?? [];
+    const asked = this.op === 'select' ? this.columns : this.op === 'insert' || this.op === 'update' ? Object.keys((Array.isArray(this.payload) ? this.payload[0] : this.payload) ?? {}) : [];
+    const absent = asked.find((c) => missing.includes(c));
+    if (absent) return { data: null, error: { code: '42703', message: `column ${this.table}.${absent} does not exist` } };
     const rows = (this.db.tables[this.table] ??= []);
     const match = (r: Row) => this.filters.every((f) => f(r));
+    if (this.op !== 'select') (this.db.writes ??= []).push({ table: this.table, op: this.op });
 
     if (this.op === 'insert') {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload as Row];
@@ -158,12 +172,14 @@ class Query implements PromiseLike<{ data: unknown; error: unknown }> {
       return { data: null, error: null };
     }
     let out = rows.filter(match);
+    const total = out.length;
     if (this.orderBy) {
       const { col, asc } = this.orderBy;
       out = [...out].sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : 1) * (asc ? 1 : -1));
     }
     if (this.limitN != null) out = out.slice(0, this.limitN);
-    return this.shape(out);
+    const shaped = this.shape(out);
+    return this.withCount ? { ...shaped, count: total } : shaped;
   }
 }
 

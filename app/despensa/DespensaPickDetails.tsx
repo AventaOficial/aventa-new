@@ -22,7 +22,11 @@ export function DespensaPickDetails({ pick, showReasons = true }: { pick: Despen
       </p>
       <p className={`mt-1 text-[13px] font-semibold ${STATUS_TONE[pick.status]}`}>
         {DESPENSA_PLAN_COPY.status[pick.status]}
-        {pick.saving.status === 'verified' ? ` · ${formatMxnCents(pick.saving.amount)} menos que su precio más alto en 90 días` : null}
+        {pick.saving.status === 'verified'
+          ? pick.saving.basis === 'own_history_median'
+            ? ` · ${formatMxnCents(pick.saving.amount)} menos que su precio habitual en Aventa`
+            : ` · ${formatMxnCents(pick.saving.amount)} menos que su precio más alto en 90 días`
+          : null}
       </p>
       <p className="mt-0.5 text-[12px] leading-relaxed text-[#6e6e73] dark:text-[#a3a3a3]">{DESPENSA_PLAN_COPY.statusHelp[pick.status]}</p>
       {pick.notes.length > 0 ? (

@@ -3,7 +3,10 @@ import { classifyDespensaText } from '@/lib/despensa/classify';
 import { despensaHostOf } from '@/lib/despensa/sources';
 import type { DespensaOffer } from '@/lib/despensa/plan';
 import type { FeedOffer } from '@/lib/offers/feedService';
-import { buildOfferPriceInsights, type PriceInsight } from '@/lib/offers/priceHistory';
+import type { DespensaPriceHistory } from '@/lib/despensa/evidence';
+import type { PriceInsight } from '@/lib/offers/priceHistory';
+import { evaluatePriceHistory, type PriceHistoryEvaluation } from '@/lib/offers/priceObservations/evaluate';
+import { readOfferObservations } from '@/lib/offers/priceObservations/read';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { inferBotOfferScope, parseOfferScopeFromConditions } from '@/lib/offerScope';
 
@@ -12,7 +15,25 @@ export function isDespensaCandidate(offer: Pick<FeedOffer, 'title' | 'price'>, c
   return currency === 'MXN' && offer.price > 0 && classifyDespensaText(offer.title) != null;
 }
 
-export function toDespensaOffer(offer: FeedOffer, insight: PriceInsight | null): DespensaOffer {
+/** Historial de Despensa a partir del veredicto del motor de precios. */
+export function engineHistory(e: PriceHistoryEvaluation): DespensaPriceHistory {
+  return {
+    verdict: e.verdict,
+    min90d: e.min,
+    max90d: e.max,
+    samples90d: e.samples,
+    engine: {
+      label: e.label,
+      reference: e.reference,
+      savingAmount: e.savingAmount,
+      savingPct: e.savingPct,
+      availabilityConfirmed: e.availabilityConfirmed,
+      policyVersion: e.policyVersion,
+    },
+  };
+}
+
+export function toDespensaOffer(offer: FeedOffer, insight: PriceInsight | DespensaPriceHistory | null): DespensaOffer {
   return {
     id: offer.id,
     title: offer.title,
@@ -28,7 +49,13 @@ export function toDespensaOffer(offer: FeedOffer, insight: PriceInsight | null):
       parseOfferScopeFromConditions(offer.conditions) ??
       (inferBotOfferScope({ store: offer.store, url: offer.offer_url }) === 'online' ? 'online' : null),
     priceHistory: insight
-      ? { verdict: insight.verdict, min90d: insight.min90d, max90d: insight.max90d, samples90d: insight.samples90d }
+      ? {
+          verdict: insight.verdict,
+          min90d: insight.min90d,
+          max90d: insight.max90d,
+          samples90d: insight.samples90d,
+          ...('engine' in insight && insight.engine ? { engine: insight.engine } : {}),
+        }
       : null,
   };
 }
@@ -60,12 +87,24 @@ export async function loadDespensaOffers(supabase: SupabaseClient, feed: readonl
   const eligible = classified.filter((o) =>
     isDespensaCandidate(o, resolveOfferSourceCurrency(stored.get(o.id) ?? null, o.offer_url)),
   );
-  const insights = await buildOfferPriceInsights(
+  const now = new Date();
+  const history = await readOfferObservations(
     supabase,
-    eligible.map((o) => ({ offerId: o.id, currentPrice: o.price, originalPrice: o.original_price })),
+    eligible.map((o) => o.id),
+    { now },
   );
   return {
-    offers: eligible.map((o) => toDespensaOffer(o, insights.get(o.id) ?? null)),
+    offers: eligible.map((o) => {
+      const h = history.byOffer.get(o.id);
+      const evaluation = evaluatePriceHistory({
+        rows: h?.rows ?? [],
+        historyComplete: h?.complete ?? false,
+        currentPrice: o.price,
+        originalPrice: o.original_price,
+        now,
+      });
+      return toDespensaOffer(o, engineHistory(evaluation));
+    }),
     excludedCurrency: classified.length - eligible.length,
   };
 }

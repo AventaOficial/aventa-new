@@ -23,8 +23,10 @@ export type PaapiItem = {
     Listings?: Array<{
       Price?: {
         Amount?: number;
+        Currency?: string;
         Savings?: { Amount?: number; Percentage?: number };
       };
+      Availability?: { Type?: string; Message?: string };
     }>;
     Summaries?: Array<{
       LowestPrice?: { Amount?: number };
@@ -138,6 +140,65 @@ export function normalizePaapiItem(item: PaapiItem): ParsedOfferMetadata | null 
   };
 }
 
+export type AmazonPaapiCredentials = Pick<
+  BotIngestConfig,
+  'amazonPaapiAccessKey' | 'amazonPaapiSecretKey' | 'amazonPaapiPartnerTag' | 'amazonPaapiHost' | 'amazonPaapiRegion'
+>;
+
+export type AmazonPaapiFetchResult =
+  | { ok: true; items: PaapiItem[] }
+  | { ok: false; reason: 'missing_credentials' | 'network_error' | 'http_error' | 'invalid_json'; httpStatus: number | null };
+
+/** PA-API permite hasta 10 ASIN por GetItems. */
+export const PAAPI_MAX_ITEMS_PER_REQUEST = 10;
+
+/** GetItems firmado. No registra ni devuelve credenciales. */
+export async function fetchAmazonPaapiItems(
+  config: AmazonPaapiCredentials,
+  asins: readonly string[],
+  resources: readonly string[],
+): Promise<AmazonPaapiFetchResult> {
+  if (!config.amazonPaapiAccessKey || !config.amazonPaapiSecretKey || !config.amazonPaapiPartnerTag) {
+    return { ok: false, reason: 'missing_credentials', httpStatus: null };
+  }
+  const body = JSON.stringify({
+    ItemIds: asins.slice(0, PAAPI_MAX_ITEMS_PER_REQUEST),
+    ItemIdType: 'ASIN',
+    LanguagesOfPreference: ['es_MX'],
+    Marketplace: 'www.amazon.com.mx',
+    PartnerTag: config.amazonPaapiPartnerTag,
+    PartnerType: 'Associates',
+    Resources: [...resources],
+  });
+  const headers = signPaapiRequest(
+    body,
+    config.amazonPaapiHost,
+    config.amazonPaapiRegion,
+    config.amazonPaapiAccessKey,
+    config.amazonPaapiSecretKey
+  );
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(`https://${config.amazonPaapiHost}/paapi5/getitems`, {
+      method: 'POST',
+      headers,
+      body,
+      cache: 'no-store',
+      timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
+    });
+  } catch {
+    return { ok: false, reason: 'network_error', httpStatus: null };
+  }
+  if (!res.ok) return { ok: false, reason: 'http_error', httpStatus: res.status };
+  try {
+    const json = (await res.json()) as PaapiResponse;
+    return { ok: true, items: json.ItemsResult?.Items ?? [] };
+  } catch {
+    return { ok: false, reason: 'invalid_json', httpStatus: res.status };
+  }
+}
+
 export type AmazonPaapiDiscoveryResult = {
   items: IngestItem[];
   skippedCandidates: Array<{
@@ -186,57 +247,21 @@ export async function discoverAmazonPaapiIngestItems(
     bump('amazon paapi: asin_cap truncated');
   }
 
-  const body = JSON.stringify({
-    ItemIds: asins,
-    ItemIdType: 'ASIN',
-    LanguagesOfPreference: ['es_MX'],
-    Marketplace: 'www.amazon.com.mx',
-    PartnerTag: config.amazonPaapiPartnerTag,
-    PartnerType: 'Associates',
-    Resources: [
-      'ItemInfo.Title',
-      'ItemInfo.ByLineInfo',
-      'Images.Primary.Large',
-      'Images.Primary.Medium',
-      'Offers.Listings.Price',
-      'Offers.Summaries.LowestPrice',
-      'Offers.Summaries.HighestPrice',
-      'CustomerReviews.Count',
-      'CustomerReviews.StarRating',
-    ],
-  });
-
-  const headers = signPaapiRequest(
-    body,
-    config.amazonPaapiHost,
-    config.amazonPaapiRegion,
-    config.amazonPaapiAccessKey,
-    config.amazonPaapiSecretKey
-  );
-
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(`https://${config.amazonPaapiHost}/paapi5/getitems`, {
-      method: 'POST',
-      headers,
-      body,
-      cache: 'no-store',
-      timeoutMs: HUNTER_HTTP_TIMEOUT_MS,
-    });
-  } catch {
-    return { items: [], skippedCandidates, skipReasonCounts };
-  }
-  if (!res.ok) return { items: [], skippedCandidates, skipReasonCounts };
-
-  let json: PaapiResponse;
-  try {
-    json = (await res.json()) as PaapiResponse;
-  } catch {
-    return { items: [], skippedCandidates, skipReasonCounts };
-  }
+  const fetched = await fetchAmazonPaapiItems(config, asins, [
+    'ItemInfo.Title',
+    'ItemInfo.ByLineInfo',
+    'Images.Primary.Large',
+    'Images.Primary.Medium',
+    'Offers.Listings.Price',
+    'Offers.Summaries.LowestPrice',
+    'Offers.Summaries.HighestPrice',
+    'CustomerReviews.Count',
+    'CustomerReviews.StarRating',
+  ]);
+  if (!fetched.ok) return { items: [], skippedCandidates, skipReasonCounts };
 
   const out: IngestItem[] = [];
-  for (const row of json.ItemsResult?.Items ?? []) {
+  for (const row of fetched.items) {
     const detailUrl = row.DetailPageURL?.trim() || null;
     const asin = row.ASIN?.trim() || null;
     const meta = normalizePaapiItem(row);

@@ -10,6 +10,10 @@ export type MlItemApiBody = {
   title?: string;
   price?: number;
   original_price?: number;
+  currency_id?: string;
+  /** active | paused | closed | under_review | inactive */
+  status?: string;
+  available_quantity?: number;
   permalink?: string;
   sold_quantity?: number;
   condition?: string;

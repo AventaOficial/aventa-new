@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isMissingColumnError, isUsableSnapshot } from '@/lib/offers/priceObservations/policy';
 
 export type PriceInsight = {
   current: number;
@@ -50,24 +51,37 @@ export async function buildOfferPriceInsight(
   args: { offerId: string; currentPrice: number; originalPrice?: number | null },
 ): Promise<PriceInsight> {
   const since = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
-  const { data, error } = await supabase
-    .from('offer_price_snapshots')
-    .select('price, recorded_at')
-    .eq('offer_id', args.offerId)
-    .gte('recorded_at', since)
-    .order('recorded_at', { ascending: false })
-    .limit(HISTORY_SAMPLES_PER_OFFER);
+  const read = (columns: string) =>
+    supabase
+      .from('offer_price_snapshots')
+      .select(columns)
+      .eq('offer_id', args.offerId)
+      .gte('recorded_at', since)
+      .order('recorded_at', { ascending: false })
+      .limit(HISTORY_SAMPLES_PER_OFFER);
+  let { data, error } = await read(`price, recorded_at, ${QUALITY_COLUMNS}`);
+  if (isMissingColumnError(error)) ({ data, error } = await read('price, recorded_at'));
 
-  const prices = error || !data ? [] : data.map((r) => Number((r as { price?: number }).price));
+  const rows = error || !data ? [] : (data as unknown as SnapshotRow[]).filter(isUsableSnapshot);
+  const prices = rows.map((r) => Number(r.price));
   return computePriceInsight(args.currentPrice, args.originalPrice ?? null, prices);
 }
+
+/** Columnas del motor de precios; sin la migración, la lectura vuelve al formato legado. */
+const QUALITY_COLUMNS = 'validation_status, availability';
 
 /** Ofertas por consulta: 8 × 120 registros queda por debajo del tope de filas de PostgREST (1000). */
 const BATCH_OFFERS_PER_QUERY = 8;
 /** Un registro de estas fuentes corrige el precio: lo anterior no sirve de referencia. */
 const CORRECTION_SOURCES = new Set(['update', 'manual']);
 
-type SnapshotRow = { offer_id?: string; price?: number; source?: string | null };
+type SnapshotRow = {
+  offer_id?: string;
+  price?: number;
+  source?: string | null;
+  validation_status?: 'valid' | 'quarantined' | 'invalid' | 'superseded' | null;
+  availability?: 'in_stock' | 'limited' | 'out_of_stock' | 'unknown' | null;
+};
 
 /**
  * Registros usables por oferta (de más nuevo a más viejo): se detiene en la última
@@ -106,16 +120,20 @@ export async function buildOfferPriceInsights(
   }
   const results = await Promise.all(
     chunks.map(async (ids) => {
-      const { data, error, count } = await supabase
-        .from('offer_price_snapshots')
-        .select('offer_id, price, recorded_at, source', { count: 'exact' })
-        .in('offer_id', ids)
-        .gte('recorded_at', since)
-        .order('recorded_at', { ascending: false })
-        .limit(ids.length * HISTORY_SAMPLES_PER_OFFER);
-      const rows = (data ?? []) as SnapshotRow[];
+      const read = (columns: string) =>
+        supabase
+          .from('offer_price_snapshots')
+          .select(columns, { count: 'exact' })
+          .in('offer_id', ids)
+          .gte('recorded_at', since)
+          .order('recorded_at', { ascending: false })
+          .limit(ids.length * HISTORY_SAMPLES_PER_OFFER);
+      let { data, error, count } = await read(`offer_id, price, recorded_at, source, ${QUALITY_COLUMNS}`);
+      if (isMissingColumnError(error)) ({ data, error, count } = await read('offer_id, price, recorded_at, source'));
+      const rows = (data ?? []) as unknown as SnapshotRow[];
       const complete = !error && data != null && count != null && count <= rows.length;
-      return complete ? rows : [];
+      // Las filas no utilizables se descartan después de comprobar el recorte.
+      return complete ? rows.filter(isUsableSnapshot) : [];
     }),
   );
   const byOffer = snapshotPricesSinceLastCorrection(results.flat());
